@@ -2,5 +2,7 @@
 name = "linfa"
 version = "0.1.0"
 authors = ["Luca Palmieri <contact@lpalmieri.com>"]
+description = "A Machine Learning framework for Rust"
+license = "Apache-2.0"
 
 [dependencies]
