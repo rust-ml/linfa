@@ -1,0 +1,6 @@
+[package]
+name = "linfa"
+version = "0.1.0"
+authors = ["Luca Palmieri <contact@lpalmieri.com>"]
+
+[dependencies]
