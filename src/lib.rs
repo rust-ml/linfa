@@ -1,7 +1,6 @@
 #[macro_use]
 extern crate ndarray;
-
-use ndarray::prelude::*;
+extern crate num_traits as libnum;
 
 pub mod preprocessing;
 
