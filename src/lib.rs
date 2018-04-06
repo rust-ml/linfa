@@ -1,4 +1,4 @@
-mod preprocessing;
+pub mod preprocessing;
 
 
 #[cfg(test)]
