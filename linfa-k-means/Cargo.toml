@@ -1,9 +1,15 @@
 [package]
-name = "linfa"
+name = "linfa-k-means"
 version = "0.1.0"
+edition = "2018"
 authors = ["Luca Palmieri <rust@lpalmieri.com>"]
-description = "A Machine Learning framework for Rust"
+description = "An implementation of K-Means clustering"
 license = "MIT/Apache-2.0"
+
+repository = "https://github.com/LukeMathWalker/linfa"
+readme = "README.md"
+
+keywords = ["clustering", "machine learning", "unsupervised learning", "linfa"]
 
 [dependencies]
 ndarray = { version = "0.13" }
@@ -12,5 +18,3 @@ ndarray-stats = "0.3"
 ndarray-npy = { version = "0.5", default-features = false }
 rand_isaac = "0.2.0"
 
-[workspace]
-members = ["linfa-k-means"]
