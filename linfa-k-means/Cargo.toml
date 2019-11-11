@@ -15,6 +15,7 @@ keywords = ["clustering", "machine learning", "unsupervised learning", "linfa"]
 ndarray = { version = "0.13" }
 ndarray-rand = "0.11"
 ndarray-stats = "0.3"
-ndarray-npy = { version = "0.5", default-features = false }
-rand_isaac = "0.2.0"
 
+[dev-dependencies]
+rand_isaac = "0.2.0"
+ndarray-npy = { version = "0.5", default-features = false }

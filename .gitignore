@@ -12,3 +12,4 @@ Cargo.lock
 # ctags
 tags
 *.npy
+.idea
