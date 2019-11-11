@@ -1,6 +1,6 @@
 use linfa_k_means as linfa_impl;
-use ndarray::Array;
 use ndarray_rand::rand::SeedableRng;
+use numpy::{PyArray1, PyArray2, ToPyArray};
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 use rand_isaac::Isaac64Rng;
@@ -9,37 +9,30 @@ use rand_isaac::Isaac64Rng;
 fn k_means(
     n_clusters: usize,
     // (n_observations, n_features)
-    observations: Vec<Vec<f64>>,
+    observations: &PyArray2<f64>,
     tolerance: f64,
     max_n_iterations: usize,
-) -> Vec<Vec<f64>> {
+) -> Py<PyArray1<usize>> {
     // Prepare input
-    let shape = (observations.len(), observations[0].len());
-    let flat_observations = observations
-        .into_iter()
-        .flat_map(|line| line)
-        .collect::<Vec<_>>();
-
-    let observations_array = Array::from_shape_vec(shape, flat_observations).unwrap();
+    let observations_array = observations.as_array();
 
     // TODO: maybe receive the seed as optinal argument?
     let mut rng = Isaac64Rng::seed_from_u64(42);
 
     // Execute K-means
-    let result = linfa_impl::k_means(
+    let centroids = linfa_impl::k_means(
         n_clusters,
         &observations_array,
         &mut rng,
         tolerance,
         max_n_iterations,
     );
+    let cluster_memberships =
+        linfa_impl::compute_cluster_memberships(&centroids, &observations_array);
 
     // Prepare output
-    result
-        .genrows()
-        .into_iter()
-        .map(|row| row.to_vec())
-        .collect()
+    let gil = pyo3::Python::acquire_gil();
+    cluster_memberships.to_pyarray(gil.python()).to_owned()
 }
 
 #[pymodule]

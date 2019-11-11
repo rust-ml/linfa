@@ -11,6 +11,7 @@ linfa-k-means = { version = "0.1.0", path="../linfa-k-means" }
 ndarray = { version = "0.13" }
 rand_isaac = "0.2.0"
 ndarray-rand = "0.11"
+numpy = "0.7.0"
 
 [lib]
 name = "word_count"
