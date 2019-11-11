@@ -10,14 +10,14 @@ fn k_means(
     n_clusters: usize,
     // (n_observations, n_features)
     observations: &PyArray2<f64>,
+    random_state: Option<u64>,
     tolerance: f64,
     max_n_iterations: usize,
-) -> Py<PyArray1<usize>> {
+) -> (Py<PyArray2<f64>>, Py<PyArray1<usize>>) {
     // Prepare input
     let observations_array = observations.as_array();
 
-    // TODO: maybe receive the seed as optinal argument?
-    let mut rng = Isaac64Rng::seed_from_u64(42);
+    let mut rng = Isaac64Rng::seed_from_u64(random_state.unwrap_or(42));
 
     // Execute K-means
     let centroids = linfa_impl::k_means(
@@ -32,7 +32,9 @@ fn k_means(
 
     // Prepare output
     let gil = pyo3::Python::acquire_gil();
-    cluster_memberships.to_pyarray(gil.python()).to_owned()
+    let cluster_centers = centroids.to_pyarray(gil.python()).to_owned();
+    let labels = cluster_memberships.to_pyarray(gil.python()).to_owned();
+    (cluster_centers, labels)
 }
 
 #[pymodule]

@@ -1,18 +1,21 @@
 # -*- coding: utf-8 -*-
+from sklearn.datasets import make_blobs
 import os
 
 import pytest
-from linfa_k_means import k_means
-from sklearn.datasets import make_blobs
+import linfa_k_means
+print(dir(linfa_k_means))
+# from linfa_k_means import KMeans
 
 
 @pytest.fixture(scope="session", autouse=True)
 def make_data():
-    dataset, cluster_index = make_blobs()
-    return [list(row) for row in dataset], list(cluster_index)
+    return make_blobs()
 
 
 def test_k_means_rust(benchmark, make_data):
     dataset, cluster_index = make_data
-    cluster_index_hat = k_means(3, dataset, 1e-3, 10)
-    assert cluster_index_hat == cluster_index
+    model = KMeans(3)
+    labels = model.fit_transform(dataset)
+    print(model)
+    assert labels == cluster_index
