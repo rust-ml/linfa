@@ -1,4 +1,4 @@
-# word-count
+# Linfa K means 
 
 Demonstrates searching for a file in plain python, with rust singlethreaded and with rust multithreaded.
 

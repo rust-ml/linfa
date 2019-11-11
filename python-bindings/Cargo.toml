@@ -1,6 +1,6 @@
 [package]
 authors = ["Messense Lv <messense@icloud.com>"]
-name = "word-count"
+name = "linfa_k_means"
 version = "0.1.0"
 edition = "2018"
 
@@ -14,5 +14,5 @@ ndarray-rand = "0.11"
 numpy = "0.7.0"
 
 [lib]
-name = "word_count"
+name = "linfa_k_means"
 crate-type = ["cdylib"]
