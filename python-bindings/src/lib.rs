@@ -1,83 +1,50 @@
-// Source adopted from
-// https://github.com/tildeio/helix-website/blob/master/crates/word_count/src/lib.rs
-
+use linfa_k_means as linfa_impl;
+use ndarray::Array;
+use ndarray_rand::rand::SeedableRng;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
-use rayon::prelude::*;
-use std::fs;
-use std::path::PathBuf;
+use rand_isaac::Isaac64Rng;
 
-/// Represents a file that can be searched
-#[pyclass(module = "word_count")]
-struct WordCounter {
-    path: PathBuf,
-}
-
-#[pymethods]
-impl WordCounter {
-    #[new]
-    fn new(obj: &PyRawObject, path: String) {
-        obj.init(WordCounter {
-            path: PathBuf::from(path),
-        });
-    }
-
-    /// Searches for the word, parallelized by rayon
-    fn search(&self, py: Python<'_>, search: String) -> PyResult<usize> {
-        let contents = fs::read_to_string(&self.path)?;
-
-        let count = py.allow_threads(move || {
-            contents
-                .par_lines()
-                .map(|line| count_line(line, &search))
-                .sum()
-        });
-        Ok(count)
-    }
-
-    /// Searches for a word in a classic sequential fashion
-    fn search_sequential(&self, needle: String) -> PyResult<usize> {
-        let contents = fs::read_to_string(&self.path)?;
-
-        let result = contents.lines().map(|line| count_line(line, &needle)).sum();
-
-        Ok(result)
-    }
-}
-
-fn matches(word: &str, needle: &str) -> bool {
-    let mut needle = needle.chars();
-    for ch in word.chars().skip_while(|ch| !ch.is_alphabetic()) {
-        match needle.next() {
-            None => {
-                return !ch.is_alphabetic();
-            }
-            Some(expect) => {
-                if ch.to_lowercase().next() != Some(expect) {
-                    return false;
-                }
-            }
-        }
-    }
-    return needle.next().is_none();
-}
-
-/// Count the occurences of needle in line, case insensitive
 #[pyfunction]
-fn count_line(line: &str, needle: &str) -> usize {
-    let mut total = 0;
-    for word in line.split(' ') {
-        if matches(word, needle) {
-            total += 1;
-        }
-    }
-    total
+fn k_means(
+    n_clusters: usize,
+    // (n_observations, n_features)
+    observations: Vec<Vec<f64>>,
+    tolerance: f64,
+    max_n_iterations: usize,
+) -> Vec<Vec<f64>> {
+    // Prepare input
+    let shape = (observations.len(), observations[0].len());
+    let flat_observations = observations
+        .into_iter()
+        .flat_map(|line| line)
+        .collect::<Vec<_>>();
+
+    let observations_array = Array::from_shape_vec(shape, flat_observations).unwrap();
+
+    // TODO: maybe receive the seed as optinal argument?
+    let mut rng = Isaac64Rng::seed_from_u64(42);
+
+    // Execute K-means
+    let result = linfa_impl::k_means(
+        n_clusters,
+        &observations_array,
+        &mut rng,
+        tolerance,
+        max_n_iterations,
+    );
+
+    // Prepare output
+    result
+        .genrows()
+        .into_iter()
+        .map(|row| row.to_vec())
+        .collect()
 }
 
 #[pymodule]
-fn word_count(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    m.add_wrapped(wrap_pyfunction!(count_line))?;
-    m.add_class::<WordCounter>()?;
+fn linfa_k_means(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+    m.add_wrapped(wrap_pyfunction!(k_means))?;
 
     Ok(())
 }
