@@ -1,0 +1,23 @@
+[package]
+name = "tonic-linfa-k-means"
+version = "0.1.0"
+authors = ["Maksym Vorobiov <maxim.vorobjov@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+structopt = { version = "0.3", default-features = false }
+tonic = "0.1.0-alpha.6"
+bytes = "0.4"
+prost = "0.5"
+prost-derive = "0.5"
+tokio = "=0.2.0-alpha.6"
+serde = { version="1.0", features = ["derive"] }
+serde_json = "1.0"
+linfa-k-means = { version = "0.1", path = "../linfa-k-means" }
+ndarray = "0.13"
+anyhow = "1"
+
+[build-dependencies]
+tonic-build = "0.1.0-alpha.6"
