@@ -116,6 +116,15 @@ pub fn update_cluster_memberships(
         });
 }
 
+pub fn compute_cluster_memberships(
+    centroids: &ArrayBase<impl Data<Elem = f64>, Ix2>,
+    observations: &ArrayBase<impl Data<Elem = f64>, Ix2>,
+) -> Array1<usize> {
+    observations.map_axis(Axis(1), |observation| {
+        closest_centroid(&centroids, &observation)
+    })
+}
+
 pub fn closest_centroid(
     centroids: &ArrayBase<impl Data<Elem = f64>, Ix2>,
     observation: &ArrayBase<impl Data<Elem = f64>, Ix1>,
