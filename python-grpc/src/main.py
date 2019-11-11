@@ -1,14 +1,16 @@
-from concurrent import futures
+import logging
 import time
 import grpc
-from service_pb2_grpc import ClusteringServiceServicer, add_ClusteringServiceServicer_to_server
-from service_pb2 import PredictResponse
+from concurrent import futures
+from protos.service_pb2_grpc import ClusteringServiceServicer, add_ClusteringServiceServicer_to_server
+from protos.service_pb2 import PredictResponse
 
 
 class ClusteringService(ClusteringServiceServicer):
 
     def Predict(self, request, context):
-        return PredictResponse(cluster_index=0)
+        print("Hey!!")
+        return PredictResponse(cluster_index=1)
 
 
 def serve():
@@ -28,4 +30,5 @@ def serve():
 
 
 if __name__ == "__main__":
+    logging.basicConfig()
     serve()
