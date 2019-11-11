@@ -19,7 +19,7 @@ pub fn k_means(
 
     loop {
         let memberships = compute_cluster_memberships(&centroids, observations);
-        let new_centroids = compute_centroids(observations, &memberships);
+        let new_centroids = compute_centroids(n_clusters, observations, &memberships);
 
         let distance = centroids.sq_l2_dist(&new_centroids).unwrap();
         has_converged = distance < tolerance || n_iterations > max_n_iterations;
@@ -36,18 +36,14 @@ pub fn k_means(
 }
 
 pub fn compute_centroids(
-    // (n_observations, n_features)
+    n_clusters: usize,
     observations: &ArrayBase<impl Data<Elem = f64>, Ix2>,
-    // (n_observations,)
     cluster_memberships: &ArrayBase<impl Data<Elem = usize>, Ix1>,
 ) -> Array2<f64> {
     let centroids_hashmap = compute_centroids_hashmap(&observations, &cluster_memberships);
-
-    // Go back to "cluster generation / dataset" if you are looking for inspiration!
-    let n_centroids = centroids_hashmap.len();
     let (_, n_features) = observations.dim();
 
-    let mut centroids: Array2<f64> = Array2::zeros((n_centroids, n_features));
+    let mut centroids: Array2<f64> = Array2::zeros((n_clusters, n_features));
     for (centroid_index, centroid) in centroids_hashmap.into_iter() {
         centroids
             .slice_mut(s![centroid_index, ..])
