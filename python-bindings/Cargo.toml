@@ -1,0 +1,18 @@
+[package]
+authors = ["Messense Lv <messense@icloud.com>"]
+name = "linfa_k_means"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+rayon = "1.0.2"
+pyo3 = { version = "0.8.2", features = ["extension-module"] }
+linfa-k-means = { version = "0.1.0", path="../linfa-k-means" }
+ndarray = { version = "0.13" }
+rand_isaac = "0.2.0"
+ndarray-rand = "0.11"
+numpy = "0.7.0"
+
+[lib]
+name = "linfa_k_means"
+crate-type = ["cdylib"]

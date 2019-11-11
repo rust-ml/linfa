@@ -13,4 +13,7 @@ ndarray-npy = { version = "0.5", default-features = false }
 rand_isaac = "0.2.0"
 
 [workspace]
-members = ["linfa-k-means", "tonic-linfa-k-means"]
+members = ["linfa-k-means", "python-bindings", "tonic-linfa-k-means"]
+
+[profile.release]
+opt-level = 3
