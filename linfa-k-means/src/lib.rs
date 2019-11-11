@@ -1,4 +1,4 @@
-use ndarray::{s, Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2, Zip};
+use ndarray::{s, Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2, Zip, DataMut};
 use ndarray_rand::rand;
 use ndarray_rand::rand::Rng;
 use ndarray_stats::DeviationExt;
@@ -7,7 +7,7 @@ use std::collections::HashMap;
 pub fn k_means(
     n_clusters: usize,
     // (n_observations, n_features)
-    observations: &ArrayBase<impl Data<Elem = f64>, Ix2>,
+    observations: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
     rng: &mut impl Rng,
     tolerance: f64,
     max_n_iterations: usize,
@@ -17,8 +17,10 @@ pub fn k_means(
     let mut has_converged;
     let mut n_iterations = 0;
 
+    let mut memberships = Array1::zeros(observations.dim().0);
+
     loop {
-        let memberships = compute_cluster_memberships(&centroids, observations);
+        update_cluster_memberships(&centroids, observations, &mut memberships);
         let new_centroids = compute_centroids(n_clusters, observations, &memberships);
 
         let distance = centroids.sq_l2_dist(&new_centroids).unwrap();
@@ -97,15 +99,27 @@ impl IncrementalMean {
     }
 }
 
-pub fn compute_cluster_memberships(
-    centroids: &ArrayBase<impl Data<Elem = f64>, Ix2>,
-    observations: &ArrayBase<impl Data<Elem = f64>, Ix2>,
-) -> Array1<usize> {
+pub fn update_cluster_memberships(
+    centroids: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
+    observations: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
+    cluster_memberships: &mut ArrayBase<impl DataMut<Elem = usize>, Ix1>
+) {
     // `map_axis` returns an array with one less dimension -
     // e.g. a 1-dimensional array if applied to a 2-dimensional array.
     //
     // Each 1-dimensional slice along the specified axis is replaced with the output value
     // of the closure passed as argument.
+    Zip::from(observations.axis_iter(Axis(0)))
+        .and(cluster_memberships)
+        .par_apply(|observation, cluster_membership| {
+            *cluster_membership = closest_centroid(&centroids, &observation)
+        });
+}
+
+pub fn compute_cluster_memberships(
+    centroids: &ArrayBase<impl Data<Elem = f64>, Ix2>,
+    observations: &ArrayBase<impl Data<Elem = f64>, Ix2>,
+) -> Array1<usize> {
     observations.map_axis(Axis(1), |observation| {
         closest_centroid(&centroids, &observation)
     })
