@@ -1,0 +1,17 @@
+syntax = "proto3";
+package centroids;
+
+service KMeans {
+    // Our SayHello rpc accepts HelloRequests and returns HelloReplies
+    rpc FindCentroid (Observation) returns (Centroid);
+}
+
+message Observation {
+    // Request message contains Vec<f64>
+    repeated double features = 1;
+}
+
+message Centroid {
+    // Reply contains Vec<f64>
+    uint32 cluster_index = 1;
+}
