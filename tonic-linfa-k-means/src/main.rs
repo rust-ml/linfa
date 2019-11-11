@@ -1,11 +1,8 @@
 use std::path::PathBuf;
 use structopt::StructOpt;
-use serde::{Serialize, Deserialize};
-use serde_json;
-use linfa_k_means::{closest_centroid};
-use ndarray::{ArrayBase, Ix2, Data, Array, Array2};
-use tokio::sync::Mutex;
-use std::sync::Arc;
+use tonic_linfa_k_means::{Store};
+use tonic_linfa_k_means::server::{KMeansProto, KMeansServer};
+use tonic::transport::Server;
 
 /// This is CLI for starting linfa grpc server
 #[derive(Debug, StructOpt)]
@@ -14,31 +11,30 @@ struct ServerOptions {
     /// Start listening on a port, Default: 8000
     port: String,
     #[structopt(short="f", long = "load-centroids", parse(from_os_str))]
-    /// Load centroids from file
+    /// Load centroids from serialized json Array2<f64>
     centroids_path: PathBuf,
 }
 
-struct Store {
-    centroids: Array2<f64>
-}
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
-struct ArcStore(Arc<Mutex<Store>>);
-
-impl Store {
-    fn load_json(path: PathBuf) -> Result<Self, anyhow::Error> {
-        let file = std::fs::File::open(path)?;
-        let centroids_vec: Vec<f64> = serde_json::from_reader(file)?;
-        let n_centroids = centroids_vec.len();
-        Ok(Self{
-            centroids: Array::from_shape_vec((n_centroids, 2), centroids_vec)?
-        })
-    }
-}
-
-fn main()  {
+    // Initialize centroids
     let opt = ServerOptions::from_args();
     let store = Store::load_json(opt.centroids_path)
         .expect("failed to load from input file");
 
-//compute_centroids
+    let (n_centroids, n_features) = store.centroids.dim();
+    println!("Loaded {} centroids with {} features", n_centroids, n_features);
+
+    // Initialize server
+    let addr = format!("[::1]:{}", opt.port).parse()?;
+    let kmeans = KMeansProto::new(store);
+    println!("Starting server on {}", &addr);
+    Server::builder()
+        .add_service(KMeansServer::new(kmeans))
+        .serve(addr)
+        .await?;
+
+    Ok(())
 }
+    
