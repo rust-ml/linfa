@@ -15,5 +15,5 @@ rand_isaac = "0.2.0"
 [workspace]
 members = ["linfa-k-means", "python-bindings"]
 
-[profile.dev]
+[profile.release]
 opt-level = 3

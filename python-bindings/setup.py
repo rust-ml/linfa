@@ -84,7 +84,7 @@ setup(
     ],
     packages=["linfa_k_means"],
     rust_extensions=[RustExtension(
-        "linfa_k_means.linfa_k_means", "Cargo.toml", debug=True)],
+        "linfa_k_means.linfa_k_means", "Cargo.toml", debug=False)],
     install_requires=install_requires,
     tests_require=tests_require,
     setup_requires=setup_requires,
