@@ -67,7 +67,7 @@ class PyTest(TestCommand):
 
 
 setup_requires = ["setuptools-rust>=0.10.1", "wheel"]
-install_requires = []
+install_requires = ["scikit-learn~=0.21.3"]
 tests_require = install_requires + ["pytest", "pytest-benchmark"]
 
 setup(
