@@ -13,3 +13,12 @@ Cargo.lock
 tags
 *.npy
 .idea
+
+# Python Bindings
+build/
+__pycache__/
+.pytest_cache/
+dist/
+*.so
+*.out
+*.egg-info
