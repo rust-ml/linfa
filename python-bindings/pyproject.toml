@@ -1,3 +1,16 @@
+[tool.poetry]
+name = "linfa_k_means"
+version = "0.1.0"
+authors = ""
+
+[tool.poetry.dependencies]
+python = "^3.7"
+pip= "^19.1"
+pytest= "^3.5.0"
+setuptools-rust = "^0.10.2"
+pytest-benchmark = "^3.1.1"
+sklearn = "^0.0.0"
+
 [build-system]
 requires = ["setuptools>=41.0.0", "wheel", "setuptools_rust>=0.10.2", "toml"]
 build-backend = "setuptools.build_meta"
