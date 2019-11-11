@@ -1,0 +1,10 @@
+[tool.poetry]
+name = "py_grpc"
+version = "0.1.0"
+authors = ""
+
+[tool.poetry.dependencies]
+python = "^3.7"
+pip= "^19.1"
+grpcio-tools = "^1.25"
+grpcio = "^1.25"

@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+service ClusteringService {
+    rpc Predict(PredictRequest) returns (PredictResponse);
+}
+
+message PredictRequest {
+    repeated double features = 1;
+}
+
+message PredictResponse {
+    uint32 cluster_index = 1;
+}
+
