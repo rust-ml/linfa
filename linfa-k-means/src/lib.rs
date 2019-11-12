@@ -73,7 +73,7 @@ impl KMeans {
         )
     }
 
-    pub fn load(&self, path: PathBuf) -> Result<Self, anyhow::Error> {
+    pub fn load(path: PathBuf) -> Result<Self, anyhow::Error> {
         let reader = &std::fs::File::open(path)?;
         let model = serde_json::from_reader(reader)?;
         Ok(model)
