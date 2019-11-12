@@ -4,40 +4,72 @@ use ndarray_rand::rand::Rng;
 use ndarray_stats::DeviationExt;
 use std::collections::HashMap;
 
-pub fn k_means(
-    n_clusters: usize,
-    // (n_observations, n_features)
-    observations: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
-    rng: &mut impl Rng,
+pub struct KMeans<RNG: Rng> {
     tolerance: f64,
-    max_n_iterations: usize,
-) -> Array2<f64> {
-    let mut centroids = get_random_centroids(n_clusters, observations, rng);
+    max_n_iterations: u64,
+    rng: RNG,
+    // Only set after `fit` has been called
+    centroids: Option<Array2<f64>>,
+}
 
-    let mut has_converged;
-    let mut n_iterations = 0;
-
-    let mut memberships = Array1::zeros(observations.dim().0);
-
-    loop {
-        update_cluster_memberships(&centroids, observations, &mut memberships);
-        let new_centroids = compute_centroids(n_clusters, observations, &memberships);
-
-        let distance = centroids.sq_l2_dist(&new_centroids).expect("Failed to compute distance");
-        has_converged = distance < tolerance || n_iterations > max_n_iterations;
-
-        centroids = new_centroids;
-        n_iterations += 1;
-
-        if has_converged {
-            break;
+impl<RNG: Rng> KMeans<RNG> {
+    pub fn new(tolerance: Option<f64>, max_n_iterations: Option<u64>, rng: RNG) -> Self {
+        Self {
+            tolerance: tolerance.unwrap_or(1e-4),
+            max_n_iterations: max_n_iterations.unwrap_or(300),
+            rng,
+            centroids: None,
         }
     }
 
-    centroids
+    // `observations`: (n_observations, n_features)
+    pub fn fit(
+        &mut self,
+        n_clusters: usize,
+        observations: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
+    ) {
+        let mut centroids = get_random_centroids(n_clusters, observations, &mut self.rng);
+
+        let mut has_converged;
+        let mut n_iterations = 0;
+
+        let mut memberships = Array1::zeros(observations.dim().0);
+
+        loop {
+            update_cluster_memberships(&centroids, observations, &mut memberships);
+            let new_centroids = compute_centroids(n_clusters, observations, &memberships);
+
+            let distance = centroids
+                .sq_l2_dist(&new_centroids)
+                .expect("Failed to compute distance");
+            has_converged = distance < self.tolerance || n_iterations > self.max_n_iterations;
+
+            centroids = new_centroids;
+            n_iterations += 1;
+
+            if has_converged {
+                break;
+            }
+        }
+
+        self.centroids = Some(centroids);
+    }
+
+    pub fn predict(&self, observations: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<usize> {
+        compute_cluster_memberships(
+            self.centroids
+                .as_ref()
+                .expect("The model has to be fitted before calling predict!"),
+            observations,
+        )
+    }
+
+    pub fn centroids(&self) -> Option<&Array2<f64>> {
+        self.centroids.as_ref()
+    }
 }
 
-pub fn compute_centroids(
+fn compute_centroids(
     n_clusters: usize,
     observations: &ArrayBase<impl Data<Elem = f64>, Ix2>,
     cluster_memberships: &ArrayBase<impl Data<Elem = usize>, Ix1>,
@@ -56,7 +88,7 @@ pub fn compute_centroids(
 
 /// Iterate over our observations and capture in a HashMap the new centroids.
 /// The HashMap is a (cluster_index => new centroid) mapping.
-pub fn compute_centroids_hashmap(
+fn compute_centroids_hashmap(
     // (n_observations, n_features)
     observations: &ArrayBase<impl Data<Elem = f64>, Ix2>,
     // (n_observations,)
@@ -78,20 +110,20 @@ pub fn compute_centroids_hashmap(
     new_centroids
 }
 
-pub struct IncrementalMean {
+struct IncrementalMean {
     pub current_mean: Array1<f64>,
     pub n_observations: usize,
 }
 
 impl IncrementalMean {
-    pub fn new(first_observation: Array1<f64>) -> Self {
+    fn new(first_observation: Array1<f64>) -> Self {
         Self {
             current_mean: first_observation,
             n_observations: 1,
         }
     }
 
-    pub fn update(&mut self, new_observation: &ArrayBase<impl Data<Elem = f64>, Ix1>) {
+    fn update(&mut self, new_observation: &ArrayBase<impl Data<Elem = f64>, Ix1>) {
         self.n_observations += 1;
         let shift =
             (new_observation - &self.current_mean).mapv_into(|x| x / self.n_observations as f64);
@@ -99,7 +131,7 @@ impl IncrementalMean {
     }
 }
 
-pub fn update_cluster_memberships(
+fn update_cluster_memberships(
     centroids: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
     observations: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
     cluster_memberships: &mut ArrayBase<impl DataMut<Elem = usize>, Ix1>,
@@ -111,7 +143,7 @@ pub fn update_cluster_memberships(
         });
 }
 
-pub fn compute_cluster_memberships(
+fn compute_cluster_memberships(
     centroids: &ArrayBase<impl Data<Elem = f64>, Ix2>,
     observations: &ArrayBase<impl Data<Elem = f64>, Ix2>,
 ) -> Array1<usize> {
@@ -120,7 +152,7 @@ pub fn compute_cluster_memberships(
     })
 }
 
-pub fn closest_centroid(
+fn closest_centroid(
     centroids: &ArrayBase<impl Data<Elem = f64>, Ix2>,
     observation: &ArrayBase<impl Data<Elem = f64>, Ix1>,
 ) -> usize {
@@ -129,11 +161,17 @@ pub fn closest_centroid(
     let first_centroid = iterator
         .peek()
         .expect("There has to be at least one centroid");
-    let (mut closest_index, mut minimum_distance) =
-        (0, first_centroid.sq_l2_dist(&observation).expect("Failed to compute distance"));
+    let (mut closest_index, mut minimum_distance) = (
+        0,
+        first_centroid
+            .sq_l2_dist(&observation)
+            .expect("Failed to compute distance"),
+    );
 
     for (centroid_index, centroid) in iterator.enumerate() {
-        let distance = centroid.sq_l2_dist(&observation).expect("Failed to compute distance");
+        let distance = centroid
+            .sq_l2_dist(&observation)
+            .expect("Failed to compute distance");
         if distance < minimum_distance {
             closest_index = centroid_index;
             minimum_distance = distance;
@@ -142,7 +180,7 @@ pub fn closest_centroid(
     closest_index
 }
 
-pub fn get_random_centroids<S>(
+fn get_random_centroids<S>(
     n_clusters: usize,
     observations: &ArrayBase<S, Ix2>,
     rng: &mut impl Rng,
