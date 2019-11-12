@@ -1,17 +1,16 @@
 pub mod server;
 
-use ndarray::Array2;
 use std::path::PathBuf;
+use linfa_k_means::KMeans;
 
 pub struct Store {
-    pub centroids: Array2<f64>,
+    pub kmeans: KMeans,
 }
 
 impl Store {
-    pub fn load_json(path: PathBuf) -> Result<Self, anyhow::Error> {
-        let file = std::fs::File::open(path)?;
+    pub fn load(path: PathBuf) -> Result<Self, anyhow::Error> {
         Ok(Self {
-            centroids: serde_json::from_reader(file)?,
+            kmeans: KMeans::load(path)?,
         })
     }
 }
@@ -19,24 +18,26 @@ impl Store {
 #[cfg(test)]
 mod test {
     use super::*;
-    use linfa_k_means::closest_centroid;
-    use super::server::{ClusteringServiceServer, KMeansProto};
-    use tonic::transport::Server;
+    use ndarray::{s, array, ArrayView2};
 
 
     #[test]
     fn load_from_file() {
-        Store::load_json("./test/centroids.json".into()).expect("failed to load from input file");
+        Store::load("../test/centroids.json".into()).expect("failed to load from input file");
     }
+
 
     #[test]
     fn integration() {
-        let store = Store::load_json("./test/centroids.json".into())
+        let store = Store::load("../test/centroids.json".into())
             .expect("failed to load from input file");
 
+        let sl = s![0..1, ..];
+        let observations: ArrayView2<f64> = 
+            store.kmeans.centroids().unwrap().slice(sl);
         assert_eq!(
-            closest_centroid(&store.centroids, &store.centroids.row(0)),
-            0
+            store.kmeans.predict(&observations),
+            array![0]
         );
     }
 /*
