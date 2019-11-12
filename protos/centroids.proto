@@ -4,6 +4,7 @@ package ml;
 
 service ClusteringService {
     rpc Predict(PredictRequest) returns (PredictResponse);
+    rpc PredictBatch(PredictBatchRequest) returns (PredictBatchResponse);
 }
 
 message PredictRequest {
@@ -13,4 +14,17 @@ message PredictRequest {
 message PredictResponse {
     int32 cluster_index = 1;
 }
+
+message PredictBatchRequest {
+    repeated Observation observations = 1;
+}
+
+message Observation {
+    repeated double features = 1;
+}
+
+message PredictBatchResponse {
+    repeated int32 cluster_indexes = 1;
+}
+
 

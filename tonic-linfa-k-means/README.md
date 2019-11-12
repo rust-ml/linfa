@@ -21,6 +21,10 @@ ghz --proto=protos/centroids.proto --call=ml.ClusteringService.Predict --insecur
 ```
 cargo run --bin gentestdata -- --features=2 --samples=10000
 ```
+OR
+```
+cargo run --bin gentestdata -- batch --batches=1000 --samples=10
+```
 
 # Generate centroids
 
