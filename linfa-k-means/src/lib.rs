@@ -7,6 +7,17 @@ use std::path::PathBuf;
 use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize)]
+/// K-means clustering aims to partition a set of observations into clusters,
+/// where each observation belongs to the cluster with the nearest mean.
+///
+/// The mean of the points within a cluster is called *centroid*.
+///
+/// Given the set of centroids, you can assign an observation to a cluster
+/// choosing the nearest centroid.
+///
+/// We provide an implementation of the _standard algorithm_, also known as
+/// Lloyd's algorithm or naive K-means. Details on the algorithm can be
+/// found [here](https://en.wikipedia.org/wiki/K-means_clustering).
 pub struct KMeans {
     tolerance: f64,
     max_n_iterations: u64,
@@ -15,6 +26,31 @@ pub struct KMeans {
 }
 
 impl KMeans {
+    /// K-means is an iterative algorithm: it progressively refines the choice of centroids.
+    /// It's guaranteed to converge, even though it might not find the optimal set of centroids
+    /// (unfortunately it can get stuck in a local minimum, finding the optimal minimum if NP-hard!).
+    ///
+    /// There are three steps in the standard algorithm:
+    /// - initialisation step: how do we choose our initial set of centroids?
+    /// - assignment step: assign each observation to the nearest cluster
+    ///                    (minimum distance between the observation and the cluster's centroid);
+    /// - update step: recompute the centroid of each cluster.
+    ///
+    /// The initialisation step is a one-off, done at the very beginning.
+    /// Assignment and update are repeated in a loop until convergence is reached (we'll get back
+    /// to what this means soon enough).
+    ///
+    /// `new` lets us configure our training algorithm:
+    /// * the training is considered complete if the euclidean distance
+    ///   between the old set of centroids and the new set of centroids
+    ///   after a training iteration is lower or equal than `tolerance`;
+    /// * we exit the training loop when the number of training iterations
+    ///   exceeds `max_n_iterations` even if the `tolerance` convergence
+    ///   condition has not been met.
+    ///
+    /// Defaults are provided if `None` is passed as argument:
+    /// * `tolerance = 1e-4`;
+    /// * `max_n_iterations = 300`.
     pub fn new(tolerance: Option<f64>, max_n_iterations: Option<u64>) -> Self {
         Self {
             tolerance: tolerance.unwrap_or(1e-4),
@@ -22,8 +58,10 @@ impl KMeans {
             centroids: None,
         }
     }
-
-    // `observations`: (n_observations, n_features)
+    /// Given an input matrix `observations`, with shape `(n_observations, n_features)`,
+    /// `fit` identifies `n_clusters` centroids based on the training data distribution.
+    ///
+    /// `self` is modified in place (`self.centroids` is mutated), nothing is returned.
     pub fn fit(
         &mut self,
         n_clusters: usize,
@@ -57,6 +95,10 @@ impl KMeans {
         self.centroids = Some(centroids);
     }
 
+    /// Given an input matrix `observations`, with shape `(n_observations, n_features)`,
+    /// `predict` returns, for each observation, the index of the closest cluster/centroid.
+    ///
+    /// You can retrieve the centroid associated to an index using the [`centroids` method](#method.centroids) (e.g. `self.centroids()[cluster_index]`).
     pub fn predict(&self, observations: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<usize> {
         compute_cluster_memberships(
             self.centroids
