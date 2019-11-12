@@ -69,7 +69,7 @@ impl KMeans {
     pub fn save(&self, path: PathBuf) -> std::io::Result<()> {
         std::fs::write(
             path,
-           serde_json::to_string(&self.centroids)?
+           serde_json::to_string(&self)?
         )
     }
 

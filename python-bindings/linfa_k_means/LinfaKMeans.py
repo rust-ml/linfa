@@ -145,6 +145,17 @@ class KMeans(BaseEstimator, ClusterMixin, TransformerMixin):
         check_is_fitted(self, 'cluster_centers_')
         return self.model_.predict(X)
 
+    def save(self, path: str):
+        self.model_.save(path)
+
+    @classmethod
+    def load(cls, path: str) -> "KMeans":
+        model_ = WrappedKMeans.load(path)
+        cluster_centers_ = model_.centroids()
+        model = super().__new__(cls)
+        model.model_ = model_
+        model.cluster_centers_ = cluster_centers_
+        return model
 
     def score(self, X, y=None):
         """Opposite of the value of X on the K-means objective.
