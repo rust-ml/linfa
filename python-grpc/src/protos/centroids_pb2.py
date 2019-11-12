@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='ml',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x16protos/centroids.proto\x12\x02ml\"\"\n\x0ePredictRequest\x12\x10\n\x08\x66\x65\x61tures\x18\x01 \x03(\x01\"(\n\x0fPredictResponse\x12\x15\n\rcluster_index\x18\x01 \x01(\x05\x32G\n\x11\x43lusteringService\x12\x32\n\x07Predict\x12\x12.ml.PredictRequest\x1a\x13.ml.PredictResponseb\x06proto3')
+  serialized_pb=_b('\n\x16protos/centroids.proto\x12\x02ml\"\"\n\x0ePredictRequest\x12\x10\n\x08\x66\x65\x61tures\x18\x01 \x03(\x01\"(\n\x0fPredictResponse\x12\x15\n\rcluster_index\x18\x01 \x01(\x05\"<\n\x13PredictBatchRequest\x12%\n\x0cobservations\x18\x01 \x03(\x0b\x32\x0f.ml.Observation\"\x1f\n\x0bObservation\x12\x10\n\x08\x66\x65\x61tures\x18\x01 \x03(\x01\"/\n\x14PredictBatchResponse\x12\x17\n\x0f\x63luster_indexes\x18\x01 \x03(\x05\x32\x8a\x01\n\x11\x43lusteringService\x12\x32\n\x07Predict\x12\x12.ml.PredictRequest\x1a\x13.ml.PredictResponse\x12\x41\n\x0cPredictBatch\x12\x17.ml.PredictBatchRequest\x1a\x18.ml.PredictBatchResponseb\x06proto3')
 )
 
 
@@ -87,8 +87,105 @@ _PREDICTRESPONSE = _descriptor.Descriptor(
   serialized_end=106,
 )
 
+
+_PREDICTBATCHREQUEST = _descriptor.Descriptor(
+  name='PredictBatchRequest',
+  full_name='ml.PredictBatchRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='observations', full_name='ml.PredictBatchRequest.observations', index=0,
+      number=1, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=108,
+  serialized_end=168,
+)
+
+
+_OBSERVATION = _descriptor.Descriptor(
+  name='Observation',
+  full_name='ml.Observation',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='features', full_name='ml.Observation.features', index=0,
+      number=1, type=1, cpp_type=5, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=170,
+  serialized_end=201,
+)
+
+
+_PREDICTBATCHRESPONSE = _descriptor.Descriptor(
+  name='PredictBatchResponse',
+  full_name='ml.PredictBatchResponse',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='cluster_indexes', full_name='ml.PredictBatchResponse.cluster_indexes', index=0,
+      number=1, type=5, cpp_type=1, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=203,
+  serialized_end=250,
+)
+
+_PREDICTBATCHREQUEST.fields_by_name['observations'].message_type = _OBSERVATION
 DESCRIPTOR.message_types_by_name['PredictRequest'] = _PREDICTREQUEST
 DESCRIPTOR.message_types_by_name['PredictResponse'] = _PREDICTRESPONSE
+DESCRIPTOR.message_types_by_name['PredictBatchRequest'] = _PREDICTBATCHREQUEST
+DESCRIPTOR.message_types_by_name['Observation'] = _OBSERVATION
+DESCRIPTOR.message_types_by_name['PredictBatchResponse'] = _PREDICTBATCHRESPONSE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 PredictRequest = _reflection.GeneratedProtocolMessageType('PredictRequest', (_message.Message,), {
@@ -105,6 +202,27 @@ PredictResponse = _reflection.GeneratedProtocolMessageType('PredictResponse', (_
   })
 _sym_db.RegisterMessage(PredictResponse)
 
+PredictBatchRequest = _reflection.GeneratedProtocolMessageType('PredictBatchRequest', (_message.Message,), {
+  'DESCRIPTOR' : _PREDICTBATCHREQUEST,
+  '__module__' : 'protos.centroids_pb2'
+  # @@protoc_insertion_point(class_scope:ml.PredictBatchRequest)
+  })
+_sym_db.RegisterMessage(PredictBatchRequest)
+
+Observation = _reflection.GeneratedProtocolMessageType('Observation', (_message.Message,), {
+  'DESCRIPTOR' : _OBSERVATION,
+  '__module__' : 'protos.centroids_pb2'
+  # @@protoc_insertion_point(class_scope:ml.Observation)
+  })
+_sym_db.RegisterMessage(Observation)
+
+PredictBatchResponse = _reflection.GeneratedProtocolMessageType('PredictBatchResponse', (_message.Message,), {
+  'DESCRIPTOR' : _PREDICTBATCHRESPONSE,
+  '__module__' : 'protos.centroids_pb2'
+  # @@protoc_insertion_point(class_scope:ml.PredictBatchResponse)
+  })
+_sym_db.RegisterMessage(PredictBatchResponse)
+
 
 
 _CLUSTERINGSERVICE = _descriptor.ServiceDescriptor(
@@ -113,8 +231,8 @@ _CLUSTERINGSERVICE = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=0,
   serialized_options=None,
-  serialized_start=108,
-  serialized_end=179,
+  serialized_start=253,
+  serialized_end=391,
   methods=[
   _descriptor.MethodDescriptor(
     name='Predict',
@@ -123,6 +241,15 @@ _CLUSTERINGSERVICE = _descriptor.ServiceDescriptor(
     containing_service=None,
     input_type=_PREDICTREQUEST,
     output_type=_PREDICTRESPONSE,
+    serialized_options=None,
+  ),
+  _descriptor.MethodDescriptor(
+    name='PredictBatch',
+    full_name='ml.ClusteringService.PredictBatch',
+    index=1,
+    containing_service=None,
+    input_type=_PREDICTBATCHREQUEST,
+    output_type=_PREDICTBATCHRESPONSE,
     serialized_options=None,
   ),
 ])

@@ -9,7 +9,7 @@ from sklearn.cluster import KMeans as sk_KMeans
 from linfa_k_means import KMeans
 from concurrent import futures
 from protos.centroids_pb2_grpc import ClusteringServiceServicer, add_ClusteringServiceServicer_to_server
-from protos.centroids_pb2 import PredictResponse
+from protos.centroids_pb2 import PredictResponse, PredictBatchResponse
 
 
 class ClusteringService(ClusteringServiceServicer):
@@ -21,6 +21,12 @@ class ClusteringService(ClusteringServiceServicer):
         point = np.array(features).reshape(1, -1)
         cluster_index = model.predict(point)
         return PredictResponse(cluster_index=cluster_index)
+
+    def PredictBatch(self, request, context):
+        observations = request.observations
+        observations_array = np.array([o.features for o in observations])
+        cluster_indexes = model.predict(observations_array)
+        return PredictBatchResponse(cluster_indexes=cluster_indexes)
 
 
 def serve(model: KMeans):
