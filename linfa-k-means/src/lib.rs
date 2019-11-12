@@ -3,21 +3,22 @@ use ndarray_rand::rand;
 use ndarray_rand::rand::Rng;
 use ndarray_stats::DeviationExt;
 use std::collections::HashMap;
+use std::path::PathBuf;
+use serde::{Serialize, Deserialize};
 
-pub struct KMeans<RNG: Rng> {
+#[derive(Serialize, Deserialize)]
+pub struct KMeans {
     tolerance: f64,
     max_n_iterations: u64,
-    rng: RNG,
     // Only set after `fit` has been called
     centroids: Option<Array2<f64>>,
 }
 
-impl<RNG: Rng> KMeans<RNG> {
-    pub fn new(tolerance: Option<f64>, max_n_iterations: Option<u64>, rng: RNG) -> Self {
+impl KMeans {
+    pub fn new(tolerance: Option<f64>, max_n_iterations: Option<u64>) -> Self {
         Self {
             tolerance: tolerance.unwrap_or(1e-4),
             max_n_iterations: max_n_iterations.unwrap_or(300),
-            rng,
             centroids: None,
         }
     }
@@ -27,8 +28,9 @@ impl<RNG: Rng> KMeans<RNG> {
         &mut self,
         n_clusters: usize,
         observations: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
+        rng: &mut impl Rng
     ) {
-        let mut centroids = get_random_centroids(n_clusters, observations, &mut self.rng);
+        let mut centroids = get_random_centroids(n_clusters, observations, rng);
 
         let mut has_converged;
         let mut n_iterations = 0;
@@ -62,6 +64,19 @@ impl<RNG: Rng> KMeans<RNG> {
                 .expect("The model has to be fitted before calling predict!"),
             observations,
         )
+    }
+
+    pub fn save(&self, path: PathBuf) -> std::io::Result<()> {
+        std::fs::write(
+            path,
+           serde_json::to_string(&self.centroids)?
+        )
+    }
+
+    pub fn load(&self, path: PathBuf) -> Result<Self, anyhow::Error> {
+        let reader = &std::fs::File::open(path)?;
+        let model = serde_json::from_reader(reader)?;
+        Ok(model)
     }
 
     pub fn centroids(&self) -> Option<&Array2<f64>> {
