@@ -23,7 +23,7 @@ pub fn k_means(
         update_cluster_memberships(&centroids, observations, &mut memberships);
         let new_centroids = compute_centroids(n_clusters, observations, &memberships);
 
-        let distance = centroids.sq_l2_dist(&new_centroids).unwrap();
+        let distance = centroids.sq_l2_dist(&new_centroids).expect("Failed to compute distance");
         has_converged = distance < tolerance || n_iterations > max_n_iterations;
 
         centroids = new_centroids;
@@ -130,10 +130,10 @@ pub fn closest_centroid(
         .peek()
         .expect("There has to be at least one centroid");
     let (mut closest_index, mut minimum_distance) =
-        (0, first_centroid.sq_l2_dist(&observation).unwrap());
+        (0, first_centroid.sq_l2_dist(&observation).expect("Failed to compute distance"));
 
     for (centroid_index, centroid) in iterator.enumerate() {
-        let distance = centroid.sq_l2_dist(&observation).unwrap();
+        let distance = centroid.sq_l2_dist(&observation).expect("Failed to compute distance");
         if distance < minimum_distance {
             closest_index = centroid_index;
             minimum_distance = distance;
