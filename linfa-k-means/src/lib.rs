@@ -104,11 +104,6 @@ pub fn update_cluster_memberships(
     observations: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
     cluster_memberships: &mut ArrayBase<impl DataMut<Elem = usize>, Ix1>,
 ) {
-    // `map_axis` returns an array with one less dimension -
-    // e.g. a 1-dimensional array if applied to a 2-dimensional array.
-    //
-    // Each 1-dimensional slice along the specified axis is replaced with the output value
-    // of the closure passed as argument.
     Zip::from(observations.axis_iter(Axis(0)))
         .and(cluster_memberships)
         .par_apply(|observation, cluster_membership| {
@@ -129,8 +124,6 @@ pub fn closest_centroid(
     centroids: &ArrayBase<impl Data<Elem = f64>, Ix2>,
     observation: &ArrayBase<impl Data<Elem = f64>, Ix1>,
 ) -> usize {
-    // Remember: you can use `.genrows().into_iter()` to get an iterator over the rows
-    // of a 2-dimensional array.
     let mut iterator = centroids.genrows().into_iter().peekable();
 
     let first_centroid = iterator
@@ -155,9 +148,6 @@ pub fn get_random_centroids<S>(
     rng: &mut impl Rng,
 ) -> Array2<f64>
 where
-    // `Data` has an associated type, `Elem`, the element type.
-    // This syntax tells the compiler that `Elem` is `f64`,
-    // hence we are dealing with an array of floats.
     S: Data<Elem = f64>,
 {
     let (n_samples, _) = observations.dim();
