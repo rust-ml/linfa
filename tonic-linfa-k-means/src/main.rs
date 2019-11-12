@@ -28,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Initialize server
-    let addr = format!("[::1]:{}", opt.port).parse()?;
+    let addr = format!("127.0.0.1:{}", opt.port).parse()?;
     let kmeans = KMeansProto::new(store);
     println!("Starting server on {}", &addr);
     Server::builder()
