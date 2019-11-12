@@ -1,4 +1,4 @@
-use ndarray::{s, Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2, Zip, DataMut};
+use ndarray::{s, Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
 use ndarray_rand::rand;
 use ndarray_rand::rand::Rng;
 use ndarray_stats::DeviationExt;
@@ -102,7 +102,7 @@ impl IncrementalMean {
 pub fn update_cluster_memberships(
     centroids: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
     observations: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
-    cluster_memberships: &mut ArrayBase<impl DataMut<Elem = usize>, Ix1>
+    cluster_memberships: &mut ArrayBase<impl DataMut<Elem = usize>, Ix1>,
 ) {
     // `map_axis` returns an array with one less dimension -
     // e.g. a 1-dimensional array if applied to a 2-dimensional array.

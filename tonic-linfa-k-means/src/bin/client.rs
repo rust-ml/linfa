@@ -1,18 +1,14 @@
-use tonic_linfa_k_means::server::centroids::{
-    client::{KMeansClient},
-    Observation, Centroid,
-};
-
+use tonic_linfa_k_means::server::centroids::{client::ClusteringServiceClient, PredictRequest};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut client = KMeansClient::connect("http://[::1]:8000").await?;
+    let mut client = ClusteringServiceClient::connect("http://[::1]:8000").await?;
 
-    let request = tonic::Request::new(Observation {
+    let request = tonic::Request::new(PredictRequest {
         features: vec![1.0, 2.1],
     });
 
-    let response = client.find_centroid(request).await?;
+    let response = client.predict(request).await?;
 
     println!("RESPONSE={:?}", response);
 

@@ -6,8 +6,8 @@ import numpy as np
 from sklearn.datasets import make_blobs
 from sklearn.cluster import KMeans
 from concurrent import futures
-from protos.service_pb2_grpc import ClusteringServiceServicer, add_ClusteringServiceServicer_to_server
-from protos.service_pb2 import PredictResponse
+from protos.centroids_pb2_grpc import ClusteringServiceServicer, add_ClusteringServiceServicer_to_server
+from protos.centroids_pb2 import PredictResponse
 
 
 class ClusteringService(ClusteringServiceServicer):

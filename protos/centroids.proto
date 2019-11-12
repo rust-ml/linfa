@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package ml;
+
+service ClusteringService {
+    rpc Predict(PredictRequest) returns (PredictResponse);
+}
+
+message PredictRequest {
+    repeated double features = 1;
+}
+
+message PredictResponse {
+    int32 cluster_index = 1;
+}
+

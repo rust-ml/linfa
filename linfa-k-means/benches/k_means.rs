@@ -1,14 +1,13 @@
 use criterion::{
-    black_box, criterion_group, criterion_main, AxisScale, Criterion,
-    ParameterizedBenchmark, PlotConfiguration,
+    black_box, criterion_group, criterion_main, AxisScale, Criterion, ParameterizedBenchmark,
+    PlotConfiguration,
 };
 use linfa_k_means::k_means;
-use rand_isaac::Isaac64Rng;
-use ndarray::{s, Array, Array2, ArrayView2, ArrayView1};
+use ndarray::{s, Array, Array2, ArrayView1, ArrayView2};
+use ndarray_rand::rand::{Rng, SeedableRng};
+use ndarray_rand::rand_distr::{StandardNormal, Uniform};
 use ndarray_rand::RandomExt;
-use ndarray_rand::rand::{SeedableRng, Rng};
-use ndarray_rand::rand_distr::{Uniform, StandardNormal};
-
+use rand_isaac::Isaac64Rng;
 
 pub fn generate_dataset(
     cluster_size: usize,
@@ -49,21 +48,24 @@ fn k_means_bench(c: &mut Criterion) {
     let benchmark = ParameterizedBenchmark::new(
         "naive_k_means",
         move |bencher, &cluster_size| {
-            let centroids = Array2::random_using(
-                (n_clusters, n_features),
-                Uniform::new(-30., 30.),
-                &mut rng);
+            let centroids =
+                Array2::random_using((n_clusters, n_features), Uniform::new(-30., 30.), &mut rng);
             let dataset = generate_dataset(cluster_size, centroids.view(), &mut rng);
-            bencher.iter(
-                || black_box(k_means(n_clusters, &dataset, &mut rng, tolerance, max_n_iterations)),
-            );
+            bencher.iter(|| {
+                black_box(k_means(
+                    n_clusters,
+                    &dataset,
+                    &mut rng,
+                    tolerance,
+                    max_n_iterations,
+                ))
+            });
         },
         cluster_sizes,
     )
-        .plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
+    .plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
     c.bench("naive_k_means", benchmark);
 }
-
 
 criterion_group! {
     name = benches;
