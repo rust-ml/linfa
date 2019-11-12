@@ -14,13 +14,13 @@ use centroids::{server::ClusteringService, PredictRequest, PredictResponse};
 pub use centroids::server::ClusteringServiceServer;
 
 pub struct KMeansProto {
-    store: Arc<Store>,
+    store: Store,
 }
 
 impl KMeansProto {
     pub fn new(store: Store) -> Self {
         Self {
-            store: Arc::new(store),
+            store
         }
     }
 }
