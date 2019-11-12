@@ -10,6 +10,10 @@ name="main"
 path = "src/main.rs"
 
 [[bin]]
+name="gencentroidsdata"
+path = "src/bin/gencentroidsdata.rs"
+
+[[bin]]
 name="gentestdata"
 path = "src/bin/gentestdata.rs"
 
@@ -26,10 +30,13 @@ bytes = "0.4"
 prost = "0.5"
 prost-derive = "0.5"
 tokio = "=0.2.0-alpha.6"
+serde = { version="1", features=["derive"] }
 serde_json = "1"
 linfa-k-means = { version = "0.1", path = "../linfa-k-means" }
 ndarray = { version="0.13", features=["serde"] }
 anyhow = "1"
+rand = "0.7"
+ndarray-rand = "0.11"
 
 [build-dependencies]
 tonic-build = "0.1.0-alpha.6"

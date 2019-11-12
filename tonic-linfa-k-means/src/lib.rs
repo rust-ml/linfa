@@ -20,12 +20,16 @@ impl Store {
 mod test {
     use super::*;
     use linfa_k_means::closest_centroid;
+    use super::server::{ClusteringServiceServer, KMeansProto};
+    use tonic::transport::Server;
+
 
     #[test]
     fn load_from_file() {
         Store::load_json("./test/centroids.json".into()).expect("failed to load from input file");
     }
 
+    #[test]
     fn integration() {
         let store = Store::load_json("./test/centroids.json".into())
             .expect("failed to load from input file");
@@ -35,4 +39,19 @@ mod test {
             0
         );
     }
+/*
+    #[test]
+    fn tonic() {
+        let store = Store::load_json("./test/centroids.json".into())
+            .expect("failed to load from input file");
+        
+        let addr = "[::1]:50001".parse().expect("address");
+        let kmeans = KMeansProto::new(store);
+        let server = Server::builder()
+            .add_service(ClusteringServiceServer::new(kmeans))
+            .serve(addr);
+
+        tokio::runtime::block_on(server)
+    }*/
+
 }

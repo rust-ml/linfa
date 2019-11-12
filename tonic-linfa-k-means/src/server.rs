@@ -1,6 +1,5 @@
 use super::Store;
 use ndarray::Array;
-use std::sync::Arc;
 use tonic::{Request, Response, Status};
 use linfa_k_means::closest_centroid;
 
@@ -32,7 +31,7 @@ impl ClusteringService for KMeansProto {
         request: Request<PredictRequest>, // Accept request of type HelloRequest
     ) -> Result<Response<PredictResponse>, Status> {
         // Return an instance of type HelloReply
-        println!("Got a request: {:?}", request);
+        //dbg!("Got a request: {:?}", &request);
 
         let observation = Array::from(request.into_inner().features);
 
