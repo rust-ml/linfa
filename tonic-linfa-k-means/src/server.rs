@@ -38,7 +38,7 @@ impl ClusteringService for KMeansProto {
 
         let reply = PredictResponse {
             cluster_index: 
-                closest_centroid(&self.store.clone().centroids, &observation) as i32, 
+                closest_centroid(&self.store.centroids, &observation) as i32, 
         };
 
         Ok(Response::new(reply)) // Send back our formatted greeting
