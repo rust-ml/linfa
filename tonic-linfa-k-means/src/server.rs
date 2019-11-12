@@ -2,6 +2,7 @@ use super::Store;
 use ndarray::Array;
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
+use linfa_k_means::closest_centroid;
 
 pub mod centroids {
     // The string specified here must match the protos package name
@@ -13,13 +14,13 @@ use centroids::{server::ClusteringService, PredictRequest, PredictResponse};
 pub use centroids::server::ClusteringServiceServer;
 
 pub struct KMeansProto {
-    store: Arc<Store>,
+    store: Store,
 }
 
 impl KMeansProto {
     pub fn new(store: Store) -> Self {
         Self {
-            store: Arc::new(store),
+            store
         }
     }
 }
@@ -35,9 +36,9 @@ impl ClusteringService for KMeansProto {
 
         let observation = Array::from(request.into_inner().features);
 
-        // closest_centroid(&self.store.clone().centroids)
         let reply = PredictResponse {
-            cluster_index: 1, // We must use .into_inner() as the fields of gRPC requests and responses are private
+            cluster_index: 
+                closest_centroid(&self.store.centroids, &observation) as i32, 
         };
 
         Ok(Response::new(reply)) // Send back our formatted greeting
