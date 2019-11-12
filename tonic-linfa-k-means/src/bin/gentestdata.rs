@@ -1,6 +1,8 @@
 use serde_json;
 use structopt::StructOpt;
-use rand::{self, Rng};
+use ndarray::{Array, Array1};
+use ndarray_rand::RandomExt;
+use ndarray_rand::rand_distr::Uniform;
 use serde::{Serialize};
 
 #[derive(StructOpt)]
@@ -17,16 +19,21 @@ struct Sample {
 }
 
 impl Sample {
-    pub fn new(features: Vec<f64>) -> Self {
-        Self { features }
+    pub fn new(features: Array1<f64>) -> Self {
+        Self { 
+            features: features.to_vec()
+        }
     }
 }
 
 fn main() {
     let opt = Opt::from_args();
-    let mut rng = rand::thread_rng();
-    let gen_sample = |_| (0..opt.features).map(|_| rng.gen_range(-100.0, 100.0)).collect::<Vec<f64>>();
+    let distr = Uniform::new(-100.0, 100.0);
+    let gen_sample = |_| Array::random(opt.features, distr);
 
-    let samples = (0..opt.samples).map(gen_sample).map(Sample::new).collect::<Vec<Sample>>();
+    let samples = (0..opt.samples)
+        .map(gen_sample)
+        .map(Sample::new)
+        .collect::<Vec<Sample>>();
     println!("{}", serde_json::to_string(&samples).unwrap());
 }

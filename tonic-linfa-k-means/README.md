@@ -25,5 +25,5 @@ cargo run --bin gentestdata -- --features=2 --samples=10000
 # Generate centroids
 
 ```
-cargo run --bin gencentroiddata -- --features=2 --centroids=100
+cargo run --bin gencentroiddata -- --features=2 --centroids=100 --output=../test/centroids.json
 ```

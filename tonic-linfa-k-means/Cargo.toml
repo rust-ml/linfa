@@ -10,8 +10,8 @@ name="main"
 path = "src/main.rs"
 
 [[bin]]
-name="gencentroidsdata"
-path = "src/bin/gencentroidsdata.rs"
+name="gencentroiddata"
+path = "src/bin/gencentroiddata.rs"
 
 [[bin]]
 name="gentestdata"

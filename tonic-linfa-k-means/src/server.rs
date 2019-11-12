@@ -1,7 +1,6 @@
 use super::Store;
 use ndarray::Array;
-use tonic::{Request, Response, Status};
-use linfa_k_means::closest_centroid;
+use tonic::{Request, Response, Status, Code};
 
 pub mod centroids {
     // The string specified here must match the protos package name
@@ -33,13 +32,16 @@ impl ClusteringService for KMeansProto {
         // Return an instance of type HelloReply
         //dbg!("Got a request: {:?}", &request);
 
-        let observation = Array::from(request.into_inner().features);
+        let features = request.into_inner().features;
+        let observation = Array::from_shape_vec((1, features.len()), features)
+            .map_err(|err| Status::new(Code::InvalidArgument, err.to_string()))?;
 
-        let reply = PredictResponse {
-            cluster_index: 
-                closest_centroid(&self.store.centroids, &observation) as i32, 
-        };
-
-        Ok(Response::new(reply)) // Send back our formatted greeting
+        if let Some(cluster_index) = self.store.kmeans.predict(&observation).get(0) {
+            Ok(Response::new(
+                PredictResponse { cluster_index: *cluster_index as i32 })
+            )
+        } else {
+            Err(Status::new(Code::Internal, "KMeans::predict did not return value"))
+        }
     }
 }
