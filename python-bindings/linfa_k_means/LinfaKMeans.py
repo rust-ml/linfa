@@ -3,7 +3,7 @@ from sklearn.utils.validation import check_is_fitted
 from sklearn.metrics.pairwise import euclidean_distances, pairwise_distances_argmin_min
 from sklearn.utils.extmath import row_norms
 import numpy as np
-from linfa_k_means import k_means
+from linfa_k_means import WrappedKMeans
 
 
 class KMeans(BaseEstimator, ClusterMixin, TransformerMixin):
@@ -55,10 +55,9 @@ class KMeans(BaseEstimator, ClusterMixin, TransformerMixin):
 
     def __init__(self, n_clusters=8, max_iter=300, tol=1e-4, random_state=None):
 
+        self.model_ = WrappedKMeans(random_state, tol, max_iter)
         self.n_clusters = n_clusters
-        self.max_iter = max_iter
-        self.tol = tol
-        self.random_state = random_state
+        self.cluster_centers_ = None
 
     def fit(self, X, y=None):
         """Compute k-means clustering.
@@ -71,9 +70,8 @@ class KMeans(BaseEstimator, ClusterMixin, TransformerMixin):
         y : Ignored
             not used, present here for API consistency by convention.
         """
-        self.cluster_centers_, self.labels_ = k_means(
-            self.n_clusters, X, self.random_state, self.tol, self.max_iter
-        )
+        self.model_.fit(self.n_clusters, X)
+        self.cluster_centers_ = self.model_.centroids()
         return self
 
     def fit_predict(self, X, y=None):
@@ -91,7 +89,7 @@ class KMeans(BaseEstimator, ClusterMixin, TransformerMixin):
         labels : array, shape [n_samples,]
             Index of the cluster each sample belongs to.
         """
-        return self.fit(X).labels_
+        return self.fit(X).predict(X)
 
     def fit_transform(self, X, y=None):
         """Compute clustering and transform X to cluster-distance space.
@@ -128,7 +126,7 @@ class KMeans(BaseEstimator, ClusterMixin, TransformerMixin):
 
     def _transform(self, X):
         """guts of transform method; no input validation"""
-        return euclidean_distances(X, self.cluster_centers_)
+        return self.model_.predict(X)
 
     def predict(self, X):
         """Predict the closest cluster each sample in X belongs to.
@@ -145,10 +143,8 @@ class KMeans(BaseEstimator, ClusterMixin, TransformerMixin):
             Index of the cluster each sample belongs to.
         """
         check_is_fitted(self, 'cluster_centers_')
+        return self.model_.predict(X)
 
-        x_squared_norms = row_norms(X, squared=True)
-        return _labels_inertia(X, x_squared_norms,
-                               self.cluster_centers_)[0]
 
     def score(self, X, y=None):
         """Opposite of the value of X on the K-means objective.
