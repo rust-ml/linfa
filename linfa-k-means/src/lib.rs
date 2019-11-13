@@ -98,7 +98,8 @@ impl KMeans {
     /// Given an input matrix `observations`, with shape `(n_observations, n_features)`,
     /// `predict` returns, for each observation, the index of the closest cluster/centroid.
     ///
-    /// You can retrieve the centroid associated to an index using the [`centroids` method](#method.centroids) (e.g. `self.centroids()[cluster_index]`).
+    /// You can retrieve the centroid associated to an index using the
+    /// [`centroids` method](#method.centroids) (e.g. `self.centroids()[cluster_index]`).
     pub fn predict(&self, observations: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<usize> {
         compute_cluster_memberships(
             self.centroids
@@ -121,6 +122,8 @@ impl KMeans {
         Ok(model)
     }
 
+    /// Return the set of centroids as a 2-dimensional matrix with shape
+    /// `(n_centroids, n_features)`.
     pub fn centroids(&self) -> Option<&Array2<f64>> {
         self.centroids.as_ref()
     }
