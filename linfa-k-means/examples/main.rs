@@ -1,4 +1,4 @@
-use linfa_k_means::KMeans;
+use linfa_k_means::{KMeans, KMeansHyperParams};
 use ndarray::{array, s, Array, Array2, ArrayView1, ArrayView2, Axis};
 use ndarray_npy::write_npy;
 use ndarray_rand::rand::{Rng, SeedableRng};
@@ -47,8 +47,11 @@ fn main() {
 
     let dataset = generate_dataset(n, expected_centroids.view(), &mut rng);
 
-    let mut model = KMeans::new(Some(tolerance), Some(max_n_iterations), &mut rng);
-    model.fit(n_clusters, &dataset);
+    let hyperparams = KMeansHyperParams::new(n_clusters)
+        .max_n_iterations(max_n_iterations)
+        .tolerance(tolerance)
+        .build();
+    let model = KMeans::fit(hyperparams, &dataset, &mut rng);
     let cluster_memberships = model.predict(&dataset);
 
     write_npy("clustered_dataset.npy", dataset).expect("Failed to write .npy file");

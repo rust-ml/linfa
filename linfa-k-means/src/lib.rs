@@ -2,11 +2,10 @@ use ndarray::{s, Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
 use ndarray_rand::rand;
 use ndarray_rand::rand::Rng;
 use ndarray_stats::DeviationExt;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::PathBuf;
-use serde::{Serialize, Deserialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 /// K-means clustering aims to partition a set of observations into clusters,
 /// where each observation belongs to the cluster with the nearest mean.
 ///
@@ -19,14 +18,104 @@ use serde::{Serialize, Deserialize};
 /// Lloyd's algorithm or naive K-means. Details on the algorithm can be
 /// found [here](https://en.wikipedia.org/wiki/K-means_clustering).
 pub struct KMeans {
+    hyperparameters: KMeansHyperParams,
+    centroids: Array2<f64>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+/// The set of hyperparameters that can be specified for the execution of
+/// the [K-means algorithm](struct.KMeans.html).
+pub struct KMeansHyperParams {
+    /// The training is considered complete if the euclidean distance
+    /// between the old set of centroids and the new set of centroids
+    /// after a training iteration is lower or equal than `tolerance`.
+    pub tolerance: f64,
+    /// We exit the training loop when the number of training iterations
+    /// exceeds `max_n_iterations` even if the `tolerance` convergence
+    /// condition has not been met.
+    pub max_n_iterations: u64,
+    /// The number of clusters we will be looking for in the training dataset.
+    pub n_clusters: usize,
+}
+
+/// An helper struct used to construct a set of [valid hyperparameters](struct.KMeansHyperParams.html) for
+/// the [K-means algorithm](struct.KMeans.html) (the builder pattern).
+pub struct KMeansHyperParamsBuilder {
     tolerance: f64,
     max_n_iterations: u64,
-    // Only set after `fit` has been called
-    centroids: Option<Array2<f64>>,
+    n_clusters: usize,
+}
+
+impl KMeansHyperParamsBuilder {
+    /// Set the value of `max_n_iterations`.
+    ///
+    /// We exit the training loop when the number of training iterations
+    /// exceeds `max_n_iterations` even if the `tolerance` convergence
+    /// condition has not been met.
+    pub fn max_n_iterations(mut self, max_n_iterations: u64) -> Self {
+        self.max_n_iterations = max_n_iterations;
+        self
+    }
+
+    /// Set the value of `tolerance`.
+    ///
+    /// The training is considered complete if the euclidean distance
+    /// between the old set of centroids and the new set of centroids
+    /// after a training iteration is lower or equal than `tolerance`.
+    pub fn tolerance(mut self, tolerance: f64) -> Self {
+        self.tolerance = tolerance;
+        self
+    }
+
+    /// Return an instance of `KMeansHyperParams` after
+    /// having performed validation checks on all the specified hyperparamters.
+    ///
+    /// **Panics** if any of the validation checks fails.
+    pub fn build(self) -> KMeansHyperParams {
+        if self.max_n_iterations == 0 {
+            panic!("`max_n_iterations` cannot be 0!");
+        }
+        if self.tolerance <= 0. {
+            panic!("`tolerance` must be greater than 0!");
+        }
+        if self.n_clusters == 0 {
+            panic!("`n_clusters` cannot be 0!");
+        }
+        KMeansHyperParams {
+            tolerance: self.tolerance,
+            max_n_iterations: self.max_n_iterations,
+            n_clusters: self.n_clusters,
+        }
+    }
+}
+
+impl KMeansHyperParams {
+    /// `new` lets us configure our training algorithm parameters:
+    /// * we will be looking for `n_clusters` in the training dataset;
+    /// * the training is considered complete if the euclidean distance
+    ///   between the old set of centroids and the new set of centroids
+    ///   after a training iteration is lower or equal than `tolerance`;
+    /// * we exit the training loop when the number of training iterations
+    ///   exceeds `max_n_iterations` even if the `tolerance` convergence
+    ///   condition has not been met.
+    ///
+    /// `n_clusters` is mandatory.
+    ///
+    /// Defaults are provided if optional parameters are not specified:
+    /// * `tolerance = 1e-4`;
+    /// * `max_n_iterations = 300`.
+    pub fn new(n_clusters: usize) -> KMeansHyperParamsBuilder {
+        KMeansHyperParamsBuilder {
+            tolerance: 1e-4,
+            max_n_iterations: 300,
+            n_clusters,
+        }
+    }
 }
 
 impl KMeans {
     /// K-means is an iterative algorithm: it progressively refines the choice of centroids.
+    ///
     /// It's guaranteed to converge, even though it might not find the optimal set of centroids
     /// (unfortunately it can get stuck in a local minimum, finding the optimal minimum if NP-hard!).
     ///
@@ -40,35 +129,34 @@ impl KMeans {
     /// Assignment and update are repeated in a loop until convergence is reached (we'll get back
     /// to what this means soon enough).
     ///
-    /// `new` lets us configure our training algorithm:
-    /// * the training is considered complete if the euclidean distance
-    ///   between the old set of centroids and the new set of centroids
-    ///   after a training iteration is lower or equal than `tolerance`;
-    /// * we exit the training loop when the number of training iterations
-    ///   exceeds `max_n_iterations` even if the `tolerance` convergence
-    ///   condition has not been met.
-    ///
-    /// Defaults are provided if `None` is passed as argument:
-    /// * `tolerance = 1e-4`;
-    /// * `max_n_iterations = 300`.
-    pub fn new(tolerance: Option<f64>, max_n_iterations: Option<u64>) -> Self {
-        Self {
-            tolerance: tolerance.unwrap_or(1e-4),
-            max_n_iterations: max_n_iterations.unwrap_or(300),
-            centroids: None,
-        }
-    }
     /// Given an input matrix `observations`, with shape `(n_observations, n_features)`,
     /// `fit` identifies `n_clusters` centroids based on the training data distribution.
     ///
-    /// `self` is modified in place (`self.centroids` is mutated), nothing is returned.
+    /// An instance of `KMeans` is returned.
+    ///
+    /// ```
+    /// use linfa_k_means::{KMeansHyperParams, KMeans};
+    /// use ndarray::Array2;
+    /// use ndarray_rand::rand::SeedableRng;
+    /// use ndarray_rand::rand_distr::StandardNormal;
+    /// use ndarray_rand::RandomExt;
+    /// use rand_isaac::Isaac64Rng;
+    ///
+    /// let mut rng = Isaac64Rng::seed_from_u64(42);
+    /// let n_clusters = 4;
+    /// let observations = Array2::random_using((100, 10), StandardNormal, &mut rng);
+    /// let hyperparams = KMeansHyperParams::new(n_clusters)
+    ///     .tolerance(1e-2)
+    ///     .build();
+    /// let model = KMeans::fit(hyperparams, &observations, &mut rng);
+    /// ```
+    ///
     pub fn fit(
-        &mut self,
-        n_clusters: usize,
+        hyperparameters: KMeansHyperParams,
         observations: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
-        rng: &mut impl Rng
-    ) {
-        let mut centroids = get_random_centroids(n_clusters, observations, rng);
+        rng: &mut impl Rng,
+    ) -> Self {
+        let mut centroids = get_random_centroids(hyperparameters.n_clusters, observations, rng);
 
         let mut has_converged;
         let mut n_iterations = 0;
@@ -77,12 +165,14 @@ impl KMeans {
 
         loop {
             update_cluster_memberships(&centroids, observations, &mut memberships);
-            let new_centroids = compute_centroids(n_clusters, observations, &memberships);
+            let new_centroids =
+                compute_centroids(hyperparameters.n_clusters, observations, &memberships);
 
             let distance = centroids
                 .sq_l2_dist(&new_centroids)
                 .expect("Failed to compute distance");
-            has_converged = distance < self.tolerance || n_iterations > self.max_n_iterations;
+            has_converged = distance < hyperparameters.tolerance
+                || n_iterations > hyperparameters.max_n_iterations;
 
             centroids = new_centroids;
             n_iterations += 1;
@@ -92,7 +182,10 @@ impl KMeans {
             }
         }
 
-        self.centroids = Some(centroids);
+        Self {
+            hyperparameters,
+            centroids,
+        }
     }
 
     /// Given an input matrix `observations`, with shape `(n_observations, n_features)`,
@@ -101,31 +194,18 @@ impl KMeans {
     /// You can retrieve the centroid associated to an index using the
     /// [`centroids` method](#method.centroids) (e.g. `self.centroids()[cluster_index]`).
     pub fn predict(&self, observations: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<usize> {
-        compute_cluster_memberships(
-            self.centroids
-                .as_ref()
-                .expect("The model has to be fitted before calling predict!"),
-            observations,
-        )
-    }
-
-    pub fn save(&self, path: PathBuf) -> std::io::Result<()> {
-        std::fs::write(
-            path,
-           serde_json::to_string(&self)?
-        )
-    }
-
-    pub fn load(path: PathBuf) -> Result<Self, anyhow::Error> {
-        let reader = &std::fs::File::open(path)?;
-        let model = serde_json::from_reader(reader)?;
-        Ok(model)
+        compute_cluster_memberships(&self.centroids, observations)
     }
 
     /// Return the set of centroids as a 2-dimensional matrix with shape
     /// `(n_centroids, n_features)`.
-    pub fn centroids(&self) -> Option<&Array2<f64>> {
-        self.centroids.as_ref()
+    pub fn centroids(&self) -> &Array2<f64> {
+        &self.centroids
+    }
+
+    /// Return the hyperparameters used to train this K-means model instance.
+    pub fn hyperparameters(&self) -> &KMeansHyperParams {
+        &self.hyperparameters
     }
 }
 
