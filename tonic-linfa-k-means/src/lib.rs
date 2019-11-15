@@ -1,7 +1,7 @@
 pub mod server;
 
 use std::path::PathBuf;
-use linfa_k_means::KMeans;
+use linfa_clustering::KMeans;
 
 pub struct Store {
     pub kmeans: KMeans,
@@ -9,8 +9,9 @@ pub struct Store {
 
 impl Store {
     pub fn load(path: PathBuf) -> Result<Self, anyhow::Error> {
+        let reader = std::fs::File::open(path)?;
         Ok(Self {
-            kmeans: KMeans::load(path)?,
+            kmeans: serde_json::from_reader(reader)?,
         })
     }
 }

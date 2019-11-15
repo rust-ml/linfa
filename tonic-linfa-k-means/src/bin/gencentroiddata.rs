@@ -2,7 +2,7 @@ use ndarray::Array;
 use ndarray_rand::RandomExt;
 use ndarray_rand::rand_distr::Uniform;
 use structopt::StructOpt;
-use linfa_k_means::KMeans;
+use linfa_clustering::{KMeans, KMeansHyperParams};
 
 
 #[derive(StructOpt)]
@@ -18,8 +18,12 @@ struct Opt {
 
 fn main() {
     let opt = Opt::from_args();
-    let mut kmeans = KMeans::new(None, None);
+    // We just need a model instance, how we trained it doesn't have any influence
+    // on inference performance
+    let hyperparams = KMeansHyperParams::new(opt.centroids).build();
     let observations = Array::random((opt.centroids, opt.features), Uniform::new(-100.0, 100.0));
-    kmeans.fit(opt.centroids, &observations, &mut ndarray_rand::rand::thread_rng());
-    kmeans.save(opt.output).unwrap();
+    let kmeans = KMeans::fit(hyperparams, &observations, &mut ndarray_rand::rand::thread_rng());
+
+    let writer = std::fs::File::create(opt.output).unwrap();
+    serde_json::to_writer(writer, &kmeans).unwrap();
 }

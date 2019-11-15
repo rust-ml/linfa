@@ -21,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opt = ServerOptions::from_args();
     let store = Store::load(opt.centroids_path).expect("failed to load from input file");
 
-    let (n_centroids, n_features) = store.kmeans.centroids().unwrap().dim();
+    let (n_centroids, n_features) = store.kmeans.centroids().dim();
     println!(
         "Loaded {} centroids with {} features",
         n_centroids, n_features
