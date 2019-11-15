@@ -1,74 +1,84 @@
-use linfa_k_means as linfa_impl;
-use linfa_k_means::KMeans;
+use linfa_clustering::{KMeans, KMeansHyperParams};
 use ndarray_rand::rand::SeedableRng;
 use numpy::{PyArray1, PyArray2, ToPyArray};
+use pyo3::exceptions;
 use pyo3::prelude::*;
 use pyo3::types::{PyString, PyType};
 use rand_isaac::Isaac64Rng;
-use std::path::PathBuf;
+use serde::{Deserialize, Serialize};
 
 #[pyclass]
+#[derive(Serialize, Deserialize)]
 struct WrappedKMeans {
-    model: KMeans,
+    hyperparams: KMeansHyperParams,
     rng: Isaac64Rng,
+    model: Option<KMeans>,
 }
 
 #[pymethods]
 impl WrappedKMeans {
     #[new]
-    fn new(obj: &PyRawObject, random_state: Option<u64>, tolerance: f64, max_n_iterations: u64) {
-        let model = linfa_impl::KMeans::new(
-            Some(tolerance),
-            Some(max_n_iterations),
-        );
+    fn new(
+        obj: &PyRawObject,
+        n_clusters: usize,
+        random_state: Option<u64>,
+        tolerance: f64,
+        max_n_iterations: u64,
+    ) {
+        let hyperparams = KMeansHyperParams::new(n_clusters)
+            .tolerance(tolerance)
+            .max_n_iterations(max_n_iterations)
+            .build();
         let rng = Isaac64Rng::seed_from_u64(random_state.unwrap_or(42));
         obj.init(Self {
-            model,
-            rng
+            hyperparams,
+            rng,
+            // Populated when after `fit` has been called
+            model: None,
         });
     }
 
-    fn fit(&mut self, n_clusters: usize, observations: &PyArray2<f64>) {
+    fn fit(&mut self, observations: &PyArray2<f64>) {
         // Prepare input
         let observations_array = observations.as_array();
-        self.model.fit(n_clusters, &observations_array, &mut self.rng);
+        let model = KMeans::fit(self.hyperparams.clone(), &observations_array, &mut self.rng);
+        self.model = Some(model);
     }
 
-    fn predict(&self, observations: &PyArray2<f64>) -> Py<PyArray1<usize>> {
+    fn predict(&self, observations: &PyArray2<f64>) -> Option<Py<PyArray1<usize>>> {
         // Prepare input
         let observations_array = observations.as_array();
-        let cluster_labels= self.model.predict(&observations_array);
+        let cluster_labels = self.model.as_ref().map(|m| m.predict(&observations_array));
 
         // Prepare output
         let gil = pyo3::Python::acquire_gil();
-        let py_cluster_labels = cluster_labels.to_pyarray(gil.python()).to_owned();
+        let py_cluster_labels = cluster_labels.map(|c| c.to_pyarray(gil.python()).to_owned());
         py_cluster_labels
     }
 
     fn centroids(&self) -> Option<Py<PyArray2<f64>>> {
         // Prepare output
         let gil = pyo3::Python::acquire_gil();
-        let py_centroids = self.model.centroids().map(|x| x.to_pyarray(gil.python()).to_owned());
+        let py_centroids = self
+            .model
+            .as_ref()
+            .map(|m| m.centroids().to_pyarray(gil.python()).to_owned());
         py_centroids
     }
 
     fn save(&self, path: &PyString) -> PyResult<()> {
         let path = path.to_string()?;
-        let path_buf = PathBuf::from(path.into_owned());
-        Ok(self.model.save(path_buf)?)
+        let writer = std::fs::File::create(path.into_owned())?;
+        serde_json::to_writer(writer, &self)
+            .map_err(|e| PyErr::new::<exceptions::Exception, _>(e.to_string()))
     }
 
     #[classmethod]
-    fn load(cls: &PyType, path: &PyString) -> PyResult<WrappedKMeans> {
+    fn load(_cls: &PyType, path: &PyString) -> PyResult<WrappedKMeans> {
         let path = path.to_string()?;
-        let path_buf = PathBuf::from(path.into_owned());
-        let model = KMeans::load(path_buf).unwrap();
-        let rng = Isaac64Rng::seed_from_u64(42);
-        let wrapped_model = WrappedKMeans {
-            model,
-            rng
-        };
-        return Ok(wrapped_model);
+        let reader = std::fs::File::open(path.into_owned())?;
+        serde_json::from_reader(reader)
+            .map_err(|e| PyErr::new::<exceptions::Exception, _>(e.to_string()))
     }
 }
 

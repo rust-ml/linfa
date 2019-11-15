@@ -55,8 +55,7 @@ class KMeans(BaseEstimator, ClusterMixin, TransformerMixin):
 
     def __init__(self, n_clusters=8, max_iter=300, tol=1e-4, random_state=None):
 
-        self.model_ = WrappedKMeans(random_state, tol, max_iter)
-        self.n_clusters = n_clusters
+        self.model_ = WrappedKMeans(n_clusters, random_state, tol, max_iter)
         self.cluster_centers_ = None
 
     def fit(self, X, y=None):
@@ -70,7 +69,7 @@ class KMeans(BaseEstimator, ClusterMixin, TransformerMixin):
         y : Ignored
             not used, present here for API consistency by convention.
         """
-        self.model_.fit(self.n_clusters, X)
+        self.model_.fit(X)
         self.cluster_centers_ = self.model_.centroids()
         return self
 
@@ -145,11 +144,11 @@ class KMeans(BaseEstimator, ClusterMixin, TransformerMixin):
         check_is_fitted(self, 'cluster_centers_')
         return self.model_.predict(X)
 
-    def save(self, path: str):
+    def save(self, path):
         self.model_.save(path)
 
     @classmethod
-    def load(cls, path: str) -> "KMeans":
+    def load(cls, path) -> "KMeans":
         model_ = WrappedKMeans.load(path)
         cluster_centers_ = model_.centroids()
         model = super().__new__(cls)

@@ -9,9 +9,11 @@ rayon = "1.0.2"
 pyo3 = { version = "0.8.2", features = ["extension-module"] }
 linfa-clustering = { version = "0.1.0", path="../linfa-clustering" }
 ndarray = { version = "0.13" }
-rand_isaac = "0.2.0"
+rand_isaac = { version = "0.2.0", features = ["serde1"] }
 ndarray-rand = "0.11"
 numpy = "0.7.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 
 [lib]
 name = "linfa_k_means"
