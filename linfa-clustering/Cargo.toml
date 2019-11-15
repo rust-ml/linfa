@@ -1,28 +1,27 @@
 [package]
-name = "linfa-k-means"
+name = "linfa-clustering"
 version = "0.1.0"
 edition = "2018"
 authors = ["Luca Palmieri <rust@lpalmieri.com>"]
-description = "An implementation of K-Means clustering"
+description = "A collection of clustering algorithms"
 license = "MIT/Apache-2.0"
 
 repository = "https://github.com/LukeMathWalker/linfa"
 readme = "README.md"
 
-keywords = ["clustering", "machine learning", "unsupervised learning", "linfa"]
+keywords = ["clustering", "machine learning", "unsupervised learning", "linfa", "k-means"]
 
 [dependencies]
 ndarray = { version = "0.13" , features = ["rayon", "serde"]}
 ndarray-rand = "0.11"
 ndarray-stats = "0.3"
-serde_json = "1"
 serde = { version = "1", features = ["derive"] }
-anyhow = "1"
 
 [dev-dependencies]
 rand_isaac = "0.2.0"
 ndarray-npy = { version = "0.5", default-features = false }
 criterion = "0.2"
+serde_json = "1"
 
 [[bench]]
 name = "k_means"

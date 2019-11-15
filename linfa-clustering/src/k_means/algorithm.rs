@@ -47,7 +47,7 @@ impl KMeans {
     /// ## Example:
     ///
     /// ```
-    /// use linfa_k_means::{KMeansHyperParams, KMeans, generate_blobs};
+    /// use linfa_clustering::{KMeansHyperParams, KMeans, generate_blobs};
     /// use ndarray::{Axis, array};
     /// use ndarray_rand::rand::SeedableRng;
     /// use ndarray_rand::rand_distr::StandardNormal;

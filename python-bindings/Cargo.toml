@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 rayon = "1.0.2"
 pyo3 = { version = "0.8.2", features = ["extension-module"] }
-linfa-k-means = { version = "0.1.0", path="../linfa-k-means" }
+linfa-clustering = { version = "0.1.0", path="../linfa-clustering" }
 ndarray = { version = "0.13" }
 rand_isaac = "0.2.0"
 ndarray-rand = "0.11"

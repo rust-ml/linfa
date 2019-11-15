@@ -71,7 +71,7 @@ install_requires = ["scikit-learn~=0.21.3"]
 tests_require = install_requires + ["pytest", "pytest-benchmark"]
 
 setup(
-    name="linfa-k-means",
+    name="linfa-clustering",
     version="0.1.0",
     classifiers=[
         "License :: OSI Approved :: MIT License",

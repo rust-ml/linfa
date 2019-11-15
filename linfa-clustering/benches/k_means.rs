@@ -2,7 +2,7 @@ use criterion::{
     black_box, criterion_group, criterion_main, AxisScale, Criterion, ParameterizedBenchmark,
     PlotConfiguration,
 };
-use linfa_k_means::{generate_blobs, KMeans, KMeansHyperParams};
+use linfa_clustering::{generate_blobs, KMeans, KMeansHyperParams};
 use ndarray::Array2;
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::Uniform;
