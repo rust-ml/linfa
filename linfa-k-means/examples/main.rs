@@ -1,59 +1,33 @@
-use linfa_k_means::{KMeans, KMeansHyperParams};
-use ndarray::{array, s, Array, Array2, ArrayView1, ArrayView2, Axis};
+use linfa_k_means::{generate_blobs, KMeans, KMeansHyperParams};
+use ndarray::{array, Axis};
 use ndarray_npy::write_npy;
-use ndarray_rand::rand::{Rng, SeedableRng};
-use ndarray_rand::rand_distr::StandardNormal;
-use ndarray_rand::RandomExt;
+use ndarray_rand::rand::SeedableRng;
 use rand_isaac::Isaac64Rng;
 
-pub fn generate_dataset(
-    cluster_size: usize,
-    centroids: ArrayView2<f64>,
-    rng: &mut impl Rng,
-) -> Array2<f64> {
-    let (n_centroids, n_features) = centroids.dim();
-    let mut dataset: Array2<f64> = Array2::zeros((n_centroids * cluster_size, n_features));
-
-    for (cluster_index, centroid) in centroids.genrows().into_iter().enumerate() {
-        let cluster = generate_cluster(cluster_size, centroid, rng);
-
-        let indexes = s![
-            cluster_index * cluster_size..(cluster_index + 1) * cluster_size,
-            ..
-        ];
-        dataset.slice_mut(indexes).assign(&cluster);
-    }
-    dataset
-}
-
-pub fn generate_cluster(
-    n_observations: usize,
-    centroid: ArrayView1<f64>,
-    rng: &mut impl Rng,
-) -> Array2<f64> {
-    let shape = (n_observations, centroid.len());
-    let origin_cluster: Array2<f64> = Array::random_using(shape, StandardNormal, rng);
-    origin_cluster + centroid
-}
-
+// A routine K-means task: build a synthetic dataset, fit the algorithm on it
+// and save both training data and predictions to disk.
 fn main() {
     let expected_centroids = array![[10., 10.], [1., 12.], [20., 30.], [-20., 30.],];
+    let mut rng = Isaac64Rng::seed_from_u64(42);
     let n = 10000;
 
-    let mut rng = Isaac64Rng::seed_from_u64(42);
-    let max_n_iterations = 200;
-    let tolerance = 1e-5;
+    // For each our expected centroids, generate `n` data points around it (a "blob")
+    let dataset = generate_blobs(n, &expected_centroids, &mut rng);
+
     let n_clusters = expected_centroids.len_of(Axis(0));
-
-    let dataset = generate_dataset(n, expected_centroids.view(), &mut rng);
-
+    // Configure our training algorithm
     let hyperparams = KMeansHyperParams::new(n_clusters)
-        .max_n_iterations(max_n_iterations)
-        .tolerance(tolerance)
+        .max_n_iterations(200)
+        .tolerance(1e-5)
         .build();
+
+    // Infer an optimal set of centroids based on the training data distribution
     let model = KMeans::fit(hyperparams, &dataset, &mut rng);
+
+    // Assign each point to a cluster using the set of centroids found using `fit`
     let cluster_memberships = model.predict(&dataset);
 
+    // Save our datasets to disk in `npy` format
     write_npy("clustered_dataset.npy", dataset).expect("Failed to write .npy file");
     write_npy(
         "clustered_memberships.npy",
