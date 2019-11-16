@@ -15,8 +15,8 @@ fn main() {
     let n = 10000;
     let dataset = generate_blobs(n, &expected_centroids, &mut rng);
 
-    let n_clusters = expected_centroids.len_of(Axis(0));
     // Configure our training algorithm
+    let n_clusters = expected_centroids.len_of(Axis(0));
     let hyperparams = KMeansHyperParams::new(n_clusters)
         .max_n_iterations(200)
         .tolerance(1e-5)
