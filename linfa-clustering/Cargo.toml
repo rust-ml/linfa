@@ -12,7 +12,7 @@ readme = "README.md"
 keywords = ["clustering", "machine learning", "unsupervised learning", "linfa", "k-means"]
 
 [dependencies]
-ndarray = { version = "0.13" , features = ["rayon", "serde"]}
+ndarray = { version = "0.13" , features = ["rayon", "serde", "approx"]}
 ndarray-rand = "0.11"
 ndarray-stats = "0.3"
 serde = { version = "1", features = ["derive"] }
@@ -22,6 +22,7 @@ rand_isaac = "0.2.0"
 ndarray-npy = { version = "0.5", default-features = false }
 criterion = "0.2"
 serde_json = "1"
+approx = "*"
 
 [[bench]]
 name = "k_means"

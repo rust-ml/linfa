@@ -6,7 +6,7 @@ use ndarray_stats::DeviationExt;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 /// K-means clustering aims to partition a set of observations into clusters,
 /// where each observation belongs to the cluster with the nearest mean.
 ///
@@ -63,6 +63,7 @@ use std::collections::HashMap;
 /// use ndarray::{Axis, array, s};
 /// use ndarray_rand::rand::SeedableRng;
 /// use rand_isaac::Isaac64Rng;
+/// use approx::assert_abs_diff_eq;
 ///
 /// // Our random number generator, seeded for reproducibility
 /// let seed = 42;
@@ -72,8 +73,8 @@ use std::collections::HashMap;
 /// // i.e. three points in the 2-dimensional plane
 /// let expected_centroids = array![[0., 1.], [-10., 20.], [-1., 10.]];
 /// // Let's generate a synthetic dataset: three blobs of observations
-/// // (1000 points each) centered around our `expected_centroids`
-/// let observations = generate_blobs(1000, &expected_centroids, &mut rng);
+/// // (100 points each) centered around our `expected_centroids`
+/// let observations = generate_blobs(100, &expected_centroids, &mut rng);
 ///
 /// // Let's configure and run our K-means algorithm
 /// // We use the builder pattern to specify the hyperparameters
@@ -87,8 +88,7 @@ use std::collections::HashMap;
 /// // Let's run the algorithm!
 /// let model = KMeans::fit(hyperparams, &observations, &mut rng);
 ///
-/// // Once we found our set of centroids, we can also assign new points to
-/// // the nearest cluster
+/// // Once we found our set of centroids, we can also assign new points to the nearest cluster
 /// let new_observation = array![[-9., 20.5]];
 /// // Predict returns the **index** of the nearest cluster
 /// let closest_cluster_index = model.predict(&new_observation);
@@ -97,8 +97,15 @@ use std::collections::HashMap;
 ///
 /// // The model can be serialised (and deserialised) to disk using serde
 /// // We'll use the JSON format here for simplicity
-/// let writer = std::fs::File::create("k_means_model.json").expect("Failed to open file.");
+/// let filename = "k_means_model.json";
+/// let writer = std::fs::File::create(filename).expect("Failed to open file.");
 /// serde_json::to_writer(writer, &model).expect("Failed to serialise model.");
+///
+/// let reader = std::fs::File::open(filename).expect("Failed to open file.");
+/// let loaded_model: KMeans = serde_json::from_reader(reader).expect("Failed to deserialise model");
+///
+/// assert_abs_diff_eq!(model.centroids(), loaded_model.centroids(), epsilon = 1e-10);
+/// assert_eq!(model.hyperparameters(), loaded_model.hyperparameters());
 /// ```
 ///
 pub struct KMeans {

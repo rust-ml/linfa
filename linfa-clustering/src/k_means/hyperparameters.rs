@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 /// The set of hyperparameters that can be specified for the execution of
 /// the [K-means algorithm](struct.KMeans.html).
 pub struct KMeansHyperParams {
