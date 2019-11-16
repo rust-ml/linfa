@@ -20,7 +20,7 @@ Implementation choices, algorithmic details and a tutorial can be found [here](s
 
 Check [here]() for extensive benchmarks against `scikit-learn`'s K-means implementation.
 
-# License
+## License
 Dual-licensed to be compatible with the Rust project.
 
 Licensed under the Apache License, Version 2.0 http://www.apache.org/licenses/LICENSE-2.0 or the MIT license http://opensource.org/licenses/MIT, at your option. This file may not be copied, modified, or distributed except according to those terms.
