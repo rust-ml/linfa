@@ -16,61 +16,101 @@ use std::collections::HashMap;
 /// choosing the nearest centroid.
 ///
 /// We provide an implementation of the _standard algorithm_, also known as
-/// Lloyd's algorithm or naive K-means. Details on the algorithm can be
-/// found [here](https://en.wikipedia.org/wiki/K-means_clustering).
+/// Lloyd's algorithm or naive K-means.
+///
+/// More details on the algorithm can be found in the next section or
+/// [here](https://en.wikipedia.org/wiki/K-means_clustering).
+///
+/// ## The algorithm
+///
+/// K-means is an iterative algorithm: it progressively refines the choice of centroids.
+///
+/// It's guaranteed to converge, even though it might not find the optimal set of centroids
+/// (unfortunately it can get stuck in a local minimum, finding the optimal minimum if NP-hard!).
+///
+/// There are three steps in the standard algorithm:
+/// - initialisation step: how do we choose our initial set of centroids?
+/// - assignment step: assign each observation to the nearest cluster
+///                    (minimum distance between the observation and the cluster's centroid);
+/// - update step: recompute the centroid of each cluster.
+///
+/// The initialisation step is a one-off, done at the very beginning.
+/// Assignment and update are repeated in a loop until convergence is reached (either the
+/// euclidean distance between the old and the new clusters is below `tolerance` or
+/// we exceed the `max_n_iterations`).
+///
+/// ## Parallelisation
+///
+/// The work performed by the assignment step does not require any coordination:
+/// the closest centroid for each point can be computed independently from the
+/// closest centroid for any of the remaining points.
+///
+/// This makes it a good candidate for parallel execution: `KMeans::fit` parallelises the
+/// assignment step thanks to the `rayon` feature in `ndarray`.
+///
+/// The update step requires a bit more coordination (computing a rolling mean in
+/// parallel) but it is still parallelisable.
+/// Nonetheless, our first attempts have not improved performance
+/// (most likely due to our strategy used to split work between threads), hence
+/// the update step is currently executed on a single thread.
+///
+/// ## Tutorial
+///
+/// Let's do a walkthrough of a training-predict-save example.
+///
+/// ```
+/// use linfa_clustering::{KMeansHyperParams, KMeans, generate_blobs};
+/// use ndarray::{Axis, array, s};
+/// use ndarray_rand::rand::SeedableRng;
+/// use rand_isaac::Isaac64Rng;
+///
+/// // Our random number generator, seeded for reproducibility
+/// let seed = 42;
+/// let mut rng = Isaac64Rng::seed_from_u64(seed);
+///
+/// // `expected_centroids` has shape `(n_centroids, n_features)`
+/// // i.e. three points in the 2-dimensional plane
+/// let expected_centroids = array![[0., 1.], [-10., 20.], [-1., 10.]];
+/// // Let's generate a synthetic dataset: three blobs of observations
+/// // (1000 points each) centered around our `expected_centroids`
+/// let observations = generate_blobs(1000, &expected_centroids, &mut rng);
+///
+/// // Let's configure and run our K-means algorithm
+/// // We use the builder pattern to specify the hyperparameters
+/// // `n_clusters` is the only mandatory parameter.
+/// // If you don't specify the others (e.g. `tolerance` or `max_n_iterations`)
+/// // default values will be used.
+/// let n_clusters = expected_centroids.len_of(Axis(0));
+/// let hyperparams = KMeansHyperParams::new(n_clusters)
+///     .tolerance(1e-2)
+///     .build();
+/// // Let's run the algorithm!
+/// let model = KMeans::fit(hyperparams, &observations, &mut rng);
+///
+/// // Once we found our set of centroids, we can also assign new points to
+/// // the nearest cluster
+/// let new_observation = array![[-9., 20.5]];
+/// // Predict returns the **index** of the nearest cluster
+/// let closest_cluster_index = model.predict(&new_observation);
+/// // We can retrieve the actual centroid of the closest cluster using `.centroids()`
+/// let closest_centroid = &model.centroids().index_axis(Axis(0), closest_cluster_index[0]);
+///
+/// // The model can be serialised (and deserialised) to disk using serde
+/// // We'll use the JSON format here for simplicity
+/// let writer = std::fs::File::create("k_means_model.json").expect("Failed to open file.");
+/// serde_json::to_writer(writer, &model).expect("Failed to serialise model.");
+/// ```
+///
 pub struct KMeans {
     hyperparameters: KMeansHyperParams,
     centroids: Array2<f64>,
 }
 
 impl KMeans {
-    /// K-means is an iterative algorithm: it progressively refines the choice of centroids.
-    ///
-    /// It's guaranteed to converge, even though it might not find the optimal set of centroids
-    /// (unfortunately it can get stuck in a local minimum, finding the optimal minimum if NP-hard!).
-    ///
-    /// There are three steps in the standard algorithm:
-    /// - initialisation step: how do we choose our initial set of centroids?
-    /// - assignment step: assign each observation to the nearest cluster
-    ///                    (minimum distance between the observation and the cluster's centroid);
-    /// - update step: recompute the centroid of each cluster.
-    ///
-    /// The initialisation step is a one-off, done at the very beginning.
-    /// Assignment and update are repeated in a loop until convergence is reached (we'll get back
-    /// to what this means soon enough).
-    ///
     /// Given an input matrix `observations`, with shape `(n_observations, n_features)`,
     /// `fit` identifies `n_clusters` centroids based on the training data distribution.
     ///
     /// An instance of `KMeans` is returned.
-    ///
-    /// ## Example:
-    ///
-    /// ```
-    /// use linfa_clustering::{KMeansHyperParams, KMeans, generate_blobs};
-    /// use ndarray::{Axis, array};
-    /// use ndarray_rand::rand::SeedableRng;
-    /// use ndarray_rand::rand_distr::StandardNormal;
-    /// use ndarray_rand::RandomExt;
-    /// use rand_isaac::Isaac64Rng;
-    ///
-    /// // Let's generate a synthetic dataset, with two clear clusters
-    /// let mut rng = Isaac64Rng::seed_from_u64(42);
-    /// let expected_centroids = array![[0., 1.], [-10., 20.]];
-    /// let observations = generate_blobs(1000, &expected_centroids, &mut rng);
-    ///
-    /// // Let's configure and run our K-means algorithm
-    /// let n_clusters = expected_centroids.len_of(Axis(0));
-    /// let hyperparams = KMeansHyperParams::new(n_clusters)
-    ///     .tolerance(1e-2)
-    ///     .build();
-    /// let model = KMeans::fit(hyperparams, &observations, &mut rng);
-    ///
-    /// // The model can be serialised (and deserialised) to disk using serde
-    /// // We'll use the JSON format here for simplicity
-    /// let writer = std::fs::File::create("k_means_model.json").expect("Failed to open file.");
-    /// serde_json::to_writer(writer, &model).expect("Failed to serialise model.");
-    /// ```
     ///
     pub fn fit(
         hyperparameters: KMeansHyperParams,
@@ -113,7 +153,7 @@ impl KMeans {
     /// `predict` returns, for each observation, the index of the closest cluster/centroid.
     ///
     /// You can retrieve the centroid associated to an index using the
-    /// [`centroids` method](#method.centroids) (e.g. `self.centroids()[cluster_index]`).
+    /// [`centroids` method](#method.centroids).
     pub fn predict(&self, observations: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<usize> {
         compute_cluster_memberships(&self.centroids, observations)
     }
