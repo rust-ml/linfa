@@ -27,7 +27,8 @@ fn main() {
     // Assign each point to a cluster using the set of centroids found using `fit`
     let cluster_memberships = model.predict(&dataset);
 
-    // Save our datasets to disk in `npy` format
+    // Save to disk our dataset (and the cluster label assigned to each observation)
+    // We use the `npy` format for compatibility with NumPy
     write_npy("clustered_dataset.npy", dataset).expect("Failed to write .npy file");
     write_npy(
         "clustered_memberships.npy",
