@@ -17,7 +17,7 @@ pub struct KMeansHyperParams {
 }
 
 /// An helper struct used to construct a set of [valid hyperparameters](struct.KMeansHyperParams.html) for
-/// the [K-means algorithm](struct.KMeans.html) (the builder pattern).
+/// the [K-means algorithm](struct.KMeans.html) (using the builder pattern).
 pub struct KMeansHyperParamsBuilder {
     tolerance: f64,
     max_n_iterations: u64,
