@@ -8,7 +8,7 @@
 //! kin in spirit to Python's `scikit-learn`.
 //!
 //! You can find a roadmap (and a selection of good first issues)
-//! [here](https://github.com/LukeMathWalker/linfa) - contributors are more than welcome!
+//! [here](https://github.com/LukeMathWalker/linfa/issues) - contributors are more than welcome!
 //!
 //! ## Current state
 //!
