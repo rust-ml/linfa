@@ -124,7 +124,7 @@ impl KMeans {
         observations: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
         rng: &mut impl Rng,
     ) -> Self {
-        let mut centroids = get_random_centroids(hyperparameters.n_clusters, observations, rng);
+        let mut centroids = get_random_centroids(hyperparameters.n_clusters(), observations, rng);
 
         let mut has_converged;
         let mut n_iterations = 0;
@@ -134,13 +134,13 @@ impl KMeans {
         loop {
             update_cluster_memberships(&centroids, observations, &mut memberships);
             let new_centroids =
-                compute_centroids(hyperparameters.n_clusters, observations, &memberships);
+                compute_centroids(hyperparameters.n_clusters(), observations, &memberships);
 
             let distance = centroids
                 .sq_l2_dist(&new_centroids)
                 .expect("Failed to compute distance");
-            has_converged = distance < hyperparameters.tolerance
-                || n_iterations > hyperparameters.max_n_iterations;
+            has_converged = distance < hyperparameters.tolerance()
+                || n_iterations > hyperparameters.max_n_iterations();
 
             centroids = new_centroids;
             n_iterations += 1;
@@ -178,8 +178,15 @@ impl KMeans {
 }
 
 fn compute_centroids(
+    // The number of clusters could be inferred from `centroids_hashmap`,
+    // but it is indeed possible for a cluster to become empty during the
+    // multiple rounds of assignment-update optimisations
+    // This would lead to an underestimate of the number of clusters
+    // and several errors down the line due to shape mismatches
     n_clusters: usize,
+    // (n_observations, n_features)
     observations: &ArrayBase<impl Data<Elem = f64>, Ix2>,
+    // (n_observations,)
     cluster_memberships: &ArrayBase<impl Data<Elem = usize>, Ix1>,
 ) -> Array2<f64> {
     let centroids_hashmap = compute_centroids_hashmap(&observations, &cluster_memberships);
@@ -299,4 +306,78 @@ where
     let (n_samples, _) = observations.dim();
     let indices = rand::seq::index::sample(rng, n_samples, n_clusters).into_vec();
     observations.select(Axis(0), &indices)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use approx::assert_abs_diff_eq;
+    use ndarray::{s, stack, Array, Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2};
+    use ndarray_rand::rand_distr::Uniform;
+    use ndarray_rand::RandomExt;
+
+    /// As we highlighted several times, K-means is an iterative algorithm.
+    /// We will perform the assignment and update steps until we are satisfied
+    /// (according to a reasonable convergence criteria).
+    ///
+    /// If you go back to our `compute_cluster_memberships` function, the culmination of
+    /// the assignment koan, you can see that it expects to receive centroids as a 2-dimensional
+    /// array.
+    ///
+    /// Let's wrap our `compute_centroids_hashmap` to return a 2-dimensional array,
+    /// where the i-th row corresponds to the i-th cluster.
+    pub fn compute_centroids(
+        n_centroids: usize,
+        // (n_observations, n_features)
+        observations: &ArrayBase<impl Data<Elem = f64>, Ix2>,
+        // (n_observations,)
+        cluster_memberships: &ArrayBase<impl Data<Elem = usize>, Ix1>,
+    ) -> Array2<f64> {
+        let centroids_hashmap = compute_centroids_hashmap(&observations, &cluster_memberships);
+
+        // Go back to "cluster generation / dataset" if you are looking for inspiration!
+        let (_, n_features) = observations.dim();
+
+        let mut centroids: Array2<f64> = Array2::zeros((n_centroids, n_features));
+        for (centroid_index, centroid) in centroids_hashmap.into_iter() {
+            centroids.slice_mut(s![centroid_index, ..]).assign(&centroid.current_mean);
+        }
+        centroids
+    }
+
+    #[test]
+    fn centroids_array2() {
+        let cluster_size = 100;
+        let n_features = 4;
+
+        // Let's setup a synthetic set of observations, composed of two clusters with known means
+        let cluster_1: Array2<f64> =
+            Array::random((cluster_size, n_features), Uniform::new(-100., 100.));
+        let memberships_1 = Array1::zeros(cluster_size);
+        let expected_centroid_1 = cluster_1.mean_axis(Axis(0)).unwrap();
+
+        let cluster_2: Array2<f64> =
+            Array::random((cluster_size, n_features), Uniform::new(-100., 100.));
+        let memberships_2 = Array1::ones(cluster_size);
+        let expected_centroid_2 = cluster_2.mean_axis(Axis(0)).unwrap();
+
+        // `stack` combines arrays along a given axis: https://docs.rs/ndarray/0.13.0/ndarray/fn.stack.html
+        let observations = stack(Axis(0), &[cluster_1.view(), cluster_2.view()]).unwrap();
+        let memberships = stack(Axis(0), &[memberships_1.view(), memberships_2.view()]).unwrap();
+
+        // Does it work?
+        let centroids = compute_centroids(2, &observations, &memberships);
+        assert_abs_diff_eq!(
+            centroids.index_axis(Axis(0), 0),
+            expected_centroid_1,
+            epsilon = 1e-5
+        );
+        assert_abs_diff_eq!(
+            centroids.index_axis(Axis(0), 1),
+            expected_centroid_2,
+            epsilon = 1e-5
+        );
+
+        assert_eq!(centroids.len_of(Axis(0)), 2);
+    }
 }
