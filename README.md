@@ -1,5 +1,7 @@
 # linfa
 
+Python bindings can be found [here](https://github.com/LukeMathWalker/linfa).
+
 # License
 Dual-licensed to be compatible with the Rust project.
 
