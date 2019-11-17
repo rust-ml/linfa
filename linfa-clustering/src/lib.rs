@@ -18,6 +18,7 @@
 //! Implementation choices, algorithmic details and a tutorial can be found [here](struct.KMeans.html).
 //!
 //! Check [here]() for extensive benchmarks against `scikit-learn`'s K-means implementation.
+#[allow(clippy::new_ret_no_self)]
 
 mod k_means;
 mod utils;
