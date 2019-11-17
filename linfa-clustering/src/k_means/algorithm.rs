@@ -312,41 +312,12 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::{s, stack, Array, Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2};
+    use ndarray::{stack, Array, Array1, Array2, Axis};
     use ndarray_rand::rand_distr::Uniform;
     use ndarray_rand::RandomExt;
 
-    /// As we highlighted several times, K-means is an iterative algorithm.
-    /// We will perform the assignment and update steps until we are satisfied
-    /// (according to a reasonable convergence criteria).
-    ///
-    /// If you go back to our `compute_cluster_memberships` function, the culmination of
-    /// the assignment koan, you can see that it expects to receive centroids as a 2-dimensional
-    /// array.
-    ///
-    /// Let's wrap our `compute_centroids_hashmap` to return a 2-dimensional array,
-    /// where the i-th row corresponds to the i-th cluster.
-    pub fn compute_centroids(
-        n_centroids: usize,
-        // (n_observations, n_features)
-        observations: &ArrayBase<impl Data<Elem = f64>, Ix2>,
-        // (n_observations,)
-        cluster_memberships: &ArrayBase<impl Data<Elem = usize>, Ix1>,
-    ) -> Array2<f64> {
-        let centroids_hashmap = compute_centroids_hashmap(&observations, &cluster_memberships);
-
-        // Go back to "cluster generation / dataset" if you are looking for inspiration!
-        let (_, n_features) = observations.dim();
-
-        let mut centroids: Array2<f64> = Array2::zeros((n_centroids, n_features));
-        for (centroid_index, centroid) in centroids_hashmap.into_iter() {
-            centroids.slice_mut(s![centroid_index, ..]).assign(&centroid.current_mean);
-        }
-        centroids
-    }
-
     #[test]
-    fn centroids_array2() {
+    fn compute_centroids_works() {
         let cluster_size = 100;
         let n_features = 4;
 
