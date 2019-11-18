@@ -19,7 +19,6 @@
 //!
 //! Check [here](https://github.com/LukeMathWalker/clustering-benchmarks) for extensive benchmarks against `scikit-learn`'s K-means implementation.
 #[allow(clippy::new_ret_no_self)]
-
 mod k_means;
 mod utils;
 
