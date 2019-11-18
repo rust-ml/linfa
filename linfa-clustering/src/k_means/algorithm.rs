@@ -178,6 +178,15 @@ impl KMeans {
     }
 }
 
+/// K-means is an iterative algorithm.
+/// We will perform the assignment and update steps until we are satisfied
+/// (according to our convergence criteria).
+///
+/// If you check the `compute_cluster_memberships` function,
+/// you can see that it expects to receive centroids as a 2-dimensional array.
+///
+/// `compute_centroids` wraps our `compute_centroids_hashmap` to return a 2-dimensional array,
+/// where the i-th row corresponds to the i-th cluster.
 fn compute_centroids(
     // The number of clusters could be inferred from `centroids_hashmap`,
     // but it is indeed possible for a cluster to become empty during the
@@ -226,6 +235,12 @@ fn compute_centroids_hashmap(
     new_centroids
 }
 
+/// Given a matrix of centroids with shape (n_centroids, n_features)
+/// and a matrix of observations with shape (n_observations, n_features),
+/// update the 1-dimensional `cluster_memberships` array such that:
+///
+/// membership[i] == closest_centroid(&centroids, &observations.slice(s![i, ..])
+///
 fn update_cluster_memberships(
     centroids: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
     observations: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
@@ -238,8 +253,16 @@ fn update_cluster_memberships(
         });
 }
 
+/// Given a matrix of centroids with shape (n_centroids, n_features)
+/// and a matrix of observations with shape (n_observations, n_features),
+/// return a 1-dimensional `membership` array such that:
+///
+/// membership[i] == closest_centroid(&centroids, &observations.slice(s![i, ..])
+///
 fn compute_cluster_memberships(
+    // (n_centroids, n_features)
     centroids: &ArrayBase<impl Data<Elem = f64>, Ix2>,
+    // (n_observations, n_features)
     observations: &ArrayBase<impl Data<Elem = f64>, Ix2>,
 ) -> Array1<usize> {
     observations.map_axis(Axis(1), |observation| {
@@ -247,8 +270,12 @@ fn compute_cluster_memberships(
     })
 }
 
+/// Given a matrix of centroids with shape (n_centroids, n_features) and an observation,
+/// return the index of the closest centroid (the index of the corresponding row in `centroids`).
 fn closest_centroid(
+    // (n_centroids, n_features)
     centroids: &ArrayBase<impl Data<Elem = f64>, Ix2>,
+    // (n_features)
     observation: &ArrayBase<impl Data<Elem = f64>, Ix1>,
 ) -> usize {
     let mut iterator = centroids.genrows().into_iter().peekable();
@@ -292,9 +319,11 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::{stack, Array, Array1, Array2, Axis};
+    use ndarray::{array, stack, Array, Array1, Array2, Axis};
+    use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::Uniform;
     use ndarray_rand::RandomExt;
+    use rand_isaac::Isaac64Rng;
 
     #[test]
     fn compute_centroids_works() {
@@ -330,5 +359,36 @@ mod tests {
         );
 
         assert_eq!(centroids.len_of(Axis(0)), 2);
+    }
+
+    #[test]
+    // An observation is closest to itself.
+    fn nothing_is_closer_than_self() {
+        let n_centroids = 20;
+        let n_features = 5;
+        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let centroids: Array2<f64> = Array::random_using(
+            (n_centroids, n_features),
+            Uniform::new(-100., 100.),
+            &mut rng,
+        );
+
+        let expected_memberships: Vec<usize> = (0..n_centroids).into_iter().collect();
+        assert_eq!(
+            compute_cluster_memberships(&centroids, &centroids),
+            Array1::from(expected_memberships)
+        );
+    }
+
+    #[test]
+    fn oracle_test_for_closest_centroid() {
+        let centroids = array![[0., 0.], [1., 2.], [20., 0.], [0., 20.],];
+        let observations = array![[1., 0.5], [20., 2.], [20., 0.], [7., 20.],];
+        let memberships = array![0, 2, 2, 3];
+
+        assert_eq!(
+            compute_cluster_memberships(&centroids, &observations),
+            memberships
+        );
     }
 }
