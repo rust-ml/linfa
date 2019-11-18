@@ -11,9 +11,9 @@ use ndarray::{Array1, ArrayBase, Data, Ix1};
 ///
 /// The formula to compute the new mean based on the mean of `n` previous observations and
 /// a new observation is the following:
-/// ```
+///
 /// new_mean = current_mean + (new_observation - current_mean) / (n + 1)
-/// ```
+///
 /// Check https://math.stackexchange.com/questions/106700/incremental-averageing for
 /// a derivation (and a nicely formatted formula).
 ///
