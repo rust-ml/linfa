@@ -1,5 +1,27 @@
 use ndarray::{Array1, ArrayBase, Data, Ix1};
 
+/// The observation matrix will not be partitioned by cluster membership: we might have
+/// a bunch of observations belonging to the first cluster followed by one observation
+/// in the second cluster, and so on until the end of our data points.
+///
+/// It would be convenient if we could iterate over our observations,
+/// updating the relevant new centroid one observation at a time.
+///
+/// In other words, we want to compute **an incremental mean**.
+///
+/// The formula to compute the new mean based on the mean of `n` previous observations and
+/// a new observation is the following:
+/// ```
+/// new_mean = current_mean + (new_observation - current_mean) / (n + 1)
+/// ```
+/// Check https://math.stackexchange.com/questions/106700/incremental-averageing for
+/// a derivation (and a nicely formatted formula).
+///
+/// To do this successfully, we need to keep track of:
+/// - the current mean (`current_mean`);
+/// - the number of observations we have seen so far (`n`).
+///
+/// We can store this information in a struct:
 pub(crate) struct IncrementalMean {
     pub current_mean: Array1<f64>,
     pub n_observations: usize,
