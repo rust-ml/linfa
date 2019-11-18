@@ -3,14 +3,11 @@ name = "linfa"
 version = "0.1.0"
 authors = ["Luca Palmieri <rust@lpalmieri.com>"]
 description = "A Machine Learning framework for Rust"
+edition = "2018"
 license = "MIT/Apache-2.0"
 
 [dependencies]
-ndarray = { version = "0.13" }
-ndarray-rand = "0.11"
-ndarray-stats = "0.3"
-ndarray-npy = { version = "0.5", default-features = false }
-rand_isaac = "0.2.0"
+linfa-clustering = { path = "linfa-clustering" }
 
 [workspace]
 members = ["linfa-clustering", "tonic-linfa-k-means"]
