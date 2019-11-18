@@ -1,0 +1,43 @@
+language: rust
+sudo: required
+dist: trusty
+addons:
+  apt:
+    packages:
+      - libssl-dev
+cache: cargo
+matrix:
+  include:
+  - rust: 1.38.0 # Minimum Supported Rust Version
+    env:
+      - RUSTFLAGS='-D warnings'
+  - rust: stable
+    env:
+      - RUSTFLAGS='-D warnings'
+  - rust: beta
+    env:
+      - RUSTFLAGS='-D warnings'
+  - rust: nightly
+  allow_failures:
+    - rust: nightly
+  fast_finish: true
+before_cache: |
+  rm -rf "$TRAVIS_HOME/.cargo/registry/src"
+  if [[ "$TRAVIS_RUST_VERSION" == nightly ]]; then
+    RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin -f
+  fi
+before_script:
+  - rustup component add rustfmt
+# As a result of https://github.com/travis-ci/travis-ci/issues/1066, we run
+# everything in one large command instead of multiple commands.
+# In this way, the build stops immediately if one of the commands fails.
+script: |
+  cargo clean &&
+  cargo fmt --all -- --check &&
+  cargo build &&
+  cargo test
+after_success: |
+  if [[ "$TRAVIS_RUST_VERSION" == nightly ]]; then
+    cargo tarpaulin --run-types Tests Doctests --out Xml
+    bash <(curl -s https://codecov.io/bash)
+  fi
