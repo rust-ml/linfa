@@ -30,3 +30,5 @@ dist/
 poetry.lock
 .ipynb_checkpoints/
 *.ipynb
+
+*.json
