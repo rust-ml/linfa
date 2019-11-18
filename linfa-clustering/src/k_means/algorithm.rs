@@ -1,3 +1,4 @@
+use crate::k_means::helpers::IncrementalMean;
 use crate::k_means::hyperparameters::KMeansHyperParams;
 use ndarray::{s, Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
 use ndarray_rand::rand;
@@ -223,27 +224,6 @@ fn compute_centroids_hashmap(
             }
         });
     new_centroids
-}
-
-struct IncrementalMean {
-    pub current_mean: Array1<f64>,
-    pub n_observations: usize,
-}
-
-impl IncrementalMean {
-    fn new(first_observation: Array1<f64>) -> Self {
-        Self {
-            current_mean: first_observation,
-            n_observations: 1,
-        }
-    }
-
-    fn update(&mut self, new_observation: &ArrayBase<impl Data<Elem = f64>, Ix1>) {
-        self.n_observations += 1;
-        let shift =
-            (new_observation - &self.current_mean).mapv_into(|x| x / self.n_observations as f64);
-        self.current_mean += &shift;
-    }
 }
 
 fn update_cluster_memberships(
