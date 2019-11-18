@@ -10,7 +10,7 @@ license = "MIT/Apache-2.0"
 linfa-clustering = { path = "linfa-clustering" }
 
 [workspace]
-members = ["linfa-clustering", "tonic-linfa-k-means"]
+members = ["linfa-clustering"]
 
 [profile.release]
 opt-level = 3
