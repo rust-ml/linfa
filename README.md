@@ -1,5 +1,9 @@
 # linfa
 
+[![Build status](https://travis-ci.org/LukeMathWalker/linfa.svg?branch=master)](https://travis-ci.org/LukeMathWalker/linfa)
+[![Coverage](https://codecov.io/gh/LukeMathWalker/linfa/branch/master/graph/badge.svg)](https://codecov.io/gh/LukeMathWalker/linfa)
+[![Dependencies status](https://deps.rs/repo/github/LukeMathWalker/linfa/status.svg)](https://deps.rs/repo/github/LukeMathWalker/linfa)
+
 > _**linfa**_ (Italian) / _**sap**_ (English):
 > 
 > The **vital** circulating fluid of a plant.
