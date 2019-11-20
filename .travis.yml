@@ -34,10 +34,10 @@ before_script:
 script: |
   cargo clean &&
   cargo fmt --all -- --check &&
-  cargo build &&
-  cargo test
+  cargo build --all &&
+  cargo test --all
 after_success: |
   if [[ "$TRAVIS_RUST_VERSION" == nightly ]]; then
-    cargo tarpaulin --run-types Tests Doctests --out Xml
+    cargo tarpaulin --all --run-types Tests Doctests Examples --out Xml
     bash <(curl -s https://codecov.io/bash)
   fi
