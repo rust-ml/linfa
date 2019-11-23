@@ -9,7 +9,8 @@ license = "MIT/Apache-2.0"
 repository = "https://github.com/LukeMathWalker/linfa"
 readme = "README.md"
 
-keywords = ["machine learning", "scientific computing", "linfa", "ai"]
+keywords = ["machine-learning", "scientific-computing", "linfa", "ai", "ml"]
+categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
 linfa-clustering = { path = "linfa-clustering" }

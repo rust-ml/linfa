@@ -9,7 +9,8 @@ license = "MIT/Apache-2.0"
 repository = "https://github.com/LukeMathWalker/linfa"
 readme = "README.md"
 
-keywords = ["clustering", "machine learning", "unsupervised learning", "linfa", "k-means"]
+keywords = ["clustering", "machine-learning", "unsupervised-learning", "linfa", "k-means"]
+categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
 ndarray = { version = "0.13" , features = ["rayon", "serde", "approx"]}
