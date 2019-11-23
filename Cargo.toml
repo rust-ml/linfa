@@ -13,7 +13,7 @@ keywords = ["machine-learning", "linfa", "ai", "ml"]
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
-linfa-clustering = { path = "linfa-clustering" }
+linfa-clustering = "0.1"
 
 [dev-dependencies]
 ndarray = { version = "0.13" , features = ["rayon", "serde", "approx"]}
