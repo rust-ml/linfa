@@ -1,6 +1,6 @@
 [package]
 name = "linfa"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Luca Palmieri <rust@lpalmieri.com>"]
 description = "A Machine Learning framework for Rust"
 edition = "2018"
