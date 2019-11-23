@@ -9,7 +9,7 @@ license = "MIT/Apache-2.0"
 repository = "https://github.com/LukeMathWalker/linfa"
 readme = "README.md"
 
-keywords = ["clustering", "machine-learning", "unsupervised-learning", "linfa", "k-means"]
+keywords = ["clustering", "machine-learning", "linfa", "k-means", "unsupervised"]
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
