@@ -15,7 +15,8 @@ with Rust.
 Kin in spirit to Python's `scikit-learn`, it focuses on common preprocessing tasks
 and classical ML algorithms for your everyday ML tasks.
 
-_Documentation_: [latest](https://docs.rs/linfa).
+_Documentation_: [latest](https://docs.rs/linfa)
+_Community chat_: [Gitter](https://gitter.im/linfa-ml/community)
 
 ## Current state
 
