@@ -8,9 +8,9 @@ license = "MIT/Apache-2.0"
 
 repository = "https://github.com/LukeMathWalker/linfa"
 
-keywords = ["supervised", "machine-learning", "linfa", "regression", "linear"]
+keywords = ["supervised", "machine-learning", "linfa", "regression", "linear", "ridge", "lasso"]
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
-ndarray = { version = "0.13" , features = ["rayon", "approx"] }
-ndarray-linalg = "0.12"
+ndarray = { version = "0.13" , features = ["rayon"] }
+ndarray-linalg = { version = "0.12", features = ["openblas"] }

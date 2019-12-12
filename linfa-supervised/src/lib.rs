@@ -1,5 +1,5 @@
 mod linear_regression;
+mod ridge_regression;
 
-pub mod linfa_supervised {
-    pub use crate::linear_regression::*;
-}
+pub use linear_regression::*;
+pub use ridge_regression::*;

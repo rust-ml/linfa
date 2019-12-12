@@ -30,14 +30,14 @@ in closed form via the normal equation:
     b = (X^T X)^{-1} X^T y
 where (X^T X)^{-1} X^T is known as the pseudoinverse or Moore-Penrose inverse.
 */
-pub struct LinearRegressor {
+pub struct LinearRegression {
     beta: Option<Array1<f64>>,
     fit_intercept: bool,
 }
 
-impl LinearRegressor {
-    pub fn new(fit_intercept: bool) -> LinearRegressor {
-        LinearRegressor {
+impl LinearRegression {
+    pub fn new(fit_intercept: bool) -> LinearRegression {
+        LinearRegression {
             beta: None,
             fit_intercept,
         }
@@ -60,12 +60,14 @@ impl LinearRegressor {
                 x = [[1,2]
                     ,[3,4]
                     ,[5,6]]
-                dummy_column = []
+                dummy_column = [[1]
+                               ,[1]
+                               ,[1]]
             */
             let X_with_ones = stack(Axis(1), &[dummy_column.view(), X.view()]).unwrap();
-            Some(LinearRegressor::fit_beta(&X_with_ones, Y))
+            Some(LinearRegression::fit_beta(&X_with_ones, Y))
         } else {
-            Some(LinearRegressor::fit_beta(X, Y))
+            Some(LinearRegression::fit_beta(X, Y))
         }
     }
     fn fit_beta<A, B>(X: &ArrayBase<A, Ix2>, y: &ArrayBase<B, Ix1>) -> Array1<f64>
@@ -98,5 +100,21 @@ impl LinearRegressor {
                 Some(beta) => X.dot(beta),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use ndarray::array;
+
+    #[test]
+    fn linear_regression_test() {
+        let mut linear_regression = LinearRegression::new(false);
+        let x = array![[1.0], [2.0], [3.0], [4.0]];
+        let y = array![1.0, 2.0, 3.0, 4.0];
+        linear_regression.fit(&x, &y);
+        let x_hat = array![[6.0]];
+        assert_eq!(linear_regression.predict(&x_hat), array![6.0])
     }
 }
