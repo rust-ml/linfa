@@ -107,7 +107,6 @@ impl LinearRegression {
 mod test {
     use super::*;
     use ndarray::array;
-
     #[test]
     fn linear_regression_test() {
         let mut linear_regression = LinearRegression::new(false);

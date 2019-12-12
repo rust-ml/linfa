@@ -32,3 +32,7 @@
 pub mod clustering {
     pub use linfa_clustering::*;
 }
+
+pub mod supervised {
+    pub use linfa_supervised::*;
+}
