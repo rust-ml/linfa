@@ -19,9 +19,11 @@ pub fn predict(
         // Now go over the neighbours adding them to the cluster
         let mut search_queue = n
             .iter()
-            .filter(|x| result[[**x]].is_none())
+            .filter(|x| result[[**x]].is_none() && **x != i)
             .copied()
             .collect::<Vec<_>>();
+
+        result[i] = Some(latest_id);
         while !search_queue.is_empty() {
             let cand = search_queue.remove(0);
 
