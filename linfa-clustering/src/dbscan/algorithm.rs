@@ -17,13 +17,13 @@ pub fn predict(
             continue;
         }
         // Now go over the neighbours adding them to the cluster
+        cluster_memberships[i] = Some(current_cluster_id);
         let mut search_queue = neighbors
             .iter()
-            .filter(|x| cluster_memberships[[**x]].is_none() && **x != i)
+            .filter(|x| cluster_memberships[[**x]].is_none())
             .copied()
             .collect::<Vec<_>>();
 
-        cluster_memberships[i] = Some(current_cluster_id);
         while !search_queue.is_empty() {
             let candidate = search_queue.remove(0);
 
@@ -94,17 +94,21 @@ mod tests {
     #[test]
     fn non_cluster_points() {
         let params = DBScanHyperParams::new(4).build();
-
-        let data: Array2<f64> = Array2::zeros((2, 3));
-
-        let labels = predict(&params, &data);
-        assert!(labels.iter().all(|x| x.is_none()));
-
         let mut data: Array2<f64> = Array2::zeros((2, 5));
         data.slice_mut(s![.., 0]).assign(&arr1(&[10.0, 10.0]));
 
         let labels = predict(&params, &data);
         let expected = arr1(&[None, Some(0), Some(0), Some(0), Some(0)]);
         assert_eq!(labels, expected);
+    }
+
+    #[test]
+    fn dataset_too_small() {
+        let params = DBScanHyperParams::new(4).build();
+
+        let data: Array2<f64> = Array2::zeros((2, 3));
+
+        let labels = predict(&params, &data);
+        assert!(labels.iter().all(|x| x.is_none()));
     }
 }
