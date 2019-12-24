@@ -23,8 +23,8 @@ matrix:
   fast_finish: true
 before_cache: |
   rm -rf "$TRAVIS_HOME/.cargo/registry/src"
-  if [[ "$TRAVIS_RUST_VERSION" == nightly ]]; then
-    RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin -f
+  if [[ "$TRAVIS_RUST_VERSION" == stable ]]; then
+    cargo install cargo-tarpaulin -f
   fi
 before_script:
   - rustup component add rustfmt
@@ -37,7 +37,7 @@ script: |
   cargo build --all &&
   cargo test --all
 after_success: |
-  if [[ "$TRAVIS_RUST_VERSION" == nightly ]]; then
+  if [[ "$TRAVIS_RUST_VERSION" == stable ]]; then
     cargo tarpaulin --all --run-types Tests Doctests Examples --out Xml
     bash <(curl -s https://codecov.io/bash)
   fi
