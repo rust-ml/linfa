@@ -51,10 +51,14 @@ fn find_neighbors<'a>(
 ) -> (usize, Vec<(usize, ArrayView<'a, f64, Ix1>)>) {
     let mut res = vec![];
     let mut count = 0;
-    for (i, obs) in observations.axis_iter(Axis(1)).enumerate() {
+    for (i, (obs, cluster)) in observations
+        .axis_iter(Axis(1))
+        .zip(clusters.iter())
+        .enumerate()
+    {
         if candidate.l2_dist(&obs).unwrap() < eps {
             count += 1;
-            if clusters[[i]].is_none() {
+            if cluster.is_none() {
                 res.push((i, obs));
             }
         }
