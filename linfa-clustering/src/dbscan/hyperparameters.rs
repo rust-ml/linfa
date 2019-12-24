@@ -48,8 +48,9 @@ impl DBScanHyperParams {
         if tolerance <= 0. {
             panic!("`tolerance` must be greater than 0!");
         }
-        if min_points == 0 {
-            panic!("`min_points` cannot be 0!");
+        // There is always at least one neighbor to a point (itself)
+        if min_points <= 1 {
+            panic!("`min_points` must be greater than 1!");
         }
         Self {
             tolerance,
