@@ -1,5 +1,5 @@
 use crate::dbscan::hyperparameters::DBScanHyperParams;
-use ndarray::{s, Array1, ArrayBase, Axis, Data, Ix1, Ix2};
+use ndarray::{Array1, ArrayBase, ArrayView, Axis, Data, Ix1, Ix2};
 use ndarray_stats::DeviationExt;
 
 pub fn dbscan(
@@ -20,24 +20,21 @@ pub fn dbscan(
         cluster_memberships[i] = Some(current_cluster_id);
         let mut search_queue = neighbors
             .iter()
-            .filter(|x| cluster_memberships[[**x]].is_none())
+            .filter(|x| cluster_memberships[[x.0]].is_none())
             .copied()
             .collect::<Vec<_>>();
 
         while !search_queue.is_empty() {
             let candidate = search_queue.remove(0);
 
-            cluster_memberships[candidate] = Some(current_cluster_id);
+            cluster_memberships[candidate.0] = Some(current_cluster_id);
 
-            let mut neighbors = find_neighbors(
-                &observations.slice(s![.., candidate]),
-                observations,
-                hyperparameters.tolerance(),
-            )
-            .iter()
-            .filter(|x| cluster_memberships[[**x]].is_none() && !search_queue.contains(x))
-            .copied()
-            .collect::<Vec<_>>();
+            let mut neighbors =
+                find_neighbors(&candidate.1, observations, hyperparameters.tolerance())
+                    .iter()
+                    .filter(|x| cluster_memberships[[x.0]].is_none() && !search_queue.contains(x))
+                    .copied()
+                    .collect::<Vec<_>>();
 
             search_queue.append(&mut neighbors);
         }
@@ -46,15 +43,15 @@ pub fn dbscan(
     cluster_memberships
 }
 
-fn find_neighbors(
+fn find_neighbors<'a>(
     candidate: &ArrayBase<impl Data<Elem = f64>, Ix1>,
-    observations: &ArrayBase<impl Data<Elem = f64>, Ix2>,
+    observations: &'a ArrayBase<impl Data<Elem = f64>, Ix2>,
     eps: f64,
-) -> Vec<usize> {
+) -> Vec<(usize, ArrayView<'a, f64, Ix1>)> {
     let mut res = vec![];
     for (i, obs) in observations.axis_iter(Axis(1)).enumerate() {
         if candidate.l2_dist(&obs).unwrap() < eps {
-            res.push(i);
+            res.push((i, obs));
         }
     }
     res
