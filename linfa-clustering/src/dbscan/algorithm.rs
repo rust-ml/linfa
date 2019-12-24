@@ -2,7 +2,7 @@ use crate::dbscan::hyperparameters::DBScanHyperParams;
 use ndarray::{s, Array1, ArrayBase, Axis, Data, Ix1, Ix2};
 use ndarray_stats::DeviationExt;
 
-pub fn predict(
+pub fn dbscan(
     hyperparameters: &DBScanHyperParams,
     observations: &ArrayBase<impl Data<Elem = f64>, Ix2>,
 ) -> Array1<Option<usize>> {
@@ -85,7 +85,7 @@ mod tests {
 
         data.slice_mut(s![.., 40..]).fill(5.0);
 
-        let labels = predict(&params, &data);
+        let labels = dbscan(&params, &data);
 
         assert!(labels.slice(s![..40]).iter().all(|x| x == &Some(0)));
         assert!(labels.slice(s![40..]).iter().all(|x| x == &Some(1)));
@@ -97,7 +97,7 @@ mod tests {
         let mut data: Array2<f64> = Array2::zeros((2, 5));
         data.slice_mut(s![.., 0]).assign(&arr1(&[10.0, 10.0]));
 
-        let labels = predict(&params, &data);
+        let labels = dbscan(&params, &data);
         let expected = arr1(&[None, Some(0), Some(0), Some(0), Some(0)]);
         assert_eq!(labels, expected);
     }
@@ -108,7 +108,7 @@ mod tests {
 
         let data: Array2<f64> = Array2::zeros((2, 3));
 
-        let labels = predict(&params, &data);
+        let labels = dbscan(&params, &data);
         assert!(labels.iter().all(|x| x.is_none()));
     }
 }

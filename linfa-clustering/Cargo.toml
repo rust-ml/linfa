@@ -28,3 +28,7 @@ approx = "0.3"
 [[bench]]
 name = "k_means"
 harness = false
+
+[[bench]]
+name = "dbscan"
+harness = false
