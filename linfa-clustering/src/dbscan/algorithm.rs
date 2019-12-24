@@ -6,44 +6,44 @@ pub fn predict(
     hyperparameters: &DBScanHyperParams,
     observations: &ArrayBase<impl Data<Elem = f64>, Ix2>,
 ) -> Array1<Option<usize>> {
-    let mut result = Array1::from_elem(observations.dim().1, None);
-    let mut latest_id = 0;
+    let mut cluster_memberships = Array1::from_elem(observations.dim().1, None);
+    let mut current_cluster_id = 0;
     for (i, obs) in observations.axis_iter(Axis(1)).enumerate() {
-        if result[i].is_some() {
+        if cluster_memberships[i].is_some() {
             continue;
         }
-        let n = find_neighbors(&obs, observations, hyperparameters.tolerance());
-        if n.len() < hyperparameters.minimum_points() {
+        let neighbors = find_neighbors(&obs, observations, hyperparameters.tolerance());
+        if neighbors.len() < hyperparameters.minimum_points() {
             continue;
         }
         // Now go over the neighbours adding them to the cluster
-        let mut search_queue = n
+        let mut search_queue = neighbors
             .iter()
-            .filter(|x| result[[**x]].is_none() && **x != i)
+            .filter(|x| cluster_memberships[[**x]].is_none() && **x != i)
             .copied()
             .collect::<Vec<_>>();
 
-        result[i] = Some(latest_id);
+        cluster_memberships[i] = Some(current_cluster_id);
         while !search_queue.is_empty() {
-            let cand = search_queue.remove(0);
+            let candidate = search_queue.remove(0);
 
-            result[cand] = Some(latest_id);
+            cluster_memberships[candidate] = Some(current_cluster_id);
 
-            let mut n = find_neighbors(
-                &observations.slice(s![.., cand]),
+            let mut neighbors = find_neighbors(
+                &observations.slice(s![.., candidate]),
                 observations,
                 hyperparameters.tolerance(),
             )
             .iter()
-            .filter(|x| result[[**x]].is_none() && !search_queue.contains(x))
+            .filter(|x| cluster_memberships[[**x]].is_none() && !search_queue.contains(x))
             .copied()
             .collect::<Vec<_>>();
 
-            search_queue.append(&mut n);
+            search_queue.append(&mut neighbors);
         }
-        latest_id += 1;
+        current_cluster_id += 1;
     }
-    result
+    cluster_memberships
 }
 
 fn find_neighbors(
