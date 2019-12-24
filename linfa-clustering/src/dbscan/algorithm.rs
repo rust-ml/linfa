@@ -12,29 +12,29 @@ pub fn dbscan(
         if cluster_memberships[i].is_some() {
             continue;
         }
-        let neighbors = find_neighbors(&obs, observations, hyperparameters.tolerance());
-        if neighbors.len() < hyperparameters.minimum_points() {
+        let (neighbor_count, mut search_queue) = find_neighbors(
+            &obs,
+            observations,
+            hyperparameters.tolerance(),
+            &cluster_memberships,
+        );
+        if neighbor_count < hyperparameters.minimum_points() {
             continue;
         }
         // Now go over the neighbours adding them to the cluster
         cluster_memberships[i] = Some(current_cluster_id);
-        let mut search_queue = neighbors
-            .iter()
-            .filter(|x| cluster_memberships[[x.0]].is_none())
-            .copied()
-            .collect::<Vec<_>>();
 
         while !search_queue.is_empty() {
             let candidate = search_queue.remove(0);
 
             cluster_memberships[candidate.0] = Some(current_cluster_id);
 
-            let mut neighbors =
-                find_neighbors(&candidate.1, observations, hyperparameters.tolerance())
-                    .iter()
-                    .filter(|x| cluster_memberships[[x.0]].is_none() && !search_queue.contains(x))
-                    .copied()
-                    .collect::<Vec<_>>();
+            let (_, mut neighbors) = find_neighbors(
+                &candidate.1,
+                observations,
+                hyperparameters.tolerance(),
+                &cluster_memberships,
+            );
 
             search_queue.append(&mut neighbors);
         }
@@ -47,14 +47,19 @@ fn find_neighbors<'a>(
     candidate: &ArrayBase<impl Data<Elem = f64>, Ix1>,
     observations: &'a ArrayBase<impl Data<Elem = f64>, Ix2>,
     eps: f64,
-) -> Vec<(usize, ArrayView<'a, f64, Ix1>)> {
+    clusters: &Array1<Option<usize>>,
+) -> (usize, Vec<(usize, ArrayView<'a, f64, Ix1>)>) {
     let mut res = vec![];
+    let mut count = 0;
     for (i, obs) in observations.axis_iter(Axis(1)).enumerate() {
         if candidate.l2_dist(&obs).unwrap() < eps {
-            res.push((i, obs));
+            count += 1;
+            if clusters[[i]].is_none() {
+                res.push((i, obs));
+            }
         }
     }
-    res
+    (count, res)
 }
 
 #[cfg(test)]
