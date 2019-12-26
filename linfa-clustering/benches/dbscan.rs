@@ -2,7 +2,7 @@ use criterion::{
     black_box, criterion_group, criterion_main, AxisScale, Criterion, ParameterizedBenchmark,
     PlotConfiguration,
 };
-use linfa_clustering::{dbscan, generate_blobs, DBScanHyperParams};
+use linfa_clustering::{generate_blobs, Dbscan, DbscanHyperParams};
 use ndarray::Array2;
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::Uniform;
@@ -21,8 +21,8 @@ fn dbscan_bench(c: &mut Criterion) {
             let centroids =
                 Array2::random_using((min_points, n_features), Uniform::new(-30., 30.), &mut rng);
             let dataset = generate_blobs(cluster_size, &centroids, &mut rng);
-            let hyperparams = DBScanHyperParams::new(min_points).tolerance(1e-3).build();
-            bencher.iter(|| black_box(dbscan(&hyperparams, &dataset)));
+            let hyperparams = DbscanHyperParams::new(min_points).tolerance(1e-3).build();
+            bencher.iter(|| black_box(Dbscan::predict(&hyperparams, &dataset)));
         },
         cluster_sizes,
     )

@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 /// The set of hyperparameters that can be specified for the execution of
-/// the [DBSCAN algorithm](struct.DBScan.html).
-pub struct DBScanHyperParams {
+/// the [DBSCAN algorithm](struct.Dbscan.html).
+pub struct DbscanHyperParams {
     /// Distance between points for them to be considered neighbours.
     tolerance: f64,
     /// Minimum number of neighboring points a point needs to have to be a core
@@ -12,25 +12,25 @@ pub struct DBScanHyperParams {
 }
 
 /// Helper struct used to construct a set of hyperparameters for
-pub struct DBScanHyperParamsBuilder {
+pub struct DbscanHyperParamsBuilder {
     tolerance: f64,
     min_points: usize,
 }
 
-impl DBScanHyperParamsBuilder {
+impl DbscanHyperParamsBuilder {
     pub fn tolerance(mut self, tolerance: f64) -> Self {
         self.tolerance = tolerance;
         self
     }
 
-    pub fn build(self) -> DBScanHyperParams {
-        DBScanHyperParams::build(self.tolerance, self.min_points)
+    pub fn build(self) -> DbscanHyperParams {
+        DbscanHyperParams::build(self.tolerance, self.min_points)
     }
 }
 
-impl DBScanHyperParams {
-    pub fn new(min_points: usize) -> DBScanHyperParamsBuilder {
-        DBScanHyperParamsBuilder {
+impl DbscanHyperParams {
+    pub fn new(min_points: usize) -> DbscanHyperParamsBuilder {
+        DbscanHyperParamsBuilder {
             min_points,
             tolerance: 1e-4,
         }
