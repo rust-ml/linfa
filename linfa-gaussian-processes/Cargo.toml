@@ -5,3 +5,5 @@ authors = ["Luca Palmieri <rust@lpalmieri.com>"]
 edition = "2018"
 
 [dependencies]
+friedrich = { version = "0.3", features = ["friedrich_ndarray"] }
+ndarray = "0.13.0"
