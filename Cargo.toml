@@ -14,6 +14,7 @@ categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
 linfa-clustering = { path = "linfa-clustering", version = "0.1" }
+linfa-trees = { path = "linfa-trees", version = "0.1" }
 
 [dev-dependencies]
 ndarray = { version = "0.13" , features = ["rayon", "serde", "approx"]}
@@ -22,7 +23,7 @@ rand_isaac = "0.2.0"
 ndarray-npy = { version = "0.5", default-features = false }
 
 [workspace]
-members = ["linfa-clustering"]
+members = ["linfa-clustering", "linfa-trees"]
 
 [profile.release]
 opt-level = 3
