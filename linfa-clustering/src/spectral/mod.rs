@@ -1,3 +1,6 @@
-mod algorithm;
+mod algorithms;
+mod hyperparameters;
+mod lobpcg;
 
-pub use algorithm::*;
+pub use algorithms::*;
+pub use hyperparameters::*;
