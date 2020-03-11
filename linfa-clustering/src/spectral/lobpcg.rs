@@ -1,8 +1,11 @@
 use ndarray::prelude::*;
 use ndarray::OwnedRepr;
 use ndarray_linalg::cholesky::*;
+use ndarray_linalg::triangular::*;
+use ndarray_linalg::qr::*;
 use ndarray_linalg::eigh::*;
 use ndarray_linalg::norm::*;
+use crate::ndarray::linalg::Dot;
 use sprs::CsMat;
 
 pub enum Order {
@@ -21,10 +24,26 @@ fn sorted_eig(input: ArrayView<f32, Ix2>, size: usize, order: Order) -> (Array1<
     }
 }
 
+fn ndarray_mask(matrix: ArrayView<f32, Ix2>, mask: &[bool]) -> Array2<f32> {
+    let (rows, cols) = (matrix.rows(), matrix.cols());
+
+    assert!(mask.len() == cols);
+
+    let n_positive = mask.iter().filter(|x| **x).count();
+
+    let matrix = matrix.gencolumns().into_iter().zip(mask.iter())
+        .filter(|(_,x)| **x)
+        .map(|(x,_)| x.to_vec())
+        .flatten()
+        .collect::<Vec<f32>>();
+
+    Array2::from_shape_vec((n_positive, rows), matrix).unwrap().reversed_axes()
+}
+
 fn apply_constraints(
     mut V: ArrayViewMut<f32, Ix2>,
-    fact_YY: CholeskyFactorized<OwnedRepr<f32>>,
-    Y: Array2<f32>
+    fact_YY: &CholeskyFactorized<OwnedRepr<f32>>,
+    Y: ArrayView<f32, Ix2>
 ) {
     let gram_YV = Y.t().dot(&V);
 
@@ -43,10 +62,14 @@ fn orthonormalize(
 ) -> (Array2<f32>, Array2<f32>) {
     let gram_VV = V.t().dot(&V);
     let gram_VV_fac = gram_VV.factorizec(UPLO::Upper).unwrap();
-    let inv_gram_VV = gram_VV_fac.invc().unwrap();
+    let gram_VV_fac = gram_VV_fac.into_lower();
 
-    let V = V.dot(&inv_gram_VV);
-    (V, inv_gram_VV)
+    assert_close_l2!(&gram_VV, &gram_VV_fac.dot(&gram_VV_fac.t()), 1e-5);
+
+    let V_t = V.reversed_axes();
+    let U = gram_VV_fac.solve_triangular(UPLO::Lower, Diag::NonUnit, &V_t).unwrap();
+
+    (U, gram_VV_fac)
 }
 
 pub fn lobpcg(
@@ -78,26 +101,82 @@ pub fn lobpcg(
 
     let maxiter = usize::min(n, maxiter);
 
-    if let Some(Y) = Y {
-        let fact_YY = (&Y.t() * &Y).factorizec(UPLO::Upper).unwrap();
-        apply_constraints(X.view_mut(), fact_YY, Y);
+    let mut fact_YY = None;
+    if let Some(ref Y) = &Y {
+        let fact_YY_tmp = Y.t().dot(Y).factorizec(UPLO::Upper).unwrap();
+        apply_constraints(X.view_mut(), &fact_YY_tmp, Y.view());
+        fact_YY = Some(fact_YY_tmp);
     }
 
+    // orthonormalize the initial guess and calculate matrices AX and XAX
     let (X, _) = orthonormalize(X);
-    let AX = &A * &X;
-    let gram_XAX = &X.t() * &AX;
+    let AX = A.dot(&X);
+    let gram_XAX = X.t().dot(&AX);
 
-    let (lambda, eig_block) = sorted_eig(gram_XAX.view(), sizeX, Order::Largest);
+    // perform eigenvalue decomposition on XAX
+    let (lambda, eig_block) = sorted_eig(gram_XAX.view(), sizeX, order);
 
-    let X = &X * &eig_block;
-    let AX = &AX * &eig_block;
+    // rotate X and AX with eigenvectors
+    let X = X.dot(&eig_block);
+    let AX = AX.dot(&eig_block);
 
+    let mut activemask = vec![true; sizeX];
     let mut residual_norms = Vec::new();
+    let mut previous_block_size = sizeX;
+
+    let mut ident: Array2<f32> = Array2::eye(sizeX);
+    let ident0: Array2<f32> = Array2::eye(sizeX);
 
     for i in 0..maxiter {
-        let R = &AX - &(&X * &lambda);
+        // calculate residual
+        let R = &AX - &X.dot(&lambda);
+
+        // calculate L2 norm for every eigenvector
         let tmp = R.genrows().into_iter().map(|x| x.norm()).collect::<Vec<f32>>();
+        activemask = tmp.iter().zip(activemask.iter()).map(|(x, a)| *x > tol && *a).collect();
         residual_norms.push(tmp);
+
+        let current_block_size = activemask.iter().filter(|x| **x).count();
+        if current_block_size != previous_block_size {
+            previous_block_size = current_block_size;
+            ident = Array2::eye(current_block_size);
+        }
+
+        if current_block_size == 0 {
+            break;
+        }
+
+        let mut active_block_R = ndarray_mask(R.view(), &activemask);
+        if let Some(ref M) = M {
+            active_block_R = M.dot(&active_block_R);
+        }
+        if let (Some(ref Y), Some(ref YY)) = (&Y, &fact_YY) {
+            apply_constraints(active_block_R.view_mut(), YY, Y.view());
+        }
+
+        let (R,_) = orthonormalize(R);
+        let AR = A.dot(&R);
+        
+        // perform the Rayleigh Ritz procedure
+        // compute symmetric gram matrices
+        let xaw = X.t().dot(&AR);
+        let waw = R.t().dot(&AR);
+        let xbw = X.t().dot(&R);
+
+        let (gramA, gramB) = if i > 0 {
+            (CsMat::eye(5), CsMat::eye(5))
+        } else {
+            (
+                /*sprs::bmat(&[[Some(CsMat::diag(&lambda)), Some(xaw)],
+                              [Some(xaw.t()), Some(waw)]]),
+                sprs::bmat(&[[Some(ident0), Some(xbw)],
+                             [Some(xbw.t()), Some(ident)]])*/
+                CsMat::eye(5),
+                sprs::bmat(&[[Some(xbw.view())]])
+            )
+        };
+
+        //let active_block_R = R.slice(s![:, 
 
     }
     
@@ -108,8 +187,10 @@ pub fn lobpcg(
 mod tests {
     use super::sorted_eig;
     use super::orthonormalize;
+    use super::ndarray_mask;
     use super::Order;
     use ndarray::prelude::*;
+    use ndarray_linalg::qr::*;
     use ndarray_rand::RandomExt;
     use ndarray_rand::rand_distr::Uniform;
 
@@ -129,14 +210,26 @@ mod tests {
     }
 
     #[test]
+    fn test_masking() {
+        let matrix = Array2::random((10, 5), Uniform::new(0., 10.));
+        let masked_matrix = ndarray_mask(matrix.view(), &[true, true, false, true, false]);
+        assert_close_l2!(&masked_matrix.slice(s![.., 2]), &matrix.slice(s![.., 3]), 1e-12);
+    }
+
+    #[test]
     fn test_orthonormalize() {
-        let matrix = Array2::random((10, 10), Uniform::new(0., 10.));
-        let matrix = matrix.t().dot(&matrix);
-        dbg!(&matrix);
+        let matrix = Array2::random((10, 10), Uniform::new(-10., 10.));
 
-        let (normalized, _) = orthonormalize(matrix.clone());
+        let (n, l) = orthonormalize(matrix.clone());
 
-        assert_close_l2!(&normalized.dot(&normalized.t()), &Array2::eye(10), 1e-5);
+        // check for orthogonality
+        let identity = n.dot(&n.t());
+        assert_close_l2!(&identity, &Array2::eye(10), 1e-4);
+
+        // compare returned factorization with QR decomposition
+        let (q, mut r) = matrix.qr().unwrap();
+        assert_close_l2!(&r.mapv(|x| x.abs()) , &l.t().mapv(|x| x.abs()), 1e-5);
+
 
     }
 
