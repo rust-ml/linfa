@@ -1,5 +1,5 @@
 use crate::decision_trees::hyperparameters::DecisionTreeParams;
-use ndarray::{Array1, ArrayBase, Data, Ix1, Ix2};
+use ndarray::{s, Array, Array1, ArrayBase, Data, Ix1, Ix2};
 use ndarray_rand::rand::Rng;
 
 pub struct DecisionTree {
@@ -24,6 +24,65 @@ impl DecisionTree {
     pub fn hyperparameters(&self) -> &DecisionTreeParams {
         &self.hyperparameters
     }
+}
+
+pub fn split_on_feature_by_value(
+    x: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
+    feature_idx: usize,
+    split_value: f64,
+) -> (
+    ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
+    ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
+) {
+    let n_rows = x.shape()[0];
+    let n_features = x.shape()[1];
+
+    let mut left = vec![];
+    let mut left_size = 0;
+    let mut right = vec![];
+    let mut right_size = 0;
+
+    for row in x.genrows() {
+        let mut row = row.to_vec();
+        if row[feature_idx] < split_value {
+            left.append(&mut row);
+            left_size += 1;
+        } else {
+            right.append(&mut row);
+            right_size += 1;
+        }
+    }
+
+    let left_of_split = Array::from_shape_vec((left_size, n_features), left).unwrap();
+    let right_of_split = Array::from_shape_vec((right_size, n_features), right).unwrap();
+
+    (left_of_split, right_of_split)
+}
+
+fn split_values_for_feature(
+    x: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
+    feature_idx: usize,
+) -> Vec<f64> {
+    let mut values = x.slice(s![.., feature_idx]).to_vec();
+    values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Less));
+
+    let mut split_values = vec![];
+    let mut last_value = None;
+
+    for v in values {
+        match last_value {
+            Some(lv) => {
+                if lv != v {
+                    split_values.push((lv + v) / 2.0);
+                }
+            }
+            None => {}
+        }
+
+        last_value = Some(v);
+    }
+
+    split_values
 }
 
 fn gini_impurity(labels: &ArrayBase<impl Data<Elem = u64> + Sync, Ix1>, n_classes: u64) -> f64 {
