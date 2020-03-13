@@ -13,9 +13,13 @@ pub enum Order {
     Smallest
 }
 
-fn sorted_eig(input: ArrayView<f32, Ix2>, size: usize, order: Order) -> (Array1<f32>, Array2<f32>) {
+fn sorted_eig(input: ArrayView<f32, Ix2>, stiff: Option<ArrayView<f32, Ix2>>, size: usize, order: &Order) -> (Array1<f32>, Array2<f32>) {
     assert_close_l2!(&input, &input.t(), 1e-12);
-    let (vals, vecs) = input.eigh(UPLO::Upper).unwrap();
+    let (vals, vecs) = match stiff {
+        Some(x) => (input, x).eigh(UPLO::Upper).map(|x| (x.0, (x.1).0)).unwrap(),
+        _ => input.eigh(UPLO::Upper).unwrap()
+    };
+
     let n = input.len_of(Axis(0));
 
     match order {
@@ -99,7 +103,7 @@ pub fn lobpcg(
         panic!("Please use a different approach, the LOBPCG method only supports the calculation of a couple of eigenvectors!");
     }
 
-    let maxiter = usize::min(n, maxiter);
+    let mut iter = usize::min(n, maxiter);
 
     let mut fact_YY = None;
     if let Some(ref Y) = &Y {
@@ -114,11 +118,11 @@ pub fn lobpcg(
     let gram_XAX = X.t().dot(&AX);
 
     // perform eigenvalue decomposition on XAX
-    let (lambda, eig_block) = sorted_eig(gram_XAX.view(), sizeX, order);
+    let (mut lambda, mut eig_block) = sorted_eig(gram_XAX.view(), None, sizeX, &order);
 
     // rotate X and AX with eigenvectors
-    let X = X.dot(&eig_block);
-    let AX = AX.dot(&eig_block);
+    let mut X = X.dot(&eig_block);
+    let mut AX = AX.dot(&eig_block);
 
     let mut activemask = vec![true; sizeX];
     let mut residual_norms = Vec::new();
@@ -127,14 +131,16 @@ pub fn lobpcg(
     let mut ident: Array2<f32> = Array2::eye(sizeX);
     let ident0: Array2<f32> = Array2::eye(sizeX);
 
-    for i in 0..maxiter {
+    let mut ap: Option<(Array2<f32>, Array2<f32>)> = None;
+
+    let final_norm = loop {
         // calculate residual
         let R = &AX - &X.dot(&lambda);
 
         // calculate L2 norm for every eigenvector
         let tmp = R.genrows().into_iter().map(|x| x.norm()).collect::<Vec<f32>>();
         activemask = tmp.iter().zip(activemask.iter()).map(|(x, a)| *x > tol && *a).collect();
-        residual_norms.push(tmp);
+        residual_norms.push(tmp.clone());
 
         let current_block_size = activemask.iter().filter(|x| **x).count();
         if current_block_size != previous_block_size {
@@ -142,8 +148,8 @@ pub fn lobpcg(
             ident = Array2::eye(current_block_size);
         }
 
-        if current_block_size == 0 {
-            break;
+        if current_block_size == 0 || iter == 0 {
+            break tmp;
         }
 
         let mut active_block_R = ndarray_mask(R.view(), &activemask);
@@ -161,27 +167,82 @@ pub fn lobpcg(
         // compute symmetric gram matrices
         let xaw = X.t().dot(&AR);
         let waw = R.t().dot(&AR);
-        let xbw = X.t().dot(&R);
+        let xw = X.t().dot(&R);
 
-        let (gramA, gramB) = if i > 0 {
-            (CsMat::eye(5), CsMat::eye(5))
+        let (gramA, gramB): (Array2<f32>, Array2<f32>) = if let Some((ref P, ref AP)) = ap {
+            let active_P = ndarray_mask(P.view(), &activemask);
+            let active_AP = ndarray_mask(AP.view(), &activemask);
+            let (active_P, R) = orthonormalize(active_P);
+            let active_AP = R.solve_triangular(UPLO::Lower, Diag::NonUnit, &active_AP).unwrap();
+
+            let xap = X.t().dot(&active_AP);
+            let wap = R.t().dot(&active_AP);
+            let pap = active_P.t().dot(&active_AP);
+            let xp = X.t().dot(&active_P);
+            let wp = R.t().dot(&active_P);
+
+            (
+                stack![Axis(0),
+                    stack![Axis(1), Array2::from_diag(&lambda), xaw, xap],
+                    stack![Axis(1), xaw.t(), waw, wap],
+                    stack![Axis(1), xap.t(), wap.t(), pap]
+                ],
+
+                stack![Axis(0),
+                    stack![Axis(1), ident0, xw, xp],
+                    stack![Axis(1), xw.t(), ident, wp],
+                    stack![Axis(1), xp.t(), wp.t(), ident]
+                ]
+            )
         } else {
             (
-                /*sprs::bmat(&[[Some(CsMat::diag(&lambda)), Some(xaw)],
-                              [Some(xaw.t()), Some(waw)]]),
-                sprs::bmat(&[[Some(ident0), Some(xbw)],
-                             [Some(xbw.t()), Some(ident)]])*/
-                CsMat::eye(5),
-                sprs::bmat(&[[Some(xbw.view())]])
+                stack![Axis(0), 
+                    stack![Axis(1), Array2::from_diag(&lambda), xaw],
+                    stack![Axis(1), xaw.t(), waw]
+                ],
+                stack![Axis(0),
+                    stack![Axis(1), ident0, xw],
+                    stack![Axis(1), xw.t(), ident]
+                ]
             )
         };
 
-        //let active_block_R = R.slice(s![:, 
+        let (new_lambda, eig_vecs) = sorted_eig(gramA.view(), Some(gramB.view()), sizeX, &order);
+        lambda = new_lambda;
 
-    }
+        let (pp, app, eig_X) = if let Some((ref P, ref AP)) = ap {
+            let active_P = ndarray_mask(P.view(), &activemask);
+            let active_AP = ndarray_mask(AP.view(), &activemask);
+
+            let eig_X = eig_vecs.slice(s![..sizeX, ..]);
+            let eig_R = eig_vecs.slice(s![sizeX..sizeX+current_block_size, ..]);
+            let eig_P = eig_vecs.slice(s![sizeX+current_block_size.., ..]);
+
+            let pp = R.dot(&eig_R) + P.dot(&eig_P);
+            let app = AR.dot(&eig_R) + AP.dot(&eig_P);
+
+            (pp, app, eig_X)
+        } else {
+            let eig_X = eig_vecs.slice(s![..sizeX, ..]);
+            let eig_R = eig_vecs.slice(s![sizeX.., ..]);
+
+            let pp = R.dot(&eig_R);
+            let app = AR.dot(&eig_R);
+
+            (pp, app, eig_X)
+        };
+
+        X = X.dot(&eig_X) + &pp;
+        AX = AX.dot(&eig_X) + &app;
+
+        ap = Some((pp, app));
+
+        iter -= 1;
+    };
+
+    dbg!(&final_norm);
     
-
-    (Array1::zeros(10), Array2::eye(10))
+    (lambda, X)
 }
 
 mod tests {
@@ -200,7 +261,7 @@ mod tests {
         let matrix = matrix.t().dot(&matrix);
 
         // return all eigenvectors with largest first
-        let (vals, vecs) = sorted_eig(matrix.view(), 10, Order::Largest);
+        let (vals, vecs) = sorted_eig(matrix.view(), None, 10, &Order::Largest);
 
         // calculate V * A * V' and compare to original matrix
         let diag = Array2::from_diag(&vals);
