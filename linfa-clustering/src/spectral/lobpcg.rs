@@ -14,7 +14,7 @@ pub enum Order {
 }
 
 fn sorted_eig(input: ArrayView<f32, Ix2>, stiff: Option<ArrayView<f32, Ix2>>, size: usize, order: &Order) -> (Array1<f32>, Array2<f32>) {
-    assert_close_l2!(&input, &input.t(), 1e-12);
+    assert_close_l2!(&input, &input.t(), 1e-4);
     let (vals, vecs) = match stiff {
         Some(x) => (input, x).eigh(UPLO::Upper).map(|x| (x.0, (x.1).0)).unwrap(),
         _ => input.eigh(UPLO::Upper).unwrap()
@@ -23,7 +23,7 @@ fn sorted_eig(input: ArrayView<f32, Ix2>, stiff: Option<ArrayView<f32, Ix2>>, si
     let n = input.len_of(Axis(0));
 
     match order {
-        Order::Largest => (vals.slice_move(s![n-size..; -1]), vecs.slice_move(s![.., n-size..; -1])),
+        Order::Largest => (vals.slice_move(s![..size; -1]), vecs.slice_move(s![.., ..size; -1])),
         Order::Smallest => (vals.slice_move(s![..size]), vecs.slice_move(s![..size, ..]))
     }
 }
@@ -65,13 +65,14 @@ fn orthonormalize(
     V: Array2<f32>
 ) -> (Array2<f32>, Array2<f32>) {
     let gram_VV = V.t().dot(&V);
-    let gram_VV_fac = gram_VV.factorizec(UPLO::Upper).unwrap();
-    let gram_VV_fac = gram_VV_fac.into_lower();
+    let gram_VV_fac = gram_VV.cholesky(UPLO::Lower).unwrap();
 
     assert_close_l2!(&gram_VV, &gram_VV_fac.dot(&gram_VV_fac.t()), 1e-5);
 
     let V_t = V.reversed_axes();
-    let U = gram_VV_fac.solve_triangular(UPLO::Lower, Diag::NonUnit, &V_t).unwrap();
+    let U = gram_VV_fac.solve_triangular(UPLO::Lower, Diag::NonUnit, &V_t)
+        .unwrap()
+        .reversed_axes();
 
     (U, gram_VV_fac)
 }
@@ -99,9 +100,9 @@ pub fn lobpcg(
         _ => 0
     };
 
-    if (n - sizeY) < 5 * sizeX {
+    /*if (n - sizeY) < 5 * sizeX {
         panic!("Please use a different approach, the LOBPCG method only supports the calculation of a couple of eigenvectors!");
-    }
+    }*/
 
     let mut iter = usize::min(n, maxiter);
 
@@ -116,14 +117,17 @@ pub fn lobpcg(
     let (X, _) = orthonormalize(X);
     let AX = A.dot(&X);
     let gram_XAX = X.t().dot(&AX);
+    ////dbg!(&X, &AX, &gram_XAX);
 
     // perform eigenvalue decomposition on XAX
     let (mut lambda, mut eig_block) = sorted_eig(gram_XAX.view(), None, sizeX, &order);
+    //dbg!(&lambda, &eig_block);
 
     // rotate X and AX with eigenvectors
     let mut X = X.dot(&eig_block);
     let mut AX = AX.dot(&eig_block);
 
+    //dbg!(&X, &AX);
     let mut activemask = vec![true; sizeX];
     let mut residual_norms = Vec::new();
     let mut previous_block_size = sizeX;
@@ -135,12 +139,17 @@ pub fn lobpcg(
 
     let final_norm = loop {
         // calculate residual
-        let R = &AX - &X.dot(&lambda);
+        let lambda_tmp = lambda.clone().insert_axis(Axis(0));
+        let tmp = &X * &lambda_tmp;
+        //dbg!(&X, &lambda_tmp, &tmp);
+
+        let R = &AX - &tmp;
 
         // calculate L2 norm for every eigenvector
-        let tmp = R.genrows().into_iter().map(|x| x.norm()).collect::<Vec<f32>>();
+        let tmp = R.gencolumns().into_iter().map(|x| x.norm()).collect::<Vec<f32>>();
         activemask = tmp.iter().zip(activemask.iter()).map(|(x, a)| *x > tol && *a).collect();
         residual_norms.push(tmp.clone());
+        //dbg!(&residual_norms);
 
         let current_block_size = activemask.iter().filter(|x| **x).count();
         if current_block_size != previous_block_size {
@@ -169,11 +178,18 @@ pub fn lobpcg(
         let waw = R.t().dot(&AR);
         let xw = X.t().dot(&R);
 
-        let (gramA, gramB): (Array2<f32>, Array2<f32>) = if let Some((ref P, ref AP)) = ap {
+        let (gramA, gramB, active_P, active_AP) = if let Some((ref P, ref AP)) = ap {
             let active_P = ndarray_mask(P.view(), &activemask);
             let active_AP = ndarray_mask(AP.view(), &activemask);
-            let (active_P, R) = orthonormalize(active_P);
-            let active_AP = R.solve_triangular(UPLO::Lower, Diag::NonUnit, &active_AP).unwrap();
+            //dbg!(&active_P, &active_AP);
+            let (active_P, P_R) = orthonormalize(active_P);
+            //dbg!(&active_P, &P_R);
+            let active_AP = P_R.solve_triangular(UPLO::Lower, Diag::NonUnit, &active_AP.reversed_axes())
+                .unwrap()
+                .reversed_axes();
+
+            //dbg!(&active_AP);
+            //dbg!(&R);
 
             let xap = X.t().dot(&active_AP);
             let wap = R.t().dot(&active_AP);
@@ -192,7 +208,9 @@ pub fn lobpcg(
                     stack![Axis(1), ident0, xw, xp],
                     stack![Axis(1), xw.t(), ident, wp],
                     stack![Axis(1), xp.t(), wp.t(), ident]
-                ]
+                ],
+                Some(active_P),
+                Some(active_AP)
             )
         } else {
             (
@@ -203,23 +221,34 @@ pub fn lobpcg(
                 stack![Axis(0),
                     stack![Axis(1), ident0, xw],
                     stack![Axis(1), xw.t(), ident]
-                ]
+                ],
+                None,
+                None
             )
         };
 
+        //dbg!(&gramA, &gramB);
         let (new_lambda, eig_vecs) = sorted_eig(gramA.view(), Some(gramB.view()), sizeX, &order);
         lambda = new_lambda;
 
-        let (pp, app, eig_X) = if let Some((ref P, ref AP)) = ap {
-            let active_P = ndarray_mask(P.view(), &activemask);
-            let active_AP = ndarray_mask(AP.view(), &activemask);
+        //dbg!(&lambda, &eig_vecs);
+        let (pp, app, eig_X) = if let (Some((ref P, ref AP)), (Some(ref active_P), Some(ref active_AP))) = (ap, (active_P, active_AP)) {
 
             let eig_X = eig_vecs.slice(s![..sizeX, ..]);
             let eig_R = eig_vecs.slice(s![sizeX..sizeX+current_block_size, ..]);
             let eig_P = eig_vecs.slice(s![sizeX+current_block_size.., ..]);
 
-            let pp = R.dot(&eig_R) + P.dot(&eig_P);
-            let app = AR.dot(&eig_R) + AP.dot(&eig_P);
+            //dbg!(&eig_X);
+            //dbg!(&eig_R);
+            //dbg!(&eig_P);
+
+            //dbg!(&R, &AR, &active_P, &active_AP);
+
+            let pp = R.dot(&eig_R) + active_P.dot(&eig_P);
+            let app = AR.dot(&eig_R) + active_AP.dot(&eig_P);
+
+            //dbg!(&pp);
+            //dbg!(&app);
 
             (pp, app, eig_X)
         } else {
@@ -235,12 +264,17 @@ pub fn lobpcg(
         X = X.dot(&eig_X) + &pp;
         AX = AX.dot(&eig_X) + &app;
 
+        //dbg!(&X);
+        //dbg!(&AX);
+
         ap = Some((pp, app));
+
+        //dbg!(&ap);
 
         iter -= 1;
     };
 
-    dbg!(&final_norm);
+    dbg!(&residual_norms);
     
     (lambda, X)
 }
@@ -250,12 +284,14 @@ mod tests {
     use super::orthonormalize;
     use super::ndarray_mask;
     use super::Order;
+    use super::lobpcg;
     use ndarray::prelude::*;
     use ndarray_linalg::qr::*;
     use ndarray_rand::RandomExt;
     use ndarray_rand::rand_distr::Uniform;
+    use sprs::CsMat;
 
-    #[test]
+    /*#[test]
     fn test_sorted_eigen() {
         let matrix = Array2::random((10, 10), Uniform::new(0., 10.));
         let matrix = matrix.t().dot(&matrix);
@@ -292,6 +328,18 @@ mod tests {
         assert_close_l2!(&r.mapv(|x| x.abs()) , &l.t().mapv(|x| x.abs()), 1e-5);
 
 
+    }*/
+
+    #[test]
+    fn test_eigsolver() {
+        let X = Array2::random((10, 2), Uniform::new(-1.0, 1.0));
+        //let mut X = Array2::ones((10, 1));
+
+        let diag = arr1(&[1.,2.,3.,4.,5.,6.,7.,8.,9.,10.]);
+        let A = Array2::from_diag(&diag);
+        let A = CsMat::csr_from_dense(A.view(), 1e-5);
+
+        dbg!(lobpcg(A, X, None, None, 1e-5, 10, Order::Largest));
     }
 
 }
