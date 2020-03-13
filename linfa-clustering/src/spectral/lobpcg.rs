@@ -14,7 +14,7 @@ pub enum Order {
 }
 
 fn sorted_eig(input: ArrayView<f32, Ix2>, stiff: Option<ArrayView<f32, Ix2>>, size: usize, order: &Order) -> (Array1<f32>, Array2<f32>) {
-    assert_close_l2!(&input, &input.t(), 1e-4);
+    //assert_close_l2!(&input, &input.t(), 1e-4);
     let (vals, vecs) = match stiff {
         Some(x) => (input, x).eigh(UPLO::Upper).map(|x| (x.0, (x.1).0)).unwrap(),
         _ => input.eigh(UPLO::Upper).unwrap()
@@ -22,16 +22,17 @@ fn sorted_eig(input: ArrayView<f32, Ix2>, stiff: Option<ArrayView<f32, Ix2>>, si
 
     let n = input.len_of(Axis(0));
 
+
     match order {
-        Order::Largest => (vals.slice_move(s![..size; -1]), vecs.slice_move(s![.., ..size; -1])),
-        Order::Smallest => (vals.slice_move(s![..size]), vecs.slice_move(s![..size, ..]))
+        Order::Largest => (vals.slice_move(s![n-size..; -1]), vecs.slice_move(s![.., n-size..; -1])),
+        Order::Smallest => (vals.slice_move(s![..size]), vecs.slice_move(s![.., ..size]))
     }
 }
 
 fn ndarray_mask(matrix: ArrayView<f32, Ix2>, mask: &[bool]) -> Array2<f32> {
     let (rows, cols) = (matrix.rows(), matrix.cols());
 
-    assert!(mask.len() == cols);
+    assert_eq!(mask.len(), cols);
 
     let n_positive = mask.iter().filter(|x| **x).count();
 
@@ -100,9 +101,9 @@ pub fn lobpcg(
         _ => 0
     };
 
-    /*if (n - sizeY) < 5 * sizeX {
+    if (n - sizeY) < 5 * sizeX {
         panic!("Please use a different approach, the LOBPCG method only supports the calculation of a couple of eigenvectors!");
-    }*/
+    }
 
     let mut iter = usize::min(n, maxiter);
 
@@ -169,7 +170,7 @@ pub fn lobpcg(
             apply_constraints(active_block_R.view_mut(), YY, Y.view());
         }
 
-        let (R,_) = orthonormalize(R);
+        let (R,_) = orthonormalize(active_block_R);
         let AR = A.dot(&R);
         
         // perform the Rayleigh Ritz procedure
@@ -291,7 +292,7 @@ mod tests {
     use ndarray_rand::rand_distr::Uniform;
     use sprs::CsMat;
 
-    /*#[test]
+    #[test]
     fn test_sorted_eigen() {
         let matrix = Array2::random((10, 10), Uniform::new(0., 10.));
         let matrix = matrix.t().dot(&matrix);
@@ -328,18 +329,20 @@ mod tests {
         assert_close_l2!(&r.mapv(|x| x.abs()) , &l.t().mapv(|x| x.abs()), 1e-5);
 
 
-    }*/
+    }
 
     #[test]
     fn test_eigsolver() {
-        let X = Array2::random((10, 2), Uniform::new(-1.0, 1.0));
-        //let mut X = Array2::ones((10, 1));
+        let X = Array2::random((20, 3), Uniform::new(-1.0, 1.0));
 
-        let diag = arr1(&[1.,2.,3.,4.,5.,6.,7.,8.,9.,10.]);
+        let diag = arr1(&[1.,2.,3.,4.,5.,6.,7.,8.,9.,10., 11., 12., 13., 14., 15., 16., 17., 18., 19., 20.]);
         let A = Array2::from_diag(&diag);
         let A = CsMat::csr_from_dense(A.view(), 1e-5);
 
-        dbg!(lobpcg(A, X, None, None, 1e-5, 10, Order::Largest));
-    }
+        let (vals, _) = lobpcg(A.clone(), X.clone(), None, None, 1e-5, 20, Order::Smallest);
+        assert_close_l2!(&vals, &arr1(&[1.0, 2.0, 3.0]), 1e-5);
 
+        let (vals, _) = lobpcg(A, X, None, None, 1e-5, 20, Order::Largest);
+        assert_close_l2!(&vals, &arr1(&[20.0, 19.0, 18.0]), 1e-5);
+    }
 }
