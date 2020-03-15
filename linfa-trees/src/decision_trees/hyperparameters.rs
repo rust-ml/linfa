@@ -6,11 +6,11 @@ pub enum SplitQuality {
 /// The set of hyperparameters that can be specified for fitting a
 /// [decision tree](struct.DecisionTree.html).
 pub struct DecisionTreeParams {
-    n_classes: u64,
-    split_quality: SplitQuality,
-    max_depth: Option<u64>,
-    min_samples_split: u64,
-    min_samples_leaf: u64,
+    pub n_classes: u64,
+    pub split_quality: SplitQuality,
+    pub max_depth: Option<u64>,
+    pub min_samples_split: u64,
+    pub min_samples_leaf: u64,
 }
 
 pub struct DecisionTreeParamsBuilder {

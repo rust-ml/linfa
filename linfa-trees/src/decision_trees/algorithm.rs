@@ -1,5 +1,5 @@
 use crate::decision_trees::hyperparameters::DecisionTreeParams;
-use ndarray::{s, stack, Array, Array1, ArrayBase, Axis, Data, Ix1, Ix2};
+use ndarray::{s, Array, Array1, ArrayBase, Data, Ix1, Ix2};
 use ndarray_rand::rand::Rng;
 
 struct TreeNode {
@@ -7,6 +7,8 @@ struct TreeNode {
     split_value: f64,
     left_child: Option<Box<TreeNode>>,
     right_child: Option<Box<TreeNode>>,
+    leaf_node: bool,
+    prediction: u64,
 }
 
 impl TreeNode {
@@ -14,8 +16,18 @@ impl TreeNode {
         x: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
         y: &ArrayBase<impl Data<Elem = u64> + Sync, Ix1>,
         row_idxs: &Vec<usize>,
+        n_classes: u64,
     ) -> Self {
-        let n_classes = x.ncols() as u64;
+        if row_idxs.len() == 1 {
+            return TreeNode {
+                feature_idx: 0,
+                split_value: 0.0,
+                left_child: None,
+                right_child: None,
+                leaf_node: true,
+                prediction: y[row_idxs[0]],
+            };
+        }
 
         let mut best_feature_idx = None;
         let mut best_split_value = None;
@@ -23,13 +35,12 @@ impl TreeNode {
 
         // 1. Find best split for current level
         for feature_idx in 0..(x.ncols()) {
-            println!("Looking at feature {}", feature_idx);
-
-            let split_values = split_values_for_feature(&x, feature_idx);
-            println!("Could split on any of {:?}", split_values);
+            let split_values = split_values_for_feature(&x, &row_idxs, feature_idx);
 
             for sv in split_values {
-                let (left_idxs, right_idxs) = split_on_feature_by_value(&x, feature_idx, sv);
+                let (left_idxs, right_idxs) =
+                    split_on_feature_by_value(&x, &row_idxs, feature_idx, sv);
+
                 let left_score = gini_impurity(&y, &left_idxs, n_classes);
                 let right_score = gini_impurity(&y, &right_idxs, n_classes);
                 let score = (left_score + right_score) / 2.0;
@@ -48,25 +59,31 @@ impl TreeNode {
         // 2. Obtain splitted datasets
 
         let (left_idxs, right_idxs) =
-            split_on_feature_by_value(&x, best_feature_idx, best_split_value);
+            split_on_feature_by_value(&x, &row_idxs, best_feature_idx, best_split_value);
 
         // 3. Recurse and refit on splitted data
 
         let left_child = match left_idxs.len() {
-            l if l > 0 => Some(Box::new(TreeNode::fit(&x, &y, &left_idxs))),
+            l if l > 0 => Some(Box::new(TreeNode::fit(&x, &y, &left_idxs, n_classes))),
             _ => None,
         };
 
         let right_child = match right_idxs.len() {
-            l if l > 0 => Some(Box::new(TreeNode::fit(&x, &y, &right_idxs))),
+            l if l > 0 => Some(Box::new(TreeNode::fit(&x, &y, &right_idxs, n_classes))),
             _ => None,
         };
+
+        let leaf_node = left_child.is_none() || right_child.is_none();
+
+        let pred = get_prediction(&y, &row_idxs, n_classes);
 
         TreeNode {
             feature_idx: best_feature_idx,
             split_value: best_split_value,
             left_child: left_child,
             right_child: right_child,
+            leaf_node: leaf_node,
+            prediction: pred,
         }
     }
 }
@@ -84,7 +101,7 @@ impl DecisionTree {
         rng: &mut impl Rng,
     ) -> Self {
         let all_idxs = 0..(x.nrows());
-        let root_node = TreeNode::fit(&x, &y, &all_idxs.collect());
+        let root_node = TreeNode::fit(&x, &y, &all_idxs.collect(), hyperparameters.n_classes);
 
         Self {
             hyperparameters,
@@ -93,7 +110,13 @@ impl DecisionTree {
     }
 
     pub fn predict(&self, x: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<u64> {
-        Array1::ones(5)
+        let mut preds = vec![];
+
+        for row in x.genrows().into_iter() {
+            preds.push(make_prediction(&row, &self.root_node));
+        }
+
+        Array::from(preds)
     }
 
     pub fn hyperparameters(&self) -> &DecisionTreeParams {
@@ -101,36 +124,79 @@ impl DecisionTree {
     }
 }
 
-pub fn split_on_feature_by_value(
+fn make_prediction(x: &ArrayBase<impl Data<Elem = f64> + Sync, Ix1>, node: &TreeNode) -> u64 {
+    if node.leaf_node {
+        node.prediction
+    } else {
+        if x[node.feature_idx] < node.split_value {
+            make_prediction(x, node.left_child.as_ref().unwrap())
+        } else {
+            make_prediction(x, node.right_child.as_ref().unwrap())
+        }
+    }
+}
+
+fn split_on_feature_by_value(
     x: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
+    row_idxs: &Vec<usize>,
     feature_idx: usize,
     split_value: f64,
 ) -> (Vec<usize>, Vec<usize>) {
     let mut left = vec![];
     let mut right = vec![];
 
+    let mut row_idxs_head = 0;
+    let mut next_row_idx = row_idxs.get(row_idxs_head);
+
     for (idx, row) in x.genrows().into_iter().enumerate() {
-        if row[feature_idx] < split_value {
-            left.push(idx);
+        if let Some(nri) = next_row_idx {
+            if &idx == nri {
+                if row[feature_idx] < split_value {
+                    left.push(idx);
+                } else {
+                    right.push(idx);
+                }
+
+                row_idxs_head += 1;
+                next_row_idx = row_idxs.get(row_idxs_head);
+            }
         } else {
-            right.push(idx);
+            break;
         }
     }
-
     (left, right)
 }
 
 fn split_values_for_feature(
     x: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
+    row_idxs: &Vec<usize>,
     feature_idx: usize,
 ) -> Vec<f64> {
-    let mut values = x.slice(s![.., feature_idx]).to_vec();
+    let all_values = x.slice(s![.., feature_idx]).to_vec();
+    let mut values = vec![];
+
+    let mut row_idxs_head = 0;
+    let mut next_row_idx = row_idxs.get(row_idxs_head);
+
+    for (idx, v) in all_values.iter().enumerate() {
+        if let Some(nri) = next_row_idx {
+            if &idx == nri {
+                values.push(*v);
+
+                row_idxs_head += 1;
+                next_row_idx = row_idxs.get(row_idxs_head);
+            }
+        } else {
+            break;
+        }
+    }
+
     values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Less));
 
     let mut split_values = vec![];
     let mut last_value = None;
 
-    for v in values {
+    for v in values.iter() {
         if let Some(lv) = last_value {
             if lv != v {
                 split_values.push((lv + v) / 2.0)
@@ -140,6 +206,44 @@ fn split_values_for_feature(
     }
 
     split_values
+}
+
+fn get_prediction(
+    labels: &ArrayBase<impl Data<Elem = u64> + Sync, Ix1>,
+    row_idxs: &Vec<usize>,
+    n_classes: u64,
+) -> u64 {
+    let n_samples = row_idxs.len();
+    assert!(n_samples > 0);
+
+    let mut class_freq = vec![0; n_classes as usize];
+
+    let mut row_idxs_head = 0;
+    let mut next_row_idx = row_idxs.get(row_idxs_head);
+
+    for (idx, label) in labels.iter().enumerate() {
+        if let Some(nri) = next_row_idx {
+            if &idx == nri {
+                class_freq[*label as usize] += 1;
+                row_idxs_head += 1;
+                next_row_idx = row_idxs.get(row_idxs_head);
+            }
+        } else {
+            break;
+        }
+    }
+
+    let mut best_freq = class_freq[0];
+    let mut best_idx = 0;
+
+    for idx in 1..n_classes {
+        if class_freq[idx as usize] > best_freq {
+            best_freq = class_freq[idx as usize];
+            best_idx = idx;
+        }
+    }
+
+    best_idx
 }
 
 fn gini_impurity(
