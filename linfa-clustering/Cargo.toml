@@ -20,6 +20,7 @@ ndarray-stats = "0.3"
 ndarray-linalg = { path = "../../ndarray-linalg", features = ["openblas"] }
 sprs = "0.7"
 serde = { version = "1", features = ["derive"] }
+num-traits = "0.1.32"
 
 [dev-dependencies]
 rand_isaac = "0.2.0"
