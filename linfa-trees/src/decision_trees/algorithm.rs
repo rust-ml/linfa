@@ -16,7 +16,7 @@ impl TreeNode {
         x: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
         y: &ArrayBase<impl Data<Elem = u64> + Sync, Ix1>,
         row_idxs: &Vec<usize>,
-        n_classes: u64,
+        hyperparameters: &DecisionTreeParams,
     ) -> Self {
         if row_idxs.len() == 1 {
             return TreeNode {
@@ -41,8 +41,8 @@ impl TreeNode {
                 let (left_idxs, right_idxs) =
                     split_on_feature_by_value(&x, &row_idxs, feature_idx, sv);
 
-                let left_score = gini_impurity(&y, &left_idxs, n_classes);
-                let right_score = gini_impurity(&y, &right_idxs, n_classes);
+                let left_score = gini_impurity(&y, &left_idxs, hyperparameters.n_classes);
+                let right_score = gini_impurity(&y, &right_idxs, hyperparameters.n_classes);
                 let score = (left_score + right_score) / 2.0;
 
                 if best_score.is_none() || score < best_score.unwrap() {
@@ -64,18 +64,28 @@ impl TreeNode {
         // 3. Recurse and refit on splitted data
 
         let left_child = match left_idxs.len() {
-            l if l > 0 => Some(Box::new(TreeNode::fit(&x, &y, &left_idxs, n_classes))),
+            l if l > 0 => Some(Box::new(TreeNode::fit(
+                &x,
+                &y,
+                &left_idxs,
+                &hyperparameters,
+            ))),
             _ => None,
         };
 
         let right_child = match right_idxs.len() {
-            l if l > 0 => Some(Box::new(TreeNode::fit(&x, &y, &right_idxs, n_classes))),
+            l if l > 0 => Some(Box::new(TreeNode::fit(
+                &x,
+                &y,
+                &right_idxs,
+                &hyperparameters,
+            ))),
             _ => None,
         };
 
         let leaf_node = left_child.is_none() || right_child.is_none();
 
-        let pred = get_prediction(&y, &row_idxs, n_classes);
+        let pred = get_prediction(&y, &row_idxs, hyperparameters.n_classes);
 
         TreeNode {
             feature_idx: best_feature_idx,
@@ -101,7 +111,7 @@ impl DecisionTree {
         rng: &mut impl Rng,
     ) -> Self {
         let all_idxs = 0..(x.nrows());
-        let root_node = TreeNode::fit(&x, &y, &all_idxs.collect(), hyperparameters.n_classes);
+        let root_node = TreeNode::fit(&x, &y, &all_idxs.collect(), &hyperparameters);
 
         Self {
             hyperparameters,
@@ -172,23 +182,10 @@ fn split_values_for_feature(
     row_idxs: &Vec<usize>,
     feature_idx: usize,
 ) -> Vec<f64> {
-    let all_values = x.slice(s![.., feature_idx]).to_vec();
-    let mut values = vec![];
+    let mut values: Vec<f64> = vec![];
 
-    let mut row_idxs_head = 0;
-    let mut next_row_idx = row_idxs.get(row_idxs_head);
-
-    for (idx, v) in all_values.iter().enumerate() {
-        if let Some(nri) = next_row_idx {
-            if &idx == nri {
-                values.push(*v);
-
-                row_idxs_head += 1;
-                next_row_idx = row_idxs.get(row_idxs_head);
-            }
-        } else {
-            break;
-        }
+    for idx in row_idxs.iter() {
+        values.push(*x.get((*idx, feature_idx)).unwrap());
     }
 
     values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Less));
@@ -218,19 +215,9 @@ fn get_prediction(
 
     let mut class_freq = vec![0; n_classes as usize];
 
-    let mut row_idxs_head = 0;
-    let mut next_row_idx = row_idxs.get(row_idxs_head);
-
-    for (idx, label) in labels.iter().enumerate() {
-        if let Some(nri) = next_row_idx {
-            if &idx == nri {
-                class_freq[*label as usize] += 1;
-                row_idxs_head += 1;
-                next_row_idx = row_idxs.get(row_idxs_head);
-            }
-        } else {
-            break;
-        }
+    for idx in row_idxs.iter() {
+        let label = labels[*idx];
+        class_freq[label as usize] += 1;
     }
 
     let mut best_freq = class_freq[0];
@@ -256,19 +243,9 @@ fn gini_impurity(
 
     let mut class_freq = vec![0.0; n_classes as usize];
 
-    let mut row_idxs_head = 0;
-    let mut next_row_idx = row_idxs.get(row_idxs_head);
-
-    for (idx, label) in labels.iter().enumerate() {
-        if let Some(nri) = next_row_idx {
-            if &idx == nri {
-                class_freq[*label as usize] += 1.0;
-                row_idxs_head += 1;
-                next_row_idx = row_idxs.get(row_idxs_head);
-            }
-        } else {
-            break;
-        }
+    for idx in row_idxs.iter() {
+        let label = labels[*idx];
+        class_freq[label as usize] += 1.0;
     }
 
     let purity: f64 = class_freq
