@@ -1,25 +1,25 @@
-use ndarray::{ArrayBase, Data, Array1, Ix2, Axis, DataMut};
-use ndarray_rand::rand::Rng;
+use ndarray::{ArrayBase, Array1, Array2, Ix2, Axis, DataMut};
 use ndarray_linalg::{TruncatedEig, TruncatedOrder, lobpcg::EigResult};
 use super::hyperparameters::DiffusionMapHyperParams;
 
 pub struct DiffusionMap {
     hyperparameters: DiffusionMapHyperParams,
-    embedding: Array2<f64>
+    embedding: Array2<f64>,
+    eigvals: Array1<f64>
 }
 
 impl DiffusionMap {
-    pub fn fit_predict(
+    pub fn project(
         hyperparameters: DiffusionMapHyperParams,
         similarity: ArrayBase<impl DataMut<Elem = f64>, Ix2>,
-        mut rng: &mut impl Rng
     ) -> Self {
         // compute spectral embedding with diffusion map
-        let embedding = compute_diffusion_map(similarity, hyperparameters.steps(), hyperparameters.embedding_size());
+        let (embedding, eigvals) = compute_diffusion_map(similarity, hyperparameters.steps(), hyperparameters.embedding_size());
 
         DiffusionMap {
             hyperparameters,
-            embedding
+            embedding,
+            eigvals
         }
     }
 
@@ -27,9 +27,25 @@ impl DiffusionMap {
     pub fn hyperparameters(&self) -> &DiffusionMapHyperParams {
         &self.hyperparameters
     }
+
+    /// Estimate the number of clusters in this embedding (very crude for now)
+    pub fn estimate_clusters(&self) -> usize {
+        let mean = self.eigvals.sum() / self.eigvals.len() as f64;
+        self.eigvals.iter().filter(|x| *x > &mean).count() + 1
+    }
+
+    /// Return a copy of the eigenvalues
+    pub fn eigvals(&self) -> Array1<f64> {
+        self.eigvals.clone()
+    }
+
+    /// Return the embedding
+    pub fn embedding(self) -> Array2<f64> {
+        self.embedding
+    }
 }
 
-fn compute_diffusion_map(mut similarity: ArrayBase<impl DataMut<Elem = f64>, Ix2>, steps: usize, embedding_size: usize) -> ArrayBase<impl Data<Elem = f64>, Ix2> {
+fn compute_diffusion_map(mut similarity: ArrayBase<impl DataMut<Elem = f64>, Ix2>, steps: usize, embedding_size: usize) -> (Array2<f64>, Array1<f64>) {
     // calculate sum of rows
     let d = similarity.sum_axis(Axis(0))
         .mapv(|x| 1.0/x.sqrt());
@@ -48,12 +64,16 @@ fn compute_diffusion_map(mut similarity: ArrayBase<impl DataMut<Elem = f64>, Ix2
 
     // calculate truncated eigenvalue decomposition
     let result = TruncatedEig::new(similarity.to_owned(), TruncatedOrder::Largest)
-        .decompose(embedding_size);
+        .decompose(embedding_size + 1);
 
-    let (vals, mut vecs) = match result {
+    let (vals, vecs) = match result {
         EigResult::Ok(vals, vecs, _) | EigResult::Err(vals, vecs, _, _) => (vals, vecs),
         _ => panic!("Eigendecomposition failed!")
     };
+
+    // cut away first eigenvalue/eigenvector
+    let vals = vals.slice_move(s![1..]);
+    let mut vecs = vecs.slice_move(s![..,1..]);
 
     let d = d.mapv(|x| 1.0/x);
 
@@ -66,7 +86,6 @@ fn compute_diffusion_map(mut similarity: ArrayBase<impl DataMut<Elem = f64>, Ix2
         vec *= val.powf(steps as f64);
     }
 
-    dbg!(&vals);
-    vecs
+    (vecs, vals)
 }
 

@@ -1,5 +1,6 @@
-use linfa_clustering::{generate_blobs, to_gaussian_similarity, SpectralClustering, SpectralClusteringHyperParams};
-use ndarray::{array, Axis};
+use linfa_clustering::generate_blobs;
+use linfa_reduction::{to_gaussian_similarity, DiffusionMap, DiffusionMapHyperParams};
+use ndarray::array;
 use ndarray_npy::write_npy;
 use ndarray_rand::rand::SeedableRng;
 use rand_isaac::Isaac64Rng;
@@ -12,35 +13,29 @@ fn main() {
 
     // For each our expected centroids, generate `n` data points around it (a "blob")
     let expected_centroids = array![[10., 10.], [1., 12.], [20., 30.], [-20., 30.],];
-    let n = 5;
+    let n = 10;
     let dataset = generate_blobs(n, &expected_centroids, &mut rng);
-    
-    let embedding = dataset
-        .to_similarity(Similarity::Gaussian(50.0))
-        .reduce_dimensionality(Method::DiffusionMap)
-        .unwrap();
-
     let similarity = to_gaussian_similarity(&dataset, 50.0);
 
     // Configure our training algorithm
-    let n_clusters = expected_centroids.len_of(Axis(0));
-    let hyperparams = SpectralClusteringHyperParams::new(n_clusters, 4)
+    let hyperparams = DiffusionMapHyperParams::new(6)
         .steps(1)
         .build();
 
     // Infer an optimal set of centroids based on the training data distribution and assign optimal
     // indices to clusters
-    let cluster_memberships = SpectralClustering::fit_predict(hyperparams, similarity, &mut rng);
-    let cluster_memberships = cluster_memberships.indices();
+    let diffusion_map = DiffusionMap::project(hyperparams, similarity);
+    dbg!(&diffusion_map.estimate_clusters());
 
-    dbg!(&cluster_memberships);
+    let embedding = diffusion_map.embedding();
+    dbg!(&embedding);
 
     // Save to disk our dataset (and the cluster label assigned to each observation)
     // We use the `npy` format for compatibility with NumPy
-    write_npy("spectral_dataset.npy", dataset).expect("Failed to write .npy file");
+    write_npy("diffusion_map_dataset.npy", dataset).expect("Failed to write .npy file");
     write_npy(
-        "spectral_memberships.npy",
-        cluster_memberships.map(|&x| x as u64),
+        "diffusion_map_embedding.npy",
+        embedding
     )
     .expect("Failed to write .npy file");
 }

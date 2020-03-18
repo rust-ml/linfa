@@ -19,16 +19,14 @@
 //!
 //! Check [here](https://github.com/LukeMathWalker/clustering-benchmarks) for extensive benchmarks against `scikit-learn`'s K-means implementation.
 
-#[macro_use] extern crate ndarray;
-#[macro_use] extern crate ndarray_linalg;
+extern crate ndarray;
+extern crate ndarray_linalg;
 
 mod dbscan;
 #[allow(clippy::new_ret_no_self)]
 mod k_means;
-mod spectral;
 mod utils;
 
 pub use dbscan::*;
 pub use k_means::*;
-pub use spectral::*;
 pub use utils::*;
