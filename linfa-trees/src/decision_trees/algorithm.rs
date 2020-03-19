@@ -17,17 +17,17 @@ impl TreeNode {
         y: &ArrayBase<impl Data<Elem = u64> + Sync, Ix1>,
         row_idxs: &Vec<usize>,
         hyperparameters: &DecisionTreeParams,
+        depth: u64,
     ) -> Self {
-        if row_idxs.len() == 1 {
-            return TreeNode {
-                feature_idx: 0,
-                split_value: 0.0,
-                left_child: None,
-                right_child: None,
-                leaf_node: true,
-                prediction: y[row_idxs[0]],
-            };
+        let mut leaf_node = false;
+
+        leaf_node |= row_idxs.len() < (hyperparameters.min_samples_split as usize);
+
+        if let Some(max_depth) = hyperparameters.max_depth {
+            leaf_node |= depth > max_depth;
         }
+
+        let prediction = get_prediction(&y, &row_idxs, hyperparameters.n_classes);
 
         let mut best_feature_idx = None;
         let mut best_split_value = None;
@@ -41,6 +41,14 @@ impl TreeNode {
                 let (left_idxs, right_idxs) =
                     split_on_feature_by_value(&x, &row_idxs, feature_idx, sv);
 
+                if left_idxs.len() < hyperparameters.min_samples_leaf as usize {
+                    continue;
+                }
+
+                if right_idxs.len() < hyperparameters.min_samples_leaf as usize {
+                    continue;
+                }
+
                 let left_score = gini_impurity(&y, &left_idxs, hyperparameters.n_classes);
                 let right_score = gini_impurity(&y, &right_idxs, hyperparameters.n_classes);
                 let score = (left_score + right_score) / 2.0;
@@ -51,6 +59,19 @@ impl TreeNode {
                     best_score = Some(score);
                 }
             }
+        }
+
+        leaf_node |= best_score.is_none();
+
+        if leaf_node {
+            return TreeNode {
+                feature_idx: 0,
+                split_value: 0.0,
+                left_child: None,
+                right_child: None,
+                leaf_node: true,
+                prediction: prediction,
+            };
         }
 
         let best_feature_idx = best_feature_idx.unwrap();
@@ -69,6 +90,7 @@ impl TreeNode {
                 &y,
                 &left_idxs,
                 &hyperparameters,
+                depth + 1,
             ))),
             _ => None,
         };
@@ -79,13 +101,12 @@ impl TreeNode {
                 &y,
                 &right_idxs,
                 &hyperparameters,
+                depth + 1,
             ))),
             _ => None,
         };
 
         let leaf_node = left_child.is_none() || right_child.is_none();
-
-        let pred = get_prediction(&y, &row_idxs, hyperparameters.n_classes);
 
         TreeNode {
             feature_idx: best_feature_idx,
@@ -93,7 +114,7 @@ impl TreeNode {
             left_child: left_child,
             right_child: right_child,
             leaf_node: leaf_node,
-            prediction: pred,
+            prediction: prediction,
         }
     }
 }
@@ -111,7 +132,7 @@ impl DecisionTree {
         rng: &mut impl Rng,
     ) -> Self {
         let all_idxs = 0..(x.nrows());
-        let root_node = TreeNode::fit(&x, &y, &all_idxs.collect(), &hyperparameters);
+        let root_node = TreeNode::fit(&x, &y, &all_idxs.collect(), &hyperparameters, 0);
 
         Self {
             hyperparameters,
