@@ -176,25 +176,15 @@ fn split_on_feature_by_value(
     let mut left = vec![];
     let mut right = vec![];
 
-    let mut row_idxs_head = 0;
-    let mut next_row_idx = row_idxs.get(row_idxs_head);
-
-    for (idx, row) in x.genrows().into_iter().enumerate() {
-        if let Some(nri) = next_row_idx {
-            if &idx == nri {
-                if row[feature_idx] < split_value {
-                    left.push(idx);
-                } else {
-                    right.push(idx);
-                }
-
-                row_idxs_head += 1;
-                next_row_idx = row_idxs.get(row_idxs_head);
-            }
+    for idx in row_idxs.iter() {
+        let v = *x.get((*idx, feature_idx)).unwrap();
+        if v < split_value {
+            left.push(*idx);
         } else {
-            break;
+            right.push(*idx);
         }
     }
+
     (left, right)
 }
 
