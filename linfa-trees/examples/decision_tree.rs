@@ -42,18 +42,6 @@ fn main() {
             .flatten(),
     );
 
-    println!("Generated training data");
-
-    // Configure our training algorithm
-    let hyperparams = DecisionTreeParams::new(n_classes)
-        .split_quality(SplitQuality::Gini)
-        .max_depth(Some(100))
-        .min_samples_split(50)
-        .min_samples_leaf(50)
-        .build();
-
-    let model = DecisionTree::fit(hyperparams, &train_x, &train_y, &mut rng);
-
     let test_x = generate_blobs(n, &expected_centroids, &mut rng);
     let test_y = Array::from_iter(
         (0..n_classes)
@@ -61,8 +49,37 @@ fn main() {
             .flatten(),
     );
 
-    let pred_y = model.predict(&test_x);
-    println!("test_y: {:?}", &test_y);
-    println!("pred_y: {:?}", &pred_y);
-    println!("Test accuracy: {:.2}%", 100.0 * accuracy(&test_y, &pred_y));
+    println!("Generated training data");
+
+    println!("Training model with Gini criterion ...");
+    let gini_hyperparams = DecisionTreeParams::new(n_classes)
+        .split_quality(SplitQuality::Gini)
+        .max_depth(Some(100))
+        .min_samples_split(10)
+        .min_samples_leaf(10)
+        .build();
+
+    let gini_model = DecisionTree::fit(gini_hyperparams, &train_x, &train_y, &mut rng);
+
+    let gini_pred_y = gini_model.predict(&test_x);
+    println!(
+        "Test accuracy with Gini criterion: {:.2}%",
+        100.0 * accuracy(&test_y, &gini_pred_y)
+    );
+
+    println!("Training model with Information gain criterion ...");
+    let entropy_hyperparams = DecisionTreeParams::new(n_classes)
+        .split_quality(SplitQuality::Entropy)
+        .max_depth(Some(100))
+        .min_samples_split(10)
+        .min_samples_leaf(10)
+        .build();
+
+    let entropy_model = DecisionTree::fit(entropy_hyperparams, &train_x, &train_y, &mut rng);
+
+    let entropy_pred_y = entropy_model.predict(&test_x);
+    println!(
+        "Test accuracy with Entropy criterion: {:.2}%",
+        100.0 * accuracy(&test_y, &entropy_pred_y)
+    );
 }

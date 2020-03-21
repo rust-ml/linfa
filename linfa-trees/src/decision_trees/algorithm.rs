@@ -1,4 +1,4 @@
-use crate::decision_trees::hyperparameters::DecisionTreeParams;
+use crate::decision_trees::hyperparameters::{DecisionTreeParams, SplitQuality};
 use ndarray::{s, Array, Array1, ArrayBase, Data, Ix1, Ix2};
 use ndarray_rand::rand::Rng;
 
@@ -49,11 +49,20 @@ impl TreeNode {
                     continue;
                 }
 
-                let left_score = gini_impurity(&y, &left_idxs, hyperparameters.n_classes);
-                let right_score = gini_impurity(&y, &right_idxs, hyperparameters.n_classes);
+                let (left_score, right_score) = match hyperparameters.split_quality {
+                    SplitQuality::Gini => (
+                        -gini_impurity(&y, &left_idxs, hyperparameters.n_classes),
+                        -gini_impurity(&y, &right_idxs, hyperparameters.n_classes),
+                    ),
+                    SplitQuality::Entropy => (
+                        information_gain(&y, &row_idxs, &left_idxs, hyperparameters.n_classes),
+                        information_gain(&y, &row_idxs, &right_idxs, hyperparameters.n_classes),
+                    ),
+                };
+
                 let score = (left_score + right_score) / 2.0;
 
-                if best_score.is_none() || score < best_score.unwrap() {
+                if best_score.is_none() || score > best_score.unwrap() {
                     best_feature_idx = Some(feature_idx);
                     best_split_value = Some(sv);
                     best_score = Some(score);
@@ -269,19 +278,25 @@ fn gini_impurity(
 }
 
 fn information_gain(
-    parent_labels: &ArrayBase<impl Data<Elem = u64> + Sync, Ix1>,
-    child_labels: &ArrayBase<impl Data<Elem = u64> + Sync, Ix1>,
+    labels: &ArrayBase<impl Data<Elem = u64> + Sync, Ix1>,
+    parent_idxs: &Vec<usize>,
+    row_idxs: &Vec<usize>,
     n_classes: u64,
 ) -> f64 {
-    entropy(&parent_labels, n_classes) - entropy(&child_labels, n_classes)
+    entropy(&labels, &parent_idxs, n_classes) - entropy(&labels, &row_idxs, n_classes)
 }
 
-fn entropy(labels: &ArrayBase<impl Data<Elem = u64> + Sync, Ix1>, n_classes: u64) -> f64 {
+fn entropy(
+    labels: &ArrayBase<impl Data<Elem = u64> + Sync, Ix1>,
+    row_idxs: &Vec<usize>,
+    n_classes: u64,
+) -> f64 {
     let n_samples = labels.len();
     let mut class_freq = vec![0.0; n_classes as usize];
 
-    for label in labels.iter() {
-        class_freq[*label as usize] += 1.0;
+    for idx in row_idxs.iter() {
+        let label = labels[*idx];
+        class_freq[label as usize] += 1.0;
     }
 
     class_freq
@@ -313,28 +328,30 @@ mod tests {
     fn entropy_example() {
         let n_classes = 3;
         let labels = Array::from(vec![0, 0, 0, 0, 0, 0, 1, 1]);
+        let all_idxs = (0..8).collect();
 
         // Class 0 occurs 75% of the time
         // Class 1 occurs 25% of the time
         // Class 2 occurs 0% of the time
         // Entropy is -0.75*log2(0.75) - 0.25*log2(0.25) - 0*log2(0) = 0.81127812
-        assert_eq!(entropy(&labels, n_classes), 0.8112781244591328);
+        assert_eq!(entropy(&labels, &all_idxs, n_classes), 0.8112781244591328);
 
         // If split is perfect then entropy is zero
         let perfect_labels = Array::from(vec![0, 0, 0, 0, 0, 0, 0, 0]);
-        assert_eq!(entropy(&perfect_labels, n_classes), 0.0);
+        assert_eq!(entropy(&perfect_labels, &all_idxs, n_classes), 0.0);
     }
 
     #[test]
     fn information_gain_example() {
         let n_classes = 3;
-        let parent_labels = Array::from(vec![0, 0, 0, 0, 0, 1, 1, 2]);
-        let child_labels = Array::from(vec![0, 0, 0, 0, 0, 0, 0, 1]);
+        let labels = Array::from(vec![0, 0, 0, 0, 0, 1, 1, 2]);
+        let parent_idxs = (0..8).collect();
+        let child_idxs = (0..7).collect();
 
         // Information gain is just the decrease in entropy from parent to child
         assert_eq!(
-            information_gain(&parent_labels, &child_labels, n_classes),
-            0.7552304974958021
+            information_gain(&labels, &parent_idxs, &child_idxs, n_classes),
+            0.3749999999999999
         );
     }
 }
