@@ -399,7 +399,7 @@ mod tests {
         // Information gain is just the decrease in entropy from parent to child
         assert_abs_diff_eq!(
             information_gain(&labels, &parent_idxs, &child_idxs, n_classes),
-            0.375,
+            0.435674,
             epsilon = 1e-5
         );
     }
