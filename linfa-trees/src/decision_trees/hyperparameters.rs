@@ -1,3 +1,4 @@
+/// The possible impurity measures for training.
 pub enum SplitQuality {
     Gini,
     Entropy,
@@ -13,6 +14,7 @@ pub struct DecisionTreeParams {
     pub min_samples_leaf: u64,
 }
 
+/// A helper struct to build the hyperparameters for a decision tree.
 pub struct DecisionTreeParamsBuilder {
     n_classes: u64,
     split_quality: SplitQuality,

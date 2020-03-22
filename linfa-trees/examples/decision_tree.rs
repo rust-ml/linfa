@@ -59,7 +59,7 @@ fn main() {
         .min_samples_leaf(10)
         .build();
 
-    let gini_model = DecisionTree::fit(gini_hyperparams, &train_x, &train_y, &mut rng);
+    let gini_model = DecisionTree::fit(gini_hyperparams, &train_x, &train_y);
 
     let gini_pred_y = gini_model.predict(&test_x);
     println!(
@@ -75,7 +75,7 @@ fn main() {
         .min_samples_leaf(10)
         .build();
 
-    let entropy_model = DecisionTree::fit(entropy_hyperparams, &train_x, &train_y, &mut rng);
+    let entropy_model = DecisionTree::fit(entropy_hyperparams, &train_x, &train_y);
 
     let entropy_pred_y = entropy_model.predict(&test_x);
     println!(

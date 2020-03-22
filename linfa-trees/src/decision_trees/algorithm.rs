@@ -1,6 +1,5 @@
 use crate::decision_trees::hyperparameters::{DecisionTreeParams, SplitQuality};
-use ndarray::{s, Array, Array1, ArrayBase, Data, Ix1, Ix2};
-use ndarray_rand::rand::Rng;
+use ndarray::{Array, Array1, ArrayBase, Data, Ix1, Ix2};
 
 struct TreeNode {
     feature_idx: usize,
@@ -27,7 +26,7 @@ impl TreeNode {
             leaf_node |= depth > max_depth;
         }
 
-        let prediction = get_prediction(&y, &row_idxs, hyperparameters.n_classes);
+        let prediction = prediction_for_rows(&y, &row_idxs, hyperparameters.n_classes);
 
         let mut best_feature_idx = None;
         let mut best_split_value = None;
@@ -128,17 +127,19 @@ impl TreeNode {
     }
 }
 
+/// A fitted decision tree model.
 pub struct DecisionTree {
     hyperparameters: DecisionTreeParams,
     root_node: TreeNode,
 }
 
 impl DecisionTree {
+    /// Fit a decision tree using `hyperparamters` on the dataset consisting of
+    /// a matrix of features `x` and an array of labels `y`.
     pub fn fit(
         hyperparameters: DecisionTreeParams,
         x: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
         y: &ArrayBase<impl Data<Elem = u64> + Sync, Ix1>,
-        rng: &mut impl Rng,
     ) -> Self {
         let all_idxs = 0..(x.nrows());
         let root_node = TreeNode::fit(&x, &y, &all_idxs.collect(), &hyperparameters, 0);
@@ -149,6 +150,7 @@ impl DecisionTree {
         }
     }
 
+    /// Make predictions for each row of a matrix of features `x`.
     pub fn predict(&self, x: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<u64> {
         let mut preds = vec![];
 
@@ -164,6 +166,7 @@ impl DecisionTree {
     }
 }
 
+/// Classify a sample &x recursively using the tree node `node`.
 fn make_prediction(x: &ArrayBase<impl Data<Elem = f64> + Sync, Ix1>, node: &TreeNode) -> u64 {
     if node.leaf_node {
         node.prediction
@@ -225,11 +228,13 @@ fn split_values_for_feature(
     split_values
 }
 
-fn get_prediction(
+/// Given an array of labels and a mask `row_idxs` calculate the frequency of
+/// each class from 0 to `n_classes-1`.
+fn class_frequencies(
     labels: &ArrayBase<impl Data<Elem = u64> + Sync, Ix1>,
     row_idxs: &Vec<usize>,
     n_classes: u64,
-) -> u64 {
+) -> Vec<u64> {
     let n_samples = row_idxs.len();
     assert!(n_samples > 0);
 
@@ -240,19 +245,39 @@ fn get_prediction(
         class_freq[label as usize] += 1;
     }
 
-    let mut best_freq = class_freq[0];
-    let mut best_idx = 0;
-
-    for idx in 1..n_classes {
-        if class_freq[idx as usize] > best_freq {
-            best_freq = class_freq[idx as usize];
-            best_idx = idx;
-        }
-    }
-
-    best_idx
+    class_freq
 }
 
+/// Make a point prediction for a subset of rows in the dataset based on the
+/// class that occurs the most frequent. If two classes occur with the same
+/// frequency then the first class is selected.
+fn prediction_for_rows(
+    labels: &ArrayBase<impl Data<Elem = u64> + Sync, Ix1>,
+    row_idxs: &Vec<usize>,
+    n_classes: u64,
+) -> u64 {
+    let class_freq = class_frequencies(labels, row_idxs, n_classes);
+
+    // Find the class with greatest frequency
+    class_freq
+        .iter()
+        .enumerate()
+        .fold(None, |acc, (idx, freq)| match acc {
+            None => Some((idx, freq)),
+            Some((_best_idx, best_freq)) => {
+                if best_freq > freq {
+                    acc
+                } else {
+                    Some((idx, freq))
+                }
+            }
+        })
+        .unwrap()
+        .0 as u64
+}
+
+/// Given an array of labels and a mask `row_idxs` calculate the gini impurity
+/// of the subset.
 fn gini_impurity(
     labels: &ArrayBase<impl Data<Elem = u64> + Sync, Ix1>,
     row_idxs: &Vec<usize>,
@@ -261,22 +286,19 @@ fn gini_impurity(
     let n_samples = row_idxs.len();
     assert!(n_samples > 0);
 
-    let mut class_freq = vec![0.0; n_classes as usize];
-
-    for idx in row_idxs.iter() {
-        let label = labels[*idx];
-        class_freq[label as usize] += 1.0;
-    }
+    let class_freq = class_frequencies(labels, row_idxs, n_classes);
 
     let purity: f64 = class_freq
         .iter()
-        .map(|x| x / (n_samples as f64))
+        .map(|x| (*x as f64) / (n_samples as f64))
         .map(|x| x * x)
         .sum();
 
     1.0 - purity
 }
 
+/// Given an array of labels and the parent and child mask for before and after
+/// a potential split calculate the information gain of making the split.
 fn information_gain(
     labels: &ArrayBase<impl Data<Elem = u64> + Sync, Ix1>,
     parent_idxs: &Vec<usize>,
@@ -286,22 +308,21 @@ fn information_gain(
     entropy(&labels, &parent_idxs, n_classes) - entropy(&labels, &row_idxs, n_classes)
 }
 
+/// Given an array of labels and a mask `row_idxs` calculate the entropy of the
+/// subset.
 fn entropy(
     labels: &ArrayBase<impl Data<Elem = u64> + Sync, Ix1>,
     row_idxs: &Vec<usize>,
     n_classes: u64,
 ) -> f64 {
-    let n_samples = labels.len();
-    let mut class_freq = vec![0.0; n_classes as usize];
+    let n_samples = row_idxs.len();
+    assert!(n_samples > 0);
 
-    for idx in row_idxs.iter() {
-        let label = labels[*idx];
-        class_freq[label as usize] += 1.0;
-    }
+    let class_freq = class_frequencies(labels, row_idxs, n_classes);
 
     class_freq
         .iter()
-        .map(|x| x / (n_samples as f64))
+        .map(|x| (*x as f64) / (n_samples as f64))
         .map(|x| if x > 0.0 { -x * x.log2() } else { 0.0 })
         .sum()
 }
@@ -309,7 +330,22 @@ fn entropy(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use approx::assert_abs_diff_eq;
     use ndarray::Array;
+
+    #[test]
+    fn class_freq_example() {
+        let labels = Array::from(vec![0, 0, 0, 0, 0, 0, 1, 1]);
+
+        assert_eq!(class_frequencies(&labels, &vec![0, 1, 2], 3), vec![3, 0, 0]);
+        assert_eq!(class_frequencies(&labels, &vec![0, 6, 7], 3), vec![1, 2, 0]);
+    }
+
+    #[test]
+    fn prediction_for_rows_example() {
+        let labels = Array::from(vec![0, 0, 0, 0, 0, 0, 1, 1]);
+        assert_eq!(prediction_for_rows(&labels, &vec![0, 1, 2, 6, 7], 3), 0);
+    }
 
     #[test]
     fn gini_impurity_example() {
@@ -321,7 +357,11 @@ mod tests {
         // Class 1 occurs 25% of the time
         // Class 2 occurs 0% of the time
         // Gini impurity is 1 - 0.75*0.75 - 0.25*0.25 - 0*0 = 0.375
-        assert_eq!(gini_impurity(&labels, &all_idxs, n_classes), 0.375);
+        assert_abs_diff_eq!(
+            gini_impurity(&labels, &all_idxs, n_classes),
+            0.375,
+            epsilon = 1e-5
+        );
     }
 
     #[test]
@@ -334,11 +374,19 @@ mod tests {
         // Class 1 occurs 25% of the time
         // Class 2 occurs 0% of the time
         // Entropy is -0.75*log2(0.75) - 0.25*log2(0.25) - 0*log2(0) = 0.81127812
-        assert_eq!(entropy(&labels, &all_idxs, n_classes), 0.8112781244591328);
+        assert_abs_diff_eq!(
+            entropy(&labels, &all_idxs, n_classes),
+            0.81127,
+            epsilon = 1e-5
+        );
 
         // If split is perfect then entropy is zero
         let perfect_labels = Array::from(vec![0, 0, 0, 0, 0, 0, 0, 0]);
-        assert_eq!(entropy(&perfect_labels, &all_idxs, n_classes), 0.0);
+        assert_abs_diff_eq!(
+            entropy(&perfect_labels, &all_idxs, n_classes),
+            0.0,
+            epsilon = 1e-5
+        );
     }
 
     #[test]
@@ -349,9 +397,10 @@ mod tests {
         let child_idxs = (0..7).collect();
 
         // Information gain is just the decrease in entropy from parent to child
-        assert_eq!(
+        assert_abs_diff_eq!(
             information_gain(&labels, &parent_idxs, &child_idxs, n_classes),
-            0.3749999999999999
+            0.375,
+            epsilon = 1e-5
         );
     }
 }
