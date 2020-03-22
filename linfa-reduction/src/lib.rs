@@ -1,5 +1,6 @@
 #[macro_use] extern crate ndarray;
 
+pub mod kernel;
 pub mod diffusion_map;
 pub mod pca;
 pub mod utils;
