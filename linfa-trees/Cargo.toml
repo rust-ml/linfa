@@ -23,3 +23,7 @@ criterion = "0.3"
 serde_json = "1"
 approx = "0.3"
 linfa-clustering = { path = "../linfa-clustering", version = "0.1" }
+
+[[bench]]
+name = "decision_tree"
+harness = false
