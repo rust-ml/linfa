@@ -15,10 +15,10 @@ fn main() {
     let expected_centroids = array![[10., 10.], [1., 12.], [20., 30.], [-20., 30.],];
     let n = 10;
     let dataset = generate_blobs(n, &expected_centroids, &mut rng);
-    let similarity = to_gaussian_similarity(&dataset, 50.0);
+    let similarity = to_gaussian_similarity(&dataset, 20.0);
 
     // Configure our training algorithm
-    let hyperparams = DiffusionMapHyperParams::new(6)
+    let hyperparams = DiffusionMapHyperParams::new(4)
         .steps(1)
         .build();
 

@@ -70,7 +70,7 @@ fn compute_diffusion_map(kernel: impl Kernel<f64>, steps: usize, embedding_size:
 
     let result = lobpcg::lobpcg(|y| {
         let mut y = y.to_owned();
-        y.gencolumns_mut().into_iter().zip(d.iter()).for_each(|(mut c, x)| c *= *x);
+        y.genrows_mut().into_iter().zip(d.iter()).for_each(|(mut c, x)| c *= *x);
         let mut y = kernel.apply_gram(y);
         y.genrows_mut().into_iter().zip(d.iter()).for_each(|(mut c, x)| c *= *x);
 
@@ -81,8 +81,8 @@ fn compute_diffusion_map(kernel: impl Kernel<f64>, steps: usize, embedding_size:
         LobpcgResult::Ok(vals, vecs, _) | LobpcgResult::Err(vals, vecs, _, _) => (vals, vecs),
         _ => panic!("Eigendecomposition failed!")
     };
-
     dbg!(&vals);
+
     // cut away first eigenvalue/eigenvector
     let vals = vals.slice_move(s![1..]);
     let mut vecs = vecs.slice_move(s![..,1..]);
