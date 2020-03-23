@@ -1,7 +1,7 @@
 use ndarray::prelude::*;
 use ndarray::Data;
 use ndarray::NdFloat;
-use num_traits::{FromPrimitive, Num, NumCast};
+use num_traits::{FromPrimitive, Num};
 use sprs::CsMat;
 
 /// Symmetric kernel function, can be sparse or dense
@@ -22,7 +22,7 @@ impl<S: Data<Elem = A>, A: NdFloat + 'static + FromPrimitive> Kernel<A> for Arra
     }
 
     fn sum(&self) -> Array1<A> {
-        self.mean_axis(ndarray::Axis(0)).unwrap()
+        self.sum_axis(ndarray::Axis(0))
     }
 
     fn size(&self) -> usize {
@@ -56,30 +56,27 @@ impl<A: NdFloat + 'static + FromPrimitive + Num + Default> Kernel<A> for CsMat<A
 
 #[cfg(test)]
 mod tests {
-    use super::{Kernel, Axis};
+    use super::Kernel;
     use sprs::CsMatBase;
     use ndarray::{Array1, Array2};
     use ndarray_rand::{rand_distr::Uniform, RandomExt};
 
-    /*#[test]
+    #[test]
     fn test_sprs() {
-        let a: Array2<f64> = Array2::random((10, 5), Uniform::new(0., 1.));
+        let a: Array2<f64> = Array2::random((10, 10), Uniform::new(0., 1.));
         let a = CsMatBase::csr_from_dense(a.view(), 1e-5);
 
-        assert_eq!(a.mean(Axis::Column).shape(), &[5]);
-        assert_eq!(a.mean(Axis::Row).shape(), &[10]);
-        assert_eq!(a.n_features(), 5);
-
-        assert_eq!(a.apply_gram(Array2::eye(5)), a.to_dense());
+        assert_eq!(a.size(), 10);
+        assert_eq!(a.apply_gram(Array2::eye(10)), a.to_dense());
     }
 
     #[test]
     fn test_dense() {
         let id: Array2<f64> = Array2::eye(10);
 
-        assert_eq!(Kernel::mean(&id, Axis::Column), Array1::ones(10) * 0.1);
-        assert_eq!(Kernel::mean(&id, Axis::Row), Array1::ones(10) * 0.1);
+        assert_eq!(Kernel::sum(&id), Array1::ones(10));
+        assert_eq!(Kernel::sum(&id), Array1::ones(10));
 
-        assert_eq!(id.n_features(), 10);
-    }*/
+        assert_eq!(id.size(), 10);
+    }
 }

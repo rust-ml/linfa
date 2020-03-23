@@ -1,5 +1,8 @@
 use ndarray::{ArrayBase, Array1, Array2, Ix2, Axis, DataMut};
-use ndarray_linalg::{TruncatedEig, TruncatedOrder, lobpcg::EigResult};
+use ndarray_linalg::{TruncatedEig, TruncatedOrder, lobpcg::LobpcgResult, lobpcg};
+use ndarray_rand::{rand_distr::Uniform, RandomExt};
+
+use crate::kernel::Kernel;
 use super::hyperparameters::DiffusionMapHyperParams;
 
 pub struct DiffusionMap {
@@ -11,10 +14,10 @@ pub struct DiffusionMap {
 impl DiffusionMap {
     pub fn project(
         hyperparameters: DiffusionMapHyperParams,
-        similarity: ArrayBase<impl DataMut<Elem = f64>, Ix2>,
+        kernel: impl Kernel<f64>
     ) -> Self {
         // compute spectral embedding with diffusion map
-        let (embedding, eigvals) = compute_diffusion_map(similarity, hyperparameters.steps(), hyperparameters.embedding_size());
+        let (embedding, eigvals) = compute_diffusion_map(kernel, hyperparameters.steps(), hyperparameters.embedding_size());
 
         DiffusionMap {
             hyperparameters,
@@ -45,13 +48,13 @@ impl DiffusionMap {
     }
 }
 
-fn compute_diffusion_map(mut similarity: ArrayBase<impl DataMut<Elem = f64>, Ix2>, steps: usize, embedding_size: usize) -> (Array2<f64>, Array1<f64>) {
+fn compute_diffusion_map(kernel: impl Kernel<f64>, steps: usize, embedding_size: usize) -> (Array2<f64>, Array1<f64>) {
     // calculate sum of rows
-    let d = similarity.sum_axis(Axis(0))
+    let d = kernel.sum()
         .mapv(|x| 1.0/x.sqrt());
 
     // ensure that matrix is symmetric
-    for (idx, elm) in similarity.indexed_iter_mut() {
+    /*for (idx, elm) in similarity.indexed_iter_mut() {
         let (a, b) = idx;
         *elm *= d[a] * d[b];
     }
@@ -60,17 +63,26 @@ fn compute_diffusion_map(mut similarity: ArrayBase<impl DataMut<Elem = f64>, Ix2
         if val.abs() < 1e-2 {
             *val = 0.0;
         }
-    }
+    }*/
 
     // calculate truncated eigenvalue decomposition
-    let result = TruncatedEig::new(similarity.to_owned(), TruncatedOrder::Largest)
-        .decompose(embedding_size + 1);
+    let x = Array2::random((d.len(), embedding_size + 1), Uniform::new(0.0, 1.0));
+
+    let result = lobpcg::lobpcg(|y| {
+        let mut y = y.to_owned();
+        y.gencolumns_mut().into_iter().zip(d.iter()).for_each(|(mut c, x)| c *= *x);
+        let mut y = kernel.apply_gram(y);
+        y.genrows_mut().into_iter().zip(d.iter()).for_each(|(mut c, x)| c *= *x);
+
+        y
+    }, x, |_| {}, None, 1e-5, 20, TruncatedOrder::Largest);
 
     let (vals, vecs) = match result {
-        EigResult::Ok(vals, vecs, _) | EigResult::Err(vals, vecs, _, _) => (vals, vecs),
+        LobpcgResult::Ok(vals, vecs, _) | LobpcgResult::Err(vals, vecs, _, _) => (vals, vecs),
         _ => panic!("Eigendecomposition failed!")
     };
 
+    dbg!(&vals);
     // cut away first eigenvalue/eigenvector
     let vals = vals.slice_move(s![1..]);
     let mut vecs = vecs.slice_move(s![..,1..]);
