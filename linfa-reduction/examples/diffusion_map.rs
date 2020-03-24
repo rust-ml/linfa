@@ -13,9 +13,11 @@ fn main() {
 
     // For each our expected centroids, generate `n` data points around it (a "blob")
     let expected_centroids = array![[10., 10.], [1., 12.], [20., 30.], [-20., 30.],];
-    let n = 10;
+    let n = 20;
     let dataset = generate_blobs(n, &expected_centroids, &mut rng);
-    let similarity = to_gaussian_similarity(&dataset, 20.0);
+    let similarity = to_gaussian_similarity(&dataset, 40.0);
+
+    let kernel = GaussianKernel::new(dataset, 40);
 
     // Configure our training algorithm
     let hyperparams = DiffusionMapHyperParams::new(4)
