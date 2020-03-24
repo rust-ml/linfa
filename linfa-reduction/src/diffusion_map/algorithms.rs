@@ -2,7 +2,7 @@ use ndarray::{ArrayBase, Array1, Array2, Ix2, Axis, DataMut};
 use ndarray_linalg::{TruncatedEig, TruncatedOrder, lobpcg::LobpcgResult, lobpcg, eigh::EighInto, lapack::UPLO, close_l2};
 use ndarray_rand::{rand_distr::Uniform, RandomExt};
 
-use crate::kernel::Kernel;
+use crate::kernel::{Kernel, IntoKernel};
 use super::hyperparameters::DiffusionMapHyperParams;
 
 pub struct DiffusionMap {
@@ -14,10 +14,10 @@ pub struct DiffusionMap {
 impl DiffusionMap {
     pub fn project(
         hyperparameters: DiffusionMapHyperParams,
-        kernel: impl Kernel<f64>
+        kernel: impl IntoKernel<f64>
     ) -> Self {
         // compute spectral embedding with diffusion map
-        let (embedding, eigvals) = compute_diffusion_map(kernel, hyperparameters.steps(), hyperparameters.embedding_size());
+        let (embedding, eigvals) = compute_diffusion_map(kernel.into_kernel(), hyperparameters.steps(), hyperparameters.embedding_size());
 
         DiffusionMap {
             hyperparameters,

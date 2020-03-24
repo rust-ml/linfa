@@ -1,3 +1,6 @@
+pub mod gaussian;
+pub use gaussian::GaussianKernel;
+
 use ndarray::prelude::*;
 use ndarray::Data;
 use ndarray::NdFloat;
@@ -52,6 +55,12 @@ impl<A: NdFloat + 'static + FromPrimitive + Num + Default> Kernel<A> for CsMat<A
 
         self.cols()
     }
+}
+
+pub trait IntoKernel<A> {
+    type IntoKer: Kernel<A>;
+
+    fn into_kernel(self) -> Self::IntoKer;
 }
 
 #[cfg(test)]
