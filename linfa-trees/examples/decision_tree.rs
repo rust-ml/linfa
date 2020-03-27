@@ -67,7 +67,7 @@ fn main() {
         100.0 * accuracy(&test_y, &gini_pred_y)
     );
 
-    println!("Training model with Information gain criterion ...");
+    println!("Training model with entropy criterion ...");
     let entropy_hyperparams = DecisionTreeParams::new(n_classes)
         .split_quality(SplitQuality::Entropy)
         .max_depth(Some(100))

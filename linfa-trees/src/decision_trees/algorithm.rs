@@ -119,12 +119,12 @@ impl TreeNode {
             {
                 let (left_score, right_score) = match hyperparameters.split_quality {
                     SplitQuality::Gini => (
-                        -gini_impurity(&split_candidate.left_class_freq),
-                        -gini_impurity(&split_candidate.right_class_freq),
+                        gini_impurity(&split_candidate.left_class_freq),
+                        gini_impurity(&split_candidate.right_class_freq),
                     ),
                     SplitQuality::Entropy => (
-                        information_gain(&parent_class_freq, &split_candidate.left_class_freq),
-                        information_gain(&parent_class_freq, &split_candidate.right_class_freq),
+                        entropy(&split_candidate.left_class_freq),
+                        entropy(&split_candidate.right_class_freq),
                     ),
                 };
 
@@ -135,7 +135,7 @@ impl TreeNode {
 
                 let score = left_weight * left_score + right_weight * right_score;
 
-                if best_score.is_none() || score > best_score.unwrap() {
+                if best_score.is_none() || score < best_score.unwrap() {
                     best_feature_idx = Some(feature_idx);
                     best_split_value = Some(split_candidate.split_value);
                     best_score = Some(score);
@@ -144,6 +144,15 @@ impl TreeNode {
         }
 
         leaf_node |= best_score.is_none();
+
+        if best_score.is_some() {
+            let parent_score = match hyperparameters.split_quality {
+                SplitQuality::Gini => gini_impurity(&parent_class_freq),
+                SplitQuality::Entropy => entropy(&parent_class_freq),
+            };
+
+            leaf_node |= parent_score - best_score.unwrap() < hyperparameters.min_impurity_decrease;
+        }
 
         if leaf_node {
             return TreeNode {
@@ -337,12 +346,6 @@ fn gini_impurity(class_freq: &Vec<u64>) -> f64 {
     1.0 - purity
 }
 
-/// Given an array of labels and the parent and child mask for before and after
-/// a potential split calculate the information gain of making the split.
-fn information_gain(parent_class_freq: &Vec<u64>, class_freq: &Vec<u64>) -> f64 {
-    entropy(&parent_class_freq) - entropy(&class_freq)
-}
-
 /// Given an array of labels and a mask `row_idxs` calculate the entropy of the
 /// subset.
 fn entropy(class_freq: &Vec<u64>) -> f64 {
@@ -400,18 +403,5 @@ mod tests {
         // If split is perfect then entropy is zero
         let perfect_class_freq = vec![8, 0, 0];
         assert_abs_diff_eq!(entropy(&perfect_class_freq), 0.0, epsilon = 1e-5);
-    }
-
-    #[test]
-    fn information_gain_example() {
-        let parent_class_freq = vec![5, 2, 1];
-        let class_freq = vec![5, 2, 0];
-
-        // Information gain is just the decrease in entropy from parent to child
-        assert_abs_diff_eq!(
-            information_gain(&parent_class_freq, &class_freq),
-            0.435674,
-            epsilon = 1e-5
-        );
     }
 }

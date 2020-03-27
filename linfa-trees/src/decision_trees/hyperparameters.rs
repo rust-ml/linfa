@@ -14,6 +14,7 @@ pub struct DecisionTreeParams {
     pub max_depth: Option<u64>,
     pub min_samples_split: u64,
     pub min_samples_leaf: u64,
+    pub min_impurity_decrease: f64,
 }
 
 /// A helper struct to build the hyperparameters for a decision tree.
@@ -23,6 +24,7 @@ pub struct DecisionTreeParamsBuilder {
     max_depth: Option<u64>,
     min_samples_split: u64,
     min_samples_leaf: u64,
+    min_impurity_decrease: f64,
 }
 
 impl DecisionTreeParamsBuilder {
@@ -51,6 +53,11 @@ impl DecisionTreeParamsBuilder {
         self
     }
 
+    pub fn min_impurity_decrease(mut self, min_impurity_decrease: f64) -> Self {
+        self.min_impurity_decrease = min_impurity_decrease;
+        self
+    }
+
     pub fn build(&self) -> DecisionTreeParams {
         DecisionTreeParams::build(
             self.n_classes,
@@ -58,11 +65,18 @@ impl DecisionTreeParamsBuilder {
             self.max_depth,
             self.min_samples_split,
             self.min_samples_leaf,
+            self.min_impurity_decrease,
         )
     }
 }
 
 impl DecisionTreeParams {
+    /// Defaults are provided if the optional parameters are not specified:
+    /// * `split_quality = SplitQuality::Gini`
+    /// * `max_depth = None`
+    /// * `min_samples_split = 2`
+    /// * `min_samples_leaf = 1`
+    /// * `min_impurity_decrease = 0.00001`
     pub fn new(n_classes: u64) -> DecisionTreeParamsBuilder {
         DecisionTreeParamsBuilder {
             n_classes: n_classes,
@@ -70,6 +84,7 @@ impl DecisionTreeParams {
             max_depth: None,
             min_samples_split: 2,
             min_samples_leaf: 1,
+            min_impurity_decrease: 0.00001,
         }
     }
 
@@ -79,6 +94,7 @@ impl DecisionTreeParams {
         max_depth: Option<u64>,
         min_samples_split: u64,
         min_samples_leaf: u64,
+        min_impurity_decrease: f64,
     ) -> Self {
         // TODO: Check parameters
 
@@ -88,6 +104,7 @@ impl DecisionTreeParams {
             max_depth,
             min_samples_split,
             min_samples_leaf,
+            min_impurity_decrease,
         }
     }
 }
