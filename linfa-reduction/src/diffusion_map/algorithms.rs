@@ -2,6 +2,7 @@ use ndarray::{ArrayBase, Array1, Array2, Ix2, Axis, DataMut};
 use ndarray_linalg::{TruncatedEig, TruncatedOrder, lobpcg::LobpcgResult, lobpcg, eigh::EighInto, lapack::UPLO, close_l2};
 use ndarray_rand::{rand_distr::Uniform, RandomExt};
 
+use crate::Reduced;
 use crate::kernel::{Kernel, IntoKernel};
 use super::hyperparameters::DiffusionMapHyperParams;
 
@@ -45,6 +46,12 @@ impl DiffusionMap {
     /// Return the embedding
     pub fn embedding(self) -> Array2<f64> {
         self.embedding
+    }
+}
+
+impl Reduced for DiffusionMap {
+    fn embedding(&self) -> Array2<f64> {
+        self.embedding.clone()
     }
 }
 

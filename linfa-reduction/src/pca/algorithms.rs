@@ -1,6 +1,8 @@
 use ndarray::{ArrayBase, Array1, Array2, Ix2, Axis, DataMut};
 use ndarray_linalg::{TruncatedSvd, TruncatedOrder};
 
+use crate::Reduced;
+
 pub struct PrincipalComponentAnalysis {
     embedding: Array2<f64>,
     explained_variance: Array1<f64>,
@@ -39,5 +41,11 @@ impl PrincipalComponentAnalysis {
 
     pub fn explained_variance(&self) -> Array1<f64> {
         self.explained_variance.clone()
+    }
+}
+
+impl Reduced for PrincipalComponentAnalysis {
+    fn embedding(&self) -> Array2<f64> {
+        self.embedding.clone()
     }
 }

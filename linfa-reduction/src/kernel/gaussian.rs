@@ -2,7 +2,7 @@ use ndarray::{Array2, Axis};
 use crate::kernel::IntoKernel;
 
 pub struct GaussianKernel {
-    data: Array2<f64>
+    pub data: Array2<f64>
 }
 
 impl IntoKernel<f64> for GaussianKernel {

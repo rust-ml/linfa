@@ -5,11 +5,16 @@ pub mod diffusion_map;
 pub mod pca;
 pub mod utils;
 
+use ndarray::Array2;
 pub use pca::PrincipalComponentAnalysis;
 pub use diffusion_map::{DiffusionMap, DiffusionMapHyperParams};
 pub use utils::to_gaussian_similarity;
 
 pub enum Method {
-    DiffusionMap,
+    DiffusionMap { steps: usize },
     PrincipalComponentAnalysis
+}
+
+pub trait Reduced {
+    fn embedding(&self) -> Array2<f64>;
 }

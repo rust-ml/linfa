@@ -7,6 +7,9 @@ use ndarray::NdFloat;
 use num_traits::{FromPrimitive, Num};
 use sprs::CsMat;
 
+use crate::Reduced;
+use crate::{DiffusionMap, DiffusionMapHyperParams, PrincipalComponentAnalysis};
+
 /// Symmetric kernel function, can be sparse or dense
 ///
 /// Required functions are:
@@ -57,10 +60,81 @@ impl<A: NdFloat + 'static + FromPrimitive + Num + Default> Kernel<A> for CsMat<A
     }
 }
 
+/// Converts an object into a kernel
 pub trait IntoKernel<A> {
     type IntoKer: Kernel<A>;
 
     fn into_kernel(self) -> Self::IntoKer;
+}
+
+pub trait KernelWithMethod {
+    type IntoKer: Kernel<f64>;
+
+    fn kernel_with(&self, method: Method) -> Self::IntoKer;
+}
+
+impl KernelWithMethod for Array2<f64> {
+    type IntoKer = Kernels;
+
+    fn kernel_with(&self, method: Method) -> Self::IntoKer {
+        match method {
+            Method::Gaussian { eps } => Kernels::Gaussian(GaussianKernel::new(&self, eps)),
+        }
+    }
+}
+
+
+pub enum Method {
+    Gaussian { eps: f64 },
+}
+
+pub enum Kernels {
+    Gaussian(GaussianKernel)
+}
+
+impl Kernels {
+    pub fn reduce(self, embedding_size: usize, method: crate::Method) -> impl Reduced {
+        match method {
+            crate::Method::DiffusionMap { steps } => {
+                let params = DiffusionMapHyperParams::new(embedding_size)
+                    .steps(steps)
+                    .build();
+
+                DiffusionMap::project(params, self)
+            },
+            crate::Method::PrincipalComponentAnalysis => {
+                PrincipalComponentAnalysis::fit(self, embedding_size)
+            }
+        }
+    }
+}
+
+impl Kernel<f64> for Kernels {
+    fn apply_gram<T: Data<Elem = f64>>(&self, rhs: ArrayBase<T, Ix2>) -> Array2<f64> {
+        match self {
+            Kernels::Gaussian(x) => x.data.apply_gram(rhs),
+        }
+    }
+
+    fn sum(&self) -> Array1<f64> {
+        match self {
+            Kernels::Gaussian(x) => Kernel::sum(&x.data),
+        }
+    }
+
+    fn size(&self) -> usize {
+        match self {
+            Kernels::Gaussian(x) => x.data.size(),
+        }
+    }
+}
+
+impl IntoKernel<f64> for Kernels {
+    type IntoKer = Kernels;
+
+    fn into_kernel(self) -> Self::IntoKer {
+        self
+    }
 }
 
 #[cfg(test)]
