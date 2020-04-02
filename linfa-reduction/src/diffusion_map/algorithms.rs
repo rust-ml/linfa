@@ -1,24 +1,25 @@
-use ndarray::{ArrayBase, Array1, Array2, Ix2, Axis, DataMut};
-use ndarray_linalg::{TruncatedEig, TruncatedOrder, lobpcg::LobpcgResult, lobpcg, eigh::EighInto, lapack::UPLO, close_l2};
+use ndarray::{Array1, Array2};
+use ndarray_linalg::{TruncatedOrder, lobpcg::LobpcgResult, lobpcg, eigh::EighInto, lapack::UPLO, Scalar};
 use ndarray_rand::{rand_distr::Uniform, RandomExt};
+use num_traits::NumCast;
 
-use crate::Reduced;
+use crate::Float;
 use crate::kernel::{Kernel, IntoKernel};
 use super::hyperparameters::DiffusionMapHyperParams;
 
-pub struct DiffusionMap {
+pub struct DiffusionMap<A> {
     hyperparameters: DiffusionMapHyperParams,
-    embedding: Array2<f64>,
-    eigvals: Array1<f64>
+    embedding: Array2<A>,
+    eigvals: Array1<A>
 }
 
-impl DiffusionMap {
+impl<A: Float> DiffusionMap<A> {
     pub fn project(
         hyperparameters: DiffusionMapHyperParams,
-        kernel: impl IntoKernel<f64>
+        kernel: impl IntoKernel<A>
     ) -> Self {
         // compute spectral embedding with diffusion map
-        let (embedding, eigvals) = compute_diffusion_map(kernel.into_kernel(), hyperparameters.steps(), hyperparameters.embedding_size());
+        let (embedding, eigvals) = compute_diffusion_map(kernel.into_kernel(), hyperparameters.steps(), 0.0, hyperparameters.embedding_size(), None);
 
         DiffusionMap {
             hyperparameters,
@@ -34,57 +35,52 @@ impl DiffusionMap {
 
     /// Estimate the number of clusters in this embedding (very crude for now)
     pub fn estimate_clusters(&self) -> usize {
-        let mean = self.eigvals.sum() / self.eigvals.len() as f64;
+        let mean = self.eigvals.sum() / NumCast::from(self.eigvals.len()).unwrap();
         self.eigvals.iter().filter(|x| *x > &mean).count() + 1
     }
 
     /// Return a copy of the eigenvalues
-    pub fn eigvals(&self) -> Array1<f64> {
+    pub fn eigvals(&self) -> Array1<A> {
         self.eigvals.clone()
     }
 
-    /// Return the embedding
-    pub fn embedding(self) -> Array2<f64> {
-        self.embedding
-    }
-}
-
-impl Reduced for DiffusionMap {
-    fn embedding(&self) -> Array2<f64> {
+    pub fn embedding(&self) -> Array2<A> {
         self.embedding.clone()
     }
 }
 
-fn compute_diffusion_map(kernel: impl Kernel<f64>, steps: usize, embedding_size: usize) -> (Array2<f64>, Array1<f64>) {
+fn compute_diffusion_map<A: Float>(kernel: impl Kernel<A>, steps: usize, alpha: f32, embedding_size: usize, guess: Option<Array2<A>>) -> (Array2<A>, Array1<A>) {
     assert!(embedding_size < kernel.size());
 
-    // calculate sum of rows
     let d = kernel.sum()
-        .mapv(|x| 1.0/x.sqrt());
+        .mapv(|x| x.recip().sqrt());
 
     // use full eigenvalue decomposition for small problem sizes
     let (vals, mut vecs) = if kernel.size() < 5 * embedding_size + 1 {
-        let mut matrix = kernel.apply_gram(Array2::from_diag(&d));
-        matrix.genrows_mut().into_iter().zip(d.iter()).for_each(|(mut c, x)| c *= *x);
+        let mut matrix = kernel.mul_similarity(&Array2::from_diag(&d).view());
+        matrix.gencolumns_mut().into_iter().zip(d.iter()).for_each(|(mut a,b)| a *= *b);
 
         let (vals, vecs) = matrix.eigh_into(UPLO::Lower).unwrap();
         let (vals, vecs) = (vals.slice_move(s![..; -1]), vecs.slice_move(s![.., ..; -1]));
         (
-            vals.slice_move(s![1..embedding_size+1]),
+            vals.slice_move(s![1..embedding_size+1]).mapv(|x| Scalar::from_real(x)),
             vecs.slice_move(s![..,1..embedding_size+1])
         )
     } else {
         // calculate truncated eigenvalue decomposition
-        let x = Array2::random((d.len(), embedding_size + 1), Uniform::new(0.0, 1.0));
+        let x = guess.unwrap_or(
+            Array2::random((kernel.size(), embedding_size + 1), Uniform::new(0.0f64, 1.0))
+            .mapv(|x| NumCast::from(x).unwrap())
+        );
 
         let result = lobpcg::lobpcg(|y| {
             let mut y = y.to_owned();
-            y.genrows_mut().into_iter().zip(d.iter()).for_each(|(mut c, x)| c *= *x);
-            let mut y = kernel.apply_gram(y);
-            y.genrows_mut().into_iter().zip(d.iter()).for_each(|(mut c, x)| c *= *x);
+            y.genrows_mut().into_iter().zip(d.iter()).for_each(|(mut a,b)| a *= *b);
+            let mut y = kernel.mul_similarity(&y.view());
+            y.genrows_mut().into_iter().zip(d.iter()).for_each(|(mut a,b)| a *= *b);
 
             y
-        }, x, |_| {}, None, 1e-5, 20, TruncatedOrder::Largest);
+        }, x, |_| {}, None, 1e-5, 15, TruncatedOrder::Largest);
 
         let (vals, vecs) = match result {
             LobpcgResult::Ok(vals, vecs, _) | LobpcgResult::Err(vals, vecs, _, _) => (vals, vecs),
@@ -97,15 +93,16 @@ fn compute_diffusion_map(kernel: impl Kernel<f64>, steps: usize, embedding_size:
             vecs.slice_move(s![..,1..])
         )
     };
-    let d = d.mapv(|x| 1.0/x);
 
-    for (idx, elm) in vecs.indexed_iter_mut() {
-        let (row, _) = idx;
-        *elm *= d[row];
+    let d = d.mapv(|x| x.recip());
+
+    for (mut col, val) in vecs.gencolumns_mut().into_iter().zip(d.iter()) {
+        col *= *val;
     }
 
+    let steps = NumCast::from(steps).unwrap();
     for (mut vec, val) in vecs.gencolumns_mut().into_iter().zip(vals.iter()) {
-        vec *= val.powf(steps as f64);
+        vec *= val.powf(steps);
     }
 
     (vecs, vals)

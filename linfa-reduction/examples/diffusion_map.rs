@@ -1,6 +1,6 @@
 use linfa_clustering::generate_blobs;
-use linfa_reduction::{Reduced, DiffusionMap, DiffusionMapHyperParams, Method, kernel::GaussianKernel};
-use linfa_reduction::kernel::{self, KernelWithMethod};
+use linfa_reduction::{DiffusionMap, DiffusionMapHyperParams};
+use linfa_reduction::kernel::{IntoKernel, DotKernel};
 use ndarray::array;
 use ndarray_npy::write_npy;
 use ndarray_rand::rand::SeedableRng;
@@ -14,25 +14,15 @@ fn main() {
 
     // For each our expected centroids, generate `n` data points around it (a "blob")
     let expected_centroids = array![[10., 10.], [1., 12.], [20., 30.], [-20., 30.],];
-    let n = 20;
+    let n = 30;
     let dataset = generate_blobs(n, &expected_centroids, &mut rng);
     //let similarity = to_gaussian_similarity(&dataset, 40.0);
 
-    let diffusion_map = dataset
-        .kernel_with(kernel::Method::Gaussian { eps: 40.0 })
-        .reduce_fixed(4, Method::DiffusionMap { steps: 10 });
+    //let diffusion_map = GaussianKernel::new(&dataset, 40.0)
+        //.reduce_fixed(4);
 
-    //let kernel = GaussianKernel::new(&dataset, 40.0);
-
-    // Configure our training algorithm
-    /*let hyperparams = DiffusionMapHyperParams::new(4)
-        .steps(1)
-        .build();
-
-    // Infer an optimal set of centroids based on the training data distribution and assign optimal
-    // indices to clusters
-    let diffusion_map = DiffusionMap::project(hyperparams, kernel);
-    dbg!(&diffusion_map.estimate_clusters());*/
+    let diffusion_map = DotKernel::new(dataset.clone())
+        .reduce_fixed(1);
 
     let embedding = diffusion_map.embedding();
     dbg!(&embedding);

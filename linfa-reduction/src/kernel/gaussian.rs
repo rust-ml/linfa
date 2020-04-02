@@ -1,20 +1,18 @@
-use ndarray::{Array2, Axis};
+use num_traits::NumCast;
+use ndarray::{Array2, Axis, NdFloat};
+use std::iter::Sum;
+
+use crate::Float;
 use crate::kernel::IntoKernel;
 
-pub struct GaussianKernel {
-    pub data: Array2<f64>
+pub struct GaussianKernel<A> {
+    pub data: Array2<A>
 }
 
-impl IntoKernel<f64> for GaussianKernel {
-    type IntoKer = Array2<f64>;
+impl<A: NdFloat + Sum<A>> GaussianKernel<A> {
+    pub fn new(dataset: &Array2<A>, eps: f32) -> Self {
+        let eps = NumCast::from(eps).unwrap();
 
-    fn into_kernel(self) -> Self::IntoKer {
-        self.data
-    }
-}
-
-impl GaussianKernel {
-    pub fn new(dataset: &Array2<f64>, eps: f64) -> Self {
         let n_observations = dataset.len_of(Axis(0));
         let mut similarity = Array2::eye(n_observations);
 
@@ -23,8 +21,8 @@ impl GaussianKernel {
                 let a = dataset.row(i);
                 let b = dataset.row(j);
 
-                let distance = a.iter().zip(b.iter()).map(|(x,y)| (x-y).powf(2.0))
-                    .sum::<f64>();
+                let distance = a.iter().zip(b.iter()).map(|(x,y)| (*x-*y)*(*x-*y))
+                    .sum::<A>();
 
                 similarity[(i,j)] = (-distance / eps).exp();
             }
@@ -33,5 +31,13 @@ impl GaussianKernel {
         GaussianKernel {
             data: similarity
         }
+    }
+}
+
+impl<A: Float> IntoKernel<A> for GaussianKernel<A> {
+    type IntoKer = Array2<A>;
+
+    fn into_kernel(self) -> Self::IntoKer {
+        self.data
     }
 }

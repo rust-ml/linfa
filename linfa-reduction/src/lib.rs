@@ -5,16 +5,21 @@ pub mod diffusion_map;
 pub mod pca;
 pub mod utils;
 
-use ndarray::Array2;
-pub use pca::PrincipalComponentAnalysis;
 pub use diffusion_map::{DiffusionMap, DiffusionMapHyperParams};
 pub use utils::to_gaussian_similarity;
 
-pub enum Method {
-    DiffusionMap { steps: usize },
-    PrincipalComponentAnalysis
+use ndarray::NdFloat;
+use ndarray_linalg::Lapack;
+use num_traits::FromPrimitive;
+
+pub trait Float:
+    NdFloat
+    + Lapack
+    + Default
+    + Clone
+    + FromPrimitive
+{
 }
 
-pub trait Reduced {
-    fn embedding(&self) -> Array2<f64>;
-}
+impl Float for f32 {}
+impl Float for f64 {}
