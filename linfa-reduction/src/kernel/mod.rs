@@ -1,7 +1,9 @@
 pub mod dot;
 pub mod gaussian;
+pub mod sparse_gaussian;
 pub use dot::DotKernel;
 pub use gaussian::GaussianKernel;
+pub use sparse_gaussian::SparseGaussianKernel;
 
 use std::iter::Sum;
 
