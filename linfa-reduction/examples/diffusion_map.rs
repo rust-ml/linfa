@@ -1,6 +1,6 @@
 use linfa_clustering::generate_blobs;
 use linfa_reduction::{DiffusionMap, DiffusionMapHyperParams};
-use linfa_reduction::kernel::{IntoKernel, DotKernel};
+use linfa_reduction::kernel::{IntoKernel, DotKernel, SparseGaussianKernel};
 use ndarray::array;
 use ndarray_npy::write_npy;
 use ndarray_rand::rand::SeedableRng;
@@ -14,15 +14,15 @@ fn main() {
 
     // For each our expected centroids, generate `n` data points around it (a "blob")
     let expected_centroids = array![[10., 10.], [1., 12.], [20., 30.], [-20., 30.],];
-    let n = 30;
+    let n = 10;
     let dataset = generate_blobs(n, &expected_centroids, &mut rng);
     //let similarity = to_gaussian_similarity(&dataset, 40.0);
 
     //let diffusion_map = GaussianKernel::new(&dataset, 40.0)
         //.reduce_fixed(4);
 
-    let diffusion_map = DotKernel::new(dataset.clone())
-        .reduce_fixed(1);
+    let diffusion_map = SparseGaussianKernel::new(&dataset.clone(), 4)
+        .reduce_fixed(2);
 
     let embedding = diffusion_map.embedding();
     dbg!(&embedding);
