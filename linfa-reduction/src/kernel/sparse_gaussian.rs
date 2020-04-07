@@ -28,7 +28,7 @@ pub struct SparseGaussianKernel<A> {
 }
 
 impl<A: Float> SparseGaussianKernel<A> {
-    pub fn new(dataset: &Array2<A>, k: usize) -> Self {
+    pub fn new(dataset: &Array2<A>, k: usize, eps: f32) -> Self {
         let mut data = find_k_nearest_neighbours(dataset, k);
         
         for (i, mut vec) in data.outer_iterator_mut().enumerate() {
@@ -39,7 +39,7 @@ impl<A: Float> SparseGaussianKernel<A> {
                 let distance = a.iter().zip(b.iter()).map(|(x,y)| (*x-*y)*(*x-*y))
                     .sum::<A>();
 
-                *val = (-distance / NumCast::from(60.0).unwrap()).exp();
+                *val = (-distance / NumCast::from(eps).unwrap()).exp();
             }
         }
         
@@ -64,7 +64,7 @@ pub fn find_k_nearest_neighbours<A: Float>(dataset: &Array2<A>, k: usize) -> CsM
     assert!(k > 0);
 
     let params = Params::new()
-        .ef_construction(100);
+        .ef_construction(1000);
 
     let mut searcher = Searcher::default();
     let mut hnsw: HNSW<Euclidean<A>> = HNSW::new_params(params);
@@ -103,7 +103,7 @@ pub fn find_k_nearest_neighbours<A: Float>(dataset: &Array2<A>, k: usize) -> CsM
 
         // push each index into the indices array
         for n in &neighbours {
-            if m < n.index {
+            if m != n.index {
                 indices.push(n.index);
                 data.push(NumCast::from(1.0).unwrap());
                 added += 1;

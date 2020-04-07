@@ -19,7 +19,7 @@ impl<A: Float> DiffusionMap<A> {
         kernel: impl IntoKernel<A>
     ) -> Self {
         // compute spectral embedding with diffusion map
-        let (embedding, eigvals) = compute_diffusion_map(kernel.into_kernel(), hyperparameters.steps(), 0.0, hyperparameters.embedding_size(), None);
+        let (embedding, eigvals) = compute_diffusion_map(kernel.into_kernel(), hyperparameters.steps(), 1.0, hyperparameters.embedding_size(), None);
 
         DiffusionMap {
             hyperparameters,
@@ -53,7 +53,9 @@ fn compute_diffusion_map<A: Float>(kernel: impl Kernel<A>, steps: usize, alpha: 
     assert!(embedding_size < kernel.size());
 
     let d = kernel.sum()
-        .mapv(|x| x.recip().sqrt());
+        .mapv(|x| x.recip());
+
+    let d2 = d.mapv(|x| x.powf(NumCast::from(0.5 + alpha).unwrap()));
 
     // use full eigenvalue decomposition for small problem sizes
     let (vals, mut vecs) = if kernel.size() < 5 * embedding_size + 1 {
@@ -75,17 +77,18 @@ fn compute_diffusion_map<A: Float>(kernel: impl Kernel<A>, steps: usize, alpha: 
 
         let result = lobpcg::lobpcg(|y| {
             let mut y = y.to_owned();
-            y.genrows_mut().into_iter().zip(d.iter()).for_each(|(mut a,b)| a *= *b);
+            y.genrows_mut().into_iter().zip(d2.iter()).for_each(|(mut a,b)| a *= *b);
             let mut y = kernel.mul_similarity(&y.view());
-            y.genrows_mut().into_iter().zip(d.iter()).for_each(|(mut a,b)| a *= *b);
+            y.genrows_mut().into_iter().zip(d2.iter()).for_each(|(mut a,b)| a *= *b);
 
             y
-        }, x, |_| {}, None, 1e-5, 15, TruncatedOrder::Largest);
+        }, x, |_| {}, None, 1e-15, 200, TruncatedOrder::Largest);
 
         let (vals, vecs) = match result {
-            LobpcgResult::Ok(vals, vecs, _) | LobpcgResult::Err(vals, vecs, _, _) => (vals, vecs),
+            LobpcgResult::Ok(vals, vecs, n) | LobpcgResult::Err(vals, vecs, n, _) => { dbg!(&n); (vals, vecs)},
             _ => panic!("Eigendecomposition failed!")
         };
+
 
         // cut away first eigenvalue/eigenvector
         (
@@ -94,12 +97,18 @@ fn compute_diffusion_map<A: Float>(kernel: impl Kernel<A>, steps: usize, alpha: 
         )
     };
 
-    let d = d.mapv(|x| x.recip());
+    //let d = d.mapv(|x| x.recip());
 
-    for (mut col, val) in vecs.gencolumns_mut().into_iter().zip(d.iter()) {
+    let d = d.mapv(|x| x.sqrt());
+
+    for (mut col, val) in vecs.genrows_mut().into_iter().zip(d.iter()) {
         col *= *val;
+
+        // scale with first component
+        //col /= col[0];
     }
 
+    //dbg!(&vecs);
     let steps = NumCast::from(steps).unwrap();
     for (mut vec, val) in vecs.gencolumns_mut().into_iter().zip(vals.iter()) {
         vec *= val.powf(steps);

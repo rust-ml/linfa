@@ -1,4 +1,5 @@
 use ndarray::{Array2, Ix2, Data, Axis, ArrayBase};
+use ndarray_rand::rand::Rng;
 
 /// Computes a similarity matrix with gaussian kernel and scaling parameter `eps`
 ///
@@ -25,3 +26,29 @@ pub fn to_gaussian_similarity(
 
     similarity
 }  
+///
+/// Generates a three dimension swiss roll, centered at the origin with height `height` and
+/// outwards speed `speed`
+pub fn generate_swissroll(
+    height: f64,
+    speed: f64,
+    n_points: usize,
+    rng: &mut impl Rng,
+) -> Array2<f64> {
+    let mut roll: Array2<f64> = Array2::zeros((n_points, 3));
+
+    for i in 0..n_points {
+        let z = rng.gen_range(0.0, height);
+        let phi: f64 = rng.gen_range(0.0, 10.0);
+        //let offset: f64 = rng.gen_range(-0.5, 0.5);
+        let offset = 0.0;
+
+        let x = phi * phi.cos() + offset;
+        let y = phi * phi.sin() + offset;
+
+        roll[(i, 0)] = x;
+        roll[(i, 1)] = y;
+        roll[(i, 2)] = z;
+    }
+    roll
+}
