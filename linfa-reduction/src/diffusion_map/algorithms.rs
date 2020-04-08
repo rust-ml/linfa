@@ -19,7 +19,7 @@ impl<A: Float> DiffusionMap<A> {
         kernel: impl IntoKernel<A>
     ) -> Self {
         // compute spectral embedding with diffusion map
-        let (embedding, eigvals) = compute_diffusion_map(kernel.into_kernel(), hyperparameters.steps(), 1.0, hyperparameters.embedding_size(), None);
+        let (embedding, eigvals) = compute_diffusion_map(kernel.into_kernel(), hyperparameters.steps(), 0.0, hyperparameters.embedding_size(), None);
 
         DiffusionMap {
             hyperparameters,
@@ -99,6 +99,7 @@ fn compute_diffusion_map<A: Float>(kernel: impl Kernel<A>, steps: usize, alpha: 
 
     //let d = d.mapv(|x| x.recip());
 
+    dbg!(&vals);
     let d = d.mapv(|x| x.sqrt());
 
     for (mut col, val) in vecs.genrows_mut().into_iter().zip(d.iter()) {

@@ -6,8 +6,8 @@ use ndarray::{Array2, Axis, ArrayView1};
 use num_traits::NumCast;
 
 use crate::Float;
-use crate::kernel::IntoKernel;
 
+/// Implementation of euclidean distance for ndarray
 struct Euclidean<'a, A>(ArrayView1<'a, A>);
 
 impl<A: Float> MetricPoint for Euclidean<'_, A> {
@@ -23,39 +23,8 @@ impl<A: Float> MetricPoint for Euclidean<'_, A> {
     }
 }
 
-pub struct SparseGaussianKernel<A> {
-    data: CsMat<A>
-}
-
-impl<A: Float> SparseGaussianKernel<A> {
-    pub fn new(dataset: &Array2<A>, k: usize, eps: f32) -> Self {
-        let mut data = find_k_nearest_neighbours(dataset, k);
-        
-        for (i, mut vec) in data.outer_iterator_mut().enumerate() {
-            for (j, mut val) in vec.iter_mut() {
-                let a = dataset.row(i);
-                let b = dataset.row(j);
-
-                let distance = a.iter().zip(b.iter()).map(|(x,y)| (*x-*y)*(*x-*y))
-                    .sum::<A>();
-
-                *val = (-distance / NumCast::from(eps).unwrap()).exp();
-            }
-        }
-        
-        SparseGaussianKernel { data }
-    }
-}
-
-impl<A: Float> IntoKernel<A> for SparseGaussianKernel<A> {
-    type IntoKer = CsMat<A>;
-
-    fn into_kernel(self) -> Self::IntoKer {
-        self.data
-    }
-}
-
-pub fn find_k_nearest_neighbours<A: Float>(dataset: &Array2<A>, k: usize) -> CsMat<A> {
+/// Create sparse adjacency matrix from dense dataset
+pub fn adjacency_matrix<A: Float>(dataset: &Array2<A>, k: usize) -> CsMat<A> {
     let n_points = dataset.len_of(Axis(0));
 
     // ensure that the number of neighbours is at least one and less than the total number of
@@ -64,7 +33,7 @@ pub fn find_k_nearest_neighbours<A: Float>(dataset: &Array2<A>, k: usize) -> CsM
     assert!(k > 0);
 
     let params = Params::new()
-        .ef_construction(1000);
+        .ef_construction(k);
 
     let mut searcher = Searcher::default();
     let mut hnsw: HNSW<Euclidean<A>> = HNSW::new_params(params);
@@ -117,12 +86,10 @@ pub fn find_k_nearest_neighbours<A: Float>(dataset: &Array2<A>, k: usize) -> CsM
     // create CSR matrix from data, indptr and indices
     let mat = CsMatBase::new((n_points, n_points), indptr, indices, data);
     let mut mat = &mat + &mat.transpose_view();
-    //dbg!(mat.to_dense());
 
+    // ensure that all values are one
     let val: A = NumCast::from(1.0).unwrap();
-    for i in 0..(n_points) {
-        mat.set(i, i, val);
-    }
+    mat.map_inplace(|_| val);
 
     mat
 }

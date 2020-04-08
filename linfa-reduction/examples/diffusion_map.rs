@@ -1,7 +1,5 @@
-use linfa_reduction::{DiffusionMap, DiffusionMapHyperParams};
-use linfa_reduction::utils::generate_swissroll;
-use linfa_reduction::kernel::{IntoKernel, DotKernel, SparseGaussianKernel, GaussianKernel};
-use ndarray::array;
+use linfa_reduction::utils::generate_convoluted_rings;
+use linfa_reduction::kernel::{IntoKernel, SparsePolynomialKernel};
 use ndarray_npy::write_npy;
 use ndarray_rand::rand::SeedableRng;
 use rand_isaac::Isaac64Rng;
@@ -13,20 +11,17 @@ fn main() {
     let mut rng = Isaac64Rng::seed_from_u64(42);
 
     // For each our expected centroids, generate `n` data points around it (a "blob")
-    let n = 2000;
-    let dataset = generate_swissroll(40.0, 1.0, n, &mut rng);
-    //let expected_centroids = array![[10., 10.], [1., 12.], [20., 30.], [-20., 30.],];
-    //let dataset = generate_blobs(n, &expected_centroids, &mut rng);
-    //let similarity = to_gaussian_similarity(&dataset, 40.0);
+    let n = 3000;
 
-    //let diffusion_map = GaussianKernel::new(&dataset, 100.0)
-    //    .reduce_fixed(2);
+    // generate three convoluted rings
+    let dataset = generate_convoluted_rings(&[(0.0, 3.0), (10.0, 13.0), (20.0, 23.0)], n, &mut rng);
 
-    let diffusion_map = SparseGaussianKernel::new(&dataset.clone(), 20, 100.0)
-        .reduce_fixed(2);
+    // generate sparse polynomial kernel with k = 14, c = 5 and d = 2
+    let diffusion_map = SparsePolynomialKernel::new(&dataset, 14, 5.0, 2.0)
+        .reduce_fixed(4);
 
+    // get embedding
     let embedding = diffusion_map.embedding();
-    //dbg!(&embedding);
 
     // Save to disk our dataset (and the cluster label assigned to each observation)
     // We use the `npy` format for compatibility with NumPy

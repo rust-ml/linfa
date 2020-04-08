@@ -1,11 +1,9 @@
-pub mod dot;
+pub mod sparse;
 pub mod gaussian;
-pub mod sparse_gaussian;
-pub use dot::DotKernel;
-pub use gaussian::GaussianKernel;
-pub use sparse_gaussian::SparseGaussianKernel;
+pub mod polynomial;
 
-use std::iter::Sum;
+pub use gaussian::{GaussianKernel, SparseGaussianKernel};
+pub use polynomial::{PolynomialKernel, SparsePolynomialKernel};
 
 use ndarray::prelude::*;
 use ndarray::Data;
@@ -13,7 +11,6 @@ use sprs::CsMat;
 
 use crate::Float;
 use crate::diffusion_map::{DiffusionMapHyperParams, DiffusionMap};
-use crate::pca::PrincipalComponentAnalysis;
 
 /// Symmetric kernel function, can be sparse or dense
 ///
@@ -84,8 +81,35 @@ pub trait IntoKernel<A: Float> {
     }
 }
 
-pub enum Method {
-    Gaussian { eps: f32 },
+pub fn dense_from_fn<A: Float, T: Fn(ArrayView1<A>, ArrayView1<A>) -> A>(dataset: &Array2<A>, fnc: T) -> Array2<A> {
+    let n_observations = dataset.len_of(Axis(0));
+    let mut similarity = Array2::eye(n_observations);
+
+    for i in 0..n_observations {
+        for j in 0..n_observations {
+            let a = dataset.row(i);
+            let b = dataset.row(j);
+
+            similarity[(i, j)] = fnc(a, b);
+        }
+    }
+
+    similarity
+}
+
+pub fn sparse_from_fn<A: Float, T: Fn(ArrayView1<A>, ArrayView1<A>) -> A>(dataset: &Array2<A>, k: usize, fnc: T) -> CsMat<A> {
+    let mut data = sparse::adjacency_matrix(dataset, k);
+        
+    for (i, mut vec) in data.outer_iterator_mut().enumerate() {
+        for (j, val) in vec.iter_mut() {
+            let a = dataset.row(i);
+            let b = dataset.row(j);
+
+            *val = fnc(a, b);
+        }
+    }
+    
+    data
 }
 
 #[cfg(test)]
