@@ -97,19 +97,12 @@ fn compute_diffusion_map<A: Float>(kernel: impl Kernel<A>, steps: usize, alpha: 
         )
     };
 
-    //let d = d.mapv(|x| x.recip());
-
-    dbg!(&vals);
     let d = d.mapv(|x| x.sqrt());
 
     for (mut col, val) in vecs.genrows_mut().into_iter().zip(d.iter()) {
         col *= *val;
-
-        // scale with first component
-        //col /= col[0];
     }
 
-    //dbg!(&vecs);
     let steps = NumCast::from(steps).unwrap();
     for (mut vec, val) in vecs.gencolumns_mut().into_iter().zip(vals.iter()) {
         vec *= val.powf(steps);
