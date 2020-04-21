@@ -1,0 +1,129 @@
+#![allow(non_snake_case)]
+use ndarray::{stack, Array, Array1, ArrayBase, Axis, Data, Ix1, Ix2};
+use ndarray_linalg::Solve;
+
+/// The simple linear regression model is
+///     y = bX + e  where e ~ N(0, sigma^2 * I)
+/// In probabilistic terms this corresponds to
+///     y - bX ~ N(0, sigma^2 * I)
+///     y | X, b ~ N(bX, sigma^2 * I)
+/// The loss for the model is simply the squared error between the model
+/// predictions and the true values:
+///     Loss = ||y - bX||^2
+/// The maximum likelihood estimation for the model parameters `beta` can be computed
+/// in closed form via the normal equation:
+///     b = (X^T X)^{-1} X^T y
+/// where (X^T X)^{-1} X^T is known as the pseudoinverse or Moore-Penrose inverse.
+///
+/// Adapted from: https://github.com/ddbourgin/numpy-ml
+pub struct LinearRegression {
+    fit_intercept: bool,
+}
+
+pub struct FittedLinearRegression {
+    fit_intercept: bool,
+    params: Array1<f64>,
+}
+
+impl LinearRegression {
+    pub fn new() -> LinearRegression {
+        LinearRegression {
+            fit_intercept: false,
+        }
+    }
+
+    pub fn with_intercept(&mut self) -> &mut Self {
+        self.fit_intercept = true;
+        self
+    }
+
+    /// Given:
+    /// - an input matrix `X`, with shape `(n_samples, n_features)`;
+    /// - a target variable `y`, with shape `(n_samples,)`;
+    /// `fit` tunes the `beta` parameter of the linear regression model
+    /// to match the training data distribution.
+    ///
+    /// `self` is modified in place, nothing is returned.
+    pub fn fit<A, B>(
+        &self,
+        X: &ArrayBase<A, Ix2>,
+        y: &ArrayBase<B, Ix1>,
+    ) -> Result<FittedLinearRegression, String>
+    where
+        A: Data<Elem = f64>,
+        B: Data<Elem = f64>,
+    {
+        let (n_samples, _) = X.dim();
+
+        // Check that our inputs have compatible shapes
+        assert_eq!(y.dim(), n_samples);
+
+        // If we are fitting the intercept, we need an additional column
+        if self.fit_intercept {
+            let dummy_column: Array<f64, _> = Array::ones((n_samples, 1));
+            let X = stack(Axis(1), &[dummy_column.view(), X.view()]).unwrap();
+            return Ok(FittedLinearRegression {
+                fit_intercept: self.fit_intercept,
+                params: solve_normal_equation(&X, y)?,
+            });
+        } else {
+            return Ok(FittedLinearRegression {
+                fit_intercept: self.fit_intercept,
+                params: solve_normal_equation(X, y)?,
+            });
+        };
+    }
+}
+
+impl FittedLinearRegression {
+    /// Given an input matrix `X`, with shape `(n_samples, n_features)`,
+    /// `predict` returns the target variable according to linear model
+    /// learned from the training data distribution.
+    ///
+    /// **Panics** if `self` has not be `fit`ted before calling `predict.
+    pub fn predict<A>(&self, X: &ArrayBase<A, Ix2>) -> Array1<f64>
+    where
+        A: Data<Elem = f64>,
+    {
+        let (n_samples, _) = X.dim();
+
+        // If we are fitting the intercept, we need an additional column
+        if self.fit_intercept {
+            let dummy_column: Array<f64, _> = Array::ones((n_samples, 1));
+            let X = stack(Axis(1), &[dummy_column.view(), X.view()]).unwrap();
+            self._predict(&X)
+        } else {
+            self._predict(X)
+        }
+    }
+
+    fn _predict<A>(&self, X: &ArrayBase<A, Ix2>) -> Array1<f64>
+    where
+        A: Data<Elem = f64>,
+    {
+        X.dot(&self.params)
+    }
+}
+
+fn solve_normal_equation<A, B>(
+    X: &ArrayBase<A, Ix2>,
+    y: &ArrayBase<B, Ix1>,
+) -> Result<Array1<f64>, String>
+where
+    A: Data<Elem = f64>,
+    B: Data<Elem = f64>,
+{
+    let rhs = X.t().dot(y);
+    let linear_operator = X.t().dot(X);
+    linear_operator
+        .solve_into(rhs)
+        .or_else(|err| Err(format! {"{}", err}))
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn it_works() {
+        assert_eq!(2 + 2, 4);
+    }
+}

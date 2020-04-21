@@ -1,0 +1,16 @@
+[package]
+name = "linfa-linear"
+version = "0.1.0"
+authors = ["Paul Körbitz <paul@koerbitz.me>"]
+edition = "2018"
+workspace = ".."
+
+[features]
+default = []
+openblas = ["ndarray-linalg/openblas"]
+intel-mkl = ["ndarray-linalg/intel-mkl"]
+netlib = ["ndarray-linalg/netlib"]
+
+[dependencies]
+ndarray = {version = "0.13", features = ["blas"]}
+ndarray-linalg = {version = "0.12", optional = true, default-features = false}
