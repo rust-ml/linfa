@@ -12,7 +12,7 @@ fn decision_tree_bench(c: &mut Criterion) {
     let mut rng = Isaac64Rng::seed_from_u64(42);
 
     // Controls how many samples for each class are generated
-    let training_set_sizes = vec![100, 1000, 10000];
+    let training_set_sizes = vec![100, 1000, 10000, 100000];
 
     let n_classes: u64 = 4;
     let n_features = 4;

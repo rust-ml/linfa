@@ -1,77 +1,44 @@
 use crate::decision_trees::hyperparameters::{DecisionTreeParams, SplitQuality};
-use ndarray::{s, Array, Array1, ArrayBase, Data, Ix1, Ix2};
+use ndarray::{Array, Array1, ArrayBase, Axis, Data, Ix1, Ix2};
 
-struct SplitCandidate {
-    split_value: f64,
-    left_class_freq: Vec<u64>,
-    right_class_freq: Vec<u64>,
+struct RowMask {
+    mask: Vec<bool>,
+    n_samples: u64,
 }
 
-struct SplitIterator {
-    left_idxs: Vec<usize>,
-    right_idxs: Vec<usize>,
-    left_class_freq: Vec<u64>,
-    right_class_freq: Vec<u64>,
-    feature: Array1<f64>,
-    labels: Array1<u64>,
-}
-
-impl SplitIterator {
-    fn new(
-        feature: Array1<f64>,
-        labels: Array1<u64>,
-        row_idxs: &Vec<usize>,
-        n_classes: u64,
-    ) -> SplitIterator {
-        let mut feature_pairs = vec![];
-        for idx in row_idxs.iter() {
-            feature_pairs.push((*idx, &feature[*idx]));
+impl RowMask {
+    fn all(n_samples: u64) -> Self {
+        RowMask {
+            mask: vec![true; n_samples as usize],
+            n_samples: n_samples,
         }
+    }
 
-        feature_pairs.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap_or(std::cmp::Ordering::Less));
-
-        let left_idxs = feature_pairs.iter().map(|a| a.0).collect();
-        let right_idxs = vec![];
-
-        let left_class_freq = class_frequencies(&labels, &row_idxs, n_classes);
-        let right_class_freq = vec![0; n_classes as usize];
-
-        SplitIterator {
-            left_idxs: left_idxs,
-            right_idxs: right_idxs,
-            left_class_freq: left_class_freq,
-            right_class_freq: right_class_freq,
-            feature: feature,
-            labels: labels,
+    fn of_vec(mask: Vec<bool>) -> Self {
+        RowMask {
+            n_samples: mask.len() as u64,
+            mask: mask,
         }
     }
 }
 
-impl Iterator for SplitIterator {
-    type Item = SplitCandidate;
+struct SortedIndex {
+    presorted_indices: Vec<usize>,
+    features: Vec<f64>,
+}
 
-    fn next(&mut self) -> Option<SplitCandidate> {
-        if self.left_idxs.len() < 2 {
-            None
-        } else {
-            self.right_idxs.push(self.left_idxs.pop().unwrap());
-            let swapped_class = self.labels[*self.left_idxs.last().unwrap()];
-            self.left_class_freq[swapped_class as usize] -= 1;
-            self.right_class_freq[swapped_class as usize] += 1;
+impl SortedIndex {
+    fn of_array_column(
+        x: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
+        feature_idx: usize,
+    ) -> Self {
+        let sliced_column: Vec<f64> = x.index_axis(Axis(1), feature_idx).to_vec();
+        let mut pairs: Vec<(usize, f64)> = sliced_column.into_iter().enumerate().collect();
+        pairs.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Greater));
 
-            let left_idx = self.left_idxs.last().unwrap();
-            let right_idx = self.right_idxs.last().unwrap();
-
-            let left_value = self.feature[*left_idx];
-            let right_value = self.feature[*right_idx];
-
-            let split_value = (left_value + right_value) as f64 / 2.0;
-
-            Some(SplitCandidate {
-                split_value: split_value,
-                left_class_freq: self.left_class_freq.to_vec(),
-                right_class_freq: self.right_class_freq.to_vec(),
-            })
+        SortedIndex {
+            presorted_indices: pairs.iter().map(|a| a.0).collect(),
+            features: pairs.iter().map(|a| a.1).collect(),
         }
     }
 }
@@ -89,55 +56,72 @@ impl TreeNode {
     fn fit(
         x: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
         y: &ArrayBase<impl Data<Elem = u64> + Sync, Ix1>,
-        row_idxs: &Vec<usize>,
+        mask: &RowMask,
         hyperparameters: &DecisionTreeParams,
+        sorted_indices: &Vec<SortedIndex>,
         depth: u64,
     ) -> Self {
         let mut leaf_node = false;
 
-        leaf_node |= row_idxs.len() < (hyperparameters.min_samples_split as usize);
+        leaf_node |= mask.n_samples < hyperparameters.min_samples_split;
 
         if let Some(max_depth) = hyperparameters.max_depth {
             leaf_node |= depth > max_depth;
         }
 
-        let prediction = prediction_for_rows(&y, &row_idxs, hyperparameters.n_classes);
+        let prediction = prediction_for_rows(&y, &mask, hyperparameters.n_classes);
 
         let mut best_feature_idx = None;
         let mut best_split_value = None;
         let mut best_score = None;
 
-        let parent_class_freq = class_frequencies(&y, row_idxs, hyperparameters.n_classes);
+        let parent_class_freq = class_frequencies(&y, mask, hyperparameters.n_classes);
 
-        // 1. Find best split for current level
+        // Find best split for current level
         for feature_idx in 0..(x.ncols()) {
-            let feature = x.slice(s![.., feature_idx]).to_owned();
-            let labels = y.to_owned();
+            let mut left_class_freq = parent_class_freq.clone();
+            let mut right_class_freq = vec![0; hyperparameters.n_classes as usize];
 
-            for split_candidate in
-                SplitIterator::new(feature, labels, row_idxs, hyperparameters.n_classes)
-            {
+            let sorted_index = &sorted_indices[feature_idx];
+
+            for i in 0..(mask.mask.len() - 1) {
+                let split_value = sorted_index.features[i];
+                let presorted_index = sorted_index.presorted_indices[i];
+
+                if !mask.mask[presorted_index] {
+                    continue;
+                }
+
+                // Move the class of the current sample from the left subset to the right
+                left_class_freq[y[presorted_index as usize] as usize] -= 1;
+                right_class_freq[y[presorted_index as usize] as usize] += 1;
+
+                if left_class_freq.iter().sum::<u64>() < hyperparameters.min_samples_split
+                    || right_class_freq.iter().sum::<u64>() < hyperparameters.min_samples_split
+                {
+                    continue;
+                }
+
                 let (left_score, right_score) = match hyperparameters.split_quality {
                     SplitQuality::Gini => (
-                        gini_impurity(&split_candidate.left_class_freq),
-                        gini_impurity(&split_candidate.right_class_freq),
+                        gini_impurity(&left_class_freq),
+                        gini_impurity(&right_class_freq),
                     ),
-                    SplitQuality::Entropy => (
-                        entropy(&split_candidate.left_class_freq),
-                        entropy(&split_candidate.right_class_freq),
-                    ),
+                    SplitQuality::Entropy => {
+                        (entropy(&left_class_freq), entropy(&right_class_freq))
+                    }
                 };
 
-                let left_weight: f64 = split_candidate.left_class_freq.iter().sum::<u64>() as f64
-                    / row_idxs.len() as f64;
-                let right_weight: f64 = split_candidate.right_class_freq.iter().sum::<u64>() as f64
-                    / row_idxs.len() as f64;
+                let left_weight: f64 =
+                    left_class_freq.iter().sum::<u64>() as f64 / mask.mask.len() as f64;
+                let right_weight: f64 =
+                    right_class_freq.iter().sum::<u64>() as f64 / mask.mask.len() as f64;
 
                 let score = left_weight * left_score + right_weight * right_score;
 
                 if best_score.is_none() || score < best_score.unwrap() {
                     best_feature_idx = Some(feature_idx);
-                    best_split_value = Some(split_candidate.split_value);
+                    best_split_value = Some(split_value);
                     best_score = Some(score);
                 }
             }
@@ -168,36 +152,59 @@ impl TreeNode {
         let best_feature_idx = best_feature_idx.unwrap();
         let best_split_value = best_split_value.unwrap();
 
-        // 2. Obtain splitted datasets
+        // Determine new masks for the left and right subtrees
+        let mut left_mask = vec![false; x.nrows()];
+        let mut left_n_samples = 0;
+        let mut right_mask = vec![false; x.nrows()];
+        let mut right_n_samples = 0;
+        for i in 0..(x.nrows()) {
+            if mask.mask[i] {
+                if x[[i, best_feature_idx]] < best_split_value {
+                    left_mask[i] = true;
+                    left_n_samples += 1;
+                } else {
+                    right_mask[i] = true;
+                    right_n_samples += 1;
+                }
+            }
+        }
 
-        let (left_idxs, right_idxs) =
-            split_on_feature_by_value(&x, &row_idxs, best_feature_idx, best_split_value);
+        let left_mask = RowMask {
+            mask: left_mask,
+            n_samples: left_n_samples,
+        };
 
-        // 3. Recurse and refit on splitted data
+        let right_mask = RowMask {
+            mask: right_mask,
+            n_samples: right_n_samples,
+        };
 
-        let left_child = match left_idxs.len() {
+        // Recurse and refit on left and right subtrees
+        let left_child = match left_mask.n_samples {
             l if l > 0 => Some(Box::new(TreeNode::fit(
                 &x,
                 &y,
-                &left_idxs,
+                &left_mask,
                 &hyperparameters,
+                &sorted_indices,
                 depth + 1,
             ))),
             _ => None,
         };
 
-        let right_child = match right_idxs.len() {
+        let right_child = match right_mask.n_samples {
             l if l > 0 => Some(Box::new(TreeNode::fit(
                 &x,
                 &y,
-                &right_idxs,
+                &right_mask,
                 &hyperparameters,
+                &sorted_indices,
                 depth + 1,
             ))),
             _ => None,
         };
 
-        let leaf_node = left_child.is_none() || right_child.is_none();
+        leaf_node |= left_child.is_none() || right_child.is_none();
 
         TreeNode {
             feature_idx: best_feature_idx,
@@ -224,8 +231,12 @@ impl DecisionTree {
         x: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
         y: &ArrayBase<impl Data<Elem = u64> + Sync, Ix1>,
     ) -> Self {
-        let all_idxs = 0..(x.nrows());
-        let root_node = TreeNode::fit(&x, &y, &all_idxs.collect(), &hyperparameters, 0);
+        let all_idxs = RowMask::all(x.nrows() as u64);
+        let sorted_indices = (0..(x.ncols()))
+            .map(|feature_idx| SortedIndex::of_array_column(&x, feature_idx))
+            .collect();
+
+        let root_node = TreeNode::fit(&x, &y, &all_idxs, &hyperparameters, &sorted_indices, 0);
 
         Self {
             hyperparameters,
@@ -262,42 +273,22 @@ fn make_prediction(x: &ArrayBase<impl Data<Elem = f64> + Sync, Ix1>, node: &Tree
     }
 }
 
-fn split_on_feature_by_value(
-    x: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
-    row_idxs: &Vec<usize>,
-    feature_idx: usize,
-    split_value: f64,
-) -> (Vec<usize>, Vec<usize>) {
-    let mut left = vec![];
-    let mut right = vec![];
-
-    for idx in row_idxs.iter() {
-        let v = *x.get((*idx, feature_idx)).unwrap();
-        if v < split_value {
-            left.push(*idx);
-        } else {
-            right.push(*idx);
-        }
-    }
-
-    (left, right)
-}
-
-/// Given an array of labels and a mask `row_idxs` calculate the frequency of
+/// Given an array of labels and a row mask `mask` calculate the frequency of
 /// each class from 0 to `n_classes-1`.
 fn class_frequencies(
     labels: &ArrayBase<impl Data<Elem = u64> + Sync, Ix1>,
-    row_idxs: &Vec<usize>,
+    mask: &RowMask,
     n_classes: u64,
 ) -> Vec<u64> {
-    let n_samples = row_idxs.len();
+    let n_samples = mask.n_samples;
     assert!(n_samples > 0);
 
     let mut class_freq = vec![0; n_classes as usize];
 
-    for idx in row_idxs.iter() {
-        let label = labels[*idx];
-        class_freq[label as usize] += 1;
+    for (idx, included) in mask.mask.iter().enumerate() {
+        if *included {
+            class_freq[labels[idx] as usize] += 1;
+        }
     }
 
     class_freq
@@ -308,12 +299,11 @@ fn class_frequencies(
 /// frequency then the first class is selected.
 fn prediction_for_rows(
     labels: &ArrayBase<impl Data<Elem = u64> + Sync, Ix1>,
-    row_idxs: &Vec<usize>,
+    mask: &RowMask,
     n_classes: u64,
 ) -> u64 {
-    let class_freq = class_frequencies(labels, row_idxs, n_classes);
+    let class_freq = class_frequencies(labels, mask, n_classes);
 
-    // Find the class with greatest frequency
     class_freq
         .iter()
         .enumerate()
@@ -331,8 +321,7 @@ fn prediction_for_rows(
         .0 as u64
 }
 
-/// Given an array of labels and a mask `row_idxs` calculate the gini impurity
-/// of the subset.
+/// Given the class frequencies calculates the gini impurity of the subset.
 fn gini_impurity(class_freq: &Vec<u64>) -> f64 {
     let n_samples: u64 = class_freq.iter().sum();
     assert!(n_samples > 0);
@@ -346,8 +335,7 @@ fn gini_impurity(class_freq: &Vec<u64>) -> f64 {
     1.0 - purity
 }
 
-/// Given an array of labels and a mask `row_idxs` calculate the entropy of the
-/// subset.
+/// Given the class frequencies calculates the entropy of the subset.
 fn entropy(class_freq: &Vec<u64>) -> f64 {
     let n_samples: u64 = class_freq.iter().sum();
     assert!(n_samples > 0);
@@ -369,14 +357,27 @@ mod tests {
     fn class_freq_example() {
         let labels = Array::from(vec![0, 0, 0, 0, 0, 0, 1, 1]);
 
-        assert_eq!(class_frequencies(&labels, &vec![0, 1, 2], 3), vec![3, 0, 0]);
-        assert_eq!(class_frequencies(&labels, &vec![0, 6, 7], 3), vec![1, 2, 0]);
+        assert_eq!(
+            class_frequencies(&labels, &RowMask::all(labels.len() as u64), 3),
+            vec![6, 2, 0]
+        );
+        assert_eq!(
+            class_frequencies(
+                &labels,
+                &RowMask::of_vec(vec![false, false, false, false, false, true, true, true]),
+                3
+            ),
+            vec![1, 2, 0]
+        );
     }
 
     #[test]
     fn prediction_for_rows_example() {
         let labels = Array::from(vec![0, 0, 0, 0, 0, 0, 1, 1]);
-        assert_eq!(prediction_for_rows(&labels, &vec![0, 1, 2, 6, 7], 3), 0);
+        assert_eq!(
+            prediction_for_rows(&labels, &RowMask::all(labels.len() as u64), 3),
+            0
+        );
     }
 
     #[test]
