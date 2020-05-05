@@ -32,7 +32,7 @@ impl LinearRegression {
         }
     }
 
-    pub fn with_intercept(&mut self) -> &mut Self {
+    pub fn with_intercept(mut self) -> Self {
         self.fit_intercept = true;
         self
     }
@@ -79,8 +79,6 @@ impl FittedLinearRegression {
     /// Given an input matrix `X`, with shape `(n_samples, n_features)`,
     /// `predict` returns the target variable according to linear model
     /// learned from the training data distribution.
-    ///
-    /// **Panics** if `self` has not be `fit`ted before calling `predict.
     pub fn predict<A>(&self, X: &ArrayBase<A, Ix2>) -> Array1<f64>
     where
         A: Data<Elem = f64>,
@@ -122,8 +120,29 @@ where
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use ndarray::{array, Array1, Array2};
+
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+    fn fits_a_line_through_two_dots() {
+        let lin_reg = LinearRegression::new().with_intercept();
+        let A: Array2<f64> = array![[0.], [1.]];
+        let b: Array1<f64> = array![1., 2.];
+        let model = lin_reg.fit(&A, &b).unwrap();
+        let result = model.predict(&A);
+        assert_eq!(result, array![1., 2.]);
+    }
+
+    /// When `with_intercept` is not set (the default), the
+    /// fitted line runs through the origin. For a perfect
+    /// fit we only need to provide one point.
+    #[test]
+    fn without_intercept_fits_line_through_origin() {
+        let lin_reg = LinearRegression::new();
+        let A: Array2<f64> = array![[1.]];
+        let b: Array1<f64> = array![1.];
+        let model = lin_reg.fit(&A, &b).unwrap();
+        let result = model.predict(&array![[0.], [1.]]);
+        assert_eq!(result, array![0., 1.]);
     }
 }
