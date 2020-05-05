@@ -145,4 +145,36 @@ mod tests {
         let result = model.predict(&array![[0.], [1.]]);
         assert_eq!(result, array![0., 1.]);
     }
+
+    /// We can't fit a line through two points without fitting the
+    /// intercept in general. In this case we should find the solution
+    /// that minimizes the squares. Fitting a line with intercept through 
+    /// the points (-1, 1), (1, 1) has the least-squares solution
+    /// f(x) = 0
+    #[test]
+    fn fits_least_squares_line_through_two_dots() {
+        let lin_reg = LinearRegression::new();
+        let A: Array2<f64> = array![[-1.], [1.]];
+        let b: Array1<f64> = array![1., 1.];
+        let model = lin_reg.fit(&A, &b).unwrap();
+        let result = model.predict(&A);
+        assert_eq!(result, array![0., 0.]);
+    }
+
+    /// We can't fit a line through three points in general
+    /// - in this case we should find the solution that minimizes
+    /// the squares. Fitting a line with intercept through the
+    /// points (0, 0), (1, 0), (2, 2) has the least-squares solution
+    /// f(x) = -1./3. + x
+    #[test]
+    fn fits_least_squares_line_through_three_dots() {
+        let lin_reg = LinearRegression::new().with_intercept();
+        let A: Array2<f64> = array![[0.], [1.], [2.]];
+        let b: Array1<f64> = array![0., 0., 2.];
+        let model = lin_reg.fit(&A, &b).unwrap();
+        let result = model.predict(&A);
+        let diff = result - array![-1. / 3., 2. / 3., 5. / 3.];
+        let sq_diff = diff.dot(&diff);
+        assert!(sq_diff < 1e-12);
+    }
 }
