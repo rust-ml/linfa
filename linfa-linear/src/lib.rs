@@ -95,6 +95,10 @@ impl FittedLinearRegression {
         }
     }
 
+    pub fn get_params(&self) -> &Array1<f64> {
+        &self.params
+    }
+
     fn _predict<A>(&self, X: &ArrayBase<A, Ix2>) -> Array1<f64>
     where
         A: Data<Elem = f64>,
