@@ -130,7 +130,7 @@ mod tests {
     fn check_approx_eq(lhs: &Array1<f64>, rhs: &Array1<f64>) {
         let diff = lhs - rhs;
         let sq_diff = diff.dot(&diff);
-        assert(sq_diff < 1e-12);
+        assert!(sq_diff < 1e-12);
     }
 
     #[test]
@@ -182,12 +182,10 @@ mod tests {
         let A: Array2<f64> = array![[0.], [1.], [2.]];
         let b: Array1<f64> = array![0., 0., 2.];
         let model = lin_reg.fit(&A, &b).unwrap();
-        let result = model.predict(&A);
-        let diff = result - array![-1. / 3., 2. / 3., 5. / 3.];
-        let sq_diff = diff.dot(&diff);
-        assert!(sq_diff < 1e-12);
+        let actual = model.predict(&A);
+        let expected = array![-1. / 3., 2. / 3., 5. / 3.];
+        check_approx_eq(&actual, &expected);
     }
-
 
     /// Check that the linear regression prefectly fits three datapoints for
     /// the model
@@ -199,6 +197,6 @@ mod tests {
         let b: Array1<f64> = array![1., 4., 9.];
         let model = lin_reg.fit(&A, &b).unwrap();
         let expected_params: Array1<f64> = array![1., 2., 1.];
-        check_approx_eq(model.get_params(), expected_params);
+        check_approx_eq(model.get_params(), &expected_params);
     }
 }
