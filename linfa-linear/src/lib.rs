@@ -127,6 +127,12 @@ mod tests {
     use super::*;
     use ndarray::{array, Array1, Array2};
 
+    fn check_approx_eq(lhs: &Array1<f64>, rhs: &Array1<f64>) {
+        let diff = lhs - rhs;
+        let sq_diff = diff.dot(&diff);
+        assert(sq_diff < 1e-12);
+    }
+
     #[test]
     fn fits_a_line_through_two_dots() {
         let lin_reg = LinearRegression::new().with_intercept();
@@ -180,5 +186,19 @@ mod tests {
         let diff = result - array![-1. / 3., 2. / 3., 5. / 3.];
         let sq_diff = diff.dot(&diff);
         assert!(sq_diff < 1e-12);
+    }
+
+
+    /// Check that the linear regression prefectly fits three datapoints for
+    /// the model
+    /// f(x) = (x + 1)^2 = x^2 + 2x + 1
+    #[test]
+    fn fits_three_parameters_through_three_dots() {
+        let lin_reg = LinearRegression::new().with_intercept();
+        let A: Array2<f64> = array![[0., 0.], [1., 1.], [2., 4.]];
+        let b: Array1<f64> = array![1., 4., 9.];
+        let model = lin_reg.fit(&A, &b).unwrap();
+        let expected_params: Array1<f64> = array![1., 2., 1.];
+        check_approx_eq(model.get_params(), expected_params);
     }
 }
