@@ -1,5 +1,5 @@
 #![allow(non_snake_case)]
-use ndarray::{stack, Array, Array1, ArrayBase, Axis, Data, Ix1, Ix2};
+use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2};
 use ndarray_linalg::Solve;
 
 /// The simple linear regression model is
@@ -21,7 +21,7 @@ pub struct LinearRegression {
 }
 
 pub struct FittedLinearRegression {
-    fit_intercept: bool,
+    intercept: f64,
     params: Array1<f64>,
 }
 
@@ -58,17 +58,28 @@ impl LinearRegression {
         // Check that our inputs have compatible shapes
         assert_eq!(y.dim(), n_samples);
 
-        // If we are fitting the intercept, we need an additional column
         if self.fit_intercept {
-            let dummy_column: Array<f64, _> = Array::ones((n_samples, 1));
-            let X = stack(Axis(1), &[dummy_column.view(), X.view()]).unwrap();
+            // If we are fitting the intercept, we first center X and y, 
+            // compute the models parameters based on the centered X and y
+            // and the intercept as the residual of fitted parameters applied
+            // to the X_offset and y_offset
+
+            // FIXME: double check this!
+            let X_offset: Array1<f64> = X.mean_axis(Axis(0)).ok_or(String::from("cannot compute mean of X"))?;
+            // FIXME: is this broadcasting in the right way? 
+            // X_offset needs to be interpeted as a column vector
+            let X_centered: Array2<f64> = X - &X_offset; 
+            let y_offset: f64 = y.mean().ok_or(String::from("cannot compute mean of y"))?;
+            let y_centered: Array1<f64> = y - y_offset;
+            let params: Array1<f64> = solve_normal_equation(&X_centered, &y_centered)?;
+            let intercept = y_offset - X_offset.dot(&params);
             return Ok(FittedLinearRegression {
-                fit_intercept: self.fit_intercept,
-                params: solve_normal_equation(&X, y)?,
+                intercept: intercept,
+                params: params
             });
         } else {
             return Ok(FittedLinearRegression {
-                fit_intercept: self.fit_intercept,
+                intercept: 0.,
                 params: solve_normal_equation(X, y)?,
             });
         };
@@ -83,27 +94,15 @@ impl FittedLinearRegression {
     where
         A: Data<Elem = f64>,
     {
-        let (n_samples, _) = X.dim();
-
-        // If we are fitting the intercept, we need an additional column
-        if self.fit_intercept {
-            let dummy_column: Array<f64, _> = Array::ones((n_samples, 1));
-            let X = stack(Axis(1), &[dummy_column.view(), X.view()]).unwrap();
-            self._predict(&X)
-        } else {
-            self._predict(X)
-        }
+        X.dot(&self.params) + self.intercept
     }
 
     pub fn get_params(&self) -> &Array1<f64> {
         &self.params
     }
 
-    fn _predict<A>(&self, X: &ArrayBase<A, Ix2>) -> Array1<f64>
-    where
-        A: Data<Elem = f64>,
-    {
-        X.dot(&self.params)
+    pub fn get_intercept(&self) -> f64 {
+        self.intercept
     }
 }
 
@@ -196,7 +195,8 @@ mod tests {
         let A: Array2<f64> = array![[0., 0.], [1., 1.], [2., 4.]];
         let b: Array1<f64> = array![1., 4., 9.];
         let model = lin_reg.fit(&A, &b).unwrap();
-        let expected_params: Array1<f64> = array![1., 2., 1.];
+        let expected_params: Array1<f64> = array![2., 1.];
         check_approx_eq(model.get_params(), &expected_params);
+        assert!((model.get_intercept() - 1.) * (model.get_intercept() - 1.) < 1e-12);
     }
 }
