@@ -42,10 +42,9 @@ impl LinearRegression {
     /// - a target variable `y`, with shape `(n_samples,)`;
     /// `fit` tunes the `beta` parameter of the linear regression model
     /// to match the training data distribution.
-    pub fn fit<A>(&self, X: &Array2<A>, y: &Array1<A>)
-    -> Result<FittedLinearRegression<A>, String>
+    pub fn fit<A>(&self, X: &Array2<A>, y: &Array1<A>) -> Result<FittedLinearRegression<A>, String>
     where
-        A: Lapack + Scalar + ScalarOperand
+        A: Lapack + Scalar + ScalarOperand,
     {
         let (n_samples, _) = X.dim();
 
@@ -53,26 +52,26 @@ impl LinearRegression {
         assert_eq!(y.dim(), n_samples);
 
         if self.fit_intercept {
-            // If we are fitting the intercept, we first center X and y, 
+            // If we are fitting the intercept, we first center X and y,
             // compute the models parameters based on the centered X and y
             // and the intercept as the residual of fitted parameters applied
             // to the X_offset and y_offset
 
             // FIXME: double check this!
-            let X_offset: Array1<A> = X.mean_axis(Axis(0)).ok_or(String::from("cannot compute mean of X"))?;
-            // FIXME: is this broadcasting in the right way? 
-            // X_offset needs to be interpeted as a column vector
-            let X_centered: Array2<A> = X - &X_offset; 
+            let X_offset: Array1<A> = X
+                .mean_axis(Axis(0))
+                .ok_or(String::from("cannot compute mean of X"))?;
+            let X_centered: Array2<A> = X - &X_offset;
             let y_offset: A = y.mean().ok_or(String::from("cannot compute mean of y"))?;
             let y_centered: Array1<A> = y - y_offset;
             let params: Array1<A> = solve_normal_equation(&X_centered, &y_centered)?;
             let intercept: A = y_offset - X_offset.dot(&params);
             return Ok(FittedLinearRegression {
                 intercept: intercept,
-                params: params
+                params: params,
             });
         } else {
-            return Ok(FittedLinearRegression{
+            return Ok(FittedLinearRegression {
                 intercept: A::from(0).unwrap(),
                 params: solve_normal_equation(X, y)?,
             });
@@ -84,8 +83,7 @@ impl<A: Scalar + ScalarOperand> FittedLinearRegression<A> {
     /// Given an input matrix `X`, with shape `(n_samples, n_features)`,
     /// `predict` returns the target variable according to linear model
     /// learned from the training data distribution.
-    pub fn predict(&self, X: &Array2<A>) -> Array1<A>
-    {
+    pub fn predict(&self, X: &Array2<A>) -> Array1<A> {
         X.dot(&self.params) + self.intercept
     }
 
@@ -99,8 +97,9 @@ impl<A: Scalar + ScalarOperand> FittedLinearRegression<A> {
 }
 
 fn solve_normal_equation<A>(X: &Array2<A>, y: &Array1<A>) -> Result<Array1<A>, String>
-    where A: Lapack + Scalar, 
-          Array2<A>: Solve<A>
+where
+    A: Lapack + Scalar,
+    Array2<A>: Solve<A>,
 {
     let rhs = X.t().dot(y);
     let linear_operator = X.t().dot(X);
@@ -112,8 +111,8 @@ fn solve_normal_equation<A>(X: &Array2<A>, y: &Array1<A>) -> Result<Array1<A>, S
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::cmp::PartialOrd;
     use ndarray::{array, Array1, Array2};
+    use std::cmp::PartialOrd;
 
     fn check_approx_eq<A: Scalar + PartialOrd>(lhs: &Array1<A>, rhs: &Array1<A>) {
         let diff = lhs - rhs;
@@ -146,7 +145,7 @@ mod tests {
 
     /// We can't fit a line through two points without fitting the
     /// intercept in general. In this case we should find the solution
-    /// that minimizes the squares. Fitting a line with intercept through 
+    /// that minimizes the squares. Fitting a line with intercept through
     /// the points (-1, 1), (1, 1) has the least-squares solution
     /// f(x) = 0
     #[test]
