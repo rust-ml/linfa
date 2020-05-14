@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
-use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2};
-use ndarray_linalg::Solve;
+use ndarray::{Array1, Array2, Axis, ScalarOperand};
+use ndarray_linalg::{Lapack, Scalar, Solve};
 
 /// The simple linear regression model is
 ///     y = bX + e  where e ~ N(0, sigma^2 * I)
@@ -20,9 +20,9 @@ pub struct LinearRegression {
     fit_intercept: bool,
 }
 
-pub struct FittedLinearRegression {
-    intercept: f64,
-    params: Array1<f64>,
+pub struct FittedLinearRegression<A> {
+    intercept: A,
+    params: Array1<A>,
 }
 
 impl LinearRegression {
@@ -42,16 +42,10 @@ impl LinearRegression {
     /// - a target variable `y`, with shape `(n_samples,)`;
     /// `fit` tunes the `beta` parameter of the linear regression model
     /// to match the training data distribution.
-    ///
-    /// `self` is modified in place, nothing is returned.
-    pub fn fit<A, B>(
-        &self,
-        X: &ArrayBase<A, Ix2>,
-        y: &ArrayBase<B, Ix1>,
-    ) -> Result<FittedLinearRegression, String>
+    pub fn fit<A>(&self, X: &Array2<A>, y: &Array1<A>)
+    -> Result<FittedLinearRegression<A>, String>
     where
-        A: Data<Elem = f64>,
-        B: Data<Elem = f64>,
+        A: Lapack + Scalar + ScalarOperand
     {
         let (n_samples, _) = X.dim();
 
@@ -65,54 +59,48 @@ impl LinearRegression {
             // to the X_offset and y_offset
 
             // FIXME: double check this!
-            let X_offset: Array1<f64> = X.mean_axis(Axis(0)).ok_or(String::from("cannot compute mean of X"))?;
+            let X_offset: Array1<A> = X.mean_axis(Axis(0)).ok_or(String::from("cannot compute mean of X"))?;
             // FIXME: is this broadcasting in the right way? 
             // X_offset needs to be interpeted as a column vector
-            let X_centered: Array2<f64> = X - &X_offset; 
-            let y_offset: f64 = y.mean().ok_or(String::from("cannot compute mean of y"))?;
-            let y_centered: Array1<f64> = y - y_offset;
-            let params: Array1<f64> = solve_normal_equation(&X_centered, &y_centered)?;
-            let intercept = y_offset - X_offset.dot(&params);
+            let X_centered: Array2<A> = X - &X_offset; 
+            let y_offset: A = y.mean().ok_or(String::from("cannot compute mean of y"))?;
+            let y_centered: Array1<A> = y - y_offset;
+            let params: Array1<A> = solve_normal_equation(&X_centered, &y_centered)?;
+            let intercept: A = y_offset - X_offset.dot(&params);
             return Ok(FittedLinearRegression {
                 intercept: intercept,
                 params: params
             });
         } else {
-            return Ok(FittedLinearRegression {
-                intercept: 0.,
+            return Ok(FittedLinearRegression{
+                intercept: A::from(0).unwrap(),
                 params: solve_normal_equation(X, y)?,
             });
         };
     }
 }
 
-impl FittedLinearRegression {
+impl<A: Scalar + ScalarOperand> FittedLinearRegression<A> {
     /// Given an input matrix `X`, with shape `(n_samples, n_features)`,
     /// `predict` returns the target variable according to linear model
     /// learned from the training data distribution.
-    pub fn predict<A>(&self, X: &ArrayBase<A, Ix2>) -> Array1<f64>
-    where
-        A: Data<Elem = f64>,
+    pub fn predict(&self, X: &Array2<A>) -> Array1<A>
     {
         X.dot(&self.params) + self.intercept
     }
 
-    pub fn get_params(&self) -> &Array1<f64> {
+    pub fn get_params(&self) -> &Array1<A> {
         &self.params
     }
 
-    pub fn get_intercept(&self) -> f64 {
+    pub fn get_intercept(&self) -> A {
         self.intercept
     }
 }
 
-fn solve_normal_equation<A, B>(
-    X: &ArrayBase<A, Ix2>,
-    y: &ArrayBase<B, Ix1>,
-) -> Result<Array1<f64>, String>
-where
-    A: Data<Elem = f64>,
-    B: Data<Elem = f64>,
+fn solve_normal_equation<A>(X: &Array2<A>, y: &Array1<A>) -> Result<Array1<A>, String>
+    where A: Lapack + Scalar, 
+          Array2<A>: Solve<A>
 {
     let rhs = X.t().dot(y);
     let linear_operator = X.t().dot(X);
@@ -124,12 +112,13 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::cmp::PartialOrd;
     use ndarray::{array, Array1, Array2};
 
-    fn check_approx_eq(lhs: &Array1<f64>, rhs: &Array1<f64>) {
+    fn check_approx_eq<A: Scalar + PartialOrd>(lhs: &Array1<A>, rhs: &Array1<A>) {
         let diff = lhs - rhs;
         let sq_diff = diff.dot(&diff);
-        assert!(sq_diff < 1e-12);
+        assert!(sq_diff < A::from(1e-8).unwrap());
     }
 
     #[test]
@@ -196,6 +185,20 @@ mod tests {
         let b: Array1<f64> = array![1., 4., 9.];
         let model = lin_reg.fit(&A, &b).unwrap();
         let expected_params: Array1<f64> = array![2., 1.];
+        check_approx_eq(model.get_params(), &expected_params);
+        assert!((model.get_intercept() - 1.) * (model.get_intercept() - 1.) < 1e-12);
+    }
+
+    /// Check that the linear regression prefectly fits three datapoints for
+    /// the model
+    /// f(x) = (x + 1)^2 = x^2 + 2x + 1
+    #[test]
+    fn fits_three_parameters_through_three_dots_f32() {
+        let lin_reg = LinearRegression::new().with_intercept();
+        let A: Array2<f32> = array![[0., 0.], [1., 1.], [2., 4.]];
+        let b: Array1<f32> = array![1., 4., 9.];
+        let model = lin_reg.fit(&A, &b).unwrap();
+        let expected_params: Array1<f32> = array![2., 1.];
         check_approx_eq(model.get_params(), &expected_params);
         assert!((model.get_intercept() - 1.) * (model.get_intercept() - 1.) < 1e-12);
     }
