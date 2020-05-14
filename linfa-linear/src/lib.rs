@@ -189,6 +189,20 @@ mod tests {
         assert!((model.get_intercept() - 1.) * (model.get_intercept() - 1.) < 1e-12);
     }
 
+    /// Check that the linear regression prefectly fits four datapoints for
+    /// the model
+    /// f(x) = (x + 1)^3 = x^3 + 3x^2 + 3x + 1
+    #[test]
+    fn fits_four_parameters_through_four_dots() {
+        let lin_reg = LinearRegression::new().with_intercept();
+        let A: Array2<f64> = array![[0., 0., 0.], [1., 1., 1.], [2., 4., 8.], [3., 9., 27.]];
+        let b: Array1<f64> = array![1., 8., 27., 64.];
+        let model = lin_reg.fit(&A, &b).unwrap();
+        let expected_params: Array1<f64> = array![3., 3., 1.];
+        check_approx_eq(model.get_params(), &expected_params);
+        assert!((model.get_intercept() - 1.) * (model.get_intercept() - 1.) < 1e-12);
+    }
+
     /// Check that the linear regression prefectly fits three datapoints for
     /// the model
     /// f(x) = (x + 1)^2 = x^2 + 2x + 1
