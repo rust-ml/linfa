@@ -14,3 +14,7 @@ netlib = ["ndarray-linalg/netlib"]
 [dependencies]
 ndarray = {version = "0.13", features = ["blas"]}
 ndarray-linalg = {version = "0.12", default-features = false}
+
+[dev-dependencies]
+csv = "1.1"
+ndarray-csv = "0.4"
