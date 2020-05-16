@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let target = read_array("../datasets/diabetes_target.csv")?;
     let target = target.column(0).to_owned();
 
-    let lin_reg = LinearRegression::new().with_intercept();
+    let lin_reg = LinearRegression::new().fit_intercept();
     let model = lin_reg.fit(&data, &target)?;
 
     println!("intercept:  {}", model.get_intercept());
