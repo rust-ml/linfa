@@ -1,23 +1,50 @@
+//! # Linear Models
+//! 
+//! `linfa-linear` aims to provide pure Rust implementations of 
+//! popular linear regression algorithms. 
+//!
+//! ## The Big Picture
+//! 
+//! `linfa-linear` is a crate in the [`linfa`](https://crates.io/crates/linfa) 
+//! ecosystem, a wider effort to bootstrap a toolkit for classical 
+//! Machine Learning implemented in pure Rust, kin in spirit to 
+//! Python's `scikit-learn`.
+//!
+//! ## Current state
+//! 
+//! Right now `linfa-linear` provides ordinary least squares regression.
+//! 
+//! ## Examples
+//! 
+//! There is an usage example in the `examples/diabetes.rs` file, to run it
+//! run
+//! 
+//! ```bash
+//! $ cargo run --features openblas --examples diabetes
+//! ```
+
 #![allow(non_snake_case)]
 use num_traits::float::Float;
 use ndarray::{Array1, Array2, Axis, ScalarOperand};
 use ndarray_linalg::{Lapack, Scalar, Solve};
 use ndarray_stats::SummaryStatisticsExt;
 
-/// The simple linear regression model is
-///     y = bX + e  where e ~ N(0, sigma^2 * I)
-/// In probabilistic terms this corresponds to
-///     y - bX ~ N(0, sigma^2 * I)
-///     y | X, b ~ N(bX, sigma^2 * I)
-/// The loss for the model is simply the squared error between the model
-/// predictions and the true values:
-///     Loss = ||y - bX||^2
-/// The maximum likelihood estimation for the model parameters `beta` can be computed
-/// in closed form via the normal equation:
-///     b = (X^T X)^{-1} X^T y
-/// where (X^T X)^{-1} X^T is known as the pseudoinverse or Moore-Penrose inverse.
+
+
+/// An ordinary least squares linear regression model.
 ///
-/// Adapted from: https://github.com/ddbourgin/numpy-ml
+/// LinearRegression fits a linear model to minimize the residual sum of 
+/// squares between the observed targets in the dataset, and the targets 
+/// predicted by the linear approximation.
+/// 
+/// Ordinary least squares regression solves the overconstrainted model
+/// 
+/// y = Ax + b
+/// 
+/// by finding x and b which minimize the L_2 norm ||y - Ax - b||_2.
+/// 
+/// It currently uses the [Moore-Penrose pseudo-inverse]() 
+/// to solve y - b = Ax.
 pub struct LinearRegression {
     options: Options,
 }
@@ -29,33 +56,63 @@ enum Options {
     FitInterceptAndNormalize
 }
 
+fn fit_intercept(options: Options) -> bool {
+    options == Options::FitIntercept || options == Options::FitInterceptAndNormalize
+}
+
+fn normalize(options: Options) -> bool {
+    options == Options::FitInterceptAndNormalize
+}
+
+
+/// A fitted linear regression model which can be used for making predictions.
 pub struct FittedLinearRegression<A> {
     intercept: A,
     params: Array1<A>,
 }
 
+
+/// Configure and fit a linear regression model
 impl LinearRegression {
+    /// Create a default linear regression model. By default, no intercept
+    /// will be fitted and the feature matrix will not be normalized.
+    /// To change this, call `fit_intercept()` or 
+    /// `fit_intercept_and_normalize()` before calling `fit()`.
     pub fn new() -> LinearRegression {
         LinearRegression {
             options: Options::None
         }
     }
 
+    /// Configure the linear regression model to fit an intercept.
     pub fn fit_intercept(mut self) -> Self {
         self.options = Options::FitIntercept;
         self
     }
 
+    /// Configure the linear regression model to fit an intercept and to 
+    /// normalize the feature matrix before fitting it.
+    /// 
+    /// Normalizing the feature matrix is generally recommended to improve
+    /// numeric stability unless features have already been normalized or
+    /// are all within in a small range and all features are of similar size.
+    /// 
+    /// Normalization implies fitting an intercept.
     pub fn fit_intercept_and_normalize(mut self) -> Self {
         self.options = Options::FitInterceptAndNormalize;
         self
     }
-
-    /// Given:
-    /// - an input matrix `X`, with shape `(n_samples, n_features)`;
-    /// - a target variable `y`, with shape `(n_samples,)`;
-    /// `fit` tunes the `beta` parameter of the linear regression model
-    /// to match the training data distribution.
+    
+    /// Fit a linear regression model given a feature matrix `X` and a target
+    /// variable `y`.
+    /// 
+    /// The feature matrix `X` must have shape `(n_samples, n_features)`
+    /// 
+    /// The target variable `y` must have shape `(n_samples)`
+    /// 
+    /// Returns a `FittedLinearRegression` object which contains the fitted 
+    /// parameters and can be used to `predict` values of the target variable
+    /// for new feature values.
     pub fn fit<A>(&self, X: &Array2<A>, y: &Array1<A>) -> Result<FittedLinearRegression<A>, String>
     where
         A: Lapack + Scalar + ScalarOperand + Float,
@@ -70,8 +127,6 @@ impl LinearRegression {
             // compute the models parameters based on the centered X and y
             // and the intercept as the residual of fitted parameters applied
             // to the X_offset and y_offset
-
-            // FIXME: double check this!
             let X_offset: Array1<A> = X
                 .mean_axis(Axis(0))
                 .ok_or(String::from("cannot compute mean of X"))?;
@@ -93,14 +148,8 @@ impl LinearRegression {
     }
 }
 
-fn fit_intercept(options: Options) -> bool {
-    options == Options::FitIntercept || options == Options::FitInterceptAndNormalize
-}
-
-fn normalize(options: Options) -> bool {
-    options == Options::FitInterceptAndNormalize
-}
-
+/// Compute the parameters for the linear regression model with
+/// or without normalization.
 fn compute_params<A>(X: &Array2<A>, y: &Array1<A>, normalize: bool) 
     -> Result<Array1<A>, String> 
     where
@@ -118,6 +167,9 @@ fn compute_params<A>(X: &Array2<A>, y: &Array1<A>, normalize: bool)
     }
 }
 
+/// Solve the overconstrained model Xb = y by solving X^T X b = X^t y,
+/// this is (mathematically, not numerically) equivalent to computing
+/// the solution with the Moore-Penrose pseudo-inverse.
 fn solve_normal_equation<A>(X: &Array2<A>, y: &Array1<A>) -> Result<Array1<A>, String>
 where
     A: Lapack + Scalar,
@@ -130,6 +182,8 @@ where
         .or_else(|err| Err(format! {"{}", err}))
 }
 
+/// View the fitted parameters and make predictions with a fitted
+/// linear regresssion model.
 impl<A: Scalar + ScalarOperand> FittedLinearRegression<A> {
     /// Given an input matrix `X`, with shape `(n_samples, n_features)`,
     /// `predict` returns the target variable according to linear model
@@ -138,10 +192,12 @@ impl<A: Scalar + ScalarOperand> FittedLinearRegression<A> {
         X.dot(&self.params) + self.intercept
     }
 
+    /// Get the fitted parameters
     pub fn get_params(&self) -> &Array1<A> {
         &self.params
     }
 
+    /// Get the fitted intercept, 0. if no intercept was fitted
     pub fn get_intercept(&self) -> A {
         self.intercept
     }
