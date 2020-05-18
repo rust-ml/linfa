@@ -206,14 +206,8 @@ impl<A: Scalar + ScalarOperand> FittedLinearRegression<A> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use approx::AbsDiffEq;
     use ndarray::{array, Array1, Array2};
-    use std::cmp::PartialOrd;
-
-    fn check_approx_eq<A: Scalar + PartialOrd>(lhs: &Array1<A>, rhs: &Array1<A>) {
-        let diff = lhs - rhs;
-        let sq_diff = diff.dot(&diff);
-        assert!(sq_diff < A::from(1e-8).unwrap());
-    }
 
     #[test]
     fn fits_a_line_through_two_dots() {
@@ -222,7 +216,8 @@ mod tests {
         let b: Array1<f64> = array![1., 2.];
         let model = lin_reg.fit(&A, &b).unwrap();
         let result = model.predict(&A);
-        assert_eq!(result, array![1., 2.]);
+
+        assert!(result.abs_diff_eq(&array![1., 2.], 1e-12));
     }
 
     /// When `fit_intercept` is not set (the default), the
@@ -235,7 +230,8 @@ mod tests {
         let b: Array1<f64> = array![1.];
         let model = lin_reg.fit(&A, &b).unwrap();
         let result = model.predict(&array![[0.], [1.]]);
-        assert_eq!(result, array![0., 1.]);
+
+        assert!(result.abs_diff_eq(&array![0., 1.], 1e-12));
     }
 
     /// We can't fit a line through two points without fitting the
@@ -250,7 +246,8 @@ mod tests {
         let b: Array1<f64> = array![1., 1.];
         let model = lin_reg.fit(&A, &b).unwrap();
         let result = model.predict(&A);
-        assert_eq!(result, array![0., 0.]);
+
+        assert!(result.abs_diff_eq(&array![0., 0.], 1e-12));
     }
 
     /// We can't fit a line through three points in general
@@ -265,8 +262,8 @@ mod tests {
         let b: Array1<f64> = array![0., 0., 2.];
         let model = lin_reg.fit(&A, &b).unwrap();
         let actual = model.predict(&A);
-        let expected = array![-1. / 3., 2. / 3., 5. / 3.];
-        check_approx_eq(&actual, &expected);
+
+        assert!(actual.abs_diff_eq(&array![-1. / 3., 2. / 3., 5. / 3.], 1e-12));
     }
 
     /// Check that the linear regression prefectly fits three datapoints for
@@ -278,9 +275,9 @@ mod tests {
         let A: Array2<f64> = array![[0., 0.], [1., 1.], [2., 4.]];
         let b: Array1<f64> = array![1., 4., 9.];
         let model = lin_reg.fit(&A, &b).unwrap();
-        let expected_params: Array1<f64> = array![2., 1.];
-        check_approx_eq(model.get_params(), &expected_params);
-        assert!((model.get_intercept() - 1.) * (model.get_intercept() - 1.) < 1e-12);
+
+        assert!(model.get_params().abs_diff_eq(&array![2., 1.], 1e-12));
+        assert!(model.get_intercept().abs_diff_eq(&1., 1e-12));
     }
 
     /// Check that the linear regression prefectly fits four datapoints for
@@ -292,9 +289,9 @@ mod tests {
         let A: Array2<f64> = array![[0., 0., 0.], [1., 1., 1.], [2., 4., 8.], [3., 9., 27.]];
         let b: Array1<f64> = array![1., 8., 27., 64.];
         let model = lin_reg.fit(&A, &b).unwrap();
-        let expected_params: Array1<f64> = array![3., 3., 1.];
-        check_approx_eq(model.get_params(), &expected_params);
-        assert!((model.get_intercept() - 1.) * (model.get_intercept() - 1.) < 1e-12);
+        
+        assert!(model.get_params().abs_diff_eq(&array![3., 3., 1.], 1e-12));
+        assert!(model.get_intercept().abs_diff_eq(&1., 1e-12));
     }
 
     /// Check that the linear regression prefectly fits three datapoints for
@@ -306,9 +303,9 @@ mod tests {
         let A: Array2<f32> = array![[0., 0.], [1., 1.], [2., 4.]];
         let b: Array1<f32> = array![1., 4., 9.];
         let model = lin_reg.fit(&A, &b).unwrap();
-        let expected_params: Array1<f32> = array![2., 1.];
-        check_approx_eq(model.get_params(), &expected_params);
-        assert!((model.get_intercept() - 1.) * (model.get_intercept() - 1.) < 1e-12);
+
+        assert!(model.get_params().abs_diff_eq(&array![2., 1.], 1e-4));
+        assert!(model.get_intercept().abs_diff_eq(&1., 1e-6));
     }
 
     /// Check that the linear regression prefectly fits four datapoints for
@@ -321,8 +318,8 @@ mod tests {
         let A: Array2<f64> = array![[0., 0., 0.], [1., 1., 1.], [2., 4., 8.], [3., 9., 27.]];
         let b: Array1<f64> = array![1., 8., 27., 64.];
         let model = lin_reg.fit(&A, &b).unwrap();
-        let expected_params: Array1<f64> = array![3., 3., 1.];
-        check_approx_eq(model.get_params(), &expected_params);
-        assert!((model.get_intercept() - 1.) * (model.get_intercept() - 1.) < 1e-12);
+
+        assert!(model.get_params().abs_diff_eq(&array![3., 3., 1.], 1e-12));
+        assert!(model.get_intercept().abs_diff_eq(&1., 1e-12));
     }
 }
