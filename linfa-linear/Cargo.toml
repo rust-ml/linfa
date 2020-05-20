@@ -21,3 +21,4 @@ num-traits = {version="0.2"}
 csv = "1.1"
 ndarray-csv = "0.4"
 approx = "0.3.2"
+flate2 = "1.0"
