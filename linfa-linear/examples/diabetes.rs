@@ -15,7 +15,7 @@ fn read_array(path: &str) -> Result<Array2<f64>, Box<dyn Error>> {
 fn main() -> Result<(), Box<dyn Error>> {
     let data = read_array("../datasets/diabetes_data.csv")?;
     let target = read_array("../datasets/diabetes_target.csv")?;
-    let target = target.column(0).to_owned();
+    let target = target.column(0);
 
     let lin_reg = LinearRegression::new().fit_intercept();
     let model = lin_reg.fit(&data, &target)?;

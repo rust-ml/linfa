@@ -25,10 +25,9 @@
 
 #![allow(non_snake_case)]
 use num_traits::float::Float;
-use ndarray::{Array1, Array2, Axis, ScalarOperand};
+use ndarray::{ArrayBase, Array1, Array2, Axis, Data, Ix1, Ix2, ScalarOperand};
 use ndarray_linalg::{Lapack, Scalar, Solve};
 use ndarray_stats::SummaryStatisticsExt;
-
 
 
 /// An ordinary least squares linear regression model.
@@ -113,9 +112,11 @@ impl LinearRegression {
     /// Returns a `FittedLinearRegression` object which contains the fitted 
     /// parameters and can be used to `predict` values of the target variable
     /// for new feature values.
-    pub fn fit<A>(&self, X: &Array2<A>, y: &Array1<A>) -> Result<FittedLinearRegression<A>, String>
+    pub fn fit<A, B, C>(&self, X: &ArrayBase<B, Ix2>, y: &ArrayBase<C, Ix1>) -> Result<FittedLinearRegression<A>, String>
     where
         A: Lapack + Scalar + ScalarOperand + Float,
+        B: Data<Elem = A>,
+        C: Data<Elem = A>,
     {
         let (n_samples, _) = X.dim();
 
@@ -150,15 +151,16 @@ impl LinearRegression {
 
 /// Compute the parameters for the linear regression model with
 /// or without normalization.
-fn compute_params<A>(X: &Array2<A>, y: &Array1<A>, normalize: bool) 
+fn compute_params<A, B, C>(X: &ArrayBase<B, Ix2>, y: &ArrayBase<C, Ix1>, normalize: bool) 
     -> Result<Array1<A>, String> 
     where
-        A: Lapack + Scalar + Float,
-        Array2<A>: Solve<A>
+        A: Scalar + Lapack + Float,
+        B: Data<Elem = A>,
+        C: Data<Elem = A>,
 {
     if normalize {
         let scale: Array1<A> = X.map_axis(Axis(0), |column| column.central_moment(2).unwrap());
-        let X = X / &scale;
+        let X: Array2<A> = X / &scale;
         let mut params: Array1<A> = solve_normal_equation(&X, y)?;
         params /= &scale;
         Ok(params)
@@ -170,10 +172,11 @@ fn compute_params<A>(X: &Array2<A>, y: &Array1<A>, normalize: bool)
 /// Solve the overconstrained model Xb = y by solving X^T X b = X^t y,
 /// this is (mathematically, not numerically) equivalent to computing
 /// the solution with the Moore-Penrose pseudo-inverse.
-fn solve_normal_equation<A>(X: &Array2<A>, y: &Array1<A>) -> Result<Array1<A>, String>
+fn solve_normal_equation<A, B, C>(X: &ArrayBase<B, Ix2>, y: &ArrayBase<C, Ix1>) -> Result<Array1<A>, String>
 where
     A: Lapack + Scalar,
-    Array2<A>: Solve<A>,
+    B: Data<Elem = A>,
+    C: Data<Elem = A>,
 {
     let rhs = X.t().dot(y);
     let linear_operator = X.t().dot(X);
