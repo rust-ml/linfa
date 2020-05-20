@@ -1,48 +1,47 @@
 //! # Linear Models
-//! 
-//! `linfa-linear` aims to provide pure Rust implementations of 
-//! popular linear regression algorithms. 
+//!
+//! `linfa-linear` aims to provide pure Rust implementations of
+//! popular linear regression algorithms.
 //!
 //! ## The Big Picture
-//! 
-//! `linfa-linear` is a crate in the [`linfa`](https://crates.io/crates/linfa) 
-//! ecosystem, a wider effort to bootstrap a toolkit for classical 
-//! Machine Learning implemented in pure Rust, kin in spirit to 
+//!
+//! `linfa-linear` is a crate in the [`linfa`](https://crates.io/crates/linfa)
+//! ecosystem, a wider effort to bootstrap a toolkit for classical
+//! Machine Learning implemented in pure Rust, kin in spirit to
 //! Python's `scikit-learn`.
 //!
 //! ## Current state
-//! 
+//!
 //! Right now `linfa-linear` provides ordinary least squares regression.
-//! 
+//!
 //! ## Examples
-//! 
+//!
 //! There is an usage example in the `examples/diabetes.rs` file, to run it
 //! run
-//! 
+//!
 //! ```bash
 //! $ cargo run --features openblas --examples diabetes
 //! ```
 
 #![allow(non_snake_case)]
-use num_traits::float::Float;
-use ndarray::{ArrayBase, Array1, Array2, Axis, Data, Ix1, Ix2, ScalarOperand};
+use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2, ScalarOperand};
 use ndarray_linalg::{Lapack, Scalar, Solve};
 use ndarray_stats::SummaryStatisticsExt;
-
+use num_traits::float::Float;
 
 /// An ordinary least squares linear regression model.
 ///
-/// LinearRegression fits a linear model to minimize the residual sum of 
-/// squares between the observed targets in the dataset, and the targets 
+/// LinearRegression fits a linear model to minimize the residual sum of
+/// squares between the observed targets in the dataset, and the targets
 /// predicted by the linear approximation.
-/// 
+///
 /// Ordinary least squares regression solves the overconstrainted model
-/// 
+///
 /// y = Ax + b
-/// 
+///
 /// by finding x and b which minimize the L_2 norm ||y - Ax - b||_2.
-/// 
-/// It currently uses the [Moore-Penrose pseudo-inverse]() 
+///
+/// It currently uses the [Moore-Penrose pseudo-inverse]()
 /// to solve y - b = Ax.
 pub struct LinearRegression {
     options: Options,
@@ -52,7 +51,7 @@ pub struct LinearRegression {
 enum Options {
     None,
     FitIntercept,
-    FitInterceptAndNormalize
+    FitInterceptAndNormalize,
 }
 
 fn fit_intercept(options: Options) -> bool {
@@ -63,23 +62,21 @@ fn normalize(options: Options) -> bool {
     options == Options::FitInterceptAndNormalize
 }
 
-
 /// A fitted linear regression model which can be used for making predictions.
 pub struct FittedLinearRegression<A> {
     intercept: A,
     params: Array1<A>,
 }
 
-
 /// Configure and fit a linear regression model
 impl LinearRegression {
     /// Create a default linear regression model. By default, no intercept
     /// will be fitted and the feature matrix will not be normalized.
-    /// To change this, call `fit_intercept()` or 
+    /// To change this, call `fit_intercept()` or
     /// `fit_intercept_and_normalize()` before calling `fit()`.
     pub fn new() -> LinearRegression {
         LinearRegression {
-            options: Options::None
+            options: Options::None,
         }
     }
 
@@ -89,30 +86,34 @@ impl LinearRegression {
         self
     }
 
-    /// Configure the linear regression model to fit an intercept and to 
+    /// Configure the linear regression model to fit an intercept and to
     /// normalize the feature matrix before fitting it.
-    /// 
+    ///
     /// Normalizing the feature matrix is generally recommended to improve
     /// numeric stability unless features have already been normalized or
     /// are all within in a small range and all features are of similar size.
-    /// 
+    ///
     /// Normalization implies fitting an intercept.
     pub fn fit_intercept_and_normalize(mut self) -> Self {
         self.options = Options::FitInterceptAndNormalize;
         self
     }
-    
+
     /// Fit a linear regression model given a feature matrix `X` and a target
     /// variable `y`.
-    /// 
+    ///
     /// The feature matrix `X` must have shape `(n_samples, n_features)`
-    /// 
+    ///
     /// The target variable `y` must have shape `(n_samples)`
-    /// 
-    /// Returns a `FittedLinearRegression` object which contains the fitted 
+    ///
+    /// Returns a `FittedLinearRegression` object which contains the fitted
     /// parameters and can be used to `predict` values of the target variable
     /// for new feature values.
-    pub fn fit<A, B, C>(&self, X: &ArrayBase<B, Ix2>, y: &ArrayBase<C, Ix1>) -> Result<FittedLinearRegression<A>, String>
+    pub fn fit<A, B, C>(
+        &self,
+        X: &ArrayBase<B, Ix2>,
+        y: &ArrayBase<C, Ix1>,
+    ) -> Result<FittedLinearRegression<A>, String>
     where
         A: Lapack + Scalar + ScalarOperand + Float,
         B: Data<Elem = A>,
@@ -134,7 +135,8 @@ impl LinearRegression {
             let X_centered: Array2<A> = X - &X_offset;
             let y_offset: A = y.mean().ok_or(String::from("cannot compute mean of y"))?;
             let y_centered: Array1<A> = y - y_offset;
-            let params: Array1<A> = compute_params(&X_centered, &y_centered, normalize(self.options))?;
+            let params: Array1<A> =
+                compute_params(&X_centered, &y_centered, normalize(self.options))?;
             let intercept: A = y_offset - X_offset.dot(&params);
             return Ok(FittedLinearRegression {
                 intercept: intercept,
@@ -151,12 +153,15 @@ impl LinearRegression {
 
 /// Compute the parameters for the linear regression model with
 /// or without normalization.
-fn compute_params<A, B, C>(X: &ArrayBase<B, Ix2>, y: &ArrayBase<C, Ix1>, normalize: bool) 
-    -> Result<Array1<A>, String> 
-    where
-        A: Scalar + Lapack + Float,
-        B: Data<Elem = A>,
-        C: Data<Elem = A>,
+fn compute_params<A, B, C>(
+    X: &ArrayBase<B, Ix2>,
+    y: &ArrayBase<C, Ix1>,
+    normalize: bool,
+) -> Result<Array1<A>, String>
+where
+    A: Scalar + Lapack + Float,
+    B: Data<Elem = A>,
+    C: Data<Elem = A>,
 {
     if normalize {
         let scale: Array1<A> = X.map_axis(Axis(0), |column| column.central_moment(2).unwrap());
@@ -172,7 +177,10 @@ fn compute_params<A, B, C>(X: &ArrayBase<B, Ix2>, y: &ArrayBase<C, Ix1>, normali
 /// Solve the overconstrained model Xb = y by solving X^T X b = X^t y,
 /// this is (mathematically, not numerically) equivalent to computing
 /// the solution with the Moore-Penrose pseudo-inverse.
-fn solve_normal_equation<A, B, C>(X: &ArrayBase<B, Ix2>, y: &ArrayBase<C, Ix1>) -> Result<Array1<A>, String>
+fn solve_normal_equation<A, B, C>(
+    X: &ArrayBase<B, Ix2>,
+    y: &ArrayBase<C, Ix1>,
+) -> Result<Array1<A>, String>
 where
     A: Lapack + Scalar,
     B: Data<Elem = A>,
@@ -210,7 +218,7 @@ impl<A: Scalar + ScalarOperand> FittedLinearRegression<A> {
 mod tests {
     use super::*;
     use approx::AbsDiffEq;
-    use ndarray::{array, Array1, Array2};
+    use ndarray::{array, s, Array1, Array2};
 
     #[test]
     fn fits_a_line_through_two_dots() {
@@ -292,7 +300,7 @@ mod tests {
         let A: Array2<f64> = array![[0., 0., 0.], [1., 1., 1.], [2., 4., 8.], [3., 9., 27.]];
         let b: Array1<f64> = array![1., 8., 27., 64.];
         let model = lin_reg.fit(&A, &b).unwrap();
-        
+
         assert!(model.get_params().abs_diff_eq(&array![3., 3., 1.], 1e-12));
         assert!(model.get_intercept().abs_diff_eq(&1., 1e-12));
     }
@@ -324,5 +332,35 @@ mod tests {
 
         assert!(model.get_params().abs_diff_eq(&array![3., 3., 1.], 1e-12));
         assert!(model.get_intercept().abs_diff_eq(&1., 1e-12));
+    }
+
+    /// Check that the linear regression model works with both owned and view
+    /// representations of arrays
+    #[test]
+    fn works_with_viewed_and_owned_representations() {
+        let lin_reg = LinearRegression::new().fit_intercept_and_normalize();
+        let A: Array2<f64> = array![[0., 0., 0.], [1., 1., 1.], [2., 4., 8.], [3., 9., 27.]];
+        let b: Array1<f64> = array![1., 8., 27., 64.];
+        let A_view = A.slice(s![.., ..]);
+        let b_view = b.slice(s![..]);
+
+        let model1 = lin_reg.fit(&A, &b).expect("can't fit owned arrays");
+        let model2 = lin_reg
+            .fit(&A_view, &b)
+            .expect("can't fit feature view with owned target");
+        let model3 = lin_reg
+            .fit(&A, &b_view)
+            .expect("can't fit owned features with target view");
+        let model4 = lin_reg
+            .fit(&A_view, &b_view)
+            .expect("can't fit viewed arrays");
+
+        assert_eq!(model1.get_params(), model2.get_params());
+        assert_eq!(model2.get_params(), model3.get_params());
+        assert_eq!(model3.get_params(), model4.get_params());
+
+        assert_eq!(model1.get_intercept(), model2.get_intercept());
+        assert_eq!(model2.get_intercept(), model3.get_intercept());
+        assert_eq!(model3.get_intercept(), model4.get_intercept());
     }
 }
