@@ -7,6 +7,7 @@ pub mod utils;
 
 pub use diffusion_map::{DiffusionMap, DiffusionMapHyperParams};
 pub use utils::to_gaussian_similarity;
+pub use pca::PrincipalComponentAnalysis;
 
 use ndarray::NdFloat;
 use ndarray_linalg::Lapack;

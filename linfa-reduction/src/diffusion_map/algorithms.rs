@@ -85,7 +85,7 @@ fn compute_diffusion_map<A: Float>(kernel: impl Kernel<A>, steps: usize, alpha: 
         }, x, |_| {}, None, 1e-15, 200, TruncatedOrder::Largest);
 
         let (vals, vecs) = match result {
-            LobpcgResult::Ok(vals, vecs, n) | LobpcgResult::Err(vals, vecs, n, _) => { dbg!(&n); (vals, vecs)},
+            LobpcgResult::Ok(vals, vecs, _) | LobpcgResult::Err(vals, vecs, _, _) => { (vals, vecs)},
             _ => panic!("Eigendecomposition failed!")
         };
 
