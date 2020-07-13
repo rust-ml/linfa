@@ -1,15 +1,15 @@
 [package]
-name = "linfa-clustering"
+name = "linfa-reduction"
 version = "0.1.0"
+authors = ["Lorenz Schmidt <bytesnake@mailbox.org>"]
+description = "A collection of dimensionality reduction techniques"
 edition = "2018"
-authors = ["Luca Palmieri <rust@lpalmieri.com>"]
-description = "A collection of clustering algorithms"
 license = "MIT/Apache-2.0"
 
 repository = "https://github.com/LukeMathWalker/linfa"
 readme = "README.md"
 
-keywords = ["clustering", "machine-learning", "linfa", "k-means", "unsupervised"]
+keywords = ["dimensionality reduction", "machine-learning", "linfa", "spectral", "unsupervised"]
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
@@ -20,18 +20,13 @@ ndarray-linalg = { version = "0.12", features = ["openblas"] }
 sprs = "0.7"
 serde = { version = "1", features = ["derive"] }
 num-traits = "0.1.32"
+hnsw = "0.6"
+space = "0.10"
 
 [dev-dependencies]
 rand_isaac = "0.2.0"
 ndarray-npy = { version = "0.5", default-features = false }
 criterion = "0.3"
-serde_json = "1"
+serde_json = "1" 
 approx = "0.3"
-
-[[bench]]
-name = "k_means"
-harness = false
-
-[[bench]]
-name = "dbscan"
-harness = false
+linfa-clustering = { path = "../linfa-clustering" }
