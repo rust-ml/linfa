@@ -14,6 +14,7 @@ categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
 linfa-clustering = { path = "linfa-clustering", version = "0.1" }
+linfa-reduction = { path = "linfa-reduction", version = "0.1" }
 
 [dev-dependencies]
 ndarray = { version = "0.13" , features = ["rayon", "serde", "approx"]}
