@@ -32,3 +32,4 @@
 pub mod clustering {
     pub use linfa_clustering::*;
 }
+pub mod metrics;
