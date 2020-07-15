@@ -13,11 +13,11 @@ keywords = ["machine-learning", "linfa", "ai", "ml"]
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
+ndarray = { version = "0.13" , features = ["rayon", "serde", "approx"]}
 linfa-clustering = { path = "linfa-clustering", version = "0.1" }
 linfa-reduction = { path = "linfa-reduction", version = "0.1" }
 
 [dev-dependencies]
-ndarray = { version = "0.13" , features = ["rayon", "serde", "approx"]}
 ndarray-rand = "0.11"
 rand_isaac = "0.2.0"
 ndarray-npy = { version = "0.5", default-features = false }
