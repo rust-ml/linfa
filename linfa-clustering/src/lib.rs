@@ -26,6 +26,7 @@ mod dbscan;
 #[allow(clippy::new_ret_no_self)]
 mod k_means;
 mod utils;
+mod svm;
 
 pub use dbscan::*;
 pub use k_means::*;
