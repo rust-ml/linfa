@@ -1,6 +1,8 @@
 use crate::decision_trees::hyperparameters::{DecisionTreeParams, SplitQuality};
 use ndarray::{Array, Array1, ArrayBase, Axis, Data, Ix1, Ix2};
 
+/// `RowMask` is used to track which rows are still included up to a particular
+/// node in the tree for one particular feature.
 struct RowMask {
     mask: Vec<bool>,
     n_samples: u64,
@@ -13,13 +15,6 @@ impl RowMask {
             n_samples: n_samples,
         }
     }
-
-    fn of_vec(mask: Vec<bool>) -> Self {
-        RowMask {
-            n_samples: mask.len() as u64,
-            mask: mask,
-        }
-    }
 }
 
 struct SortedIndex {
@@ -28,10 +23,7 @@ struct SortedIndex {
 }
 
 impl SortedIndex {
-    fn of_array_column(
-        x: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
-        feature_idx: usize,
-    ) -> Self {
+    fn of_array_column(x: &ArrayBase<impl Data<Elem = f64>, Ix2>, feature_idx: usize) -> Self {
         let sliced_column: Vec<f64> = x.index_axis(Axis(1), feature_idx).to_vec();
         let mut pairs: Vec<(usize, f64)> = sliced_column.into_iter().enumerate().collect();
         pairs.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Greater));
@@ -54,8 +46,8 @@ struct TreeNode {
 
 impl TreeNode {
     fn fit(
-        x: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
-        y: &ArrayBase<impl Data<Elem = u64> + Sync, Ix1>,
+        x: &ArrayBase<impl Data<Elem = f64>, Ix2>,
+        y: &ArrayBase<impl Data<Elem = u64>, Ix1>,
         mask: &RowMask,
         hyperparameters: &DecisionTreeParams,
         sorted_indices: &Vec<SortedIndex>,
@@ -228,8 +220,8 @@ impl DecisionTree {
     /// a matrix of features `x` and an array of labels `y`.
     pub fn fit(
         hyperparameters: DecisionTreeParams,
-        x: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
-        y: &ArrayBase<impl Data<Elem = u64> + Sync, Ix1>,
+        x: &ArrayBase<impl Data<Elem = f64>, Ix2>,
+        y: &ArrayBase<impl Data<Elem = u64>, Ix1>,
     ) -> Self {
         let all_idxs = RowMask::all(x.nrows() as u64);
         let sorted_indices = (0..(x.ncols()))
@@ -261,7 +253,7 @@ impl DecisionTree {
 }
 
 /// Classify a sample &x recursively using the tree node `node`.
-fn make_prediction(x: &ArrayBase<impl Data<Elem = f64> + Sync, Ix1>, node: &TreeNode) -> u64 {
+fn make_prediction(x: &ArrayBase<impl Data<Elem = f64>, Ix1>, node: &TreeNode) -> u64 {
     if node.leaf_node {
         node.prediction
     } else {
@@ -276,7 +268,7 @@ fn make_prediction(x: &ArrayBase<impl Data<Elem = f64> + Sync, Ix1>, node: &Tree
 /// Given an array of labels and a row mask `mask` calculate the frequency of
 /// each class from 0 to `n_classes-1`.
 fn class_frequencies(
-    labels: &ArrayBase<impl Data<Elem = u64> + Sync, Ix1>,
+    labels: &ArrayBase<impl Data<Elem = u64>, Ix1>,
     mask: &RowMask,
     n_classes: u64,
 ) -> Vec<u64> {
@@ -298,7 +290,7 @@ fn class_frequencies(
 /// class that occurs the most frequent. If two classes occur with the same
 /// frequency then the first class is selected.
 fn prediction_for_rows(
-    labels: &ArrayBase<impl Data<Elem = u64> + Sync, Ix1>,
+    labels: &ArrayBase<impl Data<Elem = u64>, Ix1>,
     mask: &RowMask,
     n_classes: u64,
 ) -> u64 {
@@ -353,6 +345,13 @@ mod tests {
     use approx::assert_abs_diff_eq;
     use ndarray::Array;
 
+    fn of_vec(mask: Vec<bool>) -> RowMask {
+        RowMask {
+            n_samples: mask.len() as u64,
+            mask: mask,
+        }
+    }
+
     #[test]
     fn class_freq_example() {
         let labels = Array::from(vec![0, 0, 0, 0, 0, 0, 1, 1]);
@@ -364,7 +363,7 @@ mod tests {
         assert_eq!(
             class_frequencies(
                 &labels,
-                &RowMask::of_vec(vec![false, false, false, false, false, true, true, true]),
+                &tests::of_vec(vec![false, false, false, false, false, true, true, true]),
                 3
             ),
             vec![1, 2, 0]

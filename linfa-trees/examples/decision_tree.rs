@@ -6,20 +6,16 @@ use rand_isaac::Isaac64Rng;
 use std::iter::FromIterator;
 
 fn accuracy(
-    labels: &ArrayBase<impl Data<Elem = u64> + Sync, Ix1>,
-    pred: &ArrayBase<impl Data<Elem = u64> + Sync, Ix1>,
+    labels: &ArrayBase<impl Data<Elem = u64>, Ix1>,
+    pred: &ArrayBase<impl Data<Elem = u64>, Ix1>,
 ) -> f64 {
-    let mut correct = 0.0;
-    let mut total = 0.0;
-
-    for (y_label, y_pred) in labels.iter().zip(pred.iter()) {
-        if y_label == y_pred {
-            correct += 1.0
-        }
-        total += 1.0;
-    }
-
-    correct / total
+    let true_positive: f64 = labels
+        .iter()
+        .zip(pred.iter())
+        .filter(|(x, y)| x == y)
+        .map(|_| 1.0)
+        .sum();
+    true_positive / labels.len() as f64
 }
 
 // A routine K-means task: build a synthetic dataset, fit the algorithm on it
