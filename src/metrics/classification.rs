@@ -4,65 +4,247 @@
 //! common scoring functions like precision, accuracy, recall, f1-score, ROC and ROC
 //! Aread-Under-Curve.
 use ndarray::prelude::*;
-use ndarray::Data;
+use ndarray::{Data, OwnedRepr};
+use std::collections::HashMap;
+use std::hash::Hash;
+use std::iter::FromIterator;
+use std::fmt;
 
-/// Precision is the number of true positives divided by the number of prediction positives
-pub fn precision<D>(x: &ArrayBase<D, Ix1>, y: &[bool], threshold: f64) -> f64
-where
-    D: Data<Elem = f64>,
-{
-    let num_positive = x.iter().filter(|a| **a > threshold).count() as f64;
-    let num_true_positives = x
-        .into_iter()
-        .zip(y.into_iter())
-        .filter(|(a, b)| **a > threshold && **b)
-        .count() as f64;
+fn map_prediction_to_idx<A: Eq + Hash, D: Data<Elem = A>>(prediction: &ArrayBase<D, Ix1>, ground_truth: &ArrayBase<D, Ix1>, classes: &[A]) -> Vec<Option<(usize, usize)>> {
+    let set = classes.iter().enumerate()
+        .map(|(a, b)| (b, a))
+        .collect::<HashMap<_, usize>>();
 
-    num_true_positives / num_positive
+    prediction.iter().zip(ground_truth.iter()).map(|(a,b)| {
+        set.get(&a)
+            .and_then(|x| set.get(&b).map(|y| (*x, *y)))
+    }).collect::<Vec<Option<_>>>()
 }
 
-/// Accuracy is the number of correct classified divided by total number
-pub fn accuracy<D>(x: &ArrayBase<D, Ix1>, y: &[bool], threshold: f64) -> f64
-where
-    D: Data<Elem = f64>,
-{
-    let num_correctly_classified = x
-        .into_iter()
-        .zip(y.into_iter())
-        .filter(|(a, b)| (**a > threshold && **b) || (**a <= threshold && !**b))
-        .count() as f64;
-
-    let total_number = y.len() as f64;
-
-    num_correctly_classified / total_number
+pub struct ModifiedDataset<A, D: Data<Elem = A>> {
+    prediction: ArrayBase<D, Ix1>,
+    weights: Vec<usize>,
+    classes: Vec<A>
 }
 
-/// Recall is the number of true positives, divided by ground truth positives
-pub fn recall<D>(x: &ArrayBase<D, Ix1>, y: &[bool], threshold: f64) -> f64
-where
-    D: Data<Elem = f64>,
-{
-    let num_true_positives = x
-        .into_iter()
-        .zip(y.into_iter())
-        .filter(|(a, b)| **a > threshold && **b)
-        .count() as f64;
-
-    let total_number_positives = y.iter().filter(|x| **x).count() as f64;
-
-    num_true_positives / total_number_positives
+pub trait Prepare<A: PartialOrd + Eq + Hash, D: Data<Elem = A>> {
+    fn with_weights(self, weights: &[usize]) -> ModifiedDataset<A, D>;
+    fn reduce_classes(self, classes: &[A]) -> ModifiedDataset<A, D>;
 }
 
-/// F1 score is defined as a compromise between recall and precision
-pub fn f1_score<D>(x: &ArrayBase<D, Ix1>, y: &[bool], threshold: f64) -> f64
-where
-    D: Data<Elem = f64>,
-{
-    let recall = recall(x, y, threshold);
-    let precision = precision(x, y, threshold);
+impl<A: PartialOrd + Eq + Hash + Clone, D: Data<Elem = A>> Prepare<A, D> for ArrayBase<D, Ix1> {
+    fn with_weights(self, weights: &[usize]) -> ModifiedDataset<A, D> {
+        ModifiedDataset {
+            prediction: self, 
+            weights: weights.to_vec(),
+            classes: Vec::new()
+        }
+    }
 
-    2.0 * (recall * precision) / (recall + precision)
+    fn reduce_classes(self, classes: &[A]) -> ModifiedDataset<A, D> {
+        ModifiedDataset {
+            prediction: self,
+            weights: Vec::new(),
+            classes: classes.to_vec()
+        }
+    }
 }
+
+impl<A: PartialOrd + Eq + Hash + Clone, D: Data<Elem = A>> Prepare<A, D> for ModifiedDataset<A, D> {
+    fn with_weights(self, weights: &[usize]) -> ModifiedDataset<A, D> {
+        ModifiedDataset {
+            prediction: self.prediction,
+            weights: weights.to_vec(),
+            classes: self.classes
+        }
+    }
+
+    fn reduce_classes(self, classes: &[A]) -> ModifiedDataset<A, D> {
+        ModifiedDataset {
+            prediction: self.prediction,
+            weights: self.weights,
+            classes: classes.to_vec()
+        }
+    }
+}
+
+pub struct ConfusionMatrix<A> {
+    matrix: Array2<usize>,
+    members: Array1<A>
+}
+
+impl<A> ConfusionMatrix<A> {
+    pub fn precision_individual(&self) -> Array1<f32> {
+        let sum = self.matrix.sum_axis(Axis(0));
+
+        Array1::from_iter(
+            self.matrix.diag().iter()
+                .zip(sum.iter())
+                .map(|(a, b)| *a as f32 / *b as f32)
+        )
+    }
+
+    pub fn recall_individual(&self) -> Array1<f32> {
+        let sum = self.matrix.sum_axis(Axis(1));
+
+        Array1::from_iter(
+            self.matrix.diag().iter()
+                .zip(sum.iter())
+                .map(|(a, b)| *a as f32 / *b as f32)
+        )
+    }
+
+    pub fn accuracy_individual(&self) -> Array1<f32> {
+        let sum = self.matrix.sum();
+
+        self.matrix.diag().mapv(|x| x as f32) / sum as f32
+    }
+
+    pub fn precision(&self) -> f32 {
+        self.precision_individual().mean().unwrap()
+    }
+
+    pub fn recall(&self) -> f32 {
+        self.recall_individual().mean().unwrap()
+    }
+
+    pub fn accuracy(&self) -> f32 {
+        self.accuracy_individual().mean().unwrap()
+    }
+
+    pub fn f_score(&self, beta: f32) -> f32 {
+        let sb = beta * beta;
+        let precision = self.precision();
+        let recall = self.recall();
+
+        (1.0 + sb)* (precision * recall) / (sb * precision + recall)
+    }
+
+    pub fn f1_score(&self) -> f32 {
+        self.f_score(1.0)
+    }
+
+    pub fn matthew_correlation(&self) -> f32 {
+        let mut upper = 0.0;
+        for k in 0..self.members.len() {
+            for l in 0..self.members.len() {
+                for m in 0..self.members.len() {
+                    upper += self.matrix[(k, k)] as f32 * self.matrix[(l, m)] as f32;
+                    upper -= self.matrix[(k, l)] as f32 * self.matrix[(m, k)] as f32;
+                }
+            }
+        }
+
+        upper
+    }
+}
+
+impl<A: fmt::Display> fmt::Debug for ConfusionMatrix<A> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let len = self.matrix.len_of(Axis(0));
+        for _ in 0..len*4+1 {
+            write!(f, "-")?;
+        }
+        write!(f, "\n")?;
+
+        for i in 0..len {
+            write!(f, "| ")?;
+
+            for j in 0..len {
+                write!(f, "{} | ", self.matrix[(i, j)])?;
+            }
+            write!(f, "\n")?;
+        }
+
+        for _ in 0..len*4+1 {
+            write!(f, "-")?;
+        }
+
+        Ok(())
+    }
+}
+
+pub trait Classification<A: PartialEq + Ord, D: Data<Elem = A>> {
+    fn accuracy(&self, ground_truth: &ArrayBase<D, Ix1>) -> f32;
+    fn confusion_matrix(self, ground_truth: &ArrayBase<D, Ix1>) -> ConfusionMatrix<A>;
+}
+
+impl<A: Eq + Hash + Copy + Ord, D: Data<Elem = A>> Classification<A, D> for ModifiedDataset<A, D> {
+    fn accuracy(&self, ground_truth: &ArrayBase<D, Ix1>) -> f32{
+        if self.weights.len() != self.prediction.len() {
+            self.prediction.iter().zip(ground_truth.iter())
+                .filter(|(x, y)| x == y)
+                .count() as f32 / ground_truth.len() as f32
+        } else {
+            let total_size: usize = self.weights.iter().map(|x| *x).sum();
+            self.prediction.iter().zip(ground_truth.iter()).zip(self.weights.iter())
+                .filter(|((x, y), _)| x == y)
+                .map(|(_, weight)| *weight as f32)
+                .sum::<f32>() / total_size as f32
+        }
+    }
+
+    fn confusion_matrix(self, ground_truth: &ArrayBase<D, Ix1>) -> ConfusionMatrix<A> {
+        let classes = if self.classes.len() == 0 {
+            let mut classes = ground_truth.iter().chain(self.prediction.iter()).map(|x| *x).collect::<Vec<_>>();
+            classes.sort();
+            classes.dedup();
+            classes
+        } else {
+            self.classes
+        };
+
+        let indices = map_prediction_to_idx(&self.prediction, ground_truth, &classes);
+        let mut confusion_matrix = Array2::zeros((classes.len(), classes.len()));
+
+        for (i1, i2) in indices.into_iter().filter_map(|x| x) {
+            confusion_matrix[(i1, i2)] += 1;
+        }
+
+        ConfusionMatrix {
+            matrix: confusion_matrix, 
+            members: Array1::from(classes)
+        }
+    }
+}
+
+impl<A: Eq + std::hash::Hash + Copy + Ord, D: Data<Elem = A>>  Classification<A, D> for ArrayBase<D, Ix1> {
+    fn accuracy(&self, ground_truth: &ArrayBase<D, Ix1>) -> f32 {
+        self.iter().zip(ground_truth.iter())
+            .filter(|(x, y)| x == y)
+            .count() as f32 / ground_truth.len() as f32
+    }
+
+    default fn confusion_matrix(self, ground_truth: &ArrayBase<D, Ix1>) -> ConfusionMatrix<A> {
+        let tmp = ModifiedDataset {
+            prediction: self,
+            classes: Vec::new(),
+            weights: Vec::new()
+        };
+
+        tmp.confusion_matrix(ground_truth)
+    }
+}
+
+impl Classification<bool, OwnedRepr<bool>> for Array1<bool> {
+    fn confusion_matrix(self, ground_truth: &Array1<bool>) -> ConfusionMatrix<bool> {
+        let mut confusion_matrix = Array2::zeros((2, 2));
+        for result in self.iter().zip(ground_truth.iter()) {
+            match result {
+                (true, true) => confusion_matrix[(0, 0)] += 1,
+                (true, false) => confusion_matrix[(1, 0)] += 1,
+                (false, true) => confusion_matrix[(0, 1)] += 1,
+                (false, false) => confusion_matrix[(1, 1)] += 1
+            }
+        }
+
+        ConfusionMatrix {
+            matrix: confusion_matrix,
+            members: Array::from(vec![true, false])
+        }
+    }
+}
+
 
 /// The ROC curve gives insight about the seperability of a binary classification task. This
 /// functions returns the ROC curve and threshold belonging to each position on the curve.
@@ -143,6 +325,20 @@ mod tests {
     use super::roc_auc;
     use ndarray::Array1;
     use std::iter::FromIterator;
+    use super::{Prepare, Classification};
+
+    #[test]
+    fn test_accuracy() {
+        let predicted = Array1::from(vec![1, 1, 2, 2, 3, 4]);
+        let ground_truth = Array1::from(vec![1, 1, 2, 3, 3, 3]);
+
+        let x = predicted
+            .with_weights(&[0])
+            .confusion_matrix(&ground_truth);
+
+        println!("{:?}", x);
+        println!("{}", x.recall());
+    }
 
     #[test]
     fn test_auc() {

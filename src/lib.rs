@@ -1,3 +1,4 @@
+#![feature(specialization)]
 //! `linfa` aims to provide a comprehensive toolkit to build Machine Learning applications
 //! with Rust.
 //!
@@ -29,6 +30,7 @@
 //!
 
 /// Clustering algorithms for unlabeled data.
+
 pub mod clustering {
     pub use linfa_clustering::*;
 }
