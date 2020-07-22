@@ -1,6 +1,6 @@
 //! # Logistic Regression
 //!
-//! `linfa-logistic` provides a two class logistic regression model. 
+//! `linfa-logistic` provides a two class logistic regression model.
 //!
 //! `linfa-logistic` is part of the `linfa` crate, which is an
 //! effort to bootstrap a toolkit for classical Machine Learning
@@ -19,6 +19,7 @@ pub struct LogisticRegression {
     fit_intercept: bool,
     max_iterations: u64,
     gradient_tolerance: f64,
+    initial_params: Option<(Array1<f64>, f64)>,
 }
 
 impl Default for LogisticRegression {
@@ -39,6 +40,7 @@ impl LogisticRegression {
             fit_intercept: true,
             max_iterations: 100,
             gradient_tolerance: 1e-4,
+            initial_params: None,
         }
     }
 
@@ -55,17 +57,29 @@ impl LogisticRegression {
         self
     }
 
-    /// Configure the maximum number of iterations that the solver should perform, 
+    /// Configure the maximum number of iterations that the solver should perform,
     /// defaults to `100`.
     pub fn max_iterations(mut self, max_iterations: u64) -> LogisticRegression {
         self.max_iterations = max_iterations;
         self
     }
 
-    /// Configure the minimum change to the gradient to continue the solver, 
+    /// Configure the minimum change to the gradient to continue the solver,
     /// defaults to `1e-4`.
     pub fn gradient_tolerance(mut self, gradient_tolerance: f64) -> LogisticRegression {
         self.gradient_tolerance = gradient_tolerance;
+        self
+    }
+
+    /// Configure the initial parameters from where the optimization starts.
+    /// The `params` array must have the same size as the number of columns of
+    /// the feature matrix `x` passed to the `fit` method
+    pub fn initial_params(
+        mut self,
+        params: Array1<f64>,
+        intercept: f64,
+    ) -> LogisticRegression {
+        self.initial_params = Some((params, intercept));
         self
     }
 
@@ -77,7 +91,7 @@ impl LogisticRegression {
     /// and 1.0 - but the values can also be different), which represent the
     /// two different classes.
     ///
-    /// The method returns a FittedLogisticRegression which can be used to 
+    /// The method returns a FittedLogisticRegression which can be used to
     /// make predictions.
     pub fn fit(
         &self,
@@ -111,10 +125,25 @@ impl LogisticRegression {
         if !self.gradient_tolerance.is_finite() || self.gradient_tolerance <= 0.0 {
             return Err("gradient_tolerance must be a positive, finite number".to_string());
         }
+        self.validate_init_params(x)?;
         Ok(())
     }
 
-    /// Convert `y` into a vector of `-1.0` and `1.0` and return a 
+    fn validate_init_params(&self, x: &Array2<f64>) -> Result<(), String> {
+        if let Some((params, intercept)) = self.initial_params.as_ref() {
+            let (_, n_features) = x.dim();
+            if n_features != params.dim() {
+                return Err("Size of initial parameter guess must be the same as the number of columns in the feature matrix `x`".to_string());
+            }
+            if params.iter().any(|p| !p.is_finite()) || !intercept.is_finite()
+            {
+                return Err("Initial parameter guess must be finite".to_string());
+            }
+        }
+        Ok(())
+    }
+
+    /// Convert `y` into a vector of `-1.0` and `1.0` and return a
     /// `LogisticRegressionProblem`.
     fn setup_problem<'a>(
         &self,
@@ -130,7 +159,8 @@ impl LogisticRegression {
         }
     }
 
-    /// Create the initial parameters, a 1-d array of `0`s.
+    /// Create the initial parameters, a user supplied guess or a 1-d array of
+    /// `0`s.
     fn setup_init_params(&self, x: &Array2<f64>) -> Array1<f64> {
         let n_features = x.shape()[1];
         let param_len = if self.fit_intercept {
@@ -139,8 +169,18 @@ impl LogisticRegression {
             n_features
         };
 
-        // FIXME: maybe we want to supply an option to provide an initial guess?
-        Array1::from(vec![0.0; param_len])
+        let mut init_parmas = Array1::zeros(param_len);
+
+        if let Some((params, intercept)) = self.initial_params.as_ref() {
+            init_parmas
+                .slice_mut(s![..n_features])
+                .assign(params);
+            if param_len == n_features + 1 {
+                init_parmas[n_features] = *intercept;
+            }
+        }
+
+        init_parmas
     }
 
     /// Create the LBFGS solver using MoreThuenteLineSearch and set gradient
@@ -245,7 +285,7 @@ fn logistic(x: f64) -> f64 {
 
 /// A numerically stable version of the log of the logistic function.
 ///
-/// Taken from scikit-learn 
+/// Taken from scikit-learn
 /// https://github.com/scikit-learn/scikit-learn/blob/0.23.1/sklearn/utils/_logistic_sigmoid.pyx
 ///
 /// See the blog post describing this implementation:
@@ -260,11 +300,11 @@ fn log_logistic(x: f64) -> f64 {
 
 /// Computes the logistic loss assuming the training labels $y \in {-1, 1}$
 ///
-/// Because the logistic function fullfills $\sigma(-z) = 1 - \sigma(z)$ 
-/// we can write $P(y=1|z) = \sigma(z) = \sigma(yz)$ and 
+/// Because the logistic function fullfills $\sigma(-z) = 1 - \sigma(z)$
+/// we can write $P(y=1|z) = \sigma(z) = \sigma(yz)$ and
 /// $P(y=-1|z) = 1 - P(y=1|z) = 1 - \sigma(z) = \sigma(-z) = \sigma(yz)$, so
-/// $P(y|z) = \sigma(yz)$ for both $y=1$ and $y=-1$. 
-/// 
+/// $P(y|z) = \sigma(yz)$ for both $y=1$ and $y=-1$.
+///
 /// Thus, the log loss can be written as
 /// $$-\sum_{i=1}^{N} \log(\sigma(y_i z_i)) + \frac{\alpha}{2}\text{params}^T\text{params}$$
 fn logistic_loss(x: &Array2<f64>, y: &Array1<f64>, alpha: f64, w: &Array1<f64>) -> f64 {
@@ -574,4 +614,51 @@ mod test {
             );
         }
     }
+
+    #[test]
+    fn validates_initial_params() {
+        let infs = vec![f64::INFINITY, f64::NEG_INFINITY, f64::NAN];
+        let normal_x = array![[-1.0], [1.0]];
+        let normal_y = array![0.0, 1.0];
+        let expected = Err("Initial parameter guess must be finite".to_string());
+        for inf in &infs {
+            let log_reg = LogisticRegression::default().initial_params(array![*inf], 0.0);
+            let res = log_reg.fit(&normal_x, &normal_y);
+            assert_eq!(res, expected);
+        }
+        for inf in &infs {
+            let log_reg = LogisticRegression::default().initial_params(array![0.0], *inf);
+            let res = log_reg.fit(&normal_x, &normal_y);
+            assert_eq!(res, expected);
+        }
+        {
+            let log_reg = LogisticRegression::default().initial_params(array![0.0, 0.0], 0.0);
+            let res = log_reg.fit(&normal_x, &normal_y);
+            assert_eq!(res, Err("Size of initial parameter guess must be the same as the number of columns in the feature matrix `x`".to_string()));
+        }
+    }
+
+    #[test]
+    fn uses_initial_params() {
+        let (params, intercept) = (array![1.2], -4.1);
+        let log_reg = LogisticRegression::default().initial_params(params, intercept).max_iterations(5);
+        let x = array![
+            [0.0],
+            [1.0],
+            [2.0],
+            [3.0],
+            [4.0],
+            [5.0],
+            [6.0],
+            [7.0],
+            [8.0],
+            [9.0]
+        ];
+        let y = array![0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
+        let res = log_reg.fit(&x, &y).unwrap();
+        assert!(res.intercept().abs_diff_eq(&-4.126156756781147, 1e-4));
+        assert!(res.params().abs_diff_eq(&array![1.1810803637424347], 1e-4));
+        assert_eq!(res.predict(&x), y);
+    }
+
 }
