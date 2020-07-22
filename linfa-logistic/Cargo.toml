@@ -1,0 +1,22 @@
+[package]
+name = "linfa-logistic"
+version = "0.1.0"
+authors = ["Paul Körbitz / Google <koerbitz@google.com>"]
+edition = "2018"
+workspace = ".."
+
+[features]
+default = []
+openblas = ["ndarray-linalg/openblas"]
+intel-mkl = ["ndarray-linalg/intel-mkl"]
+netlib = ["ndarray-linalg/netlib"]
+
+[dependencies]
+ndarray = {version = "0.13", features = ["blas", "approx"]}
+ndarray-linalg = {version = "0.12", default-features = false}
+num-traits = {version="0.2"}
+argmin = {version="0.3.1", features=["ndarrayl"]}
+
+[dev-dependencies]
+approx = "0.3.2"
+ndarray-linalg = {version = "0.12", features = ["openblas"]}
