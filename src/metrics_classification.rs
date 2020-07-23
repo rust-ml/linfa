@@ -18,7 +18,7 @@ fn map_prediction_to_idx<A: Eq + Hash, D: Data<Elem = A>>(prediction: &ArrayBase
         .map(|(a, b)| (b, a))
         .collect::<HashMap<_, usize>>();
 
-    // get indices for every prediction
+    // indices for every prediction
     ground_truth.iter().zip(prediction.iter()).map(|(a,b)| {
         set.get(&a)
             .and_then(|x| set.get(&b).map(|y| (*x, *y)))
@@ -253,25 +253,25 @@ impl Classification<bool, OwnedRepr<bool>> for Array1<bool> {
 
 /// The ROC curve gives insight about the seperability of a binary classification task. This
 /// functions returns the ROC curve and threshold belonging to each position on the curve.
-pub fn roc_curve<D>(x: &ArrayBase<D, Ix1>, y: &[bool]) -> (Vec<(f64, f64)>, Vec<f64>)
+pub fn roc_curve<A: NdFloat, D>(x: &ArrayBase<D, Ix1>, y: &[bool]) -> (Vec<(A, A)>, Vec<A>)
 where
-    D: Data<Elem = f64>,
+    D: Data<Elem = A>,
 {
     let mut tuples = x
         .iter()
         .zip(y.iter())
-        .filter_map(|(a, b)| if *a >= 0.0 { Some((*a, *b)) } else { None })
-        .collect::<Vec<(f64, bool)>>();
+        .filter_map(|(a, b)| if *a >= A::zero() { Some((*a, *b)) } else { None })
+        .collect::<Vec<(A, bool)>>();
 
-    tuples.sort_unstable_by(&|a: &(f64, _), b: &(f64, _)| match a.0.partial_cmp(&b.0) {
+    tuples.sort_unstable_by(&|a: &(A, _), b: &(A, _)| match a.0.partial_cmp(&b.0) {
         Some(ord) => ord,
         None => unreachable!(),
     });
 
-    let (mut tp, mut fp) = (0.0, 0.0);
+    let (mut tp, mut fp) = (A::zero(), A::zero());
     let mut tps_fps = Vec::new();
     let mut thresholds = Vec::new();
-    let mut s0 = 0.0;
+    let mut s0 = A::zero();
 
     for (s, t) in tuples {
         if s != s0 {
@@ -281,9 +281,9 @@ where
         }
 
         if t {
-            tp += 1.0;
+            tp += A::one();
         } else {
-            fp += 1.0;
+            fp += A::one();
         }
     }
     tps_fps.push((tp, fp));
@@ -298,13 +298,13 @@ where
 }
 
 /// Integration using the trapezoidal rule.
-fn trapezoidal(vals: &[(f64, f64)]) -> f64 {
+fn trapezoidal<A: NdFloat>(vals: &[(A, A)]) -> A {
     let mut prev_x = vals[0].0;
     let mut prev_y = vals[0].1;
-    let mut integral = 0.0;
+    let mut integral = A::zero();
 
     for (x, y) in vals.iter().skip(1) {
-        integral = integral + (x - prev_x) * (prev_y + y) / 2.0;
+        integral = integral + (*x - prev_x) * (prev_y + *y) / A::from(2.0).unwrap();
         prev_x = *x;
         prev_y = *y;
     }
@@ -315,9 +315,9 @@ fn trapezoidal(vals: &[(f64, f64)]) -> f64 {
 ///
 /// This function takes a prediction and ground truth and returns the ROC curve, threshold and AUC
 /// value
-pub fn roc_auc<D>(x: &ArrayBase<D, Ix1>, y: &[bool]) -> (Vec<(f64, f64)>, Vec<f64>, f64)
+pub fn roc_auc<A: NdFloat + PartialOrd, D>(x: &ArrayBase<D, Ix1>, y: &[bool]) -> (Vec<(A, A)>, Vec<A>, A)
 where
-    D: Data<Elem = f64>,
+    D: Data<Elem = A>,
 {
     let (roc_curve, thresholds) = roc_curve(x, y);
     let roc_auc = trapezoidal(&roc_curve);
