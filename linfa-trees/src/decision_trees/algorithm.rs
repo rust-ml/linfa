@@ -1,5 +1,6 @@
 use crate::decision_trees::hyperparameters::{DecisionTreeParams, SplitQuality};
-use ndarray::{Array, Array1, ArrayBase, Axis, Data, Ix1, Ix2};
+use ndarray::{Array1, ArrayBase, Axis, Data, Ix1, Ix2};
+use std::iter::FromIterator;
 
 /// `RowMask` is used to track which rows are still included up to a particular
 /// node in the tree for one particular feature.
@@ -61,22 +62,19 @@ impl TreeNode {
             leaf_node |= depth > max_depth;
         }
 
-        let prediction = prediction_for_rows(&y, &mask, hyperparameters.n_classes);
+        let parent_class_freq = class_frequencies(&y, mask, hyperparameters.n_classes);
+        let prediction = prediction_for_rows(&parent_class_freq);
 
         let mut best_feature_idx = None;
         let mut best_split_value = None;
         let mut best_score = None;
 
-        let parent_class_freq = class_frequencies(&y, mask, hyperparameters.n_classes);
-
         // Find best split for current level
-        for feature_idx in 0..(x.ncols()) {
+        for (feature_idx, sorted_index) in sorted_indices.iter().enumerate() {
             let mut left_class_freq = parent_class_freq.clone();
             let mut right_class_freq = vec![0; hyperparameters.n_classes as usize];
 
-            let sorted_index = &sorted_indices[feature_idx];
-
-            for i in 0..(mask.mask.len() - 1) {
+            for i in 0..mask.mask.len() - 1 {
                 let split_value = sorted_index.features[i];
                 let presorted_index = sorted_index.presorted_indices[i];
 
@@ -238,13 +236,9 @@ impl DecisionTree {
 
     /// Make predictions for each row of a matrix of features `x`.
     pub fn predict(&self, x: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<u64> {
-        let mut preds = vec![];
-
-        for row in x.genrows().into_iter() {
-            preds.push(make_prediction(&row, &self.root_node));
-        }
-
-        Array::from(preds)
+        Array1::from_iter(
+            x.genrows().into_iter().map(|row| make_prediction(&row, &self.root_node))
+        )
     }
 
     pub fn hyperparameters(&self) -> &DecisionTreeParams {
@@ -290,12 +284,8 @@ fn class_frequencies(
 /// class that occurs the most frequent. If two classes occur with the same
 /// frequency then the first class is selected.
 fn prediction_for_rows(
-    labels: &ArrayBase<impl Data<Elem = u64>, Ix1>,
-    mask: &RowMask,
-    n_classes: u64,
+    class_freq: &Vec<u64>
 ) -> u64 {
-    let class_freq = class_frequencies(labels, mask, n_classes);
-
     class_freq
         .iter()
         .enumerate()
@@ -373,8 +363,13 @@ mod tests {
     #[test]
     fn prediction_for_rows_example() {
         let labels = Array::from(vec![0, 0, 0, 0, 0, 0, 1, 1]);
+        let row_mask = RowMask::all(labels.len() as u64);
+        let n_classes = 3;
+
+        let class_freq = class_frequencies(&labels, &row_mask, n_classes);
+
         assert_eq!(
-            prediction_for_rows(&labels, &RowMask::all(labels.len() as u64), 3),
+            prediction_for_rows(&class_freq),
             0
         );
     }
