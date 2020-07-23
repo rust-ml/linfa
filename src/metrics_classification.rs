@@ -3,46 +3,59 @@
 //! Scoring is essential for classification and regression tasks. This module implements
 //! common scoring functions like precision, accuracy, recall, f1-score, ROC and ROC
 //! Aread-Under-Curve.
-use ndarray::prelude::*;
-use ndarray::{Data, OwnedRepr};
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::iter::FromIterator;
 use std::fmt;
 
+use ndarray::prelude::*;
+use ndarray::Data;
+
+/// Return tuple of class index for each element of prediction and ground_truth 
 fn map_prediction_to_idx<A: Eq + Hash, D: Data<Elem = A>>(prediction: &ArrayBase<D, Ix1>, ground_truth: &ArrayBase<D, Ix1>, classes: &[A]) -> Vec<Option<(usize, usize)>> {
+    // create a map from class label to index
     let set = classes.iter().enumerate()
         .map(|(a, b)| (b, a))
         .collect::<HashMap<_, usize>>();
 
-    prediction.iter().zip(ground_truth.iter()).map(|(a,b)| {
+    // get indices for every prediction
+    ground_truth.iter().zip(prediction.iter()).map(|(a,b)| {
         set.get(&a)
             .and_then(|x| set.get(&b).map(|y| (*x, *y)))
     }).collect::<Vec<Option<_>>>()
 }
 
-pub struct ModifiedDataset<A, D: Data<Elem = A>> {
+/// A modified prediction
+///
+/// It can happen that only a subset of classes are of interest or the samples have different
+/// weights in the resulting evaluations. For this a `ModifiedPrediction` struct offers the
+/// possibility to modify a prediction before evaluation.
+pub struct ModifiedPrediction<A, D: Data<Elem = A>> {
     prediction: ArrayBase<D, Ix1>,
     weights: Vec<usize>,
     classes: Vec<A>
 }
 
-pub trait Prepare<A: PartialOrd + Eq + Hash, D: Data<Elem = A>> {
-    fn with_weights(self, weights: &[usize]) -> ModifiedDataset<A, D>;
-    fn reduce_classes(self, classes: &[A]) -> ModifiedDataset<A, D>;
+/// Modify dataset weights or classes
+pub trait Modify<A: PartialOrd + Eq + Hash, D: Data<Elem = A>> {
+    /// Add weights to the samples
+    fn with_weights(self, weights: &[usize]) -> ModifiedPrediction<A, D>;
+    /// Select subset of classes
+    fn reduce_classes(self, classes: &[A]) -> ModifiedPrediction<A, D>;
 }
 
-impl<A: PartialOrd + Eq + Hash + Clone, D: Data<Elem = A>> Prepare<A, D> for ArrayBase<D, Ix1> {
-    fn with_weights(self, weights: &[usize]) -> ModifiedDataset<A, D> {
-        ModifiedDataset {
+/// Implementation for prediction stored in `ndarray`
+impl<A: PartialOrd + Eq + Hash + Clone, D: Data<Elem = A>> Modify<A, D> for ArrayBase<D, Ix1> {
+    fn with_weights(self, weights: &[usize]) -> ModifiedPrediction<A, D> {
+        ModifiedPrediction {
             prediction: self, 
             weights: weights.to_vec(),
             classes: Vec::new()
         }
     }
 
-    fn reduce_classes(self, classes: &[A]) -> ModifiedDataset<A, D> {
-        ModifiedDataset {
+    fn reduce_classes(self, classes: &[A]) -> ModifiedPrediction<A, D> {
+        ModifiedPrediction {
             prediction: self,
             weights: Vec::new(),
             classes: classes.to_vec()
@@ -50,17 +63,18 @@ impl<A: PartialOrd + Eq + Hash + Clone, D: Data<Elem = A>> Prepare<A, D> for Arr
     }
 }
 
-impl<A: PartialOrd + Eq + Hash + Clone, D: Data<Elem = A>> Prepare<A, D> for ModifiedDataset<A, D> {
-    fn with_weights(self, weights: &[usize]) -> ModifiedDataset<A, D> {
-        ModifiedDataset {
+/// Implementation for already modified prediction
+impl<A: PartialOrd + Eq + Hash + Clone, D: Data<Elem = A>> Modify<A, D> for ModifiedPrediction<A, D> {
+    fn with_weights(self, weights: &[usize]) -> ModifiedPrediction<A, D> {
+        ModifiedPrediction {
             prediction: self.prediction,
             weights: weights.to_vec(),
             classes: self.classes
         }
     }
 
-    fn reduce_classes(self, classes: &[A]) -> ModifiedDataset<A, D> {
-        ModifiedDataset {
+    fn reduce_classes(self, classes: &[A]) -> ModifiedPrediction<A, D> {
+        ModifiedPrediction {
             prediction: self.prediction,
             weights: self.weights,
             classes: classes.to_vec()
@@ -68,23 +82,18 @@ impl<A: PartialOrd + Eq + Hash + Clone, D: Data<Elem = A>> Prepare<A, D> for Mod
     }
 }
 
+/// Confusion matrix for multi-label evaluation
+///
+/// A confusion matrix shows predictions in a matrix, where rows correspond to target and columns
+/// to predicted. The diagonal entries are correct predictions.
 pub struct ConfusionMatrix<A> {
     matrix: Array2<usize>,
     members: Array1<A>
 }
 
 impl<A> ConfusionMatrix<A> {
-    pub fn precision_individual(&self) -> Array1<f32> {
-        let sum = self.matrix.sum_axis(Axis(0));
-
-        Array1::from_iter(
-            self.matrix.diag().iter()
-                .zip(sum.iter())
-                .map(|(a, b)| *a as f32 / *b as f32)
-        )
-    }
-
-    pub fn recall_individual(&self) -> Array1<f32> {
+    /// Calculate precision for every class
+    pub fn precision(&self) -> Array1<f32> {
         let sum = self.matrix.sum_axis(Axis(1));
 
         Array1::from_iter(
@@ -94,37 +103,43 @@ impl<A> ConfusionMatrix<A> {
         )
     }
 
-    pub fn accuracy_individual(&self) -> Array1<f32> {
-        let sum = self.matrix.sum();
+    /// Calculate recall for every class
+    pub fn recall(&self) -> Array1<f32> {
+        let sum = self.matrix.sum_axis(Axis(0));
 
-        self.matrix.diag().mapv(|x| x as f32) / sum as f32
+        Array1::from_iter(
+            self.matrix.diag().iter()
+                .zip(sum.iter())
+                .map(|(a, b)| *a as f32 / *b as f32)
+        )
     }
 
-    pub fn precision(&self) -> f32 {
-        self.precision_individual().mean().unwrap()
-    }
-
-    pub fn recall(&self) -> f32 {
-        self.recall_individual().mean().unwrap()
-    }
-
+    /// Return mean accuracy
     pub fn accuracy(&self) -> f32 {
-        self.accuracy_individual().mean().unwrap()
+        self.matrix.diag().sum() as f32 / self.matrix.sum() as f32
     }
 
-    pub fn f_score(&self, beta: f32) -> f32 {
+    /// Return mean beta score
+    pub fn f_score(&self, beta: f32) -> Array1<f32> {
         let sb = beta * beta;
         let precision = self.precision();
         let recall = self.recall();
 
-        (1.0 + sb)* (precision * recall) / (sb * precision + recall)
+        Array::from_iter(
+            precision.iter().zip(recall.iter())
+                .map(|(p, r)| (1.0 + sb) * (p * r) / (sb * p + r))
+        )
     }
 
-    pub fn f1_score(&self) -> f32 {
+    /// Return mean beta=1 score
+    pub fn f1_score(&self) -> Array1<f32> {
         self.f_score(1.0)
     }
 
-    pub fn matthew_correlation(&self) -> f32 {
+    /// Return the Matthew Correlation Coefficients
+    ///
+    /// Estimates the correlation between target and predicted variable
+    pub fn mcc(&self) -> f32 {
         let mut upper = 0.0;
         for k in 0..self.members.len() {
             for l in 0..self.members.len() {
@@ -139,6 +154,7 @@ impl<A> ConfusionMatrix<A> {
     }
 }
 
+/// Print a confusion matrix
 impl<A: fmt::Display> fmt::Debug for ConfusionMatrix<A> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let len = self.matrix.len_of(Axis(0));
@@ -164,29 +180,20 @@ impl<A: fmt::Display> fmt::Debug for ConfusionMatrix<A> {
     }
 }
 
+/// Classification functions
+///
+/// Contains only routine for Confusion Matrix, as all other current metrices can be derived from
+/// the entries in the matrix.
 pub trait Classification<A: PartialEq + Ord, D: Data<Elem = A>> {
-    fn accuracy(&self, ground_truth: &ArrayBase<D, Ix1>) -> f32;
     fn confusion_matrix(self, ground_truth: &ArrayBase<D, Ix1>) -> ConfusionMatrix<A>;
 }
 
-impl<A: Eq + Hash + Copy + Ord, D: Data<Elem = A>> Classification<A, D> for ModifiedDataset<A, D> {
-    fn accuracy(&self, ground_truth: &ArrayBase<D, Ix1>) -> f32{
-        if self.weights.len() != self.prediction.len() {
-            self.prediction.iter().zip(ground_truth.iter())
-                .filter(|(x, y)| x == y)
-                .count() as f32 / ground_truth.len() as f32
-        } else {
-            let total_size: usize = self.weights.iter().map(|x| *x).sum();
-            self.prediction.iter().zip(ground_truth.iter()).zip(self.weights.iter())
-                .filter(|((x, y), _)| x == y)
-                .map(|(_, weight)| *weight as f32)
-                .sum::<f32>() / total_size as f32
-        }
-    }
-
+impl<A: Eq + Hash + Copy + Ord, D: Data<Elem = A>> Classification<A, D> for ModifiedPrediction<A, D> {
     fn confusion_matrix(self, ground_truth: &ArrayBase<D, Ix1>) -> ConfusionMatrix<A> {
+        // if we don't have any classes, create a set of predicted labels
         let classes = if self.classes.len() == 0 {
             let mut classes = ground_truth.iter().chain(self.prediction.iter()).map(|x| *x).collect::<Vec<_>>();
+            // create a set
             classes.sort();
             classes.dedup();
             classes
@@ -194,9 +201,11 @@ impl<A: Eq + Hash + Copy + Ord, D: Data<Elem = A>> Classification<A, D> for Modi
             self.classes
         };
 
+        // find indices to labels
         let indices = map_prediction_to_idx(&self.prediction, ground_truth, &classes);
-        let mut confusion_matrix = Array2::zeros((classes.len(), classes.len()));
 
+        // count each index tuple in the confusion matrix
+        let mut confusion_matrix = Array2::zeros((classes.len(), classes.len()));
         for (i1, i2) in indices.into_iter().filter_map(|x| x) {
             confusion_matrix[(i1, i2)] += 1;
         }
@@ -209,14 +218,8 @@ impl<A: Eq + Hash + Copy + Ord, D: Data<Elem = A>> Classification<A, D> for Modi
 }
 
 impl<A: Eq + std::hash::Hash + Copy + Ord, D: Data<Elem = A>>  Classification<A, D> for ArrayBase<D, Ix1> {
-    fn accuracy(&self, ground_truth: &ArrayBase<D, Ix1>) -> f32 {
-        self.iter().zip(ground_truth.iter())
-            .filter(|(x, y)| x == y)
-            .count() as f32 / ground_truth.len() as f32
-    }
-
-    default fn confusion_matrix(self, ground_truth: &ArrayBase<D, Ix1>) -> ConfusionMatrix<A> {
-        let tmp = ModifiedDataset {
+    fn confusion_matrix(self, ground_truth: &ArrayBase<D, Ix1>) -> ConfusionMatrix<A> {
+        let tmp = ModifiedPrediction {
             prediction: self,
             classes: Vec::new(),
             weights: Vec::new()
@@ -226,6 +229,8 @@ impl<A: Eq + std::hash::Hash + Copy + Ord, D: Data<Elem = A>>  Classification<A,
     }
 }
 
+/*
+ * TODO: specialization requires unstable Rust
 impl Classification<bool, OwnedRepr<bool>> for Array1<bool> {
     fn confusion_matrix(self, ground_truth: &Array1<bool>) -> ConfusionMatrix<bool> {
         let mut confusion_matrix = Array2::zeros((2, 2));
@@ -243,7 +248,7 @@ impl Classification<bool, OwnedRepr<bool>> for Array1<bool> {
             members: Array::from(vec![true, false])
         }
     }
-}
+}*/
 
 
 /// The ROC curve gives insight about the seperability of a binary classification task. This
@@ -325,19 +330,30 @@ mod tests {
     use super::roc_auc;
     use ndarray::Array1;
     use std::iter::FromIterator;
-    use super::{Prepare, Classification};
+    use super::{Modify, Classification};
 
     #[test]
-    fn test_accuracy() {
-        let predicted = Array1::from(vec![1, 1, 2, 2, 3, 4]);
-        let ground_truth = Array1::from(vec![1, 1, 2, 3, 3, 3]);
+    fn test_confusion_matrix() {
+        let predicted = Array1::from(vec![0, 1, 0, 1, 0, 1]);
+        let ground_truth = Array1::from(vec![1, 1, 0, 1, 0, 1]);
+
+        let cm = predicted.confusion_matrix(&ground_truth);
+
+        assert_eq!(cm.matrix.as_slice().unwrap(), &[2, 0, 1, 3]);
+    }
+
+    #[test]
+    fn test_cm_metrices() {
+        let predicted = Array1::from(vec![0, 1, 0, 1, 0, 1]);
+        let ground_truth = Array1::from(vec![1, 1, 0, 1, 0, 1]);
 
         let x = predicted
-            .with_weights(&[0])
             .confusion_matrix(&ground_truth);
 
-        println!("{:?}", x);
-        println!("{}", x.recall());
+        assert_eq!(x.accuracy(), 5.0 / 6.0);
+        assert_eq!(x.precision().as_slice().unwrap(), &[1.0, 3./4.]);
+        assert_eq!(x.recall().as_slice().unwrap(), &[2.0 / 3.0, 1.0]);
+        assert_eq!(x.f1_score().as_slice().unwrap(), &[4.0 / 5.0, 6.0 / 7.0]);
     }
 
     #[test]

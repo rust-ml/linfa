@@ -1,4 +1,3 @@
-#![feature(specialization)]
 //! `linfa` aims to provide a comprehensive toolkit to build Machine Learning applications
 //! with Rust.
 //!
@@ -34,4 +33,11 @@
 pub mod clustering {
     pub use linfa_clustering::*;
 }
-pub mod metrics;
+
+mod metrics_classification;
+mod metrics_regression;
+
+pub mod metrics {
+    pub use crate::metrics_classification::{Modify, Classification, roc_curve, roc_auc};
+    pub use crate::metrics_regression::Regression;
+}
