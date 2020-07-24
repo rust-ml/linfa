@@ -1,11 +1,10 @@
-//! Common metrics for performance evaluation of classifier
+//! Common metrics for classification
 //!
 //! Scoring is essential for classification and regression tasks. This module implements
 //! common scoring functions like precision, accuracy, recall, f1-score, ROC and ROC
 //! Aread-Under-Curve.
 use std::collections::HashMap;
 use std::hash::Hash;
-use std::iter::FromIterator;
 use std::fmt;
 
 use ndarray::prelude::*;
@@ -19,7 +18,7 @@ fn map_prediction_to_idx<A: Eq + Hash, C: Data<Elem = A>, D: Data<Elem = A>>(pre
         .collect::<HashMap<_, usize>>();
 
     // indices for every prediction
-    ground_truth.iter().zip(prediction.iter()).map(|(a,b)| {
+    prediction.iter().zip(ground_truth.iter()).map(|(a,b)| {
         set.get(&a)
             .and_then(|x| set.get(&b).map(|y| (*x, *y)))
     }).collect::<Vec<Option<_>>>()
@@ -32,21 +31,22 @@ fn map_prediction_to_idx<A: Eq + Hash, C: Data<Elem = A>, D: Data<Elem = A>>(pre
 /// possibility to modify a prediction before evaluation.
 pub struct ModifiedPrediction<A, D: Data<Elem = A>> {
     prediction: ArrayBase<D, Ix1>,
-    weights: Vec<usize>,
+    weights: Vec<f32>,
     classes: Vec<A>
 }
 
-/// Modify dataset weights or classes
+/// Modify prediction weights or classes
 pub trait Modify<A: PartialOrd + Eq + Hash, D: Data<Elem = A>> {
-    /// Add weights to the samples
-    fn with_weights(self, weights: &[usize]) -> ModifiedPrediction<A, D>;
-    /// Select subset of classes
-    fn reduce_classes(self, classes: &[A]) -> ModifiedPrediction<A, D>;
+    /// Add weights to prediction, each weight-entry correspond to a single prediction. The
+    /// prediction influence is scaled according to the weight.
+    fn with_weights(self, weights: &[f32]) -> ModifiedPrediction<A, D>;
+    /// Select certain classes. This can be used to select a subset of classes or re-order classes.
+    fn with_classes(self, classes: &[A]) -> ModifiedPrediction<A, D>;
 }
 
-/// Implementation for prediction stored in `ndarray`
+/// Modify a prediction stored in `ndarray`
 impl<A: PartialOrd + Eq + Hash + Clone, D: Data<Elem = A>> Modify<A, D> for ArrayBase<D, Ix1> {
-    fn with_weights(self, weights: &[usize]) -> ModifiedPrediction<A, D> {
+    fn with_weights(self, weights: &[f32]) -> ModifiedPrediction<A, D> {
         ModifiedPrediction {
             prediction: self, 
             weights: weights.to_vec(),
@@ -54,7 +54,7 @@ impl<A: PartialOrd + Eq + Hash + Clone, D: Data<Elem = A>> Modify<A, D> for Arra
         }
     }
 
-    fn reduce_classes(self, classes: &[A]) -> ModifiedPrediction<A, D> {
+    fn with_classes(self, classes: &[A]) -> ModifiedPrediction<A, D> {
         ModifiedPrediction {
             prediction: self,
             weights: Vec::new(),
@@ -63,9 +63,9 @@ impl<A: PartialOrd + Eq + Hash + Clone, D: Data<Elem = A>> Modify<A, D> for Arra
     }
 }
 
-/// Implementation for already modified prediction
+/// Modify a already modified prediction
 impl<A: PartialOrd + Eq + Hash + Clone, D: Data<Elem = A>> Modify<A, D> for ModifiedPrediction<A, D> {
-    fn with_weights(self, weights: &[usize]) -> ModifiedPrediction<A, D> {
+    fn with_weights(self, weights: &[f32]) -> ModifiedPrediction<A, D> {
         ModifiedPrediction {
             prediction: self.prediction,
             weights: weights.to_vec(),
@@ -73,7 +73,7 @@ impl<A: PartialOrd + Eq + Hash + Clone, D: Data<Elem = A>> Modify<A, D> for Modi
         }
     }
 
-    fn reduce_classes(self, classes: &[A]) -> ModifiedPrediction<A, D> {
+    fn with_classes(self, classes: &[A]) -> ModifiedPrediction<A, D> {
         ModifiedPrediction {
             prediction: self.prediction,
             weights: self.weights,
@@ -85,67 +85,136 @@ impl<A: PartialOrd + Eq + Hash + Clone, D: Data<Elem = A>> Modify<A, D> for Modi
 /// Confusion matrix for multi-label evaluation
 ///
 /// A confusion matrix shows predictions in a matrix, where rows correspond to target and columns
-/// to predicted. The diagonal entries are correct predictions.
+/// to predicted. Diagonal entries are correct predictions, and everything off the
+/// diagonal is a miss-classification.
 pub struct ConfusionMatrix<A> {
-    matrix: Array2<usize>,
+    matrix: Array2<f32>,
     members: Array1<A>
 }
 
 impl<A> ConfusionMatrix<A> {
-    /// Calculate precision for every class
-    pub fn precision(&self) -> Array1<f32> {
-        let sum = self.matrix.sum_axis(Axis(1));
-
-        Array1::from_iter(
-            self.matrix.diag().iter()
-                .zip(sum.iter())
-                .map(|(a, b)| *a as f32 / *b as f32)
-        )
+    fn is_binary(&self) -> bool {
+        self.matrix.shape() == &[2, 2]
     }
 
-    /// Calculate recall for every class
-    pub fn recall(&self) -> Array1<f32> {
-        let sum = self.matrix.sum_axis(Axis(0));
-
-        Array1::from_iter(
-            self.matrix.diag().iter()
-                .zip(sum.iter())
-                .map(|(a, b)| *a as f32 / *b as f32)
-        )
+    /// Precision score, the number of correct classifications for the first class divided by total
+    /// number of items in the first class
+    ///
+    /// ## Binary confusion matrix
+    /// For binary confusion matrices (2x2 size) the precision score is calculated for the first
+    /// label and corresponds to
+    ///
+    /// ```
+    /// true-label-1 / (true-label-1 + false-label-1)
+    /// ```
+    ///
+    /// ## Multilabel confusion matrix
+    /// For multilabel confusion matrices, the precision score is averaged over all classes
+    /// (also known as `macro` averaging) A more precise controlled evaluation can be done by first splitting the confusion matrix with `split_one_vs_all` and then applying a different averaging scheme.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // create dummy classes 0 and 1
+    /// let prediction = array![0, 1, 1, 1, 0, 0, 1];
+    /// let ground_truth = array![0, 0, 1, 0, 1, 0, 1];
+    ///
+    /// // create confusion matrix
+    /// let cm = prediction.confusion_matrix(&ground_truth);
+    ///
+    /// // print precision for label 0
+    /// println!("{:?}", cm.precision());
+    /// ```
+    pub fn precision(&self) -> f32 {
+        if self.is_binary() {
+            self.matrix[(0, 0)] / (self.matrix[(0, 0)] + self.matrix[(1, 0)])
+        } else {
+            self.split_one_vs_all().into_iter()
+                .map(|x| x.precision())
+                .sum::<f32>() / self.members.len() as f32
+        }
     }
 
-    /// Return mean accuracy
+    /// Recall score, the number of correct classifications in the first class divided by the
+    /// number of classifications in the first class
+    ///
+    ///
+    /// ## Binary confusion matrix
+    /// For binary confusion matrices (2x2 size) the recall score is calculated for the first label
+    /// and corresponds to
+    ///
+    /// ```
+    /// true-label-1 / (true-label-1 + false-label-2)
+    /// ```
+    ///
+    /// ## Multilabel confusion matrix
+    /// For multilabel confusion matrices the recall score is averaged over all classes (also known
+    /// as `macro` averaging). A more precise evaluation can be achieved by first splitting the
+    /// confusion matrix with `split_one_vs_all` and then applying a different averaging scheme.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// // create dummy classes 0 and 1
+    /// let prediction = array![0, 1, 1, 1, 0, 0, 1];
+    /// let ground_truth = array![0, 0, 1, 0, 1, 0, 1];
+    ///
+    /// // create confusion matrix
+    /// let cm = prediction.confusion_matrix(&ground_truth);
+    ///
+    /// // print recall for label 0
+    /// println!("{:?}", cm.recall());
+    /// ```
+    pub fn recall(&self) -> f32 {
+        if self.is_binary() {
+            self.matrix[(0, 0)] / (self.matrix[(0, 0)] + self.matrix[(0, 1)])
+        } else {
+            self.split_one_vs_all().into_iter()
+                .map(|x| x.recall())
+                .sum::<f32>() / self.members.len() as f32
+        }
+    }
+
+    /// Accuracy score
+    ///
+    /// The accuracy score is the ratio of correct classifications to all classifications. For
+    /// multi-label confusion matrices this is the sum of diagonal entries to the sum of all
+    /// entries.
     pub fn accuracy(&self) -> f32 {
-        self.matrix.diag().sum() as f32 / self.matrix.sum() as f32
+        self.matrix.diag().sum() / self.matrix.sum()
     }
 
-    /// Return mean beta score
-    pub fn f_score(&self, beta: f32) -> Array1<f32> {
+    /// F-beta-score
+    ///
+    /// The F-beta-score averages between precision and recall. It is defined as 
+    /// ```
+    /// (1.0 + b*b) * (precision * recall) / (b * b * precision + recall)
+    /// ```
+    pub fn f_score(&self, beta: f32) -> f32 {
         let sb = beta * beta;
-        let precision = self.precision();
-        let recall = self.recall();
+        let p = self.precision();
+        let r = self.recall();
 
-        Array::from_iter(
-            precision.iter().zip(recall.iter())
-                .map(|(p, r)| (1.0 + sb) * (p * r) / (sb * p + r))
-        )
+        (1. + sb) * (p * r) / (sb * p + r)
     }
 
-    /// Return mean beta=1 score
-    pub fn f1_score(&self) -> Array1<f32> {
+    /// F1-score, this is the F-beta-score for beta=1
+    pub fn f1_score(&self) -> f32 {
         self.f_score(1.0)
     }
 
-    /// Return the Matthew Correlation Coefficients
+    /// Matthew Correlation Coefficients
     ///
-    /// Estimates the normalized cross-correlation between target and predicted variable
+    /// Estimates the normalized cross-correlation between target and predicted variable. The MCC
+    /// is more significant than precision or recall, because all four quadrants are included in
+    /// the evaluation. A generalized evaluation for multiple labels is also included.
     pub fn mcc(&self) -> f32 {
         let mut cov_xy = 0.0;
         for k in 0..self.members.len() {
             for l in 0..self.members.len() {
                 for m in 0..self.members.len() {
-                    cov_xy += self.matrix[(k, k)] as f32 * self.matrix[(l, m)] as f32;
-                    cov_xy -= self.matrix[(k, l)] as f32 * self.matrix[(m, k)] as f32;
+                    cov_xy += self.matrix[(k, k)] * self.matrix[(l, m)];
+                    cov_xy -= self.matrix[(k, l)] * self.matrix[(m, k)];
                 }
             }
         }
@@ -157,8 +226,8 @@ impl<A> ConfusionMatrix<A> {
         let mut cov_xx: f32 = 0.0;
         let mut cov_yy: f32 = 0.0;
         for k in 0..self.members.len() {
-            cov_xx += (sum_over_rows[k] * (sum - sum_over_rows[k])) as f32;
-            cov_yy += (sum_over_cols[k] * (sum - sum_over_cols[k])) as f32;
+            cov_xx += sum_over_rows[k] * (sum - sum_over_rows[k]);
+            cov_yy += sum_over_cols[k] * (sum - sum_over_cols[k]);
         }
 
         cov_xy / cov_xx.sqrt() / cov_yy.sqrt()
@@ -182,12 +251,37 @@ impl<A> ConfusionMatrix<A> {
             })
             .collect()
     }
+
+    /// Split confusion matrix in N*(N-1)/2 one-vs-one binary confusion matrices
+    pub fn split_one_vs_one(&self) -> Vec<ConfusionMatrix<bool>> {
+        let n = self.members.len();
+        let mut cms = Vec::with_capacity(n*(n-1)/2);
+
+        for i in 0..n {
+            for j in i..n {
+                let tp = self.matrix[(i, i)];
+                let fp = self.matrix[(i, j)];
+                let _fn = self.matrix[(j, i)];
+                let tn = self.matrix[(j, j)];
+
+                cms.push(
+                    ConfusionMatrix {
+                        matrix: array![[tp, fp], [_fn, tn]],
+                        members: Array1::from(vec![true, false])
+                    }
+                );
+            }
+        }
+
+        cms
+    }
 }
 
 /// Print a confusion matrix
 impl<A: fmt::Display> fmt::Debug for ConfusionMatrix<A> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let len = self.matrix.len_of(Axis(0));
+        write!(f, "\n")?;
         for _ in 0..len*4+1 {
             write!(f, "-")?;
         }
@@ -210,10 +304,9 @@ impl<A: fmt::Display> fmt::Debug for ConfusionMatrix<A> {
     }
 }
 
-/// Classification functions
+/// Classification for multi-label evaluation
 ///
-/// Contains only routine for Confusion Matrix, as all other current metrices can be derived from
-/// the entries in the matrix.
+/// Contains a routine to calculate the confusion matrix, all other scores are derived form it.
 pub trait Classification<A: PartialEq + Ord, D: Data<Elem = A>> {
     fn confusion_matrix(self, ground_truth: &ArrayBase<D, Ix1>) -> ConfusionMatrix<A>;
 }
@@ -237,7 +330,7 @@ impl<A: Eq + Hash + Copy + Ord, C: Data<Elem = A>, D: Data<Elem = A>> Classifica
         // count each index tuple in the confusion matrix
         let mut confusion_matrix = Array2::zeros((classes.len(), classes.len()));
         for (i1, i2) in indices.into_iter().filter_map(|x| x) {
-            confusion_matrix[(i1, i2)] += 1;
+            confusion_matrix[(i1, i2)] += *self.weights.get(i1).unwrap_or(&1.0);
         }
 
         ConfusionMatrix {
@@ -294,31 +387,39 @@ fn trapezoidal<A: NdFloat>(vals: &[(A, A)]) -> A {
     integral
 }
 
+/// A Receiver Operating Characteristic for binary-label classification
+///
+/// The ROC curve gives insight about the seperability of a binary classification task.
 pub struct ReceiverOperatingCharacteristic<A> {
     curve: Vec<(A, A)>,
     thresholds: Vec<A>
 }
 
 impl<A: NdFloat> ReceiverOperatingCharacteristic<A> {
+    /// Returns the true-positive, false-positive curve
     pub fn get_curve(&self) -> Vec<(A, A)> {
         self.curve.clone()
     }
 
+    /// Returns the threshold corresponding to each point
     pub fn get_thresholds(&self) -> Vec<A> {
         self.thresholds.clone()
     }
 
+    /// Returns the Area-Under-Curve metric
     pub fn area_under_curve(&self) -> A {
         trapezoidal(&self.curve)
     }
 }
 
+/// Classification for binary-labels
+///
+/// This contains Receiver-Operating-Characterstics curves as these only work for binary
+/// classification tasks.
 pub trait BinaryClassification<A> {
     fn roc(&self, y: &[bool]) -> ReceiverOperatingCharacteristic<A>;
 }
 
-/// The ROC curve gives insight about the seperability of a binary classification task. This
-/// functions returns the ROC curve and threshold belonging to each position on the curve.
 impl<A: NdFloat, D: Data<Elem = A>> BinaryClassification<A> for ArrayBase<D, Ix1> {
     fn roc(&self, y: &[bool]) -> ReceiverOperatingCharacteristic<A> {
         let mut tuples = self
@@ -375,6 +476,10 @@ mod tests {
         assert_eq!(a, b);
     }
 
+    fn assert_eq_iter<A: std::fmt::Debug + PartialEq>(a: impl Iterator<Item = A>, b: &[A]) {
+        assert_eq!(a.collect::<Vec<_>>(), b);
+    }
+
     #[test]
     fn test_confusion_matrix() {
         let predicted = ArrayView1::from(&[0, 1, 0, 1, 0, 1]);
@@ -382,7 +487,7 @@ mod tests {
 
         let cm = predicted.confusion_matrix(&ground_truth);
 
-        assert_eq_slice(cm.matrix, &[2, 0, 1, 3]);
+        assert_eq_slice(cm.matrix, &[2., 1., 0., 3.]);
     }
 
     #[test]
@@ -395,9 +500,32 @@ mod tests {
 
         assert_eq!(x.accuracy(), 5.0 / 6.0);
         assert_eq!(x.mcc(), (2.*3. - 1.*0.) / (2.0f32*3.*3.*4.).sqrt());
-        assert_eq_slice(x.precision(), &[1.0, 3./4.]);
-        assert_eq_slice(x.recall(), &[2.0 / 3.0, 1.0]);
-        assert_eq_slice(x.f1_score(), &[4.0 / 5.0, 6.0 / 7.0]);
+
+        assert_eq_iter(x.split_one_vs_all().into_iter().map(|x| x.precision()), &[1.0, 3./4.]);
+        assert_eq_iter(x.split_one_vs_all().into_iter().map(|x| x.recall()), &[2.0 / 3.0, 1.0]);
+        assert_eq_iter(x.split_one_vs_all().into_iter().map(|x| x.f1_score()), &[4.0 / 5.0, 6.0 / 7.0]);
+    }
+
+    #[test]
+    fn test_modification() {
+        let predicted =    array![0, 3, 2, 0, 1, 1, 1, 3, 2, 3];
+        let ground_truth = array![0, 2, 3, 0, 1, 2, 1, 2, 3, 2];
+
+        // exclude class 3 from evaluation
+        let cm = predicted.clone()
+            .with_classes(&[0, 1, 2])
+            .confusion_matrix(&ground_truth);
+
+        assert_eq_slice(cm.matrix, &[2., 0., 0., 0., 2., 1., 0., 0., 0.]);
+
+        // weight errors in class 2 more severe and exclude class 1
+        let cm = predicted
+            .with_weights(&[1., 2., 1., 1., 1., 2., 1., 2., 1., 2.])
+            .with_classes(&[0, 2, 3])
+            .confusion_matrix(&ground_truth);
+
+        // the false-positive error for label=2 is twice severe here
+        assert_eq_slice(cm.matrix, &[2., 0., 0., 0., 0., 4., 0., 3., 0.]);
     }
 
     #[test]
@@ -440,9 +568,21 @@ mod tests {
         let predicted =    array![0, 3, 2, 0, 1, 1, 1, 3, 2, 3];
         let ground_truth = array![0, 2, 3, 0, 1, 2, 1, 2, 3, 2];
 
+        // create a confusion matrix
         let cm = predicted.confusion_matrix(&ground_truth);
+
+        // split four class confusion matrix into 4 binary confusion matrix
         let n_cm = cm.split_one_vs_all();
 
-        println!("{:?}", n_cm);
+        let result: &[&[f32]] = &[
+            &[2., 0., 0., 8.], // no misclassification for label=0
+            &[2., 1., 0., 7.], // one false-positive for label=1
+            &[0., 2., 4., 4.], // two false-positive and four false-negative for label=2
+            &[0., 3., 2., 5.]  // three false-positive and two false-negative for label=3
+        ];
+
+        // compare to result
+        n_cm.into_iter().zip(result.into_iter())
+            .for_each(|(x, r)| assert_eq_slice(x.matrix, r))
     }
 }

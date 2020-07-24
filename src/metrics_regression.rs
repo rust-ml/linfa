@@ -1,8 +1,14 @@
+//! Common metrics for regression 
+//!
+//! This module implements common comparison metrices for continuous variables.
+
 use ndarray::{Data, NdFloat};
 use ndarray::prelude::*;
 use num_traits::FromPrimitive;
 
+/// Regression metrices trait
 pub trait Regression<A, D: Data<Elem = A>> {
+    /// Calculate the maximal error between two continuous variables
     fn max_error(&self, compare_to: &ArrayBase<D, Ix1>) -> A;
     fn mean_absolute_error(&self, compare_to: &ArrayBase<D, Ix1>) -> A;
     fn mean_squared_error(&self, compare_to: &ArrayBase<D, Ix1>) -> A;
