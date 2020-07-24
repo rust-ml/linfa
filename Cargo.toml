@@ -19,6 +19,7 @@ linfa-reduction = { path = "linfa-reduction", version = "0.1" }
 num-traits = "0.1.32"
 
 [dev-dependencies]
+rand = "0.7"
 ndarray-rand = "0.11"
 rand_isaac = "0.2.0"
 ndarray-npy = { version = "0.5", default-features = false }

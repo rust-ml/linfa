@@ -38,6 +38,6 @@ mod metrics_classification;
 mod metrics_regression;
 
 pub mod metrics {
-    pub use crate::metrics_classification::{Modify, Classification, roc_curve, roc_auc};
+    pub use crate::metrics_classification::{Modify, Classification, BinaryClassification, ReceiverOperatingCharacteristic, ConfusionMatrix};
     pub use crate::metrics_regression::Regression;
 }
