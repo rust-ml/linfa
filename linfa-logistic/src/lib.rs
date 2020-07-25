@@ -13,60 +13,64 @@ use ndarray::{s, Array, Array1, Array2};
 use std::default::Default;
 use std::iter::FromIterator;
 
+mod argmin_helper;
+mod float;
+
+use argmin_helper::{ArgminParam, FloatWrapper};
+use float::Float;
+
 /// A two-class logistic regression model.
-pub struct LogisticRegression {
-    alpha: f64,
+pub struct LogisticRegression<F: Float> {
+    alpha: F,
     fit_intercept: bool,
     max_iterations: u64,
-    gradient_tolerance: f64,
-    initial_params: Option<(Array1<f64>, f64)>,
+    gradient_tolerance: F,
+    initial_params: Option<(Array1<F>, F)>,
 }
 
-impl Default for LogisticRegression {
-    fn default() -> LogisticRegression {
+impl<F: Float> Default for LogisticRegression<F> {
+    fn default() -> LogisticRegression<F> {
         LogisticRegression::new()
     }
 }
 
-type LBFGSType = LBFGS<MoreThuenteLineSearch<Array1<f64>, f64>, Array1<f64>, f64>;
+type LBFGSType<F> =
+    LBFGS<MoreThuenteLineSearch<ArgminParam<F>, FloatWrapper<F>>, ArgminParam<F>, FloatWrapper<F>>;
 
-const POSITIVE_LABEL: f64 = 1.0;
-const NEGATIVE_LABEL: f64 = -1.0;
-
-impl LogisticRegression {
-    pub fn new() -> LogisticRegression {
+impl<F: Float> LogisticRegression<F> {
+    pub fn new() -> LogisticRegression<F> {
         LogisticRegression {
-            alpha: 1.0,
+            alpha: F::from(1.0).unwrap(),
             fit_intercept: true,
             max_iterations: 100,
-            gradient_tolerance: 1e-4,
+            gradient_tolerance: F::from(1e-4).unwrap(),
             initial_params: None,
         }
     }
 
     /// Set the normalization parameter `alpha` used for L2 normalization,
     /// defaults to `1.0`.
-    pub fn alpha(mut self, alpha: f64) -> LogisticRegression {
+    pub fn alpha(mut self, alpha: F) -> LogisticRegression<F> {
         self.alpha = alpha;
         self
     }
 
     /// Configure if an intercept should be fitted, defaults to `true`.
-    pub fn with_intercept(mut self, fit_intercept: bool) -> LogisticRegression {
+    pub fn with_intercept(mut self, fit_intercept: bool) -> LogisticRegression<F> {
         self.fit_intercept = fit_intercept;
         self
     }
 
     /// Configure the maximum number of iterations that the solver should perform,
     /// defaults to `100`.
-    pub fn max_iterations(mut self, max_iterations: u64) -> LogisticRegression {
+    pub fn max_iterations(mut self, max_iterations: u64) -> LogisticRegression<F> {
         self.max_iterations = max_iterations;
         self
     }
 
     /// Configure the minimum change to the gradient to continue the solver,
     /// defaults to `1e-4`.
-    pub fn gradient_tolerance(mut self, gradient_tolerance: f64) -> LogisticRegression {
+    pub fn gradient_tolerance(mut self, gradient_tolerance: F) -> LogisticRegression<F> {
         self.gradient_tolerance = gradient_tolerance;
         self
     }
@@ -74,11 +78,7 @@ impl LogisticRegression {
     /// Configure the initial parameters from where the optimization starts.
     /// The `params` array must have the same size as the number of columns of
     /// the feature matrix `x` passed to the `fit` method
-    pub fn initial_params(
-        mut self,
-        params: Array1<f64>,
-        intercept: f64,
-    ) -> LogisticRegression {
+    pub fn initial_params(mut self, params: Array1<F>, intercept: F) -> LogisticRegression<F> {
         self.initial_params = Some((params, intercept));
         self
     }
@@ -93,11 +93,7 @@ impl LogisticRegression {
     ///
     /// The method returns a FittedLogisticRegression which can be used to
     /// make predictions.
-    pub fn fit(
-        &self,
-        x: &Array2<f64>,
-        y: &Array1<f64>,
-    ) -> Result<FittedLogisticRegression, String> {
+    pub fn fit(&self, x: &Array2<F>, y: &Array1<F>) -> Result<FittedLogisticRegression<F>, String> {
         self.validate_data(x, y)?;
         let labels = label_classes(y)?;
         let problem = self.setup_problem(x, y, &labels);
@@ -109,7 +105,7 @@ impl LogisticRegression {
 
     /// Ensure that `x` and `y` have the right shape and that all data and
     /// configuration parameters are finite.
-    fn validate_data(&self, x: &Array2<f64>, y: &Array1<f64>) -> Result<(), String> {
+    fn validate_data(&self, x: &Array2<F>, y: &Array1<F>) -> Result<(), String> {
         if x.shape()[0] != y.len() {
             return Err(
                 "Incompatible shapes of data, expected `x` and `y` to have same number of rows"
@@ -122,21 +118,20 @@ impl LogisticRegression {
         {
             return Err("Values must be finite and not `Inf`, `-Inf` or `NaN`".to_string());
         }
-        if !self.gradient_tolerance.is_finite() || self.gradient_tolerance <= 0.0 {
+        if !self.gradient_tolerance.is_finite() || self.gradient_tolerance <= F::zero() {
             return Err("gradient_tolerance must be a positive, finite number".to_string());
         }
         self.validate_init_params(x)?;
         Ok(())
     }
 
-    fn validate_init_params(&self, x: &Array2<f64>) -> Result<(), String> {
+    fn validate_init_params(&self, x: &Array2<F>) -> Result<(), String> {
         if let Some((params, intercept)) = self.initial_params.as_ref() {
             let (_, n_features) = x.dim();
             if n_features != params.dim() {
                 return Err("Size of initial parameter guess must be the same as the number of columns in the feature matrix `x`".to_string());
             }
-            if params.iter().any(|p| !p.is_finite()) || !intercept.is_finite()
-            {
+            if params.iter().any(|p| !p.is_finite()) || !intercept.is_finite() {
                 return Err("Initial parameter guess must be finite".to_string());
             }
         }
@@ -147,10 +142,10 @@ impl LogisticRegression {
     /// `LogisticRegressionProblem`.
     fn setup_problem<'a>(
         &self,
-        x: &'a Array2<f64>,
-        y: &'a Array1<f64>,
-        labels: &ClassLabels,
-    ) -> LogisticRegressionProblem<'a> {
+        x: &'a Array2<F>,
+        y: &'a Array1<F>,
+        labels: &ClassLabels<F>,
+    ) -> LogisticRegressionProblem<'a, F> {
         let target = compute_target(y, &labels);
         LogisticRegressionProblem {
             x,
@@ -161,7 +156,7 @@ impl LogisticRegression {
 
     /// Create the initial parameters, a user supplied guess or a 1-d array of
     /// `0`s.
-    fn setup_init_params(&self, x: &Array2<f64>) -> Array1<f64> {
+    fn setup_init_params(&self, x: &Array2<F>) -> Array1<F> {
         let n_features = x.shape()[1];
         let param_len = if self.fit_intercept {
             n_features + 1
@@ -172,9 +167,7 @@ impl LogisticRegression {
         let mut init_parmas = Array1::zeros(param_len);
 
         if let Some((params, intercept)) = self.initial_params.as_ref() {
-            init_parmas
-                .slice_mut(s![..n_features])
-                .assign(params);
+            init_parmas.slice_mut(s![..n_features]).assign(params);
             if param_len == n_features + 1 {
                 init_parmas[n_features] = *intercept;
             }
@@ -185,19 +178,19 @@ impl LogisticRegression {
 
     /// Create the LBFGS solver using MoreThuenteLineSearch and set gradient
     /// tolerance.
-    fn setup_solver(&self) -> LBFGSType {
+    fn setup_solver(&self) -> LBFGSType<F> {
         let linesearch = MoreThuenteLineSearch::new();
-        LBFGS::new(linesearch, 10).with_tol_grad(self.gradient_tolerance)
+        LBFGS::new(linesearch, 10).with_tol_grad(FloatWrapper(self.gradient_tolerance))
     }
 
     /// Run the LBFGS solver until it converges or runs out of iterations.
     fn run_solver<'a>(
         &self,
-        problem: LogisticRegressionProblem<'a>,
-        solver: LBFGSType,
-        init_params: Array1<f64>,
-    ) -> Result<ArgminResult<LogisticRegressionProblem<'a>>, String> {
-        Executor::new(problem, solver, init_params)
+        problem: LogisticRegressionProblem<'a, F>,
+        solver: LBFGSType<F>,
+        init_params: Array1<F>,
+    ) -> Result<ArgminResult<LogisticRegressionProblem<'a, F>>, String> {
+        Executor::new(problem, solver, ArgminParam(init_params))
             .max_iters(self.max_iterations)
             .run()
             .map_err(|err| format!("Error running solver: {}", err))
@@ -206,11 +199,11 @@ impl LogisticRegression {
     /// Take an ArgminResult and return a FittedLogisticRegression.
     fn convert_result(
         &self,
-        labels: ClassLabels,
-        result: &ArgminResult<LogisticRegressionProblem>,
-    ) -> Result<FittedLogisticRegression, String> {
-        let mut intercept = 0.0;
-        let mut params = result.state().best_param.clone();
+        labels: ClassLabels<F>,
+        result: &ArgminResult<LogisticRegressionProblem<F>>,
+    ) -> Result<FittedLogisticRegression<F>, String> {
+        let mut intercept = F::from(0.0).unwrap();
+        let mut params = result.state().best_param.as_array().clone();
         if self.fit_intercept {
             intercept = params[params.len() - 1];
             params = params.slice(s![..params.len() - 1]).to_owned();
@@ -225,7 +218,7 @@ impl LogisticRegression {
 
 /// Identify the distinct values of the target 1-d array `y` and associate
 /// the target labels `-1.0` and `1.0` to it.
-fn label_classes(y: &Array1<f64>) -> Result<Vec<ClassLabel>, String> {
+fn label_classes<F: Float>(y: &Array1<F>) -> Result<Vec<ClassLabel<F>>, String> {
     let mut classes = vec![];
     for item in y.iter() {
         if !classes.contains(item) {
@@ -236,9 +229,9 @@ fn label_classes(y: &Array1<f64>) -> Result<Vec<ClassLabel>, String> {
         return Err("Expected exactly two classes for logistic regression".to_string());
     }
     let labels = if classes[0] < classes[1] {
-        (NEGATIVE_LABEL, POSITIVE_LABEL)
+        (F::NEGATIVE_LABEL, F::POSITIVE_LABEL)
     } else {
-        (POSITIVE_LABEL, NEGATIVE_LABEL)
+        (F::POSITIVE_LABEL, F::NEGATIVE_LABEL)
     };
     Ok(vec![
         ClassLabel {
@@ -254,7 +247,7 @@ fn label_classes(y: &Array1<f64>) -> Result<Vec<ClassLabel>, String> {
 
 /// Construct a 1-d array of `-1.0` and `1.0` to be used in the fitting of
 /// logistic regression.
-fn compute_target(y: &Array1<f64>, labels: &Vec<ClassLabel>) -> Array1<f64> {
+fn compute_target<F: Float>(y: &Array1<F>, labels: &Vec<ClassLabel<F>>) -> Array1<F> {
     Array1::from_iter(
         y.iter()
             .map(|y| labels.iter().find(|label| label.class == *y).unwrap().label),
@@ -263,9 +256,9 @@ fn compute_target(y: &Array1<f64>, labels: &Vec<ClassLabel>) -> Array1<f64> {
 
 /// Conditionally split the feature vector `w` into parameter vector and
 /// intercept parameter.
-fn convert_params(n_features: usize, w: &Array1<f64>) -> (Array1<f64>, f64) {
+fn convert_params<F: Float>(n_features: usize, w: &Array1<F>) -> (Array1<F>, F) {
     if n_features == w.len() {
-        (w.to_owned(), 0.0)
+        (w.to_owned(), F::zero())
     } else if n_features + 1 == w.len() {
         (w.slice(s![..w.len() - 1]).to_owned(), w[w.len() - 1])
     } else {
@@ -279,8 +272,8 @@ fn convert_params(n_features: usize, w: &Array1<f64>) -> (Array1<f64>, f64) {
 }
 
 /// The logistic function
-fn logistic(x: f64) -> f64 {
-    1.0 / (1.0 + (-x).exp())
+fn logistic<F: Float>(x: F) -> F {
+    F::one() / (F::one() + (-x).exp())
 }
 
 /// A numerically stable version of the log of the logistic function.
@@ -290,11 +283,11 @@ fn logistic(x: f64) -> f64 {
 ///
 /// See the blog post describing this implementation:
 /// http://fa.bianp.net/blog/2013/numerical-optimizers-for-logistic-regression/
-fn log_logistic(x: f64) -> f64 {
-    if x > 0.0 {
-        -(1. + (-x).exp()).ln()
+fn log_logistic<F: Float>(x: F) -> F {
+    if x > F::zero() {
+        -(F::one() + (-x).exp()).ln()
     } else {
-        return x - (1. + x.exp()).ln();
+        return x - (F::one() + x.exp()).ln();
     }
 }
 
@@ -307,58 +300,58 @@ fn log_logistic(x: f64) -> f64 {
 ///
 /// Thus, the log loss can be written as
 /// $$-\sum_{i=1}^{N} \log(\sigma(y_i z_i)) + \frac{\alpha}{2}\text{params}^T\text{params}$$
-fn logistic_loss(x: &Array2<f64>, y: &Array1<f64>, alpha: f64, w: &Array1<f64>) -> f64 {
+fn logistic_loss<F: Float>(x: &Array2<F>, y: &Array1<F>, alpha: F, w: &Array1<F>) -> F {
     let n_features = x.shape()[1];
     let (params, intercept) = convert_params(n_features, &w);
     let mut yz = (x.dot(&params) + intercept) * y;
     yz.mapv_inplace(log_logistic);
-    -yz.sum() + 0.5 * alpha * params.dot(&params)
+    -yz.sum() + F::from(0.5).unwrap() * alpha * params.dot(&params)
 }
 
 /// Computes the gradient of the logistic loss function
-fn logistic_grad(x: &Array2<f64>, y: &Array1<f64>, alpha: f64, w: &Array1<f64>) -> Array1<f64> {
+fn logistic_grad<F: Float>(x: &Array2<F>, y: &Array1<F>, alpha: F, w: &Array1<F>) -> Array1<F> {
     let n_features = x.shape()[1];
     let (params, intercept) = convert_params(n_features, &w);
     let mut yz = (x.dot(&params) + intercept) * y;
     yz.mapv_inplace(logistic);
-    yz -= 1.0;
+    yz -= F::one();
     yz *= y;
     if w.len() == n_features + 1 {
         let mut grad = Array::zeros(w.len());
         grad.slice_mut(s![..n_features])
-            .assign(&(x.t().dot(&yz) + &(alpha * params)));
+            .assign(&(x.t().dot(&yz) + &(params * alpha)));
         grad[n_features] = yz.sum();
         grad
     } else {
-        x.t().dot(&yz) + &(alpha * params)
+        x.t().dot(&yz) + &(params * alpha)
     }
 }
 
 /// A fitted logistic regression which can make predictions
 #[derive(PartialEq, Debug)]
-pub struct FittedLogisticRegression {
-    intercept: f64,
-    params: Array1<f64>,
-    labels: ClassLabels,
+pub struct FittedLogisticRegression<F: Float> {
+    intercept: F,
+    params: Array1<F>,
+    labels: ClassLabels<F>,
 }
 
-impl FittedLogisticRegression {
-    pub fn intercept(&self) -> f64 {
+impl<F: Float> FittedLogisticRegression<F> {
+    pub fn intercept(&self) -> F {
         self.intercept
     }
 
-    pub fn params(&self) -> &Array1<f64> {
+    pub fn params(&self) -> &Array1<F> {
         &self.params
     }
 
     /// Given a feature array, predict the classes learned when the model was
     /// fitted.
-    pub fn predict(&self, x: &Array2<f64>) -> Array1<f64> {
-        let pos_class = class_from_label(&self.labels, POSITIVE_LABEL);
-        let neg_class = class_from_label(&self.labels, NEGATIVE_LABEL);
+    pub fn predict(&self, x: &Array2<F>) -> Array1<F> {
+        let pos_class = class_from_label(&self.labels, F::POSITIVE_LABEL);
+        let neg_class = class_from_label(&self.labels, F::NEGATIVE_LABEL);
         let mut pred = x.dot(&self.params) + self.intercept;
         pred.mapv_inplace(|x| {
-            if logistic(x) >= 0.5 {
+            if logistic(x) >= F::from(0.5).unwrap() {
                 pos_class
             } else {
                 neg_class
@@ -369,43 +362,55 @@ impl FittedLogisticRegression {
 }
 
 #[derive(PartialEq, Debug, Clone)]
-struct ClassLabel {
-    class: f64,
-    label: f64,
+struct ClassLabel<F: Float> {
+    class: F,
+    label: F,
 }
 
-type ClassLabels = Vec<ClassLabel>;
+type ClassLabels<F> = Vec<ClassLabel<F>>;
 
-fn class_from_label(labels: &ClassLabels, label: f64) -> f64 {
+fn class_from_label<F: Float>(labels: &ClassLabels<F>, label: F) -> F {
     labels.iter().find(|cl| cl.label == label).unwrap().class
 }
 
-struct LogisticRegressionProblem<'a> {
-    x: &'a Array2<f64>,
-    target: Array1<f64>,
-    alpha: f64,
+struct LogisticRegressionProblem<'a, F: Float> {
+    x: &'a Array2<F>,
+    target: Array1<F>,
+    alpha: F,
 }
 
-impl<'a> ArgminOp for LogisticRegressionProblem<'a> {
+impl<'a, F: Float> ArgminOp for LogisticRegressionProblem<'a, F> {
     /// Type of the parameter vector
-    type Param = Array1<f64>;
+    type Param = ArgminParam<F>;
     /// Type of the return value computed by the cost function
-    type Output = f64;
+    type Output = FloatWrapper<F>;
     /// Type of the Hessian. Can be `()` if not needed.
     type Hessian = ();
     /// Type of the Jacobian. Can be `()` if not needed.
-    type Jacobian = Array1<f64>;
+    type Jacobian = Array1<F>;
     /// Floating point precision
-    type Float = f64;
+    type Float = FloatWrapper<F>;
 
     /// Apply the cost function to a parameter `p`
     fn apply(&self, p: &Self::Param) -> Result<Self::Output, Error> {
-        Ok(logistic_loss(self.x, &self.target, self.alpha, p))
+        let w = p.as_array();
+        Ok(FloatWrapper(logistic_loss(
+            self.x,
+            &self.target,
+            self.alpha,
+            w,
+        )))
     }
 
     /// Compute the gradient at parameter `p`.
     fn gradient(&self, p: &Self::Param) -> Result<Self::Param, Error> {
-        Ok(logistic_grad(self.x, &self.target, self.alpha, p))
+        let w = p.as_array();
+        Ok(ArgminParam(logistic_grad(
+            self.x,
+            &self.target,
+            self.alpha,
+            w,
+        )))
     }
 }
 
@@ -641,7 +646,9 @@ mod test {
     #[test]
     fn uses_initial_params() {
         let (params, intercept) = (array![1.2], -4.1);
-        let log_reg = LogisticRegression::default().initial_params(params, intercept).max_iterations(5);
+        let log_reg = LogisticRegression::default()
+            .initial_params(params, intercept)
+            .max_iterations(5);
         let x = array![
             [0.0],
             [1.0],
@@ -660,5 +667,4 @@ mod test {
         assert!(res.params().abs_diff_eq(&array![1.1810803637424347], 1e-4));
         assert_eq!(res.predict(&x), y);
     }
-
 }
