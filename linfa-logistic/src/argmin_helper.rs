@@ -1,3 +1,12 @@
+//! This module defines newtypes for ndarray's Array1 and floats.
+//!
+//! This is necessary to be able to abstract over floats (f32 and f64) so that
+//! the logistic regression code can be abstract in the float type it works
+//! with.
+//!
+//! Unfortunately, this requires that we re-implement a lot of traits which 
+//! leads to a lot of boring boiler-plate code.
+
 use crate::float::Float;
 use argmin::prelude::*;
 use ndarray::Array1;
