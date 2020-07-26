@@ -9,7 +9,7 @@
 use argmin::prelude::*;
 use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::lbfgs::LBFGS;
-use ndarray::{s, Array, Array1, Array2};
+use ndarray::{s, Array, Array1, Array2, ArrayBase, Data, Ix1, Ix2};
 use std::default::Default;
 use std::iter::FromIterator;
 
@@ -93,7 +93,15 @@ impl<F: Float> LogisticRegression<F> {
     ///
     /// The method returns a FittedLogisticRegression which can be used to
     /// make predictions.
-    pub fn fit(&self, x: &Array2<F>, y: &Array1<F>) -> Result<FittedLogisticRegression<F>, String> {
+    pub fn fit<A, B>(
+        &self,
+        x: &ArrayBase<A, Ix2>,
+        y: &ArrayBase<B, Ix1>,
+    ) -> Result<FittedLogisticRegression<F>, String>
+    where
+        A: Data<Elem = F>,
+        B: Data<Elem = F>,
+    {
         self.validate_data(x, y)?;
         let labels = label_classes(y)?;
         let problem = self.setup_problem(x, y, &labels);
@@ -105,7 +113,15 @@ impl<F: Float> LogisticRegression<F> {
 
     /// Ensure that `x` and `y` have the right shape and that all data and
     /// configuration parameters are finite.
-    fn validate_data(&self, x: &Array2<F>, y: &Array1<F>) -> Result<(), String> {
+    fn validate_data<A, B>(
+        &self,
+        x: &ArrayBase<A, Ix2>,
+        y: &ArrayBase<B, Ix1>,
+    ) -> Result<(), String>
+    where
+        A: Data<Elem = F>,
+        B: Data<Elem = F>,
+    {
         if x.shape()[0] != y.len() {
             return Err(
                 "Incompatible shapes of data, expected `x` and `y` to have same number of rows"
@@ -125,7 +141,10 @@ impl<F: Float> LogisticRegression<F> {
         Ok(())
     }
 
-    fn validate_init_params(&self, x: &Array2<F>) -> Result<(), String> {
+    fn validate_init_params<A>(&self, x: &ArrayBase<A, Ix2>) -> Result<(), String>
+    where
+        A: Data<Elem = F>,
+    {
         if let Some((params, intercept)) = self.initial_params.as_ref() {
             let (_, n_features) = x.dim();
             if n_features != params.dim() {
@@ -140,12 +159,16 @@ impl<F: Float> LogisticRegression<F> {
 
     /// Convert `y` into a vector of `-1.0` and `1.0` and return a
     /// `LogisticRegressionProblem`.
-    fn setup_problem<'a>(
+    fn setup_problem<'a, A, B>(
         &self,
-        x: &'a Array2<F>,
-        y: &'a Array1<F>,
+        x: &'a ArrayBase<A, Ix2>,
+        y: &'a ArrayBase<B, Ix1>,
         labels: &ClassLabels<F>,
-    ) -> LogisticRegressionProblem<'a, F> {
+    ) -> LogisticRegressionProblem<'a, F, A>
+    where
+        A: Data<Elem = F>,
+        B: Data<Elem = F>,
+    {
         let target = compute_target(y, &labels);
         LogisticRegressionProblem {
             x,
@@ -156,7 +179,10 @@ impl<F: Float> LogisticRegression<F> {
 
     /// Create the initial parameters, a user supplied guess or a 1-d array of
     /// `0`s.
-    fn setup_init_params(&self, x: &Array2<F>) -> Array1<F> {
+    fn setup_init_params<A>(&self, x: &ArrayBase<A, Ix2>) -> Array1<F>
+    where
+        A: Data<Elem = F>,
+    {
         let n_features = x.shape()[1];
         let param_len = if self.fit_intercept {
             n_features + 1
@@ -184,12 +210,15 @@ impl<F: Float> LogisticRegression<F> {
     }
 
     /// Run the LBFGS solver until it converges or runs out of iterations.
-    fn run_solver<'a>(
+    fn run_solver<'a, A>(
         &self,
-        problem: LogisticRegressionProblem<'a, F>,
+        problem: LogisticRegressionProblem<'a, F, A>,
         solver: LBFGSType<F>,
         init_params: Array1<F>,
-    ) -> Result<ArgminResult<LogisticRegressionProblem<'a, F>>, String> {
+    ) -> Result<ArgminResult<LogisticRegressionProblem<'a, F, A>>, String>
+    where
+        A: Data<Elem = F>,
+    {
         Executor::new(problem, solver, ArgminParam(init_params))
             .max_iters(self.max_iterations)
             .run()
@@ -197,11 +226,14 @@ impl<F: Float> LogisticRegression<F> {
     }
 
     /// Take an ArgminResult and return a FittedLogisticRegression.
-    fn convert_result(
+    fn convert_result<A>(
         &self,
         labels: ClassLabels<F>,
-        result: &ArgminResult<LogisticRegressionProblem<F>>,
-    ) -> Result<FittedLogisticRegression<F>, String> {
+        result: &ArgminResult<LogisticRegressionProblem<F, A>>,
+    ) -> Result<FittedLogisticRegression<F>, String>
+    where
+        A: Data<Elem = F>,
+    {
         let mut intercept = F::from(0.0).unwrap();
         let mut params = result.state().best_param.as_array().clone();
         if self.fit_intercept {
@@ -218,7 +250,9 @@ impl<F: Float> LogisticRegression<F> {
 
 /// Identify the distinct values of the target 1-d array `y` and associate
 /// the target labels `-1.0` and `1.0` to it.
-fn label_classes<F: Float>(y: &Array1<F>) -> Result<Vec<ClassLabel<F>>, String> {
+fn label_classes<F: Float, A: Data<Elem = F>>(
+    y: &ArrayBase<A, Ix1>,
+) -> Result<Vec<ClassLabel<F>>, String> {
     let mut classes = vec![];
     for item in y.iter() {
         if !classes.contains(item) {
@@ -247,7 +281,10 @@ fn label_classes<F: Float>(y: &Array1<F>) -> Result<Vec<ClassLabel<F>>, String> 
 
 /// Construct a 1-d array of `-1.0` and `1.0` to be used in the fitting of
 /// logistic regression.
-fn compute_target<F: Float>(y: &Array1<F>, labels: &Vec<ClassLabel<F>>) -> Array1<F> {
+fn compute_target<F: Float, A: Data<Elem = F>>(
+    y: &ArrayBase<A, Ix1>,
+    labels: &Vec<ClassLabel<F>>,
+) -> Array1<F> {
     Array1::from_iter(
         y.iter()
             .map(|y| labels.iter().find(|label| label.class == *y).unwrap().label),
@@ -300,7 +337,12 @@ fn log_logistic<F: Float>(x: F) -> F {
 ///
 /// Thus, the log loss can be written as
 /// $$-\sum_{i=1}^{N} \log(\sigma(y_i z_i)) + \frac{\alpha}{2}\text{params}^T\text{params}$$
-fn logistic_loss<F: Float>(x: &Array2<F>, y: &Array1<F>, alpha: F, w: &Array1<F>) -> F {
+fn logistic_loss<F: Float, A: Data<Elem = F>>(
+    x: &ArrayBase<A, Ix2>,
+    y: &Array1<F>,
+    alpha: F,
+    w: &Array1<F>,
+) -> F {
     let n_features = x.shape()[1];
     let (params, intercept) = convert_params(n_features, &w);
     let mut yz = (x.dot(&params) + intercept) * y;
@@ -309,7 +351,12 @@ fn logistic_loss<F: Float>(x: &Array2<F>, y: &Array1<F>, alpha: F, w: &Array1<F>
 }
 
 /// Computes the gradient of the logistic loss function
-fn logistic_grad<F: Float>(x: &Array2<F>, y: &Array1<F>, alpha: F, w: &Array1<F>) -> Array1<F> {
+fn logistic_grad<F: Float, A: Data<Elem = F>>(
+    x: &ArrayBase<A, Ix2>,
+    y: &Array1<F>,
+    alpha: F,
+    w: &Array1<F>,
+) -> Array1<F> {
     let n_features = x.shape()[1];
     let (params, intercept) = convert_params(n_features, &w);
     let mut yz = (x.dot(&params) + intercept) * y;
@@ -346,7 +393,7 @@ impl<F: Float> FittedLogisticRegression<F> {
 
     /// Given a feature array, predict the classes learned when the model was
     /// fitted.
-    pub fn predict(&self, x: &Array2<F>) -> Array1<F> {
+    pub fn predict<A: Data<Elem = F>>(&self, x: &ArrayBase<A, Ix2>) -> Array1<F> {
         let pos_class = class_from_label(&self.labels, F::POSITIVE_LABEL);
         let neg_class = class_from_label(&self.labels, F::NEGATIVE_LABEL);
         let mut pred = x.dot(&self.params) + self.intercept;
@@ -373,13 +420,13 @@ fn class_from_label<F: Float>(labels: &ClassLabels<F>, label: F) -> F {
     labels.iter().find(|cl| cl.label == label).unwrap().class
 }
 
-struct LogisticRegressionProblem<'a, F: Float> {
-    x: &'a Array2<F>,
+struct LogisticRegressionProblem<'a, F: Float, A: Data<Elem = F>> {
+    x: &'a ArrayBase<A, Ix2>,
     target: Array1<F>,
     alpha: F,
 }
 
-impl<'a, F: Float> ArgminOp for LogisticRegressionProblem<'a, F> {
+impl<'a, F: Float, A: Data<Elem = F>> ArgminOp for LogisticRegressionProblem<'a, F, A> {
     /// Type of the parameter vector
     type Param = ArgminParam<F>;
     /// Type of the return value computed by the cost function
