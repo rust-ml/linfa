@@ -667,4 +667,15 @@ mod test {
         assert!(res.params().abs_diff_eq(&array![1.1810803637424347], 1e-4));
         assert_eq!(res.predict(&x), y);
     }
+
+    #[test]
+    fn works_with_f32() {
+        let log_reg = LogisticRegression::default();
+        let x: Array2<f32> = array![[-1.0], [-0.01], [0.01], [1.0]];
+        let y: Array1<f32> = array![0.0, 0.0, 1.0, 1.0];
+        let res = log_reg.fit(&x, &y).unwrap();
+        assert_eq!(res.intercept(), 0.0 as f32);
+        assert_eq!(res.params(), &array![0.68260515 as f32]);
+        assert_eq!(res.predict(&x), y);
+    }
 }
