@@ -9,14 +9,14 @@
 use argmin::prelude::*;
 use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::lbfgs::LBFGS;
-use ndarray::{s, Array, Array1, Array2, ArrayBase, Data, Ix1, Ix2};
+use ndarray::{s, Array, Array1, ArrayBase, Data, Ix1, Ix2};
 use std::default::Default;
 use std::iter::FromIterator;
 
-mod argmin_helper;
+mod argmin_param;
 mod float;
 
-use argmin_helper::{ArgminParam, FloatWrapper};
+use argmin_param::ArgminParam;
 use float::Float;
 
 /// A two-class logistic regression model.
@@ -34,8 +34,7 @@ impl<F: Float> Default for LogisticRegression<F> {
     }
 }
 
-type LBFGSType<F> =
-    LBFGS<MoreThuenteLineSearch<ArgminParam<F>, FloatWrapper<F>>, ArgminParam<F>, FloatWrapper<F>>;
+type LBFGSType<F> = LBFGS<MoreThuenteLineSearch<ArgminParam<F>, F>, ArgminParam<F>, F>;
 
 impl<F: Float> LogisticRegression<F> {
     pub fn new() -> LogisticRegression<F> {
@@ -206,7 +205,7 @@ impl<F: Float> LogisticRegression<F> {
     /// tolerance.
     fn setup_solver(&self) -> LBFGSType<F> {
         let linesearch = MoreThuenteLineSearch::new();
-        LBFGS::new(linesearch, 10).with_tol_grad(FloatWrapper(self.gradient_tolerance))
+        LBFGS::new(linesearch, 10).with_tol_grad(self.gradient_tolerance)
     }
 
     /// Run the LBFGS solver until it converges or runs out of iterations.
@@ -430,23 +429,18 @@ impl<'a, F: Float, A: Data<Elem = F>> ArgminOp for LogisticRegressionProblem<'a,
     /// Type of the parameter vector
     type Param = ArgminParam<F>;
     /// Type of the return value computed by the cost function
-    type Output = FloatWrapper<F>;
+    type Output = F;
     /// Type of the Hessian. Can be `()` if not needed.
     type Hessian = ();
     /// Type of the Jacobian. Can be `()` if not needed.
     type Jacobian = Array1<F>;
     /// Floating point precision
-    type Float = FloatWrapper<F>;
+    type Float = F;
 
     /// Apply the cost function to a parameter `p`
     fn apply(&self, p: &Self::Param) -> Result<Self::Output, Error> {
         let w = p.as_array();
-        Ok(FloatWrapper(logistic_loss(
-            self.x,
-            &self.target,
-            self.alpha,
-            w,
-        )))
+        Ok(logistic_loss(self.x, &self.target, self.alpha, w))
     }
 
     /// Compute the gradient at parameter `p`.
@@ -465,7 +459,7 @@ impl<'a, F: Float, A: Data<Elem = F>> ArgminOp for LogisticRegressionProblem<'a,
 mod test {
     use super::*;
     use approx::AbsDiffEq;
-    use ndarray::array;
+    use ndarray::{array, Array2};
 
     #[test]
     fn test_logistic_loss() {
