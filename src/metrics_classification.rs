@@ -104,7 +104,7 @@ impl<A> ConfusionMatrix<A> {
     /// For binary confusion matrices (2x2 size) the precision score is calculated for the first
     /// label and corresponds to
     ///
-    /// ```
+    /// ```ignore
     /// true-label-1 / (true-label-1 + false-label-1)
     /// ```
     ///
@@ -114,7 +114,7 @@ impl<A> ConfusionMatrix<A> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// // create dummy classes 0 and 1
     /// let prediction = array![0, 1, 1, 1, 0, 0, 1];
     /// let ground_truth = array![0, 0, 1, 0, 1, 0, 1];
@@ -143,7 +143,7 @@ impl<A> ConfusionMatrix<A> {
     /// For binary confusion matrices (2x2 size) the recall score is calculated for the first label
     /// and corresponds to
     ///
-    /// ```
+    /// ```ignore
     /// true-label-1 / (true-label-1 + false-label-2)
     /// ```
     ///
@@ -154,7 +154,7 @@ impl<A> ConfusionMatrix<A> {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```rust, ignore
     /// // create dummy classes 0 and 1
     /// let prediction = array![0, 1, 1, 1, 0, 0, 1];
     /// let ground_truth = array![0, 0, 1, 0, 1, 0, 1];
@@ -187,7 +187,7 @@ impl<A> ConfusionMatrix<A> {
     /// F-beta-score
     ///
     /// The F-beta-score averages between precision and recall. It is defined as 
-    /// ```
+    /// ```ignore
     /// (1.0 + b*b) * (precision * recall) / (b * b * precision + recall)
     /// ```
     pub fn f_score(&self, beta: f32) -> f32 {
