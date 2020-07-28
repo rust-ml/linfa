@@ -16,9 +16,11 @@ categories = ["algorithms", "mathematics", "science"]
 linfa-clustering = { path = "linfa-clustering", version = "0.1" }
 linfa-trees = { path = "linfa-trees", version = "0.1" }
 linfa-reduction = { path = "linfa-reduction", version = "0.1" }
+linfa-linear = { path = "linfa-linear", version = "0.1" }
+linfa-logistic = { path = "linfa-logistic", version = "0.1" }
 
 [dev-dependencies]
-ndarray = { version = "0.13" , features = ["rayon", "serde", "approx"]}
+ndarray = { version = "0.13", features = ["rayon", "serde", "approx"]}
 ndarray-rand = "0.11"
 rand_isaac = "0.2.0"
 ndarray-npy = { version = "0.5", default-features = false }
@@ -28,6 +30,7 @@ members = [
     "linfa-clustering",
     "linfa-reduction",
     "linfa-linear",
+    "linfa-logistic",
     "linfa-trees"
 ]
 
