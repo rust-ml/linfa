@@ -11,7 +11,6 @@ use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::lbfgs::LBFGS;
 use ndarray::{s, Array, Array1, ArrayBase, Data, Ix1, Ix2};
 use std::default::Default;
-use std::iter::FromIterator;
 
 mod argmin_param;
 mod float;
@@ -92,18 +91,19 @@ impl<F: Float> LogisticRegression<F> {
     ///
     /// The method returns a FittedLogisticRegression which can be used to
     /// make predictions.
-    pub fn fit<A, B>(
+    pub fn fit<'a, A, II, C>(
         &self,
         x: &ArrayBase<A, Ix2>,
-        y: &ArrayBase<B, Ix1>,
-    ) -> Result<FittedLogisticRegression<F>, String>
+        y: II,
+    ) -> Result<FittedLogisticRegression<F, C>, String>
     where
         A: Data<Elem = F>,
-        B: Data<Elem = F>,
+        II: IntoIterator<Item = &'a C>,
+        C: 'a + PartialOrd + Clone,
     {
-        self.validate_data(x, y)?;
-        let labels = label_classes(y)?;
-        let problem = self.setup_problem(x, y, &labels);
+        let (labels, target) = label_classes(y)?;
+        self.validate_data(x, &target)?;
+        let problem = self.setup_problem(x, target);
         let solver = self.setup_solver();
         let init_params = self.setup_init_params(x);
         let result = self.run_solver(problem, solver, init_params)?;
@@ -158,17 +158,11 @@ impl<F: Float> LogisticRegression<F> {
 
     /// Convert `y` into a vector of `-1.0` and `1.0` and return a
     /// `LogisticRegressionProblem`.
-    fn setup_problem<'a, A, B>(
+    fn setup_problem<'a, A: Data<Elem = F>>(
         &self,
         x: &'a ArrayBase<A, Ix2>,
-        y: &'a ArrayBase<B, Ix1>,
-        labels: &ClassLabels<F>,
-    ) -> LogisticRegressionProblem<'a, F, A>
-    where
-        A: Data<Elem = F>,
-        B: Data<Elem = F>,
-    {
-        let target = compute_target(y, &labels);
+        target: Array1<F>,
+    ) -> LogisticRegressionProblem<'a, F, A> {
         LogisticRegressionProblem {
             x,
             target,
@@ -225,13 +219,14 @@ impl<F: Float> LogisticRegression<F> {
     }
 
     /// Take an ArgminResult and return a FittedLogisticRegression.
-    fn convert_result<A>(
+    fn convert_result<A, C>(
         &self,
-        labels: ClassLabels<F>,
+        labels: ClassLabels<F, C>,
         result: &ArgminResult<LogisticRegressionProblem<F, A>>,
-    ) -> Result<FittedLogisticRegression<F>, String>
+    ) -> Result<FittedLogisticRegression<F, C>, String>
     where
         A: Data<Elem = F>,
+        C: PartialOrd + Clone,
     {
         let mut intercept = F::from(0.0).unwrap();
         let mut params = result.state().best_param.as_array().clone();
@@ -239,56 +234,79 @@ impl<F: Float> LogisticRegression<F> {
             intercept = params[params.len() - 1];
             params = params.slice(s![..params.len() - 1]).to_owned();
         }
-        Ok(FittedLogisticRegression {
-            intercept,
-            params,
-            labels,
-        })
+        Ok(FittedLogisticRegression::new(intercept, params, labels))
     }
 }
 
-/// Identify the distinct values of the target 1-d array `y` and associate
-/// the target labels `-1.0` and `1.0` to it.
-fn label_classes<F: Float, A: Data<Elem = F>>(
-    y: &ArrayBase<A, Ix1>,
-) -> Result<Vec<ClassLabel<F>>, String> {
-    let mut classes = vec![];
-    for item in y.iter() {
-        if !classes.contains(item) {
-            classes.push(*item);
+/// Identify the distinct values of the classes  `y` and associate
+/// the target labels `-1.0` and `1.0` to it. -1.0 always labels the
+/// smaller class (by PartialOrd) and 1.0 always labels the larger
+/// class.
+///
+/// It is an error to have more than two classes.
+fn label_classes<'a, F, II, C>(y: II) -> Result<(ClassLabels<F, C>, Array1<F>), String>
+where
+    F: Float,
+    II: IntoIterator<Item = &'a C>,
+    C: 'a + PartialOrd + Clone,
+{
+    let mut classes: Vec<&C> = vec![];
+    let mut target_vec = vec![];
+    let mut use_negative_label: bool = true;
+    for item in y {
+        if let Some(last_item) = classes.last() {
+            if *last_item != item {
+                use_negative_label = !use_negative_label;
+            }
         }
+        if !classes.contains(&item) {
+            classes.push(item);
+        }
+        target_vec.push(if use_negative_label {
+            F::NEGATIVE_LABEL
+        } else {
+            F::POSITIVE_LABEL
+        });
     }
     if classes.len() != 2 {
         return Err("Expected exactly two classes for logistic regression".to_string());
     }
+    let mut target_array = Array1::from(target_vec);
     let labels = if classes[0] < classes[1] {
         (F::NEGATIVE_LABEL, F::POSITIVE_LABEL)
     } else {
+        // If we found the larger class first, flip the sign in the target
+        // vector, so that -1.0 is always the label for the smaller class
+        // and 1.0 the label for the larger class
+        target_array *= -F::one();
         (F::POSITIVE_LABEL, F::NEGATIVE_LABEL)
     };
-    Ok(vec![
-        ClassLabel {
-            class: classes[0],
-            label: labels.0,
-        },
-        ClassLabel {
-            class: classes[1],
-            label: labels.1,
-        },
-    ])
+    Ok((
+        vec![
+            ClassLabel {
+                class: classes[0].clone(),
+                label: labels.0,
+            },
+            ClassLabel {
+                class: classes[1].clone(),
+                label: labels.1,
+            },
+        ],
+        target_array,
+    ))
 }
 
-/// Construct a 1-d array of `-1.0` and `1.0` to be used in the fitting of
-/// logistic regression.
-fn compute_target<F: Float, A: Data<Elem = F>>(
-    y: &ArrayBase<A, Ix1>,
-    labels: &Vec<ClassLabel<F>>,
-) -> Array1<F> {
-    Array1::from_iter(
-        y.iter()
-            .map(|y| labels.iter().find(|label| label.class == *y).unwrap().label),
-    )
-}
+// /// Construct a 1-d array of `-1.0` and `1.0` to be used in the fitting of
+// /// logistic regression.
+// fn compute_target<F: Float, A: Data<Elem = F>>(
+//     y: &ArrayBase<A, Ix1>,
+//     labels: &Vec<ClassLabel<F>>,
+// ) -> Array1<F> {
+//     Array1::from_iter(
+//         y.iter()
+//             .map(|y| labels.iter().find(|label| label.class == *y).unwrap().label),
+//     )
+// }
 
 /// Conditionally split the feature vector `w` into parameter vector and
 /// intercept parameter.
@@ -375,13 +393,37 @@ fn logistic_grad<F: Float, A: Data<Elem = F>>(
 
 /// A fitted logistic regression which can make predictions
 #[derive(PartialEq, Debug)]
-pub struct FittedLogisticRegression<F: Float> {
+pub struct FittedLogisticRegression<F: Float, C: PartialOrd + Clone> {
+    threshold: F,
     intercept: F,
     params: Array1<F>,
-    labels: ClassLabels<F>,
+    labels: ClassLabels<F, C>,
 }
 
-impl<F: Float> FittedLogisticRegression<F> {
+impl<F: Float, C: PartialOrd + Clone> FittedLogisticRegression<F, C> {
+    fn new(
+        intercept: F,
+        params: Array1<F>,
+        labels: ClassLabels<F, C>,
+    ) -> FittedLogisticRegression<F, C> {
+        FittedLogisticRegression {
+            threshold: F::from(0.5).unwrap(),
+            intercept,
+            params,
+            labels,
+        }
+    }
+
+    /// Set the probability threshold for which the 'positive' class will be
+    /// predicted. Defaults to 0.5.
+    pub fn set_threshold(mut self, threshold: F) -> FittedLogisticRegression<F, C> {
+        if threshold < F::zero() || threshold > F::one() {
+            panic!("FittedLogisticRegression::set_threshold: threshold needs to be between 0.0 and 1.0");
+        }
+        self.threshold = threshold;
+        self
+    }
+
     pub fn intercept(&self) -> F {
         self.intercept
     }
@@ -392,31 +434,43 @@ impl<F: Float> FittedLogisticRegression<F> {
 
     /// Given a feature array, predict the classes learned when the model was
     /// fitted.
-    pub fn predict<A: Data<Elem = F>>(&self, x: &ArrayBase<A, Ix2>) -> Array1<F> {
+    pub fn predict_probabilities<A: Data<Elem = F>>(&self, x: &ArrayBase<A, Ix2>) -> Array1<F> {
+        let mut probs = x.dot(&self.params) + self.intercept;
+        probs.mapv_inplace(logistic);
+        probs
+    }
+
+    pub fn predict_classes<A: Data<Elem = F>>(&self, x: &ArrayBase<A, Ix2>) -> Vec<C> {
         let pos_class = class_from_label(&self.labels, F::POSITIVE_LABEL);
         let neg_class = class_from_label(&self.labels, F::NEGATIVE_LABEL);
-        let mut pred = x.dot(&self.params) + self.intercept;
-        pred.mapv_inplace(|x| {
-            if logistic(x) >= F::from(0.5).unwrap() {
-                pos_class
-            } else {
-                neg_class
-            }
-        });
-        pred
+        self.predict_probabilities(x)
+            .iter()
+            .map(|probability| {
+                if *probability >= self.threshold {
+                    pos_class.clone()
+                } else {
+                    neg_class.clone()
+                }
+            })
+            .collect()
     }
 }
 
 #[derive(PartialEq, Debug, Clone)]
-struct ClassLabel<F: Float> {
-    class: F,
+struct ClassLabel<F: Float, C: PartialOrd> {
+    class: C,
     label: F,
 }
 
-type ClassLabels<F> = Vec<ClassLabel<F>>;
+type ClassLabels<F, C> = Vec<ClassLabel<F, C>>;
 
-fn class_from_label<F: Float>(labels: &ClassLabels<F>, label: F) -> F {
-    labels.iter().find(|cl| cl.label == label).unwrap().class
+fn class_from_label<F: Float, C: PartialOrd + Clone>(labels: &ClassLabels<F, C>, label: F) -> C {
+    labels
+        .iter()
+        .find(|cl| cl.label == label)
+        .unwrap()
+        .class
+        .clone()
 }
 
 struct LogisticRegressionProblem<'a, F: Float, A: Data<Elem = F>> {
@@ -586,7 +640,21 @@ mod test {
         let res = log_reg.fit(&x, &y).unwrap();
         assert_eq!(res.intercept(), 0.0);
         assert!(res.params().abs_diff_eq(&array![0.681], 1e-3));
-        assert_eq!(res.predict(&x), y);
+        assert_eq!(res.predict_classes(&x), y.to_vec());
+    }
+
+    #[test]
+    fn simple_example_1_cats_dogs() {
+        let log_reg = LogisticRegression::default();
+        let x = array![[0.01], [1.0], [-1.0], [-0.01]];
+        let y = ["dog", "dog", "cat", "cat"];
+        let res = log_reg.fit(&x, &y).unwrap();
+        assert_eq!(res.intercept(), 0.0);
+        assert!(res.params().abs_diff_eq(&array![0.681], 1e-3));
+        assert!(res
+            .predict_probabilities(&x)
+            .abs_diff_eq(&array![0.501, 0.664, 0.335, 0.498], 1e-3));
+        assert_eq!(res.predict_classes(&x), y);
     }
 
     #[test]
@@ -608,7 +676,7 @@ mod test {
         let res = log_reg.fit(&x, &y).unwrap();
         assert!(res.intercept().abs_diff_eq(&-4.124, 1e-3));
         assert!(res.params().abs_diff_eq(&array![1.181], 1e-3));
-        assert_eq!(res.predict(&x), y);
+        assert_eq!(res.predict_classes(&x), y.to_vec());
     }
 
     #[test]
@@ -630,22 +698,17 @@ mod test {
     fn rejects_inf_values() {
         let infs = vec![f64::INFINITY, f64::NEG_INFINITY, f64::NAN];
         let inf_xs: Vec<_> = infs.iter().map(|&inf| array![[1.0], [inf]]).collect();
-        let inf_ys: Vec<_> = infs.iter().map(|&inf| array![1.0, inf]).collect();
         let log_reg = LogisticRegression::default();
         let normal_x = array![[-1.0], [1.0]];
-        let normal_y = array![0.0, 1.0];
+        let y = array![0.0, 1.0];
         let expected = Err("Values must be finite and not `Inf`, `-Inf` or `NaN`".to_string());
         for inf_x in &inf_xs {
-            let res = log_reg.fit(inf_x, &normal_y);
-            assert_eq!(res, expected);
-        }
-        for inf_y in &inf_ys {
-            let res = log_reg.fit(&normal_x, inf_y);
+            let res = log_reg.fit(inf_x, &y);
             assert_eq!(res, expected);
         }
         for inf in &infs {
             let log_reg = LogisticRegression::default().alpha(*inf);
-            let res = log_reg.fit(&normal_x, &normal_y);
+            let res = log_reg.fit(&normal_x, &y);
             assert_eq!(res, expected);
         }
         let mut non_positives = infs.clone();
@@ -653,7 +716,7 @@ mod test {
         non_positives.push(0.0);
         for inf in &non_positives {
             let log_reg = LogisticRegression::default().gradient_tolerance(*inf);
-            let res = log_reg.fit(&normal_x, &normal_y);
+            let res = log_reg.fit(&normal_x, &y);
             assert_eq!(
                 res,
                 Err("gradient_tolerance must be a positive, finite number".to_string())
@@ -706,7 +769,7 @@ mod test {
         let res = log_reg.fit(&x, &y).unwrap();
         assert!(res.intercept().abs_diff_eq(&-4.124, 1e-3));
         assert!(res.params().abs_diff_eq(&array![1.181], 1e-3));
-        assert_eq!(res.predict(&x), y);
+        assert_eq!(res.predict_classes(&x), y.to_vec());
     }
 
     #[test]
@@ -717,6 +780,6 @@ mod test {
         let res = log_reg.fit(&x, &y).unwrap();
         assert_eq!(res.intercept(), 0.0 as f32);
         assert!(res.params().abs_diff_eq(&array![0.682 as f32], 1e-3));
-        assert_eq!(res.predict(&x), y);
+        assert_eq!(res.predict_classes(&x), y.to_vec());
     }
 }
