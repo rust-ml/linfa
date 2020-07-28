@@ -36,6 +36,7 @@ impl<F: Float> Default for LogisticRegression<F> {
 type LBFGSType<F> = LBFGS<MoreThuenteLineSearch<ArgminParam<F>, F>, ArgminParam<F>, F>;
 
 impl<F: Float> LogisticRegression<F> {
+    /// Creates a new LogisticRegression with default configuration.
     pub fn new() -> LogisticRegression<F> {
         LogisticRegression {
             alpha: F::from(1.0).unwrap(),
@@ -82,15 +83,21 @@ impl<F: Float> LogisticRegression<F> {
     }
 
     /// Given a 2-dimensional feature matrix array `x` with shape
-    /// (n_samples, n_features) and a 1-dimensional target vector `y` of shape
-    /// (n_samples,).
+    /// (n_samples, n_features) and an iterable of target classes to predict,
+    /// create a `FittedLinearRegression` object which allows making
+    /// predictions.
     ///
-    /// The target vector `y` must have exactly two distinct values, (e.g. 0.0
-    /// and 1.0 - but the values can also be different), which represent the
-    /// two different classes.
+    /// The iterable of target classes `y` must have exactly two distinct
+    /// values, (e.g. 0.0 and 1.0, 0 and 1, "cat" and "dog", ...), which
+    /// represent the two different classes the model is supposed to predict.
     ///
-    /// The method returns a FittedLogisticRegression which can be used to
-    /// make predictions.
+    /// The iterable `y` must also produces exactly `n_samples` items, i.e.
+    /// exactly as many items as there are rows in the feature matrix `x`.
+    ///
+    /// This method returns an error if any of the preconditions are violated,
+    /// i.e. any values are `Inf` or `NaN`, `y` doesn't have as many items as
+    /// `x` has rows, or if other parameters (gradient_tolerance, alpha) have
+    /// been set to inalid values.
     pub fn fit<'a, A, II, C>(
         &self,
         x: &ArrayBase<A, Ix2>,
@@ -156,8 +163,7 @@ impl<F: Float> LogisticRegression<F> {
         Ok(())
     }
 
-    /// Convert `y` into a vector of `-1.0` and `1.0` and return a
-    /// `LogisticRegressionProblem`.
+    /// Create a `LogisticRegressionProblem`.
     fn setup_problem<'a, A: Data<Elem = F>>(
         &self,
         x: &'a ArrayBase<A, Ix2>,
@@ -170,8 +176,8 @@ impl<F: Float> LogisticRegression<F> {
         }
     }
 
-    /// Create the initial parameters, a user supplied guess or a 1-d array of
-    /// `0`s.
+    /// Create the initial parameters, either from a user supplied guess
+    ///  or a 1-d array of `0`s.
     fn setup_init_params<A>(&self, x: &ArrayBase<A, Ix2>) -> Array1<F>
     where
         A: Data<Elem = F>,
@@ -295,18 +301,6 @@ where
         target_array,
     ))
 }
-
-// /// Construct a 1-d array of `-1.0` and `1.0` to be used in the fitting of
-// /// logistic regression.
-// fn compute_target<F: Float, A: Data<Elem = F>>(
-//     y: &ArrayBase<A, Ix1>,
-//     labels: &Vec<ClassLabel<F>>,
-// ) -> Array1<F> {
-//     Array1::from_iter(
-//         y.iter()
-//             .map(|y| labels.iter().find(|label| label.class == *y).unwrap().label),
-//     )
-// }
 
 /// Conditionally split the feature vector `w` into parameter vector and
 /// intercept parameter.
@@ -432,14 +426,17 @@ impl<F: Float, C: PartialOrd + Clone> FittedLogisticRegression<F, C> {
         &self.params
     }
 
-    /// Given a feature array, predict the classes learned when the model was
-    /// fitted.
+    /// Given a feature matrix, predict the probabilities that a sample
+    /// should be classified as the larger of the two classes learned when the
+    /// model was fitted.
     pub fn predict_probabilities<A: Data<Elem = F>>(&self, x: &ArrayBase<A, Ix2>) -> Array1<F> {
         let mut probs = x.dot(&self.params) + self.intercept;
         probs.mapv_inplace(logistic);
         probs
     }
 
+    /// Given a feature matrix, predict the classes learned when the model was
+    /// fitted.
     pub fn predict_classes<A: Data<Elem = F>>(&self, x: &ArrayBase<A, Ix2>) -> Vec<C> {
         let pos_class = class_from_label(&self.labels, F::POSITIVE_LABEL);
         let neg_class = class_from_label(&self.labels, F::NEGATIVE_LABEL);
@@ -473,6 +470,8 @@ fn class_from_label<F: Float, C: PartialOrd + Clone>(labels: &ClassLabels<F, C>,
         .clone()
 }
 
+/// Internal representation of a logistic regression problem.
+/// This data structure exists to be handed to Argmin.
 struct LogisticRegressionProblem<'a, F: Float, A: Data<Elem = F>> {
     x: &'a ArrayBase<A, Ix2>,
     target: Array1<F>,
@@ -515,6 +514,9 @@ mod test {
     use approx::AbsDiffEq;
     use ndarray::{array, Array2};
 
+    /// Test that the logistic loss function works as expected.
+    /// The expected values were obtained from running sklearn's
+    /// _logistic_loss_and_grad function.
     #[test]
     fn test_logistic_loss() {
         let x = array![
@@ -573,6 +575,9 @@ mod test {
         }
     }
 
+    /// Test that the logistic grad function works as expected.
+    /// The expected values were obtained from running sklearn's
+    /// _logistic_loss_and_grad function.
     #[test]
     fn test_logistic_grad() {
         let x = array![
