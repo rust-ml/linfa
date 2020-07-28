@@ -15,6 +15,7 @@ categories = ["algorithms", "mathematics", "science"]
 [dependencies]
 ndarray = { version = "0.13" , features = ["rayon", "serde", "approx"]}
 linfa-clustering = { path = "linfa-clustering", version = "0.1" }
+linfa-trees = { path = "linfa-trees", version = "0.1" }
 linfa-reduction = { path = "linfa-reduction", version = "0.1" }
 num-traits = "0.1.32"
 
@@ -27,7 +28,9 @@ ndarray-npy = { version = "0.5", default-features = false }
 [workspace]
 members = [
     "linfa-clustering",
-    "linfa-reduction"
+    "linfa-reduction",
+    "linfa-linear",
+    "linfa-trees"
 ]
 
 [profile.release]
