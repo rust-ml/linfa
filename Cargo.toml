@@ -13,14 +13,17 @@ keywords = ["machine-learning", "linfa", "ai", "ml"]
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
+rand = "0.7"
 ndarray = { version = "0.13" , features = ["rayon", "serde", "approx"]}
+num-traits = "0.1.32"
+
 linfa-clustering = { path = "linfa-clustering", version = "0.1" }
 linfa-trees = { path = "linfa-trees", version = "0.1" }
 linfa-reduction = { path = "linfa-reduction", version = "0.1" }
-num-traits = "0.1.32"
+linfa-linear = { path = "linfa-linear", version = "0.1" }
+linfa-logistic = { path = "linfa-logistic", version = "0.1" }
 
 [dev-dependencies]
-rand = "0.7"
 ndarray-rand = "0.11"
 rand_isaac = "0.2.0"
 ndarray-npy = { version = "0.5", default-features = false }
@@ -30,6 +33,7 @@ members = [
     "linfa-clustering",
     "linfa-reduction",
     "linfa-linear",
+    "linfa-logistic",
     "linfa-trees"
 ]
 
