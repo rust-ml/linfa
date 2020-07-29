@@ -31,3 +31,4 @@ mod svm;
 pub use dbscan::*;
 pub use k_means::*;
 pub use utils::*;
+pub use svm::*;

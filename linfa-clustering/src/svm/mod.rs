@@ -1,5 +1,5 @@
 //! Support Vector Machines
 //!
 
-mod solver;
+pub mod solver;
 
