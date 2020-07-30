@@ -1,9 +1,9 @@
-//! Common metrics for regression 
+//! Common metrics for regression
 //!
 //! This module implements common comparison metrices for continuous variables.
 
-use ndarray::{Data, NdFloat};
 use ndarray::prelude::*;
+use ndarray::{Data, NdFloat};
 use num_traits::FromPrimitive;
 
 /// Regression metrices trait
@@ -27,7 +27,10 @@ pub trait Regression<A, D: Data<Elem = A>> {
 
 impl<A: NdFloat + FromPrimitive, D: Data<Elem = A>> Regression<A, D> for ArrayBase<D, Ix1> {
     fn max_error(&self, compare_to: &ArrayBase<D, Ix1>) -> A {
-        (self - compare_to).iter().map(|x| x.abs()).fold(A::neg_infinity(), A::max)
+        (self - compare_to)
+            .iter()
+            .map(|x| x.abs())
+            .fold(A::neg_infinity(), A::max)
     }
 
     fn mean_absolute_error(&self, compare_to: &ArrayBase<D, Ix1>) -> A {
@@ -40,7 +43,8 @@ impl<A: NdFloat + FromPrimitive, D: Data<Elem = A>> Regression<A, D> for ArrayBa
 
     fn mean_squared_log_error(&self, compare_to: &ArrayBase<D, Ix1>) -> A {
         //(self - compare_to).mapv(|x| (x.ln() * x.ln()).mean().unwrap()
-        self.mapv(|x| (A::one() + x).ln()).mean_squared_error(&compare_to.mapv(|x| (A::one() + x).ln()))
+        self.mapv(|x| (A::one() + x).ln())
+            .mean_squared_error(&compare_to.mapv(|x| (A::one() + x).ln()))
     }
 
     fn median_absolute_error(&self, compare_to: &ArrayBase<D, Ix1>) -> A {
@@ -48,7 +52,7 @@ impl<A: NdFloat + FromPrimitive, D: Data<Elem = A>> Regression<A, D> for ArrayBa
         abs_error.sort_by(|a, b| a.partial_cmp(&b).unwrap());
         let mid = abs_error.len() / 2;
         if abs_error.len() % 2 == 0 {
-            (abs_error[mid-1] + abs_error[mid]) / A::from(2.0).unwrap()
+            (abs_error[mid - 1] + abs_error[mid]) / A::from(2.0).unwrap()
         } else {
             abs_error[mid]
         }
@@ -57,21 +61,25 @@ impl<A: NdFloat + FromPrimitive, D: Data<Elem = A>> Regression<A, D> for ArrayBa
     fn r2(&self, compare_to: &ArrayBase<D, Ix1>) -> A {
         let mean = compare_to.mean().unwrap();
 
-        A::one() - (self - compare_to).mapv(|x| x*x).sum() / (self.mapv(|x| (x - mean) * (x - mean)).sum() + A::from(1e-10).unwrap())
+        A::one()
+            - (self - compare_to).mapv(|x| x * x).sum()
+                / (self.mapv(|x| (x - mean) * (x - mean)).sum() + A::from(1e-10).unwrap())
     }
 
     fn explained_variance(&self, compare_to: &ArrayBase<D, Ix1>) -> A {
         let mean = compare_to.mean().unwrap();
         let mean_error = (self - compare_to).mean().unwrap();
 
-        A::one() - ((self - compare_to).mapv(|x| x*x).sum() - mean_error) / (self.mapv(|x| (x - mean) * (x - mean)).sum() + A::from(1e-10).unwrap())
+        A::one()
+            - ((self - compare_to).mapv(|x| x * x).sum() - mean_error)
+                / (self.mapv(|x| (x - mean) * (x - mean)).sum() + A::from(1e-10).unwrap())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use ndarray::prelude::*;
     use super::Regression;
+    use ndarray::prelude::*;
 
     #[test]
     fn test_same() {
@@ -111,4 +119,3 @@ mod tests {
         assert!((a.mean_squared_error(&b) - 0.1) < 1e-5);
     }
 }
-

@@ -18,17 +18,12 @@ fn main() {
 
     dbg!(&dataset);
 
-    let embedding = PrincipalComponentAnalysis::fit(dataset.clone(), 1)
-        .predict(&dataset);
+    let embedding = PrincipalComponentAnalysis::fit(dataset.clone(), 1).predict(&dataset);
 
     dbg!(&embedding);
 
     // Save to disk our dataset (and the cluster label assigned to each observation)
     // We use the `npy` format for compatibility with NumPy
     write_npy("pca_dataset.npy", dataset).expect("Failed to write .npy file");
-    write_npy(
-        "pca_embedding.npy",
-        embedding
-    )
-    .expect("Failed to write .npy file");
+    write_npy("pca_embedding.npy", embedding).expect("Failed to write .npy file");
 }
