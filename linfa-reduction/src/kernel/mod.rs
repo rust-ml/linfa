@@ -132,7 +132,7 @@ mod tests {
         let a = CsMatBase::csr_from_dense(a.view(), 1e-5);
 
         assert_eq!(a.size(), 10);
-        assert_eq!(a.apply_gram(Array2::eye(10)), a.to_dense());
+        assert_eq!(a.mul_similarity(&Array2::eye(10).view()), a.to_dense());
     }
 
     #[test]
