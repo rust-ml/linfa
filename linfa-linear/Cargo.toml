@@ -1,7 +1,7 @@
 [package]
 name = "linfa-linear"
 version = "0.1.0"
-authors = ["Paul Körbitz <paul@koerbitz.me>"]
+authors = ["Paul Körbitz / Google <koerbitz@google.com>"]
 edition = "2018"
 workspace = ".."
 
@@ -22,3 +22,4 @@ csv = "1.1"
 ndarray-csv = "0.4"
 approx = "0.3.2"
 flate2 = "1.0"
+ndarray-linalg = {version = "0.12", features = ["openblas"]}
