@@ -21,8 +21,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let lin_reg = LinearRegression::new();
     let model = lin_reg.fit(&data, &target)?;
 
-    println!("intercept:  {}", model.get_intercept());
-    println!("parameters: {}", model.get_params());
+    println!("intercept:  {}", model.intercept());
+    println!("parameters: {}", model.params());
 
     Ok(())
 }

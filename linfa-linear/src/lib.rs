@@ -215,12 +215,12 @@ impl<A: Scalar + ScalarOperand> FittedLinearRegression<A> {
     }
 
     /// Get the fitted parameters
-    pub fn get_params(&self) -> &Array1<A> {
+    pub fn params(&self) -> &Array1<A> {
         &self.params
     }
 
     /// Get the fitted intercept, 0. if no intercept was fitted
-    pub fn get_intercept(&self) -> A {
+    pub fn intercept(&self) -> A {
         self.intercept
     }
 }
@@ -298,8 +298,8 @@ mod tests {
         let b: Array1<f64> = array![1., 4., 9.];
         let model = lin_reg.fit(&A, &b).unwrap();
 
-        assert!(model.get_params().abs_diff_eq(&array![2., 1.], 1e-12));
-        assert!(model.get_intercept().abs_diff_eq(&1., 1e-12));
+        assert!(model.params().abs_diff_eq(&array![2., 1.], 1e-12));
+        assert!(model.intercept().abs_diff_eq(&1., 1e-12));
     }
 
     /// Check that the linear regression prefectly fits four datapoints for
@@ -312,8 +312,8 @@ mod tests {
         let b: Array1<f64> = array![1., 8., 27., 64.];
         let model = lin_reg.fit(&A, &b).unwrap();
 
-        assert!(model.get_params().abs_diff_eq(&array![3., 3., 1.], 1e-12));
-        assert!(model.get_intercept().abs_diff_eq(&1., 1e-12));
+        assert!(model.params().abs_diff_eq(&array![3., 3., 1.], 1e-12));
+        assert!(model.intercept().abs_diff_eq(&1., 1e-12));
     }
 
     /// Check that the linear regression prefectly fits three datapoints for
@@ -326,8 +326,8 @@ mod tests {
         let b: Array1<f32> = array![1., 4., 9.];
         let model = lin_reg.fit(&A, &b).unwrap();
 
-        assert!(model.get_params().abs_diff_eq(&array![2., 1.], 1e-4));
-        assert!(model.get_intercept().abs_diff_eq(&1., 1e-6));
+        assert!(model.params().abs_diff_eq(&array![2., 1.], 1e-4));
+        assert!(model.intercept().abs_diff_eq(&1., 1e-6));
     }
 
     /// Check that the linear regression prefectly fits four datapoints for
@@ -341,8 +341,8 @@ mod tests {
         let b: Array1<f64> = array![1., 8., 27., 64.];
         let model = lin_reg.fit(&A, &b).unwrap();
 
-        assert!(model.get_params().abs_diff_eq(&array![3., 3., 1.], 1e-12));
-        assert!(model.get_intercept().abs_diff_eq(&1., 1e-12));
+        assert!(model.params().abs_diff_eq(&array![3., 3., 1.], 1e-12));
+        assert!(model.intercept().abs_diff_eq(&1., 1e-12));
     }
 
     /// Check that the linear regression model works with both owned and view
@@ -366,12 +366,12 @@ mod tests {
             .fit(&A_view, &b_view)
             .expect("can't fit viewed arrays");
 
-        assert_eq!(model1.get_params(), model2.get_params());
-        assert_eq!(model2.get_params(), model3.get_params());
-        assert_eq!(model3.get_params(), model4.get_params());
+        assert_eq!(model1.params(), model2.params());
+        assert_eq!(model2.params(), model3.params());
+        assert_eq!(model3.params(), model4.params());
 
-        assert_eq!(model1.get_intercept(), model2.get_intercept());
-        assert_eq!(model2.get_intercept(), model3.get_intercept());
-        assert_eq!(model3.get_intercept(), model4.get_intercept());
+        assert_eq!(model1.intercept(), model2.intercept());
+        assert_eq!(model2.intercept(), model3.intercept());
+        assert_eq!(model3.intercept(), model4.intercept());
     }
 }
