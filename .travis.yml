@@ -5,6 +5,7 @@ addons:
   apt:
     packages:
       - libssl-dev
+      - gfortran
 cache: cargo
 matrix:
   include:
