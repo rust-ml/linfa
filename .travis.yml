@@ -20,14 +20,21 @@ matrix:
     env:
       - RUSTFLAGS='-D warnings'
   - rust: nightly
+  - name: Linting (fmt)
+    before_script:
+      - rustup component add rustfmt
+    script:
+      - cargo fmt --all -- --check
+  - name: Coverage
+    before_script:
+      - cargo install cargo-tarpaulin
+    script:
+      - cargo tarpaulin -v --all --run-types Tests Doctests --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
   allow_failures:
     - rust: nightly
   fast_finish: true
 before_cache: |
   rm -rf "$TRAVIS_HOME/.cargo/registry/src"
-  if [[ "$TRAVIS_RUST_VERSION" == stable ]]; then
-    cargo install cargo-tarpaulin -f
-  fi
 before_script:
   - rustup component add rustfmt
 # As a result of https://github.com/travis-ci/travis-ci/issues/1066, we run
@@ -35,10 +42,5 @@ before_script:
 # In this way, the build stops immediately if one of the commands fails.
 script: |
   cargo clean &&
-  cargo fmt --all -- --check &&
   cargo build --all &&
   cargo test --all
-after_success: |
-  if [[ "$TRAVIS_RUST_VERSION" == stable ]]; then
-    cargo tarpaulin --all --run-types Tests Doctests Examples --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
-  fi
