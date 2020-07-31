@@ -40,6 +40,5 @@ script: |
   cargo test --all
 after_success: |
   if [[ "$TRAVIS_RUST_VERSION" == stable ]]; then
-    cargo tarpaulin --all --run-types Tests Doctests Examples --out Xml
-    bash <(curl -s https://codecov.io/bash)
+    cargo tarpaulin --all --run-types Tests Doctests Examples --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
   fi
