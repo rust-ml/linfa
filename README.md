@@ -1,6 +1,6 @@
 # linfa
 
-[![Build status](https://travis-ci.org/LukeMathWalker/linfa.svg?branch=master)](https://travis-ci.org/LukeMathWalker/linfa)
+[![Build Status](https://travis-ci.org/rust-ml/linfa.svg?branch=master)](https://travis-ci.org/rust-ml/linfa)
 [![Coverage](https://codecov.io/gh/LukeMathWalker/linfa/branch/master/graph/badge.svg)](https://codecov.io/gh/LukeMathWalker/linfa)
 [![Dependencies status](https://deps.rs/repo/github/LukeMathWalker/linfa/status.svg)](https://deps.rs/repo/github/LukeMathWalker/linfa)
 
