@@ -6,6 +6,7 @@ addons:
     packages:
       - libssl-dev
       - gfortran
+      - libopenblas-dev
 cache: cargo
 matrix:
   include:
