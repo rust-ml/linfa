@@ -7,6 +7,8 @@ addons:
       - libssl-dev
       - gfortran
       - libopenblas-dev
+      - liblapack-dev
+      - strace
 cache: cargo
 env:
   global: RUSTFLAGS='-D warnings'
@@ -21,11 +23,6 @@ matrix:
       - rustup component add rustfmt
     script:
       - cargo fmt --all -- --check
-  - name: Coverage
-    before_script:
-      - cargo install cargo-tarpaulin
-    script:
-      - cargo tarpaulin -v --all --run-types Tests Doctests --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
   allow_failures:
     - rust: nightly
   fast_finish: true
