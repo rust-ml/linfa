@@ -1,4 +1,4 @@
-use super::SvmResult;
+use super::{SvmResult, ExitReason};
 use linfa_kernel::Kernel;
 use ndarray::Array1;
 
@@ -655,12 +655,18 @@ impl Solver {
         }
         let obj = v / 2.0;
 
+        let exit_reason = if max_iter == iter {
+            ExitReason::ReachedIterations(obj, max_iter)
+        } else {
+            ExitReason::ReachedThreshold(obj, iter)
+        };
+
         // put back the solution
         let alpha: Vec<f64> = (0..self.targets.len())
             .map(|i| status.alpha[status.active_set[i]].val())
             .collect();
 
-        SvmResult { alpha, rho, obj }
+        SvmResult { alpha, rho, exit_reason }
     }
 }
 

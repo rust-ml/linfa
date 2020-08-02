@@ -40,7 +40,7 @@ impl<A: NdFloat + Default + std::iter::Sum> Kernel<A> {
     pub fn from_dense(kernel: Array2<A>) -> Kernel<A> {
         Kernel {
             inner: KernelInner::Dense(kernel),
-            fnc: Box::new(|a, b| { A::zero() }),
+            fnc: Box::new(|_, _| { A::zero() }),
             dataset: array![[A::zero()]]
         }
     }
@@ -104,6 +104,13 @@ impl<A: NdFloat + Default + std::iter::Sum> Kernel<A> {
             }
         }
     }
+
+    pub fn weighted_sum(&self, weights: &[A], sample: ArrayView1<A>) -> A {
+        self.dataset.outer_iter().zip(weights.iter())
+            .map(|(x, a)| (*self.fnc)(x, sample) * *a)
+            .sum()
+    }
+
 }
 
 fn dense_from_fn<A: NdFloat, T: Fn(ArrayView1<A>, ArrayView1<A>) -> A>(dataset: &Array2<A  >, fnc: &T) -> Array2<A> {
