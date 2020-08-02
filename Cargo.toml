@@ -35,7 +35,8 @@ members = [
     "linfa-kernel",
     "linfa-linear",
     "linfa-logistic",
-    "linfa-trees"
+    "linfa-trees",
+    "linfa-svm"
 ]
 
 [profile.release]

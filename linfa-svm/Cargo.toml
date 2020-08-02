@@ -1,0 +1,20 @@
+[package]
+name = "linfa-svm"
+version = "0.1.0"
+edition = "2018"
+authors = ["Lorenz Schmidt <lorenz.schmidt@mailbox.org>"]
+description = "Support Vector Machines"
+license = "MIT/Apache-2.0"
+
+repository = "https://github.com/LukeMathWalker/linfa"
+readme = "README.md"
+
+keywords = ["svm", "support vector machine", "machine-learning", "linfa", "supervised"]
+categories = ["algorithms", "mathematics", "science"]
+
+[dependencies]
+ndarray = { version = "0.13" , features = ["rayon", "serde", "approx"]}
+linfa-kernel = { path = "../linfa-kernel" }
+
+[dev-dependencies]
+approx = "0.3"
