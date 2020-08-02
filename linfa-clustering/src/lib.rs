@@ -25,10 +25,10 @@ extern crate ndarray_linalg;
 mod dbscan;
 #[allow(clippy::new_ret_no_self)]
 mod k_means;
-mod utils;
 mod svm;
+mod utils;
 
 pub use dbscan::*;
 pub use k_means::*;
-pub use utils::*;
 pub use svm::*;
+pub use utils::*;

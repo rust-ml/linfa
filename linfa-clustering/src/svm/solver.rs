@@ -1,19 +1,16 @@
-use ndarray::Array1;
-use linfa_kernel::Kernel;
 use super::SvmResult;
+use linfa_kernel::Kernel;
+use ndarray::Array1;
 
 /// Status of alpha variables of the solver
 struct Alpha {
     value: f64,
-    upper_bound: f64
+    upper_bound: f64,
 }
 
 impl Alpha {
     pub fn from(value: f64, upper_bound: f64) -> Alpha {
-        Alpha {
-            value,
-            upper_bound
-        }
+        Alpha { value, upper_bound }
     }
 
     pub fn reached_upper(&self) -> bool {
@@ -40,7 +37,7 @@ impl Alpha {
 struct KernelSwap<'a> {
     kernel: &'a Kernel<f64>,
     kernel_diag: Array1<f64>,
-    kernel_indices: Vec<usize>
+    kernel_indices: Vec<usize>,
 }
 
 impl<'a> KernelSwap<'a> {
@@ -51,7 +48,7 @@ impl<'a> KernelSwap<'a> {
         KernelSwap {
             kernel,
             kernel_diag,
-            kernel_indices
+            kernel_indices,
         }
     }
 
@@ -84,7 +81,7 @@ impl<'a> KernelSwap<'a> {
 /// Parameters of the solver routine
 #[derive(Clone)]
 pub struct SolverParams {
-    /// Stopping condition 
+    /// Stopping condition
     eps: f64,
     /// Should we shrink, e.g. ignore bounded alphas
     shrinking: bool,
@@ -125,17 +122,24 @@ pub struct SolverState<'a> {
     targets: &'a [bool],
 
     /// Parameters, e.g. stopping condition etc.
-    params: SolverParams
+    params: SolverParams,
 }
 
 impl<'a> SolverState<'a> {
     /// Initialize a solver state
     ///
     /// This is bounded by the lifetime of the kernel matrix, because it can quite large
-    pub fn new(alpha: Vec<f64>, p: Vec<f64>, targets: &'a [bool], kernel: &'a Kernel<f64>, params: SolverParams) -> SolverState<'a> {
-
+    pub fn new(
+        alpha: Vec<f64>,
+        p: Vec<f64>,
+        targets: &'a [bool],
+        kernel: &'a Kernel<f64>,
+        params: SolverParams,
+    ) -> SolverState<'a> {
         // initialize alpha status according to bound
-        let alpha = alpha.into_iter().enumerate()
+        let alpha = alpha
+            .into_iter()
+            .enumerate()
             .map(|(i, alpha)| Alpha::from(alpha, params.bound(i)))
             .collect::<Vec<_>>();
 
@@ -176,7 +180,7 @@ impl<'a> SolverState<'a> {
             active_set,
             targets,
             kernel: KernelSwap::new(kernel),
-            params
+            params,
         }
     }
 
@@ -194,7 +198,7 @@ impl<'a> SolverState<'a> {
     pub fn target(&self, idx: usize) -> f64 {
         match self.targets[idx] {
             true => 1.0,
-            false => -1.0
+            false => -1.0,
         }
     }
 
@@ -210,7 +214,7 @@ impl<'a> SolverState<'a> {
 
     /// Reconstruct gradients from inactivate variables
     ///
-    /// A variables is inactive, when it reaches the upper bound. 
+    /// A variables is inactive, when it reaches the upper bound.
     ///
     fn reconstruct_gradient(&mut self) {
         // if no variable is inactive, skip
@@ -223,8 +227,10 @@ impl<'a> SolverState<'a> {
             self.gradient[j] = self.gradient_fixed[j] + self.p[j];
         }
 
-        let nfree: usize = (0..self.nactive()).filter(|x| self.alpha[*x].free_floating()).count();
-        if nfree*self.ntotal() > 2*self.nactive()*(self.ntotal()-self.nactive()){
+        let nfree: usize = (0..self.nactive())
+            .filter(|x| self.alpha[*x].free_floating())
+            .count();
+        if nfree * self.ntotal() > 2 * self.nactive() * (self.ntotal() - self.nactive()) {
             for i in self.nactive()..self.ntotal() {
                 let dist_i = self.kernel.distances(i, self.nactive());
                 for j in 0..self.nactive() {
@@ -260,10 +266,8 @@ impl<'a> SolverState<'a> {
         let old_alpha_j = self.alpha[j].val();
 
         if self.targets[i] != self.targets[j] {
-            let mut quad_coef = 
-                self.kernel.self_distance(i) +
-                self.kernel.self_distance(j) + 
-                2.0 * dist_i[j];
+            let mut quad_coef =
+                self.kernel.self_distance(i) + self.kernel.self_distance(j) + 2.0 * dist_i[j];
             if quad_coef <= 0.0 {
                 quad_coef = 1e-10;
             }
@@ -280,7 +284,7 @@ impl<'a> SolverState<'a> {
                 if self.alpha[j].val() < 0.0 {
                     self.alpha[j].value = 0.0;
                     self.alpha[i].value = diff;
-                } 
+                }
             } else {
                 if self.alpha[i].val() < 0.0 {
                     self.alpha[i].value = 0.0;
@@ -299,10 +303,8 @@ impl<'a> SolverState<'a> {
                 }
             }
         } else {
-            let mut quad_coef = 
-                self.kernel.self_distance(i) +
-                self.kernel.self_distance(j) -
-                2.0 * dist_i[j];
+            let mut quad_coef =
+                self.kernel.self_distance(i) + self.kernel.self_distance(j) - 2.0 * dist_i[j];
             if quad_coef <= 0.0 {
                 quad_coef = 1e-10;
             }
@@ -313,7 +315,7 @@ impl<'a> SolverState<'a> {
             // update parameters
             self.alpha[i].value -= delta;
             self.alpha[j].value += delta;
-            
+
             // bound to feasible solution
             if sum > bound_i {
                 if self.alpha[i].val() > bound_i {
@@ -350,7 +352,7 @@ impl<'a> SolverState<'a> {
         // update alpha status and gradient bar
         let ui = self.alpha[i].reached_upper();
         let uj = self.alpha[j].reached_upper();
-        
+
         self.alpha[i] = Alpha::from(self.alpha[i].val(), self.params.bound(i));
         self.alpha[j] = Alpha::from(self.alpha[j].val(), self.params.bound(j));
 
@@ -420,7 +422,7 @@ impl<'a> SolverState<'a> {
     }
 
     /// Select optimal working set
-    /// 
+    ///
     /// In each optimization step two variables are selected and then optimized. The indices are
     /// selected such that:
     ///  * i: maximizes -y_i * grad(f)_i, i in I_up(\alpha)
@@ -445,15 +447,14 @@ impl<'a> SolverState<'a> {
                             // this is possible, because op_i is some
                             let i = gmax.1 as usize;
 
-                            let quad_coef = 
-                                self.kernel.self_distance(i) +
-                                self.kernel.self_distance(j) - 
-                                2.0*self.target(i)*dist_i[j];
+                            let quad_coef = self.kernel.self_distance(i)
+                                + self.kernel.self_distance(j)
+                                - 2.0 * self.target(i) * dist_i[j];
 
                             let obj_diff = if quad_coef > 0.0 {
-                                -(grad_diff*grad_diff) / quad_coef
+                                -(grad_diff * grad_diff) / quad_coef
                             } else {
-                                -(grad_diff*grad_diff) / 1e-10
+                                -(grad_diff * grad_diff) / 1e-10
                             };
 
                             if obj_diff <= obj_diff_min.0 {
@@ -470,15 +471,14 @@ impl<'a> SolverState<'a> {
                             // this is possible, because op_i is `Some`
                             let i = gmax.1 as usize;
 
-                            let quad_coef = 
-                                self.kernel.self_distance(i) + 
-                                self.kernel.self_distance(j) + 
-                                2.0 * self.target(i) * dist_i[j];
+                            let quad_coef = self.kernel.self_distance(i)
+                                + self.kernel.self_distance(j)
+                                + 2.0 * self.target(i) * dist_i[j];
 
                             let obj_diff = if quad_coef > 0.0 {
-                                -(grad_diff*grad_diff) / quad_coef
+                                -(grad_diff * grad_diff) / quad_coef
                             } else {
-                                -(grad_diff*grad_diff) / 1e-10
+                                -(grad_diff * grad_diff) / 1e-10
                             };
                             if obj_diff <= obj_diff_min.0 {
                                 obj_diff_min = (obj_diff, j as isize);
@@ -571,11 +571,10 @@ impl<'a> SolverState<'a> {
         if nfree > 0 {
             sum_free / nfree as f64
         } else {
-            (ub+lb) / 2.0
+            (ub + lb) / 2.0
         }
     }
 }
-
 
 pub struct Solver {
     params: SolverParams,
@@ -589,7 +588,7 @@ impl Solver {
         Solver {
             params,
             kernel_matrix,
-            targets
+            targets,
         }
     }
 
@@ -599,7 +598,7 @@ impl Solver {
             vec![0.0; self.targets.len()],
             &self.targets,
             &self.kernel_matrix,
-            self.params.clone()
+            self.params.clone(),
         );
 
         let mut iter = 0;
@@ -610,7 +609,7 @@ impl Solver {
         };
 
         let max_iter = usize::max(10000000, max_iter);
-        let mut counter = usize::min(self.targets.len(), 1000)+1;
+        let mut counter = usize::min(self.targets.len(), 1000) + 1;
         while iter < max_iter {
             counter -= 1;
             if counter == 0 {
@@ -657,20 +656,19 @@ impl Solver {
         let obj = v / 2.0;
 
         // put back the solution
-        let alpha: Vec<f64> = (0..self.targets.len()).map(|i| status.alpha[status.active_set[i]].val()).collect();
+        let alpha: Vec<f64> = (0..self.targets.len())
+            .map(|i| status.alpha[status.active_set[i]].val())
+            .collect();
 
-        SvmResult {
-            alpha,
-            rho,
-            obj
-        }
+        SvmResult { alpha, rho, obj }
     }
 }
 
+#[cfg(tests)]
 mod tests {
     use super::KernelSwap;
     use linfa_kernel::Kernel;
-    use ndarray::{Array2, array};
+    use ndarray::{array, Array2};
 
     #[test]
     fn test_swappable_kernel() {
@@ -695,6 +693,8 @@ mod tests {
         assert_eq!(kernel.distances(0, 3), &[1.0, 0.5, 0.3]);
         assert_eq!(kernel.distances(1, 3), &[0.5, 1.0, 0.1]);
         assert_eq!(kernel.distances(2, 3), &[0.3, 0.1, 1.0]);
-
     }
+
+    #[test]
+    fn test_init_solver() {}
 }
