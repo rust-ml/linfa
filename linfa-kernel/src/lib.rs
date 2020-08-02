@@ -37,6 +37,14 @@ impl<A: NdFloat + Default + std::iter::Sum> Kernel<A> {
         }
     }
 
+    pub fn from_dense(kernel: Array2<A>) -> Kernel<A> {
+        Kernel {
+            inner: KernelInner::Dense(kernel),
+            fnc: Box::new(|a, b| { A::zero() }),
+            dataset: array![[A::zero()]]
+        }
+    }
+
     pub fn mul_similarity(&self, rhs: &ArrayView2<A>) -> Array2<A> {
         match &self.inner {
             KernelInner::Dense(mat) => mat.dot(rhs),
@@ -86,12 +94,12 @@ impl<A: NdFloat + Default + std::iter::Sum> Kernel<A> {
         )
     }
 
-    pub fn get_row(&self, i: usize) -> Vec<A> {
+    pub fn column(&self, i: usize) -> Vec<A> {
         match &self.inner {
-            KernelInner::Dense(mat) => mat.row(i).to_vec(),
+            KernelInner::Dense(mat) => mat.column(i).to_vec(),
             KernelInner::Sparse(mat) => {
                 (0..self.size())
-                    .map(|j| *mat.get(i, j).unwrap_or(&A::neg_zero()))
+                    .map(|j| *mat.get(j, i).unwrap_or(&A::neg_zero()))
                     .collect::<Vec<_>>()
             }
         }
