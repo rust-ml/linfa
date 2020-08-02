@@ -4,7 +4,11 @@ use std::fmt;
 use ndarray::Array1;
 use linfa_kernel::Kernel;
 
-pub mod solver;
+pub mod hyperparameters;
+pub mod solver_smo;
+
+pub use hyperparameters::SolverParams;
+pub use solver_smo::Classification;
 
 pub enum ExitReason {
     ReachedThreshold(f64, usize),
