@@ -1,7 +1,6 @@
 # linfa
 
 [![Build Status](https://travis-ci.org/rust-ml/linfa.svg?branch=master)](https://travis-ci.org/rust-ml/linfa)
-[![Coverage Status](https://coveralls.io/repos/github/rust-ml/linfa/badge.svg?branch=master)](https://coveralls.io/github/rust-ml/linfa?branch=master)
 [![Dependencies status](https://deps.rs/repo/github/LukeMathWalker/linfa/status.svg)](https://deps.rs/repo/github/LukeMathWalker/linfa)
 
 > _**linfa**_ (Italian) / _**sap**_ (English):
