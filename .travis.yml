@@ -1,5 +1,5 @@
 language: rust
-sudo: required
+os: linux
 dist: focal
 addons:
   apt:
@@ -7,12 +7,10 @@ addons:
       - libssl-dev
       - gfortran
       - libopenblas-dev
-      - liblapack-dev
-      - strace
 cache: cargo
 env:
   global: RUSTFLAGS='-D warnings'
-matrix:
+jobs:
   include:
   - rust: 1.38.0 # Minimum Supported Rust Version
   - rust: stable
