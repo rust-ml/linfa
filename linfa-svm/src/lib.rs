@@ -10,11 +10,13 @@ pub mod solver_smo;
 pub use hyperparameters::SolverParams;
 pub use solver_smo::Classification;
 
+#[derive(Debug)]
 pub enum ExitReason {
     ReachedThreshold(f64, usize),
     ReachedIterations(f64, usize),
 }
 
+#[derive(Debug)]
 pub struct SvmResult {
     alpha: Vec<f64>,
     rho: f64,

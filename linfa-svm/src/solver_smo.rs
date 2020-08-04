@@ -686,9 +686,9 @@ impl Classification {
 
 }
 
-#[cfg(tests)]
+#[cfg(test)]
 mod tests {
-    use super::KernelSwap;
+    use super::{KernelSwap, Classification, SolverParams};
     use linfa_kernel::Kernel;
     use ndarray::{array, Array2};
 
@@ -719,6 +719,14 @@ mod tests {
 
     #[test]
     fn test_init_solver() {
-        
+        let dist = array![[1.0, 0.3, 0.1], [0.3, 1.0, 0.5], [0.1, 0.5, 1.0]];
+        let kernel = Kernel::from_dense(dist);
+        let params = SolverParams {
+            eps: 1e-3,
+            shrinking: false
+        };
+
+        let svc = Classification::c_svc(&params, &kernel, &[true, false, false], 1.0, 1.0);
+        dbg!(&svc);
     }
 }
