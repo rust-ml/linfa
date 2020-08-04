@@ -701,7 +701,7 @@ mod test {
 
     #[test]
     fn rejects_inf_values() {
-        let infs = vec![f64::INFINITY, f64::NEG_INFINITY, f64::NAN];
+        let infs = vec![std::f64::INFINITY, std::f64::NEG_INFINITY, std::f64::NAN];
         let inf_xs: Vec<_> = infs.iter().map(|&inf| array![[1.0], [inf]]).collect();
         let log_reg = LogisticRegression::default();
         let normal_x = array![[-1.0], [1.0]];
@@ -731,7 +731,7 @@ mod test {
 
     #[test]
     fn validates_initial_params() {
-        let infs = vec![f64::INFINITY, f64::NEG_INFINITY, f64::NAN];
+        let infs = vec![std::f64::INFINITY, std::f64::NEG_INFINITY, std::f64::NAN];
         let normal_x = array![[-1.0], [1.0]];
         let normal_y = array![0.0, 1.0];
         let expected = Err("Initial parameter guess must be finite".to_string());

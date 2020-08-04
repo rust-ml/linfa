@@ -237,7 +237,9 @@ impl DecisionTree {
     /// Make predictions for each row of a matrix of features `x`.
     pub fn predict(&self, x: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<u64> {
         Array1::from_iter(
-            x.genrows().into_iter().map(|row| make_prediction(&row, &self.root_node))
+            x.genrows()
+                .into_iter()
+                .map(|row| make_prediction(&row, &self.root_node)),
         )
     }
 
@@ -283,9 +285,7 @@ fn class_frequencies(
 /// Make a point prediction for a subset of rows in the dataset based on the
 /// class that occurs the most frequent. If two classes occur with the same
 /// frequency then the first class is selected.
-fn prediction_for_rows(
-    class_freq: &Vec<u64>
-) -> u64 {
+fn prediction_for_rows(class_freq: &Vec<u64>) -> u64 {
     class_freq
         .iter()
         .enumerate()
@@ -368,10 +368,7 @@ mod tests {
 
         let class_freq = class_frequencies(&labels, &row_mask, n_classes);
 
-        assert_eq!(
-            prediction_for_rows(&class_freq),
-            0
-        );
+        assert_eq!(prediction_for_rows(&class_freq), 0);
     }
 
     #[test]

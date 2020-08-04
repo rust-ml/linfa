@@ -1,7 +1,7 @@
+use hnsw::{Params, Searcher, HNSW};
+use ndarray::{Array2, ArrayView1, Axis};
+use space::{MetricPoint, Neighbor};
 use sprs::{CsMat, CsMatBase};
-use hnsw::{Searcher, HNSW, Params};
-use space::{Neighbor, MetricPoint};
-use ndarray::{Array2, Axis, ArrayView1};
 
 use num_traits::NumCast;
 
@@ -12,7 +12,8 @@ struct Euclidean<'a, A>(ArrayView1<'a, A>);
 
 impl<A: Float> MetricPoint for Euclidean<'_, A> {
     fn distance(&self, rhs: &Self) -> u32 {
-        let val = self.0
+        let val = self
+            .0
             .iter()
             .zip(rhs.0.iter())
             .map(|(&a, &b)| (a - b) * (a - b))
@@ -32,8 +33,7 @@ pub fn adjacency_matrix<A: Float>(dataset: &Array2<A>, k: usize) -> CsMat<A> {
     assert!(k < n_points);
     assert!(k > 0);
 
-    let params = Params::new()
-        .ef_construction(k);
+    let params = Params::new().ef_construction(k);
 
     let mut searcher = Searcher::default();
     let mut hnsw: HNSW<Euclidean<A>> = HNSW::new_params(params);
@@ -50,10 +50,10 @@ pub fn adjacency_matrix<A: Float>(dataset: &Array2<A>, k: usize) -> CsMat<A> {
     //  * data: we have exact #points * k positive entries
     //  * indptr: has structure [0,k,2k,...,#points*k]
     //  * indices: filled with the nearest indices
-    let mut data = Vec::with_capacity(n_points * (k+1));
+    let mut data = Vec::with_capacity(n_points * (k + 1));
     let mut indptr = Vec::with_capacity(n_points + 1);
     //let indptr = (0..n_points+1).map(|x| x * (k+1)).collect::<Vec<_>>();
-    let mut indices = Vec::with_capacity(n_points * (k+1));
+    let mut indices = Vec::with_capacity(n_points * (k + 1));
     indptr.push(0);
 
     // find neighbours for each data point
@@ -81,7 +81,6 @@ pub fn adjacency_matrix<A: Float>(dataset: &Array2<A>, k: usize) -> CsMat<A> {
 
         indptr.push(added);
     }
-
 
     // create CSR matrix from data, indptr and indices
     let mat = CsMatBase::new((n_points, n_points), indptr, indices, data);

@@ -57,7 +57,7 @@ enum Options {
 impl Options {
     fn should_use_intercept(&self) -> bool {
         *self == Options::WithIntercept || *self == Options::WithInterceptAndNormalize
-    }    
+    }
 
     fn should_normalize(&self) -> bool {
         *self == Options::WithInterceptAndNormalize
@@ -72,10 +72,10 @@ pub struct FittedLinearRegression<A> {
 
 /// Configure and fit a linear regression model
 impl LinearRegression {
-    /// Create a default linear regression model. 
-    /// 
-    /// By default, an intercept will be fitted. To disable fitting an 
-    /// intercept, call `.with_intercept(false)` before calling `.fit()`. 
+    /// Create a default linear regression model.
+    ///
+    /// By default, an intercept will be fitted. To disable fitting an
+    /// intercept, call `.with_intercept(false)` before calling `.fit()`.
     ///
     /// To additionally normalize the feature matrix before fitting, call
     /// `fit_intercept_and_normalize()` before calling `fit()`. The feature

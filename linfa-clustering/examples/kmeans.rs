@@ -37,4 +37,3 @@ fn main() {
     )
     .expect("Failed to write .npy file");
 }
-

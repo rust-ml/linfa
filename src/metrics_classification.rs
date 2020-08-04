@@ -4,24 +4,31 @@
 //! common scoring functions like precision, accuracy, recall, f1-score, ROC and ROC
 //! Aread-Under-Curve.
 use std::collections::HashMap;
-use std::hash::Hash;
 use std::fmt;
+use std::hash::Hash;
 
 use ndarray::prelude::*;
 use ndarray::Data;
 
-/// Return tuple of class index for each element of prediction and ground_truth 
-fn map_prediction_to_idx<A: Eq + Hash, C: Data<Elem = A>, D: Data<Elem = A>>(prediction: &ArrayBase<C, Ix1>, ground_truth: &ArrayBase<D, Ix1>, classes: &[A]) -> Vec<Option<(usize, usize)>> {
+/// Return tuple of class index for each element of prediction and ground_truth
+fn map_prediction_to_idx<A: Eq + Hash, C: Data<Elem = A>, D: Data<Elem = A>>(
+    prediction: &ArrayBase<C, Ix1>,
+    ground_truth: &ArrayBase<D, Ix1>,
+    classes: &[A],
+) -> Vec<Option<(usize, usize)>> {
     // create a map from class label to index
-    let set = classes.iter().enumerate()
+    let set = classes
+        .iter()
+        .enumerate()
         .map(|(a, b)| (b, a))
         .collect::<HashMap<_, usize>>();
 
     // indices for every prediction
-    prediction.iter().zip(ground_truth.iter()).map(|(a,b)| {
-        set.get(&a)
-            .and_then(|x| set.get(&b).map(|y| (*x, *y)))
-    }).collect::<Vec<Option<_>>>()
+    prediction
+        .iter()
+        .zip(ground_truth.iter())
+        .map(|(a, b)| set.get(&a).and_then(|x| set.get(&b).map(|y| (*x, *y))))
+        .collect::<Vec<Option<_>>>()
 }
 
 /// A modified prediction
@@ -32,7 +39,7 @@ fn map_prediction_to_idx<A: Eq + Hash, C: Data<Elem = A>, D: Data<Elem = A>>(pre
 pub struct ModifiedPrediction<A, D: Data<Elem = A>> {
     prediction: ArrayBase<D, Ix1>,
     weights: Vec<f32>,
-    classes: Vec<A>
+    classes: Vec<A>,
 }
 
 /// Modify prediction weights or classes
@@ -48,9 +55,9 @@ pub trait Modify<A: PartialOrd + Eq + Hash, D: Data<Elem = A>> {
 impl<A: PartialOrd + Eq + Hash + Clone, D: Data<Elem = A>> Modify<A, D> for ArrayBase<D, Ix1> {
     fn with_weights(self, weights: &[f32]) -> ModifiedPrediction<A, D> {
         ModifiedPrediction {
-            prediction: self, 
+            prediction: self,
             weights: weights.to_vec(),
-            classes: Vec::new()
+            classes: Vec::new(),
         }
     }
 
@@ -58,18 +65,20 @@ impl<A: PartialOrd + Eq + Hash + Clone, D: Data<Elem = A>> Modify<A, D> for Arra
         ModifiedPrediction {
             prediction: self,
             weights: Vec::new(),
-            classes: classes.to_vec()
+            classes: classes.to_vec(),
         }
     }
 }
 
 /// Modify a already modified prediction
-impl<A: PartialOrd + Eq + Hash + Clone, D: Data<Elem = A>> Modify<A, D> for ModifiedPrediction<A, D> {
+impl<A: PartialOrd + Eq + Hash + Clone, D: Data<Elem = A>> Modify<A, D>
+    for ModifiedPrediction<A, D>
+{
     fn with_weights(self, weights: &[f32]) -> ModifiedPrediction<A, D> {
         ModifiedPrediction {
             prediction: self.prediction,
             weights: weights.to_vec(),
-            classes: self.classes
+            classes: self.classes,
         }
     }
 
@@ -77,7 +86,7 @@ impl<A: PartialOrd + Eq + Hash + Clone, D: Data<Elem = A>> Modify<A, D> for Modi
         ModifiedPrediction {
             prediction: self.prediction,
             weights: self.weights,
-            classes: classes.to_vec()
+            classes: classes.to_vec(),
         }
     }
 }
@@ -89,7 +98,7 @@ impl<A: PartialOrd + Eq + Hash + Clone, D: Data<Elem = A>> Modify<A, D> for Modi
 /// diagonal is a miss-classification.
 pub struct ConfusionMatrix<A> {
     matrix: Array2<f32>,
-    members: Array1<A>
+    members: Array1<A>,
 }
 
 impl<A> ConfusionMatrix<A> {
@@ -129,9 +138,11 @@ impl<A> ConfusionMatrix<A> {
         if self.is_binary() {
             self.matrix[(0, 0)] / (self.matrix[(0, 0)] + self.matrix[(1, 0)])
         } else {
-            self.split_one_vs_all().into_iter()
+            self.split_one_vs_all()
+                .into_iter()
                 .map(|x| x.precision())
-                .sum::<f32>() / self.members.len() as f32
+                .sum::<f32>()
+                / self.members.len() as f32
         }
     }
 
@@ -169,9 +180,11 @@ impl<A> ConfusionMatrix<A> {
         if self.is_binary() {
             self.matrix[(0, 0)] / (self.matrix[(0, 0)] + self.matrix[(0, 1)])
         } else {
-            self.split_one_vs_all().into_iter()
+            self.split_one_vs_all()
+                .into_iter()
                 .map(|x| x.recall())
-                .sum::<f32>() / self.members.len() as f32
+                .sum::<f32>()
+                / self.members.len() as f32
         }
     }
 
@@ -186,7 +199,7 @@ impl<A> ConfusionMatrix<A> {
 
     /// F-beta-score
     ///
-    /// The F-beta-score averages between precision and recall. It is defined as 
+    /// The F-beta-score averages between precision and recall. It is defined as
     /// ```ignore
     /// (1.0 + b*b) * (precision * recall) / (b * b * precision + recall)
     /// ```
@@ -246,7 +259,7 @@ impl<A> ConfusionMatrix<A> {
 
                 ConfusionMatrix {
                     matrix: array![[tp, fp], [_fn, tn]],
-                    members: Array1::from(vec![true, false])
+                    members: Array1::from(vec![true, false]),
                 }
             })
             .collect()
@@ -255,7 +268,7 @@ impl<A> ConfusionMatrix<A> {
     /// Split confusion matrix in N*(N-1)/2 one-vs-one binary confusion matrices
     pub fn split_one_vs_one(&self) -> Vec<ConfusionMatrix<bool>> {
         let n = self.members.len();
-        let mut cms = Vec::with_capacity(n*(n-1)/2);
+        let mut cms = Vec::with_capacity(n * (n - 1) / 2);
 
         for i in 0..n {
             for j in i..n {
@@ -264,12 +277,10 @@ impl<A> ConfusionMatrix<A> {
                 let _fn = self.matrix[(j, i)];
                 let tn = self.matrix[(j, j)];
 
-                cms.push(
-                    ConfusionMatrix {
-                        matrix: array![[tp, fp], [_fn, tn]],
-                        members: Array1::from(vec![true, false])
-                    }
-                );
+                cms.push(ConfusionMatrix {
+                    matrix: array![[tp, fp], [_fn, tn]],
+                    members: Array1::from(vec![true, false]),
+                });
             }
         }
 
@@ -282,7 +293,7 @@ impl<A: fmt::Display> fmt::Debug for ConfusionMatrix<A> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let len = self.matrix.len_of(Axis(0));
         write!(f, "\n")?;
-        for _ in 0..len*4+1 {
+        for _ in 0..len * 4 + 1 {
             write!(f, "-")?;
         }
         write!(f, "\n")?;
@@ -296,7 +307,7 @@ impl<A: fmt::Display> fmt::Debug for ConfusionMatrix<A> {
             write!(f, "\n")?;
         }
 
-        for _ in 0..len*4+1 {
+        for _ in 0..len * 4 + 1 {
             write!(f, "-")?;
         }
 
@@ -311,11 +322,17 @@ pub trait Classification<A: PartialEq + Ord, D: Data<Elem = A>> {
     fn confusion_matrix(self, ground_truth: &ArrayBase<D, Ix1>) -> ConfusionMatrix<A>;
 }
 
-impl<A: Eq + Hash + Copy + Ord, C: Data<Elem = A>, D: Data<Elem = A>> Classification<A, D> for ModifiedPrediction<A, C> {
+impl<A: Eq + Hash + Copy + Ord, C: Data<Elem = A>, D: Data<Elem = A>> Classification<A, D>
+    for ModifiedPrediction<A, C>
+{
     fn confusion_matrix(self, ground_truth: &ArrayBase<D, Ix1>) -> ConfusionMatrix<A> {
         // if we don't have any classes, create a set of predicted labels
         let classes = if self.classes.len() == 0 {
-            let mut classes = ground_truth.iter().chain(self.prediction.iter()).map(|x| *x).collect::<Vec<_>>();
+            let mut classes = ground_truth
+                .iter()
+                .chain(self.prediction.iter())
+                .map(|x| *x)
+                .collect::<Vec<_>>();
             // create a set
             classes.sort();
             classes.dedup();
@@ -334,18 +351,20 @@ impl<A: Eq + Hash + Copy + Ord, C: Data<Elem = A>, D: Data<Elem = A>> Classifica
         }
 
         ConfusionMatrix {
-            matrix: confusion_matrix, 
-            members: Array1::from(classes)
+            matrix: confusion_matrix,
+            members: Array1::from(classes),
         }
     }
 }
 
-impl<A: Eq + std::hash::Hash + Copy + Ord, C: Data<Elem = A>, D: Data<Elem = A>>  Classification<A, D> for ArrayBase<C, Ix1> {
+impl<A: Eq + std::hash::Hash + Copy + Ord, C: Data<Elem = A>, D: Data<Elem = A>>
+    Classification<A, D> for ArrayBase<C, Ix1>
+{
     fn confusion_matrix(self, ground_truth: &ArrayBase<D, Ix1>) -> ConfusionMatrix<A> {
         let tmp = ModifiedPrediction {
             prediction: self,
             classes: Vec::new(),
-            weights: Vec::new()
+            weights: Vec::new(),
         };
 
         tmp.confusion_matrix(ground_truth)
@@ -392,7 +411,7 @@ fn trapezoidal<A: NdFloat>(vals: &[(A, A)]) -> A {
 /// The ROC curve gives insight about the seperability of a binary classification task.
 pub struct ReceiverOperatingCharacteristic<A> {
     curve: Vec<(A, A)>,
-    thresholds: Vec<A>
+    thresholds: Vec<A>,
 }
 
 impl<A: NdFloat> ReceiverOperatingCharacteristic<A> {
@@ -425,26 +444,32 @@ impl<A: NdFloat, D: Data<Elem = A>> BinaryClassification<A> for ArrayBase<D, Ix1
         let mut tuples = self
             .iter()
             .zip(y.iter())
-            .filter_map(|(a, b)| if *a >= A::zero() { Some((*a, *b)) } else { None })
+            .filter_map(|(a, b)| {
+                if *a >= A::zero() {
+                    Some((*a, *b))
+                } else {
+                    None
+                }
+            })
             .collect::<Vec<(A, bool)>>();
-        
+
         tuples.sort_unstable_by(&|a: &(A, _), b: &(A, _)| match a.0.partial_cmp(&b.0) {
             Some(ord) => ord,
             None => unreachable!(),
         });
-        
+
         let (mut tp, mut fp) = (A::zero(), A::zero());
         let mut tps_fps = Vec::new();
         let mut thresholds = Vec::new();
         let mut s0 = A::zero();
-        
+
         for (s, t) in tuples {
             if s != s0 {
                 tps_fps.push((tp, fp));
                 thresholds.push(s);
                 s0 = s;
             }
-        
+
             if t {
                 tp += A::one();
             } else {
@@ -452,26 +477,29 @@ impl<A: NdFloat, D: Data<Elem = A>> BinaryClassification<A> for ArrayBase<D, Ix1
             }
         }
         tps_fps.push((tp, fp));
-        
+
         let (max_tp, max_fp) = (tp, fp);
         for (tp, fp) in &mut tps_fps {
             *tp /= max_tp;
             *fp /= max_fp;
         }
-        
+
         ReceiverOperatingCharacteristic {
             curve: tps_fps,
-            thresholds
+            thresholds,
         }
     }
 }
 #[cfg(test)]
 mod tests {
-    use ndarray::{ArrayView1, Array1, Data, ArrayBase, Dimension, array};
-    use super::{Modify, Classification, BinaryClassification};
+    use super::{BinaryClassification, Classification, Modify};
+    use ndarray::{array, Array1, ArrayBase, ArrayView1, Data, Dimension};
     use rand::{distributions::Uniform, Rng};
 
-    fn assert_eq_slice<A: std::fmt::Debug + PartialEq + Clone, S: Data<Elem = A>, D: Dimension>(a: ArrayBase<S, D>, b: &[A]) {
+    fn assert_eq_slice<A: std::fmt::Debug + PartialEq + Clone, S: Data<Elem = A>, D: Dimension>(
+        a: ArrayBase<S, D>,
+        b: &[A],
+    ) {
         let a = a.iter().cloned().collect::<Vec<_>>();
         assert_eq!(a, b);
     }
@@ -495,24 +523,36 @@ mod tests {
         let predicted = Array1::from(vec![0, 1, 0, 1, 0, 1]);
         let ground_truth = Array1::from(vec![1, 1, 0, 1, 0, 1]);
 
-        let x = predicted
-            .confusion_matrix(&ground_truth);
+        let x = predicted.confusion_matrix(&ground_truth);
 
         assert_eq!(x.accuracy(), 5.0 / 6.0);
-        assert_eq!(x.mcc(), (2.*3. - 1.*0.) / (2.0f32*3.*3.*4.).sqrt());
+        assert_eq!(
+            x.mcc(),
+            (2. * 3. - 1. * 0.) / (2.0f32 * 3. * 3. * 4.).sqrt()
+        );
 
-        assert_eq_iter(x.split_one_vs_all().into_iter().map(|x| x.precision()), &[1.0, 3./4.]);
-        assert_eq_iter(x.split_one_vs_all().into_iter().map(|x| x.recall()), &[2.0 / 3.0, 1.0]);
-        assert_eq_iter(x.split_one_vs_all().into_iter().map(|x| x.f1_score()), &[4.0 / 5.0, 6.0 / 7.0]);
+        assert_eq_iter(
+            x.split_one_vs_all().into_iter().map(|x| x.precision()),
+            &[1.0, 3. / 4.],
+        );
+        assert_eq_iter(
+            x.split_one_vs_all().into_iter().map(|x| x.recall()),
+            &[2.0 / 3.0, 1.0],
+        );
+        assert_eq_iter(
+            x.split_one_vs_all().into_iter().map(|x| x.f1_score()),
+            &[4.0 / 5.0, 6.0 / 7.0],
+        );
     }
 
     #[test]
     fn test_modification() {
-        let predicted =    array![0, 3, 2, 0, 1, 1, 1, 3, 2, 3];
+        let predicted = array![0, 3, 2, 0, 1, 1, 1, 3, 2, 3];
         let ground_truth = array![0, 2, 3, 0, 1, 2, 1, 2, 3, 2];
 
         // exclude class 3 from evaluation
-        let cm = predicted.clone()
+        let cm = predicted
+            .clone()
             .with_classes(&[0, 1, 2])
             .confusion_matrix(&ground_truth);
 
@@ -534,13 +574,13 @@ mod tests {
         let groundtruth = vec![false, true, false, true, true, true];
 
         let result = &[
-            (0.0, 0.0),  // start 
+            (0.0, 0.0),  // start
             (0.0, 0.5),  // first item is target=false
             (0.25, 0.5), // second item is target=true, but obviously false
             (0.25, 1.0), // third item is target=false, we reach max false-positive, because all other labels are positive
             (0.5, 1.0),  // the remaining three are target=true
             (0.75, 1.0),
-            (1., 1.)
+            (1., 1.),
         ];
 
         let roc = predicted.roc(&groundtruth);
@@ -548,14 +588,15 @@ mod tests {
     }
 
     #[test]
-    fn test_roc_auc(){
+    fn test_roc_auc() {
         let predicted = Array1::linspace(0.0, 1.0, 1000);
 
         let mut rng = rand::thread_rng();
         let range = Uniform::new(0, 2);
 
         // randomly sample ground truth
-        let ground_truth = (0..1000).map(|_| rng.sample(&range) == 1)
+        let ground_truth = (0..1000)
+            .map(|_| rng.sample(&range) == 1)
             .collect::<Vec<_>>();
 
         // ROC Area-Under-Curve should be approximately 0.5
@@ -565,7 +606,7 @@ mod tests {
 
     #[test]
     fn split_one_vs_all() {
-        let predicted =    array![0, 3, 2, 0, 1, 1, 1, 3, 2, 3];
+        let predicted = array![0, 3, 2, 0, 1, 1, 1, 3, 2, 3];
         let ground_truth = array![0, 2, 3, 0, 1, 2, 1, 2, 3, 2];
 
         // create a confusion matrix
@@ -578,11 +619,12 @@ mod tests {
             &[2., 0., 0., 8.], // no misclassification for label=0
             &[2., 1., 0., 7.], // one false-positive for label=1
             &[0., 2., 4., 4.], // two false-positive and four false-negative for label=2
-            &[0., 3., 2., 5.]  // three false-positive and two false-negative for label=3
+            &[0., 3., 2., 5.], // three false-positive and two false-negative for label=3
         ];
 
         // compare to result
-        n_cm.into_iter().zip(result.into_iter())
+        n_cm.into_iter()
+            .zip(result.into_iter())
             .for_each(|(x, r)| assert_eq_slice(x.matrix, r))
     }
 }
