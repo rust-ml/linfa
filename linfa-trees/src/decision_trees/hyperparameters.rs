@@ -79,7 +79,7 @@ impl DecisionTreeParams {
     /// * `min_impurity_decrease = 0.00001`
     pub fn new(n_classes: u64) -> DecisionTreeParamsBuilder {
         DecisionTreeParamsBuilder {
-            n_classes: n_classes,
+            n_classes,
             split_quality: SplitQuality::Gini,
             max_depth: None,
             min_samples_split: 2,

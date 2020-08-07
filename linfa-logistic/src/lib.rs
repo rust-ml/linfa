@@ -335,7 +335,7 @@ fn log_logistic<F: Float>(x: F) -> F {
     if x > F::zero() {
         -(F::one() + (-x).exp()).ln()
     } else {
-        return x - (F::one() + x.exp()).ln();
+        x - (F::one() + x.exp()).ln()
     }
 }
 
@@ -461,7 +461,7 @@ struct ClassLabel<F: Float, C: PartialOrd> {
 
 type ClassLabels<F, C> = Vec<ClassLabel<F, C>>;
 
-fn class_from_label<F: Float, C: PartialOrd + Clone>(labels: &ClassLabels<F, C>, label: F) -> C {
+fn class_from_label<F: Float, C: PartialOrd + Clone>(labels: &[ClassLabel<F, C>], label: F) -> C {
     labels
         .iter()
         .find(|cl| cl.label == label)

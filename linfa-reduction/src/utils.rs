@@ -65,7 +65,7 @@ pub fn generate_convoluted_rings(
     let n_points = (n_points as f32 / rings.len() as f32).ceil() as usize;
     let mut array = Array2::zeros((n_points * rings.len(), 3));
 
-    for (n, (start, end)) in rings.into_iter().enumerate() {
+    for (n, (start, end)) in rings.iter().enumerate() {
         // inner circle
         for i in 0..n_points {
             let r: f64 = rng.gen_range(start, end);

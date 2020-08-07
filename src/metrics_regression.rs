@@ -85,13 +85,13 @@ mod tests {
     fn test_same() {
         let a: Array1<f32> = Array1::ones(100);
 
-        assert_eq!(a.max_error(&a), 0.0);
-        assert_eq!(a.mean_absolute_error(&a), 0.0);
-        assert_eq!(a.mean_squared_error(&a), 0.0);
-        assert_eq!(a.mean_squared_log_error(&a), 0.0);
-        assert_eq!(a.median_absolute_error(&a), 0.0);
-        assert_eq!(a.r2(&a), 1.0);
-        assert_eq!(a.explained_variance(&a), 1.0);
+        assert_eq!(a.max_error(&a), 0.0f32);
+        assert_eq!(a.mean_absolute_error(&a), 0.0f32);
+        assert_eq!(a.mean_squared_error(&a), 0.0f32);
+        assert_eq!(a.mean_squared_log_error(&a), 0.0f32);
+        assert_eq!(a.median_absolute_error(&a), 0.0f32);
+        assert_eq!(a.r2(&a), 1.0f32);
+        assert_eq!(a.explained_variance(&a), 1.0f32);
     }
 
     #[test]

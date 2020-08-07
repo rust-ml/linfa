@@ -70,6 +70,12 @@ pub struct FittedLinearRegression<A> {
     params: Array1<A>,
 }
 
+impl Default for LinearRegression {
+    fn default() -> Self {
+        LinearRegression::new()
+    }
+}
+
 /// Configure and fit a linear regression model
 impl LinearRegression {
     /// Create a default linear regression model.
@@ -142,23 +148,23 @@ impl LinearRegression {
             // to the X_offset and y_offset
             let X_offset: Array1<A> = X
                 .mean_axis(Axis(0))
-                .ok_or(String::from("cannot compute mean of X"))?;
+                .ok_or_else(|| String::from("cannot compute mean of X"))?;
             let X_centered: Array2<A> = X - &X_offset;
-            let y_offset: A = y.mean().ok_or(String::from("cannot compute mean of y"))?;
+            let y_offset: A = y.mean().ok_or_else(|| String::from("cannot compute mean of y"))?;
             let y_centered: Array1<A> = y - y_offset;
             let params: Array1<A> =
                 compute_params(&X_centered, &y_centered, self.options.should_normalize())?;
             let intercept: A = y_offset - X_offset.dot(&params);
-            return Ok(FittedLinearRegression {
-                intercept: intercept,
-                params: params,
-            });
+            Ok(FittedLinearRegression {
+                intercept,
+                params,
+            })
         } else {
-            return Ok(FittedLinearRegression {
+            Ok(FittedLinearRegression {
                 intercept: A::from(0).unwrap(),
                 params: solve_normal_equation(X, y)?,
-            });
-        };
+            })
+        }
     }
 }
 
@@ -201,7 +207,8 @@ where
     let linear_operator = X.t().dot(X);
     linear_operator
         .solve_into(rhs)
-        .or_else(|err| Err(format! {"{}", err}))
+        .map_err(|err| format! {"{}", err})
+
 }
 
 /// View the fitted parameters and make predictions with a fitted
