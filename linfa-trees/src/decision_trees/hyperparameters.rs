@@ -77,6 +77,8 @@ impl DecisionTreeParams {
     /// * `min_samples_split = 2`
     /// * `min_samples_leaf = 1`
     /// * `min_impurity_decrease = 0.00001`
+    // Violates the convention that new should return a value of type `Self`
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(n_classes: u64) -> DecisionTreeParamsBuilder {
         DecisionTreeParamsBuilder {
             n_classes,
