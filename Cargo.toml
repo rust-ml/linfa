@@ -14,7 +14,7 @@ categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
 rand = "0.7"
-ndarray = { version = "0.13" , features = ["rayon", "serde", "approx"]}
+ndarray = { version = "0.13", features = ["rayon", "serde", "approx"]}
 num-traits = "0.1.32"
 
 linfa-clustering = { path = "linfa-clustering", version = "0.1" }
