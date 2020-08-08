@@ -150,15 +150,14 @@ impl LinearRegression {
                 .mean_axis(Axis(0))
                 .ok_or_else(|| String::from("cannot compute mean of X"))?;
             let X_centered: Array2<A> = X - &X_offset;
-            let y_offset: A = y.mean().ok_or_else(|| String::from("cannot compute mean of y"))?;
+            let y_offset: A = y
+                .mean()
+                .ok_or_else(|| String::from("cannot compute mean of y"))?;
             let y_centered: Array1<A> = y - y_offset;
             let params: Array1<A> =
                 compute_params(&X_centered, &y_centered, self.options.should_normalize())?;
             let intercept: A = y_offset - X_offset.dot(&params);
-            Ok(FittedLinearRegression {
-                intercept,
-                params,
-            })
+            Ok(FittedLinearRegression { intercept, params })
         } else {
             Ok(FittedLinearRegression {
                 intercept: A::from(0).unwrap(),
@@ -208,7 +207,6 @@ where
     linear_operator
         .solve_into(rhs)
         .map_err(|err| format! {"{}", err})
-
 }
 
 /// View the fitted parameters and make predictions with a fitted
