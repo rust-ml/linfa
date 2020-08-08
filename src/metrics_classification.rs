@@ -330,7 +330,8 @@ impl<A: Eq + Hash + Copy + Ord, C: Data<Elem = A>, D: Data<Elem = A>> Classifica
         let classes = if self.classes.is_empty() {
             let mut classes = ground_truth
                 .iter()
-                .chain(self.prediction.iter()).copied()
+                .chain(self.prediction.iter())
+                .copied()
                 .collect::<Vec<_>>();
             // create a set
             classes.sort();
@@ -492,19 +493,48 @@ impl<A: NdFloat, D: Data<Elem = A>> BinaryClassification<A> for ArrayBase<D, Ix1
 #[cfg(test)]
 mod tests {
     use super::{BinaryClassification, Classification, Modify};
+    use approx::{abs_diff_eq, AbsDiffEq};
     use ndarray::{array, Array1, ArrayBase, ArrayView1, Data, Dimension};
     use rand::{distributions::Uniform, Rng};
 
-    fn assert_eq_slice<A: std::fmt::Debug + PartialEq + Clone, S: Data<Elem = A>, D: Dimension>(
+    fn assert_eq_slice<
+        A: std::fmt::Debug + PartialEq + AbsDiffEq,
+        S: Data<Elem = A>,
+        D: Dimension,
+    >(
         a: ArrayBase<S, D>,
         b: &[A],
     ) {
-        let a = a.iter().cloned().collect::<Vec<_>>();
-        assert_eq!(a, b);
+        assert_eq_iters(a.iter(), b);
     }
 
-    fn assert_eq_iter<A: std::fmt::Debug + PartialEq>(a: impl Iterator<Item = A>, b: &[A]) {
-        assert_eq!(a.collect::<Vec<_>>(), b);
+    fn assert_eq_iter<A: std::fmt::Debug + PartialEq + AbsDiffEq + Clone>(
+        a: impl Iterator<Item = A>,
+        b: &[A],
+    ) {
+        let v: Vec<A> = a.collect();
+        assert_eq_iters(v.iter(), b);
+    }
+
+    fn assert_eq_iters<'a, A>(
+        a: impl IntoIterator<Item = &'a A>,
+        b: impl IntoIterator<Item = &'a A>,
+    ) where
+        A: 'a + std::fmt::Debug + PartialEq + AbsDiffEq,
+    {
+        let mut a_iter = a.into_iter();
+        let mut b_iter = b.into_iter();
+        loop {
+            match (a_iter.next(), b_iter.next()) {
+                (None, None) => break,
+                (Some(a_item), Some(b_item)) => {
+                    abs_diff_eq!(a_item, b_item);
+                }
+                _ => {
+                    panic!("assert_eq_iters: iterators had different lengths");
+                }
+            }
+        }
     }
 
     #[test]
@@ -524,8 +554,8 @@ mod tests {
 
         let x = predicted.confusion_matrix(&ground_truth);
 
-        assert_eq!(x.accuracy(), 5.0 / 6.0 as f32);
-        assert_eq!(
+        abs_diff_eq!(x.accuracy(), 5.0 / 6.0 as f32);
+        abs_diff_eq!(
             x.mcc(),
             (2. * 3. - 1. * 0.) / (2.0f32 * 3. * 3. * 4.).sqrt() as f32
         );
