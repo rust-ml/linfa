@@ -235,7 +235,7 @@ impl<A: Scalar + ScalarOperand> FittedLinearRegression<A> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::AbsDiffEq;
+    use approx::abs_diff_eq;
     use ndarray::{array, s, Array1, Array2};
 
     #[test]
@@ -246,7 +246,7 @@ mod tests {
         let model = lin_reg.fit(&A, &b).unwrap();
         let result = model.predict(&A);
 
-        assert!(result.abs_diff_eq(&array![1., 2.], 1e-12));
+        abs_diff_eq!(result, &array![1., 2.], epsilon = 1e-12);
     }
 
     /// When `with_intercept` is set to false, the
@@ -260,7 +260,7 @@ mod tests {
         let model = lin_reg.fit(&A, &b).unwrap();
         let result = model.predict(&array![[0.], [1.]]);
 
-        assert!(result.abs_diff_eq(&array![0., 1.], 1e-12));
+        abs_diff_eq!(result, &array![0., 1.], epsilon = 1e-12);
     }
 
     /// We can't fit a line through two points without fitting the
@@ -276,7 +276,7 @@ mod tests {
         let model = lin_reg.fit(&A, &b).unwrap();
         let result = model.predict(&A);
 
-        assert!(result.abs_diff_eq(&array![0., 0.], 1e-12));
+        abs_diff_eq!(result, &array![0., 0.], epsilon = 1e-12);
     }
 
     /// We can't fit a line through three points in general
@@ -292,7 +292,7 @@ mod tests {
         let model = lin_reg.fit(&A, &b).unwrap();
         let actual = model.predict(&A);
 
-        assert!(actual.abs_diff_eq(&array![-1. / 3., 2. / 3., 5. / 3.], 1e-12));
+        abs_diff_eq!(actual, array![-1. / 3., 2. / 3., 5. / 3.], epsilon = 1e-12);
     }
 
     /// Check that the linear regression prefectly fits three datapoints for
@@ -305,8 +305,8 @@ mod tests {
         let b: Array1<f64> = array![1., 4., 9.];
         let model = lin_reg.fit(&A, &b).unwrap();
 
-        assert!(model.params().abs_diff_eq(&array![2., 1.], 1e-12));
-        assert!(model.intercept().abs_diff_eq(&1., 1e-12));
+        abs_diff_eq!(model.params(), &array![2., 1.], epsilon = 1e-12);
+        abs_diff_eq!(model.intercept(), &1., epsilon = 1e-12);
     }
 
     /// Check that the linear regression prefectly fits four datapoints for
@@ -319,8 +319,8 @@ mod tests {
         let b: Array1<f64> = array![1., 8., 27., 64.];
         let model = lin_reg.fit(&A, &b).unwrap();
 
-        assert!(model.params().abs_diff_eq(&array![3., 3., 1.], 1e-12));
-        assert!(model.intercept().abs_diff_eq(&1., 1e-12));
+        abs_diff_eq!(model.params(), &array![3., 3., 1.], epsilon = 1e-12);
+        abs_diff_eq!(model.intercept(), &1., epsilon = 1e-12);
     }
 
     /// Check that the linear regression prefectly fits three datapoints for
@@ -333,8 +333,8 @@ mod tests {
         let b: Array1<f32> = array![1., 4., 9.];
         let model = lin_reg.fit(&A, &b).unwrap();
 
-        assert!(model.params().abs_diff_eq(&array![2., 1.], 1e-4));
-        assert!(model.intercept().abs_diff_eq(&1., 1e-6));
+        abs_diff_eq!(model.params(), &array![2., 1.], epsilon = 1e-4);
+        abs_diff_eq!(model.intercept(), &1., epsilon = 1e-6);
     }
 
     /// Check that the linear regression prefectly fits four datapoints for
@@ -348,8 +348,8 @@ mod tests {
         let b: Array1<f64> = array![1., 8., 27., 64.];
         let model = lin_reg.fit(&A, &b).unwrap();
 
-        assert!(model.params().abs_diff_eq(&array![3., 3., 1.], 1e-12));
-        assert!(model.intercept().abs_diff_eq(&1., 1e-12));
+        abs_diff_eq!(model.params(), &array![3., 3., 1.], epsilon = 1e-12);
+        abs_diff_eq!(model.intercept(), 1., epsilon = 1e-12);
     }
 
     /// Check that the linear regression model works with both owned and view
@@ -377,8 +377,8 @@ mod tests {
         assert_eq!(model2.params(), model3.params());
         assert_eq!(model3.params(), model4.params());
 
-        assert_eq!(model1.intercept(), model2.intercept());
-        assert_eq!(model2.intercept(), model3.intercept());
-        assert_eq!(model3.intercept(), model4.intercept());
+        abs_diff_eq!(model1.intercept(), model2.intercept());
+        abs_diff_eq!(model2.intercept(), model3.intercept());
+        abs_diff_eq!(model3.intercept(), model4.intercept());
     }
 }
