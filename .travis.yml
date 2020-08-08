@@ -25,7 +25,7 @@ jobs:
     before_script:
       - rustup component add clippy
     script:
-      - cargo clippy
+      - cargo clippy --all-targets --all-features
   allow_failures:
     - rust: nightly
   fast_finish: true
