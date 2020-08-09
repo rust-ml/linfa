@@ -20,7 +20,7 @@ pub enum KernelInner<A: NdFloat> {
 pub struct Kernel<A: NdFloat> {
     inner: KernelInner<A>,
     fnc: SimFnc<A>,
-    dataset: Array2<A>
+    pub dataset: Array2<A>
 }
 
 impl<A: NdFloat + Default + std::iter::Sum> Kernel<A> {
@@ -111,6 +111,16 @@ impl<A: NdFloat + Default + std::iter::Sum> Kernel<A> {
             .sum()
     }
 
+    pub fn gaussian(dataset: Array2<A>, eps: A) -> Kernel<A> {
+        let fnc = move |a: ArrayView1<A>, b: ArrayView1<A>| {
+            let distance = a.iter().zip(b.iter()).map(|(x, y)| (*x-*y)*(*x-*y))
+                .sum::<A>();
+
+            (-distance / eps).exp()
+        };
+
+        Kernel::new(dataset, fnc, KernelType::Dense)
+    }
 }
 
 fn dense_from_fn<A: NdFloat, T: Fn(ArrayView1<A>, ArrayView1<A>) -> A>(dataset: &Array2<A  >, fnc: &T) -> Array2<A> {
@@ -144,13 +154,3 @@ fn sparse_from_fn<A: NdFloat + Default + std::iter::Sum, T: Fn(ArrayView1<A>, Ar
     data
 }
 
-pub fn gaussian<A: NdFloat + Default + std::iter::Sum>(dataset: Array2<A>, eps: A) -> Kernel<A> {
-    let fnc = move |a: ArrayView1<A>, b: ArrayView1<A>| {
-        let distance = a.iter().zip(b.iter()).map(|(x, y)| (*x-*y)*(*x-*y))
-            .sum::<A>();
-
-        (-distance / eps).exp()
-    };
-
-    Kernel::new(dataset, fnc, KernelType::Dense)
-}

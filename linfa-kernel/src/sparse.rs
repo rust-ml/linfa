@@ -3,8 +3,6 @@ use hnsw::{Searcher, HNSW, Params};
 use space::{Neighbor, MetricPoint};
 use ndarray::{Array2, Axis, ArrayView1, NdFloat};
 
-use num_traits::NumCast;
-
 /// Implementation of euclidean distance for ndarray
 struct Euclidean<'a, A>(ArrayView1<'a, A>);
 
@@ -65,14 +63,14 @@ pub fn adjacency_matrix<A: NdFloat + std::iter::Sum + Default>(dataset: &Array2<
         neighbours.sort_unstable();
 
         indices.push(m);
-        data.push(NumCast::from(1.0).unwrap());
+        data.push(A::one());
         added += 1;
 
         // push each index into the indices array
         for n in &neighbours {
             if m != n.index {
                 indices.push(n.index);
-                data.push(NumCast::from(1.0).unwrap());
+                data.push(A::one());
                 added += 1;
             }
         }
@@ -86,7 +84,7 @@ pub fn adjacency_matrix<A: NdFloat + std::iter::Sum + Default>(dataset: &Array2<
     let mut mat = &mat + &mat.transpose_view();
 
     // ensure that all values are one
-    let val: A = NumCast::from(1.0).unwrap();
+    let val: A = A::one();
     mat.map_inplace(|_| val);
 
     mat

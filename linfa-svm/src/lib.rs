@@ -1,7 +1,7 @@
 //! Support Vector Machines
 //!
 use std::fmt;
-use ndarray::Array1;
+use ndarray::{Array1, ArrayBase, Data, Ix1};
 use linfa_kernel::Kernel;
 
 pub mod hyperparameters;
@@ -24,7 +24,7 @@ pub struct SvmResult {
 }
 
 impl SvmResult {
-    pub fn classify(&self, kernel: &Kernel<f64>, data: Array1<f64>) -> f64 {
+    pub fn predict<S: Data<Elem = f64>>(&self, kernel: &Kernel<f64>, data: ArrayBase<S, Ix1>) -> f64 {
         let sum = kernel.weighted_sum(&self.alpha, data.view());
 
         sum - self.rho

@@ -12,8 +12,19 @@ readme = "README.md"
 keywords = ["svm", "support vector machine", "machine-learning", "linfa", "supervised"]
 categories = ["algorithms", "mathematics", "science"]
 
+[features]
+default = []
+openblas = ["ndarray-linalg/openblas"]
+intel-mkl = ["ndarray-linalg/intel-mkl"]
+netlib = ["ndarray-linalg/netlib"]
+
 [dependencies]
 ndarray = { version = "0.13" , features = ["rayon", "serde", "approx"]}
+ndarray-linalg = {version = "0.12" }
+ndarray-rand = "0.11"
+rand_isaac = "0.2.0"
+
+linfa = { path = "../" }
 linfa-kernel = { path = "../linfa-kernel" }
 
 [dev-dependencies]

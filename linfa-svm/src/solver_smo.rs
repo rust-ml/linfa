@@ -3,6 +3,7 @@ use linfa_kernel::Kernel;
 use ndarray::Array1;
 
 /// Status of alpha variables of the solver
+#[derive(Debug)]
 struct Alpha {
     value: f64,
     upper_bound: f64,
@@ -22,7 +23,7 @@ impl Alpha {
     }
 
     pub fn reached_lower(&self) -> bool {
-        self.value > 0.0
+        self.value == 0.0
     }
 
     pub fn val(&self) -> f64 {
@@ -38,10 +39,11 @@ struct KernelSwap<'a> {
     kernel: &'a Kernel<f64>,
     kernel_diag: Array1<f64>,
     kernel_indices: Vec<usize>,
+    targets: Vec<bool>
 }
 
 impl<'a> KernelSwap<'a> {
-    pub fn new(kernel: &'a Kernel<f64>) -> KernelSwap<'a> {
+    pub fn new(kernel: &'a Kernel<f64>, targets: Vec<bool>) -> KernelSwap<'a> {
         let kernel_diag = kernel.diagonal();
         let kernel_indices = (0..kernel.size()).collect::<Vec<_>>();
 
@@ -49,6 +51,7 @@ impl<'a> KernelSwap<'a> {
             kernel,
             kernel_diag,
             kernel_indices,
+            targets,
         }
     }
 
@@ -62,11 +65,21 @@ impl<'a> KernelSwap<'a> {
         let idx = self.kernel_indices[idx];
 
         let kernel = self.kernel.column(idx);
+        let target_i = self.targets[idx];
 
         // reorder entries
         (0..length)
             .into_iter()
-            .map(|i| kernel[self.kernel_indices[i]])
+            .map(|j| {
+                let val = kernel[self.kernel_indices[j]];
+                let target_j = self.targets[self.kernel_indices[j]];
+
+                if target_j != target_i {
+                    -val
+                } else {
+                    val
+                }
+            })
             .collect()
     }
 
@@ -163,9 +176,9 @@ impl<'a> SolverState<'a> {
             nactive: active_set.len(),
             unshrink: false,
             active_set,
+            kernel: KernelSwap::new(kernel, targets.clone()),
             targets,
             bounds,
-            kernel: KernelSwap::new(kernel),
             params,
         }
     }
@@ -386,23 +399,23 @@ impl<'a> SolverState<'a> {
 
         for i in 0..self.nactive() {
             if self.targets[i] {
-                if self.alpha[i].reached_upper() {
+                if !self.alpha[i].reached_upper() {
                     if -self.gradient[i] >= gmax1.0 {
                         gmax1 = (-self.gradient[i], i as isize);
                     }
                 }
-                if self.alpha[i].reached_lower() {
+                if !self.alpha[i].reached_lower() {
                     if self.gradient[i] >= gmax2.0 {
                         gmax2 = (self.gradient[i], i as isize);
                     }
                 }
             } else {
-                if self.alpha[i].reached_upper() {
+                if !self.alpha[i].reached_upper() {
                     if -self.gradient[i] >= gmax2.0 {
                         gmax2 = (-self.gradient[i], i as isize);
                     }
                 }
-                if self.alpha[i].reached_lower() {
+                if !self.alpha[i].reached_lower() {
                     if self.gradient[i] >= gmax1.0 {
                         gmax1 = (self.gradient[i], i as isize);
                     }
@@ -424,18 +437,15 @@ impl<'a> SolverState<'a> {
 
         let mut obj_diff_min = (std::f64::INFINITY, -1);
 
-        let dist_i = if gmax.1 != -1 {
-            Some(self.kernel.distances(gmax.1 as usize, self.ntotal()))
-        } else {
-            None
-        };
+        if gmax.1 != -1 {
+            let dist_i = self.kernel.distances(gmax.1 as usize, self.ntotal());
+            //dbg!(&dist_i, gmax, gmax2);
 
-        for j in 0..self.nactive() {
-            if self.targets[j] {
-                if self.alpha[j].reached_lower() {
-                    let grad_diff = gmax.0 + self.gradient[j];
-                    if grad_diff > 0.0 {
-                        if let Some(ref dist_i) = dist_i {
+            for j in 0..self.nactive() {
+                if self.targets[j] {
+                    if !self.alpha[j].reached_lower() {
+                        let grad_diff = gmax.0 + self.gradient[j];
+                        if grad_diff > 0.0 {
                             // this is possible, because op_i is some
                             let i = gmax.1 as usize;
 
@@ -454,12 +464,10 @@ impl<'a> SolverState<'a> {
                             }
                         }
                     }
-                }
-            } else {
-                if self.alpha[j].reached_upper() {
-                    let grad_diff = gmax.0 - self.gradient[j];
-                    if grad_diff > 0.0 {
-                        if let Some(ref dist_i) = dist_i {
+                } else {
+                    if !self.alpha[j].reached_upper() {
+                        let grad_diff = gmax.0 - self.gradient[j];
+                        if grad_diff > 0.0 {
                             // this is possible, because op_i is `Some`
                             let i = gmax.1 as usize;
 
@@ -688,15 +696,22 @@ impl Classification {
 
 #[cfg(test)]
 mod tests {
-    use super::{KernelSwap, Classification, SolverParams};
+    use super::{KernelSwap, Classification as SvmClass, SolverParams};
+    use linfa::metrics::Classification;
     use linfa_kernel::Kernel;
-    use ndarray::{array, Array2};
+    use ndarray::{array, Array, Axis, Array1};
+    use ndarray_rand::rand::SeedableRng;
+    use ndarray_rand::rand_distr::Uniform;
+    use ndarray_rand::RandomExt;
+    use rand_isaac::Isaac64Rng;
+    use std::iter::FromIterator;
 
     #[test]
     fn test_swappable_kernel() {
         let dist = array![[1.0, 0.3, 0.1], [0.3, 1.0, 0.5], [0.1, 0.5, 1.0]];
+        let targets = vec![true, true, true];
         let dist = Kernel::from_dense(dist);
-        let mut kernel = KernelSwap::new(&dist);
+        let mut kernel = KernelSwap::new(&dist, targets);
 
         assert_eq!(kernel.distances(0, 3), &[1.0, 0.3, 0.1]);
         assert_eq!(kernel.distances(1, 3), &[0.3, 1.0, 0.5]);
@@ -719,14 +734,30 @@ mod tests {
 
     #[test]
     fn test_init_solver() {
-        let dist = array![[1.0, 0.3, 0.1], [0.3, 1.0, 0.5], [0.1, 0.5, 1.0]];
-        let kernel = Kernel::from_dense(dist);
+        let rng = Isaac64Rng::seed_from_u64(42);
+
+        // generate two clusters with 100 samples each
+        let entries = ndarray::stack(Axis(0), &[
+            Array::random((10, 2), Uniform::new(-10., -5.)).view(),
+            Array::random((10, 2), Uniform::new(-5., 10.)).view()
+        ]).unwrap();
+        let targets = (0..20).map(|x| x < 10).collect::<Vec<_>>();
+
+        let kernel = Kernel::gaussian(entries, 100.);
         let params = SolverParams {
             eps: 1e-3,
             shrinking: false
         };
 
-        let svc = Classification::c_svc(&params, &kernel, &[true, false, false], 1.0, 1.0);
-        dbg!(&svc);
+        let svc = SvmClass::c_svc(&params, &kernel, &targets, 1.0, 1.0);
+        //dbg!(&svc.pedict(&entries));
+
+        let pred = Array1::from_iter(
+            kernel.dataset.outer_iter().map(|x| svc.predict(&kernel, x))
+                .map(|x| x > 0.0)
+        );
+
+        let cm = pred.confusion_matrix(&Array1::from(targets));
+        assert_eq!(cm.accuracy(), 1.0);
     }
 }
