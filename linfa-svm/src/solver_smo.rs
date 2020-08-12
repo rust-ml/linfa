@@ -696,8 +696,8 @@ impl Classification {
 
 #[cfg(test)]
 mod tests {
-    use super::{KernelSwap, Classification as SvmClass, SolverParams};
-    use linfa::metrics::Classification;
+    use super::{KernelSwap, Classification, SolverParams};
+    use linfa::metrics::IntoConfusionMatrix;
     use linfa_kernel::Kernel;
     use ndarray::{array, Array, Axis, Array1};
     use ndarray_rand::rand::SeedableRng;
@@ -749,7 +749,7 @@ mod tests {
             shrinking: false
         };
 
-        let svc = SvmClass::c_svc(&params, &kernel, &targets, 1.0, 1.0);
+        let svc = Classification::c_svc(&params, &kernel, &targets, 1.0, 1.0);
         //dbg!(&svc.pedict(&entries));
 
         let pred = Array1::from_iter(
@@ -757,7 +757,7 @@ mod tests {
                 .map(|x| x > 0.0)
         );
 
-        let cm = pred.confusion_matrix(&Array1::from(targets));
+        let cm = pred.into_confusion_matrix(&Array1::from(targets));
         assert_eq!(cm.accuracy(), 1.0);
     }
 }

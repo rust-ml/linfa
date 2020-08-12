@@ -307,12 +307,12 @@ impl<A: fmt::Display> fmt::Debug for ConfusionMatrix<A> {
 /// Classification for multi-label evaluation
 ///
 /// Contains a routine to calculate the confusion matrix, all other scores are derived form it.
-pub trait Classification<A: PartialEq + Ord, D: Data<Elem = A>> {
-    fn confusion_matrix(self, ground_truth: &ArrayBase<D, Ix1>) -> ConfusionMatrix<A>;
+pub trait IntoConfusionMatrix<A: PartialEq + Ord, D: Data<Elem = A>> {
+    fn into_confusion_matrix(self, ground_truth: &ArrayBase<D, Ix1>) -> ConfusionMatrix<A>;
 }
 
-impl<A: Eq + Hash + Copy + Ord, C: Data<Elem = A>, D: Data<Elem = A>> Classification<A, D> for ModifiedPrediction<A, C> {
-    fn confusion_matrix(self, ground_truth: &ArrayBase<D, Ix1>) -> ConfusionMatrix<A> {
+impl<A: Eq + Hash + Copy + Ord, C: Data<Elem = A>, D: Data<Elem = A>> IntoConfusionMatrix<A, D> for ModifiedPrediction<A, C> {
+    fn into_confusion_matrix(self, ground_truth: &ArrayBase<D, Ix1>) -> ConfusionMatrix<A> {
         // if we don't have any classes, create a set of predicted labels
         let classes = if self.classes.len() == 0 {
             let mut classes = ground_truth.iter().chain(self.prediction.iter()).map(|x| *x).collect::<Vec<_>>();
@@ -340,21 +340,21 @@ impl<A: Eq + Hash + Copy + Ord, C: Data<Elem = A>, D: Data<Elem = A>> Classifica
     }
 }
 
-impl<A: Eq + std::hash::Hash + Copy + Ord, C: Data<Elem = A>, D: Data<Elem = A>>  Classification<A, D> for ArrayBase<C, Ix1> {
-    fn confusion_matrix(self, ground_truth: &ArrayBase<D, Ix1>) -> ConfusionMatrix<A> {
+impl<A: Eq + std::hash::Hash + Copy + Ord, C: Data<Elem = A>, D: Data<Elem = A>>  IntoConfusionMatrix<A, D> for ArrayBase<C, Ix1> {
+    fn into_confusion_matrix(self, ground_truth: &ArrayBase<D, Ix1>) -> ConfusionMatrix<A> {
         let tmp = ModifiedPrediction {
             prediction: self,
             classes: Vec::new(),
             weights: Vec::new()
         };
 
-        tmp.confusion_matrix(ground_truth)
+        tmp.into_confusion_matrix(ground_truth)
     }
 }
 
 /*
  * TODO: specialization requires unstable Rust
-impl Classification<bool, OwnedRepr<bool>> for Array1<bool> {
+impl IntoConfusionMatrix<bool, OwnedRepr<bool>> for Array1<bool> {
     fn confusion_matrix(self, ground_truth: &Array1<bool>) -> ConfusionMatrix<bool> {
         let mut confusion_matrix = Array2::zeros((2, 2));
         for result in self.iter().zip(ground_truth.iter()) {
@@ -468,7 +468,7 @@ impl<A: NdFloat, D: Data<Elem = A>> BinaryClassification<A> for ArrayBase<D, Ix1
 #[cfg(test)]
 mod tests {
     use ndarray::{ArrayView1, Array1, Data, ArrayBase, Dimension, array};
-    use super::{Modify, Classification, BinaryClassification};
+    use super::{Modify, IntoConfusionMatrix, BinaryClassification};
     use rand::{distributions::Uniform, Rng};
 
     fn assert_eq_slice<A: std::fmt::Debug + PartialEq + Clone, S: Data<Elem = A>, D: Dimension>(a: ArrayBase<S, D>, b: &[A]) {
