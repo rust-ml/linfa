@@ -757,7 +757,7 @@ mod tests {
                 .map(|x| x > 0.0)
         );
 
-        let cm = pred.into_confusion_matrix(&Array1::from(targets));
+        let cm = pred.into_confusion_matrix(&targets);
         assert_eq!(cm.accuracy(), 1.0);
     }
 }

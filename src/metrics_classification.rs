@@ -8,6 +8,7 @@ use std::hash::Hash;
 use std::fmt;
 
 use ndarray::prelude::*;
+use ndarray::IntoNdProducer;
 use ndarray::Data;
 
 /// Return tuple of class index for each element of prediction and ground_truth 
@@ -307,12 +308,19 @@ impl<A: fmt::Display> fmt::Debug for ConfusionMatrix<A> {
 /// Classification for multi-label evaluation
 ///
 /// Contains a routine to calculate the confusion matrix, all other scores are derived form it.
-pub trait IntoConfusionMatrix<A: PartialEq + Ord, D: Data<Elem = A>> {
-    fn into_confusion_matrix(self, ground_truth: &ArrayBase<D, Ix1>) -> ConfusionMatrix<A>;
+pub trait IntoConfusionMatrix<A> {
+    fn into_confusion_matrix<'a, T>(self, ground_truth: T) -> ConfusionMatrix<A>
+        where A: 'a,// + PartialEq + Ord + Hash, 
+              T: IntoNdProducer<Item = &'a A, Dim = Ix1, Output = ArrayView1<'a, A>>;
 }
 
-impl<A: Eq + Hash + Copy + Ord, C: Data<Elem = A>, D: Data<Elem = A>> IntoConfusionMatrix<A, D> for ModifiedPrediction<A, C> {
-    fn into_confusion_matrix(self, ground_truth: &ArrayBase<D, Ix1>) -> ConfusionMatrix<A> {
+impl<A: Copy + Ord + Hash, D: Data<Elem = A>> IntoConfusionMatrix<A> for ModifiedPrediction<A, D> {
+    fn into_confusion_matrix<'a, T>(self, ground_truth: T) -> ConfusionMatrix<A> 
+        where A: 'a,
+              T: IntoNdProducer<Item = &'a A, Dim = Ix1, Output = ArrayView1<'a, A>>
+    {
+        let ground_truth = ground_truth.into_producer();
+
         // if we don't have any classes, create a set of predicted labels
         let classes = if self.classes.len() == 0 {
             let mut classes = ground_truth.iter().chain(self.prediction.iter()).map(|x| *x).collect::<Vec<_>>();
@@ -325,7 +333,7 @@ impl<A: Eq + Hash + Copy + Ord, C: Data<Elem = A>, D: Data<Elem = A>> IntoConfus
         };
 
         // find indices to labels
-        let indices = map_prediction_to_idx(&self.prediction, ground_truth, &classes);
+        let indices = map_prediction_to_idx(&self.prediction, &ground_truth, &classes);
 
         // count each index tuple in the confusion matrix
         let mut confusion_matrix = Array2::zeros((classes.len(), classes.len()));
@@ -340,8 +348,11 @@ impl<A: Eq + Hash + Copy + Ord, C: Data<Elem = A>, D: Data<Elem = A>> IntoConfus
     }
 }
 
-impl<A: Eq + std::hash::Hash + Copy + Ord, C: Data<Elem = A>, D: Data<Elem = A>>  IntoConfusionMatrix<A, D> for ArrayBase<C, Ix1> {
-    fn into_confusion_matrix(self, ground_truth: &ArrayBase<D, Ix1>) -> ConfusionMatrix<A> {
+impl<A: Copy + Ord + Hash, D: Data<Elem = A>> IntoConfusionMatrix<A> for ArrayBase<D, Ix1> {
+    fn into_confusion_matrix<'a, T>(self, ground_truth: T) -> ConfusionMatrix<A> 
+        where A: 'a,
+              T: IntoNdProducer<Item = &'a A, Dim = Ix1, Output = ArrayView1<'a, A>>
+    {
         let tmp = ModifiedPrediction {
             prediction: self,
             classes: Vec::new(),
