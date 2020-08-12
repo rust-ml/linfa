@@ -310,7 +310,7 @@ impl<A: fmt::Display> fmt::Debug for ConfusionMatrix<A> {
 /// Contains a routine to calculate the confusion matrix, all other scores are derived form it.
 pub trait IntoConfusionMatrix<A> {
     fn into_confusion_matrix<'a, T>(self, ground_truth: T) -> ConfusionMatrix<A>
-        where A: 'a,// + PartialEq + Ord + Hash, 
+        where A: 'a,
               T: IntoNdProducer<Item = &'a A, Dim = Ix1, Output = ArrayView1<'a, A>>;
 }
 
@@ -355,6 +355,22 @@ impl<A: Copy + Ord + Hash, D: Data<Elem = A>> IntoConfusionMatrix<A> for ArrayBa
     {
         let tmp = ModifiedPrediction {
             prediction: self,
+            classes: Vec::new(),
+            weights: Vec::new()
+        };
+
+        tmp.into_confusion_matrix(ground_truth)
+    }
+}
+
+impl<A: Copy + Ord + Hash> IntoConfusionMatrix<A> for Vec<A>
+{
+    fn into_confusion_matrix<'a, T>(self, ground_truth: T) -> ConfusionMatrix<A> 
+        where A: 'a,
+              T: IntoNdProducer<Item = &'a A, Dim = Ix1, Output = ArrayView1<'a, A>>
+    {
+        let tmp = ModifiedPrediction {
+            prediction: Array1::from(self),
             classes: Vec::new(),
             weights: Vec::new()
         };

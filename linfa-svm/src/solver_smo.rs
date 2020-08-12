@@ -1,4 +1,4 @@
-use super::{SvmResult, ExitReason, SolverParams};
+use super::{ExitReason, SolverParams, SvmResult};
 use linfa_kernel::Kernel;
 use ndarray::Array1;
 
@@ -39,7 +39,7 @@ struct KernelSwap<'a> {
     kernel: &'a Kernel<f64>,
     kernel_diag: Array1<f64>,
     kernel_indices: Vec<usize>,
-    targets: Vec<bool>
+    targets: Vec<bool>,
 }
 
 impl<'a> KernelSwap<'a> {
@@ -641,22 +641,27 @@ impl<'a> SolverState<'a> {
             .map(|i| self.alpha[self.active_set[i]].val())
             .collect();
 
-        SvmResult { alpha, rho, exit_reason }
+        SvmResult {
+            alpha,
+            rho,
+            exit_reason,
+        }
     }
 }
 
 pub struct Classification;
 
 impl Classification {
-    pub fn c_svc(params: &SolverParams, kernel: &Kernel<f64>, target: &[bool], cpos: f64, cneg: f64) -> SvmResult {
-        let bounds = target.iter()
-            .map(|x| {
-                if *x {
-                    cpos
-                } else {
-                    cneg
-                }
-            })
+    pub fn c_svc(
+        params: &SolverParams,
+        kernel: &Kernel<f64>,
+        target: &[bool],
+        cpos: f64,
+        cneg: f64,
+    ) -> SvmResult {
+        let bounds = target
+            .iter()
+            .map(|x| if *x { cpos } else { cneg })
             .collect::<Vec<_>>();
 
         let solver = SolverState::new(
@@ -665,41 +670,36 @@ impl Classification {
             target.to_vec(),
             kernel,
             &bounds,
-            params
+            params,
         );
 
         let mut res = solver.solve();
 
-        res.alpha = res.alpha.into_iter()
+        res.alpha = res
+            .alpha
+            .into_iter()
             .zip(target.iter())
-            .map(|(a,b)| {
-                if *b {
-                    a
-                } else {
-                    -a
-                }
-            })
+            .map(|(a, b)| if *b { a } else { -a })
             .collect();
-            
+
         res
     }
 
     /*
     pub fn nu_svc(params: &SolverParams, kernel: &Kernel<f64>, target: &[bool]) -> SvmResult {
         let mut alpha = vec![0.0; target.len()];
-        let mut sum_pos = 
+        let mut sum_pos =
         for i in 0..target.len() {
         }
     }*/
-
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{KernelSwap, Classification, SolverParams};
+    use super::{Classification, KernelSwap, SolverParams};
     use linfa::metrics::IntoConfusionMatrix;
     use linfa_kernel::Kernel;
-    use ndarray::{array, Array, Axis, Array1};
+    use ndarray::{array, Array, Array1, Axis};
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::Uniform;
     use ndarray_rand::RandomExt;
@@ -737,24 +737,31 @@ mod tests {
         let rng = Isaac64Rng::seed_from_u64(42);
 
         // generate two clusters with 100 samples each
-        let entries = ndarray::stack(Axis(0), &[
-            Array::random((10, 2), Uniform::new(-10., -5.)).view(),
-            Array::random((10, 2), Uniform::new(-5., 10.)).view()
-        ]).unwrap();
+        let entries = ndarray::stack(
+            Axis(0),
+            &[
+                Array::random((10, 2), Uniform::new(-10., -5.)).view(),
+                Array::random((10, 2), Uniform::new(-5., 10.)).view(),
+            ],
+        )
+        .unwrap();
         let targets = (0..20).map(|x| x < 10).collect::<Vec<_>>();
 
         let kernel = Kernel::gaussian(entries, 100.);
         let params = SolverParams {
             eps: 1e-3,
-            shrinking: false
+            shrinking: false,
         };
 
         let svc = Classification::c_svc(&params, &kernel, &targets, 1.0, 1.0);
         //dbg!(&svc.pedict(&entries));
 
         let pred = Array1::from_iter(
-            kernel.dataset.outer_iter().map(|x| svc.predict(&kernel, x))
-                .map(|x| x > 0.0)
+            kernel
+                .dataset
+                .outer_iter()
+                .map(|x| svc.predict(&kernel, x))
+                .map(|x| x > 0.0),
         );
 
         let cm = pred.into_confusion_matrix(&targets);
