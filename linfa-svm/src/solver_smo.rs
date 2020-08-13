@@ -897,20 +897,20 @@ impl Classification {
         res
     }
 
-    pub fn fit_one_class<'a, A: Float + Into<usize>>(
+    pub fn fit_one_class<'a, A: Float + num_traits::ToPrimitive>(
         params: &'a SolverParams<A>,
         kernel: &'a Kernel<A>,
-        target: &'a [bool],
         nu: A,
     ) -> SvmResult<'a, A> {
-        let n = (nu * A::from(target.len()).unwrap()).into();
+        let size = kernel.size();
+        let n = (nu * A::from(size).unwrap()).to_usize().unwrap();
 
-        let init_alpha = (0..target.len())
+        let init_alpha = (0..size)
             .map(|x| {
                 if x < n {
                     A::one()
                 } else if x == n {
-                    nu * A::from(target.len()).unwrap() - A::from(x).unwrap()
+                    nu * A::from(size).unwrap() - A::from(x).unwrap()
                 } else {
                     A::zero()
                 }
@@ -919,10 +919,10 @@ impl Classification {
 
         let solver = SolverState::new(
             init_alpha,
-            vec![A::zero(); target.len()],
-            target.to_vec(),
+            vec![A::zero(); size],
+            vec![true; size],
             kernel,
-            vec![A::one(); target.len()],
+            vec![A::one(); size],
             params,
             false,
         );
@@ -1039,7 +1039,7 @@ mod tests {
     }
 
     #[test]
-    fn test_init_solver() {
+    fn test_c_classification() {
         // generate two clusters with 100 samples each
         let entries = ndarray::stack(
             Axis(0),
@@ -1069,5 +1069,40 @@ mod tests {
 
         let cm = pred.into_confusion_matrix(&targets);
         assert_eq!(cm.accuracy(), 1.0);
+    }
+
+    #[test]
+    fn test_reject_classification() {
+        // generate two clusters with 100 samples each
+        let entries = Array::random((100, 2), Uniform::new(-4., 4.));
+        let kernel = Kernel::gaussian(entries, 100.);
+
+        let params = SolverParams {
+            eps: 1e-3,
+            shrinking: false,
+        };
+
+        let svc = Classification::fit_one_class(&params, &kernel, 0.1);
+        println!("{}", svc);
+
+        // now test that points outside the circle are rejected
+        let validation = Array::random((100, 2), Uniform::new(-10., 10f32));
+        let pred = validation
+            .outer_iter()
+            .map(|x| svc.predict(x) > 0.0)
+            .collect::<Vec<_>>();
+
+        let mut rejected = 0;
+        let mut total = 0;
+        for (pred, pos) in pred.iter().zip(validation.outer_iter()) {
+            let distance = ((pos[0]).powf(2.0) + (pos[1]).powf(2.0)).sqrt();
+            if distance > 5.0 {
+                if !pred {
+                    rejected += 1;
+                }
+                total += 1;
+            }
+        }
+        assert!((rejected as f32) / (total as f32) > 0.95);
     }
 }
