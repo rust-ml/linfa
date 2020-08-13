@@ -9,7 +9,7 @@ pub mod hyperparameters;
 pub mod solver_smo;
 
 pub use hyperparameters::SolverParams;
-pub use solver_smo::Classification;
+pub use solver_smo::{Classification, Regression};
 
 pub trait Float:
     NdFloat
@@ -23,15 +23,17 @@ impl Float for f32 {}
 impl Float for f64 {}
 
 #[derive(Debug)]
-pub enum ExitReason<A: Float> {
-    ReachedThreshold(A, usize),
-    ReachedIterations(A, usize),
+pub enum ExitReason {
+    ReachedThreshold,
+    ReachedIterations,
 }
 
 pub struct SvmResult<'a, A: Float> {
     alpha: Vec<A>,
     rho: A,
-    exit_reason: ExitReason<A>,
+    exit_reason: ExitReason,
+    iterations: usize,
+    obj: A,
     kernel: &'a Kernel<A>
 }
 
@@ -53,11 +55,11 @@ impl<'a, A: Float> SvmResult<'a, A> {
 impl<'a, A: Float> fmt::Display for SvmResult<'a, A> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.exit_reason {
-            ExitReason::ReachedThreshold(obj, iter) => {
-                write!(f, "Exited after {} iterations with obj = {} and {} support vectors", iter, obj, self.nsupport())
+            ExitReason::ReachedThreshold => {
+                write!(f, "Exited after {} iterations with obj = {} and {} support vectors", self.iterations, self.obj, self.nsupport())
             }
-            ExitReason::ReachedIterations(obj, iter) => {
-                write!(f, "Reached maximal iterations {} with obj = {} and {} support vectors", iter, obj, self.nsupport())
+            ExitReason::ReachedIterations => {
+                write!(f, "Reached maximal iterations {} with obj = {} and {} support vectors", self.iterations, self.obj, self.nsupport())
             }
         }
     }

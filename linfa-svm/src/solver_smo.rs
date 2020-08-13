@@ -790,9 +790,9 @@ impl<'a, A: Float> SolverState<'a, A> {
         let obj = v / A::from(2.0).unwrap();
 
         let exit_reason = if max_iter == iter {
-            ExitReason::ReachedIterations(obj, max_iter)
+            ExitReason::ReachedIterations
         } else {
-            ExitReason::ReachedThreshold(obj, iter)
+            ExitReason::ReachedThreshold
         };
 
         // put back the solution
@@ -804,6 +804,8 @@ impl<'a, A: Float> SolverState<'a, A> {
             alpha,
             rho,
             exit_reason,
+            obj,
+            iterations: iter,
             kernel: self.kernel.inner(),
         }
     }
@@ -846,22 +848,22 @@ impl Classification {
         res
     }
 
-    /*pub fn fit_nu<'a>(
-        params: &'a SolverParams,
+    pub fn fit_nu<'a, A: Float>(
+        params: &'a SolverParams<A>,
         kernel: &'a Kernel<A>,
         target: &'a [bool],
         nu: A
-    ) -> SvmResult<'a> {
-        let mut sum_pos = nu * target.len() as A;
-        let mut sum_neg = nu * target.len() as A;
+    ) -> SvmResult<'a, A> {
+        let mut sum_pos = nu * A::from(target.len()).unwrap();
+        let mut sum_neg = nu * A::from(target.len()).unwrap();
         let init_alpha = target.iter()
             .map(|x| {
                 if *x {
-                    let val = A::min(1.0, sum_pos);
+                    let val = A::min(A::one(), sum_pos);
                     sum_pos -= val;
                     val
                 } else {
-                    let val = A::min(1.0, sum_neg);
+                    let val = A::min(A::one(), sum_neg);
                     sum_neg -= val;
                     val
                 }
@@ -873,13 +875,124 @@ impl Classification {
             vec![A::zero(); target.len()],
             target.to_vec(),
             kernel,
-            vec![1.0; target.len()],
+            vec![A::one(); target.len()],
             params,
+            true
         );
 
         let mut res = solver.solve();
 
-    }*/
+        let r = res.rho;
+
+        res.alpha = res.alpha.into_iter().map(|x| x / r).collect();
+        res.rho /= r;
+        res.obj /= r*r;
+
+        res
+    }
+
+    pub fn fit_one_class<'a, A: Float + Into<usize>>(
+        params: &'a SolverParams<A>,
+        kernel: &'a Kernel<A>,
+        target: &'a [bool],
+        nu: A,
+    ) -> SvmResult<'a, A> {
+        let n = (nu * A::from(target.len()).unwrap()).into();
+
+        let init_alpha = (0..target.len()).map(|x| {
+            if x < n {
+                A::one()
+            } else if x == n {
+                nu * A::from(target.len()).unwrap() - A::from(x).unwrap()
+            } else {
+                A::zero()
+            }
+        }).collect::<Vec<_>>();
+
+        let solver = SolverState::new(
+            init_alpha,
+            vec![A::zero(); target.len()],
+            target.to_vec(),
+            kernel,
+            vec![A::one(); target.len()],
+            params,
+            false
+        );
+
+        solver.solve()
+    }
+}
+
+pub struct Regression;
+
+impl Regression {
+    pub fn fit_epsilon<'a, A: Float>(
+        params: &'a SolverParams<A>,
+        kernel: &'a Kernel<A>,
+        target: &'a [A],
+        c: A,
+        p: A,
+    ) -> SvmResult<'a, A> {
+        let mut linear_term = vec![A::zero(); 2*target.len()];
+        let mut targets = vec![true; 2*target.len()];
+
+        for i in 0..target.len() {
+            linear_term[i] = p - target[i];
+            targets[i] = true;
+
+            linear_term[i + target.len()] = p - target[i];
+            targets[i] = false;
+        }
+
+        let solver = SolverState::new(
+            vec![A::zero(); 2*target.len()],
+            linear_term,
+            targets.to_vec(),
+            kernel,
+            vec![c; target.len()],
+            params,
+            false
+        );
+
+        solver.solve()
+    }
+
+    pub fn fit_nu<'a, A: Float>(
+        params: &'a SolverParams<A>,
+        kernel: &'a Kernel<A>,
+        target: &'a [A],
+        c: A,
+        nu: A,
+    ) -> SvmResult<'a, A> {
+        let mut alpha = vec![A::zero(); 2*target.len()];
+        let mut linear_term = vec![A::zero(); 2*target.len()];
+        let mut targets = vec![true; 2*target.len()];
+
+        let mut sum = c * nu * A::from(target.len()).unwrap() / A::from(2.0).unwrap();
+        for i in 0..target.len() {
+            alpha[i] = A::min(sum, c);
+            alpha[i+target.len()] = A::min(sum, c);
+            sum -= alpha[i];
+
+            linear_term[i] = -target[i];
+            targets[i] = true;
+
+            linear_term[i + target.len()] = target[i];
+            targets[i] = false;
+        }
+
+        let solver = SolverState::new(
+            alpha,
+            linear_term,
+            targets.to_vec(),
+            kernel,
+            vec![c; target.len()],
+            params,
+            false
+        );
+
+        solver.solve()
+    }
 }
 
 #[cfg(test)]
