@@ -496,6 +496,7 @@ mod tests {
     use approx::{abs_diff_eq, AbsDiffEq};
     use ndarray::{array, Array1, ArrayBase, ArrayView1, Data, Dimension};
     use rand::{distributions::Uniform, Rng};
+    use std::borrow::Borrow;
 
     fn assert_eq_slice<
         A: std::fmt::Debug + PartialEq + AbsDiffEq,
@@ -505,22 +506,13 @@ mod tests {
         a: ArrayBase<S, D>,
         b: &[A],
     ) {
-        assert_eq_iters(a.iter(), b);
+        assert_eq_iter(a.iter(), b);
     }
 
-    fn assert_eq_iter<A: std::fmt::Debug + PartialEq + AbsDiffEq + Clone>(
-        a: impl Iterator<Item = A>,
-        b: &[A],
-    ) {
-        let v: Vec<A> = a.collect();
-        assert_eq_iters(v.iter(), b);
-    }
-
-    fn assert_eq_iters<'a, A>(
-        a: impl IntoIterator<Item = &'a A>,
-        b: impl IntoIterator<Item = &'a A>,
-    ) where
+    fn assert_eq_iter<'a, A, B>(a: impl IntoIterator<Item = B>, b: impl IntoIterator<Item = &'a A>)
+    where
         A: 'a + std::fmt::Debug + PartialEq + AbsDiffEq,
+        B: Borrow<A>,
     {
         let mut a_iter = a.into_iter();
         let mut b_iter = b.into_iter();
@@ -528,7 +520,7 @@ mod tests {
             match (a_iter.next(), b_iter.next()) {
                 (None, None) => break,
                 (Some(a_item), Some(b_item)) => {
-                    abs_diff_eq!(a_item, b_item);
+                    abs_diff_eq!(a_item.borrow(), b_item);
                 }
                 _ => {
                     panic!("assert_eq_iters: iterators had different lengths");
