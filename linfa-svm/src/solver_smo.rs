@@ -5,20 +5,20 @@ use linfa_kernel::Kernel;
 #[derive(Debug)]
 struct Alpha<A: Float> {
     value: A,
-    upper_bound: A,
+    reached_upper: A,
 }
 
 impl<A: Float> Alpha<A> {
-    pub fn from(value: A, upper_bound: A) -> Alpha<A> {
-        Alpha { value, upper_bound }
+    pub fn from(value: A, reached_upper: A) -> Alpha<A> {
+        Alpha { value, reached_upper }
     }
 
     pub fn reached_upper(&self) -> bool {
-        self.value >= self.upper_bound
+        self.value >= self.reached_upper
     }
 
     pub fn free_floating(&self) -> bool {
-        self.value < self.upper_bound && self.value > A::zero()
+        self.value < self.reached_upper && self.value > A::zero()
     }
 
     pub fn reached_lower(&self) -> bool {
@@ -47,6 +47,7 @@ pub struct SolverState<'a, A: Float> {
     /// Number of active variables
     nactive: usize,
     unshrink: bool,
+    nu_constraint: bool,
 
     /// Quadratic term of the problem
     kernel: PermutableKernel<'a, A>,
@@ -72,6 +73,7 @@ impl<'a, A: Float> SolverState<'a, A> {
         kernel: &'a Kernel<A>,
         bounds: Vec<A>,
         params: &'a SolverParams<A>,
+        nu_constraint: bool,
     ) -> SolverState<'a, A> {
         // initialize alpha status according to bound
         let alpha = alpha
@@ -119,6 +121,7 @@ impl<'a, A: Float> SolverState<'a, A> {
             targets,
             bounds,
             params,
+            nu_constraint,
         }
     }
 
@@ -367,6 +370,41 @@ impl<'a, A: Float> SolverState<'a, A> {
         (gmax1, gmax2)
     }
 
+    pub fn max_violating_pair_nu(&self) -> ((A, isize), (A, isize), (A, isize), (A, isize)) {
+        let mut gmax1 = (-A::infinity(), -1);
+        let mut gmax2 = (-A::infinity(), -1);
+        let mut gmax3 = (-A::infinity(), -1);
+        let mut gmax4 = (-A::infinity(), -1);
+
+        for i in 0..self.nactive() {
+            if !self.alpha[i].reached_upper() {
+                if self.targets[i] {
+                    if -self.gradient[i] > gmax1.0 {
+                        gmax1 = (-self.gradient[i], i as isize);
+                    }
+                } else{
+                    if -self.gradient[i] > gmax4.0 {
+                        gmax4 = (-self.gradient[i], i as isize);
+                    }
+                }
+            }
+
+            if !self.alpha[i].reached_lower() {
+                if self.targets[i] {
+                    if self.gradient[i] > gmax2.0 {
+                        gmax2 = (self.gradient[i], i as isize);
+                    }
+                } else {
+                    if self.gradient[i] > gmax3.0 {
+                        gmax3 = (self.gradient[i], i as isize);
+                    }
+                }
+            }
+        }
+
+        (gmax1, gmax2, gmax3, gmax4)
+    }
+
     /// Select optimal working set
     ///
     /// In each optimization step two variables are selected and then optimized. The indices are
@@ -374,6 +412,10 @@ impl<'a, A: Float> SolverState<'a, A> {
     ///  * i: maximizes -y_i * grad(f)_i, i in I_up(\alpha)
     ///  * j: minimizes the decrease of the objective value
     pub fn select_working_set(&self) -> (usize, usize, bool) {
+        if self.nu_constraint {
+            return self.select_working_set_nu();
+        }
+
         let (gmax, gmax2) = self.max_violating_pair();
 
         let mut obj_diff_min = (A::infinity(), -1);
@@ -437,6 +479,84 @@ impl<'a, A: Float> SolverState<'a, A> {
         }
     }
 
+    /// Select optimal working set
+    ///
+    /// In each optimization step two variables are selected and then optimized. The indices are
+    /// selected such that:
+    ///  * i: maximizes -y_i * grad(f)_i, i in I_up(\alpha)
+    ///  * j: minimizes the decrease of the objective value
+    pub fn select_working_set_nu(&self) -> (usize, usize, bool) {
+        let (gmaxp1, gmaxn1, gmaxp2, gmaxn2) = self.max_violating_pair_nu();
+
+        let mut obj_diff_min = (A::infinity(), -1);
+
+        if gmaxp1.1 != -1 && gmaxn1.1 != -1 {
+            let dist_i_p = self.kernel.distances(gmaxp1.1 as usize, self.ntotal());
+            let dist_i_n = self.kernel.distances(gmaxn1.1 as usize, self.ntotal());
+            //dbg!(&dist_i, gmax, gmax2);
+
+            for j in 0..self.nactive() {
+                if self.targets[j] {
+                    if !self.alpha[j].reached_lower() {
+                        let grad_diff = gmaxp1.0 + self.gradient[j];
+                        if grad_diff > A::zero() {
+                            // this is possible, because op_i is some
+                            let i = gmaxp1.1 as usize;
+
+                            let quad_coef = self.kernel.self_distance(i)
+                                + self.kernel.self_distance(j)
+                                - A::from(2.0).unwrap() * self.target(i) * dist_i_p[j];
+
+                            let obj_diff = if quad_coef > A::zero() {
+                                -(grad_diff * grad_diff) / quad_coef
+                            } else {
+                                -(grad_diff * grad_diff) / A::from(1e-10).unwrap()
+                            };
+
+                            if obj_diff <= obj_diff_min.0 {
+                                obj_diff_min = (obj_diff, j as isize);
+                            }
+                        }
+                    }
+                } else {
+                    if !self.alpha[j].reached_upper() {
+                        let grad_diff = gmaxn1.0 - self.gradient[j];
+                        if grad_diff > A::zero() {
+                            // this is possible, because op_i is `Some`
+                            let i = gmaxn1.1 as usize;
+
+                            let quad_coef = self.kernel.self_distance(i)
+                                + self.kernel.self_distance(j)
+                                + A::from(2.0).unwrap() * self.target(i) * dist_i_n[j];
+
+                            let obj_diff = if quad_coef > A::zero() {
+                                -(grad_diff * grad_diff) / quad_coef
+                            } else {
+                                -(grad_diff * grad_diff) / A::from(1e-10).unwrap()
+                            };
+                            if obj_diff <= obj_diff_min.0 {
+                                obj_diff_min = (obj_diff, j as isize);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if gmaxp1.0 + gmaxn1.0 + gmaxp2.0 + gmaxn2.0 < self.params.eps || obj_diff_min.1 == -1 {
+            return (0, 0, true);
+        } else {
+            let out_j = obj_diff_min.1 as usize;
+            let out_i = if self.targets[out_j] {
+                gmaxp1.1 as usize
+            } else {
+                gmaxn1.1 as usize
+            };
+
+            return (out_i, out_j, false);
+        }
+    }
+
     pub fn should_shrunk(&self, i: usize, gmax1: A, gmax2: A) -> bool {
         if self.alpha[i].reached_upper() {
             if self.targets[i] {
@@ -455,7 +575,30 @@ impl<'a, A: Float> SolverState<'a, A> {
         }
     }
 
+    pub fn should_shrunk_nu(&self, i: usize, gmax1: A, gmax2: A, gmax3: A, gmax4: A) -> bool {
+        if self.alpha[i].reached_upper() {
+            if self.targets[i] {
+                -self.gradient[i] > gmax1
+            } else {
+                -self.gradient[i] > gmax4
+            }
+        } else if self.alpha[i].reached_lower() {
+            if self.targets[i] {
+                self.gradient[i] > gmax2
+            } else {
+                self.gradient[i] > gmax3
+            }
+        } else {
+            false
+        }
+    }
+
     pub fn do_shrinking(&mut self) {
+        if self.nu_constraint {
+            self.do_shrinking_nu();
+            return;
+        }
+
         let (gmax1, gmax2) = self.max_violating_pair();
         let (gmax1, gmax2) = (gmax1.0, gmax2.0);
 
@@ -482,7 +625,39 @@ impl<'a, A: Float> SolverState<'a, A> {
         }
     }
 
+    pub fn do_shrinking_nu(&mut self) {
+        let (gmax1, gmax2, gmax3, gmax4) = self.max_violating_pair_nu();
+        let (gmax1, gmax2, gmax3, gmax4) = (gmax1.0, gmax2.0, gmax3.0, gmax4.0);
+
+        // work on all variables when 10*eps is reached
+        if !self.unshrink && gmax1 + gmax2 + gmax3 + gmax4 <= self.params.eps * A::from(10.0).unwrap() {
+            self.unshrink = true;
+            self.reconstruct_gradient();
+            self.nactive = self.ntotal();
+        }
+
+        // swap items until working set is homogeneous
+        for i in 0..self.nactive() {
+            if self.should_shrunk_nu(i, gmax1, gmax2, gmax3, gmax4) {
+                self.nactive -= 1;
+                // only consider items behing this one
+                while self.nactive > i {
+                    if !self.should_shrunk_nu(self.nactive(), gmax1, gmax2, gmax3, gmax4) {
+                        self.swap(i, self.nactive());
+                        break;
+                    }
+                    self.nactive -= 1;
+                }
+            }
+        }
+    }
+
     pub fn calculate_rho(&self) -> A {
+        // with additional constraint call the other function
+        if self.nu_constraint {
+            return self.calculate_rho_nu();
+        }
+
         let mut nfree = 0;
         let mut sum_free = A::zero();
         let mut ub = A::infinity();
@@ -516,13 +691,48 @@ impl<'a, A: Float> SolverState<'a, A> {
         }
     }
 
-    /*pub fn calculate_rho_nu(&self) -> A  {
+    pub fn calculate_rho_nu(&self) -> A  {
         let (mut nfree1, mut nfree2) = (0, 0);
-        let (mut sum_free1, mut sum_free2) = (0, 0);
+        let (mut sum_free1, mut sum_free2) = (A::zero(), A::zero());
         let (mut ub1, mut ub2) = (A::infinity(), A::infinity());
         let (mut lb1, mut lb2) = (-A::infinity(), -A::infinity());
-        A::zero()
-    }*/
+
+        for i in 0..self.nactive() {
+            if self.targets[i] {
+                if self.alpha[i].reached_upper() {
+                    lb1 = A::max(lb1, self.gradient[i]);
+                } else if self.alpha[i].reached_lower() {
+                    ub1 = A::max(ub1, self.gradient[i]);
+                } else {
+                    nfree1 += 1;
+                    sum_free1 += self.gradient[i];
+                }
+            } else {
+                if self.alpha[i].reached_upper() {
+                    lb2 = A::max(lb2, self.gradient[i]);
+                } else if self.alpha[i].reached_lower() {
+                    ub2 = A::max(ub2, self.gradient[i]);
+                } else {
+                    nfree2 += 1;
+                    sum_free2 += self.gradient[i];
+                }
+            }
+        }
+
+        let r1 = if nfree1 > 0 {
+            sum_free1 / A::from(nfree1).unwrap()
+        } else {
+            (ub1 + lb1) / A::from(2.0).unwrap()
+        };
+        let r2 = if nfree2 > 0 {
+            sum_free2 / A::from(nfree2).unwrap()
+        } else {
+            (ub2 + lb2) / A::from(2.0).unwrap()
+        };
+
+        (r1-r2)/A::from(2.0).unwrap()
+
+    }
 
     pub fn solve(mut self) -> SvmResult<'a, A> {
         let mut iter = 0;
@@ -621,6 +831,7 @@ impl Classification {
             kernel,
             bounds,
             params,
+            false
         );
 
         let mut res = solver.solve();
@@ -722,8 +933,7 @@ mod tests {
         let kernel = Kernel::gaussian(entries, 100.);
         let params = SolverParams {
             eps: 1e-3,
-            shrinking: false,
-            additional_constraint: false,
+            shrinking: false
         };
 
         let svc = Classification::fit_c(&params, &kernel, &targets, 1.0, 1.0);
