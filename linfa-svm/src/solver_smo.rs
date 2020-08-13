@@ -51,6 +51,7 @@ pub struct SolverState<'a, A: Float> {
     nactive: usize,
     unshrink: bool,
     nu_constraint: bool,
+    r: A,
 
     /// Quadratic term of the problem
     kernel: PermutableKernel<'a, A>,
@@ -125,6 +126,7 @@ impl<'a, A: Float> SolverState<'a, A> {
             bounds,
             params,
             nu_constraint,
+            r: A::zero(),
         }
     }
 
@@ -381,26 +383,26 @@ impl<'a, A: Float> SolverState<'a, A> {
         let mut gmax4 = (-A::infinity(), -1);
 
         for i in 0..self.nactive() {
-            if !self.alpha[i].reached_upper() {
-                if self.targets[i] {
+            if self.targets[i] {
+                if !self.alpha[i].reached_upper() {
                     if -self.gradient[i] > gmax1.0 {
                         gmax1 = (-self.gradient[i], i as isize);
                     }
-                } else {
+                }
+                if !self.alpha[i].reached_lower() {
+                    if self.gradient[i] > gmax3.0 {
+                        gmax3 = (self.gradient[i], i as isize);
+                    }
+                }
+            } else {
+                if !self.alpha[i].reached_upper() {
                     if -self.gradient[i] > gmax4.0 {
                         gmax4 = (-self.gradient[i], i as isize);
                     }
                 }
-            }
-
-            if !self.alpha[i].reached_lower() {
-                if self.targets[i] {
+                if !self.alpha[i].reached_lower() {
                     if self.gradient[i] > gmax2.0 {
                         gmax2 = (self.gradient[i], i as isize);
-                    }
-                } else {
-                    if self.gradient[i] > gmax3.0 {
-                        gmax3 = (self.gradient[i], i as isize);
                     }
                 }
             }
@@ -494,60 +496,77 @@ impl<'a, A: Float> SolverState<'a, A> {
 
         let mut obj_diff_min = (A::infinity(), -1);
 
-        if gmaxp1.1 != -1 && gmaxn1.1 != -1 {
-            let dist_i_p = self.kernel.distances(gmaxp1.1 as usize, self.ntotal());
-            let dist_i_n = self.kernel.distances(gmaxn1.1 as usize, self.ntotal());
-            //dbg!(&dist_i, gmax, gmax2);
+        let dist_i_p = if gmaxp1.1 != -1 {
+            Some(self.kernel.distances(gmaxp1.1 as usize, self.ntotal()))
+        } else {
+            None
+        };
 
-            for j in 0..self.nactive() {
-                if self.targets[j] {
-                    if !self.alpha[j].reached_lower() {
-                        let grad_diff = gmaxp1.0 + self.gradient[j];
-                        if grad_diff > A::zero() {
-                            // this is possible, because op_i is some
-                            let i = gmaxp1.1 as usize;
+        let dist_i_n = if gmaxn1.1 != -1 {
+            Some(self.kernel.distances(gmaxn1.1 as usize, self.ntotal()))
+        } else {
+            None
+        };
 
-                            let quad_coef = self.kernel.self_distance(i)
-                                + self.kernel.self_distance(j)
-                                - A::from(2.0).unwrap() * self.target(i) * dist_i_p[j];
+        for j in 0..self.nactive() {
+            if self.targets[j] {
+                if !self.alpha[j].reached_lower() {
+                    let grad_diff = gmaxp1.0 + self.gradient[j];
+                    if grad_diff > A::zero() {
+                        let dist_i_p = match dist_i_p {
+                            Some(ref x) => x,
+                            None => continue
+                        };
 
-                            let obj_diff = if quad_coef > A::zero() {
-                                -(grad_diff * grad_diff) / quad_coef
-                            } else {
-                                -(grad_diff * grad_diff) / A::from(1e-10).unwrap()
-                            };
+                        // this is possible, because op_i is some
+                        let i = gmaxp1.1 as usize;
 
-                            if obj_diff <= obj_diff_min.0 {
-                                obj_diff_min = (obj_diff, j as isize);
-                            }
+                        let quad_coef = self.kernel.self_distance(i)
+                            + self.kernel.self_distance(j)
+                            - A::from(2.0).unwrap() * dist_i_p[j];
+
+                        let obj_diff = if quad_coef > A::zero() {
+                            -(grad_diff * grad_diff) / quad_coef
+                        } else {
+                            -(grad_diff * grad_diff) / A::from(1e-10).unwrap()
+                        };
+
+                        if obj_diff <= obj_diff_min.0 {
+                            obj_diff_min = (obj_diff, j as isize);
                         }
                     }
-                } else {
-                    if !self.alpha[j].reached_upper() {
-                        let grad_diff = gmaxn1.0 - self.gradient[j];
-                        if grad_diff > A::zero() {
-                            // this is possible, because op_i is `Some`
-                            let i = gmaxn1.1 as usize;
+                }
+            } else {
+                if !self.alpha[j].reached_upper() {
+                    let grad_diff = gmaxn1.0 - self.gradient[j];
+                    if grad_diff > A::zero() {
+                        let dist_i_n = match dist_i_n {
+                            Some(ref x) => x,
+                            None => continue
+                        };
 
-                            let quad_coef = self.kernel.self_distance(i)
-                                + self.kernel.self_distance(j)
-                                + A::from(2.0).unwrap() * self.target(i) * dist_i_n[j];
+                        // this is possible, because op_i is `Some`
+                        let i = gmaxn1.1 as usize;
 
-                            let obj_diff = if quad_coef > A::zero() {
-                                -(grad_diff * grad_diff) / quad_coef
-                            } else {
-                                -(grad_diff * grad_diff) / A::from(1e-10).unwrap()
-                            };
-                            if obj_diff <= obj_diff_min.0 {
-                                obj_diff_min = (obj_diff, j as isize);
-                            }
+                        let quad_coef = self.kernel.self_distance(i)
+                            + self.kernel.self_distance(j)
+                            - A::from(2.0).unwrap() * dist_i_n[j];
+
+                        let obj_diff = if quad_coef > A::zero() {
+                            -(grad_diff * grad_diff) / quad_coef
+                        } else {
+                            -(grad_diff * grad_diff) / A::from(1e-10).unwrap()
+                        };
+                        if obj_diff <= obj_diff_min.0 {
+                            obj_diff_min = (obj_diff, j as isize);
                         }
                     }
                 }
             }
         }
 
-        if gmaxp1.0 + gmaxn1.0 + gmaxp2.0 + gmaxn2.0 < self.params.eps || obj_diff_min.1 == -1 {
+        if A::max(gmaxp1.0, gmaxp2.0) + A::max(gmaxn1.0, gmaxn2.0) < self.params.eps || obj_diff_min.1 == -1 {
+            println!("HERE {}", obj_diff_min.1);
             return (0, 0, true);
         } else {
             let out_j = obj_diff_min.1 as usize;
@@ -635,7 +654,7 @@ impl<'a, A: Float> SolverState<'a, A> {
 
         // work on all variables when 10*eps is reached
         if !self.unshrink
-            && gmax1 + gmax2 + gmax3 + gmax4 <= self.params.eps * A::from(10.0).unwrap()
+            && A::max(gmax1, gmax2) + A::max(gmax3, gmax4) <= self.params.eps * A::from(10.0).unwrap()
         {
             self.unshrink = true;
             self.reconstruct_gradient();
@@ -658,7 +677,7 @@ impl<'a, A: Float> SolverState<'a, A> {
         }
     }
 
-    pub fn calculate_rho(&self) -> A {
+    pub fn calculate_rho(&mut self) -> A {
         // with additional constraint call the other function
         if self.nu_constraint {
             return self.calculate_rho_nu();
@@ -697,7 +716,7 @@ impl<'a, A: Float> SolverState<'a, A> {
         }
     }
 
-    pub fn calculate_rho_nu(&self) -> A {
+    pub fn calculate_rho_nu(&mut self) -> A {
         let (mut nfree1, mut nfree2) = (0, 0);
         let (mut sum_free1, mut sum_free2) = (A::zero(), A::zero());
         let (mut ub1, mut ub2) = (A::infinity(), A::infinity());
@@ -736,6 +755,8 @@ impl<'a, A: Float> SolverState<'a, A> {
             (ub2 + lb2) / A::from(2.0).unwrap()
         };
 
+        self.r = (r1+r2) / A::from(2.0).unwrap();
+
         (r1 - r2) / A::from(2.0).unwrap()
     }
 
@@ -747,7 +768,7 @@ impl<'a, A: Float> SolverState<'a, A> {
             100 * self.targets.len()
         };
 
-        let max_iter = usize::max(1000000, max_iter);
+        let max_iter = usize::max(10000000, max_iter);
         let mut counter = usize::min(self.targets.len(), 1000) + 1;
         while iter < max_iter {
             counter -= 1;
@@ -786,6 +807,10 @@ impl<'a, A: Float> SolverState<'a, A> {
         }
 
         let rho = self.calculate_rho();
+        let r = match self.nu_constraint {
+            true => Some(self.r),
+            false => None
+        };
 
         // calculate object function
         let mut v = A::zero();
@@ -808,6 +833,7 @@ impl<'a, A: Float> SolverState<'a, A> {
         SvmResult {
             alpha,
             rho,
+            r,
             exit_reason,
             obj,
             iterations: iter,
@@ -859,8 +885,8 @@ impl Classification {
         target: &'a [bool],
         nu: A,
     ) -> SvmResult<'a, A> {
-        let mut sum_pos = nu * A::from(target.len()).unwrap();
-        let mut sum_neg = nu * A::from(target.len()).unwrap();
+        let mut sum_pos = nu * A::from(target.len()).unwrap() / A::from(2.0).unwrap();
+        let mut sum_neg = nu * A::from(target.len()).unwrap() / A::from(2.0).unwrap();
         let init_alpha = target
             .iter()
             .map(|x| {
@@ -876,6 +902,7 @@ impl Classification {
             })
             .collect::<Vec<_>>();
 
+        dbg!(&init_alpha);
         let solver = SolverState::new(
             init_alpha,
             vec![A::zero(); target.len()],
@@ -888,9 +915,15 @@ impl Classification {
 
         let mut res = solver.solve();
 
-        let r = res.rho;
+        let r = res.r.unwrap();
 
-        res.alpha = res.alpha.into_iter().map(|x| x / r).collect();
+        res.alpha = res
+            .alpha
+            .into_iter()
+            .zip(target.iter())
+            .map(|(a, b)| if *b { a } else { -a })
+            .map(|x| x / r)
+            .collect();
         res.rho /= r;
         res.obj /= r * r;
 
@@ -1072,6 +1105,40 @@ mod tests {
     }
 
     #[test]
+    fn test_nu_classification() {
+        // generate two clusters with 100 samples each
+        let entries = ndarray::stack(
+            Axis(0),
+            &[
+                Array::random((10, 2), Uniform::new(-10., -5.)).view(),
+                Array::random((10, 2), Uniform::new(5., 10.)).view(),
+            ],
+        )
+        .unwrap();
+        let targets = (0..20).map(|x| x < 10).collect::<Vec<_>>();
+
+        let kernel = Kernel::gaussian(entries, 100.);
+        let params = SolverParams {
+            eps: 1e-1,
+            shrinking: false,
+        };
+
+        let svc = Classification::fit_nu(&params, &kernel, &targets, 0.1);
+        println!("{}", svc);
+
+        let pred = kernel
+            .dataset
+            .outer_iter()
+            .map(|x| svc.predict(x))
+            .map(|x| x > 0.0)
+            .collect::<Vec<_>>();
+
+        dbg!(&svc.alpha);
+        let cm = pred.into_confusion_matrix(&targets);
+        assert_eq!(cm.accuracy(), 1.0);
+    }
+
+    #[test]
     fn test_reject_classification() {
         // generate two clusters with 100 samples each
         let entries = Array::random((100, 2), Uniform::new(-4., 4.));
@@ -1092,17 +1159,20 @@ mod tests {
             .map(|x| svc.predict(x) > 0.0)
             .collect::<Vec<_>>();
 
+        // count the number of correctly rejected samples
         let mut rejected = 0;
         let mut total = 0;
         for (pred, pos) in pred.iter().zip(validation.outer_iter()) {
-            let distance = ((pos[0]).powf(2.0) + (pos[1]).powf(2.0)).sqrt();
-            if distance > 5.0 {
+            let distance = (pos[0]*pos[0] + pos[1]*pos[1]).sqrt();
+            if distance >= 5.0 {
                 if !pred {
                     rejected += 1;
                 }
                 total += 1;
             }
         }
+
+        // at least 95% should be correctly rejected
         assert!((rejected as f32) / (total as f32) > 0.95);
     }
 }
