@@ -40,6 +40,9 @@ mod metrics_regression;
 /// Common metrics functions for classification and regression
 
 pub mod metrics {
-    pub use crate::metrics_classification::{Modify, IntoConfusionMatrix, BinaryClassification, ReceiverOperatingCharacteristic, ConfusionMatrix};
+    pub use crate::metrics_classification::{
+        BinaryClassification, ConfusionMatrix, IntoConfusionMatrix, Modify,
+        ReceiverOperatingCharacteristic,
+    };
     pub use crate::metrics_regression::Regression;
 }

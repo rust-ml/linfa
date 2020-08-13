@@ -1,11 +1,11 @@
-use ndarray::{Array2, Ix2, Data, Axis, ArrayBase};
+use ndarray::{Array2, ArrayBase, Axis, Data, Ix2};
 use ndarray_rand::rand::Rng;
 use num_traits::float::FloatConst;
 
 /// Computes a similarity matrix with gaussian kernel and scaling parameter `eps`
 ///
 /// The generated matrix is a upper triangular matrix with dimension NxN (number of observations) and contains the similarity between all permutations of observations
-/// similarity 
+/// similarity
 pub fn to_gaussian_similarity(
     observations: &ArrayBase<impl Data<Elem = f64>, Ix2>,
     eps: f64,
@@ -18,15 +18,18 @@ pub fn to_gaussian_similarity(
             let a = observations.row(i);
             let b = observations.row(j);
 
-            let distance = a.iter().zip(b.iter()).map(|(x,y)| (x-y).powf(2.0))
+            let distance = a
+                .iter()
+                .zip(b.iter())
+                .map(|(x, y)| (x - y).powf(2.0))
                 .sum::<f64>();
 
-            similarity[(i,j)] = (-distance / eps).exp();
+            similarity[(i, j)] = (-distance / eps).exp();
         }
     }
 
     similarity
-}  
+}
 ///
 /// Generates a three dimension swiss roll, centered at the origin with height `height` and
 /// outwards speed `speed`
@@ -57,12 +60,12 @@ pub fn generate_swissroll(
 pub fn generate_convoluted_rings(
     rings: &[(f64, f64)],
     n_points: usize,
-    rng: &mut impl Rng
+    rng: &mut impl Rng,
 ) -> Array2<f64> {
     let n_points = (n_points as f32 / rings.len() as f32).ceil() as usize;
     let mut array = Array2::zeros((n_points * rings.len(), 3));
 
-    for (n, (start, end)) in rings.into_iter().enumerate() {
+    for (n, (start, end)) in rings.iter().enumerate() {
         // inner circle
         for i in 0..n_points {
             let r: f64 = rng.gen_range(start, end);

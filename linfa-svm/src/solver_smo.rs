@@ -1,4 +1,4 @@
-use super::{ExitReason, SolverParams, SvmResult, permutable_kernel::PermutableKernel, Float};
+use super::{permutable_kernel::PermutableKernel, ExitReason, Float, SolverParams, SvmResult};
 use linfa_kernel::Kernel;
 
 /// Status of alpha variables of the solver
@@ -10,7 +10,10 @@ struct Alpha<A: Float> {
 
 impl<A: Float> Alpha<A> {
     pub fn from(value: A, reached_upper: A) -> Alpha<A> {
-        Alpha { value, reached_upper }
+        Alpha {
+            value,
+            reached_upper,
+        }
     }
 
     pub fn reached_upper(&self) -> bool {
@@ -213,8 +216,9 @@ impl<'a, A: Float> SolverState<'a, A> {
         let old_alpha_j = self.alpha[j].val();
 
         if self.targets[i] != self.targets[j] {
-            let mut quad_coef =
-                self.kernel.self_distance(i) + self.kernel.self_distance(j) + (A::one()+A::one()) * dist_i[j];
+            let mut quad_coef = self.kernel.self_distance(i)
+                + self.kernel.self_distance(j)
+                + (A::one() + A::one()) * dist_i[j];
             if quad_coef <= A::zero() {
                 quad_coef = A::from(1e-10).unwrap();
             }
@@ -250,8 +254,8 @@ impl<'a, A: Float> SolverState<'a, A> {
                 }
             }
         } else {
-            let mut quad_coef =
-                self.kernel.self_distance(i) + self.kernel.self_distance(j) - A::from(2.0).unwrap() * dist_i[j];
+            let mut quad_coef = self.kernel.self_distance(i) + self.kernel.self_distance(j)
+                - A::from(2.0).unwrap() * dist_i[j];
             if quad_coef <= A::zero() {
                 quad_coef = A::from(1e-10).unwrap();
             }
@@ -382,7 +386,7 @@ impl<'a, A: Float> SolverState<'a, A> {
                     if -self.gradient[i] > gmax1.0 {
                         gmax1 = (-self.gradient[i], i as isize);
                     }
-                } else{
+                } else {
                     if -self.gradient[i] > gmax4.0 {
                         gmax4 = (-self.gradient[i], i as isize);
                     }
@@ -630,7 +634,9 @@ impl<'a, A: Float> SolverState<'a, A> {
         let (gmax1, gmax2, gmax3, gmax4) = (gmax1.0, gmax2.0, gmax3.0, gmax4.0);
 
         // work on all variables when 10*eps is reached
-        if !self.unshrink && gmax1 + gmax2 + gmax3 + gmax4 <= self.params.eps * A::from(10.0).unwrap() {
+        if !self.unshrink
+            && gmax1 + gmax2 + gmax3 + gmax4 <= self.params.eps * A::from(10.0).unwrap()
+        {
             self.unshrink = true;
             self.reconstruct_gradient();
             self.nactive = self.ntotal();
@@ -691,7 +697,7 @@ impl<'a, A: Float> SolverState<'a, A> {
         }
     }
 
-    pub fn calculate_rho_nu(&self) -> A  {
+    pub fn calculate_rho_nu(&self) -> A {
         let (mut nfree1, mut nfree2) = (0, 0);
         let (mut sum_free1, mut sum_free2) = (A::zero(), A::zero());
         let (mut ub1, mut ub2) = (A::infinity(), A::infinity());
@@ -730,8 +736,7 @@ impl<'a, A: Float> SolverState<'a, A> {
             (ub2 + lb2) / A::from(2.0).unwrap()
         };
 
-        (r1-r2)/A::from(2.0).unwrap()
-
+        (r1 - r2) / A::from(2.0).unwrap()
     }
 
     pub fn solve(mut self) -> SvmResult<'a, A> {
@@ -833,7 +838,7 @@ impl Classification {
             kernel,
             bounds,
             params,
-            false
+            false,
         );
 
         let mut res = solver.solve();
@@ -852,11 +857,12 @@ impl Classification {
         params: &'a SolverParams<A>,
         kernel: &'a Kernel<A>,
         target: &'a [bool],
-        nu: A
+        nu: A,
     ) -> SvmResult<'a, A> {
         let mut sum_pos = nu * A::from(target.len()).unwrap();
         let mut sum_neg = nu * A::from(target.len()).unwrap();
-        let init_alpha = target.iter()
+        let init_alpha = target
+            .iter()
             .map(|x| {
                 if *x {
                     let val = A::min(A::one(), sum_pos);
@@ -868,7 +874,7 @@ impl Classification {
                     val
                 }
             })
-        .collect::<Vec<_>>();
+            .collect::<Vec<_>>();
 
         let solver = SolverState::new(
             init_alpha,
@@ -877,7 +883,7 @@ impl Classification {
             kernel,
             vec![A::one(); target.len()],
             params,
-            true
+            true,
         );
 
         let mut res = solver.solve();
@@ -886,7 +892,7 @@ impl Classification {
 
         res.alpha = res.alpha.into_iter().map(|x| x / r).collect();
         res.rho /= r;
-        res.obj /= r*r;
+        res.obj /= r * r;
 
         res
     }
@@ -899,15 +905,17 @@ impl Classification {
     ) -> SvmResult<'a, A> {
         let n = (nu * A::from(target.len()).unwrap()).into();
 
-        let init_alpha = (0..target.len()).map(|x| {
-            if x < n {
-                A::one()
-            } else if x == n {
-                nu * A::from(target.len()).unwrap() - A::from(x).unwrap()
-            } else {
-                A::zero()
-            }
-        }).collect::<Vec<_>>();
+        let init_alpha = (0..target.len())
+            .map(|x| {
+                if x < n {
+                    A::one()
+                } else if x == n {
+                    nu * A::from(target.len()).unwrap() - A::from(x).unwrap()
+                } else {
+                    A::zero()
+                }
+            })
+            .collect::<Vec<_>>();
 
         let solver = SolverState::new(
             init_alpha,
@@ -916,7 +924,7 @@ impl Classification {
             kernel,
             vec![A::one(); target.len()],
             params,
-            false
+            false,
         );
 
         solver.solve()
@@ -933,8 +941,8 @@ impl Regression {
         c: A,
         p: A,
     ) -> SvmResult<'a, A> {
-        let mut linear_term = vec![A::zero(); 2*target.len()];
-        let mut targets = vec![true; 2*target.len()];
+        let mut linear_term = vec![A::zero(); 2 * target.len()];
+        let mut targets = vec![true; 2 * target.len()];
 
         for i in 0..target.len() {
             linear_term[i] = p - target[i];
@@ -945,13 +953,13 @@ impl Regression {
         }
 
         let solver = SolverState::new(
-            vec![A::zero(); 2*target.len()],
+            vec![A::zero(); 2 * target.len()],
             linear_term,
             targets.to_vec(),
             kernel,
             vec![c; target.len()],
             params,
-            false
+            false,
         );
 
         solver.solve()
@@ -964,14 +972,14 @@ impl Regression {
         c: A,
         nu: A,
     ) -> SvmResult<'a, A> {
-        let mut alpha = vec![A::zero(); 2*target.len()];
-        let mut linear_term = vec![A::zero(); 2*target.len()];
-        let mut targets = vec![true; 2*target.len()];
+        let mut alpha = vec![A::zero(); 2 * target.len()];
+        let mut linear_term = vec![A::zero(); 2 * target.len()];
+        let mut targets = vec![true; 2 * target.len()];
 
         let mut sum = c * nu * A::from(target.len()).unwrap() / A::from(2.0).unwrap();
         for i in 0..target.len() {
             alpha[i] = A::min(sum, c);
-            alpha[i+target.len()] = A::min(sum, c);
+            alpha[i + target.len()] = A::min(sum, c);
             sum -= alpha[i];
 
             linear_term[i] = -target[i];
@@ -988,7 +996,7 @@ impl Regression {
             kernel,
             vec![c; target.len()],
             params,
-            false
+            false,
         );
 
         solver.solve()
@@ -1046,7 +1054,7 @@ mod tests {
         let kernel = Kernel::gaussian(entries, 100.);
         let params = SolverParams {
             eps: 1e-3,
-            shrinking: false
+            shrinking: false,
         };
 
         let svc = Classification::fit_c(&params, &kernel, &targets, 1.0, 1.0);

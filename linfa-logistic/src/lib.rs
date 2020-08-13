@@ -335,7 +335,7 @@ fn log_logistic<F: Float>(x: F) -> F {
     if x > F::zero() {
         -(F::one() + (-x).exp()).ln()
     } else {
-        return x - (F::one() + x.exp()).ln();
+        x - (F::one() + x.exp()).ln()
     }
 }
 
@@ -461,7 +461,7 @@ struct ClassLabel<F: Float, C: PartialOrd> {
 
 type ClassLabels<F, C> = Vec<ClassLabel<F, C>>;
 
-fn class_from_label<F: Float, C: PartialOrd + Clone>(labels: &ClassLabels<F, C>, label: F) -> C {
+fn class_from_label<F: Float, C: PartialOrd + Clone>(labels: &[ClassLabel<F, C>], label: F) -> C {
     labels
         .iter()
         .find(|cl| cl.label == label)
@@ -701,7 +701,7 @@ mod test {
 
     #[test]
     fn rejects_inf_values() {
-        let infs = vec![f64::INFINITY, f64::NEG_INFINITY, f64::NAN];
+        let infs = vec![std::f64::INFINITY, std::f64::NEG_INFINITY, std::f64::NAN];
         let inf_xs: Vec<_> = infs.iter().map(|&inf| array![[1.0], [inf]]).collect();
         let log_reg = LogisticRegression::default();
         let normal_x = array![[-1.0], [1.0]];
@@ -731,7 +731,7 @@ mod test {
 
     #[test]
     fn validates_initial_params() {
-        let infs = vec![f64::INFINITY, f64::NEG_INFINITY, f64::NAN];
+        let infs = vec![std::f64::INFINITY, std::f64::NEG_INFINITY, std::f64::NAN];
         let normal_x = array![[-1.0], [1.0]];
         let normal_y = array![0.0, 1.0];
         let expected = Err("Initial parameter guess must be finite".to_string());
