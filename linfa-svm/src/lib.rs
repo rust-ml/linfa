@@ -16,33 +16,36 @@ pub enum ExitReason {
     ReachedIterations(f64, usize),
 }
 
-#[derive(Debug)]
-pub struct SvmResult {
+pub struct SvmResult<'a> {
     alpha: Vec<f64>,
     rho: f64,
     exit_reason: ExitReason,
+    kernel: &'a Kernel<f64>
 }
 
-impl SvmResult {
+impl<'a> SvmResult<'a> {
     pub fn predict<S: Data<Elem = f64>>(
         &self,
-        kernel: &Kernel<f64>,
         data: ArrayBase<S, Ix1>,
     ) -> f64 {
-        let sum = kernel.weighted_sum(&self.alpha, data.view());
+        let sum = self.kernel.weighted_sum(&self.alpha, data.view());
 
         sum - self.rho
     }
+
+    pub fn nsupport(&self) -> usize {
+        self.alpha.iter().filter(|x| x.abs() > 1e-5).count()
+    }
 }
 
-impl fmt::Display for SvmResult {
+impl<'a> fmt::Display for SvmResult<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.exit_reason {
             ExitReason::ReachedThreshold(obj, iter) => {
-                write!(f, "Exited after {} iterations with obj = {}", iter, obj)
+                write!(f, "Exited after {} iterations with obj = {} and {} support vectors", iter, obj, self.nsupport())
             }
             ExitReason::ReachedIterations(obj, iter) => {
-                write!(f, "Reached maximal iterations {} with obj = {}", iter, obj)
+                write!(f, "Reached maximal iterations {} with obj = {} and {} support vectors", iter, obj, self.nsupport())
             }
         }
     }

@@ -83,6 +83,11 @@ impl<'a> KernelSwap<'a> {
             .collect()
     }
 
+    /// Return internal kernel
+    pub fn inner(&self) -> &'a Kernel<f64> {
+        self.kernel
+    }
+
     /// Return distance to itself
     pub fn self_distance(&self, idx: usize) -> f64 {
         let idx = self.kernel_indices[idx];
@@ -116,7 +121,7 @@ pub struct SolverState<'a> {
     /// Targets we want to predict
     targets: Vec<bool>,
     /// Bounds per alpha
-    bounds: &'a [f64],
+    bounds: Vec<f64>,
 
     /// Parameters, e.g. stopping condition etc.
     params: &'a SolverParams,
@@ -131,7 +136,7 @@ impl<'a> SolverState<'a> {
         p: Vec<f64>,
         targets: Vec<bool>,
         kernel: &'a Kernel<f64>,
-        bounds: &'a [f64],
+        bounds: Vec<f64>,
         params: &'a SolverParams,
     ) -> SolverState<'a> {
         // initialize alpha status according to bound
@@ -575,7 +580,7 @@ impl<'a> SolverState<'a> {
         }
     }
 
-    pub fn solve(mut self) -> SvmResult {
+    pub fn solve(mut self) -> SvmResult<'a> {
         let mut iter = 0;
         let max_iter = if self.targets.len() > std::usize::MAX / 100 {
             std::usize::MAX
@@ -645,6 +650,7 @@ impl<'a> SolverState<'a> {
             alpha,
             rho,
             exit_reason,
+            kernel: self.kernel.inner(),
         }
     }
 }
@@ -652,13 +658,13 @@ impl<'a> SolverState<'a> {
 pub struct Classification;
 
 impl Classification {
-    pub fn c_svc(
-        params: &SolverParams,
-        kernel: &Kernel<f64>,
-        target: &[bool],
+    pub fn fit_c<'a>(
+        params: &'a SolverParams,
+        kernel: &'a Kernel<f64>,
+        target: &'a [bool],
         cpos: f64,
         cneg: f64,
-    ) -> SvmResult {
+    ) -> SvmResult<'a> {
         let bounds = target
             .iter()
             .map(|x| if *x { cpos } else { cneg })
@@ -669,7 +675,7 @@ impl Classification {
             vec![-1.0; target.len()],
             target.to_vec(),
             kernel,
-            &bounds,
+            bounds,
             params,
         );
 
@@ -685,12 +691,39 @@ impl Classification {
         res
     }
 
-    /*
-    pub fn nu_svc(params: &SolverParams, kernel: &Kernel<f64>, target: &[bool]) -> SvmResult {
-        let mut alpha = vec![0.0; target.len()];
-        let mut sum_pos =
-        for i in 0..target.len() {
-        }
+    /*pub fn fit_nu<'a>(
+        params: &'a SolverParams,
+        kernel: &'a Kernel<f64>,
+        target: &'a [bool],
+        nu: f64
+    ) -> SvmResult<'a> {
+        let mut sum_pos = nu * target.len() as f64;
+        let mut sum_neg = nu * target.len() as f64;
+        let init_alpha = target.iter()
+            .map(|x| {
+                if *x {
+                    let val = f64::min(1.0, sum_pos);
+                    sum_pos -= val;
+                    val
+                } else {
+                    let val = f64::min(1.0, sum_neg);
+                    sum_neg -= val;
+                    val
+                }
+            })
+        .collect::<Vec<_>>();
+
+        let solver = SolverState::new(
+            init_alpha,
+            vec![0.0; target.len()],
+            target.to_vec(),
+            kernel,
+            vec![1.0; target.len()],
+            params,
+        );
+
+        let mut res = solver.solve();
+
     }*/
 }
 
@@ -699,12 +732,9 @@ mod tests {
     use super::{Classification, KernelSwap, SolverParams};
     use linfa::metrics::IntoConfusionMatrix;
     use linfa_kernel::Kernel;
-    use ndarray::{array, Array, Array1, Axis};
-    use ndarray_rand::rand::SeedableRng;
+    use ndarray::{array, Array, Axis};
     use ndarray_rand::rand_distr::Uniform;
     use ndarray_rand::RandomExt;
-    use rand_isaac::Isaac64Rng;
-    use std::iter::FromIterator;
 
     #[test]
     fn test_swappable_kernel() {
@@ -734,14 +764,12 @@ mod tests {
 
     #[test]
     fn test_init_solver() {
-        let rng = Isaac64Rng::seed_from_u64(42);
-
         // generate two clusters with 100 samples each
         let entries = ndarray::stack(
             Axis(0),
             &[
                 Array::random((10, 2), Uniform::new(-10., -5.)).view(),
-                Array::random((10, 2), Uniform::new(-5., 10.)).view(),
+                Array::random((10, 2), Uniform::new(5., 10.)).view(),
             ],
         )
         .unwrap();
@@ -753,16 +781,16 @@ mod tests {
             shrinking: false,
         };
 
-        let svc = Classification::c_svc(&params, &kernel, &targets, 1.0, 1.0);
+        let svc = Classification::fit_c(&params, &kernel, &targets, 1.0, 1.0);
         //dbg!(&svc.pedict(&entries));
+        println!("{}", svc);
 
-        let pred = Array1::from_iter(
-            kernel
-                .dataset
-                .outer_iter()
-                .map(|x| svc.predict(&kernel, x))
-                .map(|x| x > 0.0),
-        );
+        let pred = kernel
+            .dataset
+            .outer_iter()
+            .map(|x| svc.predict(x))
+            .map(|x| x > 0.0)
+            .collect::<Vec<_>>();
 
         let cm = pred.into_confusion_matrix(&targets);
         assert_eq!(cm.accuracy(), 1.0);
