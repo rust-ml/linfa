@@ -103,7 +103,7 @@ pub struct ConfusionMatrix<A> {
 
 impl<A> ConfusionMatrix<A> {
     fn is_binary(&self) -> bool {
-        self.matrix.shape() == &[2, 2]
+        self.matrix.shape() == [2, 2]
     }
 
     /// Precision score, the number of correct classifications for the first class divided by total
@@ -292,11 +292,11 @@ impl<A> ConfusionMatrix<A> {
 impl<A: fmt::Display> fmt::Debug for ConfusionMatrix<A> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let len = self.matrix.len_of(Axis(0));
-        write!(f, "\n")?;
+        writeln!(f)?;
         for _ in 0..len * 4 + 1 {
             write!(f, "-")?;
         }
-        write!(f, "\n")?;
+        writeln!(f)?;
 
         for i in 0..len {
             write!(f, "| ")?;
@@ -304,7 +304,7 @@ impl<A: fmt::Display> fmt::Debug for ConfusionMatrix<A> {
             for j in 0..len {
                 write!(f, "{} | ", self.matrix[(i, j)])?;
             }
-            write!(f, "\n")?;
+            writeln!(f)?;
         }
 
         for _ in 0..len * 4 + 1 {
@@ -327,11 +327,11 @@ impl<A: Eq + Hash + Copy + Ord, C: Data<Elem = A>, D: Data<Elem = A>> Classifica
 {
     fn confusion_matrix(self, ground_truth: &ArrayBase<D, Ix1>) -> ConfusionMatrix<A> {
         // if we don't have any classes, create a set of predicted labels
-        let classes = if self.classes.len() == 0 {
+        let classes = if self.classes.is_empty() {
             let mut classes = ground_truth
                 .iter()
                 .chain(self.prediction.iter())
-                .map(|x| *x)
+                .copied()
                 .collect::<Vec<_>>();
             // create a set
             classes.sort();
@@ -399,7 +399,7 @@ fn trapezoidal<A: NdFloat>(vals: &[(A, A)]) -> A {
     let mut integral = A::zero();
 
     for (x, y) in vals.iter().skip(1) {
-        integral = integral + (*x - prev_x) * (prev_y + *y) / A::from(2.0).unwrap();
+        integral += (*x - prev_x) * (prev_y + *y) / A::from(2.0).unwrap();
         prev_x = *x;
         prev_y = *y;
     }
@@ -493,19 +493,40 @@ impl<A: NdFloat, D: Data<Elem = A>> BinaryClassification<A> for ArrayBase<D, Ix1
 #[cfg(test)]
 mod tests {
     use super::{BinaryClassification, Classification, Modify};
+    use approx::{abs_diff_eq, AbsDiffEq};
     use ndarray::{array, Array1, ArrayBase, ArrayView1, Data, Dimension};
     use rand::{distributions::Uniform, Rng};
+    use std::borrow::Borrow;
 
-    fn assert_eq_slice<A: std::fmt::Debug + PartialEq + Clone, S: Data<Elem = A>, D: Dimension>(
+    fn assert_eq_slice<
+        A: std::fmt::Debug + PartialEq + AbsDiffEq,
+        S: Data<Elem = A>,
+        D: Dimension,
+    >(
         a: ArrayBase<S, D>,
         b: &[A],
     ) {
-        let a = a.iter().cloned().collect::<Vec<_>>();
-        assert_eq!(a, b);
+        assert_eq_iter(a.iter(), b);
     }
 
-    fn assert_eq_iter<A: std::fmt::Debug + PartialEq>(a: impl Iterator<Item = A>, b: &[A]) {
-        assert_eq!(a.collect::<Vec<_>>(), b);
+    fn assert_eq_iter<'a, A, B>(a: impl IntoIterator<Item = B>, b: impl IntoIterator<Item = &'a A>)
+    where
+        A: 'a + std::fmt::Debug + PartialEq + AbsDiffEq,
+        B: Borrow<A>,
+    {
+        let mut a_iter = a.into_iter();
+        let mut b_iter = b.into_iter();
+        loop {
+            match (a_iter.next(), b_iter.next()) {
+                (None, None) => break,
+                (Some(a_item), Some(b_item)) => {
+                    abs_diff_eq!(a_item.borrow(), b_item);
+                }
+                _ => {
+                    panic!("assert_eq_iters: iterators had different lengths");
+                }
+            }
+        }
     }
 
     #[test]
@@ -525,10 +546,10 @@ mod tests {
 
         let x = predicted.confusion_matrix(&ground_truth);
 
-        assert_eq!(x.accuracy(), 5.0 / 6.0);
-        assert_eq!(
+        abs_diff_eq!(x.accuracy(), 5.0 / 6.0 as f32);
+        abs_diff_eq!(
             x.mcc(),
-            (2. * 3. - 1. * 0.) / (2.0f32 * 3. * 3. * 4.).sqrt()
+            (2. * 3. - 1. * 0.) / (2.0f32 * 3. * 3. * 4.).sqrt() as f32
         );
 
         assert_eq_iter(
@@ -624,7 +645,7 @@ mod tests {
 
         // compare to result
         n_cm.into_iter()
-            .zip(result.into_iter())
+            .zip(result.iter())
             .for_each(|(x, r)| assert_eq_slice(x.matrix, r))
     }
 }

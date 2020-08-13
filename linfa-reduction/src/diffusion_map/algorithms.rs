@@ -80,18 +80,18 @@ fn compute_diffusion_map<A: Float>(
         let (vals, vecs) = (vals.slice_move(s![..; -1]), vecs.slice_move(s![.., ..; -1]));
         (
             vals.slice_move(s![1..embedding_size + 1])
-                .mapv(|x| Scalar::from_real(x)),
+                .mapv(Scalar::from_real),
             vecs.slice_move(s![.., 1..embedding_size + 1]),
         )
     } else {
         // calculate truncated eigenvalue decomposition
-        let x = guess.unwrap_or(
+        let x = guess.unwrap_or_else(|| {
             Array2::random(
                 (kernel.size(), embedding_size + 1),
                 Uniform::new(0.0f64, 1.0),
             )
-            .mapv(|x| NumCast::from(x).unwrap()),
-        );
+            .mapv(|x| NumCast::from(x).unwrap())
+        });
 
         let result = lobpcg::lobpcg(
             |y| {

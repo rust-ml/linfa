@@ -21,6 +21,11 @@ jobs:
       - rustup component add rustfmt
     script:
       - cargo fmt --all -- --check
+  - name: Linting (Clippy)
+    before_script:
+      - rustup component add clippy
+    script:
+      - cargo clippy --all-targets --all-features
   allow_failures:
     - rust: nightly
   fast_finish: true

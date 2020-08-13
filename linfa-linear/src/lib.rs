@@ -70,6 +70,12 @@ pub struct FittedLinearRegression<A> {
     params: Array1<A>,
 }
 
+impl Default for LinearRegression {
+    fn default() -> Self {
+        LinearRegression::new()
+    }
+}
+
 /// Configure and fit a linear regression model
 impl LinearRegression {
     /// Create a default linear regression model.
@@ -142,23 +148,22 @@ impl LinearRegression {
             // to the X_offset and y_offset
             let X_offset: Array1<A> = X
                 .mean_axis(Axis(0))
-                .ok_or(String::from("cannot compute mean of X"))?;
+                .ok_or_else(|| String::from("cannot compute mean of X"))?;
             let X_centered: Array2<A> = X - &X_offset;
-            let y_offset: A = y.mean().ok_or(String::from("cannot compute mean of y"))?;
+            let y_offset: A = y
+                .mean()
+                .ok_or_else(|| String::from("cannot compute mean of y"))?;
             let y_centered: Array1<A> = y - y_offset;
             let params: Array1<A> =
                 compute_params(&X_centered, &y_centered, self.options.should_normalize())?;
             let intercept: A = y_offset - X_offset.dot(&params);
-            return Ok(FittedLinearRegression {
-                intercept: intercept,
-                params: params,
-            });
+            Ok(FittedLinearRegression { intercept, params })
         } else {
-            return Ok(FittedLinearRegression {
+            Ok(FittedLinearRegression {
                 intercept: A::from(0).unwrap(),
                 params: solve_normal_equation(X, y)?,
-            });
-        };
+            })
+        }
     }
 }
 
@@ -201,7 +206,7 @@ where
     let linear_operator = X.t().dot(X);
     linear_operator
         .solve_into(rhs)
-        .or_else(|err| Err(format! {"{}", err}))
+        .map_err(|err| format! {"{}", err})
 }
 
 /// View the fitted parameters and make predictions with a fitted
@@ -228,7 +233,7 @@ impl<A: Scalar + ScalarOperand> FittedLinearRegression<A> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::AbsDiffEq;
+    use approx::abs_diff_eq;
     use ndarray::{array, s, Array1, Array2};
 
     #[test]
@@ -239,7 +244,7 @@ mod tests {
         let model = lin_reg.fit(&A, &b).unwrap();
         let result = model.predict(&A);
 
-        assert!(result.abs_diff_eq(&array![1., 2.], 1e-12));
+        abs_diff_eq!(result, &array![1., 2.], epsilon = 1e-12);
     }
 
     /// When `with_intercept` is set to false, the
@@ -253,7 +258,7 @@ mod tests {
         let model = lin_reg.fit(&A, &b).unwrap();
         let result = model.predict(&array![[0.], [1.]]);
 
-        assert!(result.abs_diff_eq(&array![0., 1.], 1e-12));
+        abs_diff_eq!(result, &array![0., 1.], epsilon = 1e-12);
     }
 
     /// We can't fit a line through two points without fitting the
@@ -269,7 +274,7 @@ mod tests {
         let model = lin_reg.fit(&A, &b).unwrap();
         let result = model.predict(&A);
 
-        assert!(result.abs_diff_eq(&array![0., 0.], 1e-12));
+        abs_diff_eq!(result, &array![0., 0.], epsilon = 1e-12);
     }
 
     /// We can't fit a line through three points in general
@@ -285,7 +290,7 @@ mod tests {
         let model = lin_reg.fit(&A, &b).unwrap();
         let actual = model.predict(&A);
 
-        assert!(actual.abs_diff_eq(&array![-1. / 3., 2. / 3., 5. / 3.], 1e-12));
+        abs_diff_eq!(actual, array![-1. / 3., 2. / 3., 5. / 3.], epsilon = 1e-12);
     }
 
     /// Check that the linear regression prefectly fits three datapoints for
@@ -298,8 +303,8 @@ mod tests {
         let b: Array1<f64> = array![1., 4., 9.];
         let model = lin_reg.fit(&A, &b).unwrap();
 
-        assert!(model.params().abs_diff_eq(&array![2., 1.], 1e-12));
-        assert!(model.intercept().abs_diff_eq(&1., 1e-12));
+        abs_diff_eq!(model.params(), &array![2., 1.], epsilon = 1e-12);
+        abs_diff_eq!(model.intercept(), &1., epsilon = 1e-12);
     }
 
     /// Check that the linear regression prefectly fits four datapoints for
@@ -312,8 +317,8 @@ mod tests {
         let b: Array1<f64> = array![1., 8., 27., 64.];
         let model = lin_reg.fit(&A, &b).unwrap();
 
-        assert!(model.params().abs_diff_eq(&array![3., 3., 1.], 1e-12));
-        assert!(model.intercept().abs_diff_eq(&1., 1e-12));
+        abs_diff_eq!(model.params(), &array![3., 3., 1.], epsilon = 1e-12);
+        abs_diff_eq!(model.intercept(), &1., epsilon = 1e-12);
     }
 
     /// Check that the linear regression prefectly fits three datapoints for
@@ -326,8 +331,8 @@ mod tests {
         let b: Array1<f32> = array![1., 4., 9.];
         let model = lin_reg.fit(&A, &b).unwrap();
 
-        assert!(model.params().abs_diff_eq(&array![2., 1.], 1e-4));
-        assert!(model.intercept().abs_diff_eq(&1., 1e-6));
+        abs_diff_eq!(model.params(), &array![2., 1.], epsilon = 1e-4);
+        abs_diff_eq!(model.intercept(), &1., epsilon = 1e-6);
     }
 
     /// Check that the linear regression prefectly fits four datapoints for
@@ -341,8 +346,8 @@ mod tests {
         let b: Array1<f64> = array![1., 8., 27., 64.];
         let model = lin_reg.fit(&A, &b).unwrap();
 
-        assert!(model.params().abs_diff_eq(&array![3., 3., 1.], 1e-12));
-        assert!(model.intercept().abs_diff_eq(&1., 1e-12));
+        abs_diff_eq!(model.params(), &array![3., 3., 1.], epsilon = 1e-12);
+        abs_diff_eq!(model.intercept(), 1., epsilon = 1e-12);
     }
 
     /// Check that the linear regression model works with both owned and view
@@ -370,8 +375,8 @@ mod tests {
         assert_eq!(model2.params(), model3.params());
         assert_eq!(model3.params(), model4.params());
 
-        assert_eq!(model1.intercept(), model2.intercept());
-        assert_eq!(model2.intercept(), model3.intercept());
-        assert_eq!(model3.intercept(), model4.intercept());
+        abs_diff_eq!(model1.intercept(), model2.intercept());
+        abs_diff_eq!(model2.intercept(), model3.intercept());
+        abs_diff_eq!(model3.intercept(), model4.intercept());
     }
 }

@@ -39,6 +39,8 @@ impl DbscanHyperParams {
     ///
     /// Defaults are provided if the optional parameters are not specified:
     /// * `tolerance = 1e-4`
+    // Violates the convention that new should return a value of type `Self`
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(min_points: usize) -> DbscanHyperParamsBuilder {
         DbscanHyperParamsBuilder {
             min_points,

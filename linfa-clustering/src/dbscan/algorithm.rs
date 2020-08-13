@@ -111,12 +111,14 @@ impl Dbscan {
     }
 }
 
+type Neighbors<'a> = Vec<(usize, ArrayView<'a, f64, Ix1>)>;
+
 fn find_neighbors<'a>(
     candidate: &ArrayBase<impl Data<Elem = f64>, Ix1>,
     observations: &'a ArrayBase<impl Data<Elem = f64>, Ix2>,
     eps: f64,
     clusters: &Array1<Option<usize>>,
-) -> (usize, Vec<(usize, ArrayView<'a, f64, Ix1>)>) {
+) -> (usize, Neighbors<'a>) {
     let mut res = vec![];
     let mut count = 0;
     for (i, (obs, cluster)) in observations

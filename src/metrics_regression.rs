@@ -79,19 +79,20 @@ impl<A: NdFloat + FromPrimitive, D: Data<Elem = A>> Regression<A, D> for ArrayBa
 #[cfg(test)]
 mod tests {
     use super::Regression;
+    use approx::abs_diff_eq;
     use ndarray::prelude::*;
 
     #[test]
     fn test_same() {
         let a: Array1<f32> = Array1::ones(100);
 
-        assert_eq!(a.max_error(&a), 0.0);
-        assert_eq!(a.mean_absolute_error(&a), 0.0);
-        assert_eq!(a.mean_squared_error(&a), 0.0);
-        assert_eq!(a.mean_squared_log_error(&a), 0.0);
-        assert_eq!(a.median_absolute_error(&a), 0.0);
-        assert_eq!(a.r2(&a), 1.0);
-        assert_eq!(a.explained_variance(&a), 1.0);
+        abs_diff_eq!(a.max_error(&a), 0.0f32);
+        abs_diff_eq!(a.mean_absolute_error(&a), 0.0f32);
+        abs_diff_eq!(a.mean_squared_error(&a), 0.0f32);
+        abs_diff_eq!(a.mean_squared_log_error(&a), 0.0f32);
+        abs_diff_eq!(a.median_absolute_error(&a), 0.0f32);
+        abs_diff_eq!(a.r2(&a), 1.0f32);
+        abs_diff_eq!(a.explained_variance(&a), 1.0f32);
     }
 
     #[test]
@@ -99,7 +100,7 @@ mod tests {
         let a = array![0.0, 0.1, 0.2, 0.3, 0.4];
         let b = array![0.1, 0.3, 0.2, 0.5, 0.7];
 
-        assert!((a.max_error(&b) - 0.3f32).abs() < 1e-5);
+        abs_diff_eq!(a.max_error(&b), 0.3f32, epsilon = 1e-5);
     }
 
     #[test]
@@ -108,7 +109,7 @@ mod tests {
         let b = array![0.1, 0.3, 0.2, 0.5, 0.7];
         // 0.1, 0.2, 0.0, 0.2, 0.3 -> median error is 0.2
 
-        assert!((a.median_absolute_error(&b) - 0.2f32).abs() < 1e-5);
+        abs_diff_eq!(a.median_absolute_error(&b), 0.2f32, epsilon = 1e-5);
     }
 
     #[test]
@@ -116,6 +117,6 @@ mod tests {
         let a = array![0.0, 0.1, 0.2, 0.3, 0.4];
         let b = array![0.1, 0.2, 0.3, 0.4, 0.5];
 
-        assert!((a.mean_squared_error(&b) - 0.1) < 1e-5);
+        abs_diff_eq!(a.mean_squared_error(&b), 0.1, epsilon = 1e-5);
     }
 }
