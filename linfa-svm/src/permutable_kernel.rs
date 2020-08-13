@@ -1,3 +1,4 @@
+use crate::Float;
 use linfa_kernel::Kernel;
 use ndarray::Array1;
 
@@ -5,15 +6,15 @@ use ndarray::Array1;
 ///
 /// This struct wraps a kernel matrix with access indices. The working set can shrink during the
 /// optimization and it is therefore necessary to reorder entries.
-pub struct PermutableKernel<'a> {
-    kernel: &'a Kernel<f64>,
-    kernel_diag: Array1<f64>,
+pub struct PermutableKernel<'a, A: Float> {
+    kernel: &'a Kernel<A>,
+    kernel_diag: Array1<A>,
     kernel_indices: Vec<usize>,
     targets: Vec<bool>,
 }
 
-impl<'a> PermutableKernel<'a> {
-    pub fn new(kernel: &'a Kernel<f64>, targets: Vec<bool>) -> PermutableKernel<'a> {
+impl<'a, A: Float> PermutableKernel<'a, A> {
+    pub fn new(kernel: &'a Kernel<A>, targets: Vec<bool>) -> PermutableKernel<'a, A> {
         let kernel_diag = kernel.diagonal();
         let kernel_indices = (0..kernel.size()).collect::<Vec<_>>();
 
@@ -31,7 +32,7 @@ impl<'a> PermutableKernel<'a> {
     }
 
     /// Return distances from node `idx` to all other nodes
-    pub fn distances(&self, idx: usize, length: usize) -> Vec<f64> {
+    pub fn distances(&self, idx: usize, length: usize) -> Vec<A> {
         let idx = self.kernel_indices[idx];
 
         let kernel = self.kernel.column(idx);
@@ -54,12 +55,12 @@ impl<'a> PermutableKernel<'a> {
     }
 
     /// Return internal kernel
-    pub fn inner(&self) -> &'a Kernel<f64> {
+    pub fn inner(&self) -> &'a Kernel<A> {
         self.kernel
     }
 
     /// Return distance to itself
-    pub fn self_distance(&self, idx: usize) -> f64 {
+    pub fn self_distance(&self, idx: usize) -> A {
         let idx = self.kernel_indices[idx];
 
         self.kernel_diag[idx]

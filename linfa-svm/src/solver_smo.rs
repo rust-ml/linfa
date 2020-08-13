@@ -1,15 +1,15 @@
-use super::{ExitReason, SolverParams, SvmResult, permutable_kernel::PermutableKernel};
+use super::{ExitReason, SolverParams, SvmResult, permutable_kernel::PermutableKernel, Float};
 use linfa_kernel::Kernel;
 
 /// Status of alpha variables of the solver
 #[derive(Debug)]
-struct Alpha {
-    value: f64,
-    upper_bound: f64,
+struct Alpha<A: Float> {
+    value: A,
+    upper_bound: A,
 }
 
-impl Alpha {
-    pub fn from(value: f64, upper_bound: f64) -> Alpha {
+impl<A: Float> Alpha<A> {
+    pub fn from(value: A, upper_bound: A) -> Alpha<A> {
         Alpha { value, upper_bound }
     }
 
@@ -18,31 +18,30 @@ impl Alpha {
     }
 
     pub fn free_floating(&self) -> bool {
-        self.value < self.upper_bound && self.value > 0.0
+        self.value < self.upper_bound && self.value > A::zero()
     }
 
     pub fn reached_lower(&self) -> bool {
-        self.value == 0.0
+        self.value == A::zero()
     }
 
-    pub fn val(&self) -> f64 {
+    pub fn val(&self) -> A {
         self.value
     }
 }
-
 
 /// Current state of the SMO solver
 ///
 /// We are solving the dual problem with linear constraint
 /// min_a f(a), s.t. y^Ta = d, 0 <= a_t < C, t = 1, ..., l
 /// where f(a) = a^T Q a / 2 + p^T a
-pub struct SolverState<'a> {
+pub struct SolverState<'a, A: Float> {
     /// Gradient of each variable
-    gradient: Vec<f64>,
+    gradient: Vec<A>,
     /// Cached gradient because most of the variables are constant
-    gradient_fixed: Vec<f64>,
+    gradient_fixed: Vec<A>,
     /// Current value of each variable and in respect to bounds
-    alpha: Vec<Alpha>,
+    alpha: Vec<Alpha<A>>,
     /// Active set of variables
     active_set: Vec<usize>,
     /// Number of active variables
@@ -50,30 +49,30 @@ pub struct SolverState<'a> {
     unshrink: bool,
 
     /// Quadratic term of the problem
-    kernel: PermutableKernel<'a>,
+    kernel: PermutableKernel<'a, A>,
     /// Linear term of the problem
-    p: Vec<f64>,
+    p: Vec<A>,
     /// Targets we want to predict
     targets: Vec<bool>,
     /// Bounds per alpha
-    bounds: Vec<f64>,
+    bounds: Vec<A>,
 
     /// Parameters, e.g. stopping condition etc.
-    params: &'a SolverParams,
+    params: &'a SolverParams<A>,
 }
 
-impl<'a> SolverState<'a> {
+impl<'a, A: Float> SolverState<'a, A> {
     /// Initialize a solver state
     ///
     /// This is bounded by the lifetime of the kernel matrix, because it can quite large
     pub fn new(
-        alpha: Vec<f64>,
-        p: Vec<f64>,
+        alpha: Vec<A>,
+        p: Vec<A>,
         targets: Vec<bool>,
-        kernel: &'a Kernel<f64>,
-        bounds: Vec<f64>,
-        params: &'a SolverParams,
-    ) -> SolverState<'a> {
+        kernel: &'a Kernel<A>,
+        bounds: Vec<A>,
+        params: &'a SolverParams<A>,
+    ) -> SolverState<'a, A> {
         // initialize alpha status according to bound
         let alpha = alpha
             .into_iter()
@@ -86,10 +85,10 @@ impl<'a> SolverState<'a> {
 
         // initialize gradient
         let mut gradient = p.clone();
-        let mut gradient_fixed = vec![0.0; alpha.len()];
+        let mut gradient_fixed = vec![A::zero(); alpha.len()];
 
         for i in 0..alpha.len() {
-            // when we have reached alpha = 0.0, then d(a) = p
+            // when we have reached alpha = A::zero(), then d(a) = p
             if !alpha[i].reached_lower() {
                 let dist_i = kernel.column(i);
                 let alpha_i = alpha[i].val();
@@ -134,15 +133,15 @@ impl<'a> SolverState<'a> {
     }
 
     /// Return target as positive/negative indicator
-    pub fn target(&self, idx: usize) -> f64 {
+    pub fn target(&self, idx: usize) -> A {
         match self.targets[idx] {
-            true => 1.0,
-            false => -1.0,
+            true => A::one(),
+            false => -A::one(),
         }
     }
 
     /// Return the k-th bound
-    pub fn bound(&self, idx: usize) -> f64 {
+    pub fn bound(&self, idx: usize) -> A {
         self.bounds[idx]
     }
 
@@ -212,9 +211,9 @@ impl<'a> SolverState<'a> {
 
         if self.targets[i] != self.targets[j] {
             let mut quad_coef =
-                self.kernel.self_distance(i) + self.kernel.self_distance(j) + 2.0 * dist_i[j];
-            if quad_coef <= 0.0 {
-                quad_coef = 1e-10;
+                self.kernel.self_distance(i) + self.kernel.self_distance(j) + (A::one()+A::one()) * dist_i[j];
+            if quad_coef <= A::zero() {
+                quad_coef = A::from(1e-10).unwrap();
             }
 
             let delta = -(self.gradient[i] + self.gradient[j]) / quad_coef;
@@ -225,14 +224,14 @@ impl<'a> SolverState<'a> {
             self.alpha[j].value += delta;
 
             // bound to feasible solution
-            if diff > 0.0 {
-                if self.alpha[j].val() < 0.0 {
-                    self.alpha[j].value = 0.0;
+            if diff > A::zero() {
+                if self.alpha[j].val() < A::zero() {
+                    self.alpha[j].value = A::zero();
                     self.alpha[i].value = diff;
                 }
             } else {
-                if self.alpha[i].val() < 0.0 {
-                    self.alpha[i].value = 0.0;
+                if self.alpha[i].val() < A::zero() {
+                    self.alpha[i].value = A::zero();
                     self.alpha[j].value = -diff;
                 }
             }
@@ -249,9 +248,9 @@ impl<'a> SolverState<'a> {
             }
         } else {
             let mut quad_coef =
-                self.kernel.self_distance(i) + self.kernel.self_distance(j) - 2.0 * dist_i[j];
-            if quad_coef <= 0.0 {
-                quad_coef = 1e-10;
+                self.kernel.self_distance(i) + self.kernel.self_distance(j) - A::from(2.0).unwrap() * dist_i[j];
+            if quad_coef <= A::zero() {
+                quad_coef = A::from(1e-10).unwrap();
             }
 
             let delta = (self.gradient[i] - self.gradient[j]) / quad_coef;
@@ -268,8 +267,8 @@ impl<'a> SolverState<'a> {
                     self.alpha[j].value = sum - bound_i;
                 }
             } else {
-                if self.alpha[j].val() < 0.0 {
-                    self.alpha[j].value = 0.0;
+                if self.alpha[j].val() < A::zero() {
+                    self.alpha[j].value = A::zero();
                     self.alpha[i].value = sum;
                 }
             }
@@ -279,8 +278,8 @@ impl<'a> SolverState<'a> {
                     self.alpha[i].value = sum - bound_j;
                 }
             } else {
-                if self.alpha[i].val() < 0.0 {
-                    self.alpha[i].value = 0.0;
+                if self.alpha[i].val() < A::zero() {
+                    self.alpha[i].value = A::zero();
                     self.alpha[j].value = sum;
                 }
             }
@@ -304,13 +303,14 @@ impl<'a> SolverState<'a> {
         // update gradient of non-free variables if `i` became free or non-free
         if ui != self.alpha[i].reached_upper() {
             let dist_i = self.kernel.distances(i, self.ntotal());
+            let bound_i = self.bound(i);
             if ui {
                 for k in 0..self.ntotal() {
-                    self.gradient_fixed[k] -= self.bound(i) * dist_i[k];
+                    self.gradient_fixed[k] -= bound_i * dist_i[k];
                 }
             } else {
                 for k in 0..self.ntotal() {
-                    self.gradient_fixed[k] += self.bound(i) * dist_i[k];
+                    self.gradient_fixed[k] += bound_i * dist_i[k];
                 }
             }
         }
@@ -318,24 +318,25 @@ impl<'a> SolverState<'a> {
         // update gradient of non-free variables if `j` became free or non-free
         if uj != self.alpha[j].reached_upper() {
             let dist_j = self.kernel.distances(j, self.ntotal());
+            let bound_j = self.bound(j);
             if uj {
                 for k in 0..self.nactive() {
-                    self.gradient_fixed[k] -= self.bound(j) * dist_j[k];
+                    self.gradient_fixed[k] -= bound_j * dist_j[k];
                 }
             } else {
                 for k in 0..self.nactive() {
-                    self.gradient_fixed[k] += self.bound(j) * dist_j[k];
+                    self.gradient_fixed[k] += bound_j * dist_j[k];
                 }
             }
         }
     }
 
     /// Return max and min gradients of free variables
-    pub fn max_violating_pair(&self) -> ((f64, isize), (f64, isize)) {
+    pub fn max_violating_pair(&self) -> ((A, isize), (A, isize)) {
         // max { -y_i * grad(f)_i \i in I_up(\alpha) }
-        let mut gmax1 = (-std::f64::INFINITY, -1);
+        let mut gmax1 = (-A::infinity(), -1);
         // max { y_i * grad(f)_i \i in U_low(\alpha) }
-        let mut gmax2 = (-std::f64::INFINITY, -1);
+        let mut gmax2 = (-A::infinity(), -1);
 
         for i in 0..self.nactive() {
             if self.targets[i] {
@@ -375,7 +376,7 @@ impl<'a> SolverState<'a> {
     pub fn select_working_set(&self) -> (usize, usize, bool) {
         let (gmax, gmax2) = self.max_violating_pair();
 
-        let mut obj_diff_min = (std::f64::INFINITY, -1);
+        let mut obj_diff_min = (A::infinity(), -1);
 
         if gmax.1 != -1 {
             let dist_i = self.kernel.distances(gmax.1 as usize, self.ntotal());
@@ -385,18 +386,18 @@ impl<'a> SolverState<'a> {
                 if self.targets[j] {
                     if !self.alpha[j].reached_lower() {
                         let grad_diff = gmax.0 + self.gradient[j];
-                        if grad_diff > 0.0 {
+                        if grad_diff > A::zero() {
                             // this is possible, because op_i is some
                             let i = gmax.1 as usize;
 
                             let quad_coef = self.kernel.self_distance(i)
                                 + self.kernel.self_distance(j)
-                                - 2.0 * self.target(i) * dist_i[j];
+                                - A::from(2.0).unwrap() * self.target(i) * dist_i[j];
 
-                            let obj_diff = if quad_coef > 0.0 {
+                            let obj_diff = if quad_coef > A::zero() {
                                 -(grad_diff * grad_diff) / quad_coef
                             } else {
-                                -(grad_diff * grad_diff) / 1e-10
+                                -(grad_diff * grad_diff) / A::from(1e-10).unwrap()
                             };
 
                             if obj_diff <= obj_diff_min.0 {
@@ -407,18 +408,18 @@ impl<'a> SolverState<'a> {
                 } else {
                     if !self.alpha[j].reached_upper() {
                         let grad_diff = gmax.0 - self.gradient[j];
-                        if grad_diff > 0.0 {
+                        if grad_diff > A::zero() {
                             // this is possible, because op_i is `Some`
                             let i = gmax.1 as usize;
 
                             let quad_coef = self.kernel.self_distance(i)
                                 + self.kernel.self_distance(j)
-                                + 2.0 * self.target(i) * dist_i[j];
+                                + A::from(2.0).unwrap() * self.target(i) * dist_i[j];
 
-                            let obj_diff = if quad_coef > 0.0 {
+                            let obj_diff = if quad_coef > A::zero() {
                                 -(grad_diff * grad_diff) / quad_coef
                             } else {
-                                -(grad_diff * grad_diff) / 1e-10
+                                -(grad_diff * grad_diff) / A::from(1e-10).unwrap()
                             };
                             if obj_diff <= obj_diff_min.0 {
                                 obj_diff_min = (obj_diff, j as isize);
@@ -436,7 +437,7 @@ impl<'a> SolverState<'a> {
         }
     }
 
-    pub fn should_shrunk(&self, i: usize, gmax1: f64, gmax2: f64) -> bool {
+    pub fn should_shrunk(&self, i: usize, gmax1: A, gmax2: A) -> bool {
         if self.alpha[i].reached_upper() {
             if self.targets[i] {
                 return -self.gradient[i] > gmax1;
@@ -459,7 +460,7 @@ impl<'a> SolverState<'a> {
         let (gmax1, gmax2) = (gmax1.0, gmax2.0);
 
         // work on all variables when 10*eps is reached
-        if !self.unshrink && gmax1 + gmax2 <= self.params.eps * 10.0 {
+        if !self.unshrink && gmax1 + gmax2 <= self.params.eps * A::from(10.0).unwrap() {
             self.unshrink = true;
             self.reconstruct_gradient();
             self.nactive = self.ntotal();
@@ -481,26 +482,26 @@ impl<'a> SolverState<'a> {
         }
     }
 
-    pub fn calculate_rho(&self) -> f64 {
+    pub fn calculate_rho(&self) -> A {
         let mut nfree = 0;
-        let mut sum_free = 0.0;
-        let mut ub = std::f64::INFINITY;
-        let mut lb = -std::f64::INFINITY;
+        let mut sum_free = A::zero();
+        let mut ub = A::infinity();
+        let mut lb = -A::infinity();
 
         for i in 0..self.nactive() {
             let yg = self.target(i) * self.gradient[i];
 
             if self.alpha[i].reached_upper() {
                 if self.targets[i] {
-                    lb = f64::max(lb, yg);
+                    lb = A::max(lb, yg);
                 } else {
-                    ub = f64::min(ub, yg);
+                    ub = A::min(ub, yg);
                 }
             } else if self.alpha[i].reached_lower() {
                 if self.targets[i] {
-                    ub = f64::min(ub, yg);
+                    ub = A::min(ub, yg);
                 } else {
-                    lb = f64::max(lb, yg);
+                    lb = A::max(lb, yg);
                 }
             } else {
                 nfree += 1;
@@ -509,13 +510,21 @@ impl<'a> SolverState<'a> {
         }
 
         if nfree > 0 {
-            sum_free / nfree as f64
+            sum_free / A::from(nfree).unwrap()
         } else {
-            (ub + lb) / 2.0
+            (ub + lb) / A::from(2.0).unwrap()
         }
     }
 
-    pub fn solve(mut self) -> SvmResult<'a> {
+    /*pub fn calculate_rho_nu(&self) -> A  {
+        let (mut nfree1, mut nfree2) = (0, 0);
+        let (mut sum_free1, mut sum_free2) = (0, 0);
+        let (mut ub1, mut ub2) = (A::infinity(), A::infinity());
+        let (mut lb1, mut lb2) = (-A::infinity(), -A::infinity());
+        A::zero()
+    }*/
+
+    pub fn solve(mut self) -> SvmResult<'a, A> {
         let mut iter = 0;
         let max_iter = if self.targets.len() > std::usize::MAX / 100 {
             std::usize::MAX
@@ -523,7 +532,7 @@ impl<'a> SolverState<'a> {
             100 * self.targets.len()
         };
 
-        let max_iter = usize::max(10000000, max_iter);
+        let max_iter = usize::max(1000000, max_iter);
         let mut counter = usize::min(self.targets.len(), 1000) + 1;
         while iter < max_iter {
             counter -= 1;
@@ -564,11 +573,11 @@ impl<'a> SolverState<'a> {
         let rho = self.calculate_rho();
 
         // calculate object function
-        let mut v = 0.0;
+        let mut v = A::zero();
         for i in 0..self.targets.len() {
             v += self.alpha[i].val() * (self.gradient[i] + self.p[i]);
         }
-        let obj = v / 2.0;
+        let obj = v / A::from(2.0).unwrap();
 
         let exit_reason = if max_iter == iter {
             ExitReason::ReachedIterations(obj, max_iter)
@@ -577,7 +586,7 @@ impl<'a> SolverState<'a> {
         };
 
         // put back the solution
-        let alpha: Vec<f64> = (0..self.targets.len())
+        let alpha: Vec<A> = (0..self.targets.len())
             .map(|i| self.alpha[self.active_set[i]].val())
             .collect();
 
@@ -593,21 +602,21 @@ impl<'a> SolverState<'a> {
 pub struct Classification;
 
 impl Classification {
-    pub fn fit_c<'a>(
-        params: &'a SolverParams,
-        kernel: &'a Kernel<f64>,
+    pub fn fit_c<'a, A: Float>(
+        params: &'a SolverParams<A>,
+        kernel: &'a Kernel<A>,
         target: &'a [bool],
-        cpos: f64,
-        cneg: f64,
-    ) -> SvmResult<'a> {
+        cpos: A,
+        cneg: A,
+    ) -> SvmResult<'a, A> {
         let bounds = target
             .iter()
             .map(|x| if *x { cpos } else { cneg })
             .collect::<Vec<_>>();
 
         let solver = SolverState::new(
-            vec![0.0; target.len()],
-            vec![-1.0; target.len()],
+            vec![A::zero(); target.len()],
+            vec![-A::one(); target.len()],
             target.to_vec(),
             kernel,
             bounds,
@@ -628,20 +637,20 @@ impl Classification {
 
     /*pub fn fit_nu<'a>(
         params: &'a SolverParams,
-        kernel: &'a Kernel<f64>,
+        kernel: &'a Kernel<A>,
         target: &'a [bool],
-        nu: f64
+        nu: A
     ) -> SvmResult<'a> {
-        let mut sum_pos = nu * target.len() as f64;
-        let mut sum_neg = nu * target.len() as f64;
+        let mut sum_pos = nu * target.len() as A;
+        let mut sum_neg = nu * target.len() as A;
         let init_alpha = target.iter()
             .map(|x| {
                 if *x {
-                    let val = f64::min(1.0, sum_pos);
+                    let val = A::min(1.0, sum_pos);
                     sum_pos -= val;
                     val
                 } else {
-                    let val = f64::min(1.0, sum_neg);
+                    let val = A::min(1.0, sum_neg);
                     sum_neg -= val;
                     val
                 }
@@ -650,7 +659,7 @@ impl Classification {
 
         let solver = SolverState::new(
             init_alpha,
-            vec![0.0; target.len()],
+            vec![A::zero(); target.len()],
             target.to_vec(),
             kernel,
             vec![1.0; target.len()],
@@ -714,10 +723,10 @@ mod tests {
         let params = SolverParams {
             eps: 1e-3,
             shrinking: false,
+            additional_constraint: false,
         };
 
         let svc = Classification::fit_c(&params, &kernel, &targets, 1.0, 1.0);
-        //dbg!(&svc.pedict(&entries));
         println!("{}", svc);
 
         let pred = kernel

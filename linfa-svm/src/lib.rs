@@ -1,7 +1,7 @@
 //! Support Vector Machines
 //!
 use linfa_kernel::Kernel;
-use ndarray::{Array1, ArrayBase, Data, Ix1};
+use ndarray::{ArrayBase, Data, Ix1, NdFloat};
 use std::fmt;
 
 mod permutable_kernel;
@@ -11,35 +11,46 @@ pub mod solver_smo;
 pub use hyperparameters::SolverParams;
 pub use solver_smo::Classification;
 
+pub trait Float:
+    NdFloat
+    + Default
+    + Clone
+    + std::iter::Sum
+{
+}
+
+impl Float for f32 {}
+impl Float for f64 {}
+
 #[derive(Debug)]
-pub enum ExitReason {
-    ReachedThreshold(f64, usize),
-    ReachedIterations(f64, usize),
+pub enum ExitReason<A: Float> {
+    ReachedThreshold(A, usize),
+    ReachedIterations(A, usize),
 }
 
-pub struct SvmResult<'a> {
-    alpha: Vec<f64>,
-    rho: f64,
-    exit_reason: ExitReason,
-    kernel: &'a Kernel<f64>
+pub struct SvmResult<'a, A: Float> {
+    alpha: Vec<A>,
+    rho: A,
+    exit_reason: ExitReason<A>,
+    kernel: &'a Kernel<A>
 }
 
-impl<'a> SvmResult<'a> {
-    pub fn predict<S: Data<Elem = f64>>(
+impl<'a, A: Float> SvmResult<'a, A> {
+    pub fn predict<S: Data<Elem = A>>(
         &self,
         data: ArrayBase<S, Ix1>,
-    ) -> f64 {
+    ) -> A {
         let sum = self.kernel.weighted_sum(&self.alpha, data.view());
 
         sum - self.rho
     }
 
     pub fn nsupport(&self) -> usize {
-        self.alpha.iter().filter(|x| x.abs() > 1e-5).count()
+        self.alpha.iter().filter(|x| x.abs() > A::from(1e-5).unwrap()).count()
     }
 }
 
-impl<'a> fmt::Display for SvmResult<'a> {
+impl<'a, A: Float> fmt::Display for SvmResult<'a, A> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.exit_reason {
             ExitReason::ReachedThreshold(obj, iter) => {
