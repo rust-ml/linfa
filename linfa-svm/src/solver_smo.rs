@@ -1,6 +1,5 @@
-use super::{ExitReason, SolverParams, SvmResult};
+use super::{ExitReason, SolverParams, SvmResult, permutable_kernel::PermutableKernel};
 use linfa_kernel::Kernel;
-use ndarray::Array1;
 
 /// Status of alpha variables of the solver
 #[derive(Debug)]
@@ -31,70 +30,6 @@ impl Alpha {
     }
 }
 
-/// Swappable kernel matrix
-///
-/// This struct wraps a kernel matrix with access indices. The working set can shrink during the
-/// optimization and it is therefore necessary to reorder entries.
-struct KernelSwap<'a> {
-    kernel: &'a Kernel<f64>,
-    kernel_diag: Array1<f64>,
-    kernel_indices: Vec<usize>,
-    targets: Vec<bool>,
-}
-
-impl<'a> KernelSwap<'a> {
-    pub fn new(kernel: &'a Kernel<f64>, targets: Vec<bool>) -> KernelSwap<'a> {
-        let kernel_diag = kernel.diagonal();
-        let kernel_indices = (0..kernel.size()).collect::<Vec<_>>();
-
-        KernelSwap {
-            kernel,
-            kernel_diag,
-            kernel_indices,
-            targets,
-        }
-    }
-
-    /// Swap two indices
-    pub fn swap_indices(&mut self, i: usize, j: usize) {
-        self.kernel_indices.swap(i, j);
-    }
-
-    /// Return distances from node `idx` to all other nodes
-    pub fn distances(&self, idx: usize, length: usize) -> Vec<f64> {
-        let idx = self.kernel_indices[idx];
-
-        let kernel = self.kernel.column(idx);
-        let target_i = self.targets[idx];
-
-        // reorder entries
-        (0..length)
-            .into_iter()
-            .map(|j| {
-                let val = kernel[self.kernel_indices[j]];
-                let target_j = self.targets[self.kernel_indices[j]];
-
-                if target_j != target_i {
-                    -val
-                } else {
-                    val
-                }
-            })
-            .collect()
-    }
-
-    /// Return internal kernel
-    pub fn inner(&self) -> &'a Kernel<f64> {
-        self.kernel
-    }
-
-    /// Return distance to itself
-    pub fn self_distance(&self, idx: usize) -> f64 {
-        let idx = self.kernel_indices[idx];
-
-        self.kernel_diag[idx]
-    }
-}
 
 /// Current state of the SMO solver
 ///
@@ -115,7 +50,7 @@ pub struct SolverState<'a> {
     unshrink: bool,
 
     /// Quadratic term of the problem
-    kernel: KernelSwap<'a>,
+    kernel: PermutableKernel<'a>,
     /// Linear term of the problem
     p: Vec<f64>,
     /// Targets we want to predict
@@ -181,7 +116,7 @@ impl<'a> SolverState<'a> {
             nactive: active_set.len(),
             unshrink: false,
             active_set,
-            kernel: KernelSwap::new(kernel, targets.clone()),
+            kernel: PermutableKernel::new(kernel, targets.clone()),
             targets,
             bounds,
             params,
@@ -729,7 +664,7 @@ impl Classification {
 
 #[cfg(test)]
 mod tests {
-    use super::{Classification, KernelSwap, SolverParams};
+    use super::{Classification, PermutableKernel, SolverParams};
     use linfa::metrics::IntoConfusionMatrix;
     use linfa_kernel::Kernel;
     use ndarray::{array, Array, Axis};
@@ -741,7 +676,7 @@ mod tests {
         let dist = array![[1.0, 0.3, 0.1], [0.3, 1.0, 0.5], [0.1, 0.5, 1.0]];
         let targets = vec![true, true, true];
         let dist = Kernel::from_dense(dist);
-        let mut kernel = KernelSwap::new(&dist, targets);
+        let mut kernel = PermutableKernel::new(&dist, targets);
 
         assert_eq!(kernel.distances(0, 3), &[1.0, 0.3, 0.1]);
         assert_eq!(kernel.distances(1, 3), &[0.3, 1.0, 0.5]);

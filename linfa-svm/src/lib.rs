@@ -4,6 +4,7 @@ use linfa_kernel::Kernel;
 use ndarray::{Array1, ArrayBase, Data, Ix1};
 use std::fmt;
 
+mod permutable_kernel;
 pub mod hyperparameters;
 pub mod solver_smo;
 
