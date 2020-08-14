@@ -1,27 +1,28 @@
-use super::{permutable_kernel::PermutableKernel, ExitReason, Float, SolverParams, SvmResult};
+use super::{ExitReason, Float, SolverParams, SvmResult};
+use super::permutable_kernel::{Permutable, PermutableKernel, PermutableKernelOneClass, PermutableKernelRegression};
 use linfa_kernel::Kernel;
 
 /// Status of alpha variables of the solver
 #[derive(Debug)]
 struct Alpha<A: Float> {
     value: A,
-    reached_upper: A,
+    upper_bound: A,
 }
 
 impl<A: Float> Alpha<A> {
-    pub fn from(value: A, reached_upper: A) -> Alpha<A> {
+    pub fn from(value: A, upper_bound: A) -> Alpha<A> {
         Alpha {
             value,
-            reached_upper,
+            upper_bound,
         }
     }
 
     pub fn reached_upper(&self) -> bool {
-        self.value >= self.reached_upper
+        self.value >= self.upper_bound
     }
 
     pub fn free_floating(&self) -> bool {
-        self.value < self.reached_upper && self.value > A::zero()
+        self.value < self.upper_bound && self.value > A::zero()
     }
 
     pub fn reached_lower(&self) -> bool {
@@ -38,7 +39,7 @@ impl<A: Float> Alpha<A> {
 /// We are solving the dual problem with linear constraint
 /// min_a f(a), s.t. y^Ta = d, 0 <= a_t < C, t = 1, ..., l
 /// where f(a) = a^T Q a / 2 + p^T a
-pub struct SolverState<'a, A: Float> {
+pub struct SolverState<'a, A: Float, K: Permutable<'a, A>> {
     /// Gradient of each variable
     gradient: Vec<A>,
     /// Cached gradient because most of the variables are constant
@@ -54,7 +55,7 @@ pub struct SolverState<'a, A: Float> {
     r: A,
 
     /// Quadratic term of the problem
-    kernel: PermutableKernel<'a, A>,
+    kernel: K,
     /// Linear term of the problem
     p: Vec<A>,
     /// Targets we want to predict
@@ -66,7 +67,7 @@ pub struct SolverState<'a, A: Float> {
     params: &'a SolverParams<A>,
 }
 
-impl<'a, A: Float> SolverState<'a, A> {
+impl<'a, A: Float, K: Permutable<'a, A>> SolverState<'a, A, K> {
     /// Initialize a solver state
     ///
     /// This is bounded by the lifetime of the kernel matrix, because it can quite large
@@ -74,11 +75,11 @@ impl<'a, A: Float> SolverState<'a, A> {
         alpha: Vec<A>,
         p: Vec<A>,
         targets: Vec<bool>,
-        kernel: &'a Kernel<A>,
+        kernel: K,
         bounds: Vec<A>,
         params: &'a SolverParams<A>,
         nu_constraint: bool,
-    ) -> SolverState<'a, A> {
+    ) -> SolverState<'a, A, K> {
         // initialize alpha status according to bound
         let alpha = alpha
             .into_iter()
@@ -96,7 +97,7 @@ impl<'a, A: Float> SolverState<'a, A> {
         for i in 0..alpha.len() {
             // when we have reached alpha = A::zero(), then d(a) = p
             if !alpha[i].reached_lower() {
-                let dist_i = kernel.column(i);
+                let dist_i = kernel.distances(i, alpha.len());
                 let alpha_i = alpha[i].val();
 
                 // update gradient as d(a) = p + Q a
@@ -121,7 +122,7 @@ impl<'a, A: Float> SolverState<'a, A> {
             nactive: active_set.len(),
             unshrink: false,
             active_set,
-            kernel: PermutableKernel::new(kernel, targets.clone()),
+            kernel,
             targets,
             bounds,
             params,
@@ -566,7 +567,6 @@ impl<'a, A: Float> SolverState<'a, A> {
         }
 
         if A::max(gmaxp1.0, gmaxp2.0) + A::max(gmaxn1.0, gmaxn2.0) < self.params.eps || obj_diff_min.1 == -1 {
-            println!("HERE {}", obj_diff_min.1);
             return (0, 0, true);
         } else {
             let out_j = obj_diff_min.1 as usize;
@@ -848,19 +848,21 @@ impl Classification {
     pub fn fit_c<'a, A: Float>(
         params: &'a SolverParams<A>,
         kernel: &'a Kernel<A>,
-        target: &'a [bool],
+        targets: &'a [bool],
         cpos: A,
         cneg: A,
     ) -> SvmResult<'a, A> {
-        let bounds = target
+        let bounds = targets
             .iter()
             .map(|x| if *x { cpos } else { cneg })
             .collect::<Vec<_>>();
 
+        let kernel = PermutableKernel::new(kernel, targets.to_vec());
+
         let solver = SolverState::new(
-            vec![A::zero(); target.len()],
-            vec![-A::one(); target.len()],
-            target.to_vec(),
+            vec![A::zero(); targets.len()],
+            vec![-A::one(); targets.len()],
+            targets.to_vec(),
             kernel,
             bounds,
             params,
@@ -872,7 +874,7 @@ impl Classification {
         res.alpha = res
             .alpha
             .into_iter()
-            .zip(target.iter())
+            .zip(targets.iter())
             .map(|(a, b)| if *b { a } else { -a })
             .collect();
 
@@ -882,12 +884,12 @@ impl Classification {
     pub fn fit_nu<'a, A: Float>(
         params: &'a SolverParams<A>,
         kernel: &'a Kernel<A>,
-        target: &'a [bool],
+        targets: &'a [bool],
         nu: A,
     ) -> SvmResult<'a, A> {
-        let mut sum_pos = nu * A::from(target.len()).unwrap() / A::from(2.0).unwrap();
-        let mut sum_neg = nu * A::from(target.len()).unwrap() / A::from(2.0).unwrap();
-        let init_alpha = target
+        let mut sum_pos = nu * A::from(targets.len()).unwrap() / A::from(2.0).unwrap();
+        let mut sum_neg = nu * A::from(targets.len()).unwrap() / A::from(2.0).unwrap();
+        let init_alpha = targets
             .iter()
             .map(|x| {
                 if *x {
@@ -902,13 +904,14 @@ impl Classification {
             })
             .collect::<Vec<_>>();
 
-        dbg!(&init_alpha);
+        let kernel = PermutableKernel::new(kernel, targets.to_vec());
+
         let solver = SolverState::new(
             init_alpha,
-            vec![A::zero(); target.len()],
-            target.to_vec(),
+            vec![A::zero(); targets.len()],
+            targets.to_vec(),
             kernel,
-            vec![A::one(); target.len()],
+            vec![A::one(); targets.len()],
             params,
             true,
         );
@@ -920,7 +923,7 @@ impl Classification {
         res.alpha = res
             .alpha
             .into_iter()
-            .zip(target.iter())
+            .zip(targets.iter())
             .map(|(a, b)| if *b { a } else { -a })
             .map(|x| x / r)
             .collect();
@@ -949,6 +952,8 @@ impl Classification {
                 }
             })
             .collect::<Vec<_>>();
+
+        let kernel = PermutableKernelOneClass::new(kernel);
 
         let solver = SolverState::new(
             init_alpha,
@@ -981,10 +986,11 @@ impl Regression {
             linear_term[i] = p - target[i];
             targets[i] = true;
 
-            linear_term[i + target.len()] = p - target[i];
+            linear_term[i + target.len()] = p + target[i];
             targets[i] = false;
         }
 
+        let kernel = PermutableKernelRegression::new(kernel);
         let solver = SolverState::new(
             vec![A::zero(); 2 * target.len()],
             linear_term,
@@ -995,7 +1001,17 @@ impl Regression {
             false,
         );
 
-        solver.solve()
+        let mut res = solver.solve();
+
+        for i in 0..target.len() {
+            let tmp = res.alpha[i+target.len()];
+            res.alpha[i] -= tmp;
+        }
+        res.alpha.truncate(target.len());
+
+        res
+
+
     }
 
     pub fn fit_nu<'a, A: Float>(
@@ -1022,6 +1038,7 @@ impl Regression {
             targets[i] = false;
         }
 
+        let kernel = PermutableKernelRegression::new(kernel);
         let solver = SolverState::new(
             alpha,
             linear_term,
@@ -1038,7 +1055,7 @@ impl Regression {
 
 #[cfg(test)]
 mod tests {
-    use super::{Classification, PermutableKernel, SolverParams};
+    use super::{Classification, Regression, Permutable, PermutableKernel, SolverParams};
     use linfa::metrics::IntoConfusionMatrix;
     use linfa_kernel::Kernel;
     use ndarray::{array, Array, Axis};
@@ -1174,5 +1191,20 @@ mod tests {
 
         // at least 95% should be correctly rejected
         assert!((rejected as f32) / (total as f32) > 0.95);
+    }
+
+    #[test]
+    fn test_linear_epsilon_regression() {
+        let target = Array::linspace(0., 10., 100);
+        let entries = Array::ones((100, 2));
+        let kernel = Kernel::gaussian(entries, 100.);
+
+        let params = SolverParams {
+            eps: 1e-3,
+            shrinking: false
+        };
+
+        let svr = Regression::fit_epsilon(&params, &kernel, &target.as_slice().unwrap(), 1.0, 0.1);
+        println!("{}", svr);
     }
 }
