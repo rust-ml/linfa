@@ -3,7 +3,6 @@ use std::fs::File;
 
 use csv::ReaderBuilder;
 use flate2::read::GzDecoder;
-use linfa_svm::Classification;
 use ndarray::{Array2, Axis};
 use ndarray_csv::Array2Reader;
 

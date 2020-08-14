@@ -4,12 +4,13 @@ use linfa_kernel::Kernel;
 use ndarray::{ArrayBase, Data, Ix1, NdFloat};
 use std::fmt;
 
-pub mod hyperparameters;
 mod permutable_kernel;
+pub mod hyperparameters;
 pub mod solver_smo;
+pub mod classification;
+pub mod regression;
 
 pub use hyperparameters::SolverParams;
-pub use solver_smo::{Classification, Regression};
 
 pub trait Float: NdFloat + Default + Clone + std::iter::Sum {}
 

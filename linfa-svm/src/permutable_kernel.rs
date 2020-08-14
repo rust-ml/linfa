@@ -191,3 +191,36 @@ impl<'a, A: Float> Permutable<'a, A> for PermutableKernelRegression<'a, A> {
         self.kernel_diag[idx]
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{Permutable, PermutableKernel};
+    use linfa_kernel::Kernel;
+    use ndarray::array;
+
+    #[test]
+    fn test_permutable_kernel() {
+        let dist = array![[1.0, 0.3, 0.1], [0.3, 1.0, 0.5], [0.1, 0.5, 1.0]];
+        let targets = vec![true, true, true];
+        let dist = Kernel::from_dense(dist);
+        let mut kernel = PermutableKernel::new(&dist, targets);
+
+        assert_eq!(kernel.distances(0, 3), &[1.0, 0.3, 0.1]);
+        assert_eq!(kernel.distances(1, 3), &[0.3, 1.0, 0.5]);
+        assert_eq!(kernel.distances(2, 3), &[0.1, 0.5, 1.0]);
+
+        // swap first two nodes
+        kernel.swap_indices(0, 1);
+
+        assert_eq!(kernel.distances(0, 3), &[1.0, 0.3, 0.5]);
+        assert_eq!(kernel.distances(1, 3), &[0.3, 1.0, 0.1]);
+        assert_eq!(kernel.distances(2, 3), &[0.5, 0.1, 1.0]);
+
+        // swap second and third node
+        kernel.swap_indices(1, 2);
+
+        assert_eq!(kernel.distances(0, 3), &[1.0, 0.5, 0.3]);
+        assert_eq!(kernel.distances(1, 3), &[0.5, 1.0, 0.1]);
+        assert_eq!(kernel.distances(2, 3), &[0.3, 0.1, 1.0]);
+    }
+}
