@@ -30,3 +30,6 @@ linfa-kernel = { path = "../linfa-kernel" }
 
 [dev-dependencies]
 approx = "0.3"
+csv = "1.1"
+ndarray-csv = "0.4"
+flate2 = "1.0"
