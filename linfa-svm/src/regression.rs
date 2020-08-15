@@ -1,9 +1,21 @@
+///! Support Vector Regression
 use super::permutable_kernel::PermutableKernelRegression;
 use super::solver_smo::SolverState;
 use super::SolverParams;
 use super::{Float, SvmResult};
 use linfa_kernel::Kernel;
 
+/// Support Vector Regression with epsilon tolerance
+///
+/// This methods solves a binary SVC problem with a penalizing parameter epsilon between (0, inf). This defines the margin of tolerance, where no penalty is given to errors.
+///
+/// # Parameters
+///
+/// * `params` - Solver parameters (threshold etc.)
+/// * `kernel` - the kernel matrix `Q`
+/// * `targets` - the continuous targets `y_i`
+/// * `c` - C value for all targets
+/// * `p` - epsilon value for all targets
 pub fn fit_epsilon<'a, A: Float>(
     params: &'a SolverParams<A>,
     kernel: &'a Kernel<A>,
@@ -44,6 +56,17 @@ pub fn fit_epsilon<'a, A: Float>(
     res
 }
 
+/// Support Vector Regression with nu parameter
+///
+/// This methods solves a binary SVC problem with parameter nu, defining how many support vectors should be used. This parameter should be in range (0, 1).
+///
+/// # Parameters
+///
+/// * `params` - Solver parameters (threshold etc.)
+/// * `kernel` - the kernel matrix `Q`
+/// * `targets` - the continuous targets `y_i`
+/// * `c` - C value for all targets
+/// * `nu` - nu value for all targets
 pub fn fit_nu<'a, A: Float>(
     params: &'a SolverParams<A>,
     kernel: &'a Kernel<A>,

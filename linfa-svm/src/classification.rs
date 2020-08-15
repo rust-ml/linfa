@@ -4,6 +4,22 @@ use super::SolverParams;
 use super::{Float, SvmResult};
 use linfa_kernel::Kernel;
 
+/// Support Vector Classification with C-penalizing parameter
+///
+/// This methods solves a binary SVC problem with a penalizing parameter C between (0, inf). The
+/// dual problem has the form
+/// ```
+/// min_a 1/2*a^tQ a - e^T a s.t. y^t = 0, 0 <= a_i <= C_i
+/// ```
+/// with `Q_ij = y_i y_j K(x_i, x_j)` the kernel matrix. 
+///
+/// # Parameters
+///
+/// * `params` - Solver parameters (threshold etc.)
+/// * `kernel` - the kernel matrix `Q`
+/// * `targets` - the ground truth targets `y_i`
+/// * `cpos` - C for positive targets
+/// * `cneg` - C for negative targets
 pub fn fit_c<'a, A: Float>(
     params: &'a SolverParams<A>,
     kernel: &'a Kernel<A>,
@@ -40,6 +56,21 @@ pub fn fit_c<'a, A: Float>(
     res
 }
 
+/// Support Vector Classification with Nu-penalizing term
+///
+/// This methods solves a binary SVC problem with a penalizing parameter nu between (0, 1). The
+/// dual problem has the form
+/// ```
+/// min_a 1/2*a^tQ a s.t. y^t a = 0, 0 <= a_i <= 1/l, e^t a > nu
+/// ```
+/// with `Q_ij = y_i y_j K(x_i, x_j)` the kernel matrix. 
+///
+/// # Parameters
+///
+/// * `params` - Solver parameters (threshold etc.)
+/// * `kernel` - the kernel matrix `Q`
+/// * `targets` - the ground truth targets `y_i`
+/// * `nu` - Nu penalizing term
 pub fn fit_nu<'a, A: Float>(
     params: &'a SolverParams<A>,
     kernel: &'a Kernel<A>,
@@ -92,6 +123,16 @@ pub fn fit_nu<'a, A: Float>(
     res
 }
 
+/// Support Vector Classification for one-class problems
+///
+/// This methods solves a binary SVC, when there are no targets available. This can, for example be
+/// useful, when outliers should be rejected.
+///
+/// # Parameters
+///
+/// * `params` - Solver parameters (threshold etc.)
+/// * `kernel` - the kernel matrix `Q`
+/// * `nu` - Nu penalizing term
 pub fn fit_one_class<'a, A: Float + num_traits::ToPrimitive>(
     params: &'a SolverParams<A>,
     kernel: &'a Kernel<A>,

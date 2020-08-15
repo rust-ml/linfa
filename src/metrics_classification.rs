@@ -130,7 +130,7 @@ impl<A> ConfusionMatrix<A> {
     /// let ground_truth = array![0, 0, 1, 0, 1, 0, 1];
     ///
     /// // create confusion matrix
-    /// let cm = prediction.confusion_matrix(&ground_truth);
+    /// let cm = prediction.into_confusion_matrix(&ground_truth);
     ///
     /// // print precision for label 0
     /// println!("{:?}", cm.precision());
@@ -172,7 +172,7 @@ impl<A> ConfusionMatrix<A> {
     /// let ground_truth = array![0, 0, 1, 0, 1, 0, 1];
     ///
     /// // create confusion matrix
-    /// let cm = prediction.confusion_matrix(&ground_truth);
+    /// let cm = prediction.into_confusion_matrix(&ground_truth);
     ///
     /// // print recall for label 0
     /// println!("{:?}", cm.recall());
@@ -557,7 +557,7 @@ mod tests {
         let predicted = ArrayView1::from(&[0, 1, 0, 1, 0, 1]);
         let ground_truth = ArrayView1::from(&[1, 1, 0, 1, 0, 1]);
 
-        let cm = predicted.confusion_matrix(&ground_truth);
+        let cm = predicted.into_confusion_matrix(&ground_truth);
 
         assert_eq_slice(cm.matrix, &[2., 1., 0., 3.]);
     }
@@ -567,7 +567,7 @@ mod tests {
         let predicted = Array1::from(vec![0, 1, 0, 1, 0, 1]);
         let ground_truth = Array1::from(vec![1, 1, 0, 1, 0, 1]);
 
-        let x = predicted.confusion_matrix(&ground_truth);
+        let x = predicted.into_confusion_matrix(&ground_truth);
 
         abs_diff_eq!(x.accuracy(), 5.0 / 6.0 as f32);
         abs_diff_eq!(
@@ -598,7 +598,7 @@ mod tests {
         let cm = predicted
             .clone()
             .with_classes(&[0, 1, 2])
-            .confusion_matrix(&ground_truth);
+            .into_confusion_matrix(&ground_truth);
 
         assert_eq_slice(cm.matrix, &[2., 0., 0., 0., 2., 1., 0., 0., 0.]);
 
@@ -606,7 +606,7 @@ mod tests {
         let cm = predicted
             .with_weights(&[1., 2., 1., 1., 1., 2., 1., 2., 1., 2.])
             .with_classes(&[0, 2, 3])
-            .confusion_matrix(&ground_truth);
+            .into_confusion_matrix(&ground_truth);
 
         // the false-positive error for label=2 is twice severe here
         assert_eq_slice(cm.matrix, &[2., 0., 0., 0., 0., 4., 0., 3., 0.]);
@@ -654,7 +654,7 @@ mod tests {
         let ground_truth = array![0, 2, 3, 0, 1, 2, 1, 2, 3, 2];
 
         // create a confusion matrix
-        let cm = predicted.confusion_matrix(&ground_truth);
+        let cm = predicted.into_confusion_matrix(&ground_truth);
 
         // split four class confusion matrix into 4 binary confusion matrix
         let n_cm = cm.split_one_vs_all();
