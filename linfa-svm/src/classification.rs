@@ -4,7 +4,7 @@ use super::SolverParams;
 use super::solver_smo::SolverState;
 use super::permutable_kernel::{PermutableKernel, PermutableKernelOneClass};
 
-pub(crate) fn fit_c<'a, A: Float>(
+pub fn fit_c<'a, A: Float>(
     params: &'a SolverParams<A>,
     kernel: &'a Kernel<A>,
     targets: &'a [bool],
@@ -40,7 +40,7 @@ pub(crate) fn fit_c<'a, A: Float>(
     res
 }
 
-pub(crate) fn fit_nu<'a, A: Float>(
+pub fn fit_nu<'a, A: Float>(
     params: &'a SolverParams<A>,
     kernel: &'a Kernel<A>,
     targets: &'a [bool],
@@ -92,7 +92,7 @@ pub(crate) fn fit_nu<'a, A: Float>(
     res
 }
 
-pub(crate) fn fit_one_class<'a, A: Float + num_traits::ToPrimitive>(
+pub fn fit_one_class<'a, A: Float + num_traits::ToPrimitive>(
     params: &'a SolverParams<A>,
     kernel: &'a Kernel<A>,
     nu: A,

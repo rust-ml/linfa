@@ -294,22 +294,19 @@ impl<A: fmt::Display> fmt::Debug for ConfusionMatrix<A> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let len = self.matrix.len_of(Axis(0));
         writeln!(f)?;
-        for _ in 0..len * 4 + 1 {
-            write!(f, "-")?;
+        write!(f, "{: <10}", "classes")?;
+        for i in 0..len {
+            write!(f, " | {: <10}", self.members[i])?;
         }
         writeln!(f)?;
 
         for i in 0..len {
-            write!(f, "| ")?;
+            write!(f, "{: <10}", self.members[i])?;
 
             for j in 0..len {
-                write!(f, "{} | ", self.matrix[(i, j)])?;
+                write!(f, " | {: <10}", self.matrix[(i, j)])?;
             }
             writeln!(f)?;
-        }
-
-        for _ in 0..len * 4 + 1 {
-            write!(f, "-")?;
         }
 
         Ok(())
@@ -326,7 +323,7 @@ pub trait IntoConfusionMatrix<A> {
         T: IntoNdProducer<Item = &'a A, Dim = Ix1, Output = ArrayView1<'a, A>>;
 }
 
-impl<A: Copy + Ord + Hash, D: Data<Elem = A>> IntoConfusionMatrix<A> for ModifiedPrediction<A, D> {
+impl<A: Clone + Ord + Hash, D: Data<Elem = A>> IntoConfusionMatrix<A> for ModifiedPrediction<A, D> {
     fn into_confusion_matrix<'a, T>(self, ground_truth: T) -> ConfusionMatrix<A>
     where
         A: 'a,
@@ -339,7 +336,7 @@ impl<A: Copy + Ord + Hash, D: Data<Elem = A>> IntoConfusionMatrix<A> for Modifie
             let mut classes = ground_truth
                 .iter()
                 .chain(self.prediction.iter())
-                .copied()
+                .cloned()
                 .collect::<Vec<_>>();
             // create a set
             classes.sort();
@@ -365,7 +362,7 @@ impl<A: Copy + Ord + Hash, D: Data<Elem = A>> IntoConfusionMatrix<A> for Modifie
     }
 }
 
-impl<A: Copy + Ord + Hash, D: Data<Elem = A>> IntoConfusionMatrix<A> for ArrayBase<D, Ix1> {
+impl<A: Clone + Ord + Hash, D: Data<Elem = A>> IntoConfusionMatrix<A> for ArrayBase<D, Ix1> {
     fn into_confusion_matrix<'a, T>(self, ground_truth: T) -> ConfusionMatrix<A>
     where
         A: 'a,
@@ -381,7 +378,7 @@ impl<A: Copy + Ord + Hash, D: Data<Elem = A>> IntoConfusionMatrix<A> for ArrayBa
     }
 }
 
-impl<A: Copy + Ord + Hash> IntoConfusionMatrix<A> for Vec<A> {
+impl<A: Clone + Ord + Hash> IntoConfusionMatrix<A> for Vec<A> {
     fn into_confusion_matrix<'a, T>(self, ground_truth: T) -> ConfusionMatrix<A>
     where
         A: 'a,

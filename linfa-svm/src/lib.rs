@@ -5,12 +5,21 @@ use ndarray::{ArrayBase, Data, Ix1, NdFloat};
 use std::fmt;
 
 mod permutable_kernel;
-pub mod hyperparameters;
 pub mod solver_smo;
-pub mod classification;
-pub mod regression;
+mod classification;
+mod regression;
 
-pub use hyperparameters::SolverParams;
+pub use solver_smo::SolverParams;
+
+/// Re-export classification and regression modules
+#[allow(non_snake_case)]
+pub mod SVClassify {
+    pub use crate::classification::{fit_c, fit_nu, fit_one_class};
+}
+#[allow(non_snake_case)]
+pub mod SVRegress {
+    pub use crate::regression::{fit_epsilon, fit_nu};
+}
 
 pub trait Float: NdFloat + Default + Clone + std::iter::Sum {}
 

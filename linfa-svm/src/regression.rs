@@ -4,7 +4,7 @@ use super::SolverParams;
 use super::solver_smo::SolverState;
 use super::permutable_kernel::PermutableKernelRegression;
 
-pub(crate) fn fit_epsilon<'a, A: Float>(
+pub fn fit_epsilon<'a, A: Float>(
     params: &'a SolverParams<A>,
     kernel: &'a Kernel<A>,
     target: &'a [A],
@@ -46,7 +46,7 @@ pub(crate) fn fit_epsilon<'a, A: Float>(
 
 }
 
-pub(crate) fn fit_nu<'a, A: Float>(
+pub fn fit_nu<'a, A: Float>(
     params: &'a SolverParams<A>,
     kernel: &'a Kernel<A>,
     target: &'a [A],

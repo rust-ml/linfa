@@ -1,5 +1,14 @@
-use super::{ExitReason, Float, SolverParams, SvmResult};
+use super::{ExitReason, Float, SvmResult};
 use super::permutable_kernel::Permutable;
+
+/// Parameters of the solver routine
+#[derive(Clone)]
+pub struct SolverParams<A: Float> {
+    /// Stopping condition
+    pub eps: A,
+    /// Should we shrink, e.g. ignore bounded alphas
+    pub shrinking: bool,
+}
 
 /// Status of alpha variables of the solver
 #[derive(Debug)]
