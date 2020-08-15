@@ -1,5 +1,5 @@
-use super::{ExitReason, Float, SvmResult};
 use super::permutable_kernel::Permutable;
+use super::{ExitReason, Float, SvmResult};
 
 /// Parameters of the solver routine
 #[derive(Clone)]
@@ -19,10 +19,7 @@ struct Alpha<A: Float> {
 
 impl<A: Float> Alpha<A> {
     pub fn from(value: A, upper_bound: A) -> Alpha<A> {
-        Alpha {
-            value,
-            upper_bound,
-        }
+        Alpha { value, upper_bound }
     }
 
     pub fn reached_upper(&self) -> bool {
@@ -523,14 +520,13 @@ impl<'a, A: Float, K: Permutable<'a, A>> SolverState<'a, A, K> {
                     if grad_diff > A::zero() {
                         let dist_i_p = match dist_i_p {
                             Some(ref x) => x,
-                            None => continue
+                            None => continue,
                         };
 
                         // this is possible, because op_i is some
                         let i = gmaxp1.1 as usize;
 
-                        let quad_coef = self.kernel.self_distance(i)
-                            + self.kernel.self_distance(j)
+                        let quad_coef = self.kernel.self_distance(i) + self.kernel.self_distance(j)
                             - A::from(2.0).unwrap() * dist_i_p[j];
 
                         let obj_diff = if quad_coef > A::zero() {
@@ -550,14 +546,13 @@ impl<'a, A: Float, K: Permutable<'a, A>> SolverState<'a, A, K> {
                     if grad_diff > A::zero() {
                         let dist_i_n = match dist_i_n {
                             Some(ref x) => x,
-                            None => continue
+                            None => continue,
                         };
 
                         // this is possible, because op_i is `Some`
                         let i = gmaxn1.1 as usize;
 
-                        let quad_coef = self.kernel.self_distance(i)
-                            + self.kernel.self_distance(j)
+                        let quad_coef = self.kernel.self_distance(i) + self.kernel.self_distance(j)
                             - A::from(2.0).unwrap() * dist_i_n[j];
 
                         let obj_diff = if quad_coef > A::zero() {
@@ -573,7 +568,9 @@ impl<'a, A: Float, K: Permutable<'a, A>> SolverState<'a, A, K> {
             }
         }
 
-        if A::max(gmaxp1.0, gmaxp2.0) + A::max(gmaxn1.0, gmaxn2.0) < self.params.eps || obj_diff_min.1 == -1 {
+        if A::max(gmaxp1.0, gmaxp2.0) + A::max(gmaxn1.0, gmaxn2.0) < self.params.eps
+            || obj_diff_min.1 == -1
+        {
             return (0, 0, true);
         } else {
             let out_j = obj_diff_min.1 as usize;
@@ -661,7 +658,8 @@ impl<'a, A: Float, K: Permutable<'a, A>> SolverState<'a, A, K> {
 
         // work on all variables when 10*eps is reached
         if !self.unshrink
-            && A::max(gmax1, gmax2) + A::max(gmax3, gmax4) <= self.params.eps * A::from(10.0).unwrap()
+            && A::max(gmax1, gmax2) + A::max(gmax3, gmax4)
+                <= self.params.eps * A::from(10.0).unwrap()
         {
             self.unshrink = true;
             self.reconstruct_gradient();
@@ -762,7 +760,7 @@ impl<'a, A: Float, K: Permutable<'a, A>> SolverState<'a, A, K> {
             (ub2 + lb2) / A::from(2.0).unwrap()
         };
 
-        self.r = (r1+r2) / A::from(2.0).unwrap();
+        self.r = (r1 + r2) / A::from(2.0).unwrap();
 
         (r1 - r2) / A::from(2.0).unwrap()
     }
@@ -816,7 +814,7 @@ impl<'a, A: Float, K: Permutable<'a, A>> SolverState<'a, A, K> {
         let rho = self.calculate_rho();
         let r = match self.nu_constraint {
             true => Some(self.r),
-            false => None
+            false => None,
         };
 
         // calculate object function

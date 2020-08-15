@@ -4,10 +4,10 @@ use linfa_kernel::Kernel;
 use ndarray::{ArrayBase, Data, Ix1, NdFloat};
 use std::fmt;
 
-mod permutable_kernel;
-pub mod solver_smo;
 mod classification;
+mod permutable_kernel;
 mod regression;
+pub mod solver_smo;
 
 pub use solver_smo::SolverParams;
 

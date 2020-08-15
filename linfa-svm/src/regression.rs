@@ -1,8 +1,8 @@
-use linfa_kernel::Kernel;
-use super::{SvmResult, Float};
-use super::SolverParams;
-use super::solver_smo::SolverState;
 use super::permutable_kernel::PermutableKernelRegression;
+use super::solver_smo::SolverState;
+use super::SolverParams;
+use super::{Float, SvmResult};
+use linfa_kernel::Kernel;
 
 pub fn fit_epsilon<'a, A: Float>(
     params: &'a SolverParams<A>,
@@ -28,7 +28,7 @@ pub fn fit_epsilon<'a, A: Float>(
         linear_term,
         targets.to_vec(),
         kernel,
-        vec![c; 2*target.len()],
+        vec![c; 2 * target.len()],
         params,
         false,
     );
@@ -36,14 +36,12 @@ pub fn fit_epsilon<'a, A: Float>(
     let mut res = solver.solve();
 
     for i in 0..target.len() {
-        let tmp = res.alpha[i+target.len()];
+        let tmp = res.alpha[i + target.len()];
         res.alpha[i] -= tmp;
     }
     res.alpha.truncate(target.len());
 
     res
-
-
 }
 
 pub fn fit_nu<'a, A: Float>(
@@ -76,7 +74,7 @@ pub fn fit_nu<'a, A: Float>(
         linear_term,
         targets.to_vec(),
         kernel,
-        vec![c; 2*target.len()],
+        vec![c; 2 * target.len()],
         params,
         false,
     );
@@ -84,7 +82,7 @@ pub fn fit_nu<'a, A: Float>(
     let mut res = solver.solve();
 
     for i in 0..target.len() {
-        let tmp = res.alpha[i+target.len()];
+        let tmp = res.alpha[i + target.len()];
         res.alpha[i] -= tmp;
     }
     res.alpha.truncate(target.len());
@@ -94,7 +92,7 @@ pub fn fit_nu<'a, A: Float>(
 
 #[cfg(test)]
 pub mod tests {
-    use super::{SolverParams, fit_nu, fit_epsilon};
+    use super::{fit_epsilon, fit_nu, SolverParams};
 
     use linfa::metrics::Regression;
     use linfa_kernel::Kernel;
@@ -112,18 +110,19 @@ pub mod tests {
 
         let params = SolverParams {
             eps: 1e-8,
-            shrinking: false
+            shrinking: false,
         };
 
         let svr = fit_epsilon(&params, &kernel, &target, 2.0, 0.01);
         println!("{}", svr);
 
-        let predicted = sin_curve.outer_iter()
+        let predicted = sin_curve
+            .outer_iter()
             .map(|x| svr.predict(x))
             .collect::<Array1<_>>();
 
         assert!(predicted.mean_squared_error(&target) < 1e-2);
-        
+
         //dbg!(&predicted);
     }
 
@@ -139,13 +138,14 @@ pub mod tests {
 
         let params = SolverParams {
             eps: 1e-8,
-            shrinking: false
+            shrinking: false,
         };
 
         let svr = fit_nu(&params, &kernel, &target, 2.0, 1.0);
         println!("{}", svr);
 
-        let predicted = sin_curve.outer_iter()
+        let predicted = sin_curve
+            .outer_iter()
             .map(|x| svr.predict(x))
             .collect::<Array1<_>>();
 

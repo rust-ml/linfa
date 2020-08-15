@@ -137,8 +137,18 @@ pub struct PermutableKernelRegression<'a, A: Float> {
 impl<'a, A: Float> PermutableKernelRegression<'a, A> {
     pub fn new(kernel: &'a Kernel<A>) -> PermutableKernelRegression<'a, A> {
         let kernel_diag = kernel.diagonal();
-        let kernel_indices = (0..2*kernel.size()).map(|x| if x < kernel.size() { x } else { x - kernel.size() }).collect::<Vec<_>>();
-        let signs = (0..kernel.size()*2).map(|x| if x < kernel.size() { true } else { false }).collect::<Vec<_>>();
+        let kernel_indices = (0..2 * kernel.size())
+            .map(|x| {
+                if x < kernel.size() {
+                    x
+                } else {
+                    x - kernel.size()
+                }
+            })
+            .collect::<Vec<_>>();
+        let signs = (0..kernel.size() * 2)
+            .map(|x| if x < kernel.size() { true } else { false })
+            .collect::<Vec<_>>();
 
         PermutableKernelRegression {
             kernel,

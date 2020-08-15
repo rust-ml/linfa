@@ -1,8 +1,8 @@
-use linfa_kernel::Kernel;
-use super::{SvmResult, Float};
-use super::SolverParams;
-use super::solver_smo::SolverState;
 use super::permutable_kernel::{PermutableKernel, PermutableKernelOneClass};
+use super::solver_smo::SolverState;
+use super::SolverParams;
+use super::{Float, SvmResult};
+use linfa_kernel::Kernel;
 
 pub fn fit_c<'a, A: Float>(
     params: &'a SolverParams<A>,
@@ -129,7 +129,7 @@ pub fn fit_one_class<'a, A: Float + num_traits::ToPrimitive>(
 
 #[cfg(test)]
 mod tests {
-    use super::{SolverParams, fit_c, fit_one_class, fit_nu};
+    use super::{fit_c, fit_nu, fit_one_class, SolverParams};
     use linfa::metrics::IntoConfusionMatrix;
     use linfa_kernel::Kernel;
     use ndarray::{Array, Axis};
@@ -228,7 +228,7 @@ mod tests {
         let mut rejected = 0;
         let mut total = 0;
         for (pred, pos) in pred.iter().zip(validation.outer_iter()) {
-            let distance = (pos[0]*pos[0] + pos[1]*pos[1]).sqrt();
+            let distance = (pos[0] * pos[0] + pos[1] * pos[1]).sqrt();
             if distance >= 5.0 {
                 if !pred {
                     rejected += 1;

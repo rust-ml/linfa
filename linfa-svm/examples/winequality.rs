@@ -31,7 +31,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let npoints = data.len_of(Axis(0));
     let (ntrain, nvalid) = (
         (npoints as f32 * 0.9).floor() as usize,
-        (npoints as f32 * 0.1).ceil() as usize
+        (npoints as f32 * 0.1).ceil() as usize,
     );
 
     // last column is the target dataset
@@ -46,10 +46,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     let kernel = Kernel::gaussian(train_data.to_owned(), 0.1);
 
     // fit a support vector machine classifier with C values
-    println!("Fit SVM classifier with #{} training points", train_data.len_of(Axis(0)));
+    println!(
+        "Fit SVM classifier with #{} training points",
+        train_data.len_of(Axis(0))
+    );
     let params = SolverParams {
         eps: 1e-3,
-        shrinking: false
+        shrinking: false,
     };
 
     let model = SVClassify::fit_c(&params, &kernel, train_target, 1.0, 1.0);
@@ -70,7 +73,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let valid_target: Vec<String> = valid_target.into_iter().cloned().map(tag_classes).collect();
 
     // predict, map to readable string and create a confusion matrix
-    let confusion = valid_data.outer_iter()
+    let confusion = valid_data
+        .outer_iter()
         .map(|x| model.predict(x) > 0.0)
         .map(tag_classes)
         .collect::<Vec<_>>()
