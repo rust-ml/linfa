@@ -19,7 +19,7 @@ pub fn fit_epsilon<'a, A: Float>(
         targets[i] = true;
 
         linear_term[i + target.len()] = p + target[i];
-        targets[i] = false;
+        targets[i + target.len()] = false;
     }
 
     let kernel = PermutableKernelRegression::new(kernel);
@@ -28,7 +28,7 @@ pub fn fit_epsilon<'a, A: Float>(
         linear_term,
         targets.to_vec(),
         kernel,
-        vec![c; target.len()],
+        vec![c; 2*target.len()],
         params,
         false,
     );
@@ -67,7 +67,7 @@ pub fn fit_nu<'a, A: Float>(
         targets[i] = true;
 
         linear_term[i + target.len()] = target[i];
-        targets[i] = false;
+        targets[i + target.len()] = false;
     }
 
     let kernel = PermutableKernelRegression::new(kernel);
@@ -76,48 +76,79 @@ pub fn fit_nu<'a, A: Float>(
         linear_term,
         targets.to_vec(),
         kernel,
-        vec![c; target.len()],
+        vec![c; 2*target.len()],
         params,
         false,
     );
 
-    solver.solve()
+    let mut res = solver.solve();
+
+    for i in 0..target.len() {
+        let tmp = res.alpha[i+target.len()];
+        res.alpha[i] -= tmp;
+    }
+    res.alpha.truncate(target.len());
+
+    res
 }
 
 #[cfg(test)]
 pub mod tests {
     use super::{SolverParams, fit_nu, fit_epsilon};
 
+    use linfa::metrics::Regression;
     use linfa_kernel::Kernel;
-    use ndarray::Array;
+    use ndarray::{Array, Array1};
 
     #[test]
     fn test_linear_epsilon_regression() {
-        let target = Array::linspace(0., 10., 100);
-        let entries = Array::ones((100, 2));
-        let kernel = Kernel::gaussian(entries, 100.);
+        let target = Array::linspace(0f64, 10., 100).to_vec();
+        let mut sin_curve = Array::zeros((100, 1));
+        for (i, val) in target.iter().enumerate() {
+            sin_curve[(i, 0)] = *val;
+        }
+
+        let kernel = Kernel::gaussian(sin_curve.clone(), 50.);
 
         let params = SolverParams {
-            eps: 1e-3,
+            eps: 1e-8,
             shrinking: false
         };
 
-        let svr = fit_epsilon(&params, &kernel, &target.as_slice().unwrap(), 1.0, 0.1);
+        let svr = fit_epsilon(&params, &kernel, &target, 2.0, 0.01);
         println!("{}", svr);
+
+        let predicted = sin_curve.outer_iter()
+            .map(|x| svr.predict(x))
+            .collect::<Array1<_>>();
+
+        assert!(predicted.mean_squared_error(&target) < 1e-2);
+        
+        //dbg!(&predicted);
     }
 
     #[test]
     fn test_linear_nu_regression() {
-        let target = Array::linspace(0., 10., 100);
-        let entries = Array::ones((100, 2));
-        let kernel = Kernel::gaussian(entries, 100.);
+        let target = Array::linspace(0f64, 10., 100).to_vec();
+        let mut sin_curve = Array::zeros((100, 1));
+        for (i, val) in target.iter().enumerate() {
+            sin_curve[(i, 0)] = *val;
+        }
+
+        let kernel = Kernel::gaussian(sin_curve.clone(), 50.);
 
         let params = SolverParams {
-            eps: 1e-3,
+            eps: 1e-8,
             shrinking: false
         };
 
-        let svr = fit_nu(&params, &kernel, &target.as_slice().unwrap(), 1.0, 0.1);
+        let svr = fit_nu(&params, &kernel, &target, 2.0, 1.0);
         println!("{}", svr);
+
+        let predicted = sin_curve.outer_iter()
+            .map(|x| svr.predict(x))
+            .collect::<Array1<_>>();
+
+        assert!(predicted.mean_squared_error(&target) < 1e-2);
     }
 }

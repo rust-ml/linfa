@@ -3,52 +3,63 @@
 //! This module implements common comparison metrices for continuous variables.
 
 use ndarray::prelude::*;
+use ndarray::IntoNdProducer;
 use ndarray::{Data, NdFloat};
 use num_traits::FromPrimitive;
+use std::ops::Sub;
 
 /// Regression metrices trait
-pub trait Regression<A, D: Data<Elem = A>> {
+pub trait Regression<'a, A: 'a, T: IntoNdProducer<Item = &'a A, Dim = Ix1, Output = ArrayView1<'a, A>>> {
     /// Maximal error between two continuous variables
-    fn max_error(&self, compare_to: &ArrayBase<D, Ix1>) -> A;
+    fn max_error(&self, compare_to: T) -> A;
     /// Mean error between two continuous variables
-    fn mean_absolute_error(&self, compare_to: &ArrayBase<D, Ix1>) -> A;
+    fn mean_absolute_error(&self, compare_to: T) -> A;
     /// Mean squared error between two continuous variables
-    fn mean_squared_error(&self, compare_to: &ArrayBase<D, Ix1>) -> A;
+    fn mean_squared_error(&self, compare_to: T) -> A;
     /// Mean squared log error between two continuous variables
-    fn mean_squared_log_error(&self, compare_to: &ArrayBase<D, Ix1>) -> A;
+    fn mean_squared_log_error(&self, compare_to: T) -> A;
     /// Median absolute error between two continuous variables
-    fn median_absolute_error(&self, compare_to: &ArrayBase<D, Ix1>) -> A;
+    fn median_absolute_error(&self, compare_to: T) -> A;
     /// R squared coefficient, is the proprtion of the variance in the dependent variable that is
     /// predictable from the independent variable
-    fn r2(&self, compare_to: &ArrayBase<D, Ix1>) -> A;
+    fn r2(&self, compare_to: T) -> A;
     /// Same as R-Squared but with biased variance
-    fn explained_variance(&self, compare_to: &ArrayBase<D, Ix1>) -> A;
+    fn explained_variance(&self, compare_to: T) -> A;
 }
 
-impl<A: NdFloat + FromPrimitive, D: Data<Elem = A>> Regression<A, D> for ArrayBase<D, Ix1> {
-    fn max_error(&self, compare_to: &ArrayBase<D, Ix1>) -> A {
-        (self - compare_to)
+impl<'a, A: 'a + NdFloat + FromPrimitive, D: Data<Elem = A>, T: IntoNdProducer<Item = &'a A, Dim = Ix1, Output = ArrayView1<'a, A>>> Regression<'a, A, T> for ArrayBase<D, Ix1> {
+    fn max_error(&self, compare_to: T) -> A {
+        let compare_to: ArrayView1<'a, A> = compare_to.into_producer();
+
+        self.sub(&compare_to)
             .iter()
             .map(|x| x.abs())
             .fold(A::neg_infinity(), A::max)
     }
 
-    fn mean_absolute_error(&self, compare_to: &ArrayBase<D, Ix1>) -> A {
-        (self - compare_to).mapv(|x| x.abs()).mean().unwrap()
+    fn mean_absolute_error(&self, compare_to: T) -> A {
+        let compare_to = compare_to.into_producer();
+
+        self.sub(&compare_to).mapv(|x| x.abs()).mean().unwrap()
     }
 
-    fn mean_squared_error(&self, compare_to: &ArrayBase<D, Ix1>) -> A {
-        (self - compare_to).mapv(|x| x * x).mean().unwrap()
+    fn mean_squared_error(&self, compare_to: T) -> A {
+        let compare_to = compare_to.into_producer();
+
+        self.sub(&compare_to).mapv(|x| x * x).mean().unwrap()
     }
 
-    fn mean_squared_log_error(&self, compare_to: &ArrayBase<D, Ix1>) -> A {
-        //(self - compare_to).mapv(|x| (x.ln() * x.ln()).mean().unwrap()
+    fn mean_squared_log_error(&self, compare_to: T) -> A {
+        let compare_to = compare_to.into_producer();
+
         self.mapv(|x| (A::one() + x).ln())
             .mean_squared_error(&compare_to.mapv(|x| (A::one() + x).ln()))
     }
 
-    fn median_absolute_error(&self, compare_to: &ArrayBase<D, Ix1>) -> A {
-        let mut abs_error = (self - compare_to).mapv(|x| x.abs()).to_vec();
+    fn median_absolute_error(&self, compare_to: T) -> A {
+        let compare_to = compare_to.into_producer();
+
+        let mut abs_error = self.sub(&compare_to).mapv(|x| x.abs()).to_vec();
         abs_error.sort_by(|a, b| a.partial_cmp(&b).unwrap());
         let mid = abs_error.len() / 2;
         if abs_error.len() % 2 == 0 {
@@ -58,20 +69,25 @@ impl<A: NdFloat + FromPrimitive, D: Data<Elem = A>> Regression<A, D> for ArrayBa
         }
     }
 
-    fn r2(&self, compare_to: &ArrayBase<D, Ix1>) -> A {
+    fn r2(&self, compare_to: T) -> A {
+        let compare_to = compare_to.into_producer();
+
         let mean = compare_to.mean().unwrap();
 
         A::one()
-            - (self - compare_to).mapv(|x| x * x).sum()
+            - self.sub(&compare_to).mapv(|x| x * x).sum()
                 / (self.mapv(|x| (x - mean) * (x - mean)).sum() + A::from(1e-10).unwrap())
     }
 
-    fn explained_variance(&self, compare_to: &ArrayBase<D, Ix1>) -> A {
+    fn explained_variance(&self, compare_to: T) -> A {
+        let compare_to = compare_to.into_producer();
+        let diff = self.sub(&compare_to);
+
         let mean = compare_to.mean().unwrap();
-        let mean_error = (self - compare_to).mean().unwrap();
+        let mean_error = diff.mean().unwrap();
 
         A::one()
-            - ((self - compare_to).mapv(|x| x * x).sum() - mean_error)
+            - (diff.mapv(|x| x * x).sum() - mean_error)
                 / (self.mapv(|x| (x - mean) * (x - mean)).sum() + A::from(1e-10).unwrap())
     }
 }

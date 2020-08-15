@@ -131,14 +131,14 @@ pub struct PermutableKernelRegression<'a, A: Float> {
     kernel: &'a Kernel<A>,
     kernel_diag: Array1<A>,
     kernel_indices: Vec<usize>,
-    signs: Vec<A>,
+    signs: Vec<bool>,
 }
 
 impl<'a, A: Float> PermutableKernelRegression<'a, A> {
     pub fn new(kernel: &'a Kernel<A>) -> PermutableKernelRegression<'a, A> {
         let kernel_diag = kernel.diagonal();
         let kernel_indices = (0..2*kernel.size()).map(|x| if x < kernel.size() { x } else { x - kernel.size() }).collect::<Vec<_>>();
-        let signs = (0..kernel.size()*2).map(|x| if x < kernel.size() { A::one() } else { -A::one() }).collect::<Vec<_>>();
+        let signs = (0..kernel.size()*2).map(|x| if x < kernel.size() { true } else { false }).collect::<Vec<_>>();
 
         PermutableKernelRegression {
             kernel,
@@ -158,9 +158,7 @@ impl<'a, A: Float> Permutable<'a, A> for PermutableKernelRegression<'a, A> {
 
     /// Return distances from node `idx` to all other nodes
     fn distances(&self, idx: usize, length: usize) -> Vec<A> {
-        let idx = self.kernel_indices[idx];
-
-        let kernel = self.kernel.column(idx);
+        let kernel = self.kernel.column(self.kernel_indices[idx]);
 
         // reorder entries
         let sign_i = self.signs[idx];

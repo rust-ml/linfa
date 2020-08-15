@@ -437,7 +437,6 @@ impl<'a, A: Float, K: Permutable<'a, A>> SolverState<'a, A, K> {
 
         if gmax.1 != -1 {
             let dist_i = self.kernel.distances(gmax.1 as usize, self.ntotal());
-            //dbg!(&dist_i, gmax, gmax2);
 
             for j in 0..self.nactive() {
                 if self.targets[j] {
@@ -834,7 +833,7 @@ impl<'a, A: Float, K: Permutable<'a, A>> SolverState<'a, A, K> {
         };
 
         // put back the solution
-        let alpha: Vec<A> = (0..self.targets.len())
+        let alpha: Vec<A> = (0..self.ntotal())
             .map(|i| self.alpha[self.active_set[i]].val())
             .collect();
 

@@ -33,8 +33,8 @@ pub enum ExitReason {
 }
 
 pub struct SvmResult<'a, A: Float> {
-    alpha: Vec<A>,
-    rho: A,
+    pub alpha: Vec<A>,
+    pub rho: A,
     r: Option<A>,
     exit_reason: ExitReason,
     iterations: usize,

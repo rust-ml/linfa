@@ -77,6 +77,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .into_confusion_matrix(&valid_target);
 
     println!("{:?}", confusion);
+    println!("accuracy {}, MCC {}", confusion.accuracy(), confusion.mcc());
 
     Ok(())
 }
