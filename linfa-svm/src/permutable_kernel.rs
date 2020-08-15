@@ -6,7 +6,7 @@ pub trait Permutable<'a, A: Float> {
     fn swap_indices(&mut self, i: usize, j: usize);
     fn distances(&self, idx: usize, length: usize) -> Vec<A>;
     fn self_distance(&self, idx: usize) -> A;
-    fn inner(&self) -> &'a Kernel<A>;
+    fn inner(&self) -> &'a Kernel<'a, A>;
 }
 
 /// Kernel matrix with permutable columns
@@ -14,7 +14,7 @@ pub trait Permutable<'a, A: Float> {
 /// This struct wraps a kernel matrix with access indices. The working set can shrink during the
 /// optimization and it is therefore necessary to reorder entries.
 pub struct PermutableKernel<'a, A: Float> {
-    kernel: &'a Kernel<A>,
+    kernel: &'a Kernel<'a, A>,
     kernel_diag: Array1<A>,
     kernel_indices: Vec<usize>,
     targets: Vec<bool>,
@@ -64,7 +64,7 @@ impl<'a, A: Float> Permutable<'a, A> for PermutableKernel<'a, A> {
     }
 
     /// Return internal kernel
-    fn inner(&self) -> &'a Kernel<A> {
+    fn inner(&self) -> &'a Kernel<'a, A> {
         self.kernel
     }
 
@@ -77,7 +77,7 @@ impl<'a, A: Float> Permutable<'a, A> for PermutableKernel<'a, A> {
 }
 
 pub struct PermutableKernelOneClass<'a, A: Float> {
-    kernel: &'a Kernel<A>,
+    kernel: &'a Kernel<'a, A>,
     kernel_diag: Array1<A>,
     kernel_indices: Vec<usize>,
 }
@@ -115,7 +115,7 @@ impl<'a, A: Float> Permutable<'a, A> for PermutableKernelOneClass<'a, A> {
     }
 
     /// Return internal kernel
-    fn inner(&self) -> &'a Kernel<A> {
+    fn inner(&self) -> &'a Kernel<'a, A> {
         self.kernel
     }
 
@@ -128,7 +128,7 @@ impl<'a, A: Float> Permutable<'a, A> for PermutableKernelOneClass<'a, A> {
 }
 
 pub struct PermutableKernelRegression<'a, A: Float> {
-    kernel: &'a Kernel<A>,
+    kernel: &'a Kernel<'a, A>,
     kernel_diag: Array1<A>,
     kernel_indices: Vec<usize>,
     signs: Vec<bool>,
@@ -188,7 +188,7 @@ impl<'a, A: Float> Permutable<'a, A> for PermutableKernelRegression<'a, A> {
     }
 
     /// Return internal kernel
-    fn inner(&self) -> &'a Kernel<A> {
+    fn inner(&self) -> &'a Kernel<'a, A> {
         self.kernel
     }
 
@@ -203,14 +203,19 @@ impl<'a, A: Float> Permutable<'a, A> for PermutableKernelRegression<'a, A> {
 #[cfg(test)]
 mod tests {
     use super::{Permutable, PermutableKernel};
-    use linfa_kernel::Kernel;
+    use linfa_kernel::{Kernel, KernelInner};
     use ndarray::array;
 
     #[test]
     fn test_permutable_kernel() {
         let dist = array![[1.0, 0.3, 0.1], [0.3, 1.0, 0.5], [0.1, 0.5, 1.0]];
         let targets = vec![true, true, true];
-        let dist = Kernel::from_dense(dist);
+        let dist = Kernel {
+            inner: KernelInner::Dense(dist.clone()),
+            fnc: Box::new(|_,_| 0.0),
+            dataset: &dist
+        };
+
         let mut kernel = PermutableKernel::new(&dist, targets);
 
         assert_eq!(kernel.distances(0, 3), &[1.0, 0.3, 0.1]);

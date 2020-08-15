@@ -25,10 +25,10 @@ ndarray-rand = "0.11"
 rand_isaac = "0.2.0"
 num-traits = "0.1.32"
 
-linfa = { path = "../" }
 linfa-kernel = { path = "../linfa-kernel" }
 
 [dev-dependencies]
+linfa = { path = ".." }
 approx = "0.3"
 csv = "1.1"
 ndarray-csv = "0.4"

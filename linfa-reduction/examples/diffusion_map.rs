@@ -1,4 +1,5 @@
-use linfa_reduction::kernel::{IntoKernel, SparsePolynomialKernel};
+use linfa_kernel::Kernel;
+use linfa_reduction::{DiffusionMap, DiffusionMapHyperParams};
 use linfa_reduction::utils::generate_convoluted_rings;
 use ndarray_npy::write_npy;
 use ndarray_rand::rand::SeedableRng;
@@ -16,8 +17,11 @@ fn main() {
     // generate three convoluted rings
     let dataset = generate_convoluted_rings(&[(0.0, 3.0), (10.0, 13.0), (20.0, 23.0)], n, &mut rng);
 
+    let params = DiffusionMapHyperParams::new(4).steps(1).build();
+
     // generate sparse polynomial kernel with k = 14, c = 5 and d = 2
-    let diffusion_map = SparsePolynomialKernel::new(&dataset, 14, 5.0, 2.0).reduce_fixed(4);
+    let kernel = Kernel::polynomial_sparse(&dataset, 5.0, 2.0, 14);
+    let diffusion_map = DiffusionMap::project(params, kernel);
 
     // get embedding
     let embedding = diffusion_map.embedding();

@@ -43,7 +43,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let (valid_data, valid_target) = (data.slice(s!(nvalid.., ..)), &target[nvalid..]);
 
     // transform data with gaussian kernel fuction
-    let kernel = Kernel::gaussian(train_data.to_owned(), 0.1);
+    let train_data = train_data.to_owned();
+    let kernel = Kernel::gaussian(&train_data, 0.1);
 
     // fit a support vector machine classifier with C values
     println!(

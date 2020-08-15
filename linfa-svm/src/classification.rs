@@ -190,7 +190,7 @@ mod tests {
         .unwrap();
         let targets = (0..20).map(|x| x < 10).collect::<Vec<_>>();
 
-        let kernel = Kernel::gaussian(entries, 100.);
+        let kernel = Kernel::gaussian(&entries, 100.);
         let params = SolverParams {
             eps: 1e-3,
             shrinking: false,
@@ -199,8 +199,7 @@ mod tests {
         let svc = fit_c(&params, &kernel, &targets, 1.0, 1.0);
         println!("{}", svc);
 
-        let pred = kernel
-            .dataset
+        let pred = entries
             .outer_iter()
             .map(|x| svc.predict(x))
             .map(|x| x > 0.0)
@@ -223,7 +222,7 @@ mod tests {
         .unwrap();
         let targets = (0..20).map(|x| x < 10).collect::<Vec<_>>();
 
-        let kernel = Kernel::gaussian(entries, 100.);
+        let kernel = Kernel::gaussian(&entries, 100.);
         let params = SolverParams {
             eps: 1e-1,
             shrinking: false,
@@ -232,8 +231,7 @@ mod tests {
         let svc = fit_nu(&params, &kernel, &targets, 0.1);
         println!("{}", svc);
 
-        let pred = kernel
-            .dataset
+        let pred = entries
             .outer_iter()
             .map(|x| svc.predict(x))
             .map(|x| x > 0.0)
@@ -248,7 +246,7 @@ mod tests {
     fn test_reject_classification() {
         // generate two clusters with 100 samples each
         let entries = Array::random((100, 2), Uniform::new(-4., 4.));
-        let kernel = Kernel::gaussian(entries, 100.);
+        let kernel = Kernel::gaussian(&entries, 100.);
 
         let params = SolverParams {
             eps: 1e-3,

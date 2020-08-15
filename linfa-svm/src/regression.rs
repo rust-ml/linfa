@@ -129,7 +129,7 @@ pub mod tests {
             sin_curve[(i, 0)] = *val;
         }
 
-        let kernel = Kernel::gaussian(sin_curve.clone(), 50.);
+        let kernel = Kernel::gaussian(&sin_curve, 50.);
 
         let params = SolverParams {
             eps: 1e-8,
@@ -157,7 +157,7 @@ pub mod tests {
             sin_curve[(i, 0)] = *val;
         }
 
-        let kernel = Kernel::gaussian(sin_curve.clone(), 50.);
+        let kernel = Kernel::gaussian(&sin_curve, 50.);
 
         let params = SolverParams {
             eps: 1e-8,

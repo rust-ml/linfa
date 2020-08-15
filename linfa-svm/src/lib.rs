@@ -73,7 +73,7 @@ pub struct SvmResult<'a, A: Float> {
     exit_reason: ExitReason,
     iterations: usize,
     obj: A,
-    kernel: &'a Kernel<A>,
+    kernel: &'a Kernel<'a, A>,
 }
 
 impl<'a, A: Float> SvmResult<'a, A> {

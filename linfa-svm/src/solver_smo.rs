@@ -72,7 +72,7 @@ pub struct SolverState<'a, A: Float, K: Permutable<'a, A>> {
     params: &'a SolverParams<A>,
 }
 
-impl<'a, A: Float, K: Permutable<'a, A>> SolverState<'a, A, K> {
+impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
     /// Initialize a solver state
     ///
     /// This is bounded by the lifetime of the kernel matrix, because it can quite large

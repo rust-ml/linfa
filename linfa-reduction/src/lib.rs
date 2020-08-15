@@ -2,7 +2,6 @@
 extern crate ndarray;
 
 pub mod diffusion_map;
-pub mod kernel;
 pub mod pca;
 pub mod utils;
 
