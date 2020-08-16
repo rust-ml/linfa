@@ -26,6 +26,11 @@ jobs:
       - rustup component add clippy
     script:
       - cargo clippy --all-targets --all-features
+  - name: Coverage
+    before_script:
+      - cargo install cargo-tarpaulin
+    script:
+      - strace cargo tarpaulin --all -v --run-types Tests Doctests --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
   allow_failures:
     - rust: nightly
   fast_finish: true
