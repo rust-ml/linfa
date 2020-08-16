@@ -19,7 +19,7 @@
 //!
 //! With an RBF kernel and C-Support Vector Classification an
 //! accuracy of 0.988% is reached within 2911 iterations and 1248 support vectors.
-//! ```
+//! ```ignore
 //! Fit SVM classifier with #1439 training points
 //! Exited after 2911 iterations with obj = -248.51510322468084 and 1248 support vectors
 //!

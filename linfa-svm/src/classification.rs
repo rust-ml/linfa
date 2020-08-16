@@ -8,7 +8,7 @@ use linfa_kernel::Kernel;
 ///
 /// This methods solves a binary SVC problem with a penalizing parameter C between (0, inf). The
 /// dual problem has the form
-/// ```
+/// ```ignore
 /// min_a 1/2*a^tQ a - e^T a s.t. y^t = 0, 0 <= a_i <= C_i
 /// ```
 /// with `Q_ij = y_i y_j K(x_i, x_j)` the kernel matrix. 
@@ -60,7 +60,7 @@ pub fn fit_c<'a, A: Float>(
 ///
 /// This methods solves a binary SVC problem with a penalizing parameter nu between (0, 1). The
 /// dual problem has the form
-/// ```
+/// ```ignore
 /// min_a 1/2*a^tQ a s.t. y^t a = 0, 0 <= a_i <= 1/l, e^t a > nu
 /// ```
 /// with `Q_ij = y_i y_j K(x_i, x_j)` the kernel matrix. 
@@ -224,11 +224,11 @@ mod tests {
 
         let kernel = Kernel::gaussian(&entries, 100.);
         let params = SolverParams {
-            eps: 1e-1,
+            eps: 1e-4,
             shrinking: false,
         };
 
-        let svc = fit_nu(&params, &kernel, &targets, 0.1);
+        let svc = fit_nu(&params, &kernel, &targets, 0.01);
         println!("{}", svc);
 
         let pred = entries

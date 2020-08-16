@@ -29,10 +29,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // calculate number of training and validation points
     let npoints = data.len_of(Axis(0));
-    let (ntrain, nvalid) = (
-        (npoints as f32 * 0.9).floor() as usize,
-        (npoints as f32 * 0.1).ceil() as usize,
-    );
+    let ntrain = (npoints as f32 * 0.9).floor() as usize;
 
     // last column is the target dataset
     let (data, target) = data.view().split_at(Axis(1), 11);
@@ -40,11 +37,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let target = target.into_iter().map(|x| *x > 6.5f64).collect::<Vec<_>>();
     // split into training and validation data
     let (train_data, train_target) = (data.slice(s!(0..ntrain, ..)), &target[0..ntrain]);
-    let (valid_data, valid_target) = (data.slice(s!(nvalid.., ..)), &target[nvalid..]);
+    let (valid_data, valid_target) = (data.slice(s!(ntrain.., ..)), &target[ntrain..]);
 
     // transform data with gaussian kernel fuction
     let train_data = train_data.to_owned();
-    let kernel = Kernel::gaussian(&train_data, 0.1);
+    let kernel = Kernel::gaussian(&train_data, 8.0);
 
     // fit a support vector machine classifier with C values
     println!(
@@ -56,7 +53,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         shrinking: false,
     };
 
-    let model = SVClassify::fit_c(&params, &kernel, train_target, 1.0, 1.0);
+    let model = SVClassify::fit_c(&params, &kernel, train_target, 7.0, 0.6);
 
     // print model
     println!("{}", model);

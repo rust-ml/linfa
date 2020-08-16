@@ -568,7 +568,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
             }
         }
 
-        if A::max(gmaxp1.0, gmaxp2.0) + A::max(gmaxn1.0, gmaxn2.0) < self.params.eps
+        if A::max(gmaxp1.0 + gmaxp2.0, gmaxn1.0 + gmaxn2.0) < self.params.eps
             || obj_diff_min.1 == -1
         {
             return (0, 0, true);
@@ -658,7 +658,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
 
         // work on all variables when 10*eps is reached
         if !self.unshrink
-            && A::max(gmax1, gmax2) + A::max(gmax3, gmax4)
+            && A::max(gmax1 + gmax2, gmax3 + gmax4)
                 <= self.params.eps * A::from(10.0).unwrap()
         {
             self.unshrink = true;
