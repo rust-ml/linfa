@@ -658,8 +658,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
 
         // work on all variables when 10*eps is reached
         if !self.unshrink
-            && A::max(gmax1 + gmax2, gmax3 + gmax4)
-                <= self.params.eps * A::from(10.0).unwrap()
+            && A::max(gmax1 + gmax2, gmax3 + gmax4) <= self.params.eps * A::from(10.0).unwrap()
         {
             self.unshrink = true;
             self.reconstruct_gradient();

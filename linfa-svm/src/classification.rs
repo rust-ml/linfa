@@ -11,7 +11,7 @@ use linfa_kernel::Kernel;
 /// ```ignore
 /// min_a 1/2*a^tQ a - e^T a s.t. y^t = 0, 0 <= a_i <= C_i
 /// ```
-/// with `Q_ij = y_i y_j K(x_i, x_j)` the kernel matrix. 
+/// with `Q_ij = y_i y_j K(x_i, x_j)` the kernel matrix.
 ///
 /// # Parameters
 ///
@@ -63,7 +63,7 @@ pub fn fit_c<'a, A: Float>(
 /// ```ignore
 /// min_a 1/2*a^tQ a s.t. y^t a = 0, 0 <= a_i <= 1/l, e^t a > nu
 /// ```
-/// with `Q_ij = y_i y_j K(x_i, x_j)` the kernel matrix. 
+/// with `Q_ij = y_i y_j K(x_i, x_j)` the kernel matrix.
 ///
 /// # Parameters
 ///

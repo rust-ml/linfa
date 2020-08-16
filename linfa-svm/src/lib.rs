@@ -15,7 +15,7 @@
 //! # Example
 //! The wine quality data consists of 11 features, like "acid", "sugar", "sulfur dioxide", and
 //! groups the quality into worst 3 to best 8. These are unified to good 8-7 and bad 3-6 to get a
-//! binary classification task. 
+//! binary classification task.
 //!
 //! With an RBF kernel and C-Support Vector Classification an
 //! accuracy of 0.988% is reached within 2911 iterations and 1248 support vectors.
@@ -80,7 +80,7 @@ impl<'a, A: Float> SvmResult<'a, A> {
     /// Predict new values with the model
     ///
     /// In case of a classification task this returns a probability, for regression the predicted
-    /// regressor is returned. 
+    /// regressor is returned.
     pub fn predict<S: Data<Elem = A>>(&self, data: ArrayBase<S, Ix1>) -> A {
         let sum = self.kernel.weighted_sum(&self.alpha, data.view());
 

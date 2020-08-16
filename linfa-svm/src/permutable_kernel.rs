@@ -212,8 +212,8 @@ mod tests {
         let targets = vec![true, true, true];
         let dist = Kernel {
             inner: KernelInner::Dense(dist.clone()),
-            fnc: Box::new(|_,_| 0.0),
-            dataset: &dist
+            fnc: Box::new(|_, _| 0.0),
+            dataset: &dist,
         };
 
         let mut kernel = PermutableKernel::new(&dist, targets);
