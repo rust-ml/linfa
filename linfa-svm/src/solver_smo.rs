@@ -148,9 +148,10 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
 
     /// Return target as positive/negative indicator
     pub fn target(&self, idx: usize) -> A {
-        match self.targets[idx] {
-            true => A::one(),
-            false => -A::one(),
+        if self.targets[idx] {
+            A::one()
+        } else {
+            -A::one()
         }
     }
 
@@ -244,22 +245,19 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
                     self.alpha[j].value = A::zero();
                     self.alpha[i].value = diff;
                 }
-            } else {
-                if self.alpha[i].val() < A::zero() {
-                    self.alpha[i].value = A::zero();
-                    self.alpha[j].value = -diff;
-                }
+            } else if self.alpha[i].val() < A::zero() {
+                self.alpha[i].value = A::zero();
+                self.alpha[j].value = -diff;
             }
+
             if diff > bound_i - bound_j {
                 if self.alpha[i].val() > bound_i {
                     self.alpha[i].value = bound_i;
                     self.alpha[j].value = bound_i - diff;
                 }
-            } else {
-                if self.alpha[j].val() > bound_j {
-                    self.alpha[j].value = bound_j;
-                    self.alpha[i].value = bound_j + diff;
-                }
+            } else if self.alpha[j].val() > bound_j {
+                self.alpha[j].value = bound_j;
+                self.alpha[i].value = bound_j + diff;
             }
         } else {
             let mut quad_coef = self.kernel.self_distance(i) + self.kernel.self_distance(j)
@@ -281,22 +279,18 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
                     self.alpha[i].value = bound_i;
                     self.alpha[j].value = sum - bound_i;
                 }
-            } else {
-                if self.alpha[j].val() < A::zero() {
-                    self.alpha[j].value = A::zero();
-                    self.alpha[i].value = sum;
-                }
+            } else if self.alpha[j].val() < A::zero() {
+                self.alpha[j].value = A::zero();
+                self.alpha[i].value = sum;
             }
             if sum > bound_j {
                 if self.alpha[j].val() > bound_j {
                     self.alpha[j].value = bound_j;
                     self.alpha[i].value = sum - bound_j;
                 }
-            } else {
-                if self.alpha[i].val() < A::zero() {
-                    self.alpha[i].value = A::zero();
-                    self.alpha[j].value = sum;
-                }
+            } else if self.alpha[i].val() < A::zero() {
+                self.alpha[i].value = A::zero();
+                self.alpha[j].value = sum;
             }
         }
 
@@ -355,26 +349,18 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
 
         for i in 0..self.nactive() {
             if self.targets[i] {
-                if !self.alpha[i].reached_upper() {
-                    if -self.gradient[i] >= gmax1.0 {
-                        gmax1 = (-self.gradient[i], i as isize);
-                    }
+                if !self.alpha[i].reached_upper() && -self.gradient[i] >= gmax1.0 {
+                    gmax1 = (-self.gradient[i], i as isize);
                 }
-                if !self.alpha[i].reached_lower() {
-                    if self.gradient[i] >= gmax2.0 {
-                        gmax2 = (self.gradient[i], i as isize);
-                    }
+                if !self.alpha[i].reached_lower() && self.gradient[i] >= gmax2.0 {
+                    gmax2 = (self.gradient[i], i as isize);
                 }
             } else {
-                if !self.alpha[i].reached_upper() {
-                    if -self.gradient[i] >= gmax2.0 {
-                        gmax2 = (-self.gradient[i], i as isize);
-                    }
+                if !self.alpha[i].reached_upper() && -self.gradient[i] >= gmax2.0 {
+                    gmax2 = (-self.gradient[i], i as isize);
                 }
-                if !self.alpha[i].reached_lower() {
-                    if self.gradient[i] >= gmax1.0 {
-                        gmax1 = (self.gradient[i], i as isize);
-                    }
+                if !self.alpha[i].reached_lower() && self.gradient[i] >= gmax1.0 {
+                    gmax1 = (self.gradient[i], i as isize);
                 }
             }
         }
@@ -390,26 +376,18 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
 
         for i in 0..self.nactive() {
             if self.targets[i] {
-                if !self.alpha[i].reached_upper() {
-                    if -self.gradient[i] > gmax1.0 {
-                        gmax1 = (-self.gradient[i], i as isize);
-                    }
+                if !self.alpha[i].reached_upper() && -self.gradient[i] > gmax1.0 {
+                    gmax1 = (-self.gradient[i], i as isize);
                 }
-                if !self.alpha[i].reached_lower() {
-                    if self.gradient[i] > gmax3.0 {
-                        gmax3 = (self.gradient[i], i as isize);
-                    }
+                if !self.alpha[i].reached_lower() && self.gradient[i] > gmax3.0 {
+                    gmax3 = (self.gradient[i], i as isize);
                 }
             } else {
-                if !self.alpha[i].reached_upper() {
-                    if -self.gradient[i] > gmax4.0 {
-                        gmax4 = (-self.gradient[i], i as isize);
-                    }
+                if !self.alpha[i].reached_upper() && -self.gradient[i] > gmax4.0 {
+                    gmax4 = (-self.gradient[i], i as isize);
                 }
-                if !self.alpha[i].reached_lower() {
-                    if self.gradient[i] > gmax2.0 {
-                        gmax2 = (self.gradient[i], i as isize);
-                    }
+                if !self.alpha[i].reached_lower() && self.gradient[i] > gmax2.0 {
+                    gmax2 = (self.gradient[i], i as isize);
                 }
             }
         }
@@ -435,7 +413,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
         if gmax.1 != -1 {
             let dist_i = self.kernel.distances(gmax.1 as usize, self.ntotal());
 
-            for j in 0..self.nactive() {
+            for (j, dist_ij) in dist_i.into_iter().enumerate().take(self.nactive()) {
                 if self.targets[j] {
                     if !self.alpha[j].reached_lower() {
                         let grad_diff = gmax.0 + self.gradient[j];
@@ -445,7 +423,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
 
                             let quad_coef = self.kernel.self_distance(i)
                                 + self.kernel.self_distance(j)
-                                - A::from(2.0).unwrap() * self.target(i) * dist_i[j];
+                                - A::from(2.0).unwrap() * self.target(i) * dist_ij;
 
                             let obj_diff = if quad_coef > A::zero() {
                                 -(grad_diff * grad_diff) / quad_coef
@@ -458,25 +436,23 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
                             }
                         }
                     }
-                } else {
-                    if !self.alpha[j].reached_upper() {
-                        let grad_diff = gmax.0 - self.gradient[j];
-                        if grad_diff > A::zero() {
-                            // this is possible, because op_i is `Some`
-                            let i = gmax.1 as usize;
+                } else if !self.alpha[j].reached_upper() {
+                    let grad_diff = gmax.0 - self.gradient[j];
+                    if grad_diff > A::zero() {
+                        // this is possible, because op_i is `Some`
+                        let i = gmax.1 as usize;
 
-                            let quad_coef = self.kernel.self_distance(i)
-                                + self.kernel.self_distance(j)
-                                + A::from(2.0).unwrap() * self.target(i) * dist_i[j];
+                        let quad_coef = self.kernel.self_distance(i)
+                            + self.kernel.self_distance(j)
+                            + A::from(2.0).unwrap() * self.target(i) * dist_ij;
 
-                            let obj_diff = if quad_coef > A::zero() {
-                                -(grad_diff * grad_diff) / quad_coef
-                            } else {
-                                -(grad_diff * grad_diff) / A::from(1e-10).unwrap()
-                            };
-                            if obj_diff <= obj_diff_min.0 {
-                                obj_diff_min = (obj_diff, j as isize);
-                            }
+                        let obj_diff = if quad_coef > A::zero() {
+                            -(grad_diff * grad_diff) / quad_coef
+                        } else {
+                            -(grad_diff * grad_diff) / A::from(1e-10).unwrap()
+                        };
+                        if obj_diff <= obj_diff_min.0 {
+                            obj_diff_min = (obj_diff, j as isize);
                         }
                     }
                 }
@@ -484,9 +460,9 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
         }
 
         if gmax.0 + gmax2.0 < self.params.eps || obj_diff_min.1 == -1 {
-            return (0, 0, true);
+            (0, 0, true)
         } else {
-            return (gmax.1 as usize, obj_diff_min.1 as usize, false);
+            (gmax.1 as usize, obj_diff_min.1 as usize, false)
         }
     }
 
@@ -540,29 +516,27 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
                         }
                     }
                 }
-            } else {
-                if !self.alpha[j].reached_upper() {
-                    let grad_diff = gmaxn1.0 - self.gradient[j];
-                    if grad_diff > A::zero() {
-                        let dist_i_n = match dist_i_n {
-                            Some(ref x) => x,
-                            None => continue,
-                        };
+            } else if !self.alpha[j].reached_upper() {
+                let grad_diff = gmaxn1.0 - self.gradient[j];
+                if grad_diff > A::zero() {
+                    let dist_i_n = match dist_i_n {
+                        Some(ref x) => x,
+                        None => continue,
+                    };
 
-                        // this is possible, because op_i is `Some`
-                        let i = gmaxn1.1 as usize;
+                    // this is possible, because op_i is `Some`
+                    let i = gmaxn1.1 as usize;
 
-                        let quad_coef = self.kernel.self_distance(i) + self.kernel.self_distance(j)
-                            - A::from(2.0).unwrap() * dist_i_n[j];
+                    let quad_coef = self.kernel.self_distance(i) + self.kernel.self_distance(j)
+                        - A::from(2.0).unwrap() * dist_i_n[j];
 
-                        let obj_diff = if quad_coef > A::zero() {
-                            -(grad_diff * grad_diff) / quad_coef
-                        } else {
-                            -(grad_diff * grad_diff) / A::from(1e-10).unwrap()
-                        };
-                        if obj_diff <= obj_diff_min.0 {
-                            obj_diff_min = (obj_diff, j as isize);
-                        }
+                    let obj_diff = if quad_coef > A::zero() {
+                        -(grad_diff * grad_diff) / quad_coef
+                    } else {
+                        -(grad_diff * grad_diff) / A::from(1e-10).unwrap()
+                    };
+                    if obj_diff <= obj_diff_min.0 {
+                        obj_diff_min = (obj_diff, j as isize);
                     }
                 }
             }
@@ -571,7 +545,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
         if A::max(gmaxp1.0 + gmaxp2.0, gmaxn1.0 + gmaxn2.0) < self.params.eps
             || obj_diff_min.1 == -1
         {
-            return (0, 0, true);
+            (0, 0, true)
         } else {
             let out_j = obj_diff_min.1 as usize;
             let out_i = if self.targets[out_j] {
@@ -580,25 +554,25 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
                 gmaxn1.1 as usize
             };
 
-            return (out_i, out_j, false);
+            (out_i, out_j, false)
         }
     }
 
     pub fn should_shrunk(&self, i: usize, gmax1: A, gmax2: A) -> bool {
         if self.alpha[i].reached_upper() {
             if self.targets[i] {
-                return -self.gradient[i] > gmax1;
+                -self.gradient[i] > gmax1
             } else {
-                return -self.gradient[i] > gmax2;
+                -self.gradient[i] > gmax2
             }
         } else if self.alpha[i].reached_lower() {
             if self.targets[i] {
-                return self.gradient[i] > gmax2;
+                self.gradient[i] > gmax2
             } else {
-                return -self.gradient[i] > gmax1;
+                -self.gradient[i] > gmax1
             }
         } else {
-            return false;
+            false
         }
     }
 
@@ -736,7 +710,9 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
                     nfree1 += 1;
                     sum_free1 += self.gradient[i];
                 }
-            } else {
+            }
+
+            if !self.targets[i] {
                 if self.alpha[i].reached_upper() {
                     lb2 = A::max(lb2, self.gradient[i]);
                 } else if self.alpha[i].reached_lower() {
@@ -772,7 +748,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
             100 * self.targets.len()
         };
 
-        let max_iter = usize::max(10000000, max_iter);
+        let max_iter = usize::max(10_000_000, max_iter);
         let mut counter = usize::min(self.targets.len(), 1000) + 1;
         while iter < max_iter {
             counter -= 1;
@@ -803,17 +779,16 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
             self.update((i, j));
         }
 
-        if iter >= max_iter {
-            if self.nactive() < self.targets.len() {
-                self.reconstruct_gradient();
-                self.nactive = self.ntotal();
-            }
+        if iter >= max_iter && self.nactive() < self.targets.len() {
+            self.reconstruct_gradient();
+            self.nactive = self.ntotal();
         }
 
         let rho = self.calculate_rho();
-        let r = match self.nu_constraint {
-            true => Some(self.r),
-            false => None,
+        let r = if self.nu_constraint {
+            Some(self.r)
+        } else {
+            None
         };
 
         // calculate object function

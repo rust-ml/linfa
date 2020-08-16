@@ -49,7 +49,6 @@ impl<'a, A: Float> Permutable<'a, A> for PermutableKernel<'a, A> {
 
         // reorder entries
         (0..length)
-            .into_iter()
             .map(|j| {
                 let val = kernel[self.kernel_indices[j]];
                 let target_j = self.targets[self.kernel_indices[j]];
@@ -109,7 +108,6 @@ impl<'a, A: Float> Permutable<'a, A> for PermutableKernelOneClass<'a, A> {
 
         // reorder entries
         (0..length)
-            .into_iter()
             .map(|j| kernel[self.kernel_indices[j]])
             .collect()
     }
@@ -147,7 +145,7 @@ impl<'a, A: Float> PermutableKernelRegression<'a, A> {
             })
             .collect::<Vec<_>>();
         let signs = (0..kernel.size() * 2)
-            .map(|x| if x < kernel.size() { true } else { false })
+            .map(|x| x < kernel.size())
             .collect::<Vec<_>>();
 
         PermutableKernelRegression {
@@ -173,7 +171,6 @@ impl<'a, A: Float> Permutable<'a, A> for PermutableKernelRegression<'a, A> {
         // reorder entries
         let sign_i = self.signs[idx];
         (0..length)
-            .into_iter()
             .map(|j| {
                 let val = kernel[self.kernel_indices[j]];
                 let sign_j = self.signs[j];

@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use super::permutable_kernel::{PermutableKernel, PermutableKernelOneClass};
 use super::solver_smo::SolverState;
 use super::SolverParams;
@@ -143,12 +145,10 @@ pub fn fit_one_class<'a, A: Float + num_traits::ToPrimitive>(
 
     let init_alpha = (0..size)
         .map(|x| {
-            if x < n {
-                A::one()
-            } else if x == n {
-                nu * A::from(size).unwrap() - A::from(x).unwrap()
-            } else {
-                A::zero()
+            match x.cmp(&n) {
+                Ordering::Less => A::one(),
+                Ordering::Greater => A::zero(),
+                Ordering::Equal => nu * A::from(size).unwrap() - A::from(x).unwrap()
             }
         })
         .collect::<Vec<_>>();
