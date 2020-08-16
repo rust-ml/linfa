@@ -141,21 +141,16 @@ impl<'a, A: NdFloat + Default + std::iter::Sum> Kernel<'a, A> {
     }
 
     pub fn polynomial(dataset: &'a Array2<A>, c: A, d: A) -> Kernel<A> {
-        let fnc = move |a: ArrayView1<A>, b: ArrayView1<A>| {
-            (a.dot(&b) + c).powf(d)
-        };
+        let fnc = move |a: ArrayView1<A>, b: ArrayView1<A>| (a.dot(&b) + c).powf(d);
 
         Kernel::new(dataset, fnc, KernelType::Dense)
     }
 
     pub fn polynomial_sparse(dataset: &'a Array2<A>, c: A, d: A, nneigh: usize) -> Kernel<A> {
-        let fnc = move |a: ArrayView1<A>, b: ArrayView1<A>| {
-            (a.dot(&b) + c).powf(d)
-        };
+        let fnc = move |a: ArrayView1<A>, b: ArrayView1<A>| (a.dot(&b) + c).powf(d);
 
         Kernel::new(dataset, fnc, KernelType::Sparse(nneigh))
     }
-
 }
 
 fn dense_from_fn<A: NdFloat, T: Fn(ArrayView1<A>, ArrayView1<A>) -> A>(

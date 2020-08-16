@@ -1,6 +1,6 @@
 use linfa_kernel::Kernel;
-use linfa_reduction::{DiffusionMap, DiffusionMapHyperParams};
 use linfa_reduction::utils::generate_convoluted_rings;
+use linfa_reduction::{DiffusionMap, DiffusionMapHyperParams};
 use ndarray_npy::write_npy;
 use ndarray_rand::rand::SeedableRng;
 use rand_isaac::Isaac64Rng;

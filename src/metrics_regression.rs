@@ -9,7 +9,12 @@ use num_traits::FromPrimitive;
 use std::ops::Sub;
 
 /// Regression metrices trait
-pub trait Regression<'a, A: 'a, T: IntoNdProducer<Item = &'a A, Dim = Ix1, Output = ArrayView1<'a, A>>> {
+pub trait Regression<
+    'a,
+    A: 'a,
+    T: IntoNdProducer<Item = &'a A, Dim = Ix1, Output = ArrayView1<'a, A>>,
+>
+{
     /// Maximal error between two continuous variables
     fn max_error(&self, compare_to: T) -> A;
     /// Mean error between two continuous variables
@@ -27,7 +32,13 @@ pub trait Regression<'a, A: 'a, T: IntoNdProducer<Item = &'a A, Dim = Ix1, Outpu
     fn explained_variance(&self, compare_to: T) -> A;
 }
 
-impl<'a, A: 'a + NdFloat + FromPrimitive, D: Data<Elem = A>, T: IntoNdProducer<Item = &'a A, Dim = Ix1, Output = ArrayView1<'a, A>>> Regression<'a, A, T> for ArrayBase<D, Ix1> {
+impl<
+        'a,
+        A: 'a + NdFloat + FromPrimitive,
+        D: Data<Elem = A>,
+        T: IntoNdProducer<Item = &'a A, Dim = Ix1, Output = ArrayView1<'a, A>>,
+    > Regression<'a, A, T> for ArrayBase<D, Ix1>
+{
     fn max_error(&self, compare_to: T) -> A {
         let compare_to: ArrayView1<'a, A> = compare_to.into_producer();
 
