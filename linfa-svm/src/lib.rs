@@ -15,9 +15,9 @@
 //! For supervised classification tasks the C or Nu values are used to control this balance. In
 //! [fit_c](SVClassify/fn.fit_c) the
 //! C value controls the penalty given to missclassification and should be in the interval (0, inf). In
-//! [fit_nu](SVClassify/fn.fit_nu.html) the Nu value controls the number of support vectors and should be in the interval (0, 1]. 
+//! [fit_nu](SVClassify/fn.fit_nu.html) the Nu value controls the number of support vectors and should be in the interval (0, 1].
 //!
-//! For supervised classification with just one class of data a special classifier is available in 
+//! For supervised classification with just one class of data a special classifier is available in
 //! [fit_one_class](SVClassify/fn.fit_one_class.html). It also accepts a Nu value.
 //!
 //! For support vector regression two flavors are available. With
