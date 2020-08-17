@@ -1,5 +1,5 @@
 ///! Support Vector Regression
-use super::permutable_kernel::{PermutableKernelRegression, Kernel};
+use super::permutable_kernel::{Kernel, PermutableKernelRegression};
 use super::solver_smo::SolverState;
 use super::SolverParams;
 use super::{Float, SvmResult};

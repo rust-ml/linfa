@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use super::permutable_kernel::{PermutableKernel, PermutableKernelOneClass, Kernel};
+use super::permutable_kernel::{Kernel, PermutableKernel, PermutableKernelOneClass};
 use super::solver_smo::SolverState;
 use super::SolverParams;
 use super::{Float, SvmResult};

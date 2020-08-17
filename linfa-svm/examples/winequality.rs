@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // The `.csv` data is two dimensional: Axis(0) denotes y-axis (rows), Axis(1) denotes x-axis (columns)
     let dataset = read_array("../datasets/winequality-red.csv.gz")?;
 
-    // Training data goes along the first axis (rows) 
+    // Training data goes along the first axis (rows)
     let npoints = dataset.len_of(Axis(0));
     // Take 90% of the dataset as training data, and the remaining 10% as validation data
     // `floor` is used here to explicitely down-round the number
@@ -44,7 +44,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let targets = targets.into_iter().map(|x| *x > 6.5f64).collect::<Vec<_>>();
     // split into training and validation data
     let (train_data, train_targets) = (data.slice(s!(0..ntrain, ..)), &targets[0..ntrain]);
-    let (valid_data, valid_targets) = (data.slice(s!(ntrain.., ..)),  &targets[ntrain..]);
+    let (valid_data, valid_targets) = (data.slice(s!(ntrain.., ..)), &targets[ntrain..]);
 
     // Transform data with gaussian kernel fuction
     // this is also known as RBF kernel with (eps = 8.0)
@@ -79,7 +79,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
 
     // Map targets from boolean to readable strings
-    let valid_targets: Vec<String> = valid_targets.into_iter().cloned().map(tag_classes).collect();
+    let valid_targets: Vec<String> = valid_targets
+        .into_iter()
+        .cloned()
+        .map(tag_classes)
+        .collect();
 
     // Predict the validation dataset and map to readable strings
     let prediction = valid_data
