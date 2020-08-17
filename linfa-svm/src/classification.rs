@@ -196,7 +196,6 @@ mod tests {
 
     #[test]
     fn test_linear_classification() {
-        // generate two clusters with 100 samples each
         let entries = ndarray::stack(
             Axis(0),
             &[
@@ -231,6 +230,47 @@ mod tests {
         println!("{}", svc);
 
         let pred = entries
+            .outer_iter()
+            .map(|x| svc.predict(x))
+            .map(|x| x > 0.0)
+            .collect::<Vec<_>>();
+
+        let cm = pred.into_confusion_matrix(&targets);
+        assert_eq!(cm.accuracy(), 1.0);
+    }
+
+    #[test]
+    fn test_polynomial_classification() {
+        // construct parabolica and classify middle area as positive and borders as negative
+        let dataset = Array::random((40, 1), Uniform::new(-2f64, 2.));
+        let targets = dataset.map_axis(Axis(1), |x| x[0]*x[0] < 0.5).to_vec();
+
+        // choose a polynomial kernel, which corresponds to the parabolical data
+        let kernel = Kernel::polynomial(&dataset, 0.0, 2.0);
+
+        let params = SolverParams {
+            eps: 1e-3,
+            shrinking: false,
+        };
+
+        // test C Support Vector Classification
+        let svc = fit_c(&params, &kernel, &targets, 1.0, 1.0);
+        println!("C {}", svc);
+
+        let pred = dataset
+            .outer_iter()
+            .map(|x| svc.predict(x))
+            .map(|x| x > 0.0)
+            .collect::<Vec<_>>();
+
+        let cm = pred.into_confusion_matrix(&targets);
+        assert_eq!(cm.accuracy(), 1.0);
+
+        // test nu Support Vector Classification
+        let svc = fit_nu(&params, &kernel, &targets, 0.01);
+        println!("Nu {}", svc);
+
+        let pred = dataset
             .outer_iter()
             .map(|x| svc.predict(x))
             .map(|x| x > 0.0)
