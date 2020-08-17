@@ -1,6 +1,8 @@
 use super::permutable_kernel::Permutable;
 use super::{ExitReason, Float, SvmResult};
 
+use ndarray::{Array1, Axis};
+
 /// Parameters of the solver routine
 #[derive(Clone)]
 pub struct SolverParams<A: Float> {
@@ -41,7 +43,7 @@ impl<A: Float> Alpha<A> {
 
 /// Current state of the SMO solver
 ///
-/// We are solving the dual problem with linear constraint
+/// We are solving the dual problem with linear constraints
 /// min_a f(a), s.t. y^Ta = d, 0 <= a_t < C, t = 1, ..., l
 /// where f(a) = a^T Q a / 2 + p^T a
 pub struct SolverState<'a, A: Float, K: Permutable<'a, A>> {
@@ -260,6 +262,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
                 self.alpha[i].value = bound_j + diff;
             }
         } else {
+            //dbg!(self.kernel.self_distance(i), self.kernel.self_distance(j), A::from(2.0).unwrap() * dist_i[j]);
             let mut quad_coef = self.kernel.self_distance(i) + self.kernel.self_distance(j)
                 - A::from(2.0).unwrap() * dist_i[j];
             if quad_coef <= A::zero() {
@@ -292,6 +295,17 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
                 self.alpha[i].value = A::zero();
                 self.alpha[j].value = sum;
             }
+            /*if self.alpha[i].val() > bound_i {
+                self.alpha[i].value = bound_i;
+            } else if self.alpha[i].val() < A::zero() {
+                self.alpha[i].value = A::zero();
+            }
+
+            if self.alpha[j].val() > bound_j {
+                self.alpha[j].value = bound_j;
+            } else if self.alpha[j].val() < A::zero() {
+                self.alpha[j].value = A::zero();
+            }*/
         }
 
         // update gradient
@@ -809,6 +823,18 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
             .map(|i| self.alpha[self.active_set[i]].val())
             .collect();
 
+        // if the kernel is linear, then we can pre-calculate the dot product
+        let linear_decision = if self.kernel.inner().is_linear() {
+            let mut tmp = Array1::zeros(self.kernel.inner().dataset.len_of(Axis(1)));
+            for (i, elm) in self.kernel.inner().dataset.outer_iter().enumerate() {
+                tmp.scaled_add(self.target(i) * alpha[i], &elm);
+            }
+
+            Some(tmp)
+        } else {
+            None
+        };
+
         SvmResult {
             alpha,
             rho,
@@ -817,6 +843,44 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
             obj,
             iterations: iter,
             kernel: self.kernel.inner(),
+            linear_decision,
         }
     }
 }
+
+/*
+#[cfg(test)]
+mod tests {
+    use crate::permutable_kernel::PermutableKernel;
+    use super::{SolverState, SolverParams, SvmResult};
+    use ndarray::array;
+    use linfa_kernel::{Kernel, KernelInner};
+
+    /// Optimize the booth function
+    #[test]
+    fn test_booth_function() {
+        let kernel = array![[10., 8.], [8., 10.]];
+        let kernel = Kernel {
+            inner: KernelInner::Dense(kernel.clone()),
+            fnc: Box::new(|_,_| 0.0),
+            dataset: &kernel
+        };
+        let targets = vec![true, true];
+        let kernel = PermutableKernel::new(&kernel, targets.clone());
+
+        let p = vec![-34., -38.];
+        let params = SolverParams {
+            eps: 1e-6,
+            shrinking: false
+        };
+
+        let solver = SolverState::new(vec![1.0, 1.0], p, targets, kernel, vec![1000.0; 2], &params, false);
+
+        let res: SvmResult<f64> = solver.solve();
+
+        println!("{:?}", res.alpha);
+        println!("{}", res);
+
+
+    }
+}*/

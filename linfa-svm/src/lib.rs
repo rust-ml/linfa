@@ -30,7 +30,7 @@
 //! accuracy 0.98818624, MCC 0.9523008
 //! ```
 use linfa_kernel::Kernel;
-use ndarray::{ArrayBase, Data, Ix1, NdFloat};
+use ndarray::{Array1, ArrayBase, Data, Ix1, NdFloat};
 use std::fmt;
 
 mod classification;
@@ -74,6 +74,7 @@ pub struct SvmResult<'a, A: Float> {
     iterations: usize,
     obj: A,
     kernel: &'a Kernel<'a, A>,
+    linear_decision: Option<Array1<A>>,
 }
 
 impl<'a, A: Float> SvmResult<'a, A> {
@@ -82,9 +83,10 @@ impl<'a, A: Float> SvmResult<'a, A> {
     /// In case of a classification task this returns a probability, for regression the predicted
     /// regressor is returned.
     pub fn predict<S: Data<Elem = A>>(&self, data: ArrayBase<S, Ix1>) -> A {
-        let sum = self.kernel.weighted_sum(&self.alpha, data.view());
-
-        sum - self.rho
+        match self.linear_decision {
+            Some(ref x) => x.dot(&data) - self.rho,
+            None => self.kernel.weighted_sum(&self.alpha, data.view()) - self.rho,
+        }
     }
 
     /// Returns the number of support vectors

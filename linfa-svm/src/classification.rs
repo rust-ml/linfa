@@ -144,12 +144,10 @@ pub fn fit_one_class<'a, A: Float + num_traits::ToPrimitive>(
     let n = (nu * A::from(size).unwrap()).to_usize().unwrap();
 
     let init_alpha = (0..size)
-        .map(|x| {
-            match x.cmp(&n) {
-                Ordering::Less => A::one(),
-                Ordering::Greater => A::zero(),
-                Ordering::Equal => nu * A::from(size).unwrap() - A::from(x).unwrap()
-            }
+        .map(|x| match x.cmp(&n) {
+            Ordering::Less => A::one(),
+            Ordering::Greater => A::zero(),
+            Ordering::Equal => nu * A::from(size).unwrap() - A::from(x).unwrap(),
         })
         .collect::<Vec<_>>();
 
@@ -173,30 +171,63 @@ mod tests {
     use super::{fit_c, fit_nu, fit_one_class, SolverParams};
     use linfa::metrics::IntoConfusionMatrix;
     use linfa_kernel::Kernel;
-    use ndarray::{Array, Axis};
+    use ndarray::{Array, Array2, Axis};
     use ndarray_rand::rand_distr::Uniform;
     use ndarray_rand::RandomExt;
 
+    pub fn generate_convoluted_rings(n_points: usize) -> Array2<f64> {
+        let mut out = Array::random((n_points * 2, 2), Uniform::new(0f64, 1.));
+        for (i, mut elm) in out.outer_iter_mut().enumerate() {
+            // generate convoluted rings with 1/10th noise
+            let phi = 6.28 * elm[1];
+            let eps = elm[0] / 10.0;
+
+            if i < n_points {
+                elm[0] = 1.0 * phi.cos() + eps;
+                elm[1] = 1.0 * phi.sin() + eps;
+            } else {
+                elm[0] = 5.0 * phi.cos() + eps;
+                elm[1] = 5.0 * phi.sin() + eps;
+            }
+        }
+
+        out
+    }
+
     #[test]
-    fn test_c_classification() {
+    fn test_linear_classification() {
         // generate two clusters with 100 samples each
         let entries = ndarray::stack(
             Axis(0),
             &[
-                Array::random((10, 2), Uniform::new(-10., -5.)).view(),
-                Array::random((10, 2), Uniform::new(5., 10.)).view(),
+                Array::random((10, 2), Uniform::new(-1., -0.5)).view(),
+                Array::random((10, 2), Uniform::new(0.5, 1.)).view(),
             ],
         )
         .unwrap();
         let targets = (0..20).map(|x| x < 10).collect::<Vec<_>>();
 
-        let kernel = Kernel::gaussian(&entries, 100.);
+        let kernel = Kernel::linear(&entries);
+
         let params = SolverParams {
             eps: 1e-3,
             shrinking: false,
         };
 
+        // test C Support Vector Classification
         let svc = fit_c(&params, &kernel, &targets, 1.0, 1.0);
+
+        let pred = entries
+            .outer_iter()
+            .map(|x| svc.predict(x))
+            .map(|x| x > 0.0)
+            .collect::<Vec<_>>();
+
+        let cm = pred.into_confusion_matrix(&targets);
+        assert_eq!(cm.accuracy(), 1.0);
+
+        // test nu Support Vector Classification
+        let svc = fit_nu(&params, &kernel, &targets, 0.01);
         println!("{}", svc);
 
         let pred = entries
@@ -210,34 +241,35 @@ mod tests {
     }
 
     #[test]
-    fn test_nu_classification() {
-        // generate two clusters with 100 samples each
-        let entries = ndarray::stack(
-            Axis(0),
-            &[
-                Array::random((10, 2), Uniform::new(-10., -5.)).view(),
-                Array::random((10, 2), Uniform::new(5., 10.)).view(),
-            ],
-        )
-        .unwrap();
+    fn test_convoluted_rings_classification() {
+        let dataset = generate_convoluted_rings(10);
         let targets = (0..20).map(|x| x < 10).collect::<Vec<_>>();
+        let kernel = Kernel::gaussian(&dataset, 50.0);
 
-        let kernel = Kernel::gaussian(&entries, 100.);
         let params = SolverParams {
-            eps: 1e-4,
+            eps: 1e-3,
             shrinking: false,
         };
 
-        let svc = fit_nu(&params, &kernel, &targets, 0.01);
-        println!("{}", svc);
+        let svc = fit_c(&params, &kernel, &targets, 1.0, 1.0);
 
-        let pred = entries
+        let pred = dataset
             .outer_iter()
             .map(|x| svc.predict(x))
             .map(|x| x > 0.0)
             .collect::<Vec<_>>();
 
-        dbg!(&svc.alpha);
+        let cm = pred.into_confusion_matrix(&targets);
+        assert_eq!(cm.accuracy(), 1.0);
+
+        let svc = fit_nu(&params, &kernel, &targets, 0.01);
+
+        let pred = dataset
+            .outer_iter()
+            .map(|x| svc.predict(x))
+            .map(|x| x > 0.0)
+            .collect::<Vec<_>>();
+
         let cm = pred.into_confusion_matrix(&targets);
         assert_eq!(cm.accuracy(), 1.0);
     }

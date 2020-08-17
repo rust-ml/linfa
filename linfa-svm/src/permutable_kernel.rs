@@ -211,6 +211,7 @@ mod tests {
             inner: KernelInner::Dense(dist.clone()),
             fnc: Box::new(|_, _| 0.0),
             dataset: &dist,
+            linear: false,
         };
 
         let mut kernel = PermutableKernel::new(&dist, targets);
