@@ -66,7 +66,6 @@
 //!
 //! accuracy 0.98818624, MCC 0.9523008
 //! ```
-use linfa_kernel::Kernel;
 use ndarray::{Array1, ArrayBase, Data, Ix1, NdFloat};
 use std::fmt;
 
@@ -75,6 +74,7 @@ mod permutable_kernel;
 mod regression;
 pub mod solver_smo;
 
+use permutable_kernel::Kernel;
 pub use solver_smo::SolverParams;
 
 /// Support Vector Classification

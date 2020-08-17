@@ -1,6 +1,7 @@
 mod sparse;
 
 use ndarray::prelude::*;
+use ndarray::Data;
 use ndarray::{linalg::Dot, NdFloat};
 use sprs::CsMat;
 
@@ -17,20 +18,20 @@ pub enum KernelInner<A: NdFloat> {
     Sparse(CsMat<A>),
 }
 
-pub struct Kernel<'a, A: NdFloat> {
+pub struct Kernel<'a, A: NdFloat, D: Data<Elem = A>> {
     pub inner: KernelInner<A>,
     pub fnc: SimFnc<A>,
-    pub dataset: &'a Array2<A>,
+    pub dataset: &'a ArrayBase<D, Ix2>,
     pub linear: bool,
 }
 
-impl<'a, A: NdFloat + Default + std::iter::Sum> Kernel<'a, A> {
+impl<'a, A: NdFloat + Default + std::iter::Sum, D: Data<Elem = A>> Kernel<'a, A, D> {
     pub fn new<F: Fn(ArrayView1<A>, ArrayView1<A>) -> A + 'static>(
-        dataset: &'a Array2<A>,
+        dataset: &'a ArrayBase<D, Ix2>,
         fnc: F,
         kind: KernelType,
         linear: bool,
-    ) -> Kernel<'a, A> {
+    ) -> Kernel<'a, A, D> {
         let inner = match kind {
             KernelType::Dense => KernelInner::Dense(dense_from_fn(dataset, &fnc)),
             KernelType::Sparse(k) => KernelInner::Sparse(sparse_from_fn(dataset, k, &fnc)),
@@ -122,25 +123,19 @@ impl<'a, A: NdFloat + Default + std::iter::Sum> Kernel<'a, A> {
         self.linear
     }
 
-    pub fn linear(dataset: &'a Array2<A>) -> Kernel<A> {
-        let fnc = |a: ArrayView1<A>, b: ArrayView1<A>| {
-            //let norm = a.dot(&a).sqrt() * b.dot(&b).sqrt();
-            a.dot(&b)
-        };
+    pub fn linear(dataset: &'a ArrayBase<D, Ix2>) -> Kernel<A, D> {
+        let fnc = |a: ArrayView1<A>, b: ArrayView1<A>| a.dot(&b);
 
         Kernel::new(dataset, fnc, KernelType::Dense, true)
     }
 
-    pub fn linear_sparse(dataset: &'a Array2<A>, nneigh: usize) -> Kernel<A> {
-        let fnc = |a: ArrayView1<A>, b: ArrayView1<A>| {
-            let norm = a.dot(&a).sqrt() * b.dot(&b).sqrt();
-            a.dot(&b) / norm
-        };
+    pub fn linear_sparse(dataset: &'a ArrayBase<D, Ix2>, nneigh: usize) -> Kernel<A, D> {
+        let fnc = |a: ArrayView1<A>, b: ArrayView1<A>| a.dot(&b);
 
         Kernel::new(dataset, fnc, KernelType::Sparse(nneigh), true)
     }
 
-    pub fn gaussian(dataset: &'a Array2<A>, eps: A) -> Kernel<A> {
+    pub fn gaussian(dataset: &'a ArrayBase<D, Ix2>, eps: A) -> Kernel<A, D> {
         let fnc = move |a: ArrayView1<A>, b: ArrayView1<A>| {
             let distance = a
                 .iter()
@@ -154,7 +149,7 @@ impl<'a, A: NdFloat + Default + std::iter::Sum> Kernel<'a, A> {
         Kernel::new(dataset, fnc, KernelType::Dense, false)
     }
 
-    pub fn gaussian_sparse(dataset: &'a Array2<A>, eps: A, nneigh: usize) -> Kernel<A> {
+    pub fn gaussian_sparse(dataset: &'a ArrayBase<D, Ix2>, eps: A, nneigh: usize) -> Kernel<A, D> {
         let fnc = move |a: ArrayView1<A>, b: ArrayView1<A>| {
             let distance = a
                 .iter()
@@ -168,21 +163,21 @@ impl<'a, A: NdFloat + Default + std::iter::Sum> Kernel<'a, A> {
         Kernel::new(dataset, fnc, KernelType::Sparse(nneigh), false)
     }
 
-    pub fn polynomial(dataset: &'a Array2<A>, c: A, d: A) -> Kernel<A> {
+    pub fn polynomial(dataset: &'a ArrayBase<D, Ix2>, c: A, d: A) -> Kernel<A, D> {
         let fnc = move |a: ArrayView1<A>, b: ArrayView1<A>| (a.dot(&b) + c).powf(d);
 
         Kernel::new(dataset, fnc, KernelType::Dense, false)
     }
 
-    pub fn polynomial_sparse(dataset: &'a Array2<A>, c: A, d: A, nneigh: usize) -> Kernel<A> {
+    pub fn polynomial_sparse(dataset: &'a ArrayBase<D, Ix2>, c: A, d: A, nneigh: usize) -> Kernel<A, D> {
         let fnc = move |a: ArrayView1<A>, b: ArrayView1<A>| (a.dot(&b) + c).powf(d);
 
         Kernel::new(dataset, fnc, KernelType::Sparse(nneigh), false)
     }
 }
 
-fn dense_from_fn<A: NdFloat, T: Fn(ArrayView1<A>, ArrayView1<A>) -> A>(
-    dataset: &Array2<A>,
+fn dense_from_fn<A: NdFloat, D: Data<Elem = A>, T: Fn(ArrayView1<A>, ArrayView1<A>) -> A>(
+    dataset: &ArrayBase<D, Ix2>,
     fnc: &T,
 ) -> Array2<A> {
     let n_observations = dataset.len_of(Axis(0));
@@ -202,9 +197,10 @@ fn dense_from_fn<A: NdFloat, T: Fn(ArrayView1<A>, ArrayView1<A>) -> A>(
 
 fn sparse_from_fn<
     A: NdFloat + Default + std::iter::Sum,
+    D: Data<Elem = A>,
     T: Fn(ArrayView1<A>, ArrayView1<A>) -> A,
 >(
-    dataset: &Array2<A>,
+    dataset: &ArrayBase<D, Ix2>,
     k: usize,
     fnc: &T,
 ) -> CsMat<A> {

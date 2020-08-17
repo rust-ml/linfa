@@ -1,6 +1,8 @@
 use crate::Float;
-use linfa_kernel::Kernel;
-use ndarray::Array1;
+use linfa_kernel::Kernel as LinfaKernel;
+use ndarray::{Array1, OwnedRepr};
+
+pub type Kernel<'a, A> = LinfaKernel<'a, A, OwnedRepr<A>>;
 
 pub trait Permutable<'a, A: Float> {
     fn swap_indices(&mut self, i: usize, j: usize);

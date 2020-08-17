@@ -1,5 +1,5 @@
 use hnsw::{Params, Searcher, HNSW};
-use ndarray::{Array2, ArrayView1, Axis, NdFloat};
+use ndarray::{ArrayBase, ArrayView1, Axis, NdFloat, Data, Ix2};
 use space::{MetricPoint, Neighbor};
 use sprs::{CsMat, CsMatBase};
 
@@ -21,8 +21,8 @@ impl<A: NdFloat + std::iter::Sum + Default> MetricPoint for Euclidean<'_, A> {
 }
 
 /// Create sparse adjacency matrix from dense dataset
-pub fn adjacency_matrix<A: NdFloat + std::iter::Sum + Default>(
-    dataset: &Array2<A>,
+pub fn adjacency_matrix<A: NdFloat + std::iter::Sum + Default, D: Data<Elem = A>>(
+    dataset: &ArrayBase<D, Ix2>,
     k: usize,
 ) -> CsMat<A> {
     let n_points = dataset.len_of(Axis(0));

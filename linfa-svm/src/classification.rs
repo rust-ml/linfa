@@ -1,10 +1,9 @@
 use std::cmp::Ordering;
 
-use super::permutable_kernel::{PermutableKernel, PermutableKernelOneClass};
+use super::permutable_kernel::{PermutableKernel, PermutableKernelOneClass, Kernel};
 use super::solver_smo::SolverState;
 use super::SolverParams;
 use super::{Float, SvmResult};
-use linfa_kernel::Kernel;
 
 /// Support Vector Classification with C-penalizing parameter
 ///

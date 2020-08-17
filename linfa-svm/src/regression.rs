@@ -1,9 +1,8 @@
 ///! Support Vector Regression
-use super::permutable_kernel::PermutableKernelRegression;
+use super::permutable_kernel::{PermutableKernelRegression, Kernel};
 use super::solver_smo::SolverState;
 use super::SolverParams;
 use super::{Float, SvmResult};
-use linfa_kernel::Kernel;
 
 /// Support Vector Regression with epsilon tolerance
 ///

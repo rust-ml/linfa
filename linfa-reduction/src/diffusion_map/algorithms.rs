@@ -1,4 +1,4 @@
-use ndarray::{Array1, Array2};
+use ndarray::{Array1, Array2, OwnedRepr};
 use ndarray_linalg::{
     eigh::EighInto, lapack::UPLO, lobpcg, lobpcg::LobpcgResult, Scalar, TruncatedOrder,
 };
@@ -17,7 +17,7 @@ pub struct DiffusionMap<A> {
 }
 
 impl<A: Float> DiffusionMap<A> {
-    pub fn project(hyperparameters: DiffusionMapHyperParams, kernel: Kernel<A>) -> Self {
+    pub fn project(hyperparameters: DiffusionMapHyperParams, kernel: Kernel<A, OwnedRepr<A>>) -> Self {
         // compute spectral embedding with diffusion map
         let (embedding, eigvals) = compute_diffusion_map(
             kernel,
@@ -56,7 +56,7 @@ impl<A: Float> DiffusionMap<A> {
 }
 
 fn compute_diffusion_map<A: Float>(
-    kernel: Kernel<A>,
+    kernel: Kernel<A, OwnedRepr<A>>,
     steps: usize,
     alpha: f32,
     embedding_size: usize,
