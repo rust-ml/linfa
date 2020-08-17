@@ -243,7 +243,7 @@ mod tests {
     fn test_polynomial_classification() {
         // construct parabolica and classify middle area as positive and borders as negative
         let dataset = Array::random((40, 1), Uniform::new(-2f64, 2.));
-        let targets = dataset.map_axis(Axis(1), |x| x[0]*x[0] < 0.5).to_vec();
+        let targets = dataset.map_axis(Axis(1), |x| x[0] * x[0] < 0.5).to_vec();
 
         // choose a polynomial kernel, which corresponds to the parabolical data
         let kernel = Kernel::polynomial(&dataset, 0.0, 2.0);
