@@ -1,5 +1,5 @@
 use hnsw::{Params, Searcher, HNSW};
-use ndarray::{ArrayBase, ArrayView1, Axis, NdFloat, Data, Ix2};
+use ndarray::{ArrayBase, ArrayView1, Axis, Data, Ix2, NdFloat};
 use space::{MetricPoint, Neighbor};
 use sprs::{CsMat, CsMatBase};
 

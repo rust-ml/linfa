@@ -74,6 +74,7 @@ pub struct SolverState<'a, A: Float, K: Permutable<'a, A>> {
     params: &'a SolverParams<A>,
 }
 
+#[allow(clippy::needless_range_loop)]
 impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
     /// Initialize a solver state
     ///
@@ -382,6 +383,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
         (gmax1, gmax2)
     }
 
+    #[allow(clippy::type_complexity)]
     pub fn max_violating_pair_nu(&self) -> ((A, isize), (A, isize), (A, isize), (A, isize)) {
         let mut gmax1 = (-A::infinity(), -1);
         let mut gmax2 = (-A::infinity(), -1);

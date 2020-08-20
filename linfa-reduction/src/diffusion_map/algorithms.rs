@@ -17,7 +17,10 @@ pub struct DiffusionMap<A> {
 }
 
 impl<A: Float> DiffusionMap<A> {
-    pub fn project(hyperparameters: DiffusionMapHyperParams, kernel: Kernel<A, OwnedRepr<A>>) -> Self {
+    pub fn project(
+        hyperparameters: DiffusionMapHyperParams,
+        kernel: Kernel<A, OwnedRepr<A>>,
+    ) -> Self {
         // compute spectral embedding with diffusion map
         let (embedding, eigvals) = compute_diffusion_map(
             kernel,
@@ -80,9 +83,9 @@ fn compute_diffusion_map<A: Float>(
         let (vals, vecs) = matrix.eigh_into(UPLO::Lower).unwrap();
         let (vals, vecs) = (vals.slice_move(s![..; -1]), vecs.slice_move(s![.., ..; -1]));
         (
-            vals.slice_move(s![1..embedding_size + 1])
+            vals.slice_move(s![1..=embedding_size])
                 .mapv(Scalar::from_real),
-            vecs.slice_move(s![.., 1..embedding_size + 1]),
+            vecs.slice_move(s![.., 1..=embedding_size]),
         )
     } else {
         // calculate truncated eigenvalue decomposition

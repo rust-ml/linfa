@@ -169,7 +169,12 @@ impl<'a, A: NdFloat + Default + std::iter::Sum, D: Data<Elem = A>> Kernel<'a, A,
         Kernel::new(dataset, fnc, KernelType::Dense, false)
     }
 
-    pub fn polynomial_sparse(dataset: &'a ArrayBase<D, Ix2>, c: A, d: A, nneigh: usize) -> Kernel<A, D> {
+    pub fn polynomial_sparse(
+        dataset: &'a ArrayBase<D, Ix2>,
+        c: A,
+        d: A,
+        nneigh: usize,
+    ) -> Kernel<A, D> {
         let fnc = move |a: ArrayView1<A>, b: ArrayView1<A>| (a.dot(&b) + c).powf(d);
 
         Kernel::new(dataset, fnc, KernelType::Sparse(nneigh), false)
