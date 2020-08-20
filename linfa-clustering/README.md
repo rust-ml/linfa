@@ -2,24 +2,22 @@
 
 `linfa-clustering` aims to provide pure Rust implementations of popular clustering algorithms.
 
-_Documentation_: [latest](https://docs.rs/linfa-clustering).
-
 ## The big picture
 
-`linfa-clustering` is a crate in the [`linfa`](https://crates.io/crates/linfa) ecosystem, a wider effort to
-bootstrap a toolkit for classical Machine Learning implemented in pure Rust,
-kin in spirit to Python's `scikit-learn`.
+`linfa-clustering` is a crate in the [`linfa`](https://crates.io/crates/linfa) ecosystem, an effort to create a toolkit for classical Machine Learning implemented in pure Rust, akin to Python's `scikit-learn`.
 
 You can find a roadmap (and a selection of good first issues)
-[here](https://github.com/LukeMathWalker/linfa/issues) - contributors are more than welcome!
+[here](https://github.com/rust-ml/linfa/issues) - contributors are more than welcome!
 
 ## Current state
 
-Right now `linfa-clustering` only provides a single algorithm, `K-Means`, with
-a couple of helper functions.
+`linfa-clustering` currently provides implementation of the following clustering algorithms, in addition to a couple of helper functions: 
+- K-Means
+- DBSCAN
+
 
 Implementation choices, algorithmic details and a tutorial can be found 
-[here](https://docs.rs/linfa-clustering/0.1.0/linfa-clustering/struct.KMeans.html).
+[here](https://docs.rs/linfa-clustering).
 
 Check [here](https://github.com/LukeMathWalker/clustering-benchmarks) for extensive benchmarks against `scikit-learn`'s K-means implementation.
 
