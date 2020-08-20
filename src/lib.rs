@@ -41,7 +41,7 @@ mod metrics_regression;
 
 pub mod metrics {
     pub use crate::metrics_classification::{
-        BinaryClassification, Classification, ConfusionMatrix, Modify,
+        BinaryClassification, ConfusionMatrix, IntoConfusionMatrix, Modify,
         ReceiverOperatingCharacteristic,
     };
     pub use crate::metrics_regression::Regression;

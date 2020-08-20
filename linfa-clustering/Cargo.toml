@@ -6,7 +6,7 @@ authors = ["Luca Palmieri <rust@lpalmieri.com>"]
 description = "A collection of clustering algorithms"
 license = "MIT/Apache-2.0"
 
-repository = "https://github.com/LukeMathWalker/linfa"
+repository = "https://github.com/rust-ml/linfa/"
 readme = "README.md"
 
 keywords = ["clustering", "machine-learning", "linfa", "k-means", "unsupervised"]
@@ -20,6 +20,7 @@ ndarray-linalg = { version = "0.12", features = ["openblas"] }
 sprs = "0.7"
 serde = { version = "1", features = ["derive"] }
 num-traits = "0.1.32"
+linfa-kernel = { path = "../linfa-kernel" }
 
 [dev-dependencies]
 rand_isaac = "0.2.0"

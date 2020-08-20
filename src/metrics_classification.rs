@@ -9,6 +9,7 @@ use std::hash::Hash;
 
 use ndarray::prelude::*;
 use ndarray::Data;
+use ndarray::IntoNdProducer;
 
 /// Return tuple of class index for each element of prediction and ground_truth
 fn map_prediction_to_idx<A: Eq + Hash, C: Data<Elem = A>, D: Data<Elem = A>>(
@@ -129,7 +130,7 @@ impl<A> ConfusionMatrix<A> {
     /// let ground_truth = array![0, 0, 1, 0, 1, 0, 1];
     ///
     /// // create confusion matrix
-    /// let cm = prediction.confusion_matrix(&ground_truth);
+    /// let cm = prediction.into_confusion_matrix(&ground_truth);
     ///
     /// // print precision for label 0
     /// println!("{:?}", cm.precision());
@@ -171,7 +172,7 @@ impl<A> ConfusionMatrix<A> {
     /// let ground_truth = array![0, 0, 1, 0, 1, 0, 1];
     ///
     /// // create confusion matrix
-    /// let cm = prediction.confusion_matrix(&ground_truth);
+    /// let cm = prediction.into_confusion_matrix(&ground_truth);
     ///
     /// // print recall for label 0
     /// println!("{:?}", cm.recall());
@@ -293,22 +294,19 @@ impl<A: fmt::Display> fmt::Debug for ConfusionMatrix<A> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let len = self.matrix.len_of(Axis(0));
         writeln!(f)?;
-        for _ in 0..len * 4 + 1 {
-            write!(f, "-")?;
+        write!(f, "{: <10}", "classes")?;
+        for i in 0..len {
+            write!(f, " | {: <10}", self.members[i])?;
         }
         writeln!(f)?;
 
         for i in 0..len {
-            write!(f, "| ")?;
+            write!(f, "{: <10}", self.members[i])?;
 
             for j in 0..len {
-                write!(f, "{} | ", self.matrix[(i, j)])?;
+                write!(f, " | {: <10}", self.matrix[(i, j)])?;
             }
             writeln!(f)?;
-        }
-
-        for _ in 0..len * 4 + 1 {
-            write!(f, "-")?;
         }
 
         Ok(())
@@ -318,20 +316,27 @@ impl<A: fmt::Display> fmt::Debug for ConfusionMatrix<A> {
 /// Classification for multi-label evaluation
 ///
 /// Contains a routine to calculate the confusion matrix, all other scores are derived form it.
-pub trait Classification<A: PartialEq + Ord, D: Data<Elem = A>> {
-    fn confusion_matrix(self, ground_truth: &ArrayBase<D, Ix1>) -> ConfusionMatrix<A>;
+pub trait IntoConfusionMatrix<A> {
+    fn into_confusion_matrix<'a, T>(self, ground_truth: T) -> ConfusionMatrix<A>
+    where
+        A: 'a,
+        T: IntoNdProducer<Item = &'a A, Dim = Ix1, Output = ArrayView1<'a, A>>;
 }
 
-impl<A: Eq + Hash + Copy + Ord, C: Data<Elem = A>, D: Data<Elem = A>> Classification<A, D>
-    for ModifiedPrediction<A, C>
-{
-    fn confusion_matrix(self, ground_truth: &ArrayBase<D, Ix1>) -> ConfusionMatrix<A> {
+impl<A: Clone + Ord + Hash, D: Data<Elem = A>> IntoConfusionMatrix<A> for ModifiedPrediction<A, D> {
+    fn into_confusion_matrix<'a, T>(self, ground_truth: T) -> ConfusionMatrix<A>
+    where
+        A: 'a,
+        T: IntoNdProducer<Item = &'a A, Dim = Ix1, Output = ArrayView1<'a, A>>,
+    {
+        let ground_truth = ground_truth.into_producer();
+
         // if we don't have any classes, create a set of predicted labels
         let classes = if self.classes.is_empty() {
             let mut classes = ground_truth
                 .iter()
                 .chain(self.prediction.iter())
-                .copied()
+                .cloned()
                 .collect::<Vec<_>>();
             // create a set
             classes.sort();
@@ -342,7 +347,7 @@ impl<A: Eq + Hash + Copy + Ord, C: Data<Elem = A>, D: Data<Elem = A>> Classifica
         };
 
         // find indices to labels
-        let indices = map_prediction_to_idx(&self.prediction, ground_truth, &classes);
+        let indices = map_prediction_to_idx(&self.prediction, &ground_truth, &classes);
 
         // count each index tuple in the confusion matrix
         let mut confusion_matrix = Array2::zeros((classes.len(), classes.len()));
@@ -357,23 +362,41 @@ impl<A: Eq + Hash + Copy + Ord, C: Data<Elem = A>, D: Data<Elem = A>> Classifica
     }
 }
 
-impl<A: Eq + std::hash::Hash + Copy + Ord, C: Data<Elem = A>, D: Data<Elem = A>>
-    Classification<A, D> for ArrayBase<C, Ix1>
-{
-    fn confusion_matrix(self, ground_truth: &ArrayBase<D, Ix1>) -> ConfusionMatrix<A> {
+impl<A: Clone + Ord + Hash, D: Data<Elem = A>> IntoConfusionMatrix<A> for ArrayBase<D, Ix1> {
+    fn into_confusion_matrix<'a, T>(self, ground_truth: T) -> ConfusionMatrix<A>
+    where
+        A: 'a,
+        T: IntoNdProducer<Item = &'a A, Dim = Ix1, Output = ArrayView1<'a, A>>,
+    {
         let tmp = ModifiedPrediction {
             prediction: self,
             classes: Vec::new(),
             weights: Vec::new(),
         };
 
-        tmp.confusion_matrix(ground_truth)
+        tmp.into_confusion_matrix(ground_truth)
+    }
+}
+
+impl<A: Clone + Ord + Hash> IntoConfusionMatrix<A> for Vec<A> {
+    fn into_confusion_matrix<'a, T>(self, ground_truth: T) -> ConfusionMatrix<A>
+    where
+        A: 'a,
+        T: IntoNdProducer<Item = &'a A, Dim = Ix1, Output = ArrayView1<'a, A>>,
+    {
+        let tmp = ModifiedPrediction {
+            prediction: Array1::from(self),
+            classes: Vec::new(),
+            weights: Vec::new(),
+        };
+
+        tmp.into_confusion_matrix(ground_truth)
     }
 }
 
 /*
  * TODO: specialization requires unstable Rust
-impl Classification<bool, OwnedRepr<bool>> for Array1<bool> {
+impl IntoConfusionMatrix<bool, OwnedRepr<bool>> for Array1<bool> {
     fn confusion_matrix(self, ground_truth: &Array1<bool>) -> ConfusionMatrix<bool> {
         let mut confusion_matrix = Array2::zeros((2, 2));
         for result in self.iter().zip(ground_truth.iter()) {
@@ -492,7 +515,7 @@ impl<A: NdFloat, D: Data<Elem = A>> BinaryClassification<A> for ArrayBase<D, Ix1
 }
 #[cfg(test)]
 mod tests {
-    use super::{BinaryClassification, Classification, Modify};
+    use super::{BinaryClassification, IntoConfusionMatrix, Modify};
     use approx::{abs_diff_eq, AbsDiffEq};
     use ndarray::{array, Array1, ArrayBase, ArrayView1, Data, Dimension};
     use rand::{distributions::Uniform, Rng};
@@ -534,7 +557,7 @@ mod tests {
         let predicted = ArrayView1::from(&[0, 1, 0, 1, 0, 1]);
         let ground_truth = ArrayView1::from(&[1, 1, 0, 1, 0, 1]);
 
-        let cm = predicted.confusion_matrix(&ground_truth);
+        let cm = predicted.into_confusion_matrix(&ground_truth);
 
         assert_eq_slice(cm.matrix, &[2., 1., 0., 3.]);
     }
@@ -544,7 +567,7 @@ mod tests {
         let predicted = Array1::from(vec![0, 1, 0, 1, 0, 1]);
         let ground_truth = Array1::from(vec![1, 1, 0, 1, 0, 1]);
 
-        let x = predicted.confusion_matrix(&ground_truth);
+        let x = predicted.into_confusion_matrix(&ground_truth);
 
         abs_diff_eq!(x.accuracy(), 5.0 / 6.0 as f32);
         abs_diff_eq!(
@@ -575,7 +598,7 @@ mod tests {
         let cm = predicted
             .clone()
             .with_classes(&[0, 1, 2])
-            .confusion_matrix(&ground_truth);
+            .into_confusion_matrix(&ground_truth);
 
         assert_eq_slice(cm.matrix, &[2., 0., 0., 0., 2., 1., 0., 0., 0.]);
 
@@ -583,7 +606,7 @@ mod tests {
         let cm = predicted
             .with_weights(&[1., 2., 1., 1., 1., 2., 1., 2., 1., 2.])
             .with_classes(&[0, 2, 3])
-            .confusion_matrix(&ground_truth);
+            .into_confusion_matrix(&ground_truth);
 
         // the false-positive error for label=2 is twice severe here
         assert_eq_slice(cm.matrix, &[2., 0., 0., 0., 0., 4., 0., 3., 0.]);
@@ -631,7 +654,7 @@ mod tests {
         let ground_truth = array![0, 2, 3, 0, 1, 2, 1, 2, 3, 2];
 
         // create a confusion matrix
-        let cm = predicted.confusion_matrix(&ground_truth);
+        let cm = predicted.into_confusion_matrix(&ground_truth);
 
         // split four class confusion matrix into 4 binary confusion matrix
         let n_cm = cm.split_one_vs_all();
