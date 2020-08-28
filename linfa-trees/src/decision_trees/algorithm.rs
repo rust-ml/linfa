@@ -394,4 +394,19 @@ mod tests {
         let perfect_class_freq = vec![8, 0, 0];
         assert_abs_diff_eq!(entropy(&perfect_class_freq), 0.0, epsilon = 1e-5);
     }
+
+    #[test]
+    fn test_decision_tree_fit() {
+        let xtrain = Array::from(vec![1., 2., 3.,
+                                                                  1., 2., 3.5,
+                                                                  1.2, 3., 4.]).into_shape((3, 3)).unwrap();
+        let y = Array1::from(vec![0, 0, 1]);
+        let params= DecisionTreeParams::new(2).build();
+        let dt = DecisionTree::fit(params, &xtrain, &y);
+        let pred = dt.predict(&xtrain);
+        // println!("Input: {:?} Labels: {:?}", xtrain, y);
+        // println!("Pred: {:?}", pred);
+        assert_eq!(pred, y);
+
+    }
 }
