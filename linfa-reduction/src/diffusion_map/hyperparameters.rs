@@ -16,18 +16,17 @@ impl DiffusionMapHyperParamsBuilder {
     }
 
     pub fn build(self) -> DiffusionMapHyperParams {
-        DiffusionMapHyperParams::build(
-            self.steps,
-            self.embedding_size,
-        )
+        DiffusionMapHyperParams::build(self.steps, self.embedding_size)
     }
 }
 
 impl DiffusionMapHyperParams {
+    // Violates the convention that new should return a value of type `Self`
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(embedding_size: usize) -> DiffusionMapHyperParamsBuilder {
         DiffusionMapHyperParamsBuilder {
             steps: 10,
-            embedding_size
+            embedding_size,
         }
     }
 

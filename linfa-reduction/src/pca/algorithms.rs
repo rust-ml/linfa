@@ -1,22 +1,21 @@
-///! Principal Component Analysis 
+///! Principal Component Analysis
 ///
 /// Reduce dimensionality with a linear projection using Singular Value Decomposition. The data is
 /// centered before applying the SVD. This uses TruncatedSvd from ndarray-linalg package.
-
-use ndarray::{ArrayBase, Array1, Array2, Ix2, Axis, DataMut};
-use ndarray_linalg::{TruncatedSvd, TruncatedOrder};
+use ndarray::{Array1, Array2, ArrayBase, Axis, DataMut, Ix2};
+use ndarray_linalg::{TruncatedOrder, TruncatedSvd};
 
 /// Pincipal Component Analysis
 pub struct PrincipalComponentAnalysis {
     embedding: Array2<f64>,
     explained_variance: Array1<f64>,
-    mean: Array1<f64>
+    mean: Array1<f64>,
 }
 
 impl PrincipalComponentAnalysis {
     pub fn fit<S: DataMut<Elem = f64>>(
         mut dataset: ArrayBase<S, Ix2>,
-        embedding_size: usize
+        embedding_size: usize,
     ) -> Self {
         // calculate mean of data and subtract it
         let mean = dataset.mean_axis(Axis(0)).unwrap();
@@ -29,20 +28,17 @@ impl PrincipalComponentAnalysis {
 
         // explained variance is the spectral distribution of the eigenvalues
         let (_, sigma, v_t) = result.values_vectors();
-        let explained_variance = sigma.mapv(|x| x*x / (dataset.len() as f64 - 1.0));
+        let explained_variance = sigma.mapv(|x| x * x / (dataset.len() as f64 - 1.0));
 
         PrincipalComponentAnalysis {
             embedding: v_t,
             explained_variance,
-            mean
+            mean,
         }
     }
 
     /// Given a new data points project with fitted model
-    pub fn predict<S: DataMut<Elem = f64>>(
-        &self, 
-        dataset: &ArrayBase<S, Ix2>
-    ) -> Array2<f64> {
+    pub fn predict<S: DataMut<Elem = f64>>(&self, dataset: &ArrayBase<S, Ix2>) -> Array2<f64> {
         (dataset - &self.mean).dot(&self.embedding.t())
     }
 

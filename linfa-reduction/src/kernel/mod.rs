@@ -1,6 +1,6 @@
-pub mod sparse;
 pub mod gaussian;
 pub mod polynomial;
+pub mod sparse;
 
 pub use gaussian::{GaussianKernel, SparseGaussianKernel};
 pub use polynomial::{PolynomialKernel, SparsePolynomialKernel};
@@ -9,8 +9,8 @@ use ndarray::prelude::*;
 use ndarray::Data;
 use sprs::CsMat;
 
+use crate::diffusion_map::{DiffusionMap, DiffusionMapHyperParams};
 use crate::Float;
-use crate::diffusion_map::{DiffusionMapHyperParams, DiffusionMap};
 
 /// Symmetric kernel function, can be sparse or dense
 ///
@@ -22,7 +22,6 @@ pub trait Kernel<A: Float> {
     fn mul_similarity(&self, rhs: &ArrayView2<A>) -> Array2<A>;
     fn sum(&self) -> Array1<A>;
     fn size(&self) -> usize;
-
 }
 
 impl<S: Data<Elem = A>, A: Float> Kernel<A> for ArrayBase<S, Ix2> {
@@ -71,7 +70,8 @@ pub trait IntoKernel<A: Float> {
     fn into_kernel(self) -> Self::IntoKer;
 
     fn reduce_fixed(self, embedding_size: usize) -> DiffusionMap<A>
-    where Self: Sized
+    where
+        Self: Sized,
     {
         let params = DiffusionMapHyperParams::new(embedding_size)
             .steps(1)
@@ -81,7 +81,10 @@ pub trait IntoKernel<A: Float> {
     }
 }
 
-pub fn dense_from_fn<A: Float, T: Fn(ArrayView1<A>, ArrayView1<A>) -> A>(dataset: &Array2<A>, fnc: T) -> Array2<A> {
+pub fn dense_from_fn<A: Float, T: Fn(ArrayView1<A>, ArrayView1<A>) -> A>(
+    dataset: &Array2<A>,
+    fnc: T,
+) -> Array2<A> {
     let n_observations = dataset.len_of(Axis(0));
     let mut similarity = Array2::eye(n_observations);
 
@@ -97,9 +100,13 @@ pub fn dense_from_fn<A: Float, T: Fn(ArrayView1<A>, ArrayView1<A>) -> A>(dataset
     similarity
 }
 
-pub fn sparse_from_fn<A: Float, T: Fn(ArrayView1<A>, ArrayView1<A>) -> A>(dataset: &Array2<A>, k: usize, fnc: T) -> CsMat<A> {
+pub fn sparse_from_fn<A: Float, T: Fn(ArrayView1<A>, ArrayView1<A>) -> A>(
+    dataset: &Array2<A>,
+    k: usize,
+    fnc: T,
+) -> CsMat<A> {
     let mut data = sparse::adjacency_matrix(dataset, k);
-        
+
     for (i, mut vec) in data.outer_iterator_mut().enumerate() {
         for (j, val) in vec.iter_mut() {
             let a = dataset.row(i);
@@ -108,16 +115,16 @@ pub fn sparse_from_fn<A: Float, T: Fn(ArrayView1<A>, ArrayView1<A>) -> A>(datase
             *val = fnc(a, b);
         }
     }
-    
+
     data
 }
 
 #[cfg(test)]
 mod tests {
     use super::Kernel;
-    use sprs::CsMatBase;
     use ndarray::{Array1, Array2};
     use ndarray_rand::{rand_distr::Uniform, RandomExt};
+    use sprs::CsMatBase;
 
     #[test]
     fn test_sprs() {
@@ -125,7 +132,7 @@ mod tests {
         let a = CsMatBase::csr_from_dense(a.view(), 1e-5);
 
         assert_eq!(a.size(), 10);
-        assert_eq!(a.apply_gram(Array2::eye(10)), a.to_dense());
+        assert_eq!(a.mul_similarity(&Array2::eye(10).view()), a.to_dense());
     }
 
     #[test]
