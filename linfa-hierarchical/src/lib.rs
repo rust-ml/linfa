@@ -1,13 +1,13 @@
-use std::collections::HashMap;
-pub use kodama::Method;
 use kodama::linkage;
+pub use kodama::Method;
 use linfa_kernel::Kernel;
 use ndarray::{Data, NdFloat};
+use std::collections::HashMap;
 use std::iter;
 
 pub enum Criterion<T> {
     NumClusters(usize),
-    Distance(T)
+    Distance(T),
 }
 
 pub struct HierarchicalCluster<T> {
@@ -19,7 +19,7 @@ impl<T: NdFloat + iter::Sum + Default> HierarchicalCluster<T> {
     pub fn new() -> HierarchicalCluster<T> {
         HierarchicalCluster {
             method: Method::Average,
-            stopping: Criterion::NumClusters(2)
+            stopping: Criterion::NumClusters(2),
         }
     }
 
@@ -46,7 +46,7 @@ impl<T: NdFloat + iter::Sum + Default> HierarchicalCluster<T> {
         for step in res.steps() {
             let should_stop = match self.stopping {
                 Criterion::NumClusters(nclusters) => nclusters >= clusters.len(),
-                Criterion::Distance(dis) => step.dissimilarity >= dis
+                Criterion::Distance(dis) => step.dissimilarity >= dis,
             };
             if should_stop {
                 break;
@@ -68,7 +68,7 @@ impl<T: NdFloat + iter::Sum + Default> HierarchicalCluster<T> {
             clusters.insert(ct, ids);
             ct += 1;
         }
-        
+
         let mut tmp = vec![0; num_observations];
         for (i, (_, ids)) in clusters.into_iter().enumerate() {
             for id in ids {
@@ -82,11 +82,11 @@ impl<T: NdFloat + iter::Sum + Default> HierarchicalCluster<T> {
 
 #[cfg(test)]
 mod tests {
-    use ndarray_rand::{rand_distr::Normal, RandomExt};
-    use ndarray::{Array, Axis};
     use linfa_kernel::Kernel;
+    use ndarray::{Array, Axis};
+    use ndarray_rand::{rand_distr::Normal, RandomExt};
 
-    use super::{HierarchicalCluster, Criterion};
+    use super::{Criterion, HierarchicalCluster};
 
     #[test]
     fn test_gaussian_distribution() {
@@ -104,8 +104,7 @@ mod tests {
         let ids = HierarchicalCluster::new()
             .criterion(Criterion::NumClusters(2))
             .fit_transform(&kernel);
-        
+
         dbg!(&ids);
     }
 }
-
