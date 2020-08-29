@@ -22,6 +22,7 @@ linfa-trees = { path = "linfa-trees", version = "0.1" }
 linfa-reduction = { path = "linfa-reduction", version = "0.1" }
 linfa-linear = { path = "linfa-linear", version = "0.1" }
 linfa-logistic = { path = "linfa-logistic", version = "0.1" }
+linfa-svm = { path = "linfa-svm", version = "0.1" }
 
 [dev-dependencies]
 ndarray-rand = "0.11"
@@ -33,9 +34,11 @@ approx = "0.3"
 members = [
     "linfa-clustering",
     "linfa-reduction",
+    "linfa-kernel",
     "linfa-linear",
     "linfa-logistic",
-    "linfa-trees"
+    "linfa-trees",
+    "linfa-svm"
 ]
 
 [profile.release]
