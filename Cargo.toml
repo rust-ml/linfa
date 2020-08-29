@@ -23,7 +23,7 @@ linfa-reduction = { path = "linfa-reduction", version = "0.1" }
 linfa-linear = { path = "linfa-linear", version = "0.1" }
 linfa-logistic = { path = "linfa-logistic", version = "0.1" }
 linfa-svm = { path = "linfa-svm", version = "0.1" }
-linfa-hierachical = { path = "linfa-hierachical", version = "0.1" }
+linfa-hierarchical = { path = "linfa-hierarchical", version = "0.1" }
 
 [dev-dependencies]
 ndarray-rand = "0.11"
@@ -40,7 +40,7 @@ members = [
     "linfa-logistic",
     "linfa-trees",
     "linfa-svm",
-    "linfa-hierachical"
+    "linfa-hierarchical"
 ]
 
 [profile.release]

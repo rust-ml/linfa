@@ -1,5 +1,5 @@
 [package]
-name = "linfa-hierachical"
+name = "linfa-hierarchical"
 version = "0.1.0"
 authors = ["Lorenz Schmidt <lorenz.schmidt@mailbox.org>"]
 edition = "2018"

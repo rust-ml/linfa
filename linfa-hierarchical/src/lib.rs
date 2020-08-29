@@ -10,26 +10,26 @@ pub enum Criterion<T> {
     Distance(T)
 }
 
-pub struct HierachicalCluster<T> {
+pub struct HierarchicalCluster<T> {
     method: Method,
     stopping: Criterion<T>,
 }
 
-impl<T: NdFloat + iter::Sum + Default> HierachicalCluster<T> {
-    pub fn new() -> HierachicalCluster<T> {
-        HierachicalCluster {
+impl<T: NdFloat + iter::Sum + Default> HierarchicalCluster<T> {
+    pub fn new() -> HierarchicalCluster<T> {
+        HierarchicalCluster {
             method: Method::Average,
             stopping: Criterion::NumClusters(2)
         }
     }
 
-    pub fn with_method(mut self, method: Method) -> HierachicalCluster<T> {
+    pub fn with_method(mut self, method: Method) -> HierarchicalCluster<T> {
         self.method = method;
 
         self
     }
 
-    pub fn criterion(mut self, criterion: Criterion<T>) -> HierachicalCluster<T> {
+    pub fn criterion(mut self, criterion: Criterion<T>) -> HierarchicalCluster<T> {
         self.stopping = criterion;
 
         self
@@ -86,7 +86,7 @@ mod tests {
     use ndarray::{Array, Axis};
     use linfa_kernel::Kernel;
 
-    use super::{HierachicalCluster, Criterion};
+    use super::{HierarchicalCluster, Criterion};
 
     #[test]
     fn test_gaussian_distribution() {
@@ -101,7 +101,7 @@ mod tests {
 
         let kernel = Kernel::linear(&entries);
 
-        let ids = HierachicalCluster::new()
+        let ids = HierarchicalCluster::new()
             .criterion(Criterion::NumClusters(2))
             .fit_transform(&kernel);
         
