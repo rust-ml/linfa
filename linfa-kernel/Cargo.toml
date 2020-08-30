@@ -13,21 +13,19 @@ keywords = ["kernel", "machine-learning", "linfa"]
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
-ndarray = { version = "0.13" , features = ["rayon", "serde", "approx"]}
-ndarray-linalg = { version = "0.12" }
+ndarray = { version = "0.13", default-features = false, features = [] }
+#ndarray-linalg = { version = "0.12", default-features = false }
 
-sprs = "0.7"
+sprs = { git = "https://github.com/vbarrielle/sprs/", default-features = false, features = [] }
 hnsw = "0.6"
 space = "0.10"
 
 [dev-dependencies]
-rand_isaac = "0.2.0"
-ndarray-npy = { version = "0.5", default-features = false }
-criterion = "0.3"
-serde_json = "1" 
-approx = "0.3"
 
 [features]
-openblas = ["ndarray-linalg/openblas"]
-netlib = ["ndarray-linalg/netlib"]
-intel-mkl = ["ndarray-linalg/intel-mkl"]
+openblas = []
+netlib = []
+intel-mkl = []
+#openblas = ["ndarray-linalg/openblas"]
+#netlib = ["ndarray-linalg/netlib"]
+#intel-mkl = ["ndarray-linalg/intel-mkl"]

@@ -15,18 +15,17 @@ categories = ["algorithms", "mathematics", "science"]
 
 [features]
 default = []
-openblas = ["ndarray-linalg/openblas"]
-intel-mkl = ["ndarray-linalg/intel-mkl"]
-netlib = ["ndarray-linalg/netlib"]
+openblas = ["linfa-kernel/openblas"]
+intel-mkl = ["linfa-kernel/intel-mkl"]
+netlib = ["linfa-kernel/netlib"]
 
 [dependencies]
-ndarray = { version = "0.13" , features = ["rayon", "serde", "approx"]}
-ndarray-linalg = { version = "0.12" }
+ndarray = { version = "0.13", default-features = false }
 kodama = "0.2"
-
 linfa-kernel = { path = "../linfa-kernel" }
 
 [dev-dependencies]
 ndarray-rand = "0.11"
-#linfa-kernel = { path = "../linfa-kernel", features = ["openblas"] }
-openblas-src = "0.7"
+csv = "1.1"
+ndarray-csv = "0.4"
+flate2 = "1.0"
