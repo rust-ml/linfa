@@ -163,7 +163,7 @@ mod tests {
         assert_ne!(first_cluster_id, second_cluster_id);
 
         // perform hierarchical clustering until we have two clusters left
-        let ids = HierarchicalCluster::new()
+        let ids = HierarchicalCluster::default()
             .num_clusters(2)
             .fit_transform(&kernel);
 
