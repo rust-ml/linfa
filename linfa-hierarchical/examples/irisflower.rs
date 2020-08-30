@@ -6,8 +6,8 @@ use flate2::read::GzDecoder;
 use ndarray::{Array2, Axis};
 use ndarray_csv::Array2Reader;
 
-use linfa_kernel::Kernel;
 use linfa_hierarchical::HierarchicalCluster;
+use linfa_kernel::Kernel;
 
 /// Extract a gziped CSV file and return as dataset
 fn read_array(path: &str) -> Result<Array2<f64>, Box<dyn Error>> {
@@ -41,7 +41,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             0 => "setosa",
             1 => "versicolor",
             2 => "virginica",
-            _ => unreachable!()
+            _ => unreachable!(),
         };
 
         print!("({} {}) ", id, name);

@@ -157,7 +157,7 @@ mod tests {
             .skip(npoints)
             .all(|item| item == second_cluster_id));
 
-        // the cluster ids shouldn't be equal 
+        // the cluster ids shouldn't be equal
         assert_ne!(first_cluster_id, second_cluster_id);
 
         // perform hierarchical clustering until we have two clusters left
@@ -179,7 +179,7 @@ mod tests {
             .skip(npoints)
             .all(|item| item == second_cluster_id));
 
-        // the cluster ids shouldn't be equal 
+        // the cluster ids shouldn't be equal
         assert_ne!(first_cluster_id, second_cluster_id);
     }
 }
