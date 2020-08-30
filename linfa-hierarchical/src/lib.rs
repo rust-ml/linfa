@@ -19,13 +19,6 @@ pub struct HierarchicalCluster<T> {
 }
 
 impl<T: NdFloat + iter::Sum + Default> HierarchicalCluster<T> {
-    pub fn new() -> HierarchicalCluster<T> {
-        HierarchicalCluster {
-            method: Method::Average,
-            stopping: Criterion::NumClusters(2),
-        }
-    }
-
     /// Select a merging method
     pub fn with_method(mut self, method: Method) -> HierarchicalCluster<T> {
         self.method = method;
@@ -113,6 +106,15 @@ impl<T: NdFloat + iter::Sum + Default> HierarchicalCluster<T> {
     }
 }
 
+impl<T> Default for HierarchicalCluster<T> {
+    fn default() -> HierarchicalCluster<T> {
+        HierarchicalCluster {
+            method: Method::Average,
+            stopping: Criterion::NumClusters(2),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use linfa_kernel::Kernel;
@@ -139,7 +141,7 @@ mod tests {
         let kernel = Kernel::gaussian(&entries, 5.0);
 
         // perform hierarchical clustering until distance 0.1 is reached
-        let ids = HierarchicalCluster::new()
+        let ids = HierarchicalCluster::default()
             .max_distance(0.1)
             .fit_transform(&kernel);
 

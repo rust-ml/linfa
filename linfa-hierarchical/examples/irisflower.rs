@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let kernel = Kernel::gaussian(&dataset, 1.0);
 
-    let ids = HierarchicalCluster::new()
+    let ids = HierarchicalCluster::default()
         .num_clusters(3)
         .fit_transform(&kernel);
 
