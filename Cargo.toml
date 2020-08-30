@@ -13,7 +13,6 @@ keywords = ["machine-learning", "linfa", "ai", "ml"]
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
-#rand = "0.7"
 ndarray = { version = "0.13", default-features = false }
 num-traits = "0.1.32"
 
@@ -26,6 +25,7 @@ linfa-svm = { path = "linfa-svm", version = "0.1" }
 linfa-hierarchical = { path = "linfa-hierarchical", version = "0.1" }
 
 [dev-dependencies]
+rand = "0.7"
 ndarray-rand = "0.11"
 rand_isaac = "0.2.0"
 ndarray-npy = { version = "0.5", default-features = false }
