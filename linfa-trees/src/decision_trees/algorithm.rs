@@ -36,6 +36,7 @@ impl SortedIndex {
     }
 }
 
+#[derive(Debug)]
 struct TreeNode {
     feature_idx: usize,
     split_value: f64,
@@ -208,6 +209,7 @@ impl TreeNode {
 }
 
 /// A fitted decision tree model.
+#[derive(Debug)]
 pub struct DecisionTree {
     hyperparameters: DecisionTreeParams,
     root_node: TreeNode,
