@@ -1,5 +1,5 @@
 /// The possible impurity measures for training.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum SplitQuality {
     Gini,
     Entropy,
@@ -7,7 +7,7 @@ pub enum SplitQuality {
 
 /// The set of hyperparameters that can be specified for fitting a
 /// [decision tree](struct.DecisionTree.html).
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct DecisionTreeParams {
     pub n_classes: u64,
     pub split_quality: SplitQuality,
@@ -90,7 +90,7 @@ impl DecisionTreeParams {
         }
     }
 
-    fn build(
+    pub fn build(
         n_classes: u64,
         split_quality: SplitQuality,
         max_depth: Option<u64>,

@@ -32,6 +32,7 @@ members = [
     "linfa-svm",
     "linfa-hierarchical",
     "linfa-ica",
+    "linfa-ensemble",
 ]
 
 [profile.release]
