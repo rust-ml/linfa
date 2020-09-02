@@ -1,9 +1,13 @@
-use ndarray::{Array1, ArrayBase, Data, Ix1, Ix2};
-// use std::iter::FromIterator;
 use linfa_trees::{DecisionTree, DecisionTreeParams};
-// use linfa_clustering::generate_blobs;
-
-use crate::random_forest::hyperparameters::{RandomForestParams, RandomForestParamsBuilder, MaxFeatures};
+use crate::random_forest::hyperparameters::{RandomForestParams,
+                                            RandomForestParamsBuilder,
+                                            MaxFeatures};
+use ndarray::{Array1, Array2, ArrayBase, Data, Ix1, Ix2};
+use ndarray_rand::rand_distr::Uniform;
+use ndarray::Axis;
+use ndarray::Array;
+use ndarray_rand::RandomExt;
+use std::collections::HashMap;
 
 
 pub struct RandomForest {
@@ -12,65 +16,84 @@ pub struct RandomForest {
 }
 
 impl RandomForest {
-
-    /// Fit a decision tree using `hyperparamters` on the dataset consisting of
-    /// a matrix of features `x` and an array of labels `y`.
     pub fn fit(
         hyperparameters: RandomForestParams,
         x: &ArrayBase<impl Data<Elem = f64>, Ix2>,
         y: &ArrayBase<impl Data<Elem = u64>, Ix1>,
     ) -> Self {
 
-        // WIP
-        let n_estimators = hyperparameters.n_estimators;
-        let mut trees: Vec<DecisionTree> = Vec::with_capacity(n_estimators);
-        let single_tree_params = hyperparameters.tree_hyperparameters;
+    let n_estimators = hyperparameters.n_estimators;
+    let mut trees: Vec<DecisionTree> = Vec::with_capacity(n_estimators);
+    let single_tree_params = hyperparameters.tree_hyperparameters;
 
-        // WIP check bootstrap
-        let _bootstrap = hyperparameters.bootstrap;
+    //TODO check bootstrap
+    let _bootstrap = hyperparameters.bootstrap;
 
-        for _ in 0..n_estimators{
-            // TODO select a subset of training set with replacement
-            let tree = DecisionTree::fit(single_tree_params, &x, &y);
-            trees.push(tree);
-        }
+    for _ in 0..n_estimators {
+        // Bagging here
+        let rnd_idx = Array::random((1, x.nrows()), Uniform::new(0, x.nrows())).into_raw_vec();
+        let xsample = x.select(Axis(0), &rnd_idx);
+        let ysample = y.select(Axis(0), &rnd_idx);
 
-        // let all_idxs = RowMask::all(x.nrows() as u64);
-        // let sorted_indices: Vec<_> = (0..(x.ncols()))
-        //     .map(|feature_idx| SortedIndex::of_array_column(&x, feature_idx))
-        //     .collect();
-        // let root_node = TreeNode::fit(&x, &y, &all_idxs, &hyperparameters, &sorted_indices, 0);
-
-        Self {
-            hyperparameters,
-            trees,
-        }
+        let tree = DecisionTree::fit(single_tree_params, &xsample, &ysample);
+        trees.push(tree);
     }
 
-    /// Make predictions for each row of a matrix of features `x`.
+    Self {
+        hyperparameters: hyperparameters,
+        trees: trees
+    }
+
+
+    }
+
     pub fn predict(&self, x: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<u64> {
+        let ntrees = self.hyperparameters.n_estimators;
+        assert!(ntrees > 0, "Run .fit() method first");
 
-        // WIP
+        let mut predictions: Array2<u64> = Array2::zeros((ntrees, x.nrows()));
 
-        Array1::from(vec![0, 0, 0])
+        for i in 0..ntrees {
+            let single_pred = self.trees[i].predict(&x);
+            dbg!("single pred: ", &single_pred);
+
+            // TODO more rusty?
+            for j in 0..single_pred.len() {
+                predictions[[i, j]] = single_pred[j];
+            }
+        }
+
+
+        let mut result: Vec<u64> = Vec::with_capacity(x.nrows());
+        for j in 0..predictions.ncols() {
+            let mut counter_stats: HashMap<u64, u64> = HashMap::new();
+            for i in 0..ntrees {
+                *counter_stats.entry(predictions[[i,j]]).or_insert(0) += 1;
+            }
+
+            let final_pred = counter_stats
+                            .iter()
+                            .max_by(|a,b| a.1.cmp(&b.1))
+                            .map(|(k, _v)| k)
+                            .unwrap();
+            result.push(*final_pred);
+        }
+
+        Array1::from(result)
     }
 
-    pub fn hyperparameters(&self) -> &RandomForestParams {
-        &self.hyperparameters
-    }
+
 }
-
-
 
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_abs_diff_eq;
-    use ndarray::Array;
+
 
     #[test]
     fn test_random_forest_fit() {
+        // Load data
         let data = vec![0.54439407, 0.26408166, 0.97446289, 0.81338034, 0.08248497,
                         0.30045893, 0.35535142, 0.26975284, 0.46910295, 0.72357513,
                         0.77458868, 0.09104661, 0.17291617, 0.50215056, 0.26381918,
@@ -83,24 +106,23 @@ mod tests {
                         0.04334688, 0.6785262 , 0.80599445, 0.6690343 , 0.29780375];
 
         let xtrain = Array::from(data).into_shape((10, 5)).unwrap();
-        dbg!("xtrain: {:?}", &xtrain);
+        let ytrain = Array1::from(vec![0, 1, 0, 1, 1, 0, 1, 0, 1, 1]);
 
-        let y = Array1::from(vec![0, 1, 0, 1, 1, 0, 1, 0, 1, 1]);
+        // Define parameters of single tree
+        let tree_params = DecisionTreeParams::new(2)
+                                                .max_depth(Some(3))
+                                                .min_samples_leaf(2 as u64)
+                                                .build();
+        // Define parameters of random forest
+        let ntrees = 100;
+        let rf_params = RandomForestParamsBuilder::new(tree_params, ntrees)
+                                                        .max_features(Some(MaxFeatures::Auto))
+                                                        .build();
+        let rf = RandomForest::fit(rf_params, &xtrain, &ytrain);
+        assert_eq!(rf.trees.len(), ntrees);
 
-        // define single tree parameters from caller
-        let tree_params = DecisionTreeParams::new(2).build();
-        let dt = DecisionTree::fit(tree_params, &xtrain, &y);
-        let preds = dt.predict(&xtrain);
-        dbg!("Ground truth: {:?} Predictions: {:?>}", &y, preds);
-
-        // define random forest params from caller
-        let rf_params = RandomForestParamsBuilder::new(tree_params, 10)
-                    .max_features(Some(MaxFeatures::Auto))
-                    .bootstrap(Some(false)).build();
-
-        let rf = RandomForest::fit(rf_params, &xtrain, &y);
-        dbg!(&rf.trees[0]);
-            // WIP
-
+        let preds = rf.predict(&xtrain);
+        dbg!("Predictions: {}", preds);
     }
+
 }
