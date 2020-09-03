@@ -1,5 +1,6 @@
 use linfa_trees::DecisionTreeParams;
 
+#[derive(Clone, Copy)]
 pub struct RandomForestParams {
     pub n_estimators: usize,
     pub tree_hyperparameters: DecisionTreeParams,
