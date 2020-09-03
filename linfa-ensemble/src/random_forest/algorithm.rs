@@ -40,9 +40,7 @@ impl RandomForest {
     Self {
         hyperparameters: hyperparameters,
         trees: trees
-    }
-
-
+        }
     }
 
     pub fn predict(&self, x: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<u64> {
@@ -55,12 +53,11 @@ impl RandomForest {
             let single_pred = self.trees[i].predict(&x);
             dbg!("single pred: ", &single_pred);
 
-            // TODO more rusty?
+            // TODO can we make this more idiomatic rust
             for j in 0..single_pred.len() {
                 predictions[[i, j]] = single_pred[j];
             }
         }
-
 
         let mut result: Vec<u64> = Vec::with_capacity(x.nrows());
         for j in 0..predictions.ncols() {
@@ -76,11 +73,8 @@ impl RandomForest {
                             .unwrap();
             result.push(*final_pred);
         }
-
         Array1::from(result)
     }
-
-
 }
 
 
@@ -90,7 +84,6 @@ mod tests {
     use linfa_trees::DecisionTreeParams;
     use crate::random_forest::hyperparameters::{RandomForestParamsBuilder,
             MaxFeatures};
-
 
     #[test]
     fn test_random_forest_fit() {

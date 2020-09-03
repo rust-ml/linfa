@@ -3,11 +3,6 @@ use linfa_trees::DecisionTreeParams;
 use ndarray::{Array, Array1};
 use linfa_ensemble::{RandomForest, RandomForestParamsBuilder, MaxFeatures};
 
-// use ndarray_rand::rand::SeedableRng;
-// use ndarray_rand::rand_distr::Uniform;
-// use ndarray_rand::RandomExt;
-// use rand_isaac::Isaac64Rng;
-// use std::iter::FromIterator;
 
 fn random_forest_bench(c: &mut Criterion) {
     // Load data
@@ -22,34 +17,34 @@ fn random_forest_bench(c: &mut Criterion) {
                     0.3272859 , 0.46670468, 0.87466706, 0.51465624, 0.69996642,
                     0.04334688, 0.6785262 , 0.80599445, 0.6690343 , 0.29780375];
 
-    let xtrain = Array::from(data).into_shape((10, 5)).unwrap();
-    let ytrain = Array1::from(vec![0, 1, 0, 1, 1, 0, 1, 0, 1, 1]);
-
     // Define parameters of single tree
     let tree_params = DecisionTreeParams::new(2)
                         .max_depth(Some(3))
                         .min_samples_leaf(2 as u64)
                         .build();
     // Define parameters of random forest
-    let ntrees = 100;
     let trees_set_sizes = vec![10, 100, 500, 1000];
-
     // Benchmark training time 10 times for each training sample size
     let mut group = c.benchmark_group("random_forest");
     group.sample_size(10);
 
     for ntrees in trees_set_sizes.iter() {
+        let xtrain = Array::from(data.clone()).into_shape((10, 5)).unwrap();
+        let ytrain = Array1::from(vec![0, 1, 0, 1, 1, 0, 1, 0, 1, 1]);
+
         let rf_params = RandomForestParamsBuilder::new(tree_params, *ntrees as usize)
                                         .max_features(Some(MaxFeatures::Auto))
                                         .build();
-
             group.bench_with_input(
                     BenchmarkId::from_parameter(ntrees),
                     &(xtrain, ytrain),
-                    |b, (x, y)| b.iter(|| RandomForest::fit(rf_params, &xtrain, &ytrain)),
+                    |b, (x, y)| b.iter(|| RandomForest::fit(rf_params, &x, &y)),
             );
     }
 
-group.finish();
+    group.finish();
+}
+
 criterion_group!(benches, random_forest_bench);
 criterion_main!(benches);
+
