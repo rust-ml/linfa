@@ -1,7 +1,5 @@
-use linfa_trees::{DecisionTree, DecisionTreeParams};
-use crate::random_forest::hyperparameters::{RandomForestParams,
-                                            RandomForestParamsBuilder,
-                                            MaxFeatures};
+use linfa_trees::DecisionTree;
+use crate::random_forest::hyperparameters::RandomForestParams;
 use ndarray::{Array1, Array2, ArrayBase, Data, Ix1, Ix2};
 use ndarray_rand::rand_distr::Uniform;
 use ndarray::Axis;
@@ -89,6 +87,9 @@ impl RandomForest {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use linfa_trees::DecisionTreeParams;
+    use crate::random_forest::hyperparameters::{RandomForestParamsBuilder,
+            MaxFeatures};
 
 
     #[test]
