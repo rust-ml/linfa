@@ -1,5 +1,6 @@
 # linfa
-
+[![crates.io](https://img.shields.io/crates/v/linfa.svg)](https://crates.io/crates/linfa)
+[![Documentation](https://docs.rs/linfa/badge.svg)](https://docs.rs/linfa)
 [![Build Status](https://travis-ci.org/rust-ml/linfa.svg?branch=master)](https://travis-ci.org/rust-ml/linfa)
 
 > _**linfa**_ (Italian) / _**sap**_ (English):
@@ -16,21 +17,20 @@ _Community chat_: [Zulip](https://rust-ml.zulipchat.com/)
 
 ## Current state
 
-Such bold ambitions! Where are we now? [Are we learning yet?](http://www.arewelearningyet.com/)
+Where does `linfa` stand right now? [Are we learning yet?](http://www.arewelearningyet.com/)
 
 `linfa` currently provides sub-packages with the following algorithms: 
-- `clustering`: Clustering of unlabeled data
-    - K-Means and DBSCAN
-- `kernel`    
-- `linear`: Linear regression 
-    - Ordinary Least Squares (OLS)
-- `logistic`: Logistic Regression
-    - Two-class logsitic regression models
-- `reduction`: Dimensional reduction
-    - Diffusion mapping
-    - Principal Component Analysis (PCA)
-- `svm`: Support Vector Machines
-- `trees`: Decision trees
+
+
+| Name | Purpose | Status | Category |  Notes | 
+| :--- | :--- | :---| :--- | :---| 
+| clustering | Data clustering | Tested  | Unsupervised learning | Clustering of unlabled data; contains K-Means and DBSCAN  | 
+| kernel | Kernel methods for data transformation  | Tested  | Pre-processing | Maps feature vector into higher-dimensional space| 
+| linear | Linear regression | Tested  | Partial fit | Contains Ordinary Least Squares (OLS) | 
+| logistic | Logistic regression | Tested  | Partial fit | Builds two-class logistic regression models
+| reduction | Dimensional reduction | Tested  | Pre-processing | Diffusion mapping and Principal Component Analysis (PCA) |
+| trees | Decision trees | Tested  | Supervised learning | Linear decision trees
+| svm | Support Vector Machines | Tested  | Supervised learning | Classification or regression analysis of labeled datasets | 
 
 We believe that only a significant community effort can nurture, build, and sustain a machine learning ecosystem in Rust - there is no other way forward.
 
