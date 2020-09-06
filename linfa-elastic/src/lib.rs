@@ -107,10 +107,26 @@ impl FittedElasticNet {
     pub fn predict(&self) {}
 }
 
+fn soft_threshold(z: f64, gamma: f64) -> f64 {
+    if gamma >= z.abs() {
+        0.0
+    } else if z > 0.0 {
+        z - gamma
+    } else {
+        z + gamma
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::soft_threshold;
+
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 5);
+    fn soft_threshold_works() {
+        assert_eq!(soft_threshold(1.0, 1.0), 0.0);
+        assert_eq!(soft_threshold(-1.0, 1.0), 0.0);
+        assert_eq!(soft_threshold(0.0, 1.0), 0.0);
+        assert_eq!(soft_threshold(2.0, 1.0), 1.0);
+        assert_eq!(soft_threshold(-2.0, 1.0), -1.0);
     }
 }
