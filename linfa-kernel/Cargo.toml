@@ -16,7 +16,8 @@ categories = ["algorithms", "mathematics", "science"]
 ndarray = { version = "0.13", default-features = false, features = ["blas"] }
 ndarray-linalg = { version = "0.12", default-features = false }
 
-sprs = { git = "https://github.com/vbarrielle/sprs/", default-features = false, features = [] }
+#sprs = { git = "https://github.com/vbarrielle/sprs/", default-features = false, features = [] }
+sprs = "0.7"
 hnsw = "0.6"
 space = "0.10"
 
