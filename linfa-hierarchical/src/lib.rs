@@ -11,7 +11,7 @@ use linfa_kernel::Kernel;
 ///
 /// The criterion defines at which point the merging process should stop. This can be either, when
 /// a certain number of clusters is reached, or the distance becomes larger than a maximal
-/// distance. 
+/// distance.
 enum Criterion<T> {
     NumClusters(usize),
     Distance(T),
