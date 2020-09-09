@@ -29,7 +29,7 @@ Where does `linfa` stand right now? [Are we learning yet?](http://www.arewelearn
 | linear | Linear regression | Tested  | Partial fit | Contains Ordinary Least Squares (OLS) | 
 | logistic | Logistic regression | Tested  | Partial fit | Builds two-class logistic regression models
 | reduction | Dimensional reduction | Tested  | Pre-processing | Diffusion mapping and Principal Component Analysis (PCA) |
-| trees | Decision trees | Tested  | Supervised learning | Linear decision trees
+| trees | Decision trees | Experimental  | Supervised learning | Linear decision trees
 | svm | Support Vector Machines | Tested  | Supervised learning | Classification or regression analysis of labeled datasets | 
 
 We believe that only a significant community effort can nurture, build, and sustain a machine learning ecosystem in Rust - there is no other way forward.
