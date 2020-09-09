@@ -7,12 +7,21 @@ use ndarray::{Data, NdFloat};
 
 use linfa_kernel::Kernel;
 
+/// Criterion when to stop merging
+///
+/// The criterion defines at which point the merging process should stop. This can be either, when
+/// a certain number of clusters is reached, or the distance becomes larger than a maximal
+/// distance. 
 enum Criterion<T> {
     NumClusters(usize),
     Distance(T),
 }
 
-/// Agglomerative Hierarchical clustering
+/// Agglomerative hierarchical clustering
+///
+/// In this clustering algorithm each point is first considered as a seperate cluster. In each step
+/// two points are merged into new clusters, until a stopping criterion is reached. The distance
+/// between the points is computed as the negative-log transformed of the similarity kernel.
 pub struct HierarchicalCluster<T> {
     method: Method,
     stopping: Criterion<T>,
@@ -27,6 +36,9 @@ impl<T: NdFloat + iter::Sum + Default> HierarchicalCluster<T> {
     }
 
     /// Stop merging when a certain number of clusters are reached
+    ///
+    /// In the fitting process points are merged until a certain criterion is reached. With this
+    /// option the merging process will stop, when the number of clusters drops below this value.
     pub fn num_clusters(mut self, num_clusters: usize) -> HierarchicalCluster<T> {
         self.stopping = Criterion::NumClusters(num_clusters);
 
@@ -34,13 +46,18 @@ impl<T: NdFloat + iter::Sum + Default> HierarchicalCluster<T> {
     }
 
     /// Stop merging when a certain distance is reached
+    ///
+    /// In the fitting process points are merged until a certain criterion is reached. With this
+    /// option the merging process will stop, then the distance exceeds this value.
     pub fn max_distance(mut self, max_distance: T) -> HierarchicalCluster<T> {
         self.stopping = Criterion::Distance(max_distance);
 
         self
     }
 
-    /// Perform hierarchical clustering for a kernel
+    /// Perform hierarchical clustering of a similarity matrix
+    ///
+    /// Returns the class id for each data point
     pub fn fit_transform<'a, D: Data<Elem = T>>(self, kernel: &'a Kernel<'a, T, D>) -> Vec<usize> {
         // ignore all similarities below this value
         let threshold = T::from(1e-6).unwrap();
@@ -67,7 +84,8 @@ impl<T: NdFloat + iter::Sum + Default> HierarchicalCluster<T> {
         let mut clusters = (0..num_observations)
             .map(|x| (x, vec![x]))
             .collect::<HashMap<_, _>>();
-        // counter for new clusters, which are formed as unions
+
+        // counter for new clusters, which are formed as unions of previous ones
         let mut ct = num_observations;
 
         for step in res.steps() {
@@ -106,6 +124,8 @@ impl<T: NdFloat + iter::Sum + Default> HierarchicalCluster<T> {
     }
 }
 
+/// Initialize hierarchical clustering, which averages in-cluster points and stops when two
+/// clusters are reached.
 impl<T> Default for HierarchicalCluster<T> {
     fn default() -> HierarchicalCluster<T> {
         HierarchicalCluster {
