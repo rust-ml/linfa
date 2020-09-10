@@ -38,7 +38,7 @@ fn random_forest_bench(c: &mut Criterion) {
             group.bench_with_input(
                     BenchmarkId::from_parameter(ntrees),
                     &(xtrain, ytrain),
-                    |b, (x, y)| b.iter(|| RandomForest::fit(rf_params, &x, &y)),
+                    |b, (x, y)| b.iter(|| RandomForest::fit(rf_params, &x, &y, None)),
             );
     }
 

@@ -5,7 +5,8 @@ pub struct RandomForestParams {
     pub n_estimators: usize,
     pub tree_hyperparameters: DecisionTreeParams,
     pub max_features: u64,
-    pub bootstrap: bool
+    // use all dataset or not
+    pub bootstrap: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -76,20 +77,3 @@ impl RandomForestParamsBuilder {
 
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
