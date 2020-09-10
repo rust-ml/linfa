@@ -1,0 +1,33 @@
+[package]
+name = "linfa-kernel"
+version = "0.1.0"
+authors = ["Lorenz Schmidt <bytesnake@mailbox.org>"]
+description = "Kernel methods for non-linear algorithms"
+edition = "2018"
+license = "MIT/Apache-2.0"
+
+repository = "https://github.com/rust-ml/linfa/"
+readme = "README.md"
+
+keywords = ["kernel", "machine-learning", "linfa"]
+categories = ["algorithms", "mathematics", "science"]
+
+[dependencies]
+ndarray = { version = "0.13" , features = ["rayon", "serde", "approx"]}
+ndarray-linalg = { version = "0.12" }
+
+sprs = "0.7"
+hnsw = "0.6"
+space = "0.10"
+
+[dev-dependencies]
+rand_isaac = "0.2.0"
+ndarray-npy = { version = "0.5", default-features = false }
+criterion = "0.3"
+serde_json = "1" 
+approx = "0.3"
+
+[features]
+openblas = ["ndarray-linalg/openblas"]
+netlib = ["ndarray-linalg/netlib"]
+intel-mkl = ["ndarray-linalg/intel-mkl"]

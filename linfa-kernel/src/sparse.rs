@@ -1,16 +1,12 @@
 use hnsw::{Params, Searcher, HNSW};
-use ndarray::{Array2, ArrayView1, Axis};
+use ndarray::{ArrayBase, ArrayView1, Axis, Data, Ix2, NdFloat};
 use space::{MetricPoint, Neighbor};
 use sprs::{CsMat, CsMatBase};
-
-use num_traits::NumCast;
-
-use crate::Float;
 
 /// Implementation of euclidean distance for ndarray
 struct Euclidean<'a, A>(ArrayView1<'a, A>);
 
-impl<A: Float> MetricPoint for Euclidean<'_, A> {
+impl<A: NdFloat + std::iter::Sum + Default> MetricPoint for Euclidean<'_, A> {
     fn distance(&self, rhs: &Self) -> u32 {
         let val = self
             .0
@@ -25,7 +21,10 @@ impl<A: Float> MetricPoint for Euclidean<'_, A> {
 }
 
 /// Create sparse adjacency matrix from dense dataset
-pub fn adjacency_matrix<A: Float>(dataset: &Array2<A>, k: usize) -> CsMat<A> {
+pub fn adjacency_matrix<A: NdFloat + std::iter::Sum + Default, D: Data<Elem = A>>(
+    dataset: &ArrayBase<D, Ix2>,
+    k: usize,
+) -> CsMat<A> {
     let n_points = dataset.len_of(Axis(0));
 
     // ensure that the number of neighbours is at least one and less than the total number of
@@ -67,14 +66,14 @@ pub fn adjacency_matrix<A: Float>(dataset: &Array2<A>, k: usize) -> CsMat<A> {
         neighbours.sort_unstable();
 
         indices.push(m);
-        data.push(NumCast::from(1.0).unwrap());
+        data.push(A::one());
         added += 1;
 
         // push each index into the indices array
         for n in &neighbours {
             if m != n.index {
                 indices.push(n.index);
-                data.push(NumCast::from(1.0).unwrap());
+                data.push(A::one());
                 added += 1;
             }
         }
@@ -87,7 +86,7 @@ pub fn adjacency_matrix<A: Float>(dataset: &Array2<A>, k: usize) -> CsMat<A> {
     let mut mat = &mat + &mat.transpose_view();
 
     // ensure that all values are one
-    let val: A = NumCast::from(1.0).unwrap();
+    let val: A = A::one();
     mat.map_inplace(|_| val);
 
     mat

@@ -1,0 +1,35 @@
+[package]
+name = "linfa-svm"
+version = "0.1.0"
+edition = "2018"
+authors = ["Lorenz Schmidt <lorenz.schmidt@mailbox.org>"]
+description = "Support Vector Machines"
+license = "MIT/Apache-2.0"
+
+repository = "https://github.com/rust-ml/linfa"
+readme = "README.md"
+
+keywords = ["svm", "support vector machine", "machine-learning", "linfa", "supervised"]
+categories = ["algorithms", "mathematics", "science"]
+
+[features]
+default = []
+openblas = ["ndarray-linalg/openblas"]
+intel-mkl = ["ndarray-linalg/intel-mkl"]
+netlib = ["ndarray-linalg/netlib"]
+
+[dependencies]
+ndarray = { version = "0.13" , features = ["rayon", "serde", "approx"]}
+ndarray-linalg = {version = "0.12" }
+ndarray-rand = "0.11"
+rand_isaac = "0.2.0"
+num-traits = "0.1.32"
+
+linfa-kernel = { path = "../linfa-kernel" }
+
+[dev-dependencies]
+linfa = { path = ".." }
+approx = "0.3"
+csv = "1.1"
+ndarray-csv = "0.4"
+flate2 = "1.0"

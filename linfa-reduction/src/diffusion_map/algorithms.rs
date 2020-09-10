@@ -1,12 +1,13 @@
-use ndarray::{Array1, Array2};
+use ndarray::{Array1, Array2, OwnedRepr};
 use ndarray_linalg::{
     eigh::EighInto, lapack::UPLO, lobpcg, lobpcg::LobpcgResult, Scalar, TruncatedOrder,
 };
 use ndarray_rand::{rand_distr::Uniform, RandomExt};
 use num_traits::NumCast;
 
+use linfa_kernel::Kernel;
+
 use super::hyperparameters::DiffusionMapHyperParams;
-use crate::kernel::{IntoKernel, Kernel};
 use crate::Float;
 
 pub struct DiffusionMap<A> {
@@ -16,10 +17,13 @@ pub struct DiffusionMap<A> {
 }
 
 impl<A: Float> DiffusionMap<A> {
-    pub fn project(hyperparameters: DiffusionMapHyperParams, kernel: impl IntoKernel<A>) -> Self {
+    pub fn project(
+        hyperparameters: DiffusionMapHyperParams,
+        kernel: Kernel<A, OwnedRepr<A>>,
+    ) -> Self {
         // compute spectral embedding with diffusion map
         let (embedding, eigvals) = compute_diffusion_map(
-            kernel.into_kernel(),
+            kernel,
             hyperparameters.steps(),
             0.0,
             hyperparameters.embedding_size(),
@@ -55,7 +59,7 @@ impl<A: Float> DiffusionMap<A> {
 }
 
 fn compute_diffusion_map<A: Float>(
-    kernel: impl Kernel<A>,
+    kernel: Kernel<A, OwnedRepr<A>>,
     steps: usize,
     alpha: f32,
     embedding_size: usize,
@@ -69,7 +73,7 @@ fn compute_diffusion_map<A: Float>(
 
     // use full eigenvalue decomposition for small problem sizes
     let (vals, mut vecs) = if kernel.size() < 5 * embedding_size + 1 {
-        let mut matrix = kernel.mul_similarity(&Array2::from_diag(&d).view());
+        let mut matrix = kernel.dot(&Array2::from_diag(&d).view());
         matrix
             .gencolumns_mut()
             .into_iter()
@@ -79,9 +83,9 @@ fn compute_diffusion_map<A: Float>(
         let (vals, vecs) = matrix.eigh_into(UPLO::Lower).unwrap();
         let (vals, vecs) = (vals.slice_move(s![..; -1]), vecs.slice_move(s![.., ..; -1]));
         (
-            vals.slice_move(s![1..embedding_size + 1])
+            vals.slice_move(s![1..=embedding_size])
                 .mapv(Scalar::from_real),
-            vecs.slice_move(s![.., 1..embedding_size + 1]),
+            vecs.slice_move(s![.., 1..=embedding_size]),
         )
     } else {
         // calculate truncated eigenvalue decomposition
@@ -100,7 +104,7 @@ fn compute_diffusion_map<A: Float>(
                     .into_iter()
                     .zip(d2.iter())
                     .for_each(|(mut a, b)| a *= *b);
-                let mut y = kernel.mul_similarity(&y.view());
+                let mut y = kernel.dot(&y.view());
                 y.genrows_mut()
                     .into_iter()
                     .zip(d2.iter())
