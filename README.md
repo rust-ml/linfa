@@ -24,17 +24,17 @@ Where does `linfa` stand right now? [Are we learning yet?](http://www.arewelearn
 
 | Name | Purpose | Status | Category |  Notes | 
 | :--- | :--- | :---| :--- | :---| 
-| clustering | Data clustering | Tested  | Unsupervised learning | Clustering of unlabled data; contains K-Means and DBSCAN  | 
-| kernel | Kernel methods for data transformation  | Tested  | Pre-processing | Maps feature vector into higher-dimensional space| 
-| linear | Linear regression | Tested  | Partial fit | Contains Ordinary Least Squares (OLS) | 
-| logistic | Logistic regression | Tested  | Partial fit | Builds two-class logistic regression models
-| reduction | Dimensional reduction | Tested  | Pre-processing | Diffusion mapping and Principal Component Analysis (PCA) |
-| trees | Decision trees | Experimental  | Supervised learning | Linear decision trees
-| svm | Support Vector Machines | Tested  | Supervised learning | Classification or regression analysis of labeled datasets | 
+| [clustering](linfa-clustering/) | Data clustering | Tested / Benchmarked  | Unsupervised learning | Clustering of unlabeled data; contains K-Means and DBSCAN  | 
+| [kernel](linfa-kernel/) | Kernel methods for data transformation  | Tested  | Pre-processing | Maps feature vector into higher-dimensional space| 
+| [linear](linfa-linear/) | Linear regression | Tested  | Partial fit | Contains Ordinary Least Squares (OLS) | 
+| [logistic](linfa-logistic/) | Logistic regression | Tested  | Partial fit | Builds two-class logistic regression models
+| [reduction](linfa-reduction/) | Dimensionality reduction | Tested  | Pre-processing | Diffusion mapping and Principal Component Analysis (PCA) |
+| [trees](linfa-trees/) | Decision trees | Experimental  | Supervised learning | Linear decision trees
+| [svm](linfa-svm/) | Support Vector Machines | Tested  | Supervised learning | Classification or regression analysis of labeled datasets | 
 
 We believe that only a significant community effort can nurture, build, and sustain a machine learning ecosystem in Rust - there is no other way forward.
 
-If this strikes a chord with you, please take a look at the [roadmap](https://github.com/rust-ml/linfa/issues) and get involved!
+If this strikes a chord with you, please take a look at the [roadmap](https://github.com/rust-ml/linfa/issues/7) and get involved!
 
 # License
 Dual-licensed to be compatible with the Rust project.

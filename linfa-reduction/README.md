@@ -1,4 +1,4 @@
-# Dimensional Reductions
+# Dimensional Reduction
 
 `linfa-reduction` aims to provide pure Rust implementations of dimensional reduction algorithms. 
 
