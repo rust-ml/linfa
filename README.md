@@ -1,5 +1,6 @@
 # linfa
-
+[![crates.io](https://img.shields.io/crates/v/linfa.svg)](https://crates.io/crates/linfa)
+[![Documentation](https://docs.rs/linfa/badge.svg)](https://docs.rs/linfa)
 [![Build Status](https://travis-ci.org/rust-ml/linfa.svg?branch=master)](https://travis-ci.org/rust-ml/linfa)
 
 > _**linfa**_ (Italian) / _**sap**_ (English):
@@ -7,37 +8,33 @@
 > The **vital** circulating fluid of a plant.
 
 
-`linfa` aims to provide a comprehensive toolkit to build Machine Learning applications
-with Rust.
+`linfa` aims to provide a comprehensive toolkit to build Machine Learning applications with Rust.
 
-Kin in spirit to Python's `scikit-learn`, it focuses on common preprocessing tasks
-and classical ML algorithms for your everyday ML tasks.
+Kin in spirit to Python's `scikit-learn`, it focuses on common preprocessing tasks and classical ML algorithms for your everyday ML tasks.
 
 _Documentation_: [latest](https://docs.rs/linfa)
-_Community chat_: [Gitter](https://gitter.im/linfa-ml/community)
+_Community chat_: [Zulip](https://rust-ml.zulipchat.com/)
 
 ## Current state
 
-Such bold ambitions! Where are we now? [Are we learning yet?](http://www.arewelearningyet.com/)
+Where does `linfa` stand right now? [Are we learning yet?](http://www.arewelearningyet.com/)
 
-Not really: `linfa` only provides a single algorithm, [`K-Means`](clustering/struct.KMeans.html),
-with a couple of helper functions.
+`linfa` currently provides sub-packages with the following algorithms: 
 
-There is a long way to go to fulfill its bold mission statement, but there is [significant](https://github.com/rust-ml/discussion/issues/1)
-[lurking](https://github.com/rust-lang/wg-governance/issues/11) [interest](https://www.reddit.com/r/rust/comments/dvcvo7/rust_2020_scientific_rust/) in the Rust ecosystem when it comes to ML and its surroundings:
-sometimes a small spark is all you need to light a beacon fire.
 
-In fact, it is a [firm belief of mine](https://www.youtube.com/watch?v=odI_LY8AIqo&t=8s) that only a significant community effort can nurture,
-build and sustain an ML ecosystem in Rust - there is no other way forward.
+| Name | Purpose | Status | Category |  Notes | 
+| :--- | :--- | :---| :--- | :---| 
+| clustering | Data clustering | Tested  | Unsupervised learning | Clustering of unlabled data; contains K-Means and DBSCAN  | 
+| kernel | Kernel methods for data transformation  | Tested  | Pre-processing | Maps feature vector into higher-dimensional space| 
+| linear | Linear regression | Tested  | Partial fit | Contains Ordinary Least Squares (OLS) | 
+| logistic | Logistic regression | Tested  | Partial fit | Builds two-class logistic regression models
+| reduction | Dimensional reduction | Tested  | Pre-processing | Diffusion mapping and Principal Component Analysis (PCA) |
+| trees | Decision trees | Experimental  | Supervised learning | Linear decision trees
+| svm | Support Vector Machines | Tested  | Supervised learning | Classification or regression analysis of labeled datasets | 
 
-Even this humble beginning, the [`K-Means` algorithm](clustering/struct.KMeans.html), is the result of [a community workshop](https://github.com/LukeMathWalker/ndarray-koans) at RustFest 2019,
-with a bunch of different people chipping in to provide [Python bindings](https://github.com/LukeMathWalker/linfa-python) and interesting
-[performance benchmarks](https://github.com/LukeMathWalker/clustering-benchmarks).
+We believe that only a significant community effort can nurture, build, and sustain a machine learning ecosystem in Rust - there is no other way forward.
 
-We just need to keep walking down the same path.
-
-If this strikes a chord with you, please take a look at the [roadmap](https://github.com/LukeMathWalker/linfa/issues)
-and get involved!
+If this strikes a chord with you, please take a look at the [roadmap](https://github.com/rust-ml/linfa/issues) and get involved!
 
 # License
 Dual-licensed to be compatible with the Rust project.

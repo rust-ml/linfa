@@ -1,9 +1,11 @@
 # Logistic Regression
 
-`linfa-logistic` provides a two class logistic regression model. 
-`linfa-logistic` is part of the `linfa` crate, which is an
-effort to bootstrap a toolkit for classical Machine Learning
-implemented in pure Rust, kin in spirit to Python's `scikit-learn`.
+## The Big Picture
+
+`linfa-logistic` is a crate in the [`linfa`](https://crates.io/crates/linfa) ecosystem, an effort to create a toolkit for classical Machine Learning implemented in pure Rust, akin to Python's `scikit-learn`.
+
+## Current state
+`linfa-logistic` provides a pure Rust implementation of a two class logistic regression model. 
 
 ## License
 Dual-licensed to be compatible with the Rust project.
