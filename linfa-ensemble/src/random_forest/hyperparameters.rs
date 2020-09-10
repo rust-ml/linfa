@@ -9,7 +9,7 @@ pub struct RandomForestParams {
     // max number of features for the ensemble
     pub max_features: u64,
     // use all dataset or not
-    pub bootstrap: bool
+    pub bootstrap: bool,
 }
 
 #[derive(Clone, Copy)]

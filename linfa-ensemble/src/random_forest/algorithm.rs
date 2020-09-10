@@ -18,17 +18,18 @@ impl RandomForest {
         hyperparameters: RandomForestParams,
         x: &ArrayBase<impl Data<Elem = f64>, Ix2>,
         y: &ArrayBase<impl Data<Elem = u64>, Ix1>,
+        max_n_rows: Option<usize>
     ) -> Self {
         let n_estimators = hyperparameters.n_estimators;
         let mut trees: Vec<DecisionTree> = Vec::with_capacity(n_estimators);
         let single_tree_params = hyperparameters.tree_hyperparameters;
+        let max_n_rows = max_n_rows.unwrap_or(x.nrows());
 
         //TODO check bootstrap
         let _bootstrap = hyperparameters.bootstrap;
-
         for _ in 0..n_estimators {
             // Bagging here
-            let rnd_idx = Array::random((1, x.nrows()), Uniform::new(0, x.nrows())).into_raw_vec();
+            let rnd_idx = Array::random((1, max_n_rows), Uniform::new(0, x.nrows())).into_raw_vec();
             let xsample = x.select(Axis(0), &rnd_idx);
             let ysample = y.select(Axis(0), &rnd_idx);
             let tree = DecisionTree::fit(single_tree_params, &xsample, &ysample);
@@ -107,7 +108,7 @@ mod tests {
         let rf_params = RandomForestParamsBuilder::new(tree_params, ntrees)
                                                         .max_features(Some(MaxFeatures::Auto))
                                                         .build();
-        let rf = RandomForest::fit(rf_params, &xtrain, &ytrain);
+        let rf = RandomForest::fit(rf_params, &xtrain, &ytrain, None);
         assert_eq!(rf.trees.len(), ntrees);
 
         let preds = rf.predict(&xtrain);
