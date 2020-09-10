@@ -28,7 +28,7 @@ Where does `linfa` stand right now? [Are we learning yet?](http://www.arewelearn
 | [kernel](linfa-kernel/) | Kernel methods for data transformation  | Tested  | Pre-processing | Maps feature vector into higher-dimensional space| 
 | [linear](linfa-linear/) | Linear regression | Tested  | Partial fit | Contains Ordinary Least Squares (OLS) | 
 | [logistic](linfa-logistic/) | Logistic regression | Tested  | Partial fit | Builds two-class logistic regression models
-| [reduction](linfa-reduction/) | Dimensional reduction | Tested  | Pre-processing | Diffusion mapping and Principal Component Analysis (PCA) |
+| [reduction](linfa-reduction/) | Dimensionality reduction | Tested  | Pre-processing | Diffusion mapping and Principal Component Analysis (PCA) |
 | [trees](linfa-trees/) | Decision trees | Experimental  | Supervised learning | Linear decision trees
 | [svm](linfa-svm/) | Support Vector Machines | Tested  | Supervised learning | Classification or regression analysis of labeled datasets | 
 
