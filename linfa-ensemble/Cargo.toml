@@ -15,7 +15,6 @@ categories = ["algorithms", "mathematics", "science"]
 [dependencies]
 ndarray = { version = "0.13" , features = ["rayon", "approx"]}
 ndarray-rand = "0.11"
-linfa-clustering = { path = "../linfa-clustering", version = "0.1" }
 linfa-trees = {path = "../linfa-trees", version = "0.1"}
 
 [dev-dependencies]

@@ -16,7 +16,6 @@ categories = ["algorithms", "mathematics", "science"]
 rand = "0.7"
 ndarray = { version = "0.13", features = ["rayon", "serde", "approx"]}
 num-traits = "0.1.32"
-
 linfa-clustering = { path = "linfa-clustering", version = "0.1" }
 linfa-trees = { path = "linfa-trees", version = "0.1" }
 linfa-ensemble = { path = "linfa-ensemble", version = "0.1" }

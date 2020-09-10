@@ -1,8 +1,6 @@
-use linfa_trees::{DecisionTree, DecisionTreeParams};
-use crate::random_forest::hyperparameters::{RandomForestParams,
-                                            RandomForestParamsBuilder,
-                                            MaxFeatures};
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix1, Ix2};
+use linfa_trees::DecisionTree;
+use crate::random_forest::hyperparameters::RandomForestParams;
+use ndarray::{Array1, ArrayBase, Data, Ix1, Ix2};
 use ndarray_rand::rand_distr::Uniform;
 use ndarray::Axis;
 use ndarray::Array;
@@ -21,75 +19,66 @@ impl RandomForest {
         x: &ArrayBase<impl Data<Elem = f64>, Ix2>,
         y: &ArrayBase<impl Data<Elem = u64>, Ix1>,
     ) -> Self {
+        let n_estimators = hyperparameters.n_estimators;
+        let mut trees: Vec<DecisionTree> = Vec::with_capacity(n_estimators);
+        let single_tree_params = hyperparameters.tree_hyperparameters;
 
-    let n_estimators = hyperparameters.n_estimators;
-    let mut trees: Vec<DecisionTree> = Vec::with_capacity(n_estimators);
-    let single_tree_params = hyperparameters.tree_hyperparameters;
+        //TODO check bootstrap
+        let _bootstrap = hyperparameters.bootstrap;
 
-    //TODO check bootstrap
-    let _bootstrap = hyperparameters.bootstrap;
-
-    for _ in 0..n_estimators {
-        // Bagging here
-        let rnd_idx = Array::random((1, x.nrows()), Uniform::new(0, x.nrows())).into_raw_vec();
-        let xsample = x.select(Axis(0), &rnd_idx);
-        let ysample = y.select(Axis(0), &rnd_idx);
-
-        let tree = DecisionTree::fit(single_tree_params, &xsample, &ysample);
-        trees.push(tree);
+        for _ in 0..n_estimators {
+            // Bagging here
+            let rnd_idx = Array::random((1, x.nrows()), Uniform::new(0, x.nrows())).into_raw_vec();
+            let xsample = x.select(Axis(0), &rnd_idx);
+            let ysample = y.select(Axis(0), &rnd_idx);
+            let tree = DecisionTree::fit(single_tree_params, &xsample, &ysample);
+            trees.push(tree);
     }
 
     Self {
         hyperparameters: hyperparameters,
         trees: trees
-    }
-
-
+        }
     }
 
     pub fn predict(&self, x: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<u64> {
         let ntrees = self.hyperparameters.n_estimators;
         assert!(ntrees > 0, "Run .fit() method first");
 
-        let mut predictions: Array2<u64> = Array2::zeros((ntrees, x.nrows()));
-
-        for i in 0..ntrees {
-            let single_pred = self.trees[i].predict(&x);
-            dbg!("single pred: ", &single_pred);
-
-            // TODO more rusty?
-            for j in 0..single_pred.len() {
-                predictions[[i, j]] = single_pred[j];
-            }
-        }
-
-
         let mut result: Vec<u64> = Vec::with_capacity(x.nrows());
-        for j in 0..predictions.ncols() {
+        let flattened: Vec<Vec<u64>> = self.trees.iter()
+        .map(|tree| {
+            let single_pred = tree.predict(&x).to_vec();
+            single_pred
+        }).collect();
+
+        for sample_idx in 0..x.nrows() {
+            // hashmap to store most common prediction across trees
             let mut counter_stats: HashMap<u64, u64> = HashMap::new();
-            for i in 0..ntrees {
-                *counter_stats.entry(predictions[[i,j]]).or_insert(0) += 1;
+            for sp in &flattened {
+                *counter_stats.entry(sp[sample_idx]).or_insert(0) += 1;
             }
 
+            // aggregate counters to final prediction
             let final_pred = counter_stats
                             .iter()
                             .max_by(|a,b| a.1.cmp(&b.1))
                             .map(|(k, _v)| k)
                             .unwrap();
+
             result.push(*final_pred);
         }
-
         Array1::from(result)
     }
-
-
 }
 
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    use linfa_trees::DecisionTreeParams;
+    use crate::random_forest::hyperparameters::{RandomForestParamsBuilder,
+            MaxFeatures};
 
     #[test]
     fn test_random_forest_fit() {
@@ -114,7 +103,7 @@ mod tests {
                                                 .min_samples_leaf(2 as u64)
                                                 .build();
         // Define parameters of random forest
-        let ntrees = 100;
+        let ntrees = 30;
         let rf_params = RandomForestParamsBuilder::new(tree_params, ntrees)
                                                         .max_features(Some(MaxFeatures::Auto))
                                                         .build();

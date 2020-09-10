@@ -1,9 +1,14 @@
 use linfa_trees::DecisionTreeParams;
 
+#[derive(Clone, Copy)]
 pub struct RandomForestParams {
+    // number of decision trees to fit
     pub n_estimators: usize,
+    // single tree hyperparameters
     pub tree_hyperparameters: DecisionTreeParams,
+    // max number of features for the ensemble
     pub max_features: u64,
+    // use all dataset or not
     pub bootstrap: bool
 }
 
