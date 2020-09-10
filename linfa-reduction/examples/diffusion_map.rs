@@ -5,8 +5,6 @@ use ndarray_npy::write_npy;
 use ndarray_rand::rand::SeedableRng;
 use rand_isaac::Isaac64Rng;
 
-// A routine K-means task: build a synthetic dataset, fit the algorithm on it
-// and save both training data and predictions to disk.
 fn main() {
     // Our random number generator, seeded for reproducibility
     let mut rng = Isaac64Rng::seed_from_u64(42);
