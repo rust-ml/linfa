@@ -1,14 +1,14 @@
 # Decision tree learning
 
-`linfa-tree` provides methods for decision tree learning algorithms.
+`linfa-trees` provides methods for decision tree learning algorithms.
 
 ## The Big Picture
 
-`linfa-tree` is a crate in the [`linfa`](https://crates.io/crates/linfa) ecosystem, an effort to create a toolkit for classical Machine Learning implemented in pure Rust, akin to Python's `scikit-learn`.
+`linfa-trees` is a crate in the [`linfa`](https://crates.io/crates/linfa) ecosystem, an effort to create a toolkit for classical Machine Learning implemented in pure Rust, akin to Python's `scikit-learn`.
 
 ## Current state
 
-`linfa-tree` currently provides an implementation of single tree fitting
+`linfa-trees` currently provides an implementation of single tree fitting
 
 ## Examples
 
