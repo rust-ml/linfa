@@ -1,3 +1,5 @@
+use ndarray::{Array1, Array2, s};
+
 pub trait Float {}
 
 /// Linear regression with both L1 and L2 regularization
@@ -92,7 +94,7 @@ impl ElasticNet {
         self
     }
 
-    pub fn fit(&self) -> FittedElasticNet {
+    pub fn fit(&self, x: &Array2<f64>, y: &Array1<f64>) -> FittedElasticNet {
         FittedElasticNet {}
     }
 }
@@ -117,9 +119,36 @@ fn soft_threshold(z: f64, gamma: f64) -> f64 {
     }
 }
 
+/// Computes a single element-wise parameter update 
+/// S(\sum_i(x_ij * r_i) + beta_j, lambda * alpha)
+///     / (1 + lambda * (1 - alpha))
+/// where `S` is the soft_threshold function defined above
+fn next_beta_j(beta_j: f64, sum_xij_ri: f64, lambda: f64, alpha_lambda: f64) -> f64 {
+    // quotient could be pre-computed
+    soft_threshold(sum_xij_ri + beta_j, alpha_lambda) / (1.0 + lambda - alpha_lambda)
+}
+
+/// Compute one step of parameter updates
+fn step(x: &Array2<f64>, y: &Array1<f64>, beta: &Array1<f64>, alpha: f64, lambda: f64) -> Array1<f64> {
+    let alpha_lambda = alpha * lambda;
+    let mut r = y - &x.dot(beta);
+    let mut next_beta = beta.clone();
+    let n = beta.len();
+    for j in 0..n {
+        let sum_xij_ri = x.slice(s![.., j]).dot(&r) / n as f64;
+        let beta_j = next_beta_j(beta[j], sum_xij_ri, lambda, alpha_lambda);
+        if beta_j != beta[j] {
+            next_beta[j] = beta_j;
+            r = y - &x.dot(&next_beta);
+        }
+    }
+    next_beta
+}
+
 #[cfg(test)]
 mod tests {
-    use super::soft_threshold;
+    use super::{soft_threshold, step};
+    use ndarray::array;
 
     #[test]
     fn soft_threshold_works() {
@@ -128,5 +157,14 @@ mod tests {
         assert_eq!(soft_threshold(0.0, 1.0), 0.0);
         assert_eq!(soft_threshold(2.0, 1.0), 1.0);
         assert_eq!(soft_threshold(-2.0, 1.0), -1.0);
+    }
+
+    #[test]
+    fn step_does_something() {
+        let x = array![[1., 2.], [3., 4.]];
+        let y = array![1., 2.];
+        let beta = array![0., 0.];
+        let next_beta = step(&x, &y, &beta, 0.5, 1.0);
+        assert_ne!(beta, next_beta);
     }
 }
