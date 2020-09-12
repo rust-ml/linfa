@@ -13,34 +13,33 @@ pub struct RandomForestParams {
 pub enum MaxFeatures {
     Auto,
     Sqrt,
-    Log2
+    Log2,
 }
 
 pub struct RandomForestParamsBuilder {
     tree_hyperparameters: DecisionTreeParams,
     n_estimators: usize,
     max_features: Option<MaxFeatures>,
-    bootstrap: Option<bool>
+    bootstrap: Option<bool>,
 }
 
 impl RandomForestParamsBuilder {
     pub fn new(
         tree_hyperparameters: DecisionTreeParams,
-        n_estimators: usize) -> RandomForestParamsBuilder {
-            RandomForestParamsBuilder {
-                tree_hyperparameters,
-                n_estimators,
-                max_features: Some(MaxFeatures::Auto),
-                bootstrap: Some(false)
-            }
+        n_estimators: usize,
+    ) -> RandomForestParamsBuilder {
+        RandomForestParamsBuilder {
+            tree_hyperparameters,
+            n_estimators,
+            max_features: Some(MaxFeatures::Auto),
+            bootstrap: Some(false),
         }
+    }
 
-    pub fn set_tree_hyperparameters(
-        mut self,
-        tree_hyperparameters: DecisionTreeParams) -> Self {
-            self.tree_hyperparameters = tree_hyperparameters;
-            self
-        }
+    pub fn set_tree_hyperparameters(mut self, tree_hyperparameters: DecisionTreeParams) -> Self {
+        self.tree_hyperparameters = tree_hyperparameters;
+        self
+    }
 
     pub fn n_estimators(mut self, n_estimators: usize) -> Self {
         self.n_estimators = n_estimators;
@@ -64,7 +63,7 @@ impl RandomForestParamsBuilder {
         let max_features = match max_features {
             MaxFeatures::Auto => 42,
             MaxFeatures::Log2 => 42,
-            MaxFeatures::Sqrt => 42
+            MaxFeatures::Sqrt => 42,
         };
         let bootstrap = self.bootstrap.unwrap_or(false);
 
@@ -72,8 +71,7 @@ impl RandomForestParamsBuilder {
             tree_hyperparameters: self.tree_hyperparameters,
             n_estimators: self.n_estimators,
             max_features: max_features,
-            bootstrap: bootstrap
+            bootstrap: bootstrap,
         }
-
     }
 }

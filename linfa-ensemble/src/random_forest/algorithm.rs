@@ -74,6 +74,21 @@ impl RandomForest {
         }
         Array1::from(result)
     }
+
+    /// Collect features from each tree in the forest and return hashmap(feature_idx: counts)
+    ///
+    pub fn feature_importances(&self)-> HashMap<usize, usize>{
+        let mut counter: HashMap<usize, usize> = HashMap::new();
+        for st in &self.trees {
+            // features in the single tree
+            let st_feats = st.features();
+            for f in st_feats.iter() {
+                *counter.entry(*f).or_insert(0) += 1
+            }
+        }
+
+        counter
+    }
 }
 
 
@@ -107,12 +122,15 @@ mod tests {
                                                 .min_samples_leaf(2 as u64)
                                                 .build();
         // Define parameters of random forest
-        let ntrees = 100;
+        let ntrees = 500;
         let rf_params = RandomForestParamsBuilder::new(tree_params, ntrees)
                                                         .max_features(Some(MaxFeatures::Auto))
                                                         .build();
         let rf = RandomForest::fit(rf_params, &xtrain, &ytrain, None);
         assert_eq!(rf.trees.len(), ntrees);
+
+        let imp = rf.feature_importances();
+        dbg!("Feature importances: ", imp);
 
         let preds = rf.predict(&xtrain);
         dbg!("Predictions: {}", preds);
