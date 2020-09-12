@@ -274,7 +274,7 @@ impl DecisionTree {
         let mut queue: Vec<TreeNode> = vec![];
         // vector of feature indexes to return
         let mut fitted_features: Vec<usize> = vec![];
-        let mut num_nodes = 0;
+        let mut _num_nodes = 0;
         // starting node
         let root = self.root_node.clone();
         queue.push(root);
