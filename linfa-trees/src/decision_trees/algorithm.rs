@@ -1,5 +1,7 @@
 use crate::decision_trees::hyperparameters::{DecisionTreeParams, SplitQuality};
 use ndarray::{Array1, ArrayBase, Axis, Data, Ix1, Ix2};
+use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
 use std::iter::FromIterator;
 
 /// `RowMask` is used to track which rows are still included up to a particular
@@ -36,7 +38,7 @@ impl SortedIndex {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct TreeNode {
     feature_idx: usize,
     split_value: f64,
@@ -44,6 +46,24 @@ struct TreeNode {
     right_child: Option<Box<TreeNode>>,
     leaf_node: bool,
     prediction: u64,
+}
+
+impl Hash for TreeNode {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        let mut stuff: Vec<u64> = vec![];
+        stuff.push(self.feature_idx as u64);
+        stuff.push(self.prediction);
+        stuff.push(self.leaf_node as u64);
+        stuff.hash(state);
+    }
+}
+
+impl Eq for TreeNode {}
+
+impl PartialEq for TreeNode {
+    fn eq(&self, other: &Self) -> bool {
+        self.feature_idx == other.feature_idx
+    }
 }
 
 impl TreeNode {
@@ -243,6 +263,55 @@ impl DecisionTree {
                 .into_iter()
                 .map(|row| make_prediction(&row, &self.root_node)),
         )
+    }
+
+    /// Return features_idx of this tree (BFT)
+    ///
+    pub fn features(&self) -> Vec<usize> {
+        // features visited and counted
+        let mut visited: HashSet<TreeNode> = HashSet::new();
+        // queue of nodes yet to explore
+        let mut queue: Vec<TreeNode> = vec![];
+        // vector of feature indexes to return
+        let mut fitted_features: Vec<usize> = vec![];
+        let mut num_nodes = 0;
+        // starting node
+        let root = self.root_node.clone();
+        queue.push(root);
+
+        while !queue.is_empty() {
+            let s = queue.pop();
+            if let Some(node) = s {
+                // count only internal nodes (where features are)
+                if !node.leaf_node {
+                    num_nodes += 1;
+                    // add feature index to list of used features
+                    fitted_features.push(node.feature_idx);
+                }
+
+                // get children and enque them
+                let lc = match node.left_child {
+                    Some(child) => Some(*child),
+                    _ => None,
+                };
+                let rc = match node.right_child {
+                    Some(child) => Some(*child),
+                    _ => None,
+                };
+                let children = vec![lc, rc];
+                for child in children {
+                    // extract TreeNode if any
+                    if let Some(node) = child {
+                        if !visited.contains(&node) {
+                            visited.insert(node.clone());
+                            queue.push(node);
+                        }
+                    }
+                }
+            }
+        }
+
+        fitted_features
     }
 
     pub fn hyperparameters(&self) -> &DecisionTreeParams {

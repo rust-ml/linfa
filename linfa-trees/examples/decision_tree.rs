@@ -78,4 +78,7 @@ fn main() {
         "Test accuracy with Entropy criterion: {:.2}%",
         100.0 * accuracy(&test_y, &entropy_pred_y)
     );
+
+    let feats = entropy_model.features();
+    println!("Features trained in this tree {:?}", feats);
 }
