@@ -273,7 +273,6 @@ impl DecisionTree {
         let mut queue: Vec<TreeNode> = vec![];
         // vector of feature indexes to return
         let mut fitted_features: Vec<usize> = vec![];
-        let mut _num_nodes = 0;
         // starting node
         let root = self.root_node.clone();
         queue.push(root);
@@ -283,7 +282,6 @@ impl DecisionTree {
             if let Some(node) = s {
                 // count only internal nodes (where features are)
                 if !node.leaf_node {
-                    num_nodes += 1;
                     // add feature index to list of used features
                     fitted_features.push(node.feature_idx);
                 }
