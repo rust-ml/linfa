@@ -18,8 +18,6 @@ fn accuracy(
     true_positive / labels.len() as f64
 }
 
-// A routine K-means task: build a synthetic dataset, fit the algorithm on it
-// and save both training data and predictions to disk.
 fn main() {
     // Our random number generator, seeded for reproducibility
     let mut rng = Isaac64Rng::seed_from_u64(42);
