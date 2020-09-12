@@ -122,7 +122,7 @@ mod tests {
                                                 .min_samples_leaf(2 as u64)
                                                 .build();
         // Define parameters of random forest
-        let ntrees = 500;
+        let ntrees = 50;
         let rf_params = RandomForestParamsBuilder::new(tree_params, ntrees)
                                                         .max_features(Some(MaxFeatures::Auto))
                                                         .build();
