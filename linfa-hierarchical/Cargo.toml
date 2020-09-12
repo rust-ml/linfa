@@ -1,0 +1,31 @@
+[package]
+name = "linfa-hierarchical"
+version = "0.1.0"
+authors = ["Lorenz Schmidt <lorenz.schmidt@mailbox.org>"]
+edition = "2018"
+
+description = "Support Vector Machines"
+license = "MIT/Apache-2.0"
+
+repository = "https://github.com/rust-ml/linfa"
+readme = "README.md"
+
+keywords = ["hierachical", "agglomerative", "clustering", "cluster", "machine-learning", "linfa", "unsupervised"]
+categories = ["algorithms", "mathematics", "science"]
+
+[features]
+default = []
+openblas = ["linfa-kernel/openblas"]
+intel-mkl = ["linfa-kernel/intel-mkl"]
+netlib = ["linfa-kernel/netlib"]
+
+[dependencies]
+ndarray = { version = "0.13", default-features = false }
+kodama = "0.2"
+linfa-kernel = { path = "../linfa-kernel" }
+
+[dev-dependencies]
+ndarray-rand = "0.11"
+csv = "1.1"
+ndarray-csv = "0.4"
+flate2 = "1.0"
