@@ -1,4 +1,4 @@
-use ndarray::{Array1, Array2, s};
+use ndarray::{s, Array1, Array2};
 
 pub trait Float {}
 
@@ -140,7 +140,7 @@ fn soft_threshold(z: f64, gamma: f64) -> f64 {
     }
 }
 
-/// Computes a single element-wise parameter update 
+/// Computes a single element-wise parameter update
 /// S(\sum_i(x_ij * r_i) + beta_j, lambda * alpha)
 ///     / (1 + lambda * (1 - alpha))
 /// where `S` is the soft_threshold function defined above
@@ -150,7 +150,13 @@ fn next_beta_j(beta_j: f64, sum_xij_ri: f64, lambda: f64, alpha_lambda: f64) -> 
 }
 
 /// Compute one step of parameter updates
-fn step(x: &Array2<f64>, y: &Array1<f64>, beta: &Array1<f64>, alpha: f64, lambda: f64) -> (Array1<f64>, f64) {
+fn step(
+    x: &Array2<f64>,
+    y: &Array1<f64>,
+    beta: &Array1<f64>,
+    alpha: f64,
+    lambda: f64,
+) -> (Array1<f64>, f64) {
     let alpha_lambda = alpha * lambda;
     let mut r = y - &x.dot(beta);
     let mut next_beta = beta.clone();
@@ -172,7 +178,14 @@ fn step(x: &Array2<f64>, y: &Array1<f64>, beta: &Array1<f64>, alpha: f64, lambda
 }
 
 // FIXME: only handles standardized and centered problems
-fn coordinate_descent(x: &Array2<f64>, y: &Array1<f64>, tol: f64, max_steps: u32, alpha: f64, lambda: f64) -> (Array1<f64>, u32) {
+fn coordinate_descent(
+    x: &Array2<f64>,
+    y: &Array1<f64>,
+    tol: f64,
+    max_steps: u32,
+    alpha: f64,
+    lambda: f64,
+) -> (Array1<f64>, u32) {
     let mut beta = Array1::zeros(x.shape()[1]);
     let mut num_steps = 0u32;
     let mut max_change = f64::INFINITY;
@@ -185,7 +198,14 @@ fn coordinate_descent(x: &Array2<f64>, y: &Array1<f64>, tol: f64, max_steps: u32
     (beta, num_steps)
 }
 
-fn elastic_net_objective(x: &Array2<f64>, y: &Array1<f64>, intercept: f64, beta: &Array1<f64>, alpha: f64, lambda: f64) -> f64 {
+fn elastic_net_objective(
+    x: &Array2<f64>,
+    y: &Array1<f64>,
+    intercept: f64,
+    beta: &Array1<f64>,
+    alpha: f64,
+    lambda: f64,
+) -> f64 {
     squared_error(x, y, intercept, beta) + lambda * elastic_net_penalty(beta, alpha)
 }
 
@@ -211,17 +231,20 @@ fn elastic_net_penalty(beta: &Array1<f64>, alpha: f64) -> f64 {
 
 #[cfg(test)]
 mod tests {
-    use approx::abs_diff_eq;
+    use super::{
+        coordinate_descent, elastic_net_objective, elastic_net_penalty, soft_threshold,
+        squared_error, step, ElasticNet,
+    };
+    use approx::{abs_diff_eq, assert_abs_diff_eq};
     use ndarray::array;
-    use super::{coordinate_descent, elastic_net_objective, elastic_net_penalty, soft_threshold, squared_error, step};
 
     #[test]
     fn soft_threshold_works() {
-        assert_eq!(soft_threshold(1.0, 1.0), 0.0);
-        assert_eq!(soft_threshold(-1.0, 1.0), 0.0);
-        assert_eq!(soft_threshold(0.0, 1.0), 0.0);
-        assert_eq!(soft_threshold(2.0, 1.0), 1.0);
-        assert_eq!(soft_threshold(-2.0, 1.0), -1.0);
+        abs_diff_eq!(soft_threshold(1.0, 1.0), 0.0);
+        abs_diff_eq!(soft_threshold(-1.0, 1.0), 0.0);
+        abs_diff_eq!(soft_threshold(0.0, 1.0), 0.0);
+        abs_diff_eq!(soft_threshold(2.0, 1.0), 1.0);
+        abs_diff_eq!(soft_threshold(-2.0, 1.0), -1.0);
     }
 
     #[test]
@@ -264,7 +287,10 @@ mod tests {
         let lambda = 0.001;
         let objective_start = elastic_net_objective(&x, &y, intercept, &beta, alpha, lambda);
         let opt_result = coordinate_descent(&x, &y, 1e-4, 3, alpha, lambda);
-        println!("num_steps = {}\nnew_beta = {:?}", opt_result.1, opt_result.0);
+        println!(
+            "num_steps = {}\nnew_beta = {:?}",
+            opt_result.1, opt_result.0
+        );
         let objective_end = elastic_net_objective(&x, &y, intercept, &opt_result.0, alpha, lambda);
         assert!(objective_start > objective_end);
     }
