@@ -1,3 +1,4 @@
+use approx::abs_diff_ne;
 use ndarray::{s, Array1, Array2};
 
 pub trait Float {}
@@ -9,11 +10,11 @@ pub trait Float {}
 ///             + alpha * l1_ratio * ||w||_1
 ///             + 0.5 * alpha * (1 - l1_ratio) * ||w||^2_2
 /// where:
-///
-///             alpha = a + b and l1_ration = a / (a + b)
+/// 
+/// alpha = a + b and l1_ration = a / (a + b)
 ///
 pub struct ElasticNet {
-    alpha: f64,
+    penalty: f64,
     l1_ratio: f64,
     normalization_options: NormalizationOptions,
     max_iterations: u32,
@@ -43,7 +44,7 @@ pub struct FittedElasticNet {
 impl ElasticNet {
     pub fn new() -> ElasticNet {
         ElasticNet {
-            alpha: 1.0,
+            penalty: 1.0,
             l1_ratio: 0.5,
             normalization_options: NormalizationOptions::WithIntercept,
             max_iterations: 1000,
@@ -53,8 +54,8 @@ impl ElasticNet {
         }
     }
 
-    pub fn alpha(mut self, alpha: f64) -> Self {
-        self.alpha = alpha;
+    pub fn penalty(mut self, penalty: f64) -> Self {
+        self.penalty = penalty;
         self
     }
 
@@ -105,7 +106,7 @@ impl ElasticNet {
             self.tolerance,
             self.max_iterations,
             self.l1_ratio,
-            self.alpha,
+            self.penalty,
         );
         FittedElasticNet {
             intercept,
@@ -165,7 +166,7 @@ fn step(
     for j in 0..n {
         let sum_xij_ri = x.slice(s![.., j]).dot(&r) / n as f64;
         let beta_j = next_beta_j(beta[j], sum_xij_ri, lambda, alpha_lambda);
-        if beta_j != beta[j] {
+        if abs_diff_ne!(beta_j, beta[j]) {
             let abs_change = (beta_j - beta[j]).abs();
             if abs_change > max_change {
                 max_change = abs_change;
@@ -235,16 +236,16 @@ mod tests {
         coordinate_descent, elastic_net_objective, elastic_net_penalty, soft_threshold,
         squared_error, step, ElasticNet,
     };
-    use approx::{abs_diff_eq, assert_abs_diff_eq};
+    use approx::{abs_diff_eq, assert_abs_diff_eq, assert_abs_diff_ne};
     use ndarray::array;
 
     #[test]
     fn soft_threshold_works() {
-        abs_diff_eq!(soft_threshold(1.0, 1.0), 0.0);
-        abs_diff_eq!(soft_threshold(-1.0, 1.0), 0.0);
-        abs_diff_eq!(soft_threshold(0.0, 1.0), 0.0);
-        abs_diff_eq!(soft_threshold(2.0, 1.0), 1.0);
-        abs_diff_eq!(soft_threshold(-2.0, 1.0), -1.0);
+        assert_abs_diff_eq!(soft_threshold(1.0, 1.0), 0.0);
+        assert_abs_diff_eq!(soft_threshold(-1.0, 1.0), 0.0);
+        assert_abs_diff_eq!(soft_threshold(0.0, 1.0), 0.0);
+        assert_abs_diff_eq!(soft_threshold(2.0, 1.0), 1.0);
+        assert_abs_diff_eq!(soft_threshold(-2.0, 1.0), -1.0);
     }
 
     #[test]
@@ -253,20 +254,20 @@ mod tests {
         let y = array![1., 2.];
         let beta = array![0., 0.];
         let next_beta = step(&x, &y, &beta, 0.5, 1.0).0;
-        assert_ne!(beta, next_beta);
+        assert_abs_diff_ne!(beta, next_beta);
     }
 
     #[test]
     fn elastic_net_penalty_works() {
         let beta = array![-2.0, 1.0];
-        abs_diff_eq!(elastic_net_penalty(&beta, 0.8), 0.4 + 0.1 + 1.6 + 0.8);
-        abs_diff_eq!(elastic_net_penalty(&beta, 1.0), 3.0);
-        abs_diff_eq!(elastic_net_penalty(&beta, 0.0), 2.5);
+        assert_abs_diff_eq!(elastic_net_penalty(&beta, 0.8), 0.4 + 0.1 + 1.6 + 0.8, epsilon=1e-12);
+        assert_abs_diff_eq!(elastic_net_penalty(&beta, 1.0), 3.0);
+        assert_abs_diff_eq!(elastic_net_penalty(&beta, 0.0), 2.5);
 
         let beta2 = array![0.0, 0.0];
-        abs_diff_eq!(elastic_net_penalty(&beta2, 0.8), 0.0);
-        abs_diff_eq!(elastic_net_penalty(&beta2, 1.0), 0.0);
-        abs_diff_eq!(elastic_net_penalty(&beta2, 0.0), 0.0);
+        assert_abs_diff_eq!(elastic_net_penalty(&beta2, 0.8), 0.0);
+        assert_abs_diff_eq!(elastic_net_penalty(&beta2, 1.0), 0.0);
+        assert_abs_diff_eq!(elastic_net_penalty(&beta2, 0.0), 0.0);
     }
 
     #[test]
@@ -274,7 +275,7 @@ mod tests {
         let x = array![[2.0, 1.0], [-1.0, 2.0]];
         let y = array![1.0, 1.0];
         let beta = array![0.0, 1.0];
-        abs_diff_eq!(squared_error(&x, &y, 0.0, &beta), 0.25);
+        assert_abs_diff_eq!(squared_error(&x, &y, 0.0, &beta), 0.25);
     }
 
     #[test]
@@ -299,7 +300,7 @@ mod tests {
     fn simple_elastic_net_works() {
         let x = array![[1.0, 0.0], [0.0, 1.0]];
         let y = array![1.0, -1.0];
-        let model = ElasticNet::new().alpha(0.0001).l1_ratio(0.8).fit(&x, &y);
+        let model = ElasticNet::new().penalty(0.0001).l1_ratio(0.8).fit(&x, &y);
         assert_abs_diff_eq!(model.intercept(), 0.0);
         assert_abs_diff_eq!(model.parameters(), &array![1.0, -1.0], epsilon = 0.001);
     }
