@@ -1,5 +1,7 @@
 use approx::abs_diff_ne;
-use ndarray::{s, Array1, Array2};
+use ndarray::{s, Array1, Array2, Axis};
+use ndarray_stats::SummaryStatisticsExt;
+
 
 pub trait Float {}
 
@@ -10,7 +12,7 @@ pub trait Float {}
 ///             + alpha * l1_ratio * ||w||_1
 ///             + 0.5 * alpha * (1 - l1_ratio) * ||w||^2_2
 /// where:
-/// 
+///
 /// alpha = a + b and l1_ration = a / (a + b)
 ///
 pub struct ElasticNet {
@@ -99,18 +101,23 @@ impl ElasticNet {
     }
 
     pub fn fit(&self, x: &Array2<f64>, y: &Array1<f64>) -> FittedElasticNet {
-        let intercept = 0.0;
+        let y_mean = y.mean().unwrap();
+        let y_centered = y - y_mean;
+        let x_scale = x.map_axis(Axis(0), |col| col.central_moment(2).unwrap());
+        let x_scaled = x / &x_scale;
         let opt_result = coordinate_descent(
-            &x,
-            &y,
+            &x_scaled,
+            &y_centered,
             self.tolerance,
             self.max_iterations,
             self.l1_ratio,
             self.penalty,
         );
+        let parameters = opt_result.0 / &x_scale;
+        let intercept = y_mean - x.mean_axis(Axis(0)).unwrap().dot(&parameters);
         FittedElasticNet {
             intercept,
-            parameters: opt_result.0,
+            parameters
         }
     }
 }
@@ -260,7 +267,11 @@ mod tests {
     #[test]
     fn elastic_net_penalty_works() {
         let beta = array![-2.0, 1.0];
-        assert_abs_diff_eq!(elastic_net_penalty(&beta, 0.8), 0.4 + 0.1 + 1.6 + 0.8, epsilon=1e-12);
+        assert_abs_diff_eq!(
+            elastic_net_penalty(&beta, 0.8),
+            0.4 + 0.1 + 1.6 + 0.8,
+            epsilon = 1e-12
+        );
         assert_abs_diff_eq!(elastic_net_penalty(&beta, 1.0), 3.0);
         assert_abs_diff_eq!(elastic_net_penalty(&beta, 0.0), 2.5);
 
