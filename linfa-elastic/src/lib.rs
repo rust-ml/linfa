@@ -16,10 +16,10 @@ pub struct ElasticNet {
     alpha: f64,
     l1_ratio: f64,
     normalization_options: NormalizationOptions,
-    max_iterations: u64,
+    max_iterations: u32,
     tolerance: f64,
     random_seed: Option<u64>,
-    parameter_selection: ParameterSelection
+    parameter_selection: ParameterSelection,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -35,7 +35,10 @@ pub enum ParameterSelection {
     Random,
 }
 
-pub struct FittedElasticNet {}
+pub struct FittedElasticNet {
+    parameters: Array1<f64>,
+    intercept: f64,
+}
 
 impl ElasticNet {
     pub fn new() -> ElasticNet {
@@ -79,7 +82,7 @@ impl ElasticNet {
         self
     }
 
-    pub fn max_iterations(mut self, max_iterations: u64) -> Self {
+    pub fn max_iterations(mut self, max_iterations: u32) -> Self {
         self.max_iterations = max_iterations;
         self
     }
@@ -95,7 +98,19 @@ impl ElasticNet {
     }
 
     pub fn fit(&self, x: &Array2<f64>, y: &Array1<f64>) -> FittedElasticNet {
-        FittedElasticNet {}
+        let intercept = 0.0;
+        let opt_result = coordinate_descent(
+            &x,
+            &y,
+            self.tolerance,
+            self.max_iterations,
+            self.l1_ratio,
+            self.alpha,
+        );
+        FittedElasticNet {
+            intercept,
+            parameters: opt_result.0,
+        }
     }
 }
 
@@ -107,6 +122,12 @@ impl Default for ElasticNet {
 
 impl FittedElasticNet {
     pub fn predict(&self) {}
+    pub fn parameters(&self) -> &Array1<f64> {
+        &self.parameters
+    }
+    pub fn intercept(&self) -> f64 {
+        self.intercept
+    }
 }
 
 fn soft_threshold(z: f64, gamma: f64) -> f64 {
@@ -246,5 +267,14 @@ mod tests {
         println!("num_steps = {}\nnew_beta = {:?}", opt_result.1, opt_result.0);
         let objective_end = elastic_net_objective(&x, &y, intercept, &opt_result.0, alpha, lambda);
         assert!(objective_start > objective_end);
+    }
+
+    #[test]
+    fn simple_elastic_net_works() {
+        let x = array![[1.0, 0.0], [0.0, 1.0]];
+        let y = array![1.0, -1.0];
+        let model = ElasticNet::new().alpha(0.0001).l1_ratio(0.8).fit(&x, &y);
+        assert_abs_diff_eq!(model.intercept(), 0.0);
+        assert_abs_diff_eq!(model.parameters(), &array![1.0, -1.0], epsilon = 0.001);
     }
 }
