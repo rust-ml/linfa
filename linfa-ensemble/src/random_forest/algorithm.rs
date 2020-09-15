@@ -49,9 +49,7 @@ impl RandomForest {
         let flattened: Vec<Vec<u64>> = self
             .trees
             .iter()
-            .map(|tree| {
-                tree.predict(&x).to_vec()
-            })
+            .map(|tree| tree.predict(&x).to_vec())
             .collect();
 
         for sample_idx in 0..x.nrows() {
@@ -128,10 +126,7 @@ mod tests {
         let imp = rf.feature_importances();
         dbg!("Feature importances: ", &imp);
 
-        let most_imp_feat = imp
-        .iter()
-        .max_by(|a, b| a.1.cmp(&b.1))
-        .map(|(k, _v)| k);
+        let most_imp_feat = imp.iter().max_by(|a, b| a.1.cmp(&b.1)).map(|(k, _v)| k);
         assert_eq!(most_imp_feat, Some(&4));
 
         let preds = rf.predict(&xtrain);
