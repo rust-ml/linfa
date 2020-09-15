@@ -2,7 +2,6 @@ use approx::abs_diff_ne;
 use ndarray::{s, Array1, Array2, Axis};
 use ndarray_stats::SummaryStatisticsExt;
 
-
 pub trait Float {}
 
 /// Linear regression with both L1 and L2 regularization
@@ -103,8 +102,13 @@ impl ElasticNet {
     pub fn fit(&self, x: &Array2<f64>, y: &Array1<f64>) -> FittedElasticNet {
         let y_mean = y.mean().unwrap();
         let y_centered = y - y_mean;
-        let x_scale = x.map_axis(Axis(0), |col| col.central_moment(2).unwrap());
+        let x_scale = x.map_axis(Axis(0), |col| col.central_moment(2).unwrap().sqrt());
         let x_scaled = x / &x_scale;
+        eprintln!("y_centered = {}, x_scaled = {}", y_centered, x_scaled);
+        eprintln!(
+            "x_scaled.var() = {}",
+            x_scaled.map_axis(Axis(0), |col| col.central_moment(2).unwrap())
+        );
         let opt_result = coordinate_descent(
             &x_scaled,
             &y_centered,
@@ -113,11 +117,19 @@ impl ElasticNet {
             self.l1_ratio,
             self.penalty,
         );
+        eprintln!("opt_result.0 = {}", opt_result.0);
         let parameters = opt_result.0 / &x_scale;
-        let intercept = y_mean - x.mean_axis(Axis(0)).unwrap().dot(&parameters);
+        eprintln!(
+            "y_mean = {}, x_mean = {}, parameters = {}, x_scale = {}",
+            y_mean,
+            x.mean_axis(Axis(0)).unwrap(),
+            parameters,
+            x_scale
+        );
+        let intercept = y_mean;
         FittedElasticNet {
             intercept,
-            parameters
+            parameters,
         }
     }
 }
@@ -202,6 +214,13 @@ fn coordinate_descent(
         beta = step_result.0;
         max_change = step_result.1;
         num_steps += 1;
+        eprintln!(
+            "step {}: max_change: {}, beta: {}, objective: {}",
+            num_steps,
+            max_change,
+            beta,
+            elastic_net_objective(x, y, 0.0, &beta, alpha, lambda)
+        );
     }
     (beta, num_steps)
 }
@@ -214,6 +233,11 @@ fn elastic_net_objective(
     alpha: f64,
     lambda: f64,
 ) -> f64 {
+    eprintln!(
+        "sqE = {}, pen = {}",
+        squared_error(x, y, intercept, beta),
+        lambda * elastic_net_penalty(beta, alpha)
+    );
     squared_error(x, y, intercept, beta) + lambda * elastic_net_penalty(beta, alpha)
 }
 
@@ -243,7 +267,7 @@ mod tests {
         coordinate_descent, elastic_net_objective, elastic_net_penalty, soft_threshold,
         squared_error, step, ElasticNet,
     };
-    use approx::{abs_diff_eq, assert_abs_diff_eq, assert_abs_diff_ne};
+    use approx::{assert_abs_diff_eq, assert_abs_diff_ne};
     use ndarray::array;
 
     #[test]
@@ -310,9 +334,13 @@ mod tests {
     #[test]
     fn simple_elastic_net_works() {
         let x = array![[1.0, 0.0], [0.0, 1.0]];
-        let y = array![1.0, -1.0];
-        let model = ElasticNet::new().penalty(0.0001).l1_ratio(0.8).fit(&x, &y);
-        assert_abs_diff_eq!(model.intercept(), 0.0);
-        assert_abs_diff_eq!(model.parameters(), &array![1.0, -1.0], epsilon = 0.001);
+        let y = array![3.0, 2.0];
+        let model = ElasticNet::new()
+            .max_iterations(10_000)
+            .penalty(0.01)
+            .l1_ratio(0.5)
+            .fit(&x, &y);
+        assert_abs_diff_eq!(model.intercept(), 2.5);
+        assert_abs_diff_eq!(model.parameters(), &array![0.493, -0.493], epsilon = 0.001);
     }
 }
