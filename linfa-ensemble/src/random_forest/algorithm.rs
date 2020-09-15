@@ -22,7 +22,7 @@ impl RandomForest {
         let n_estimators = hyperparameters.n_estimators;
         let mut trees: Vec<DecisionTree> = Vec::with_capacity(n_estimators);
         let single_tree_params = hyperparameters.tree_hyperparameters;
-        let max_n_rows = max_n_rows.unwrap_or(x.nrows());
+        let max_n_rows = max_n_rows.unwrap_or_else(|| x.nrows());
 
         //TODO check bootstrap
         let _bootstrap = hyperparameters.bootstrap;
@@ -36,8 +36,8 @@ impl RandomForest {
         }
 
         Self {
-            hyperparameters: hyperparameters,
-            trees: trees,
+            hyperparameters,
+            trees,
         }
     }
 
@@ -50,8 +50,7 @@ impl RandomForest {
             .trees
             .iter()
             .map(|tree| {
-                let single_pred = tree.predict(&x).to_vec();
-                single_pred
+                tree.predict(&x).to_vec()
             })
             .collect();
 

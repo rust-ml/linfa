@@ -73,8 +73,8 @@ impl RandomForestParamsBuilder {
         RandomForestParams {
             tree_hyperparameters: self.tree_hyperparameters,
             n_estimators: self.n_estimators,
-            max_features: max_features,
-            bootstrap: bootstrap,
+            max_features,
+            bootstrap,
         }
     }
 }
