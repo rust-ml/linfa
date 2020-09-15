@@ -126,7 +126,13 @@ mod tests {
         assert_eq!(rf.trees.len(), ntrees);
 
         let imp = rf.feature_importances();
-        dbg!("Feature importances: ", imp);
+        dbg!("Feature importances: ", &imp);
+
+        let most_imp_feat = imp
+        .iter()
+        .max_by(|a, b| a.1.cmp(&b.1))
+        .map(|(k, _v)| k);
+        assert_eq!(most_imp_feat, Some(&4));
 
         let preds = rf.predict(&xtrain);
         dbg!("Predictions: {}", preds);
