@@ -270,12 +270,12 @@ impl DecisionTree {
         // features visited and counted
         let mut visited: HashSet<TreeNode> = HashSet::new();
         // queue of nodes yet to explore
-        let mut queue: Vec<TreeNode> = vec![];
+        let mut queue: Vec<&TreeNode> = vec![];
         // vector of feature indexes to return
         let mut fitted_features: Vec<usize> = vec![];
         // starting node
         let root = self.root_node.clone();
-        queue.push(root);
+        queue.push(&root);
 
         while !queue.is_empty() {
             let s = queue.pop();
@@ -287,12 +287,12 @@ impl DecisionTree {
                 }
 
                 // get children and enque them
-                let lc = match node.left_child {
-                    Some(child) => Some(*child),
+                let lc = match &node.left_child {
+                    Some(child) => Some(child),
                     _ => None,
                 };
-                let rc = match node.right_child {
-                    Some(child) => Some(*child),
+                let rc = match &node.right_child {
+                    Some(child) => Some(child),
                     _ => None,
                 };
                 let children = vec![lc, rc];
@@ -300,8 +300,8 @@ impl DecisionTree {
                     // extract TreeNode if any
                     if let Some(node) = child {
                         if !visited.contains(&node) {
-                            visited.insert(node.clone());
-                            queue.push(node);
+                            visited.insert(*node.clone());
+                            queue.push(&node);
                         }
                     }
                 }
