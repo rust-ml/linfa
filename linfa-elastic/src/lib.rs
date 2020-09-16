@@ -1,4 +1,4 @@
-use approx::abs_diff_ne;
+use approx::{abs_diff_eq, abs_diff_ne};
 use ndarray::{s, Array1, Array2, Axis};
 use ndarray_stats::SummaryStatisticsExt;
 
@@ -102,7 +102,13 @@ impl ElasticNet {
     pub fn fit(&self, x: &Array2<f64>, y: &Array1<f64>) -> FittedElasticNet {
         let y_mean = y.mean().unwrap();
         let y_centered = y - y_mean;
-        let x_scale = x.map_axis(Axis(0), |col| col.central_moment(2).unwrap().sqrt());
+        let x_scale = x.map_axis(Axis(0), |col| { 
+            let stddev = col.central_moment(2).unwrap().sqrt(); 
+            // If stddev for a feature is 0.0, replace it with 1.0 to make 
+            // scaling work in all cases (all entries are 0.0 anyway, we're
+            // not changing anything, we're just avoiding to produce NaNs)
+            if abs_diff_eq!(stddev, 0.0) { 1.0 } else { stddev }
+        });
         let x_scaled = x / &x_scale;
         eprintln!("y_centered = {}, x_scaled = {}", y_centered, x_scaled);
         eprintln!(
@@ -342,5 +348,14 @@ mod tests {
             .fit(&x, &y);
         assert_abs_diff_eq!(model.intercept(), 2.5);
         assert_abs_diff_eq!(model.parameters(), &array![0.493, -0.493], epsilon = 0.001);
+    }
+
+    #[test]
+    fn lasso_zero_works() {
+        let x = array![[0.], [0.], [0.]];
+        let y = array![0., 0., 0.];
+        let model = ElasticNet::new().l1_ratio(1.0).penalty(0.1).fit(&x, &y);
+        assert_abs_diff_eq!(model.intercept(), 0.);
+        assert_abs_diff_eq!(model.parameters(), &array![0.]);
     }
 }
