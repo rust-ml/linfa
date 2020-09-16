@@ -20,6 +20,7 @@ ndarray-linalg = { version = "0.12", features = ["openblas"] }
 serde = { version = "1", features = ["derive"] }
 num-traits = "0.1.32"
 linfa-kernel = { path = "../linfa-kernel" }
+linfa = { path = ".." }
 
 [dev-dependencies]
 rand_isaac = "0.2.0"

@@ -36,6 +36,10 @@ pub mod clustering {
 
 mod metrics_classification;
 mod metrics_regression;
+pub mod dataset;
+pub mod traits;
+
+pub use dataset::{Float, Label};
 
 /// Common metrics functions for classification and regression
 
