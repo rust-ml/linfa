@@ -1,17 +1,13 @@
-// use ndarray::Array;
-// use ndarray::Axis;
-// use ndarray_rand::rand_distr::Uniform;
-// use ndarray_rand::RandomExt;
-// use std::collections::HashMap;
-use ndarray::{array, Array1, Array2, ArrayBase, Data, Ix1, Ix2};
 use linfa_predictor::Predictor;
+use ndarray::{Array1, ArrayBase, Data, Ix2};
+use std::collections::HashMap;
 
 /// if hard, use predicted labels for majority rule voting
 /// if soft, use the argmax of the sums of the predicted probabilities
 #[derive(Clone)]
 pub enum Voting {
     Hard,
-    Soft
+    Soft,
 }
 
 #[derive(Clone)]
@@ -21,52 +17,61 @@ pub struct VotingClassifier<P: Predictor> {
 }
 
 impl<P: Predictor> VotingClassifier<P> {
-    /// Create new voting classifier. If voting not provided, choose Voting::Hard
-    /// by default
+    /// Create new voting classifier.
+    /// If voting not provided, choose Voting::Hard by default
     pub fn new(estimators: Vec<P>, voting: Option<Voting>) -> VotingClassifier<P> {
         // assign user-defined weights or balanced weights
-        let vote = match voting {
+        let voting = match voting {
             Some(v) => v,
-            None => Voting::Hard
+            None => Voting::Hard,
         };
 
-        VotingClassifier {
-            estimators: estimators,
-            voting: vote,
-        }
+        VotingClassifier { estimators, voting }
     }
-
-    /// This method fits the weights of the ensemble (not the single models)
-    // pub fn fit(
-    //     &mut self,
-    //     x: &ArrayBase<impl Data<Elem = f64>, Ix2>,
-    //     y: &ArrayBase<impl Data<Elem = u64>, Ix1>,
-    // ) -> Vec<f64> {
-    //     let lin_reg = LinearRegression::new().with_intercept(false);
-    //     let A: Array2<f64> = array![[2., 2.], [4., 3.], [2., 2.]];
-    //     let b: Array1<f64> = array![2., 4., 1.];
-    //     let model = lin_reg.fit(&A, &b).unwrap();
-    //     let weights = model.params();
-    //     dbg!("weights: ", &weights);
-    //     let some = weights.to_vec();
-    //     // let _w = &self.weights;
-    //     some
-    // }
 
     /// Call .predict() from each estimator and applies fitted weights to results
     pub fn predict(&self, x: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<u64> {
-        let result: Array1<u64> = Array1::from(vec![1, 2, 3]);
-        // TODO collect predictions from each estimator
-        for e in &self.estimators {
-            // let single_pred = e.predict(&x);
-        }
-        // TODO apply voting (hard or soft)
+        let _result: Array1<u64> = Array1::from(vec![1, 2, 3]);
+        // store predictions from each single model
+        let mut predictions: Vec<Vec<u64>> = vec![];
+        // let mut predictions: Array2::<u64> = Array2::zeros((self.estimators.len(), x.nrows()));
 
-        // TODO return aggregated prediction
+        // collect predictions from each estimator
+        for (_i, e) in self.estimators.iter().enumerate() {
+            let single_pred = e.predict(&x).to_vec();
+            predictions.push(single_pred);
+        }
+
+        // apply voting (hard or soft) and return final result
+        let result: Vec<u64> = match self.voting {
+            Voting::Hard => {
+                let mut res: Vec<u64> = vec![];
+
+                for sample_idx in 0..x.nrows() {
+                    let mut counter: HashMap<u64, u64> = HashMap::new();
+
+                    for sp in &predictions {
+                        *counter.entry(sp[sample_idx]).or_insert(0) += 1;
+                    }
+
+                    res.push(
+                        *counter
+                            .iter()
+                            .max_by(|a, b| a.1.cmp(&b.1))
+                            .map(|(k, _v)| k)
+                            .unwrap(),
+                    );
+                }
+                // dbg!("final pred: ", &res);
+                res
+            }
+
+            Voting::Soft => unimplemented!(),
+        };
+
+        // return aggregated prediction
         Array1::from(result)
     }
-
-
 }
 
 #[cfg(test)]
@@ -75,7 +80,6 @@ mod tests {
     use ndarray::Array;
 
     use super::*;
-
 
     #[test]
     fn test_voting_classifier_fit() {
@@ -99,15 +103,13 @@ mod tests {
             .min_samples_leaf(2 as u64)
             .build();
 
-        let tree_1 = DecisionTree::fit(tree_params, &xtrain, &ytrain);
-        let tree_2 = DecisionTree::fit(tree_params, &xtrain, &ytrain);
-        let tree_3 = DecisionTree::fit(tree_params, &xtrain, &ytrain);
-        let mut vc = VotingClassifier::new(
-                vec![tree_1, tree_2, tree_3],
-                None);
-        // let some = vc.fit(&xtrain, &ytrain);
-        // dbg!("somee: ", &some);
+        let mod1 = DecisionTree::fit(tree_params, &xtrain, &ytrain);
+        let mod2 = DecisionTree::fit(tree_params, &xtrain, &ytrain);
+        let mod3 = DecisionTree::fit(tree_params, &xtrain, &ytrain);
+        let mut vc = VotingClassifier::new(vec![mod1, mod2, mod3], None);
 
-        // let preds = vc.predict(&xtrain, &ytrain);
+        let preds = vc.predict(&xtrain);
+        dbg!("preds: ", &preds);
+        assert_eq!(preds.len(), xtrain.shape()[0]);
     }
 }

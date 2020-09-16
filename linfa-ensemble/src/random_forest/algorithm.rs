@@ -1,4 +1,5 @@
 use crate::random_forest::hyperparameters::RandomForestParams;
+use linfa_predictor::Predictor;
 use linfa_trees::DecisionTree;
 use ndarray::Array;
 use ndarray::Axis;
@@ -6,13 +7,11 @@ use ndarray::{Array1, ArrayBase, Data, Ix1, Ix2};
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
 use std::collections::HashMap;
-use linfa_predictor::Predictor;
 
 pub struct RandomForest {
     pub hyperparameters: RandomForestParams,
     pub trees: Vec<DecisionTree>,
 }
-
 
 impl Predictor for RandomForest {
     fn predict(&self, x: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<u64> {
@@ -57,7 +56,6 @@ impl Predictor for RandomForest {
     }
 }
 
-
 impl RandomForest {
     pub fn fit(
         hyperparameters: RandomForestParams,
@@ -86,7 +84,6 @@ impl RandomForest {
             trees,
         }
     }
-
 
     /// Collect features from each tree in the forest and return hashmap(feature_idx: counts)
     ///
