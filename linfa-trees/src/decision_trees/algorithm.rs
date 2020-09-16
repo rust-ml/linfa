@@ -3,6 +3,7 @@ use ndarray::{Array1, ArrayBase, Axis, Data, Ix1, Ix2};
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 use std::iter::FromIterator;
+use linfa_predictor::Predictor;
 
 /// `RowMask` is used to track which rows are still included up to a particular
 /// node in the tree for one particular feature.
@@ -235,6 +236,18 @@ pub struct DecisionTree {
     root_node: TreeNode,
 }
 
+
+impl Predictor for DecisionTree {
+    /// Make predictions for each row of a matrix of features `x`.
+    fn predict(&self, x: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<u64> {
+        Array1::from_iter(
+            x.genrows()
+                .into_iter()
+                .map(|row| make_prediction(&row, &self.root_node)),
+        )
+    }
+}
+
 impl DecisionTree {
     /// Fit a decision tree using `hyperparamters` on the dataset consisting of
     /// a matrix of features `x` and an array of labels `y`.
@@ -254,15 +267,6 @@ impl DecisionTree {
             hyperparameters,
             root_node,
         }
-    }
-
-    /// Make predictions for each row of a matrix of features `x`.
-    pub fn predict(&self, x: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<u64> {
-        Array1::from_iter(
-            x.genrows()
-                .into_iter()
-                .map(|row| make_prediction(&row, &self.root_node)),
-        )
     }
 
     /// Return features_idx of this tree (BFT)

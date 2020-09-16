@@ -6,11 +6,46 @@ use ndarray::{Array1, ArrayBase, Data, Ix1, Ix2};
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
 use std::collections::HashMap;
+use linfa_predictor::Predictor;
 
 pub struct RandomForest {
     pub hyperparameters: RandomForestParams,
     pub trees: Vec<DecisionTree>,
 }
+
+
+impl Predictor for RandomForest {
+    fn predict(&self, x: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<u64> {
+        let ntrees = self.hyperparameters.n_estimators;
+        assert!(ntrees > 0, "Run .fit() method first");
+
+        let mut result: Vec<u64> = Vec::with_capacity(x.nrows());
+        let flattened: Vec<Vec<u64>> = self
+            .trees
+            .iter()
+            .map(|tree| tree.predict(&x).to_vec())
+            .collect();
+
+        for sample_idx in 0..x.nrows() {
+            // hashmap to store most common prediction across trees
+            let mut counter_stats: HashMap<u64, u64> = HashMap::new();
+            for sp in &flattened {
+                *counter_stats.entry(sp[sample_idx]).or_insert(0) += 1;
+            }
+
+            // aggregate counters to final prediction
+            let final_pred = counter_stats
+                .iter()
+                .max_by(|a, b| a.1.cmp(&b.1))
+                .map(|(k, _v)| k)
+                .unwrap();
+
+            result.push(*final_pred);
+        }
+        Array1::from(result)
+    }
+}
+
 
 impl RandomForest {
     pub fn fit(
@@ -41,35 +76,6 @@ impl RandomForest {
         }
     }
 
-    pub fn predict(&self, x: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<u64> {
-        let ntrees = self.hyperparameters.n_estimators;
-        assert!(ntrees > 0, "Run .fit() method first");
-
-        let mut result: Vec<u64> = Vec::with_capacity(x.nrows());
-        let flattened: Vec<Vec<u64>> = self
-            .trees
-            .iter()
-            .map(|tree| tree.predict(&x).to_vec())
-            .collect();
-
-        for sample_idx in 0..x.nrows() {
-            // hashmap to store most common prediction across trees
-            let mut counter_stats: HashMap<u64, u64> = HashMap::new();
-            for sp in &flattened {
-                *counter_stats.entry(sp[sample_idx]).or_insert(0) += 1;
-            }
-
-            // aggregate counters to final prediction
-            let final_pred = counter_stats
-                .iter()
-                .max_by(|a, b| a.1.cmp(&b.1))
-                .map(|(k, _v)| k)
-                .unwrap();
-
-            result.push(*final_pred);
-        }
-        Array1::from(result)
-    }
 
     /// Collect features from each tree in the forest and return hashmap(feature_idx: counts)
     ///
@@ -116,7 +122,7 @@ mod tests {
             .min_samples_leaf(2 as u64)
             .build();
         // Define parameters of random forest
-        let ntrees = 50;
+        let ntrees = 100;
         let rf_params = RandomForestParamsBuilder::new(tree_params, ntrees)
             .max_features(Some(MaxFeatures::Auto))
             .build();
