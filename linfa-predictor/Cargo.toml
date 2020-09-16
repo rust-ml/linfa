@@ -1,0 +1,9 @@
+[package]
+name = "linfa-predictor"
+version = "0.1.0"
+authors = ["Francesco Gadaleta <francesco@amethix.com>"]
+edition = "2018"
+
+
+[dependencies]
+ndarray = { version = "0.13", default-features = false }
