@@ -6,42 +6,16 @@ use ndarray::{Array1, ArrayBase, Data, Ix1, Ix2};
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
 use std::collections::HashMap;
+use linfa_predictor::Predictor;
 
 pub struct RandomForest {
     pub hyperparameters: RandomForestParams,
     pub trees: Vec<DecisionTree>,
 }
 
-impl RandomForest {
-    pub fn fit(
-        hyperparameters: RandomForestParams,
-        x: &ArrayBase<impl Data<Elem = f64>, Ix2>,
-        y: &ArrayBase<impl Data<Elem = u64>, Ix1>,
-        max_n_rows: Option<usize>,
-    ) -> Self {
-        let n_estimators = hyperparameters.n_estimators;
-        let mut trees: Vec<DecisionTree> = Vec::with_capacity(n_estimators);
-        let single_tree_params = hyperparameters.tree_hyperparameters;
-        let max_n_rows = max_n_rows.unwrap_or_else(|| x.nrows());
 
-        //TODO check bootstrap
-        let _bootstrap = hyperparameters.bootstrap;
-        for _ in 0..n_estimators {
-            // Bagging here
-            let rnd_idx = Array::random((1, max_n_rows), Uniform::new(0, x.nrows())).into_raw_vec();
-            let xsample = x.select(Axis(0), &rnd_idx);
-            let ysample = y.select(Axis(0), &rnd_idx);
-            let tree = DecisionTree::fit(single_tree_params, &xsample, &ysample);
-            trees.push(tree);
-        }
-
-        Self {
-            hyperparameters,
-            trees,
-        }
-    }
-
-    pub fn predict(&self, x: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<u64> {
+impl Predictor for RandomForest {
+    fn predict(&self, x: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<u64> {
         let ntrees = self.hyperparameters.n_estimators;
         assert!(ntrees > 0, "Run .fit() method first");
 
@@ -81,6 +55,38 @@ impl RandomForest {
         }
         Array1::from(result)
     }
+}
+
+
+impl RandomForest {
+    pub fn fit(
+        hyperparameters: RandomForestParams,
+        x: &ArrayBase<impl Data<Elem = f64>, Ix2>,
+        y: &ArrayBase<impl Data<Elem = u64>, Ix1>,
+        max_n_rows: Option<usize>,
+    ) -> Self {
+        let n_estimators = hyperparameters.n_estimators;
+        let mut trees: Vec<DecisionTree> = Vec::with_capacity(n_estimators);
+        let single_tree_params = hyperparameters.tree_hyperparameters;
+        let max_n_rows = max_n_rows.unwrap_or_else(|| x.nrows());
+
+        //TODO check bootstrap
+        let _bootstrap = hyperparameters.bootstrap;
+        for _ in 0..n_estimators {
+            // Bagging here
+            let rnd_idx = Array::random((1, max_n_rows), Uniform::new(0, x.nrows())).into_raw_vec();
+            let xsample = x.select(Axis(0), &rnd_idx);
+            let ysample = y.select(Axis(0), &rnd_idx);
+            let tree = DecisionTree::fit(single_tree_params, &xsample, &ysample);
+            trees.push(tree);
+        }
+
+        Self {
+            hyperparameters,
+            trees,
+        }
+    }
+
 
     /// Collect features from each tree in the forest and return hashmap(feature_idx: counts)
     ///
@@ -127,7 +133,7 @@ mod tests {
             .min_samples_leaf(2 as u64)
             .build();
         // Define parameters of random forest
-        let ntrees = 50;
+        let ntrees = 100;
         let rf_params = RandomForestParamsBuilder::new(tree_params, ntrees)
             .max_features(Some(MaxFeatures::Auto))
             .build();

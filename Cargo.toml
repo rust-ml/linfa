@@ -31,8 +31,8 @@ members = [
     "linfa-trees",
     "linfa-svm",
     "linfa-hierarchical",
-    "linfa-ica",
     "linfa-ensemble",
+    "linfa-predictor",
 ]
 
 [profile.release]
