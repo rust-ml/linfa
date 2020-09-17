@@ -8,6 +8,7 @@ use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
 use std::collections::HashMap;
 
+/// A random forest is composed of independent decision trees performing a prediction and collecting each of them
 pub struct RandomForest {
     pub hyperparameters: RandomForestParams,
     pub trees: Vec<DecisionTree>,
@@ -15,6 +16,11 @@ pub struct RandomForest {
 
 impl Predictor for RandomForest {
     /// Return predicted class for each sample calculated with majority voting
+    ///
+    /// # Arguments
+    ///
+    /// * `x` - A 2D array of floating point elements
+    ///
     ///
     fn predict(&self, x: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<u64> {
         let ntrees = self.hyperparameters.n_estimators;
@@ -161,7 +167,7 @@ mod tests {
             .min_samples_leaf(2 as u64)
             .build();
         // Define parameters of random forest
-        let ntrees = 100000;
+        let ntrees = 300;
         let rf_params = RandomForestParamsBuilder::new(tree_params, ntrees)
             .max_features(Some(MaxFeatures::Auto))
             .build();

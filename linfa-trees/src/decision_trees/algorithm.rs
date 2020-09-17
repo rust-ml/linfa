@@ -245,7 +245,8 @@ impl Predictor for DecisionTree {
                 .map(|row| make_prediction(&row, &self.root_node)),
         )
     }
-
+    /// Predicting probabilities for a decision tree is not defined.
+    /// Function exists as part of Predictor Trait
     fn predict_proba(&self, _x: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Vec<Array1<f64>> {
         unimplemented!()
     }

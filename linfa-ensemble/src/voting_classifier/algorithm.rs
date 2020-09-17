@@ -2,8 +2,6 @@ use linfa_predictor::Predictor;
 use ndarray::{Array1, ArrayBase, Data, Ix2};
 use std::collections::HashMap;
 
-/// if hard, use predicted labels for majority rule voting
-/// if soft, use the argmax of the sums of the predicted probabilities
 #[derive(Clone)]
 pub enum Voting {
     Hard,
@@ -11,6 +9,11 @@ pub enum Voting {
 }
 
 #[derive(Clone)]
+/// A VotingClassifier can be composed of heterogeneous learners (previously fitted) and
+/// returns an aggregated prediction depending on the voting strategy
+/// if hard, majority rule is applied
+/// if soft, the argmax of the sums of the predicted probabilities is returned
+///
 pub struct VotingClassifier<P: Predictor> {
     pub estimators: Vec<P>,
     pub voting: Voting,
@@ -34,8 +37,6 @@ impl<P: Predictor> VotingClassifier<P> {
         let _result: Array1<u64> = Array1::from(vec![1, 2, 3]);
         // store predictions from each single model
         let mut predictions: Vec<Vec<u64>> = vec![];
-        // let mut predictions: Array2::<u64> = Array2::zeros((self.estimators.len(), x.nrows()));
-
         // collect predictions from each estimator
         for (_i, e) in self.estimators.iter().enumerate() {
             let single_pred = e.predict(&x).to_vec();
@@ -72,10 +73,9 @@ impl<P: Predictor> VotingClassifier<P> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use linfa_trees::{DecisionTree, DecisionTreeParams};
     use ndarray::Array;
-
-    use super::*;
 
     #[test]
     fn test_voting_classifier_fit() {

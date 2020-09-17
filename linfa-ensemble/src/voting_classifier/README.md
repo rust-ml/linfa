@@ -1,4 +1,4 @@
-# Ensemble learning
+# Voting Classifier
 
 `linfa-ensemble` provides methods for ensemble learning algorithms.
 
@@ -17,7 +17,7 @@
 There is an example in the `examples/` directory how to use random forest models. To run, use:
 
 ```bash
-$ cargo run --release --example random_forest
+$ cargo run --release --example voting_classifier
 ```
 
 ## License
