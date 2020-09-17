@@ -4,6 +4,8 @@ use ndarray::{array, Array, ArrayBase, Data, Ix1};
 use ndarray_rand::rand::SeedableRng;
 use rand_isaac::Isaac64Rng;
 use std::iter::FromIterator;
+use linfa_predictor::Predictor;
+
 
 fn accuracy(
     labels: &ArrayBase<impl Data<Elem = u64>, Ix1>,

@@ -1,4 +1,4 @@
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
+use ndarray::{Array1, ArrayBase, Data, Ix2};
 
 /// Trait every predictor should implement
 pub trait Predictor {
