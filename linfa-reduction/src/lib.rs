@@ -2,6 +2,7 @@
 extern crate ndarray;
 
 pub mod diffusion_map;
+pub mod fast_ica;
 pub mod pca;
 pub mod utils;
 
