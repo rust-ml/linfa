@@ -46,14 +46,11 @@ impl<P: Predictor> VotingClassifier<P> {
         let result: Vec<u64> = match self.voting {
             Voting::Hard => {
                 let mut res: Vec<u64> = vec![];
-
                 for sample_idx in 0..x.nrows() {
                     let mut counter: HashMap<u64, u64> = HashMap::new();
-
                     for sp in &predictions {
                         *counter.entry(sp[sample_idx]).or_insert(0) += 1;
                     }
-
                     res.push(
                         *counter
                             .iter()
@@ -62,7 +59,6 @@ impl<P: Predictor> VotingClassifier<P> {
                             .unwrap(),
                     );
                 }
-                // dbg!("final pred: ", &res);
                 res
             }
 
@@ -106,7 +102,7 @@ mod tests {
         let mod1 = DecisionTree::fit(tree_params, &xtrain, &ytrain);
         let mod2 = DecisionTree::fit(tree_params, &xtrain, &ytrain);
         let mod3 = DecisionTree::fit(tree_params, &xtrain, &ytrain);
-        let mut vc = VotingClassifier::new(vec![mod1, mod2, mod3], None);
+        let vc = VotingClassifier::new(vec![mod1, mod2, mod3], None);
 
         let preds = vc.predict(&xtrain);
         dbg!("preds: ", &preds);

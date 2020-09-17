@@ -245,6 +245,10 @@ impl Predictor for DecisionTree {
                 .map(|row| make_prediction(&row, &self.root_node)),
         )
     }
+
+    fn predict_proba(&self, _x: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Vec<Array1<f64>> {
+        unimplemented!()
+    }
 }
 
 impl DecisionTree {

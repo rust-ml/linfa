@@ -14,6 +14,8 @@ pub struct RandomForest {
 }
 
 impl Predictor for RandomForest {
+    /// Return predicted class for each sample calculated with majority voting
+    ///
     fn predict(&self, x: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<u64> {
         let ntrees = self.hyperparameters.n_estimators;
         assert!(ntrees > 0, "Run .fit() method first");
@@ -53,6 +55,35 @@ impl Predictor for RandomForest {
             result.push(*final_pred);
         }
         Array1::from(result)
+    }
+
+    /// Return probability of predicted class for each sample, calculated as the rate of independent trees that
+    /// have agreed on such prediction
+    ///
+    fn predict_proba(&self, x: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Vec<Array1<f64>> {
+        let ntrees = self.hyperparameters.n_estimators;
+        assert!(ntrees > 0, "Run .fit() method first");
+
+        let nclasses = self.trees[0].hyperparameters().n_classes;
+        let mut result: Vec<Array1<f64>> = Vec::with_capacity(x.nrows());
+
+        let flattened: Vec<Vec<u64>> = self
+            .trees
+            .iter()
+            .map(|tree| tree.predict(&x).to_vec())
+            .collect();
+
+        for sample_idx in 0..x.nrows() {
+            let mut counter: Vec<u64> = vec![0; nclasses as usize];
+            for sp in &flattened {
+                // *counter_stats.entry(sp[sample_idx]).or_insert(0) += 1;
+                let single_pred = sp[sample_idx] as usize;
+                counter[single_pred] += 1;
+            }
+            let probas: Vec<f64> = counter.iter().map(|c| *c as f64 / ntrees as f64).collect();
+            result.push(Array1::from(probas));
+        }
+        result
     }
 }
 
@@ -130,7 +161,7 @@ mod tests {
             .min_samples_leaf(2 as u64)
             .build();
         // Define parameters of random forest
-        let ntrees = 100;
+        let ntrees = 100000;
         let rf_params = RandomForestParamsBuilder::new(tree_params, ntrees)
             .max_features(Some(MaxFeatures::Auto))
             .build();
@@ -145,5 +176,8 @@ mod tests {
 
         let preds = rf.predict(&xtrain);
         dbg!("Predictions: {}", preds);
+
+        let pred_probas = rf.predict_proba(&xtrain);
+        dbg!("Prediction probabilities: {}", pred_probas);
     }
 }
