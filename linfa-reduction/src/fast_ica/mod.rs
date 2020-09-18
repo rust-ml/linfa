@@ -5,18 +5,18 @@ use ndarray_stats::QuantileExt;
 
 use crate::Float;
 
-enum Algorithm {
+pub enum Algorithm {
     Parallel,
     Deflation,
 }
 
-enum GFunc {
+pub enum GFunc {
     Logcosh(f64),
     Exp,
     Cube,
 }
 
-struct FastIca {
+pub struct FastIca {
     n_components: usize,
     algorithm: Algorithm,
     gfunc: GFunc,
@@ -25,7 +25,7 @@ struct FastIca {
 }
 
 impl FastIca {
-    fn new(n_components: usize) -> Self {
+    pub fn new(n_components: usize) -> Self {
         FastIca {
             n_components,
             algorithm: Algorithm::Parallel,
@@ -35,40 +35,47 @@ impl FastIca {
         }
     }
 
-    fn set_algorithm(&mut self, algorithm: Algorithm) {
+    pub fn set_algorithm(mut self, algorithm: Algorithm) -> Self {
         self.algorithm = algorithm;
+        self
     }
 
-    fn set_gfunc(&mut self, gfunc: GFunc) {
+    pub fn set_gfunc(mut self, gfunc: GFunc) -> Self {
         self.gfunc = gfunc;
+        self
     }
 
-    fn set_max_iter(&mut self, max_iter: usize) {
+    pub fn set_max_iter(mut self, max_iter: usize) -> Self {
         self.max_iter = max_iter;
+        self
     }
 
-    fn set_tol(&mut self, tol: f64) {
+    pub fn set_tol(mut self, tol: f64) -> Self {
         self.tol = tol;
+        self
     }
 
-    fn fit<A: Float>(&self, x: Array2<A>) {
+    pub fn fit<A: Float>(&self, x: &Array2<A>) -> FittedFastIca<A> {
         let shape = x.shape();
         let (n_samples, n_features) = (shape[0], shape[1]);
+
+        let x_mean = x.mean_axis(Axis(0)).unwrap();
+        let x_mean = x_mean.insert_axis(Axis(1));
+
+        let x = x.t().to_owned();
+        let x = x - &x_mean;
 
         // TODO: Validate `n_components`
         // TODO: Validate `GFunc::Logcosh`'s alpha value
 
-        let x_mean = x.mean_axis(Axis(1)).unwrap();
-        let x = x - x_mean.insert_axis(Axis(1));
-
         // TODO: `k` creation should be more legible
         let (u, s, _) = x.svd(true, false).unwrap();
         let u = u.unwrap();
+        let u = u.slice(s![.., ..n_samples.min(n_features)]).to_owned();
         let s = s.mapv(|x| A::from(x).unwrap());
         let k = u / s;
         let k = k.t();
-        let k = k.slice(s![..2, ..]);
-
+        let k = k.slice(s![..self.n_components, ..]);
         let x1 = k.dot(&x);
         let nfeatures_sqrt = (n_features as f64).sqrt();
         x1.mapv(|x| x * A::from(nfeatures_sqrt).unwrap());
@@ -81,6 +88,13 @@ impl FastIca {
             Algorithm::Parallel => self.ica_parallel(&x1, &w_init),
             Algorithm::Deflation => todo!(),
         };
+
+        let components = w.dot(&k);
+
+        FittedFastIca {
+            mean: x_mean.t().to_owned(),
+            components,
+        }
     }
 
     fn ica_parallel<A: Float>(&self, x: &Array2<A>, w_init: &Array2<A>) -> Array2<A> {
@@ -95,7 +109,7 @@ impl FastIca {
             };
 
             let lhs = gwtx.dot(&x.t()).mapv(|x| x / A::from(p).unwrap());
-            let rhs = g_wtx.insert_axis(Axis(1)) * &w;
+            let rhs = &w * &g_wtx.insert_axis(Axis(1));
             let w1 = Self::sym_decorrelation(&(lhs - rhs));
 
             // TODO: Find a better way
@@ -108,7 +122,7 @@ impl FastIca {
 
             w = w1;
 
-            if lim > &A::from(self.tol).unwrap() {
+            if lim < &A::from(self.tol).unwrap() {
                 break;
             }
         }
@@ -140,3 +154,31 @@ impl FastIca {
     }
 }
 
+pub struct FittedFastIca<A> {
+    mean: Array2<A>,
+    components: Array2<A>,
+}
+
+impl<A: Float> FittedFastIca<A> {
+    pub fn transform(&self, x: &Array2<A>) -> Array2<A> {
+        let x = x - &self.mean;
+        x.dot(&self.components.t())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sample() {
+        let a = array![[1., 2., 3.], [4., 5., 6.], [7., 8., 9.]];
+
+        let ica = FastIca::new(2).set_gfunc(GFunc::Cube);
+        let ica = ica.fit(&a);
+        let x = ica.transform(&a);
+        println!("{:?}", x);
+
+        assert!(false);
+    }
+}
