@@ -12,6 +12,7 @@ pub struct FastIca {
     gfunc: GFunc,
     max_iter: usize,
     tol: f64,
+    random_state: Option<usize>,
 }
 
 impl Default for FastIca {
@@ -27,6 +28,7 @@ impl FastIca {
             gfunc: GFunc::Logcosh(1.),
             max_iter: 200,
             tol: 1e-4,
+            random_state: None,
         }
     }
 
@@ -47,6 +49,11 @@ impl FastIca {
 
     pub fn set_tol(mut self, tol: f64) -> Self {
         self.tol = tol;
+        self
+    }
+
+    pub fn set_random_state(mut self, random_state: usize) -> Self {
+        self.random_state = Some(random_state);
         self
     }
 }
@@ -88,9 +95,14 @@ impl FastIca {
         x_whitened = x_whitened.mapv(|x| x * nfeatures_sqrt);
 
         // TODO: Seed the random generated array
-        let mut rng = Isaac64Rng::seed_from_u64(42);
-        let w_init =
-            Array::random_using((ncomponents, ncomponents), Uniform::new(0., 1.), &mut rng);
+        let w_init: Array2<f64>;
+        if let Some(seed) = self.random_state {
+            let mut rng = Isaac64Rng::seed_from_u64(seed as u64);
+            w_init =
+                Array::random_using((ncomponents, ncomponents), Uniform::new(0., 1.), &mut rng);
+        } else {
+            w_init = Array::random((ncomponents, ncomponents), Uniform::new(0., 1.));
+        }
         let w_init = w_init.mapv(|x| A::from(x).unwrap());
 
         let w = self.ica_parallel(&x_whitened, &w_init)?;
@@ -286,7 +298,10 @@ mod tests {
         center_and_norm(&mut s);
         s = s.reversed_axes();
 
-        let ica = FastIca::new().set_ncomponents(2).set_gfunc(gfunc);
+        let ica = FastIca::new()
+            .set_ncomponents(2)
+            .set_gfunc(gfunc)
+            .set_random_state(42);
         let ica = ica.fit(&s).unwrap();
         let mut s_ = ica.transform(&s);
         center_and_norm(&mut s_);
