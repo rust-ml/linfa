@@ -137,11 +137,22 @@ impl Default for ElasticNet {
     }
 }
 
+/// View the fitted parameters and make predictions with a fitted
+/// elastic net model
 impl FittedElasticNet {
-    pub fn predict(&self) {}
+    /// Given an input matrix `X`, with shape `(n_samples, n_features)`,
+    /// `predict` returns the target variable according to elastic net
+    /// learned from the training data distribution.
+    pub fn predict(&self, x: &Array2<f64>) -> Array1<f64> {
+        x.dot(&self.parameters) + self.intercept
+    }
+
+    /// Get the fitted parameters
     pub fn parameters(&self) -> &Array1<f64> {
         &self.parameters
     }
+
+    /// Get the fitted intercept, 0. if no intercept was fitted
     pub fn intercept(&self) -> f64 {
         self.intercept
     }
@@ -285,6 +296,8 @@ mod tests {
         // against n_samples.
         let x = array![[-1.0], [0.0], [1.0]];
         let y = array![-1.0, 0.0, 1.0];
+        // input for prediction
+        let t = array![[2.0], [3.0], [4.0]];
         let model = ElasticNet::new()
             .l1_ratio(1.0)
             .penalty(1e-8)
@@ -292,8 +305,7 @@ mod tests {
             .unwrap();
         assert_abs_diff_eq!(model.intercept(), 0.0);
         assert_abs_diff_eq!(model.parameters(), &array![1.0], epsilon = 1e-6);
-        // let t = array![[2.0], [3.0], [4.0]];
-        // assert_abs_diff_eq!(model.predict(&t), &t);
+        assert_abs_diff_eq!(model.predict(&t), array![2.0, 3.0, 4.0], epsilon = 1e-6);
         // Still have to port this from python:
         // # assert_almost_equal(clf.dual_gap_, 0)
 
@@ -304,9 +316,8 @@ mod tests {
             .unwrap();
         assert_abs_diff_eq!(model.intercept(), 0.0);
         assert_abs_diff_eq!(model.parameters(), &array![0.85], epsilon = 1e-6);
+        assert_abs_diff_eq!(model.predict(&t), array![1.7, 2.55, 3.4], epsilon = 1e-6);
         // Still to implement
-        // pred = clf.predict(T)
-        // assert_array_almost_equal(pred, [1.7, 2.55, 3.4])
         // assert_almost_equal(clf.dual_gap_, 0)
 
         let model = ElasticNet::new()
@@ -316,9 +327,8 @@ mod tests {
             .unwrap();
         assert_abs_diff_eq!(model.intercept(), 0.0);
         assert_abs_diff_eq!(model.parameters(), &array![0.25], epsilon = 1e-6);
+        assert_abs_diff_eq!(model.predict(&t), array![0.5, 0.75, 1.0], epsilon = 1e-6);
         // Still to implement
-        // pred = clf.predict(T)
-        // assert_array_almost_equal(pred, [0.5, 0.75, 1.])
         // assert_almost_equal(clf.dual_gap_, 0)
 
         let model = ElasticNet::new()
@@ -328,9 +338,8 @@ mod tests {
             .unwrap();
         assert_abs_diff_eq!(model.intercept(), 0.0);
         assert_abs_diff_eq!(model.parameters(), &array![0.0], epsilon = 1e-6);
+        assert_abs_diff_eq!(model.predict(&t), array![0.0, 0.0, 0.0], epsilon = 1e-6);
         // Still to implement
-        // pred = clf.predict(T)
-        // assert_array_almost_equal(pred, [0, 0, 0])
         // assert_almost_equal(clf.dual_gap_, 0)
     }
 
@@ -338,6 +347,8 @@ mod tests {
     fn elastic_net_toy_example_works() {
         let x = array![[-1.0], [0.0], [1.0]];
         let y = array![-1.0, 0.0, 1.0];
+        // for predictions
+        let t = array![[2.0], [3.0], [4.0]];
         let model = ElasticNet::new()
             .l1_ratio(0.3)
             .penalty(0.5)
@@ -345,7 +356,7 @@ mod tests {
             .unwrap();
         assert_abs_diff_eq!(model.intercept(), 0.0);
         assert_abs_diff_eq!(model.parameters(), &array![0.50819], epsilon = 1e-3);
-        // assert_array_almost_equal(pred, [1.0163, 1.5245, 2.0327], decimal=3)
+        assert_abs_diff_eq!(model.predict(&t), array![1.0163, 1.5245, 2.0327], epsilon = 1e-3);
         // assert_almost_equal(clf.dual_gap_, 0)
 
         let model = ElasticNet::new()
@@ -355,8 +366,7 @@ mod tests {
             .unwrap();
         assert_abs_diff_eq!(model.intercept(), 0.0);
         assert_abs_diff_eq!(model.parameters(), &array![0.45454], epsilon = 1e-3);
-        // pred = clf.predict(T)
-        // assert_array_almost_equal(pred, [0.9090, 1.3636, 1.8181], 3)
+        assert_abs_diff_eq!(model.predict(&t), array![0.9090, 1.3636, 1.8181], epsilon = 1e-3);
         // assert_almost_equal(clf.dual_gap_, 0)
     }
 
