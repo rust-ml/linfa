@@ -1,3 +1,11 @@
+//! Fast algorithm for Independent Component Analysis (ICA)
+//!
+//! ICA separates mutivariate signals into their additive, indipendent subcomponents.
+//! ICA is primarily used for separating superimposed signals and not for dimensionality
+//! reduction.
+//!
+//! Input data is whitened (remove underlying correlation) before modeling.
+
 use ndarray::{Array, Array1, Array2, Axis};
 use ndarray_linalg::{eigh::Eigh, lapack::UPLO, svd::SVD};
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
@@ -6,6 +14,7 @@ use rand_isaac::Isaac64Rng;
 
 use crate::Float;
 
+/// Fast Independent Component Analysis (ICA)
 #[derive(Debug)]
 pub struct FastIca {
     ncomponents: Option<usize>,
@@ -22,6 +31,7 @@ impl Default for FastIca {
 }
 
 impl FastIca {
+    /// Create new FastICA algorithm with default values for its parameters
     pub fn new() -> Self {
         FastIca {
             ncomponents: None,
@@ -32,26 +42,31 @@ impl FastIca {
         }
     }
 
+    /// Set the number of components to use, if not set all are used
     pub fn set_ncomponents(mut self, ncomponents: usize) -> Self {
         self.ncomponents = Some(ncomponents);
         self
     }
 
+    /// G function used in the approximation to neg-entropy, refer [`GFunc`]
     pub fn set_gfunc(mut self, gfunc: GFunc) -> Self {
         self.gfunc = gfunc;
         self
     }
 
+    /// Set maximum number of iterations during fit
     pub fn set_max_iter(mut self, max_iter: usize) -> Self {
         self.max_iter = max_iter;
         self
     }
 
+    /// Set tolerance on upate at each iteration
     pub fn set_tol(mut self, tol: f64) -> Self {
         self.tol = tol;
         self
     }
 
+    /// Set seed for random number generator for reproducible results.
     pub fn set_random_state(mut self, random_state: usize) -> Self {
         self.random_state = Some(random_state);
         self
@@ -59,10 +74,24 @@ impl FastIca {
 }
 
 impl FastIca {
+    /// Fit the model
+    ///
+    /// # Errors
+    ///
+    /// If the [`FastIca::set_ncomponents`] is set to a number greater than the minimum of
+    /// the number of rows and columns
+    ///
+    /// If the `alpha` value set for [`GFunc::Logcosh`] is not between 1 and 2
+    /// inclusive
     pub fn fit<A: Float>(&self, x: &Array2<A>) -> Result<FittedFastIca<A>, String> {
         let (nsamples, nfeatures) = (x.nrows(), x.ncols());
 
+        // If the number of components is not set, we take the minimum of
+        // the number of rows and columns
         let ncomponents = self.ncomponents.unwrap_or_else(|| nsamples.min(nfeatures));
+
+        // The number of components cannot be greater than the minimum of
+        // the number of rows and columns
         if ncomponents > nsamples.min(nfeatures) {
             return Err(
                 "ncomponents cannot be greater than the min(sample size, features size)"
@@ -70,15 +99,16 @@ impl FastIca {
             );
         }
 
-        let x_mean = x.mean_axis(Axis(0)).unwrap();
+        // We center the input by subtracting the mean of its features
+        let xmean = x.mean_axis(Axis(0)).unwrap();
+        let mut xcentered = x - &xmean.to_owned().insert_axis(Axis(0));
 
-        let mut x_centered = x - &x_mean.to_owned().insert_axis(Axis(0));
-        x_centered = x_centered.reversed_axes();
+        // We transpose the centered matrix
+        xcentered = xcentered.reversed_axes();
 
-        // TODO: Propogating convergence error
-        // TODO: Error handling
-
-        let k = match x_centered.svd(true, false).unwrap() {
+        // We whiten the matrix to remove any potential correlation between
+        // the components
+        let k = match xcentered.svd(true, false).unwrap() {
             (Some(u), s, _) => {
                 let s = s.mapv(|x| A::from(x).unwrap());
                 (u.slice(s![.., ..nsamples.min(nfeatures)]).to_owned() / s)
@@ -88,47 +118,48 @@ impl FastIca {
             }
             _ => unreachable!(),
         };
-        let mut x_whitened = k.dot(&x_centered);
-        let nsamples_sqrt = A::from((nsamples as f64).sqrt()).unwrap();
-        x_whitened.mapv_inplace(|x| x * nsamples_sqrt);
+        let mut xwhitened = k.dot(&xcentered);
 
-        // TODO: Seed the random generated array
-        let w_init: Array2<f64>;
+        // We multiply the matrix with root of the number of records
+        let nsamples_sqrt = A::from((nsamples as f64).sqrt()).unwrap();
+        xwhitened.mapv_inplace(|x| x * nsamples_sqrt);
+
+        // We initialize the de-mixing matrix with a uniform distributiona
+        let w: Array2<f64>;
         if let Some(seed) = self.random_state {
             let mut rng = Isaac64Rng::seed_from_u64(seed as u64);
-            w_init =
-                Array::random_using((ncomponents, ncomponents), Uniform::new(0., 1.), &mut rng);
+            w = Array::random_using((ncomponents, ncomponents), Uniform::new(0., 1.), &mut rng);
         } else {
-            w_init = Array::random((ncomponents, ncomponents), Uniform::new(0., 1.));
+            w = Array::random((ncomponents, ncomponents), Uniform::new(0., 1.));
         }
-        let w_init = w_init.mapv(|x| A::from(x).unwrap());
+        let mut w = w.mapv(|x| A::from(x).unwrap());
 
-        let w = self.ica_parallel(&x_whitened, &w_init)?;
+        // We find the optimized de-mixing matrix
+        w = self.ica_parallel(&xwhitened, &w)?;
 
+        // We whiten the de-mixing matrix
         let components = w.dot(&k);
 
         Ok(FittedFastIca {
-            mean: x_mean,
+            mean: xmean,
             components,
         })
     }
 
-    fn ica_parallel<A: Float>(
-        &self,
-        x: &Array2<A>,
-        w_init: &Array2<A>,
-    ) -> Result<Array2<A>, String> {
-        let mut w = Self::sym_decorrelation(&w_init);
-        let p = x.shape()[1] as f64;
+    // Parallel FastICA, Optimization step
+    fn ica_parallel<A: Float>(&self, x: &Array2<A>, w: &Array2<A>) -> Result<Array2<A>, String> {
+        let mut w = Self::sym_decorrelation(&w);
+
+        let p = x.ncols() as f64;
 
         for _ in 0..self.max_iter {
             let (gwtx, g_wtx) = self.gfunc.exec(&w.dot(x))?;
 
             let lhs = gwtx.dot(&x.t()).mapv(|x| x / A::from(p).unwrap());
             let rhs = &w * &g_wtx.insert_axis(Axis(1));
-            let w_new = Self::sym_decorrelation(&(lhs - rhs));
+            let wnew = Self::sym_decorrelation(&(lhs - rhs));
 
-            let lim = *w_new
+            let lim = *wnew
                 .dot(&w.t())
                 .diag()
                 .mapv(num_traits::Float::abs)
@@ -137,7 +168,7 @@ impl FastIca {
                 .max()
                 .unwrap();
 
-            w = w_new;
+            w = wnew;
 
             if lim < A::from(self.tol).unwrap() {
                 break;
@@ -147,6 +178,9 @@ impl FastIca {
         Ok(w)
     }
 
+    // Symmetric decorrelation
+    //
+    // W <- (W * W.T)^{-1/2} * W
     fn sym_decorrelation<A: Float>(w: &Array2<A>) -> Array2<A> {
         let (eig_val, eig_vec) = w.dot(&w.t()).eigh(UPLO::Upper).unwrap();
         let eig_val = eig_val.mapv(|x| A::from(x).unwrap());
@@ -161,6 +195,7 @@ impl FastIca {
     }
 }
 
+/// Fitted FastICA model for recovering the sources
 #[derive(Debug)]
 pub struct FittedFastIca<A> {
     mean: Array1<A>,
@@ -168,12 +203,14 @@ pub struct FittedFastIca<A> {
 }
 
 impl<A: Float> FittedFastIca<A> {
+    /// Recover the sources
     pub fn transform(&self, x: &Array2<A>) -> Array2<A> {
-        let x_centered = x - &self.mean.to_owned().insert_axis(Axis(0));
-        x_centered.dot(&self.components.t())
+        let xcentered = x - &self.mean.to_owned().insert_axis(Axis(0));
+        xcentered.dot(&self.components.t())
     }
 }
 
+/// Some standard non-linear functions
 #[derive(Debug)]
 pub enum GFunc {
     Logcosh(f64),
@@ -182,6 +219,8 @@ pub enum GFunc {
 }
 
 impl GFunc {
+    // Function to select the correct non-linear function execute using the input
+    // and return a tuple, consisting of the function and its derivatives output
     fn exec<A: Float>(&self, x: &Array2<A>) -> Result<(Array2<A>, Array1<A>), String> {
         match self {
             Self::Cube => Ok(Self::cube(x)),
@@ -214,8 +253,8 @@ impl GFunc {
             return Err("alpha must be between 1 and 2 inclusive".to_string());
         }
         let alpha = A::from(alpha).unwrap();
-        let gx = x.mapv(|x| (x * alpha).tanh());
 
+        let gx = x.mapv(|x| (x * alpha).tanh());
         let g_x = gx.mapv(|x| alpha * (A::from(1.).unwrap() - x.powi(2)));
 
         Ok((gx, g_x.mean_axis(Axis(1)).unwrap()))
@@ -228,6 +267,8 @@ mod tests {
 
     use ndarray_rand::rand_distr::StudentT;
 
+    // Test to make sure the number of components set cannot be greater
+    // that the minimum of the number of rows and columns of the input
     #[test]
     fn test_ncomponents_err() {
         let input = Array::random((4, 4), Uniform::new(0.0, 1.0));
@@ -236,6 +277,8 @@ mod tests {
         assert!(ica.is_err());
     }
 
+    // Test to make sure the alpha value of the `GFunc::Logcosh` is between
+    // 1 and 2 inclusive
     #[test]
     fn test_logcosh_alpha_err() {
         let input = Array::random((4, 4), Uniform::new(0.0, 1.0));
@@ -244,6 +287,7 @@ mod tests {
         assert!(ica.is_err());
     }
 
+    // Helper macro that produces test-cases with the pattern test_fast_ica_*
     macro_rules! fast_ica_tests {
         ($($name:ident: $gfunc:expr,)*) => {
             paste::item! {
@@ -257,14 +301,19 @@ mod tests {
         }
     }
 
+    // Tests to make sure all of the `GFunc`'s non-linear functions and the
+    // model itself performs well
     fast_ica_tests! {
         exp: GFunc::Exp, cube: GFunc::Cube, logcosh: GFunc::Logcosh(1.0),
     }
 
+    // Helper function that mixes two signal sources sends it to FastICA
+    // and makes sure the model can demix them with considerable amount of
+    // accuracy
     fn test_fast_ica(gfunc: GFunc) {
-        let n_samples = 1000;
+        let nsamples = 1000;
 
-        // mean and norm
+        // Center the data and make it have unit variance
         let center_and_norm = |s: &mut Array2<f64>| {
             let mean = s.mean_axis(Axis(0)).unwrap();
             *s -= &mean.insert_axis(Axis(0));
@@ -272,9 +321,9 @@ mod tests {
             *s /= &std.insert_axis(Axis(0));
         };
 
-        // sin with linspace for n_samples
-        let mut s1 = Array::linspace(0., 100., n_samples);
-        s1.mapv_inplace(|x| {
+        // Creaing a sawtooth signal
+        let mut source1 = Array::linspace(0., 100., nsamples);
+        source1.mapv_inplace(|x| {
             let tmp = 2. * f64::sin(x);
             if tmp > 0. {
                 return 0.;
@@ -282,42 +331,52 @@ mod tests {
             -1.
         });
 
-        // students t random matrix for n_samples
+        // Creating noise using Student T distribution
         let mut rng = Isaac64Rng::seed_from_u64(42);
-        let s2 = Array::random_using((n_samples, 1), StudentT::new(1.0).unwrap(), &mut rng);
+        let source2 = Array::random_using((nsamples, 1), StudentT::new(1.0).unwrap(), &mut rng);
 
-        // column stacking
-        let mut s = stack![Axis(1), s1.insert_axis(Axis(1)), s2];
-        center_and_norm(&mut s);
+        // Column stacking both the sources
+        let mut sources = stack![Axis(1), source1.insert_axis(Axis(1)), source2];
+        center_and_norm(&mut sources);
 
+        // Mixing the two sources
         let phi: f64 = 0.6;
         let mixing = array![[phi.cos(), phi.sin()], [phi.sin(), -phi.cos()]];
-        s = mixing.dot(&s.t());
-        center_and_norm(&mut s);
-        s = s.reversed_axes();
+        sources = mixing.dot(&sources.t());
+        center_and_norm(&mut sources);
 
+        sources = sources.reversed_axes();
+
+        // We fit and transform using the model to unmix the two sources
         let ica = FastIca::new()
             .set_ncomponents(2)
             .set_gfunc(gfunc)
             .set_random_state(42);
-        let ica = ica.fit(&s).unwrap();
-        let mut s_ = ica.transform(&s);
-        center_and_norm(&mut s_);
-        assert_eq!(s_.shape(), &[1000, 2]);
+        let ica = ica.fit(&sources).unwrap();
+        let mut output = ica.transform(&sources);
 
-        // Accounting for the ambiguity in the order
-        // and the sign
-        let s1 = s.column(0);
-        let s2 = s.column(1);
-        let mut s1_ = s_.column(0);
-        let mut s2_ = s_.column(1);
+        center_and_norm(&mut output);
+
+        // Making sure the model output has the right shape
+        assert_eq!(output.shape(), &[1000, 2]);
+
+        // The order of the sources in the ICA output is not deterministic,
+        // so we account for that here
+        let s1 = sources.column(0);
+        let s2 = sources.column(1);
+        let mut s1_ = output.column(0);
+        let mut s2_ = output.column(1);
         if s1_.dot(&s2).abs() > s1_.dot(&s1).abs() {
-            s1_ = s_.column(1);
-            s2_ = s_.column(0);
+            s1_ = output.column(1);
+            s2_ = output.column(0);
         }
 
-        let similarity1 = s1.dot(&s1_).abs() / (s.nrows() as f64);
-        let similarity2 = s2.dot(&s2_).abs() / (s.nrows() as f64);
+        let similarity1 = s1.dot(&s1_).abs() / (nsamples as f64);
+        let similarity2 = s2.dot(&s2_).abs() / (nsamples as f64);
+
+        // We make sure the saw tooth signal identified by ICA using the mixed
+        // source is similar to the original sawtooth signal
+        // We ignore the noise signal's similarity measure
         assert!(similarity1.max(similarity2) > 0.9);
     }
 }
