@@ -11,6 +11,7 @@
 `linfa-reduction` currently provides an implementation of the following dimensional reduction methods: 
 - Diffusion Mapping
 - Principal Component Analysis (PCA)
+- Independent Component Analysis (ICA)
 
 ## Examples
 
@@ -19,6 +20,7 @@ There is an usage example in the `examples/` directory. To run, use:
 ```bash
 $ cargo run --release --example diffusion_map
 $ cargo run --release --example pca
+$ cargo run --release --example fast_ica
 ```
 
 ## License
