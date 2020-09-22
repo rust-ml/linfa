@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // with its alpha value as 1
     // `ncomponents` is not set, it will be automatically be assigned 2 from
     // the input
-    let ica = FastIca::new().set_gfunc(GFunc::Logcosh(1.0));
+    let ica = FastIca::new().gfunc(GFunc::Logcosh(1.0));
     let ica = ica.fit(&sources_mixed)?;
 
     // Here we unmix the data to recover back the original signals

@@ -43,31 +43,31 @@ impl FastIca {
     }
 
     /// Set the number of components to use, if not set all are used
-    pub fn set_ncomponents(mut self, ncomponents: usize) -> Self {
+    pub fn ncomponents(mut self, ncomponents: usize) -> Self {
         self.ncomponents = Some(ncomponents);
         self
     }
 
     /// G function used in the approximation to neg-entropy, refer [`GFunc`]
-    pub fn set_gfunc(mut self, gfunc: GFunc) -> Self {
+    pub fn gfunc(mut self, gfunc: GFunc) -> Self {
         self.gfunc = gfunc;
         self
     }
 
     /// Set maximum number of iterations during fit
-    pub fn set_max_iter(mut self, max_iter: usize) -> Self {
+    pub fn max_iter(mut self, max_iter: usize) -> Self {
         self.max_iter = max_iter;
         self
     }
 
     /// Set tolerance on upate at each iteration
-    pub fn set_tol(mut self, tol: f64) -> Self {
+    pub fn tol(mut self, tol: f64) -> Self {
         self.tol = tol;
         self
     }
 
     /// Set seed for random number generator for reproducible results.
-    pub fn set_random_state(mut self, random_state: usize) -> Self {
+    pub fn random_state(mut self, random_state: usize) -> Self {
         self.random_state = Some(random_state);
         self
     }
@@ -78,7 +78,7 @@ impl FastIca {
     ///
     /// # Errors
     ///
-    /// If the [`FastIca::set_ncomponents`] is set to a number greater than the minimum of
+    /// If the [`FastIca::ncomponents`] is set to a number greater than the minimum of
     /// the number of rows and columns
     ///
     /// If the `alpha` value set for [`GFunc::Logcosh`] is not between 1 and 2
@@ -272,7 +272,7 @@ mod tests {
     #[test]
     fn test_ncomponents_err() {
         let input = Array::random((4, 4), Uniform::new(0.0, 1.0));
-        let ica = FastIca::new().set_ncomponents(100);
+        let ica = FastIca::new().ncomponents(100);
         let ica = ica.fit(&input);
         assert!(ica.is_err());
     }
@@ -282,7 +282,7 @@ mod tests {
     #[test]
     fn test_logcosh_alpha_err() {
         let input = Array::random((4, 4), Uniform::new(0.0, 1.0));
-        let ica = FastIca::new().set_gfunc(GFunc::Logcosh(10.));
+        let ica = FastIca::new().gfunc(GFunc::Logcosh(10.));
         let ica = ica.fit(&input);
         assert!(ica.is_err());
     }
@@ -348,10 +348,7 @@ mod tests {
         sources = sources.reversed_axes();
 
         // We fit and transform using the model to unmix the two sources
-        let ica = FastIca::new()
-            .set_ncomponents(2)
-            .set_gfunc(gfunc)
-            .set_random_state(42);
+        let ica = FastIca::new().ncomponents(2).gfunc(gfunc).random_state(42);
         let ica = ica.fit(&sources).unwrap();
         let mut output = ica.transform(&sources);
 
