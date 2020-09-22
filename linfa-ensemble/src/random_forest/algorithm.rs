@@ -1,5 +1,5 @@
 use crate::random_forest::hyperparameters::RandomForestParams;
-use linfa_predictor::Predictor;
+use linfa_predictor::{LinfaError, Predictor};
 use linfa_trees::DecisionTree;
 use ndarray::Array;
 use ndarray::Axis;
@@ -22,7 +22,10 @@ impl Predictor for RandomForest {
     /// * `x` - A 2D array of floating point elements
     ///
     ///
-    fn predict(&self, x: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<u64> {
+    fn predict(
+        &self,
+        x: &ArrayBase<impl Data<Elem = f64>, Ix2>,
+    ) -> Result<Array1<u64>, LinfaError> {
         let ntrees = self.hyperparameters.n_estimators;
         assert!(ntrees > 0, "Run .fit() method first");
 
@@ -30,7 +33,7 @@ impl Predictor for RandomForest {
         let flattened: Vec<Vec<u64>> = self
             .trees
             .iter()
-            .map(|tree| tree.predict(&x).to_vec())
+            .map(|tree| tree.predict(&x).unwrap().to_vec())
             .collect();
 
         for sample_idx in 0..x.nrows() {
@@ -49,13 +52,16 @@ impl Predictor for RandomForest {
 
             result.push(*final_pred);
         }
-        Array1::from(result)
+        Ok(Array1::from(result))
     }
 
     /// Return probability of predicted class for each sample, calculated as the rate of independent trees that
     /// have agreed on such prediction
     ///
-    fn predict_proba(&self, x: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Vec<Array1<f64>> {
+    fn predict_probabilities(
+        &self,
+        x: &ArrayBase<impl Data<Elem = f64>, Ix2>,
+    ) -> Result<Vec<Array1<f64>>, LinfaError> {
         let ntrees = self.hyperparameters.n_estimators;
         assert!(ntrees > 0, "Run .fit() method first");
 
@@ -65,7 +71,7 @@ impl Predictor for RandomForest {
         let flattened: Vec<Vec<u64>> = self
             .trees
             .iter()
-            .map(|tree| tree.predict(&x).to_vec())
+            .map(|tree| tree.predict(&x).unwrap().to_vec())
             .collect();
 
         for sample_idx in 0..x.nrows() {
@@ -78,7 +84,7 @@ impl Predictor for RandomForest {
             let probas: Vec<f64> = counter.iter().map(|c| *c as f64 / ntrees as f64).collect();
             result.push(Array1::from(probas));
         }
-        result
+        Ok(result)
     }
 }
 
@@ -172,7 +178,7 @@ mod tests {
         let preds = rf.predict(&xtrain);
         dbg!("Predictions: {}", preds);
 
-        let pred_probas = rf.predict_proba(&xtrain);
+        let pred_probas = rf.predict_probabilities(&xtrain);
         dbg!("Prediction probabilities: {}", pred_probas);
     }
 }
