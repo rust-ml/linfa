@@ -6,6 +6,8 @@ pub mod fast_ica;
 pub mod pca;
 pub mod utils;
 
+pub mod error;
+
 pub use diffusion_map::{DiffusionMap, DiffusionMapHyperParams};
 pub use pca::PrincipalComponentAnalysis;
 pub use utils::to_gaussian_similarity;

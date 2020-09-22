@@ -12,6 +12,7 @@ use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
 use ndarray_stats::QuantileExt;
 use rand_isaac::Isaac64Rng;
 
+use crate::error::{FastIcaError, Result};
 use crate::Float;
 
 /// Fast Independent Component Analysis (ICA)
@@ -83,7 +84,7 @@ impl FastIca {
     ///
     /// If the `alpha` value set for [`GFunc::Logcosh`] is not between 1 and 2
     /// inclusive
-    pub fn fit<A: Float>(&self, x: &Array2<A>) -> Result<FittedFastIca<A>, String> {
+    pub fn fit<A: Float>(&self, x: &Array2<A>) -> Result<FittedFastIca<A>> {
         let (nsamples, nfeatures) = (x.nrows(), x.ncols());
 
         // If the number of components is not set, we take the minimum of
@@ -93,10 +94,10 @@ impl FastIca {
         // The number of components cannot be greater than the minimum of
         // the number of rows and columns
         if ncomponents > nsamples.min(nfeatures) {
-            return Err(
-                "ncomponents cannot be greater than the min(sample size, features size)"
-                    .to_string(),
-            );
+            return Err(FastIcaError::InvalidValue(format!(
+                "ncomponents cannot be greater than the min({}, {}), got {}",
+                nsamples, nfeatures, ncomponents
+            )));
         }
 
         // We center the input by subtracting the mean of its features
@@ -108,7 +109,7 @@ impl FastIca {
 
         // We whiten the matrix to remove any potential correlation between
         // the components
-        let k = match xcentered.svd(true, false).unwrap() {
+        let k = match xcentered.svd(true, false)? {
             (Some(u), s, _) => {
                 let s = s.mapv(|x| A::from(x).unwrap());
                 (u.slice(s![.., ..nsamples.min(nfeatures)]).to_owned() / s)
@@ -116,7 +117,7 @@ impl FastIca {
                     .slice(s![..ncomponents, ..])
                     .to_owned()
             }
-            _ => unreachable!(),
+            _ => return Err(FastIcaError::SvdDecomposition),
         };
         let mut xwhitened = k.dot(&xcentered);
 
@@ -147,8 +148,8 @@ impl FastIca {
     }
 
     // Parallel FastICA, Optimization step
-    fn ica_parallel<A: Float>(&self, x: &Array2<A>, w: &Array2<A>) -> Result<Array2<A>, String> {
-        let mut w = Self::sym_decorrelation(&w);
+    fn ica_parallel<A: Float>(&self, x: &Array2<A>, w: &Array2<A>) -> Result<Array2<A>> {
+        let mut w = Self::sym_decorrelation(&w)?;
 
         let p = x.ncols() as f64;
 
@@ -157,7 +158,7 @@ impl FastIca {
 
             let lhs = gwtx.dot(&x.t()).mapv(|x| x / A::from(p).unwrap());
             let rhs = &w * &g_wtx.insert_axis(Axis(1));
-            let wnew = Self::sym_decorrelation(&(lhs - rhs));
+            let wnew = Self::sym_decorrelation(&(lhs - rhs))?;
 
             let lim = *wnew
                 .outer_iter()
@@ -183,8 +184,8 @@ impl FastIca {
     // Symmetric decorrelation
     //
     // W <- (W * W.T)^{-1/2} * W
-    fn sym_decorrelation<A: Float>(w: &Array2<A>) -> Array2<A> {
-        let (eig_val, eig_vec) = w.dot(&w.t()).eigh(UPLO::Upper).unwrap();
+    fn sym_decorrelation<A: Float>(w: &Array2<A>) -> Result<Array2<A>> {
+        let (eig_val, eig_vec) = w.dot(&w.t()).eigh(UPLO::Upper)?;
         let eig_val = eig_val.mapv(|x| A::from(x).unwrap());
 
         let tmp = &eig_vec
@@ -198,7 +199,7 @@ impl FastIca {
             }))
             .insert_axis(Axis(0));
 
-        tmp.dot(&eig_vec.t()).dot(w)
+        Ok(tmp.dot(&eig_vec.t()).dot(w))
     }
 }
 
@@ -228,7 +229,7 @@ pub enum GFunc {
 impl GFunc {
     // Function to select the correct non-linear function execute using the input
     // and return a tuple, consisting of the function and its derivatives output
-    fn exec<A: Float>(&self, x: &Array2<A>) -> Result<(Array2<A>, Array1<A>), String> {
+    fn exec<A: Float>(&self, x: &Array2<A>) -> Result<(Array2<A>, Array1<A>)> {
         match self {
             Self::Cube => Ok(Self::cube(x)),
             Self::Exp => Ok(Self::exp(x)),
@@ -255,9 +256,12 @@ impl GFunc {
         )
     }
 
-    fn logcosh<A: Float>(x: &Array2<A>, alpha: f64) -> Result<(Array2<A>, Array1<A>), String> {
+    fn logcosh<A: Float>(x: &Array2<A>, alpha: f64) -> Result<(Array2<A>, Array1<A>)> {
         if !(alpha >= 1. && alpha <= 2.) {
-            return Err("alpha must be between 1 and 2 inclusive".to_string());
+            return Err(FastIcaError::InvalidValue(format!(
+                "alpha must be between 1 and 2 inclusive, got {}",
+                alpha
+            )));
         }
         let alpha = A::from(alpha).unwrap();
 
