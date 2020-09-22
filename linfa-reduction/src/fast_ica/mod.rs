@@ -186,9 +186,14 @@ impl FastIca {
         let eig_val = eig_val.mapv(|x| A::from(x).unwrap());
 
         let tmp = &eig_vec
-            * &(eig_val
-                .mapv(num_traits::Float::sqrt)
-                .mapv(num_traits::Float::recip))
+            * &(eig_val.mapv(num_traits::Float::sqrt).mapv(|x| {
+                // We lower bound the float value at 1e-7 when taking the reciprocal
+                let lower_bound = A::from(1e-7).unwrap();
+                if x < lower_bound {
+                    return num_traits::Float::recip(lower_bound);
+                }
+                num_traits::Float::recip(x)
+            }))
             .insert_axis(Axis(0));
 
         tmp.dot(&eig_vec.t()).dot(w)
