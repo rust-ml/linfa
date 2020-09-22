@@ -101,7 +101,7 @@ impl FastIca {
 
         // We center the input by subtracting the mean of its features
         let xmean = x.mean_axis(Axis(0)).unwrap();
-        let mut xcentered = x - &xmean.to_owned().insert_axis(Axis(0));
+        let mut xcentered = x - &xmean.view().insert_axis(Axis(0));
 
         // We transpose the centered matrix
         xcentered = xcentered.reversed_axes();
@@ -205,7 +205,7 @@ pub struct FittedFastIca<A> {
 impl<A: Float> FittedFastIca<A> {
     /// Recover the sources
     pub fn transform(&self, x: &Array2<A>) -> Array2<A> {
-        let xcentered = x - &self.mean.to_owned().insert_axis(Axis(0));
+        let xcentered = x - &self.mean.view().insert_axis(Axis(0));
         xcentered.dot(&self.components.t())
     }
 }
