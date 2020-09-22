@@ -4,7 +4,7 @@ use std::fmt::{self, Display};
 
 pub type Result<T> = std::result::Result<T, FastIcaError>;
 
-/// An error when modeling FastICA algorithm 
+/// An error when modeling FastICA algorithm
 #[derive(Debug)]
 pub enum FastIcaError {
     /// When any of the hyperparameters are set the wrong value

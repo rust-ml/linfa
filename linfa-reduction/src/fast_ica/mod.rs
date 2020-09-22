@@ -160,6 +160,8 @@ impl FastIca {
             let rhs = &w * &g_wtx.insert_axis(Axis(1));
             let wnew = Self::sym_decorrelation(&(lhs - rhs))?;
 
+            // `lim` let us check for convergence between the old and
+            // new weight values, we want their dot-product to almost equal one
             let lim = *wnew
                 .outer_iter()
                 .zip(w.outer_iter())
