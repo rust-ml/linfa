@@ -16,7 +16,7 @@
 
 There is an usage example in the `examples/` directory. To run, use:
 
-```
+```bash
 $ cargo run --release --example fast_ica
 ```
 
