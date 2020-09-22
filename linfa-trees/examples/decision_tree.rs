@@ -1,5 +1,5 @@
 use linfa_clustering::generate_blobs;
-use linfa_predictor::Predictor;
+use linfa_predictor::{LinfaError, Predictor};
 use linfa_trees::{DecisionTree, DecisionTreeParams, SplitQuality};
 use ndarray::{array, Array, ArrayBase, Data, Ix1};
 use ndarray_rand::rand::SeedableRng;
@@ -56,7 +56,7 @@ fn main() {
 
     let gini_model = DecisionTree::fit(gini_hyperparams, &train_x, &train_y);
 
-    let gini_pred_y = gini_model.predict(&test_x);
+    let gini_pred_y = gini_model.predict(&test_x).unwrap();
     println!(
         "Test accuracy with Gini criterion: {:.2}%",
         100.0 * accuracy(&test_y, &gini_pred_y)
@@ -72,7 +72,7 @@ fn main() {
 
     let entropy_model = DecisionTree::fit(entropy_hyperparams, &train_x, &train_y);
 
-    let entropy_pred_y = entropy_model.predict(&test_x);
+    let entropy_pred_y = entropy_model.predict(&test_x).unwrap();
     println!(
         "Test accuracy with Entropy criterion: {:.2}%",
         100.0 * accuracy(&test_y, &entropy_pred_y)

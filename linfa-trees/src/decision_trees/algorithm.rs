@@ -1,5 +1,5 @@
 use crate::decision_trees::hyperparameters::{DecisionTreeParams, SplitQuality};
-use linfa_predictor::Predictor;
+use linfa_predictor::{LinfaError, Predictor};
 use ndarray::{Array1, ArrayBase, Axis, Data, Ix1, Ix2};
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
@@ -238,17 +238,25 @@ pub struct DecisionTree {
 
 impl Predictor for DecisionTree {
     /// Make predictions for each row of a matrix of features `x`.
-    fn predict(&self, x: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<u64> {
-        Array1::from_iter(
+    fn predict(
+        &self,
+        x: &ArrayBase<impl Data<Elem = f64>, Ix2>,
+    ) -> Result<Array1<u64>, LinfaError> {
+        Ok(Array1::from_iter(
             x.genrows()
                 .into_iter()
                 .map(|row| make_prediction(&row, &self.root_node)),
-        )
+        ))
     }
     /// Predicting probabilities for a decision tree is not defined.
     /// Function exists as part of Predictor Trait
-    fn predict_proba(&self, _x: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Vec<Array1<f64>> {
-        unimplemented!()
+    fn predict_probabilities(
+        &self,
+        _x: &ArrayBase<impl Data<Elem = f64>, Ix2>,
+    ) -> Result<Vec<Array1<f64>>, LinfaError> {
+        Err(LinfaError::new(
+            "Decision trees do not return probabilities (use ensemble methods instead",
+        ))
     }
 }
 

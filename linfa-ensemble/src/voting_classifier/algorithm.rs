@@ -1,4 +1,4 @@
-use linfa_predictor::Predictor;
+use linfa_predictor::{LinfaError, Predictor};
 use ndarray::{Array1, ArrayBase, Data, Ix2};
 use std::collections::HashMap;
 
@@ -33,13 +33,16 @@ impl<P: Predictor> VotingClassifier<P> {
     }
 
     /// Call .predict() from each estimator and applies fitted weights to results
-    pub fn predict(&self, x: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<u64> {
+    pub fn predict(
+        &self,
+        x: &ArrayBase<impl Data<Elem = f64>, Ix2>,
+    ) -> Result<Array1<u64>, LinfaError> {
         let _result: Array1<u64> = Array1::from(vec![1, 2, 3]);
         // store predictions from each single model
         let mut predictions: Vec<Vec<u64>> = vec![];
         // collect predictions from each estimator
         for (_i, e) in self.estimators.iter().enumerate() {
-            let single_pred = e.predict(&x).to_vec();
+            let single_pred = e.predict(&x).unwrap().to_vec();
             predictions.push(single_pred);
         }
 
@@ -67,7 +70,7 @@ impl<P: Predictor> VotingClassifier<P> {
         };
 
         // return aggregated prediction
-        Array1::from(result)
+        Ok(Array1::from(result))
     }
 }
 
@@ -104,7 +107,7 @@ mod tests {
         let mod3 = DecisionTree::fit(tree_params, &xtrain, &ytrain);
         let vc = VotingClassifier::new(vec![mod1, mod2, mod3], None);
 
-        let preds = vc.predict(&xtrain);
+        let preds = vc.predict(&xtrain).unwrap();
         dbg!("preds: ", &preds);
         assert_eq!(preds.len(), xtrain.shape()[0]);
     }
