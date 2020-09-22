@@ -1,4 +1,4 @@
-use linfa_reduction::fast_ica::{FastIca, GFunc};
+use linfa_ica::fast_ica::{FastIca, GFunc};
 use ndarray::{array, stack};
 use ndarray::{Array, Array2, Axis};
 use ndarray_npy::write_npy;
@@ -13,10 +13,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Shape of the data will be (2000 x 2)
     let (sources_original, sources_mixed) = create_data();
 
-    // Fit the model
+    // Fitting the model
+    // We set the G function used in the approximation of neg-entropy as logcosh
+    // with its alpha value as 1
     // `ncomponents` is not set, it will be automatically be assigned 2 from
     // the input
-    let ica = FastIca::new().set_gfunc(GFunc::Logcosh(1.0));
+    let ica = FastIca::new().gfunc(GFunc::Logcosh(1.0));
     let ica = ica.fit(&sources_mixed)?;
 
     // Here we unmix the data to recover back the original signals
