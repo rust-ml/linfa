@@ -186,10 +186,10 @@ mod tests {
         let most_imp_feat = imp.iter().max_by(|a, b| a.1.cmp(&b.1)).map(|(k, _v)| k);
         assert_eq!(most_imp_feat, Some(&4));
 
-        let preds = rf.predict(&xtrain);
+        let preds = rf.predict(&xtrain).unwrap();
         dbg!("Predictions: {}", preds);
 
-        let pred_probas = rf.predict_probabilities(&xtrain);
+        let pred_probas = rf.predict_probabilities(&xtrain).unwrap();
         dbg!("Prediction probabilities: {}", pred_probas);
     }
 }
