@@ -160,8 +160,10 @@ impl FastIca {
             let wnew = Self::sym_decorrelation(&(lhs - rhs));
 
             let lim = *wnew
-                .dot(&w.t())
-                .diag()
+                .outer_iter()
+                .zip(w.outer_iter())
+                .map(|(a, b)| a.dot(&b))
+                .collect::<Array1<A>>()
                 .mapv(num_traits::Float::abs)
                 .mapv(|x| x - A::from(1.).unwrap())
                 .mapv(num_traits::Float::abs)
