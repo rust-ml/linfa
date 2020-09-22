@@ -1,6 +1,6 @@
 //! Fast algorithm for Independent Component Analysis (ICA)
 //!
-//! ICA separates mutivariate signals into their additive, indipendent subcomponents.
+//! ICA separates mutivariate signals into their additive, independent subcomponents.
 //! ICA is primarily used for separating superimposed signals and not for dimensionality
 //! reduction.
 //!
@@ -124,7 +124,7 @@ impl FastIca {
         let nsamples_sqrt = A::from((nsamples as f64).sqrt()).unwrap();
         xwhitened.mapv_inplace(|x| x * nsamples_sqrt);
 
-        // We initialize the de-mixing matrix with a uniform distributiona
+        // We initialize the de-mixing matrix with a uniform distribution
         let w: Array2<f64>;
         if let Some(seed) = self.random_state {
             let mut rng = Isaac64Rng::seed_from_u64(seed as u64);
