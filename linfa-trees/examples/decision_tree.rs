@@ -1,5 +1,5 @@
 use linfa_clustering::generate_blobs;
-use linfa_predictor::{LinfaError, Predictor};
+use linfa_predictor::Predictor;
 use linfa_trees::{DecisionTree, DecisionTreeParams, SplitQuality};
 use ndarray::{array, Array, ArrayBase, Data, Ix1};
 use ndarray_rand::rand::SeedableRng;
