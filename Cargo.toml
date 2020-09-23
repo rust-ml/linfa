@@ -40,7 +40,8 @@ members = [
     "linfa-logistic",
     "linfa-trees",
     "linfa-svm",
-    "linfa-hierarchical"
+    "linfa-hierarchical",
+    "linfa-ica",
 ]
 
 [profile.release]
