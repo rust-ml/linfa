@@ -1,6 +1,6 @@
 use ndarray::Array1;
 
-use crate::glm::Float;
+use crate::Float;
 
 trait Link<A> {
     fn link(ypred: &Array1<A>) -> Array1<A>;

@@ -1,6 +1,6 @@
 use csv::ReaderBuilder;
 use flate2::read::GzDecoder;
-use linfa_linear::LinearRegression;
+use linfa_linear::ols::LinearRegression;
 use ndarray::Array2;
 use ndarray_csv::Array2Reader;
 use std::error::Error;
