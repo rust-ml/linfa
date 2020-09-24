@@ -29,6 +29,8 @@ use ndarray_linalg::{Lapack, Scalar, Solve};
 use ndarray_stats::SummaryStatisticsExt;
 use num_traits::float::Float;
 
+mod glm;
+
 /// An ordinary least squares linear regression model.
 ///
 /// LinearRegression fits a linear model to minimize the residual sum of
