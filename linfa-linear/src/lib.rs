@@ -1,6 +1,8 @@
 mod glm;
 pub mod ols;
 
+pub mod error;
+
 use ndarray::NdFloat;
 use ndarray_linalg::Lapack;
 use num_traits::FromPrimitive;
