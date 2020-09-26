@@ -2,7 +2,47 @@ use ndarray::Array1;
 
 use crate::Float;
 
-trait Link<A> {
+pub enum Link {
+    Identity,
+    Log,
+    Logit,
+}
+
+impl Link {
+    pub fn link<A: Float>(&self, ypred: &Array1<A>) -> Array1<A> {
+        match self {
+            Self::Identity => IdentityLink::link(ypred),
+            Self::Log => LogLink::link(ypred),
+            Self::Logit => LogitLink::link(ypred),
+        }
+    }
+
+    pub fn link_derivative<A: Float>(&self, ypred: &Array1<A>) -> Array1<A> {
+        match self {
+            Self::Identity => IdentityLink::link_derivative(ypred),
+            Self::Log => LogLink::link_derivative(ypred),
+            Self::Logit => LogitLink::link_derivative(ypred),
+        }
+    }
+
+    pub fn inverse<A: Float>(&self, ypred: &Array1<A>) -> Array1<A> {
+        match self {
+            Self::Identity => IdentityLink::inverse(ypred),
+            Self::Log => LogLink::inverse(ypred),
+            Self::Logit => LogitLink::inverse(ypred),
+        }
+    }
+
+    pub fn inverse_derviative<A: Float>(&self, ypred: &Array1<A>) -> Array1<A> {
+        match self {
+            Self::Identity => IdentityLink::inverse_derivative(ypred),
+            Self::Log => LogLink::inverse_derivative(ypred),
+            Self::Logit => LogitLink::inverse_derivative(ypred),
+        }
+    }
+}
+
+trait LinkFn<A> {
     fn link(ypred: &Array1<A>) -> Array1<A>;
     fn link_derivative(ypred: &Array1<A>) -> Array1<A>;
     fn inverse(ypred: &Array1<A>) -> Array1<A>;
@@ -11,7 +51,7 @@ trait Link<A> {
 
 struct IdentityLink;
 
-impl<A: Float> Link<A> for IdentityLink {
+impl<A: Float> LinkFn<A> for IdentityLink {
     fn link(ypred: &Array1<A>) -> Array1<A> {
         ypred.clone()
     }
@@ -31,7 +71,7 @@ impl<A: Float> Link<A> for IdentityLink {
 
 struct LogLink;
 
-impl<A: Float> Link<A> for LogLink {
+impl<A: Float> LinkFn<A> for LogLink {
     fn link(ypred: &Array1<A>) -> Array1<A> {
         ypred.mapv(|x| x.ln())
     }
@@ -57,7 +97,7 @@ impl<A: Float> Link<A> for LogLink {
 
 struct LogitLink;
 
-impl<A: Float> Link<A> for LogitLink {
+impl<A: Float> LinkFn<A> for LogitLink {
     fn link(ypred: &Array1<A>) -> Array1<A> {
         ypred.mapv(|x| (x / (A::from(1.).unwrap() - x)).ln())
     }
