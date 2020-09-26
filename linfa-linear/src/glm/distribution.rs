@@ -4,14 +4,14 @@ use ndarray::Zip;
 
 use crate::error::{LinearError, Result};
 
-struct TweedieDistribution {
+pub struct TweedieDistribution {
     power: f64,
     lower_bound: f64,
     inclusive: bool,
 }
 
 impl TweedieDistribution {
-    fn new(power: f64) -> Result<Self> {
+    pub fn new(power: f64) -> Result<Self> {
         let dist = match power {
             power if power <= 0. => Self {
                 power,
@@ -40,7 +40,7 @@ impl TweedieDistribution {
         Ok(dist)
     }
 
-    fn in_range<A: Float>(&self, y: &Array1<A>) -> bool {
+    pub fn in_range<A: Float>(&self, y: &Array1<A>) -> bool {
         if self.inclusive {
             return y.iter().all(|&x| x >= A::from(self.lower_bound).unwrap());
         }
@@ -76,12 +76,10 @@ impl TweedieDistribution {
                 Ok((left - middle + right).mapv(|x| A::from(2.).unwrap() * x))
             }
             power if power == 0. => Ok((y - ypred).mapv(|x| x.powi(2))),
-            power if power < 1. => {
-                return Err(LinearError::InvalidValue(format!(
-                    "Power value cannot be between 0 and 1, got: {}",
-                    power
-                )));
-            }
+            power if power < 1. => Err(LinearError::InvalidValue(format!(
+                "Power value cannot be between 0 and 1, got: {}",
+                power
+            ))),
             power if (power - 1.).abs() < 1e-6 => {
                 let mut div = y / ypred;
                 Zip::from(&mut div).and(y).apply(|y, &x| {
@@ -119,11 +117,11 @@ impl TweedieDistribution {
         ((y - ypred) / &self.unit_variance(ypred)).mapv(|x| A::from(-2.).unwrap() * x)
     }
 
-    fn deviance<A: Float>(&self, y: &Array1<A>, ypred: &Array1<A>) -> Result<A> {
+    pub fn deviance<A: Float>(&self, y: &Array1<A>, ypred: &Array1<A>) -> Result<A> {
         Ok(self.unit_deviance(y, ypred)?.sum())
     }
 
-    fn deviance_derivative<A: Float>(&self, y: &Array1<A>, ypred: &Array1<A>) -> Array1<A> {
+    pub fn deviance_derivative<A: Float>(&self, y: &Array1<A>, ypred: &Array1<A>) -> Array1<A> {
         self.unit_deviance_derivative(y, ypred)
     }
 }
