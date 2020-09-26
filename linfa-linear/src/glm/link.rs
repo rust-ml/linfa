@@ -2,6 +2,7 @@ use ndarray::Array1;
 
 use crate::Float;
 
+#[derive(Copy, Clone)]
 pub enum Link {
     Identity,
     Log,
