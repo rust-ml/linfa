@@ -1,4 +1,4 @@
-use crate::Float;
+use crate::float::Float;
 use ndarray::Array1;
 use ndarray::Zip;
 

@@ -1,6 +1,6 @@
 use ndarray::Array1;
 
-use crate::Float;
+use crate::float::Float;
 
 #[derive(Copy, Clone)]
 pub enum Link {

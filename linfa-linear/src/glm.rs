@@ -2,7 +2,7 @@ mod distribution;
 mod link;
 
 use crate::error::{LinearError, Result};
-use crate::{ArgminParam, Float};
+use crate::float::{ArgminParam, Float};
 use distribution::TweedieDistribution;
 use link::Link;
 
