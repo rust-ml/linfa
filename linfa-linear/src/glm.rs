@@ -191,36 +191,40 @@ impl<'a, A: Float> ArgminOp for TweedieProblem<'a, A> {
 
     fn gradient(&self, p: &Self::Param) -> std::result::Result<Self::Param, argmin::core::Error> {
         let p = p.as_array();
-        let mut objp;
 
+        let mut offset = 0;
+        let mut intercept = A::from(0.).unwrap();
         if self.fit_intercept {
-            let lin_pred = self
-                .x
-                .view()
-                .dot(&p.slice(s![1..]))
-                .mapv(|x| x + *p.get(0).unwrap());
-            let ypred = self.link.inverse(&lin_pred);
-
-            let der = self.link.inverse_derviative(&lin_pred);
-
-            let temp = der * self.dist.deviance_derivative(self.y, &ypred);
-            let devp = stack![Axis(0), array![temp.sum()], temp.dot(self.x)];
-            let p_scaled = p.slice(s![1..]).mapv(|x| x * A::from(self.alpha).unwrap());
-            objp = devp.mapv(|x| x * A::from(0.5).unwrap());
-            objp.slice_mut(s![1..])
-                .zip_mut_with(&p_scaled, |x, y| *x += *y);
-        } else {
-            let lin_pred = self.x.dot(p);
-            let ypred = self.link.inverse(&lin_pred);
-
-            let der = self.link.inverse_derviative(&lin_pred);
-
-            let temp = der * self.dist.deviance_derivative(self.y, &ypred);
-            let devp = temp.dot(self.x);
-            let p_scaled = p.mapv(|x| x * A::from(self.alpha).unwrap());
-            objp = devp.mapv(|x| x * A::from(0.5).unwrap());
-            objp.zip_mut_with(&p_scaled, |x, y| *x += *y);
+            offset = 1;
+            intercept = *p.get(0).unwrap();
         }
+
+        let lin_pred = self
+            .x
+            .view()
+            .dot(&p.slice(s![offset..]))
+            .mapv(|x| x + intercept);
+
+        let ypred = self.link.inverse(&lin_pred);
+        let der = self.link.inverse_derviative(&lin_pred);
+        let temp = der * self.dist.deviance_derivative(self.y, &ypred);
+
+        let devp;
+        if self.fit_intercept {
+            devp = stack![Axis(0), array![temp.sum()], temp.dot(self.x)];
+        } else {
+            devp = temp.dot(self.x);
+        }
+
+        let p_scaled = p
+            .slice(s![offset..])
+            .mapv(|x| x * A::from(self.alpha).unwrap());
+
+        let mut objp = devp.mapv(|x| x * A::from(0.5).unwrap());
+
+        objp.slice_mut(s![offset..])
+            .zip_mut_with(&p_scaled, |x, y| *x += *y);
+
         Ok(ArgminParam(objp))
     }
 }
