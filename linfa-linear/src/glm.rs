@@ -161,33 +161,38 @@ impl<'a, A: Float> ArgminOp for TweedieProblem<'a, A> {
 
     fn apply(&self, p: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
         let p = p.as_array();
-        let obj;
+
+        let mut offset = 0;
+        let mut intercept = A::from(0.).unwrap();
         if self.fit_intercept {
-            let lin_pred = self
-                .x
-                .view()
-                .dot(&p.slice(s![1..]))
-                .mapv(|x| x + *p.get(0).unwrap());
-            let ypred = self.link.inverse(&lin_pred);
-
-            let dev = self.dist.deviance(self.y, &ypred)?;
-            let p_scaled = p.slice(s![1..]).mapv(|x| x * A::from(self.alpha).unwrap());
-            obj = A::from(0.5).unwrap() * dev
-                + A::from(0.5).unwrap() * p.slice(s![1..]).dot(&p_scaled);
-        } else {
-            let lin_pred = self.x.dot(p);
-            let ypred = self.link.inverse(&lin_pred);
-
-            let dev = self.dist.deviance(self.y, &ypred);
-            let p_scaled = p.mapv(|x| x * A::from(self.alpha).unwrap());
-            obj = A::from(0.5).unwrap() * dev.unwrap() + A::from(0.5).unwrap() * p.dot(&p_scaled);
+            offset = 1;
+            intercept = *p.get(0).unwrap();
         }
+
+        let lin_pred = self
+            .x
+            .view()
+            .dot(&p.slice(s![offset..]))
+            .mapv(|x| x + intercept);
+
+        let ypred = self.link.inverse(&lin_pred);
+
+        let dev = self.dist.deviance(self.y, &ypred)?;
+
+        let p_scaled = p
+            .slice(s![offset..])
+            .mapv(|x| x * A::from(self.alpha).unwrap());
+
+        let obj = A::from(0.5).unwrap() * dev
+            + A::from(0.5).unwrap() * p.slice(s![offset..]).dot(&p_scaled);
+
         Ok(obj)
     }
 
     fn gradient(&self, p: &Self::Param) -> std::result::Result<Self::Param, argmin::core::Error> {
         let p = p.as_array();
         let mut objp;
+
         if self.fit_intercept {
             let lin_pred = self
                 .x
