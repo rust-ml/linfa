@@ -221,8 +221,8 @@ impl<'a, A: Float> ArgminOp for TweedieProblem<'a, A> {
 }
 
 pub struct FittedTweedieRegressor<A> {
-    coef: Array1<A>,
-    intercept: A,
+    pub coef: Array1<A>,
+    pub intercept: A,
     link: Link,
 }
 
