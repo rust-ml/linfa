@@ -1,4 +1,4 @@
 pub mod error;
-mod glm;
-pub mod ols;
 mod float;
+pub mod glm;
+pub mod ols;

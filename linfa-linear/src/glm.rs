@@ -12,7 +12,7 @@ use argmin::solver::quasinewton::LBFGS;
 use ndarray::{array, s, stack};
 use ndarray::{Array, Array1, Array2, Axis};
 
-struct TweedieRegressor {
+pub struct TweedieRegressor {
     alpha: f64,
     fit_intercept: bool,
     power: f64,
@@ -21,8 +21,14 @@ struct TweedieRegressor {
     tol: f64,
 }
 
+impl Default for TweedieRegressor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TweedieRegressor {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             alpha: 1.0,
             fit_intercept: true,
@@ -33,39 +39,39 @@ impl TweedieRegressor {
         }
     }
 
-    fn alpha(mut self, alpha: f64) -> Self {
+    pub fn alpha(mut self, alpha: f64) -> Self {
         self.alpha = alpha;
         self
     }
 
-    fn fit_intercept(mut self, fit_intercept: bool) -> Self {
+    pub fn fit_intercept(mut self, fit_intercept: bool) -> Self {
         self.fit_intercept = fit_intercept;
         self
     }
 
-    fn power(mut self, power: f64) -> Self {
+    pub fn power(mut self, power: f64) -> Self {
         self.power = power;
         self
     }
 
-    fn link(mut self, link: Link) -> Self {
+    pub fn link(mut self, link: Link) -> Self {
         self.link = Some(link);
         self
     }
 
-    fn max_iter(mut self, max_iter: usize) -> Self {
+    pub fn max_iter(mut self, max_iter: usize) -> Self {
         self.max_iter = max_iter;
         self
     }
 
-    fn tol(mut self, tol: f64) -> Self {
+    pub fn tol(mut self, tol: f64) -> Self {
         self.tol = tol;
         self
     }
 }
 
 impl TweedieRegressor {
-    fn fit<A: Float>(&self, x: &Array2<A>, y: &Array1<A>) -> Result<FittedTweedieRegressor<A>> {
+    pub fn fit<A: Float>(&self, x: &Array2<A>, y: &Array1<A>) -> Result<FittedTweedieRegressor<A>> {
         let dist = TweedieDistribution::new(self.power)?;
 
         if self.alpha < 0. {
@@ -214,14 +220,14 @@ impl<'a, A: Float> ArgminOp for TweedieProblem<'a, A> {
     }
 }
 
-struct FittedTweedieRegressor<A> {
+pub struct FittedTweedieRegressor<A> {
     coef: Array1<A>,
     intercept: A,
     link: Link,
 }
 
 impl<A: Float> FittedTweedieRegressor<A> {
-    fn predict(&self, x: &Array2<A>) -> Array1<A> {
+    pub fn predict(&self, x: &Array2<A>) -> Array1<A> {
         let ypred = x.dot(&self.coef) + self.intercept;
         self.link.inverse(&ypred)
     }
