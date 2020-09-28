@@ -4,6 +4,8 @@ use ndarray::Zip;
 
 use crate::error::{LinearError, Result};
 
+const NEG_INFINITY: f64 = -1.0_f64 / 0.0_f64;
+
 pub struct TweedieDistribution {
     power: f64,
     lower_bound: f64,
@@ -16,7 +18,7 @@ impl TweedieDistribution {
         let dist = match power {
             power if power <= 0. => Self {
                 power,
-                lower_bound: f64::NEG_INFINITY,
+                lower_bound: NEG_INFINITY,
                 inclusive: false,
             },
             power if power > 0. && power < 1. => {
