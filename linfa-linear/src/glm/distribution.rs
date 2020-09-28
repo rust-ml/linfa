@@ -16,7 +16,7 @@ impl TweedieDistribution {
         let dist = match power {
             power if power <= 0. => Self {
                 power,
-                lower_bound: -f64::INFINITY,
+                lower_bound: f64::NEG_INFINITY,
                 inclusive: false,
             },
             power if power > 0. && power < 1. => {
