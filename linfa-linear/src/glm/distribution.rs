@@ -12,6 +12,7 @@ pub struct TweedieDistribution {
 
 impl TweedieDistribution {
     pub fn new(power: f64) -> Result<Self> {
+        // Based on the `power` value, the lower bound of `y` is selected
         let dist = match power {
             power if power <= 0. => Self {
                 power,
@@ -40,6 +41,7 @@ impl TweedieDistribution {
         Ok(dist)
     }
 
+    // Returns `true` if y is in the valid range
     pub fn in_range<A: Float>(&self, y: &Array1<A>) -> bool {
         if self.inclusive {
             return y.iter().all(|&x| x >= A::from(self.lower_bound).unwrap());
@@ -48,6 +50,7 @@ impl TweedieDistribution {
     }
 
     fn unit_variance<A: Float>(&self, ypred: &Array1<A>) -> Array1<A> {
+        // ypred ^ power
         ypred.mapv(|x| x.powf(A::from(self.power).unwrap()))
     }
 
@@ -75,11 +78,15 @@ impl TweedieDistribution {
 
                 Ok((left - middle + right).mapv(|x| A::from(2.).unwrap() * x))
             }
+            // Normal distribution
+            // (y - ypred)^2
             power if power == 0. => Ok((y - ypred).mapv(|x| x.powi(2))),
             power if power < 1. => Err(LinearError::InvalidValue(format!(
                 "Power value cannot be between 0 and 1, got: {}",
                 power
             ))),
+            // Poisson distribution
+            // 2 * (y * log(y / ypred) - y + ypred)
             power if (power - 1.).abs() < 1e-6 => {
                 let mut div = y / ypred;
                 Zip::from(&mut div).and(y).apply(|y, &x| {
@@ -91,6 +98,8 @@ impl TweedieDistribution {
                 });
                 Ok(div - y + ypred)
             }
+            // Gamma distribution
+            // 2 * (log(ypred / y) + (y / ypred) - 1)
             power if (power - 2.).abs() < 1e-6 => {
                 let mut temp = (ypred / y).mapv(|x| x.ln()) + (y / ypred);
                 temp.mapv_inplace(|x| x - A::from(1.).unwrap());

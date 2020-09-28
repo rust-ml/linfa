@@ -1,15 +1,24 @@
+//! Link functions used by GLM
+
 use ndarray::Array1;
 
 use crate::float::Float;
 
 #[derive(Copy, Clone)]
 pub enum Link {
+    /// The identity link function `g(x)=x`
     Identity,
+    /// The log link function `g(x)=log(x)`
     Log,
+    /// The logit link function `g(x)=logit(x)`
     Logit,
 }
 
 impl Link {
+    /// Compute the link function `g(ypred)`
+    ///
+    /// The link function links the mean `ypred=E[y]` to the so called
+    /// linear predictor, `g(ypred)=linear predictor`
     pub fn link<A: Float>(&self, ypred: &Array1<A>) -> Array1<A> {
         match self {
             Self::Identity => IdentityLink::link(ypred),
@@ -18,6 +27,7 @@ impl Link {
         }
     }
 
+    /// Computes the derivative of the link `g'(ypred)`
     pub fn link_derivative<A: Float>(&self, ypred: &Array1<A>) -> Array1<A> {
         match self {
             Self::Identity => IdentityLink::link_derivative(ypred),
@@ -26,19 +36,24 @@ impl Link {
         }
     }
 
-    pub fn inverse<A: Float>(&self, ypred: &Array1<A>) -> Array1<A> {
+    /// Computes the inverse link function `h(linear predictor)`
+    ///
+    /// Gives the inverse relationship between the linear predictor and the mean
+    /// `ypred=E[y]`, i.e. `h(linear predictor)=ypred`
+    pub fn inverse<A: Float>(&self, lin_pred: &Array1<A>) -> Array1<A> {
         match self {
-            Self::Identity => IdentityLink::inverse(ypred),
-            Self::Log => LogLink::inverse(ypred),
-            Self::Logit => LogitLink::inverse(ypred),
+            Self::Identity => IdentityLink::inverse(lin_pred),
+            Self::Log => LogLink::inverse(lin_pred),
+            Self::Logit => LogitLink::inverse(lin_pred),
         }
     }
 
-    pub fn inverse_derviative<A: Float>(&self, ypred: &Array1<A>) -> Array1<A> {
+    /// Computes the derivative of the inverse link function `h'(linear predictor)`
+    pub fn inverse_derviative<A: Float>(&self, lin_pred: &Array1<A>) -> Array1<A> {
         match self {
-            Self::Identity => IdentityLink::inverse_derivative(ypred),
-            Self::Log => LogLink::inverse_derivative(ypred),
-            Self::Logit => LogitLink::inverse_derivative(ypred),
+            Self::Identity => IdentityLink::inverse_derivative(lin_pred),
+            Self::Log => LogLink::inverse_derivative(lin_pred),
+            Self::Logit => LogitLink::inverse_derivative(lin_pred),
         }
     }
 }
@@ -46,8 +61,8 @@ impl Link {
 trait LinkFn<A> {
     fn link(ypred: &Array1<A>) -> Array1<A>;
     fn link_derivative(ypred: &Array1<A>) -> Array1<A>;
-    fn inverse(ypred: &Array1<A>) -> Array1<A>;
-    fn inverse_derivative(ypred: &Array1<A>) -> Array1<A>;
+    fn inverse(lin_pred: &Array1<A>) -> Array1<A>;
+    fn inverse_derivative(lin_pred: &Array1<A>) -> Array1<A>;
 }
 
 struct IdentityLink;
@@ -61,12 +76,12 @@ impl<A: Float> LinkFn<A> for IdentityLink {
         Array1::ones(ypred.shape()[0])
     }
 
-    fn inverse(ypred: &Array1<A>) -> Array1<A> {
-        ypred.clone()
+    fn inverse(lin_pred: &Array1<A>) -> Array1<A> {
+        lin_pred.clone()
     }
 
-    fn inverse_derivative(ypred: &Array1<A>) -> Array1<A> {
-        Array1::ones(ypred.shape()[0])
+    fn inverse_derivative(lin_pred: &Array1<A>) -> Array1<A> {
+        Array1::ones(lin_pred.shape()[0])
     }
 }
 
@@ -78,6 +93,7 @@ impl<A: Float> LinkFn<A> for LogLink {
     }
 
     fn link_derivative(ypred: &Array1<A>) -> Array1<A> {
+        // 1 / ypred
         ypred.mapv(|x| {
             let lower_bound = A::from(1e-7).unwrap();
             if x < lower_bound {
@@ -87,12 +103,12 @@ impl<A: Float> LinkFn<A> for LogLink {
         })
     }
 
-    fn inverse(ypred: &Array1<A>) -> Array1<A> {
-        ypred.mapv(|x| x.exp())
+    fn inverse(lin_pred: &Array1<A>) -> Array1<A> {
+        lin_pred.mapv(|x| x.exp())
     }
 
-    fn inverse_derivative(ypred: &Array1<A>) -> Array1<A> {
-        ypred.mapv(|x| x.exp())
+    fn inverse_derivative(lin_pred: &Array1<A>) -> Array1<A> {
+        lin_pred.mapv(|x| x.exp())
     }
 }
 
@@ -100,22 +116,25 @@ struct LogitLink;
 
 impl<A: Float> LinkFn<A> for LogitLink {
     fn link(ypred: &Array1<A>) -> Array1<A> {
+        // logit(ypred)
         ypred.mapv(|x| (x / (A::from(1.).unwrap() - x)).ln())
     }
 
     fn link_derivative(ypred: &Array1<A>) -> Array1<A> {
+        // 1 / (ypred * (1-ypred)
         ypred.mapv(|x| A::from(1.).unwrap() / (x * (A::from(1.).unwrap() - x)))
     }
 
-    fn inverse(ypred: &Array1<A>) -> Array1<A> {
-        ypred.mapv(|x| A::from(1.).unwrap() / (A::from(1.).unwrap() + x.neg().exp()))
+    fn inverse(lin_pred: &Array1<A>) -> Array1<A> {
+        // expit(lin_pred)
+        lin_pred.mapv(|x| A::from(1.).unwrap() / (A::from(1.).unwrap() + x.neg().exp()))
     }
 
-    fn inverse_derivative(ypred: &Array1<A>) -> Array1<A> {
-        let expit = ypred.mapv(|x| A::from(1.).unwrap() / (A::from(1.).unwrap() + x.neg().exp()));
-
+    fn inverse_derivative(lin_pred: &Array1<A>) -> Array1<A> {
+        // expit(lin_pred) * (1 - expit(lin_pred))
+        let expit =
+            lin_pred.mapv(|x| A::from(1.).unwrap() / (A::from(1.).unwrap() + x.neg().exp()));
         let one_minus_expit = expit.mapv(|x| A::from(1.).unwrap() - x);
-
         expit * one_minus_expit
     }
 }
