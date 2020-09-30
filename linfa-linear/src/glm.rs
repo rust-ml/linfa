@@ -219,8 +219,7 @@ impl<'a, A: Float> ArgminOp for TweedieProblem<'a, A> {
             .slice(s![offset..])
             .mapv(|x| x * A::from(self.alpha).unwrap());
 
-        let obj = A::from(0.5).unwrap() * dev
-            + A::from(0.5).unwrap() * p.slice(s![offset..]).dot(&pscaled);
+        let obj = A::from(0.5).unwrap() * (dev + p.slice(s![offset..]).dot(&pscaled));
 
         Ok(obj)
     }
