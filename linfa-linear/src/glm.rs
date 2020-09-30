@@ -110,20 +110,17 @@ impl TweedieRegressor {
             )));
         }
 
-        let link: Link;
-        if let Some(value) = self.link {
-            link = value;
-        } else {
-            // If link is not set we automatically select an appropriate
-            // link function
-            link = match self.power {
-                p if p <= 0. => Link::Identity,
-                p if p >= 1. => Link::Log,
-                p => {
-                    return Err(LinearError::InvalidValue(format!("{}", p)));
-                }
-            }
-        }
+        // If link is not set we automatically select an appropriate
+        // link function
+        let link = match self.link {
+            Some(x) => Ok(x),
+            None if self.power <= 0. => Ok(Link::Identity),
+            None if self.power >= 1. => Ok(Link::Log),
+            None => Err(LinearError::InvalidValue(format!(
+                "Power value cannot be between 0 and 1, got: {}",
+                self.power
+            ))),
+        }?;
 
         if !dist.in_range(&y) {
             // An error is sent when y has values in the range not applicable
