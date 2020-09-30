@@ -10,6 +10,7 @@
 
 `linfa-linear` currently provides an implementation of the following regression algorithms: 
 - Ordinary Least Squares
+- Generalized Linear Models (GLM)
 
 ## Examples
 
@@ -17,6 +18,7 @@ There is an usage example in the `examples/` directory. To run, use:
 
 ```bash
 $ cargo run --features openblas --example diabetes
+$ cargo run --example glm
 ```
 
 ## License

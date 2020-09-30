@@ -229,8 +229,9 @@ pub enum GFunc {
 }
 
 impl GFunc {
-    // Function to select the correct non-linear function execute using the input
-    // and return a tuple, consisting of the function and its derivatives output
+    // Function to select the correct non-linear function and execute it
+    // returning a tuple, consisting of the first and second derivatives of the
+    // non-linear function
     fn exec<A: Float>(&self, x: &Array2<A>) -> Result<(Array2<A>, Array1<A>)> {
         match self {
             Self::Cube => Ok(Self::cube(x)),
