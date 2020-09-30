@@ -208,6 +208,13 @@ impl<'a, A: Float> ArgminOp for TweedieProblem<'a, A> {
     type Jacobian = Array1<A>;
     type Float = A;
 
+    // This function calculates the value of the objective function we are trying
+    // to minimize,
+    //
+    // 0.5 * (deviance(y, ypred) + alpha * |p|_2)
+    //
+    // - `p` is the parameter we are optimizing (coefficients and intercept)
+    // - `alpha` is the regularization hyperparameter
     fn apply(&self, p: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
         let p = p.as_array();
 
