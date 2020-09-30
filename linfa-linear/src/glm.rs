@@ -138,7 +138,9 @@ impl TweedieRegressor {
             coef = stack!(Axis(0), temp, coef);
         }
 
-        // We optimize the parameters using LBFGS solver
+        // Constructing a struct that satisfies the requirements of the L-BFGS solver
+        // with functions implemented for the objective function and the parameter
+        // gradient
         let problem = TweedieProblem {
             x,
             y,
@@ -148,7 +150,13 @@ impl TweedieRegressor {
             alpha: self.alpha,
         };
         let linesearch = MoreThuenteLineSearch::new();
+
+        // L-BFGS maintains a history of the past m updates of the
+        // position x and gradient ∇f(x), where generally the history
+        // size m can be small (often m < 10)
+        // For our problem we set m as 7
         let solver = LBFGS::new(linesearch, 7).with_tol_grad(A::from(self.tol).unwrap());
+
         let result = Executor::new(problem, solver, ArgminParam(coef))
             .max_iters(self.max_iter as u64)
             .run()?;
