@@ -1,5 +1,5 @@
 use crate::random_forest::hyperparameters::RandomForestParams;
-use linfa_predictor::{LinfaError, Predictor};
+use linfa_predictor::{LinfaError, Predictor, ProbabilisticPredictor};
 use linfa_trees::DecisionTree;
 use ndarray::Array;
 use ndarray::Axis;
@@ -65,7 +65,9 @@ impl Predictor for RandomForest {
         }
         Ok(Array1::from(result))
     }
+}
 
+impl ProbabilisticPredictor for RandomForest {
     /// Return probability of predicted class for each sample, calculated as the rate of independent trees that
     /// have agreed on such prediction
     ///
