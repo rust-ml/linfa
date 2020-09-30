@@ -27,17 +27,12 @@ impl Error for LinfaError {
     }
 }
 
+
 /// Trait every predictor should implement
 pub trait Predictor {
     /// predict class for each sample
     fn predict(&self, x: &ArrayBase<impl Data<Elem = f64>, Ix2>)
         -> Result<Array1<u64>, LinfaError>;
-
-    // /// predict probability of each possible class for each sample
-    // fn predict_probabilities(
-    //     &self,
-    //     x: &ArrayBase<impl Data<Elem = f64>, Ix2>,
-    // ) -> Result<Vec<Array1<f64>>, LinfaError>;
 }
 
 pub trait ProbabilisticPredictor {
