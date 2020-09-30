@@ -71,6 +71,11 @@ impl ProbabilisticPredictor for RandomForest {
     /// Return probability of predicted class for each sample, calculated as the rate of independent trees that
     /// have agreed on such prediction
     ///
+    /// # Arguments
+    ///
+    /// * `x` - A 2D array of floating point elements
+    ///
+    ///
     fn predict_probabilities(
         &self,
         x: &ArrayBase<impl Data<Elem = f64>, Ix2>,

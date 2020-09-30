@@ -5,7 +5,7 @@ use std::collections::HashMap;
 #[derive(Clone)]
 pub enum Voting {
     Hard,
-    Soft,
+    // Soft,
 }
 
 #[derive(Clone)]
@@ -16,20 +16,20 @@ pub enum Voting {
 ///
 pub struct VotingClassifier<P: Predictor> {
     pub estimators: Vec<P>,
-    pub voting: Voting,
+    // pub voting: Voting,
 }
 
 impl<P: Predictor> VotingClassifier<P> {
     /// Create new voting classifier.
     /// If voting not provided, choose Voting::Hard by default
-    pub fn new(estimators: Vec<P>, voting: Option<Voting>) -> VotingClassifier<P> {
+    pub fn new(estimators: Vec<P>) -> VotingClassifier<P> {
         // assign user-defined weights or balanced weights
-        let voting = match voting {
-            Some(v) => v,
-            None => Voting::Hard,
-        };
+        // let voting = match voting {
+        //     Some(v) => v,
+        //     None => Voting::Hard,
+        // };
 
-        VotingClassifier { estimators, voting }
+        VotingClassifier { estimators }
     }
 
     /// Call .predict() from each estimator and applies fitted weights to results
@@ -46,29 +46,24 @@ impl<P: Predictor> VotingClassifier<P> {
             predictions.push(single_pred);
         }
 
-        // apply voting (hard or soft) and return final result
-        let result: Vec<u64> = match self.voting {
-            Voting::Hard => {
-                let mut res: Vec<u64> = vec![];
-                for sample_idx in 0..x.nrows() {
-                    let mut counter: HashMap<u64, u64> = HashMap::new();
-                    for sp in &predictions {
-                        *counter.entry(sp[sample_idx]).or_insert(0) += 1;
-                    }
-                    res.push(
-                        *counter
-                            .iter()
-                            .max_by(|a, b| a.1.cmp(&b.1))
-                            .map(|(k, _v)| k)
-                            .unwrap(),
-                    );
+        // apply magority voting and return final result
+        let result: Vec<u64> = {
+            let mut res: Vec<u64> = vec![];
+            for sample_idx in 0..x.nrows() {
+                let mut counter: HashMap<u64, u64> = HashMap::new();
+                for sp in &predictions {
+                    *counter.entry(sp[sample_idx]).or_insert(0) += 1;
                 }
-                res
+                res.push(
+                    *counter
+                        .iter()
+                        .max_by(|a, b| a.1.cmp(&b.1))
+                        .map(|(k, _v)| k)
+                        .unwrap(),
+                );
             }
-
-            Voting::Soft => unimplemented!(),
+            res
         };
-
         // return aggregated prediction
         Ok(Array1::from(result))
     }
@@ -105,7 +100,7 @@ mod tests {
         let mod1 = DecisionTree::fit(tree_params, &xtrain, &ytrain);
         let mod2 = DecisionTree::fit(tree_params, &xtrain, &ytrain);
         let mod3 = DecisionTree::fit(tree_params, &xtrain, &ytrain);
-        let vc = VotingClassifier::new(vec![mod1, mod2, mod3], None);
+        let vc = VotingClassifier::new(vec![mod1, mod2, mod3]);
 
         let preds = vc.predict(&xtrain).unwrap();
         dbg!("preds: ", &preds);

@@ -26,8 +26,8 @@ fn main() {
     let mod1 = DecisionTree::fit(tree_params, &xtrain, &ytrain);
     let mod2 = DecisionTree::fit(tree_params, &xtrain, &ytrain);
     let mod3 = DecisionTree::fit(tree_params, &xtrain, &ytrain);
-    let vc = VotingClassifier::new(vec![mod1, mod2, mod3], None);
-    let preds = vc.predict(&xtrain);
+    let vc = VotingClassifier::new(vec![mod1, mod2, mod3]);
+    let preds = vc.predict(&xtrain).unwrap();
     dbg!("preds: ", &preds);
     assert_eq!(preds.len(), xtrain.shape()[0]);
 }
