@@ -135,14 +135,10 @@ impl TweedieRegressor {
         }
 
         // We initialize the coefficients and intercept
-        let mut coef: Array1<A>;
+        let mut coef = Array::zeros(x.ncols());
         if self.fit_intercept {
-            coef = Array::zeros(x.ncols() + 1);
-            let temp = *link.link(&array![y.mean().unwrap()]).get(0).unwrap();
-            let element = coef.get_mut(0).unwrap();
-            *element = temp;
-        } else {
-            coef = Array::zeros(x.ncols());
+            let temp = link.link(&array![y.mean().unwrap()]);
+            coef = stack!(Axis(0), temp, coef);
         }
 
         // We optimize the parameters using LBFGS solver
