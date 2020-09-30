@@ -30,7 +30,7 @@ use ndarray::{Array, Array1, Array2, Axis};
 ///
 /// NOTE: No distribution exists between 0 and 1
 ///
-/// Learn more from sklearn's excellant [User Guide](https://scikit-learn.org/stable/modules/linear_model.html#generalized-linear-regression)
+/// Learn more from sklearn's excellent [User Guide](https://scikit-learn.org/stable/modules/linear_model.html#generalized-linear-regression)
 pub struct TweedieRegressor {
     alpha: f64,
     fit_intercept: bool,
