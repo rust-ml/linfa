@@ -33,6 +33,14 @@ pub trait Predictor {
     fn predict(&self, x: &ArrayBase<impl Data<Elem = f64>, Ix2>)
         -> Result<Array1<u64>, LinfaError>;
 
+    // /// predict probability of each possible class for each sample
+    // fn predict_probabilities(
+    //     &self,
+    //     x: &ArrayBase<impl Data<Elem = f64>, Ix2>,
+    // ) -> Result<Vec<Array1<f64>>, LinfaError>;
+}
+
+pub trait ProbabilisticPredictor {
     /// predict probability of each possible class for each sample
     fn predict_probabilities(
         &self,
