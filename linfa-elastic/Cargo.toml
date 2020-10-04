@@ -8,3 +8,4 @@ edition = "2018"
 ndarray = {version = "0.13", features = ["approx"]}
 ndarray-stats = {version = "0.3"}
 approx = "0.3"
+num-traits = "0.2.1"
