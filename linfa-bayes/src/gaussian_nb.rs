@@ -42,20 +42,20 @@ impl<A> GaussianNb<A> {
 }
 
 impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
-    fn fit(&mut self, x: &Array2<A>, y: &Array1<A>) -> Result<()> {
+    fn fit(&mut self, x: &Array2<A>, y: &Array1<A>) -> Result<FittedGaussianNb<A>> {
         let unique_classes = GaussianNb::unique(&y);
 
-        self.partial_fit(x, y, unique_classes);
+        let classifier = self.partial_fit(x, y, &unique_classes)?;
 
-        Ok(())
+        Ok(classifier)
     }
 
     fn partial_fit(
         &mut self,
         x: &Array2<A>,
         y: &Array1<A>,
-        classes: Array1<A>,
-    ) -> Result<Array1<A>> {
+        classes: &Array1<A>,
+    ) -> Result<FittedGaussianNb<A>> {
         // If the ratio of the variance between dimensions is too small, it will cause
         // numberical errors. We address this by artificially boosting the variance
         // by `epsilon` (a small fraction of the variance of the largest feature)
@@ -68,7 +68,7 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
         if self.classes.is_none() {
             // We initialize `classes` with sorted unique categories found in `y`
             //self.classes = Some(Self::unique(&y));
-            self.classes = Some(classes);
+            self.classes = Some(classes.to_owned());
 
             let nfeatures = x.ncols();
 
@@ -162,10 +162,15 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
                 .as_ref()
                 .unwrap()
                 .mapv(|x| x / class_count_sum);
-            self.priors.as_mut().unwrap().assign(&temp);
+            self.priors = Some(temp);
         }
 
-        Ok(Array1::zeros(2))
+        Ok(FittedGaussianNb {
+            classes: self.classes.as_ref().unwrap().to_owned(),
+            priors: self.priors.as_ref().unwrap().to_owned(),
+            theta: self.theta.as_ref().unwrap().to_owned(),
+            sigma: self.sigma.as_ref().unwrap().to_owned(),
+        })
     }
 
     fn update_mean_variance(
@@ -241,30 +246,123 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
     }
 }
 
+struct FittedGaussianNb<A> {
+    classes: Array1<A>,
+    priors: Array1<A>,
+    theta: Array2<A>,
+    sigma: Array2<A>,
+}
+
+impl<A: Float> FittedGaussianNb<A> {
+    fn predict(&self, x: &Array2<A>) -> Array1<A> {
+        let joint_log_liklihood = self.joint_log_likelihood(x);
+
+        joint_log_liklihood.map_axis(Axis(1), |x| {
+            let i = x.argmax().unwrap();
+            *self.classes.get(i).unwrap()
+        })
+    }
+
+    fn joint_log_likelihood(&self, x: &Array2<A>) -> Array2<A> {
+        let mut joint_log_likelihood = Array2::zeros((x.nrows(), self.classes.len()));
+
+        for i in 0..self.classes.len() {
+            let jointi = self.priors.get(i).unwrap().ln();
+
+            let mut nij = self
+                .sigma
+                .row(i)
+                .mapv(|x| A::from(2.).unwrap() * A::from(std::f64::consts::PI).unwrap() * x)
+                .mapv(|x| x.ln())
+                .sum();
+            nij = A::from(-0.5).unwrap() * nij;
+
+            println!("{:?}", nij);
+
+            let nij = ((x - &self.theta.row(i)).mapv(|x| x.powi(2)) / self.sigma.row(i))
+                .sum_axis(Axis(1))
+                .mapv(|x| x * A::from(0.5).unwrap())
+                .mapv(|x| nij - x);
+
+            joint_log_likelihood.column_mut(i).assign(&(nij + jointi));
+        }
+
+        joint_log_likelihood
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use ndarray::array;
-    use ndarray::s;
 
     use super::*;
 
     #[test]
-    fn test_sample() {
-        let mut x = array![[1., 2.], [3., 4.], [5., 6.]];
-        let mut y = array![1., 2., 1.];
-        let cond = 3.;
-        let ans = GaussianNb::filter(&x, &y, cond).unwrap();
-        //dbg!(ans.nrows());
+    fn test_gaussian_nb() {
+        let x = array![
+            [-2., -1.],
+            [-1., -1.],
+            [-1., -2.],
+            [1., 1.],
+            [1., 2.],
+            [2., 1.]
+        ];
+        let y = array![1., 1., 1., 2., 2., 2.];
 
-        {
-            x.row_mut(0).assign(&array![0., 0.]);
-        }
-        //dbg!(x);
+        let mut clf = GaussianNb::new();
+        let fitted_clf = clf.fit(&x, &y).unwrap();
+        let pred = fitted_clf.predict(&x);
+        assert_eq!(pred, y);
 
-        let element = y.get_mut(0).unwrap();
-        *element = 10.;
-        dbg!(y);
+        let jll = fitted_clf.joint_log_likelihood(&x);
+        let expected = array![
+            [-2.276946847943017, -38.27694652394301],
+            [-1.5269468546930165, -25.52694663869301],
+            [-2.276946847943017, -38.27694652394301],
+            [-25.52694663869301, -1.5269468546930165],
+            [-38.27694652394301, -2.276946847943017],
+            [-38.27694652394301, -2.276946847943017]
+        ];
+        assert_eq!(jll, expected);
+    }
 
-        assert!(false);
+    #[test]
+    fn test_gnb_priors1() {
+        let x = array![
+            [-2., -1.],
+            [-1., -1.],
+            [-1., -2.],
+            [1., 1.],
+            [1., 2.],
+            [2., 1.]
+        ];
+        let y = array![1., 1., 1., 2., 2., 2.];
+
+        let mut clf = GaussianNb::new();
+        let fitted_clf = clf.fit(&x, &y).unwrap();
+
+        let expected = array![0.5, 0.5];
+
+        assert_eq!(fitted_clf.priors, expected);
+    }
+
+    #[test]
+    fn test_gnb_priors2() {
+        let x = array![
+            [-2., -1.],
+            [-1., -1.],
+            [-1., -2.],
+            [1., 1.],
+            [1., 2.],
+            [2., 1.]
+        ];
+        let y = array![1., 1., 1., 2., 2., 2.];
+
+        let priors = array![0.3, 0.7];
+
+        let mut clf = GaussianNb::new().priors(priors.clone());
+        let fitted_clf = clf.fit(&x, &y).unwrap();
+
+        assert_eq!(fitted_clf.priors, priors);
     }
 }
