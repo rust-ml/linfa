@@ -1,7 +1,8 @@
 use std::borrow::Cow;
 
-use approx::{abs_diff_eq, abs_diff_ne};
-use ndarray::{s, Array1, Array2, Axis};
+use approx::{abs_diff_eq, abs_diff_ne, AbsDiffEq};
+use ndarray::{s, Array1, Array2, ArrayView1, Axis, ScalarOperand};
+use num_traits::{Float, FromPrimitive, NumAssignOps};
 
 /// Linear regression with both L1 and L2 regularization
 ///
@@ -10,22 +11,22 @@ use ndarray::{s, Array1, Array2, Axis};
 ///             + penalty * l1_ratio * ||w||_1
 ///             + 0.5 * penalty * (1 - l1_ratio) * ||w||^2_2
 ///
-pub struct ElasticNet {
-    penalty: f64,
-    l1_ratio: f64,
+pub struct ElasticNet<F> {
+    penalty: F,
+    l1_ratio: F,
     with_intercept: bool,
     max_iterations: u32,
-    tolerance: f64,
+    tolerance: F,
 }
 
 /// A fitted elastic net which can be used for making predictions
-pub struct FittedElasticNet {
-    parameters: Array1<f64>,
-    intercept: f64,
+pub struct FittedElasticNet<F> {
+    parameters: Array1<F>,
+    intercept: F,
 }
 
 /// Configure and fit a Elastic Net model
-impl ElasticNet {
+impl<F: AbsDiffEq + Float + FromPrimitive + ScalarOperand + NumAssignOps> ElasticNet<F> {
     /// Create a default elastic net model
     ///
     /// By default, an intercept will be fitted. To disable fitting an
@@ -34,20 +35,20 @@ impl ElasticNet {
     /// To additionally normalize the feature matrix before fitting, call
     /// `fit_intercept_and_normalize()` before calling `fit()`. The feature
     /// matrix will not be normalized by default.
-    pub fn new() -> ElasticNet {
+    pub fn new() -> ElasticNet<F> {
         ElasticNet {
-            penalty: 1.0,
-            l1_ratio: 0.5,
+            penalty: F::one(),
+            l1_ratio: F::from(0.5).unwrap(),
             with_intercept: true,
             max_iterations: 1000,
-            tolerance: 1e-4,
+            tolerance: F::from(1e-4).unwrap(),
         }
     }
 
     /// Set the overall parameter penalty parameter of the elastic net.
     /// Use `l1_ratio` to configure how the penalty distributed to L1 and L2
     /// regularization.
-    pub fn penalty(mut self, penalty: f64) -> Self {
+    pub fn penalty(mut self, penalty: F) -> Self {
         self.penalty = penalty;
         self
     }
@@ -60,8 +61,8 @@ impl ElasticNet {
     /// Defaults to `0.5` if not set
     ///
     /// `l1_ratio` must be between `0.0` and `1.0`.
-    pub fn l1_ratio(mut self, l1_ratio: f64) -> Self {
-        if l1_ratio < 0.0 || l1_ratio > 1.0 {
+    pub fn l1_ratio(mut self, l1_ratio: F) -> Self {
+        if l1_ratio < F::zero() || l1_ratio > F::one() {
             panic!("Invalid value for l1_ratio, needs to be between 0.0 and 1.0");
         }
         self.l1_ratio = l1_ratio;
@@ -79,7 +80,7 @@ impl ElasticNet {
     /// model parameters needed for the parameter optimization to continue.
     ///
     /// Defaults to `1e-4` if not set
-    pub fn tolerance(mut self, tolerance: f64) -> Self {
+    pub fn tolerance(mut self, tolerance: F) -> Self {
         self.tolerance = tolerance;
         self
     }
@@ -102,7 +103,7 @@ impl ElasticNet {
     /// Returns a `FittedElasticNet` object which contains the fitted
     /// parameters and can be used to `predict` values of the target variable
     /// for new feature values.
-    pub fn fit(&self, x: &Array2<f64>, y: &Array1<f64>) -> Result<FittedElasticNet, String> {
+    pub fn fit(&self, x: &Array2<F>, y: &Array1<F>) -> Result<FittedElasticNet<F>, String> {
         let (intercept, y) = self.compute_intercept(y);
         let (parameters, _) = coordinate_descent(
             &x,
@@ -120,18 +121,20 @@ impl ElasticNet {
 
     /// Compute the intercept as the mean of `y` and center `y` if an intercept should
     /// be used, use `0.0` as intercept and leave `y` unchanged otherwise.
-    fn compute_intercept<'a>(&self, y: &'a Array1<f64>) -> (f64, Cow<'a, Array1<f64>>) {
+    fn compute_intercept<'a>(&self, y: &'a Array1<F>) -> (F, Cow<'a, Array1<F>>) {
         if self.with_intercept {
             let y_mean = y.mean().unwrap();
             let y_centered = y - y_mean;
             (y_mean, Cow::Owned(y_centered))
         } else {
-            (0.0, Cow::Borrowed(y))
+            (F::zero(), Cow::Borrowed(y))
         }
     }
 }
 
-impl Default for ElasticNet {
+impl<F: AbsDiffEq + Float + FromPrimitive + ScalarOperand + NumAssignOps> Default
+    for ElasticNet<F>
+{
     fn default() -> Self {
         ElasticNet::new()
     }
@@ -139,61 +142,65 @@ impl Default for ElasticNet {
 
 /// View the fitted parameters and make predictions with a fitted
 /// elastic net model
-impl FittedElasticNet {
+impl<F: Float + FromPrimitive + ScalarOperand> FittedElasticNet<F> {
     /// Given an input matrix `X`, with shape `(n_samples, n_features)`,
     /// `predict` returns the target variable according to elastic net
     /// learned from the training data distribution.
-    pub fn predict(&self, x: &Array2<f64>) -> Array1<f64> {
+    pub fn predict(&self, x: &Array2<F>) -> Array1<F> {
         x.dot(&self.parameters) + self.intercept
     }
 
     /// Get the fitted parameters
-    pub fn parameters(&self) -> &Array1<f64> {
+    pub fn parameters(&self) -> &Array1<F> {
         &self.parameters
     }
 
     /// Get the fitted intercept, 0. if no intercept was fitted
-    pub fn intercept(&self) -> f64 {
+    pub fn intercept(&self) -> F {
         self.intercept
     }
 }
 
-fn coordinate_descent(
-    x: &Array2<f64>,
-    y: &Array1<f64>,
-    tol: f64,
+fn coordinate_descent<F: AbsDiffEq + Float + FromPrimitive + ScalarOperand + NumAssignOps>(
+    x: &Array2<F>,
+    y: &Array1<F>,
+    tol: F,
     max_steps: u32,
-    l1_ratio: f64,
-    penalty: f64,
-) -> (Array1<f64>, u32) {
-    let n_samples = x.shape()[0] as f64;
+    l1_ratio: F,
+    penalty: F,
+) -> (Array1<F>, u32) {
+    let n_samples = F::from(x.shape()[0]).unwrap();
     let n_features = x.shape()[1];
     // the parameters of the model
-    let mut w = Array1::<f64>::zeros(n_features);
+    let mut w = Array1::<F>::zeros(n_features);
     // the residuals: `y - X*w` (since w=0, this is just `y` for now),
     // the residuals are updated during the algorithm as the parameters change
     let mut r = y.clone();
     let mut n_steps = 0u32;
-    let norm_cols_x = x.map_axis(Axis(0), |col| col.fold(0.0, |sum_sq, x| sum_sq + x * x));
-    let mut d_w_max = f64::INFINITY;
+    let norm_cols_x = x.map_axis(Axis(0), |col| {
+        col.fold(F::zero(), |sum_sq, &x| sum_sq + x * x)
+    });
+    let mut d_w_max = F::infinity();
     while n_steps < max_steps && d_w_max > tol {
-        d_w_max = 0.0;
+        d_w_max = F::zero();
         for ii in 0..n_features {
-            if abs_diff_eq!(norm_cols_x[ii], 0.0) {
+            if abs_diff_eq!(norm_cols_x[ii], F::zero()) {
                 continue;
             }
             let w_ii = w[ii];
-            if abs_diff_ne!(w_ii, 0.0) {
-                r += &(w_ii * &x.slice(s![.., ii]));
+            if abs_diff_ne!(w_ii, F::zero()) {
+                let slc: ArrayView1<F> = x.slice(s![.., ii]);
+                r += &(&slc * w_ii);
             }
-            let tmp: f64 = x.slice(s![.., ii]).dot(&r);
-            w[ii] = tmp.signum() * f64::max(tmp.abs() - n_samples * l1_ratio * penalty, 0.0)
-                / (norm_cols_x[ii] + n_samples * (1.0 - l1_ratio) * penalty);
-            if w[ii] != 0.0 {
-                r -= &(w[ii] * &x.slice(s![.., ii]));
+            let tmp: F = x.slice(s![.., ii]).dot(&r);
+            w[ii] = tmp.signum() * F::max(tmp.abs() - n_samples * l1_ratio * penalty, F::zero())
+                / (norm_cols_x[ii] + n_samples * (F::one() - l1_ratio) * penalty);
+            if w[ii] != F::zero() {
+                let slc: ArrayView1<F> = x.slice(s![.., ii]);
+                r -= &(&slc * w[ii]);
             }
             let d_w_ii = (w[ii] - w_ii).abs();
-            d_w_max = f64::max(d_w_max, d_w_ii);
+            d_w_max = F::max(d_w_max, d_w_ii);
         }
         n_steps += 1;
     }
@@ -356,7 +363,11 @@ mod tests {
             .unwrap();
         assert_abs_diff_eq!(model.intercept(), 0.0);
         assert_abs_diff_eq!(model.parameters(), &array![0.50819], epsilon = 1e-3);
-        assert_abs_diff_eq!(model.predict(&t), array![1.0163, 1.5245, 2.0327], epsilon = 1e-3);
+        assert_abs_diff_eq!(
+            model.predict(&t),
+            array![1.0163, 1.5245, 2.0327],
+            epsilon = 1e-3
+        );
         // assert_almost_equal(clf.dual_gap_, 0)
 
         let model = ElasticNet::new()
@@ -366,7 +377,11 @@ mod tests {
             .unwrap();
         assert_abs_diff_eq!(model.intercept(), 0.0);
         assert_abs_diff_eq!(model.parameters(), &array![0.45454], epsilon = 1e-3);
-        assert_abs_diff_eq!(model.predict(&t), array![0.9090, 1.3636, 1.8181], epsilon = 1e-3);
+        assert_abs_diff_eq!(
+            model.predict(&t),
+            array![0.9090, 1.3636, 1.8181],
+            epsilon = 1e-3
+        );
         // assert_almost_equal(clf.dual_gap_, 0)
     }
 
