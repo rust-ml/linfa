@@ -49,18 +49,24 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
         let unique_classes = GaussianNb::unique(&y);
 
         self.partial_fit(x, y, &unique_classes)?;
-        let classifier = self.get_predictor();
+        let classifier = self.get_predictor()?;
 
         Ok(classifier)
     }
 
-    fn get_predictor(&self) -> FittedGaussianNb<A> {
-        FittedGaussianNb {
+    fn get_predictor(&self) -> Result<FittedGaussianNb<A>> {
+        if self.classes.is_none() {
+            return Err(BayesError::UntrainedModel(
+                "Attempt to access untrained model".to_string(),
+            ));
+        }
+
+        Ok(FittedGaussianNb {
             classes: self.classes.as_ref().unwrap().to_owned(),
             priors: self.priors.as_ref().unwrap().to_owned(),
             theta: self.theta.as_ref().unwrap().to_owned(),
             sigma: self.sigma.as_ref().unwrap().to_owned(),
-        }
+        })
     }
 
     fn partial_fit(&mut self, x: &Array2<A>, y: &Array1<A>, classes: &Array1<A>) -> Result<()> {
@@ -89,20 +95,33 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
 
             if let Some(ref priors) = self.priors {
                 if priors.len() != nclasses {
-                    todo!();
+                    return Err(BayesError::Priors(format!(
+                        "The number of priors: ({}), does not match the number of classes: ({})",
+                        priors.len(),
+                        nclasses
+                    )));
                 }
 
                 if (priors.sum() - A::from(1.0).unwrap()).abs() > A::from(1e-6).unwrap() {
-                    todo!();
+                    return Err(BayesError::Priors(format!(
+                        "The sum of priors: ({}), does not equal 1",
+                        priors.sum()
+                    )));
                 }
 
                 if priors.iter().any(|x| x < &A::from(0.).unwrap()) {
-                    todo!();
+                    return Err(BayesError::Priors(
+                        "Class priors cannot have negative values".to_string(),
+                    ));
                 }
             }
         } else {
             if x.ncols() != self.theta.as_ref().unwrap().ncols() {
-                todo!();
+                return Err(BayesError::Input(format!(
+                    "Number of input columns: ({}), does not match the previous input: ({})",
+                    x.ncols(),
+                    self.theta.as_ref().unwrap().ncols()
+                )));
             }
 
             // unwrap is safe because `self.sigma` is bound to have a value
@@ -118,7 +137,9 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
             .iter()
             .any(|x| !self.classes.as_ref().unwrap().iter().any(|y| y == x));
         if is_class_unavailable {
-            todo!();
+            return Err(BayesError::Input(
+                "Target labels in y, does not exist in the initial classes".to_string(),
+            ));
         }
 
         for class in yunique.iter() {
@@ -250,6 +271,7 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
     }
 }
 
+#[derive(Debug)]
 struct FittedGaussianNb<A> {
     classes: Array1<A>,
     priors: Array1<A>,
@@ -352,7 +374,7 @@ mod tests {
                 .unwrap();
         }
 
-        let fitted_clf = clf.get_predictor();
+        let fitted_clf = clf.get_predictor().unwrap();
         let pred = fitted_clf.predict(&x);
 
         assert_eq!(pred, y);
