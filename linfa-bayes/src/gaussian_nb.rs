@@ -1,4 +1,4 @@
-use ndarray::{s, Array1, Array2, ArrayView1, Axis};
+use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
 // QuantileExt trait required for `max` on ArrayBase
 use ndarray_stats::QuantileExt;
 
@@ -46,9 +46,9 @@ impl<A> GaussianNb<A> {
 
 impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
     fn fit(&mut self, x: &Array2<A>, y: &Array1<A>) -> Result<FittedGaussianNb<A>> {
-        let unique_classes = GaussianNb::unique(&y);
+        let unique_classes = GaussianNb::unique(&y.view());
 
-        self.partial_fit(x, y, &unique_classes)?;
+        self.partial_fit(&x.view(), &y.view(), &unique_classes)?;
         let classifier = self.get_predictor()?;
 
         Ok(classifier)
@@ -69,7 +69,12 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
         })
     }
 
-    fn partial_fit(&mut self, x: &Array2<A>, y: &Array1<A>, classes: &Array1<A>) -> Result<()> {
+    fn partial_fit(
+        &mut self,
+        x: &ArrayView2<A>,
+        y: &ArrayView1<A>,
+        classes: &Array1<A>,
+    ) -> Result<()> {
         // If the ratio of the variance between dimensions is too small, it will cause
         // numberical errors. We address this by artificially boosting the variance
         // by `epsilon` (a small fraction of the variance of the largest feature)
@@ -237,7 +242,7 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
     }
 
     // Extract unique elements of the array in sorted order
-    fn unique(y: &Array1<A>) -> Array1<A> {
+    fn unique(y: &ArrayView1<A>) -> Array1<A> {
         // We are identifying unique classes in y,
         // ndarray doesn't provide methods for extracting unique elements,
         // So we are converting it to a Vec
@@ -248,7 +253,7 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
         Array1::from(unique_classes)
     }
 
-    fn filter(x: &Array2<A>, y: &Array1<A>, ycondition: A) -> Result<Array2<A>> {
+    fn filter(x: &ArrayView2<A>, y: &ArrayView1<A>, ycondition: A) -> Result<Array2<A>> {
         let index: Vec<_> = y
             .indexed_iter()
             .filter_map(|(i, y)| {
@@ -370,8 +375,7 @@ mod tests {
             .into_iter()
             .zip(y.exact_chunks(2).into_iter())
         {
-            clf.partial_fit(&x.to_owned(), &y.to_owned(), &classes)
-                .unwrap();
+            clf.partial_fit(&x, &y, &classes).unwrap();
         }
 
         let fitted_clf = clf.get_predictor().unwrap();
