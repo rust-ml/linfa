@@ -7,6 +7,7 @@ use crate::Float;
 
 struct GaussianNb<A> {
     priors: Option<Array1<A>>,
+    priors_provided: bool,
     var_smoothing: f64,
     classes: Option<Array1<A>>,
     theta: Option<Array2<A>>,
@@ -18,6 +19,7 @@ impl<A> GaussianNb<A> {
     fn new() -> Self {
         GaussianNb {
             priors: None,
+            priors_provided: false,
             var_smoothing: 1e-9,
             classes: None,
             theta: None,
@@ -30,6 +32,7 @@ impl<A> GaussianNb<A> {
     // according to data
     fn priors(mut self, priors: Array1<A>) -> Self {
         self.priors = Some(priors);
+        self.priors_provided = true;
         self
     }
 
@@ -45,17 +48,22 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
     fn fit(&mut self, x: &Array2<A>, y: &Array1<A>) -> Result<FittedGaussianNb<A>> {
         let unique_classes = GaussianNb::unique(&y);
 
-        let classifier = self.partial_fit(x, y, &unique_classes)?;
+        self.partial_fit(x, y, &unique_classes)?;
+        let classifier = self.get_predictor();
 
         Ok(classifier)
     }
 
-    fn partial_fit(
-        &mut self,
-        x: &Array2<A>,
-        y: &Array1<A>,
-        classes: &Array1<A>,
-    ) -> Result<FittedGaussianNb<A>> {
+    fn get_predictor(&self) -> FittedGaussianNb<A> {
+        FittedGaussianNb {
+            classes: self.classes.as_ref().unwrap().to_owned(),
+            priors: self.priors.as_ref().unwrap().to_owned(),
+            theta: self.theta.as_ref().unwrap().to_owned(),
+            sigma: self.sigma.as_ref().unwrap().to_owned(),
+        }
+    }
+
+    fn partial_fit(&mut self, x: &Array2<A>, y: &Array1<A>, classes: &Array1<A>) -> Result<()> {
         // If the ratio of the variance between dimensions is too small, it will cause
         // numberical errors. We address this by artificially boosting the variance
         // by `epsilon` (a small fraction of the variance of the largest feature)
@@ -150,12 +158,13 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
                 .unwrap()
                 .get_mut(position)
                 .unwrap();
-            *element = A::from(nclass).unwrap();
+            *element += A::from(nclass).unwrap();
         }
 
         self.sigma.as_mut().unwrap().mapv_inplace(|x| x + epsilon);
 
-        if self.priors.is_none() {
+        //if self.priors.is_none() {
+        if !self.priors_provided {
             let class_count_sum = self.class_count.as_ref().unwrap().sum();
             let temp = self
                 .class_count
@@ -165,12 +174,7 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
             self.priors = Some(temp);
         }
 
-        Ok(FittedGaussianNb {
-            classes: self.classes.as_ref().unwrap().to_owned(),
-            priors: self.priors.as_ref().unwrap().to_owned(),
-            theta: self.theta.as_ref().unwrap().to_owned(),
-            sigma: self.sigma.as_ref().unwrap().to_owned(),
-        })
+        Ok(())
     }
 
     fn update_mean_variance(
@@ -195,15 +199,15 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
 
         // Combine old and new mean, taking into consideration the number
         // of observations
-        let mu_new_weighted = mu_new.mapv(|x| x * A::from(count_new).unwrap());
-        let mu_old_weighted = mu_old.mapv(|x| x * A::from(count_old).unwrap());
+        let mu_new_weighted = &mu_new * A::from(count_new).unwrap();
+        let mu_old_weighted = mu_old * A::from(count_old).unwrap();
         let mu_weighted = (mu_new_weighted + mu_old_weighted).mapv(|x| x / count_total);
 
         // Combine old and new variance, taking into consideration the number
         // of observations. this is achieved by combining the sum of squared
         // differences
-        let ssd_old = var_old.mapv(|x| x * A::from(count_old).unwrap());
-        let ssd_new = var_new.mapv(|x| x * A::from(count_new).unwrap());
+        let ssd_old = var_old * A::from(count_old).unwrap();
+        let ssd_new = var_new * A::from(count_new).unwrap();
         let weight = A::from(count_new * count_old).unwrap() / count_total;
         let ssd_weighted = ssd_old + ssd_new + (mu_old - &mu_new).mapv(|x| weight * x.powi(2));
         let var_weighted = ssd_weighted.mapv(|x| x / count_total);
@@ -277,8 +281,6 @@ impl<A: Float> FittedGaussianNb<A> {
                 .sum();
             nij = A::from(-0.5).unwrap() * nij;
 
-            println!("{:?}", nij);
-
             let nij = ((x - &self.theta.row(i)).mapv(|x| x.powi(2)) / self.sigma.row(i))
                 .sum_axis(Axis(1))
                 .mapv(|x| x * A::from(0.5).unwrap())
@@ -293,9 +295,9 @@ impl<A: Float> FittedGaussianNb<A> {
 
 #[cfg(test)]
 mod tests {
-    use ndarray::array;
-
     use super::*;
+    use approx::assert_abs_diff_eq;
+    use ndarray::array;
 
     #[test]
     fn test_gaussian_nb() {
@@ -324,6 +326,47 @@ mod tests {
             [-38.27694652394301, -2.276946847943017]
         ];
         assert_eq!(jll, expected);
+    }
+
+    #[test]
+    fn test_gnb_partial_fit() {
+        let x = array![
+            [-2., -1.],
+            [-1., -1.],
+            [-1., -2.],
+            [1., 1.],
+            [1., 2.],
+            [2., 1.]
+        ];
+        let y = array![1., 1., 1., 2., 2., 2.];
+        let classes = array![1., 2.];
+
+        let mut clf = GaussianNb::new();
+
+        for (x, y) in x
+            .exact_chunks((2, 2))
+            .into_iter()
+            .zip(y.exact_chunks(2).into_iter())
+        {
+            clf.partial_fit(&x.to_owned(), &y.to_owned(), &classes)
+                .unwrap();
+        }
+
+        let fitted_clf = clf.get_predictor();
+        let pred = fitted_clf.predict(&x);
+
+        assert_eq!(pred, y);
+
+        let jll = fitted_clf.joint_log_likelihood(&x);
+        let expected = array![
+            [-2.276946847943017, -38.27694652394301],
+            [-1.5269468546930165, -25.52694663869301],
+            [-2.276946847943017, -38.27694652394301],
+            [-25.52694663869301, -1.5269468546930165],
+            [-38.27694652394301, -2.276946847943017],
+            [-38.27694652394301, -2.276946847943017]
+        ];
+        assert_abs_diff_eq!(jll, expected, epsilon = 1e-6);
     }
 
     #[test]
