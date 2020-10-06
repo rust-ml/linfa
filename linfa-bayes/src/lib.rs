@@ -1,8 +1,6 @@
 mod error;
 mod gaussian_nb;
 
-use std::cmp::Ordering;
-
 use ndarray::NdFloat;
 use ndarray_linalg::Lapack;
 use num_traits::FromPrimitive;

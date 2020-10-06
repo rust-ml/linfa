@@ -11,22 +11,6 @@ use ndarray_csv::Array2Reader;
 
 use linfa::metrics::IntoConfusionMatrix;
 use linfa_bayes::GaussianNb;
-//use linfa_kernel::Kernel;
-//use linfa_svm::{SVClassify, SolverParams};
-
-/// Extract a gziped CSV file and return as dataset
-fn read_array(path: &str) -> Result<Array2<f64>, Box<dyn Error>> {
-    // unzip file
-    let file = GzDecoder::new(File::open(path)?);
-    // create a CSV reader with headers and `;` as delimiter
-    let mut reader = ReaderBuilder::new()
-        .has_headers(true)
-        .delimiter(b';')
-        .from_reader(file);
-    // extract ndarray
-    let array = reader.deserialize_array2_dynamic()?;
-    Ok(array)
-}
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Read in the wine-quality dataset from dataset path
@@ -47,16 +31,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let (train_data, train_targets) = (data.slice(s!(0..ntrain, ..)), &targets[0..ntrain]);
     let (valid_data, valid_targets) = (data.slice(s!(ntrain.., ..)), &targets[ntrain..]);
 
-    // Transform data with gaussian kernel fuction
-    // this is also known as RBF kernel with (eps = 8.0)
     let train_data = train_data.to_owned();
+    let valid_data = valid_data.to_owned();
 
-    println!(
-        "Fit SVM classifier with #{} training points",
-        train_data.len_of(Axis(0))
-    );
-
-    // A positive prediction indicates a good wine, a negative, a bad one
     fn tag_classes(x: bool) -> f64 {
         if x {
             1.
@@ -65,7 +42,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     };
 
-    // Map targets from boolean to readable strings
+    // Map targets from boolean to float
     let train_targets: Array1<f64> = train_targets
         .into_iter()
         .cloned()
@@ -77,34 +54,56 @@ fn main() -> Result<(), Box<dyn Error>> {
         .map(tag_classes)
         .collect();
 
-    println!("{:?} & {:?}", valid_targets.sum(), valid_targets.len());
-
+    // Initialize the model
     let mut model: GaussianNb<f64> = GaussianNb::new();
 
-    //let fitted_model = model.fit(&train_data, &train_targets)?;
-    //let pred = fitted_model.predict(&valid_data.to_owned());
-
+    // Trian the model using the incremental learning api
+    // `fit` method is also available for training using all data
     for (x, y) in train_data
-        .exact_chunks((120, 11))
-        .into_iter()
-        .zip(train_targets.exact_chunks(120).into_iter())
+        .axis_chunks_iter(Axis(0), 120)
+        .zip(train_targets.axis_chunks_iter(Axis(0), 120))
     {
         model.partial_fit(&x, &y, &array![0., 1.])?;
     }
-    let fitted_model = model.get_predictor()?;
-    let pred = fitted_model.predict(&valid_data.to_owned());
 
-    let pred_str: Vec<_> = pred.to_vec().iter().map(|x| x.to_string()).collect();
+    // Get the trained predictor
+    let fitted_model = model.get_predictor()?;
+
+    // Calculation predictions on the validation set
+    let prediction = fitted_model.predict(&valid_data);
+
+    // We convert the predictions and the validation target as string for
+    // compatibility with the confusion matrix api
+    let prediction_str: Vec<_> = prediction.to_vec().iter().map(|x| x.to_string()).collect();
     let valid_targets_str: Vec<_> = valid_targets
         .to_vec()
         .iter()
         .map(|x| x.to_string())
         .collect();
 
-    let cm = pred_str.into_confusion_matrix(&valid_targets_str);
+    let cm = prediction_str.into_confusion_matrix(&valid_targets_str);
 
+    // classes    | 0          | 1
+    // 0          | 131        | 7
+    // 1          | 12         | 10
+    //
+    // accuracy 0.88125, MCC 0.45128104
     println!("{:?}", cm);
     println!("accuracy {}, MCC {}", cm.accuracy(), cm.mcc());
 
     Ok(())
+}
+
+// Extract a gziped CSV file and return as dataset
+fn read_array(path: &str) -> Result<Array2<f64>, Box<dyn Error>> {
+    // unzip file
+    let file = GzDecoder::new(File::open(path)?);
+    // create a CSV reader with headers and `;` as delimiter
+    let mut reader = ReaderBuilder::new()
+        .has_headers(true)
+        .delimiter(b';')
+        .from_reader(file);
+    // extract ndarray
+    let array = reader.deserialize_array2_dynamic()?;
+    Ok(array)
 }
