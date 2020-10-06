@@ -7,6 +7,8 @@ use ndarray::NdFloat;
 use ndarray_linalg::Lapack;
 use num_traits::FromPrimitive;
 
+pub use gaussian_nb::GaussianNb;
+
 pub trait Float:
     PartialEq + PartialOrd + NdFloat + Lapack + Default + Clone + FromPrimitive
 {

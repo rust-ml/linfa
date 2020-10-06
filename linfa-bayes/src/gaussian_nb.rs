@@ -5,7 +5,7 @@ use ndarray_stats::QuantileExt;
 use crate::error::{BayesError, Result};
 use crate::Float;
 
-struct GaussianNb<A> {
+pub struct GaussianNb<A> {
     priors: Option<Array1<A>>,
     priors_provided: bool,
     var_smoothing: f64,
@@ -16,7 +16,7 @@ struct GaussianNb<A> {
 }
 
 impl<A> GaussianNb<A> {
-    fn new() -> Self {
+    pub fn new() -> Self {
         GaussianNb {
             priors: None,
             priors_provided: false,
@@ -45,7 +45,7 @@ impl<A> GaussianNb<A> {
 }
 
 impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
-    fn fit(&mut self, x: &Array2<A>, y: &Array1<A>) -> Result<FittedGaussianNb<A>> {
+    pub fn fit(&mut self, x: &Array2<A>, y: &Array1<A>) -> Result<FittedGaussianNb<A>> {
         let unique_classes = GaussianNb::unique(&y.view());
 
         self.partial_fit(&x.view(), &y.view(), &unique_classes)?;
@@ -54,7 +54,7 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
         Ok(classifier)
     }
 
-    fn get_predictor(&self) -> Result<FittedGaussianNb<A>> {
+    pub fn get_predictor(&self) -> Result<FittedGaussianNb<A>> {
         if self.classes.is_none() {
             return Err(BayesError::UntrainedModel(
                 "Attempt to access untrained model".to_string(),
@@ -69,7 +69,7 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
         })
     }
 
-    fn partial_fit(
+    pub fn partial_fit(
         &mut self,
         x: &ArrayView2<A>,
         y: &ArrayView1<A>,
@@ -277,7 +277,7 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
 }
 
 #[derive(Debug)]
-struct FittedGaussianNb<A> {
+pub struct FittedGaussianNb<A> {
     classes: Array1<A>,
     priors: Array1<A>,
     theta: Array2<A>,
@@ -285,7 +285,7 @@ struct FittedGaussianNb<A> {
 }
 
 impl<A: Float> FittedGaussianNb<A> {
-    fn predict(&self, x: &Array2<A>) -> Array1<A> {
+    pub fn predict(&self, x: &Array2<A>) -> Array1<A> {
         let joint_log_liklihood = self.joint_log_likelihood(x);
 
         joint_log_liklihood.map_axis(Axis(1), |x| {
