@@ -207,6 +207,37 @@ fn coordinate_descent<F: AbsDiffEq + Float + FromPrimitive + ScalarOperand + Num
     (w, n_steps)
 }
 
+// Double check!!
+fn duality_gap<F: AbsDiffEq + Float + FromPrimitive + ScalarOperand + NumAssignOps>(
+    x: &Array2<F>,
+    y: &Array1<F>,
+    w: &Array1<F>,
+    l1_penalty: F,
+    l2_penalty: F,
+    r: &Array1<F>,
+) -> F {
+    let xta = x.t().dot(r) - w * l2_penalty;
+    // FIXME: handle 'positive' flag
+    let dual_norm_xta = xta.fold(
+        F::zero(),
+        |max, &x| if x.abs() > max { x.abs() } else { max },
+    );
+    let r_norm2 = r.dot(r);
+    let w_norm2 = w.dot(w);
+    let (const_, mut gap) = if dual_norm_xta > l1_penalty {
+        let const_ = l1_penalty / dual_norm_xta;
+        let a_norm2 = r_norm2 * const_ * const_;
+        (const_, F::from(0.5).unwrap() * (r_norm2 + a_norm2))
+    } else {
+        (F::one(), r_norm2)
+    };
+    // FIXME
+    let l1_norm = F::zero();
+    gap += l1_penalty * l1_norm - const_ * r.dot(y)
+        + F::from(0.5).unwrap() * l2_penalty * (F::one() + const_ * const_) * w_norm2;
+    gap
+}
+
 #[cfg(test)]
 mod tests {
     use super::{coordinate_descent, ElasticNet};
