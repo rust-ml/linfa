@@ -86,7 +86,7 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
     /// let y = array![1., 1., 1., 2., 2., 2.];
     ///
     /// let mut clf = GaussianNb::new();
-    /// let fitted_clf = clf.fit(&x, &y).unwrap();
+    /// let fitted_clf = clf.fit(&x, &y)?;
     /// let pred = fitted_clf.predict(&x);
     ///
     /// assert_eq!(pred, y);
@@ -132,10 +132,10 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
     ///     .axis_chunks_iter(Axis(0), 2)
     ///     .zip(y.axis_chunks_iter(Axis(0), 2))
     /// {
-    ///     clf.partial_fit(&x, &y, &classes).unwrap();
+    ///     clf.partial_fit(&x, &y, &classes)?;
     /// }
     ///
-    /// let fitted_clf = clf.get_predictor().unwrap();
+    /// let fitted_clf = clf.get_predictor()?;
     /// let pred = fitted_clf.predict(&x);
     ///
     /// assert_eq!(pred, y);
