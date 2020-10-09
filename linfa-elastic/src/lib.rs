@@ -23,6 +23,8 @@ pub struct ElasticNet<F> {
 pub struct FittedElasticNet<F> {
     parameters: Array1<F>,
     intercept: F,
+    duality_gap: F,
+    n_steps: u32,
 }
 
 /// Configure and fit a Elastic Net model
@@ -105,7 +107,7 @@ impl<F: AbsDiffEq + Float + FromPrimitive + ScalarOperand + NumAssignOps> Elasti
     /// for new feature values.
     pub fn fit(&self, x: &Array2<F>, y: &Array1<F>) -> Result<FittedElasticNet<F>, String> {
         let (intercept, y) = self.compute_intercept(y);
-        let (parameters, _) = coordinate_descent(
+        let (parameters, duality_gap, n_steps) = coordinate_descent(
             &x,
             &y,
             self.tolerance,
@@ -116,6 +118,8 @@ impl<F: AbsDiffEq + Float + FromPrimitive + ScalarOperand + NumAssignOps> Elasti
         Ok(FittedElasticNet {
             intercept,
             parameters,
+            duality_gap,
+            n_steps,
         })
     }
 
@@ -159,6 +163,16 @@ impl<F: Float + FromPrimitive + ScalarOperand> FittedElasticNet<F> {
     pub fn intercept(&self) -> F {
         self.intercept
     }
+
+    /// Get the number of steps taken in optimization algorithm
+    pub fn n_steps(&self) -> u32 {
+        self.n_steps
+    }
+
+    /// Get the duality gap at the end of the optimization algorithm
+    pub fn duality_gap(&self) -> F {
+        self.duality_gap
+    }
 }
 
 fn coordinate_descent<F: AbsDiffEq + Float + FromPrimitive + ScalarOperand + NumAssignOps>(
@@ -168,7 +182,7 @@ fn coordinate_descent<F: AbsDiffEq + Float + FromPrimitive + ScalarOperand + Num
     max_steps: u32,
     l1_ratio: F,
     penalty: F,
-) -> (Array1<F>, u32) {
+) -> (Array1<F>, F, u32) {
     let n_samples = F::from(x.shape()[0]).unwrap();
     let n_features = x.shape()[1];
     // the parameters of the model
@@ -180,61 +194,73 @@ fn coordinate_descent<F: AbsDiffEq + Float + FromPrimitive + ScalarOperand + Num
     let norm_cols_x = x.map_axis(Axis(0), |col| {
         col.fold(F::zero(), |sum_sq, &x| sum_sq + x * x)
     });
-    let mut d_w_max = F::infinity();
-    while n_steps < max_steps && d_w_max > tol {
-        d_w_max = F::zero();
+    let mut gap = F::one() + tol;
+    let d_w_tol = tol;
+    let tol = tol * y.dot(y);
+    while n_steps < max_steps {
+        let mut w_max = F::zero();
+        let mut d_w_max = F::zero();
         for ii in 0..n_features {
             if abs_diff_eq!(norm_cols_x[ii], F::zero()) {
                 continue;
             }
             let w_ii = w[ii];
+            let x_slc: ArrayView1<F> = x.slice(s![.., ii]);
             if abs_diff_ne!(w_ii, F::zero()) {
-                let slc: ArrayView1<F> = x.slice(s![.., ii]);
-                r += &(&slc * w_ii);
+                // FIXME: direct addition with loop might be faster as it does not have to allocate
+                r += &(&x_slc * w_ii);
             }
-            let tmp: F = x.slice(s![.., ii]).dot(&r);
+            let tmp: F = x_slc.dot(&r);
             w[ii] = tmp.signum() * F::max(tmp.abs() - n_samples * l1_ratio * penalty, F::zero())
                 / (norm_cols_x[ii] + n_samples * (F::one() - l1_ratio) * penalty);
-            if w[ii] != F::zero() {
-                let slc: ArrayView1<F> = x.slice(s![.., ii]);
-                r -= &(&slc * w[ii]);
+            if abs_diff_ne!(w[ii], F::zero()) {
+                r -= &(&x_slc * w[ii]);
             }
             let d_w_ii = (w[ii] - w_ii).abs();
             d_w_max = F::max(d_w_max, d_w_ii);
+            w_max = F::max(w_max, w[ii].abs());
         }
         n_steps += 1;
+
+        if n_steps == max_steps - 1 || abs_diff_eq!(w_max, F::zero()) || d_w_max / w_max < d_w_tol {
+            // We've hit one potential stopping criteria
+            // check duality gap for ultimate stopping criterion
+            gap = duality_gap(x, y, &w, &r, l1_ratio, penalty);
+            if gap < tol {
+                break;
+            }
+        }
     }
-    (w, n_steps)
+    (w, gap, n_steps)
 }
 
-// Double check!!
 fn duality_gap<F: AbsDiffEq + Float + FromPrimitive + ScalarOperand + NumAssignOps>(
     x: &Array2<F>,
     y: &Array1<F>,
     w: &Array1<F>,
-    l1_penalty: F,
-    l2_penalty: F,
     r: &Array1<F>,
+    l1_ratio: F,
+    penalty: F,
 ) -> F {
-    let xta = x.t().dot(r) - w * l2_penalty;
-    // FIXME: handle 'positive' flag
-    let dual_norm_xta = xta.fold(
-        F::zero(),
-        |max, &x| if x.abs() > max { x.abs() } else { max },
-    );
+    let half = F::from(0.5).unwrap();
+    let n_samples = F::from(x.shape()[0]).unwrap();
+    let l1_reg = l1_ratio * penalty * n_samples;
+    let l2_reg = (F::one() - l1_ratio) * penalty * n_samples;
+    let xta = x.t().dot(r) - w * l2_reg;
+
+    let dual_norm_xta = xta.fold(F::zero(), |abs_max, &x| abs_max.max(x.abs()));
     let r_norm2 = r.dot(r);
     let w_norm2 = w.dot(w);
-    let (const_, mut gap) = if dual_norm_xta > l1_penalty {
-        let const_ = l1_penalty / dual_norm_xta;
+    let (const_, mut gap) = if dual_norm_xta > l1_reg {
+        let const_ = l1_reg / dual_norm_xta;
         let a_norm2 = r_norm2 * const_ * const_;
-        (const_, F::from(0.5).unwrap() * (r_norm2 + a_norm2))
+        (const_, half * (r_norm2 + a_norm2))
     } else {
         (F::one(), r_norm2)
     };
-    // FIXME
-    let l1_norm = F::zero();
-    gap += l1_penalty * l1_norm - const_ * r.dot(y)
-        + F::from(0.5).unwrap() * l2_penalty * (F::one() + const_ * const_) * w_norm2;
+    let l1_norm = w.fold(F::zero(), |sum, w_i| sum + w_i.abs());
+    gap += l1_reg * l1_norm - const_ * r.dot(y)
+        + half * l2_reg * (F::one() + const_ * const_) * w_norm2;
     gap
 }
 
@@ -344,8 +370,7 @@ mod tests {
         assert_abs_diff_eq!(model.intercept(), 0.0);
         assert_abs_diff_eq!(model.parameters(), &array![1.0], epsilon = 1e-6);
         assert_abs_diff_eq!(model.predict(&t), array![2.0, 3.0, 4.0], epsilon = 1e-6);
-        // Still have to port this from python:
-        // # assert_almost_equal(clf.dual_gap_, 0)
+        assert_abs_diff_eq!(model.duality_gap(), 0.0);
 
         let model = ElasticNet::new()
             .l1_ratio(1.0)
@@ -355,8 +380,7 @@ mod tests {
         assert_abs_diff_eq!(model.intercept(), 0.0);
         assert_abs_diff_eq!(model.parameters(), &array![0.85], epsilon = 1e-6);
         assert_abs_diff_eq!(model.predict(&t), array![1.7, 2.55, 3.4], epsilon = 1e-6);
-        // Still to implement
-        // assert_almost_equal(clf.dual_gap_, 0)
+        assert_abs_diff_eq!(model.duality_gap(), 0.0);
 
         let model = ElasticNet::new()
             .l1_ratio(1.0)
@@ -366,8 +390,7 @@ mod tests {
         assert_abs_diff_eq!(model.intercept(), 0.0);
         assert_abs_diff_eq!(model.parameters(), &array![0.25], epsilon = 1e-6);
         assert_abs_diff_eq!(model.predict(&t), array![0.5, 0.75, 1.0], epsilon = 1e-6);
-        // Still to implement
-        // assert_almost_equal(clf.dual_gap_, 0)
+        assert_abs_diff_eq!(model.duality_gap(), 0.0);
 
         let model = ElasticNet::new()
             .l1_ratio(1.0)
@@ -377,8 +400,7 @@ mod tests {
         assert_abs_diff_eq!(model.intercept(), 0.0);
         assert_abs_diff_eq!(model.parameters(), &array![0.0], epsilon = 1e-6);
         assert_abs_diff_eq!(model.predict(&t), array![0.0, 0.0, 0.0], epsilon = 1e-6);
-        // Still to implement
-        // assert_almost_equal(clf.dual_gap_, 0)
+        assert_abs_diff_eq!(model.duality_gap(), 0.0);
     }
 
     #[test]
