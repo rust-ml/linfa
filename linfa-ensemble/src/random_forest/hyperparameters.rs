@@ -60,7 +60,6 @@ impl RandomForestParamsBuilder {
     }
 
     pub fn build(&self) -> RandomForestParams {
-        // TODO
         let max_features = self.max_features.unwrap_or(MaxFeatures::Auto);
 
         let max_features = match max_features {

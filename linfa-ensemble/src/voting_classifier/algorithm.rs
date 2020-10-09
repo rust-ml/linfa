@@ -3,12 +3,6 @@ use ndarray::{Array1, ArrayBase, Data, Ix2};
 use std::collections::HashMap;
 
 #[derive(Clone)]
-pub enum Voting {
-    Hard,
-    // Soft,
-}
-
-#[derive(Clone)]
 /// A VotingClassifier can be composed of heterogeneous learners (previously fitted) and
 /// returns an aggregated prediction depending on the voting strategy
 /// if hard, majority rule is applied

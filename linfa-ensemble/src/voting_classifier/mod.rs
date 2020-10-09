@@ -1,5 +1,5 @@
 mod algorithm;
-// mod hyperparameters;
+mod hyperparameters;
 
 pub use algorithm::*;
-// pub use hyperparameters::*;
+pub use hyperparameters::*;
