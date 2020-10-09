@@ -44,6 +44,7 @@ members = [
     "linfa-svm",
     "linfa-hierarchical",
     "linfa-predictor",
+    "linfa-ica",
 ]
 
 [profile.release]
