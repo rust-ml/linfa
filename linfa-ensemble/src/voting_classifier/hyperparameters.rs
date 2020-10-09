@@ -1,3 +1,4 @@
-// use linfa_trees::DecisionTreeParams;
-
-
+#[derive(Clone)]
+pub enum Voting {
+    Hard,
+}

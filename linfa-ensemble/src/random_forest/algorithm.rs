@@ -8,7 +8,7 @@ use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
 use std::collections::HashMap;
 
-/// A random forest is composed of independent decision trees performing a prediction and collecting each of them
+/// A random forest is composed of independent decision trees whose predictions are aggregated by majority voting
 pub struct RandomForest {
     pub hyperparameters: RandomForestParams,
     pub trees: Vec<DecisionTree>,

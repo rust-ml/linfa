@@ -51,11 +51,11 @@ struct TreeNode {
 
 impl Hash for TreeNode {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        let mut stuff: Vec<u64> = vec![];
-        stuff.push(self.feature_idx as u64);
-        stuff.push(self.prediction);
-        stuff.push(self.leaf_node as u64);
-        stuff.hash(state);
+        let mut data: Vec<u64> = vec![];
+        data.push(self.feature_idx as u64);
+        data.push(self.prediction);
+        data.push(self.leaf_node as u64);
+        data.hash(state);
     }
 }
 
