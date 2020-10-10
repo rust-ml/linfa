@@ -6,4 +6,4 @@ pub mod ols;
 
 pub use glm::TweedieRegressor;
 pub use ols::LinearRegression;
-pub use elastic::ElasticNet;
+pub use elastic::{ElasticNetRegression, LassoRegression, RidgeRegression};

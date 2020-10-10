@@ -11,7 +11,7 @@ use num_traits::{Float, FromPrimitive, NumAssignOps};
 ///             + penalty * l1_ratio * ||w||_1
 ///             + 0.5 * penalty * (1 - l1_ratio) * ||w||^2_2
 ///
-pub struct ElasticNet<F> {
+pub struct ElasticNetRegression<F> {
     penalty: F,
     l1_ratio: F,
     with_intercept: bool,
@@ -28,7 +28,7 @@ pub struct FittedElasticNet<F> {
 }
 
 /// Configure and fit a Elastic Net model
-impl<F: AbsDiffEq + Float + FromPrimitive + ScalarOperand + NumAssignOps> ElasticNet<F> {
+impl<F: AbsDiffEq + Float + FromPrimitive + ScalarOperand + NumAssignOps> ElasticNetRegression<F> {
     /// Create a default elastic net model
     ///
     /// By default, an intercept will be fitted. To disable fitting an
@@ -37,8 +37,8 @@ impl<F: AbsDiffEq + Float + FromPrimitive + ScalarOperand + NumAssignOps> Elasti
     /// To additionally normalize the feature matrix before fitting, call
     /// `fit_intercept_and_normalize()` before calling `fit()`. The feature
     /// matrix will not be normalized by default.
-    pub fn new() -> ElasticNet<F> {
-        ElasticNet {
+    pub fn new() -> ElasticNetRegression<F> {
+        ElasticNetRegression {
             penalty: F::one(),
             l1_ratio: F::from(0.5).unwrap(),
             with_intercept: true,
@@ -137,10 +137,146 @@ impl<F: AbsDiffEq + Float + FromPrimitive + ScalarOperand + NumAssignOps> Elasti
 }
 
 impl<F: AbsDiffEq + Float + FromPrimitive + ScalarOperand + NumAssignOps> Default
-    for ElasticNet<F>
+    for ElasticNetRegression<F>
 {
     fn default() -> Self {
-        ElasticNet::new()
+        ElasticNetRegression::new()
+    }
+}
+
+/// Linear regression with L1 regularization
+///
+/// Configures and minimizes the following objective function:
+///             1 / (2 * n_samples) * ||y - Xw||^2_2
+///             + penalty * ||w||_1
+pub struct LassoRegression<F> {
+    elastic_net: ElasticNetRegression<F>,
+}
+
+impl<F: AbsDiffEq + Float + FromPrimitive + ScalarOperand + NumAssignOps> Default
+    for LassoRegression<F>
+{
+    fn default() -> Self {
+        LassoRegression::new()
+    }
+}
+
+impl<F: AbsDiffEq + Float + FromPrimitive + ScalarOperand + NumAssignOps> LassoRegression<F> {
+    pub fn new() -> LassoRegression<F> {
+        let elastic_net = ElasticNetRegression::<F>::new().l1_ratio(F::one());
+        LassoRegression { elastic_net }
+    }
+
+    /// Set the overall parameter penalty parameter of the Lasso
+    pub fn penalty(mut self, penalty: F) -> Self {
+        self.elastic_net = self.elastic_net.penalty(penalty);
+        self
+    }
+
+    /// Configure the lasso model to fit an intercept.
+    /// Defaults to `true` if not set.
+    pub fn with_intercept(mut self, with_intercept: bool) -> Self {
+        self.elastic_net = self.elastic_net.with_intercept(with_intercept);
+        self
+    }
+
+    /// Set the tolerance which is the minimum absolute change in any of the
+    /// model parameters needed for the parameter optimization to continue.
+    ///
+    /// Defaults to `1e-4` if not set
+    pub fn tolerance(mut self, tolerance: F) -> Self {
+        self.elastic_net = self.elastic_net.tolerance(tolerance);
+        self
+    }
+
+    /// Set the maximum number of iterations for the optimization routine.
+    ///
+    /// Defaults to `1000` if not set
+    pub fn max_iterations(mut self, max_iterations: u32) -> Self {
+        self.elastic_net = self.elastic_net.max_iterations(max_iterations);
+        self
+    }
+
+    /// Fit an lasso regression model given a feature matrix `x` and a target
+    /// variable `y`.
+    ///
+    /// The feature matrix `x` must have shape `(n_samples, n_features)`
+    ///
+    /// The target variable `y` must have shape `(n_samples)`
+    ///
+    /// Returns a `FittedElasticNet` object which contains the fitted
+    /// parameters and can be used to `predict` values of the target variable
+    /// for new feature values.
+    pub fn fit(&self, x: &Array2<F>, y: &Array1<F>) -> Result<FittedElasticNet<F>, String> {
+        self.elastic_net.fit(x, y)
+    }
+}
+
+/// Linear regression with L2 regularization
+///
+/// Configures and minimizes the following objective function:
+///             1 / (2 * n_samples) * ||y - Xw||^2_2
+///             + 0.5 * penalty * ||w||^2_2
+pub struct RidgeRegression<F> {
+    elastic_net: ElasticNetRegression<F>,
+}
+
+impl<F: AbsDiffEq + Float + FromPrimitive + ScalarOperand + NumAssignOps> Default
+    for RidgeRegression<F>
+{
+    fn default() -> Self {
+        RidgeRegression::new()
+    }
+}
+
+impl<F: AbsDiffEq + Float + FromPrimitive + ScalarOperand + NumAssignOps> RidgeRegression<F> {
+    pub fn new() -> RidgeRegression<F> {
+        let elastic_net = ElasticNetRegression::<F>::new().l1_ratio(F::zero());
+        RidgeRegression { elastic_net }
+    }
+
+    /// Set the overall parameter penalty parameter of the Ridge
+    pub fn penalty(mut self, penalty: F) -> Self {
+        self.elastic_net = self.elastic_net.penalty(penalty);
+        self
+    }
+
+    /// Configure the ridge model to fit an intercept.
+    /// Defaults to `true` if not set.
+    pub fn with_intercept(mut self, with_intercept: bool) -> Self {
+        self.elastic_net = self.elastic_net.with_intercept(with_intercept);
+        self
+    }
+
+    /// Set the tolerance which is the minimum absolute change in any of the
+    /// model parameters needed for the parameter optimization to continue.
+    ///
+    /// Defaults to `1e-4` if not set
+    pub fn tolerance(mut self, tolerance: F) -> Self {
+        self.elastic_net = self.elastic_net.tolerance(tolerance);
+        self
+    }
+
+    /// Set the maximum number of iterations for the optimization routine.
+    ///
+    /// Defaults to `1000` if not set
+    pub fn max_iterations(mut self, max_iterations: u32) -> Self {
+        self.elastic_net = self.elastic_net.max_iterations(max_iterations);
+        self
+    }
+
+    /// Fit a ridge regression model given a feature matrix `x` and a target
+    /// variable `y`.
+    ///
+    /// The feature matrix `x` must have shape `(n_samples, n_features)`
+    ///
+    /// The target variable `y` must have shape `(n_samples)`
+    ///
+    /// Returns a `FittedElasticNet` object which contains the fitted
+    /// parameters and can be used to `predict` values of the target variable
+    /// for new feature values.
+    pub fn fit(&self, x: &Array2<F>, y: &Array1<F>) -> Result<FittedElasticNet<F>, String> {
+        self.elastic_net.fit(x, y)
     }
 }
 
@@ -266,7 +402,7 @@ fn duality_gap<F: AbsDiffEq + Float + FromPrimitive + ScalarOperand + NumAssignO
 
 #[cfg(test)]
 mod tests {
-    use super::{coordinate_descent, ElasticNet};
+    use super::{coordinate_descent, ElasticNetRegression, LassoRegression};
     use approx::assert_abs_diff_eq;
     use ndarray::{array, Array1, Array2};
 
@@ -344,7 +480,7 @@ mod tests {
     fn lasso_zero_works() {
         let x = array![[0.], [0.], [0.]];
         let y = array![0., 0., 0.];
-        let model = ElasticNet::new()
+        let model = ElasticNetRegression::new()
             .l1_ratio(1.0)
             .penalty(0.1)
             .fit(&x, &y)
@@ -362,41 +498,25 @@ mod tests {
         let y = array![-1.0, 0.0, 1.0];
         // input for prediction
         let t = array![[2.0], [3.0], [4.0]];
-        let model = ElasticNet::new()
-            .l1_ratio(1.0)
-            .penalty(1e-8)
-            .fit(&x, &y)
-            .unwrap();
+        let model = LassoRegression::new().penalty(1e-8).fit(&x, &y).unwrap();
         assert_abs_diff_eq!(model.intercept(), 0.0);
         assert_abs_diff_eq!(model.parameters(), &array![1.0], epsilon = 1e-6);
         assert_abs_diff_eq!(model.predict(&t), array![2.0, 3.0, 4.0], epsilon = 1e-6);
         assert_abs_diff_eq!(model.duality_gap(), 0.0);
 
-        let model = ElasticNet::new()
-            .l1_ratio(1.0)
-            .penalty(0.1)
-            .fit(&x, &y)
-            .unwrap();
+        let model = LassoRegression::new().penalty(0.1).fit(&x, &y).unwrap();
         assert_abs_diff_eq!(model.intercept(), 0.0);
         assert_abs_diff_eq!(model.parameters(), &array![0.85], epsilon = 1e-6);
         assert_abs_diff_eq!(model.predict(&t), array![1.7, 2.55, 3.4], epsilon = 1e-6);
         assert_abs_diff_eq!(model.duality_gap(), 0.0);
 
-        let model = ElasticNet::new()
-            .l1_ratio(1.0)
-            .penalty(0.5)
-            .fit(&x, &y)
-            .unwrap();
+        let model = LassoRegression::new().penalty(0.5).fit(&x, &y).unwrap();
         assert_abs_diff_eq!(model.intercept(), 0.0);
         assert_abs_diff_eq!(model.parameters(), &array![0.25], epsilon = 1e-6);
         assert_abs_diff_eq!(model.predict(&t), array![0.5, 0.75, 1.0], epsilon = 1e-6);
         assert_abs_diff_eq!(model.duality_gap(), 0.0);
 
-        let model = ElasticNet::new()
-            .l1_ratio(1.0)
-            .penalty(1.0)
-            .fit(&x, &y)
-            .unwrap();
+        let model = LassoRegression::new().penalty(1.0).fit(&x, &y).unwrap();
         assert_abs_diff_eq!(model.intercept(), 0.0);
         assert_abs_diff_eq!(model.parameters(), &array![0.0], epsilon = 1e-6);
         assert_abs_diff_eq!(model.predict(&t), array![0.0, 0.0, 0.0], epsilon = 1e-6);
@@ -409,7 +529,7 @@ mod tests {
         let y = array![-1.0, 0.0, 1.0];
         // for predictions
         let t = array![[2.0], [3.0], [4.0]];
-        let model = ElasticNet::new()
+        let model = ElasticNetRegression::new()
             .l1_ratio(0.3)
             .penalty(0.5)
             .fit(&x, &y)
@@ -423,7 +543,7 @@ mod tests {
         );
         // assert_almost_equal(clf.dual_gap_, 0)
 
-        let model = ElasticNet::new()
+        let model = ElasticNetRegression::new()
             .l1_ratio(0.5)
             .penalty(0.5)
             .fit(&x, &y)
@@ -442,7 +562,10 @@ mod tests {
     fn elastic_net_2d_toy_example_works() {
         let x = array![[1.0, 0.0], [0.0, 1.0]];
         let y = array![3.0, 2.0];
-        let model = ElasticNet::new().penalty(0.0).fit(&x, &y).unwrap();
+        let model = ElasticNetRegression::new()
+            .penalty(0.0)
+            .fit(&x, &y)
+            .unwrap();
         assert_abs_diff_eq!(model.intercept(), 2.5);
         assert_abs_diff_eq!(model.parameters(), &array![0.5, -0.5], epsilon = 0.001);
     }
