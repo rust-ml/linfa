@@ -10,6 +10,7 @@
 
 `linfa-linear` currently provides an implementation of the following regression algorithms: 
 - Ordinary Least Squares
+- Lasso, Ridge and Elastic Net
 - Generalized Linear Models (GLM)
 
 ## Examples
