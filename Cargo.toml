@@ -23,7 +23,6 @@ linfa-linear = { path = "linfa-linear", version = "0.1" }
 linfa-logistic = { path = "linfa-logistic", version = "0.1" }
 linfa-svm = { path = "linfa-svm", version = "0.1" }
 linfa-hierarchical = { path = "linfa-hierarchical", version = "0.1" }
-linfa-elastic = { path = "linfa-elastic", version = "0.1" }
 
 [dev-dependencies]
 rand = "0.7"
@@ -35,7 +34,6 @@ approx = "0.3"
 [workspace]
 members = [
     "linfa-clustering",
-    "linfa-elastic",
     "linfa-reduction",
     "linfa-kernel",
     "linfa-linear",

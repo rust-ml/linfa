@@ -18,10 +18,10 @@ ndarray-stats = {version = "0.3"}
 num-traits = {version="0.2"}
 argmin = {version="0.3.1", features=["ndarrayl"]}
 serde = "1.0"
+approx = "0.3"
 
 [dev-dependencies]
 csv = "1.1"
 ndarray-csv = "0.4"
-approx = "0.3.2"
 flate2 = "1.0"
 ndarray-linalg = {version = "0.12", features = ["openblas"]}
