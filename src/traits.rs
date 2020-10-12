@@ -39,5 +39,5 @@ pub trait IncrementalFit<D: Data, T> {
 
 /// Predict with model
 pub trait Predict<D: Data, T> {
-    fn predict(&self, x: D) -> T;
+    fn predict(&self, x: D) -> Dataset<D, T>;
 }
