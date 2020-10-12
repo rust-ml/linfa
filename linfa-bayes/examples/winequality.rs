@@ -10,7 +10,7 @@ use ndarray::{Array1, Array2, Axis};
 use ndarray_csv::Array2Reader;
 
 use linfa::metrics::IntoConfusionMatrix;
-use linfa_bayes::GaussianNb;
+use linfa_bayes::{FittedGaussianNb, GaussianNb};
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Read in the wine-quality dataset from dataset path
@@ -55,7 +55,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         .collect();
 
     // Initialize the model
-    let mut model: GaussianNb<f64> = GaussianNb::new();
+    let mut gnb: GaussianNb<f64> = GaussianNb::default();
+    let mut model = FittedGaussianNb::unfitted();
 
     // Train the model using the incremental learning api
     // `fit` method is also available for training using all data
@@ -63,14 +64,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         .axis_chunks_iter(Axis(0), 120)
         .zip(train_targets.axis_chunks_iter(Axis(0), 120))
     {
-        model.partial_fit(&x, &y, &array![0., 1.])?;
+        // The `&array![0., 1.]` represents the unique classes available
+        // in the dataset, this argument is required when training incrementally
+        model = gnb.fit_with(model, &x, &y, &array![0., 1.])?;
     }
 
-    // Get the trained predictor
-    let fitted_model = model.get_predictor()?;
-
     // Calculation predictions on the validation set
-    let prediction = fitted_model.predict(&valid_data);
+    let prediction = model.predict(&valid_data)?;
 
     // We convert the predictions and the validation target as string for
     // compatibility with the confusion matrix api

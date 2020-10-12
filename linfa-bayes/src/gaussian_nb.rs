@@ -19,12 +19,6 @@ pub struct GaussianNb<A> {
     priors_provided: bool,
     // Required for calculation stability
     var_smoothing: f64,
-    // Class labels known to the classifier
-    classes: Option<Array1<A>>,
-    // Mean of each feature per class
-    theta: Option<Array2<A>>,
-    // Variance of each feature per class
-    sigma: Option<Array2<A>>,
     // Number of training samples observed in each class
     class_count: Option<Array1<A>>,
 }
@@ -42,9 +36,6 @@ impl<A> GaussianNb<A> {
             priors: None,
             priors_provided: false,
             var_smoothing: 1e-9,
-            classes: None,
-            theta: None,
-            sigma: None,
             class_count: None,
         }
     }
@@ -87,7 +78,7 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
     ///
     /// let mut clf = GaussianNb::new();
     /// let fitted_clf = clf.fit(&x, &y)?;
-    /// let pred = fitted_clf.predict(&x);
+    /// let pred = fitted_clf.predict(&x)?;
     ///
     /// assert_eq!(pred, y);
     /// # Ok(())
@@ -97,13 +88,15 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
         // We extract the unique classes in sorted order
         let unique_classes = GaussianNb::unique(&y.view());
 
+        let mut model = FittedGaussianNb::unfitted();
+        if self.priors_provided {
+            model.priors = self.priors.clone();
+        }
+
         // We train the model
-        self.partial_fit(&x.view(), &y.view(), &unique_classes)?;
+        model = self.fit_with(model, &x.view(), &y.view(), &unique_classes)?;
 
-        // We access the trained model
-        let classifier = self.get_predictor()?;
-
-        Ok(classifier)
+        Ok(model)
     }
 
     /// Incrementally fit on a batch of samples
@@ -112,7 +105,7 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
     ///
     /// ```no_run
     /// # use ndarray::{array, Axis};
-    /// # use linfa_bayes::GaussianNb;
+    /// # use linfa_bayes::{FittedGaussianNb, GaussianNb};
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// let x = array![
@@ -127,54 +120,54 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
     /// let classes = array![1., 2.];
     ///
     /// let mut clf = GaussianNb::new();
+    /// let mut model = FittedGaussianNb::unfitted();
     ///
     /// for (x, y) in x
     ///     .axis_chunks_iter(Axis(0), 2)
     ///     .zip(y.axis_chunks_iter(Axis(0), 2))
     /// {
-    ///     clf.partial_fit(&x, &y, &classes)?;
+    ///     model = clf.fit_with(model, &x, &y, &classes)?;
     /// }
     ///
-    /// let fitted_clf = clf.get_predictor()?;
-    /// let pred = fitted_clf.predict(&x);
+    /// let pred = model.predict(&x)?;
     ///
     /// assert_eq!(pred, y);
     /// # Ok(())
     /// # }
     /// ```
-    pub fn partial_fit(
+    pub fn fit_with(
         &mut self,
+        mut model: FittedGaussianNb<A>,
         x: &ArrayView2<A>,
         y: &ArrayView1<A>,
         classes: &Array1<A>,
-    ) -> Result<()> {
+    ) -> Result<FittedGaussianNb<A>> {
         // If the ratio of the variance between dimensions is too small, it will cause
         // numerical errors. We address this by artificially boosting the variance
         // by `epsilon` (a small fraction of the variance of the largest feature)
         let epsilon = A::from(self.var_smoothing).unwrap()
             * *x.var_axis(Axis(0), A::from(0.).unwrap()).max()?;
 
-        // If-Else conditional to determine if we are calling `partial_fit`
+        // If-Else conditional to determine if we are calling `fit_with`
         // for the first time
         // `If` branch signifies the function is being called for the first time
-        if self.classes.is_none() {
+        if model.classes.is_none() {
             // We initialize `classes` with sorted unique categories found in `y`
-            //self.classes = Some(Self::unique(&y));
-            self.classes = Some(classes.to_owned());
+            model.classes = Some(classes.to_owned());
 
             let nfeatures = x.ncols();
 
             // unwrap is safe since assigning `self.classes` is the first step
-            let nclasses = self.classes.as_ref().unwrap().len();
+            let nclasses = model.classes.as_ref().unwrap().len();
 
             // We initialize mean, variance and class counts
-            self.theta = Some(Array2::zeros((nclasses, nfeatures)));
-            self.sigma = Some(Array2::zeros((nclasses, nfeatures)));
+            model.theta = Some(Array2::zeros((nclasses, nfeatures)));
+            model.sigma = Some(Array2::zeros((nclasses, nfeatures)));
             self.class_count = Some(Array1::zeros(nclasses));
 
             // If priors is provided by the user, we perform checks to make
             // sure it is correct
-            if let Some(ref priors) = self.priors {
+            if let Some(ref priors) = model.priors {
                 if priors.len() != nclasses {
                     return Err(BayesError::Priors(format!(
                         "The number of priors: ({}), does not match the number of classes: ({})",
@@ -197,17 +190,17 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
                 }
             }
         } else {
-            if x.ncols() != self.theta.as_ref().unwrap().ncols() {
+            if x.ncols() != model.theta.as_ref().unwrap().ncols() {
                 return Err(BayesError::Input(format!(
                     "Number of input columns: ({}), does not match the previous input: ({})",
                     x.ncols(),
-                    self.theta.as_ref().unwrap().ncols()
+                    model.theta.as_ref().unwrap().ncols()
                 )));
             }
 
             // unwrap is safe because `self.sigma` is bound to have a value
-            // if we are not calling `partial_fit` for the first time
-            self.sigma.as_mut().unwrap().mapv_inplace(|x| x - epsilon);
+            // if we are not calling `fit_with` for the first time
+            model.sigma.as_mut().unwrap().mapv_inplace(|x| x - epsilon);
         }
 
         let yunique = Self::unique(&y);
@@ -216,7 +209,7 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
         // in `self.classes`
         let is_class_unavailable = yunique
             .iter()
-            .any(|x| !self.classes.as_ref().unwrap().iter().any(|y| y == x));
+            .any(|x| !model.classes.as_ref().unwrap().iter().any(|y| y == x));
         if is_class_unavailable {
             return Err(BayesError::Input(
                 "Target labels in y, does not exist in the initial classes".to_string(),
@@ -226,7 +219,7 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
         for class in yunique.iter() {
             // unwrap is safe because we have made sure all elements of `yunique`
             // is in `self.classes`
-            let position = self
+            let position = model
                 .classes
                 .as_ref()
                 .unwrap()
@@ -243,18 +236,20 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
             // We compute the update of the gaussian mean and variance
             let (theta_new, sigma_new) = Self::update_mean_variance(
                 self.class_count.as_ref().unwrap()[position],
-                &self.theta.as_ref().unwrap().slice(s![position, ..]),
-                &self.sigma.as_ref().unwrap().slice(s![position, ..]),
+                &model.theta.as_ref().unwrap().slice(s![position, ..]),
+                &model.sigma.as_ref().unwrap().slice(s![position, ..]),
                 &xclass,
             );
 
             // We now update the mean, variance and class count
-            self.theta
+            model
+                .theta
                 .as_mut()
                 .unwrap()
                 .row_mut(position)
                 .assign(&theta_new);
-            self.sigma
+            model
+                .sigma
                 .as_mut()
                 .unwrap()
                 .row_mut(position)
@@ -270,7 +265,7 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
 
         // We add back the epsilon previously subtracted for numerical
         // calculation stability
-        self.sigma.as_mut().unwrap().mapv_inplace(|x| x + epsilon);
+        model.sigma.as_mut().unwrap().mapv_inplace(|x| x + epsilon);
 
         // If the priors are not provided by the user, we have to update
         // based on the current batch of data
@@ -281,10 +276,10 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
                 .as_ref()
                 .unwrap()
                 .mapv(|x| x / class_count_sum);
-            self.priors = Some(temp);
+            model.priors = Some(temp);
         }
 
-        Ok(())
+        Ok(model)
     }
 
     // Compute online update of gaussian mean and variance
@@ -328,22 +323,6 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
         (mu_weighted, var_weighted)
     }
 
-    /// Get the trained model, which can be used for prediction
-    pub fn get_predictor(&self) -> Result<FittedGaussianNb<A>> {
-        if self.classes.is_none() {
-            return Err(BayesError::UntrainedModel(
-                "Attempt to access untrained model".to_string(),
-            ));
-        }
-
-        Ok(FittedGaussianNb {
-            classes: self.classes.as_ref().unwrap().to_owned(),
-            priors: self.priors.as_ref().unwrap().to_owned(),
-            theta: self.theta.as_ref().unwrap().to_owned(),
-            sigma: self.sigma.as_ref().unwrap().to_owned(),
-        })
-    }
-
     // Extract unique elements of the array in sorted order
     fn unique(y: &ArrayView1<A>) -> Array1<A> {
         // We are identifying unique classes in y,
@@ -383,43 +362,65 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
 /// Fitted GaussianNB for predicting classes
 #[derive(Debug)]
 pub struct FittedGaussianNb<A> {
-    classes: Array1<A>,
-    priors: Array1<A>,
-    theta: Array2<A>,
-    sigma: Array2<A>,
+    classes: Option<Array1<A>>,
+    priors: Option<Array1<A>>,
+    theta: Option<Array2<A>>,
+    sigma: Option<Array2<A>>,
+}
+
+impl<A> FittedGaussianNb<A> {
+    pub fn unfitted() -> Self {
+        FittedGaussianNb {
+            classes: None,
+            priors: None,
+            theta: None,
+            sigma: None,
+        }
+    }
 }
 
 impl<A: Float> FittedGaussianNb<A> {
     /// Perform classification on incoming array
-    pub fn predict(&self, x: &Array2<A>) -> Array1<A> {
+    pub fn predict(&self, x: &Array2<A>) -> Result<Array1<A>> {
+        if self.classes.is_none() {
+            return Err(BayesError::UntrainedModel(
+                "Attempt to use an untrained model".to_string(),
+            ));
+        }
         let joint_log_likelihood = self.joint_log_likelihood(x);
 
         // Identify the class with the maximum log likelihood
-        joint_log_likelihood.map_axis(Axis(1), |x| {
+        let output = joint_log_likelihood.map_axis(Axis(1), |x| {
             let i = x.argmax().unwrap();
-            *self.classes.get(i).unwrap()
-        })
+            *self.classes.as_ref().unwrap().get(i).unwrap()
+        });
+
+        Ok(output)
     }
 
     // Compute unnormalized posterior log probability
     fn joint_log_likelihood(&self, x: &Array2<A>) -> Array2<A> {
-        let mut joint_log_likelihood = Array2::zeros((x.nrows(), self.classes.len()));
+        let mut joint_log_likelihood =
+            Array2::zeros((x.nrows(), self.classes.as_ref().unwrap().len()));
 
-        for i in 0..self.classes.len() {
-            let jointi = self.priors.get(i).unwrap().ln();
+        for i in 0..self.classes.as_ref().unwrap().len() {
+            let jointi = self.priors.as_ref().unwrap().get(i).unwrap().ln();
 
             let mut nij = self
                 .sigma
+                .as_ref()
+                .unwrap()
                 .row(i)
                 .mapv(|x| A::from(2. * std::f64::consts::PI).unwrap() * x)
                 .mapv(|x| x.ln())
                 .sum();
             nij = A::from(-0.5).unwrap() * nij;
 
-            let nij = ((x - &self.theta.row(i)).mapv(|x| x.powi(2)) / self.sigma.row(i))
-                .sum_axis(Axis(1))
-                .mapv(|x| x * A::from(0.5).unwrap())
-                .mapv(|x| nij - x);
+            let nij = ((x - &self.theta.as_ref().unwrap().row(i)).mapv(|x| x.powi(2))
+                / self.sigma.as_ref().unwrap().row(i))
+            .sum_axis(Axis(1))
+            .mapv(|x| x * A::from(0.5).unwrap())
+            .mapv(|x| nij - x);
 
             joint_log_likelihood.column_mut(i).assign(&(nij + jointi));
         }
@@ -448,7 +449,7 @@ mod tests {
 
         let mut clf = GaussianNb::new();
         let fitted_clf = clf.fit(&x, &y).unwrap();
-        let pred = fitted_clf.predict(&x);
+        let pred = fitted_clf.predict(&x).unwrap();
         assert_eq!(pred, y);
 
         let jll = fitted_clf.joint_log_likelihood(&x);
@@ -464,7 +465,7 @@ mod tests {
     }
 
     #[test]
-    fn test_gnb_partial_fit() {
+    fn test_gnb_fit_with() {
         let x = array![
             [-2., -1.],
             [-1., -1.],
@@ -477,20 +478,20 @@ mod tests {
         let classes = array![1., 2.];
 
         let mut clf = GaussianNb::new();
+        let mut model = FittedGaussianNb::unfitted();
 
         for (x, y) in x
             .axis_chunks_iter(Axis(0), 2)
             .zip(y.axis_chunks_iter(Axis(0), 2))
         {
-            clf.partial_fit(&x, &y, &classes).unwrap();
+            model = clf.fit_with(model, &x, &y, &classes).unwrap();
         }
 
-        let fitted_clf = clf.get_predictor().unwrap();
-        let pred = fitted_clf.predict(&x);
+        let pred = model.predict(&x).unwrap();
 
         assert_eq!(pred, y);
 
-        let jll = fitted_clf.joint_log_likelihood(&x);
+        let jll = model.joint_log_likelihood(&x);
         let expected = array![
             [-2.276946847943017, -38.27694652394301],
             [-1.5269468546930165, -25.52694663869301],
@@ -519,9 +520,10 @@ mod tests {
 
         let expected = array![0.5, 0.5];
 
-        assert_eq!(fitted_clf.priors, expected);
+        assert_eq!(fitted_clf.priors.unwrap(), expected);
     }
 
+    // TODO: Fix this test case after figuring out how to handle `priors`
     #[test]
     fn test_gnb_priors2() {
         let x = array![
@@ -536,9 +538,9 @@ mod tests {
 
         let priors = array![0.3, 0.7];
 
-        let mut clf = GaussianNb::new().priors(priors.clone());
+        let mut clf: GaussianNb<f64> = GaussianNb::new().priors(priors.clone());
         let fitted_clf = clf.fit(&x, &y).unwrap();
 
-        assert_eq!(fitted_clf.priors, priors);
+        assert_eq!(fitted_clf.priors.unwrap(), priors);
     }
 }
