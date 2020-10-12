@@ -24,8 +24,8 @@ pub struct Dataset<R, S>
 where
     R: Records
 {
-    records: R,
-    targets: S,
+    pub records: R,
+    pub targets: S,
 }
 
 pub trait Records: Sized {

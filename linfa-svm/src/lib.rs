@@ -66,8 +66,9 @@
 //!
 //! accuracy 0.98818624, MCC 0.9523008
 //! ```
-use ndarray::{Array1, ArrayBase, Data, Ix1, NdFloat};
 use std::fmt;
+use ndarray::{Array1, Array2, ArrayBase, Data, Ix1, NdFloat};
+use linfa::{Float, traits::Fit, traits::Predict, dataset::Dataset};
 
 mod classification;
 mod permutable_kernel;
@@ -76,6 +77,28 @@ pub mod solver_smo;
 
 use permutable_kernel::Kernel;
 pub use solver_smo::SolverParams;
+
+pub struct SvmParams<F: Float> {
+    c: Option<f32>,
+    nu: Option<f32>,
+    solver_params: SolverParams<F>
+}
+
+impl<'a, F: Float> Fit<'a, Kernel<'a, F>, ()> for SvmParams<F> {
+    type Object = Svm<'a, F>;
+
+    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, ()>) -> Svm<'a, F> {
+        classification::fit_one_class(self.solver_params.clone(), &dataset.records, F::one())
+    }
+}
+
+impl<'a, F: Float> Fit<'a, Kernel<'a, F>, Vec<bool>> for SvmParams<F> {
+    type Object = Svm<'a, F>;
+
+    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, Vec<bool>>) -> Svm<'a, F> {
+        classification::fit_c(self.solver_params.clone(), &dataset.records, &dataset.targets, F::one(), F::one())
+    }
+}
 
 /// Support Vector Classification
 #[allow(non_snake_case)]
@@ -89,12 +112,6 @@ pub mod SVRegress {
     pub use crate::regression::{fit_epsilon, fit_nu};
 }
 
-/// An extension of the NdArray float type
-pub trait Float: NdFloat + Default + Clone + std::iter::Sum {}
-
-impl Float for f32 {}
-impl Float for f64 {}
-
 /// SMO can either exit because a threshold is reached or the iterations are maxed out
 #[derive(Debug)]
 pub enum ExitReason {
@@ -103,7 +120,7 @@ pub enum ExitReason {
 }
 
 /// The result of the SMO solver
-pub struct SvmResult<'a, A: Float> {
+pub struct Svm<'a, A: Float> {
     pub alpha: Vec<A>,
     pub rho: A,
     r: Option<A>,
@@ -114,18 +131,7 @@ pub struct SvmResult<'a, A: Float> {
     linear_decision: Option<Array1<A>>,
 }
 
-impl<'a, A: Float> SvmResult<'a, A> {
-    /// Predict new values with the model
-    ///
-    /// In case of a classification task this returns a probability, for regression the predicted
-    /// regressor is returned.
-    pub fn predict<S: Data<Elem = A>>(&self, data: ArrayBase<S, Ix1>) -> A {
-        match self.linear_decision {
-            Some(ref x) => x.dot(&data) - self.rho,
-            None => self.kernel.weighted_sum(&self.alpha, data.view()) - self.rho,
-        }
-    }
-
+impl<'a, A: Float> Svm<'a, A> {
     /// Returns the number of support vectors
     pub fn nsupport(&self) -> usize {
         self.alpha
@@ -135,7 +141,26 @@ impl<'a, A: Float> SvmResult<'a, A> {
     }
 }
 
-impl<'a, A: Float> fmt::Display for SvmResult<'a, A> {
+impl<'a, F: Float> Predict<Array1<F>, F> for Svm<'a, F> {
+    /// Predict new values with the model
+    ///
+    /// In case of a classification task this returns a probability, for regression the predicted
+    /// regressor is returned.
+    fn predict(&self, data: Array1<F>) -> F {
+        match self.linear_decision {
+            Some(ref x) => x.dot(&data) - self.rho,
+            None => self.kernel.weighted_sum(&self.alpha, data.view()) - self.rho,
+        }
+    }
+}
+
+impl<'a, F: Float> Predict<Array2<F>, Dataset<Array2<F>, Vec<F>>> for Svm<'a, F> {
+    fn predict(&self, data: Array2<F>) -> Dataset<Array2<F>, Vec<F>> {
+        panic!("")
+    }
+}
+
+impl<'a, A: Float> fmt::Display for Svm<'a, A> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.exit_reason {
             ExitReason::ReachedThreshold => write!(

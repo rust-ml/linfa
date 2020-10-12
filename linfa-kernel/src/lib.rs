@@ -142,6 +142,14 @@ impl<'a, F: Float> Kernel<'a, F, Array2<F>> {
     }
 }
 
+impl<'a, F: Float> Records for Kernel<'a, F, Array2<F>> {
+    type Elem = F;
+
+    fn observations(&self) -> usize {
+        self.size()
+    }
+}
+
 pub enum KernelMethod<F> {
     Gaussian(F),
     Linear,

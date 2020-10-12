@@ -2,7 +2,7 @@
 use super::permutable_kernel::{Kernel, PermutableKernelRegression};
 use super::solver_smo::SolverState;
 use super::SolverParams;
-use super::{Float, SvmResult};
+use super::{Float, Svm};
 
 /// Support Vector Regression with epsilon tolerance
 ///
@@ -16,12 +16,12 @@ use super::{Float, SvmResult};
 /// * `c` - C value for all targets
 /// * `p` - epsilon value for all targets
 pub fn fit_epsilon<'a, A: Float>(
-    params: &'a SolverParams<A>,
+    params: SolverParams<A>,
     kernel: &'a Kernel<A>,
     target: &'a [A],
     c: A,
     p: A,
-) -> SvmResult<'a, A> {
+) -> Svm<'a, A> {
     let mut linear_term = vec![A::zero(); 2 * target.len()];
     let mut targets = vec![true; 2 * target.len()];
 
@@ -67,12 +67,12 @@ pub fn fit_epsilon<'a, A: Float>(
 /// * `c` - C value for all targets
 /// * `nu` - nu value for all targets
 pub fn fit_nu<'a, A: Float>(
-    params: &'a SolverParams<A>,
+    params: SolverParams<A>,
     kernel: &'a Kernel<A>,
     target: &'a [A],
     c: A,
     nu: A,
-) -> SvmResult<'a, A> {
+) -> Svm<'a, A> {
     let mut alpha = vec![A::zero(); 2 * target.len()];
     let mut linear_term = vec![A::zero(); 2 * target.len()];
     let mut targets = vec![true; 2 * target.len()];

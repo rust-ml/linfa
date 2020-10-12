@@ -20,10 +20,10 @@ pub trait Transformer<R: Records, T> {
 /// A fittable algorithm takes a dataset and creates a concept of some kind about it. For example
 /// in *KMeans* this would be the mean values for each class, or in *SVM* the separating
 /// hyperplane. It returns a model, which can be used to predict targets for new data.
-pub trait Fit<R: Records, T> {
-    type Object: Predict<R, T>;
+pub trait Fit<'a, R: Records, T> {
+    type Object: 'a;
 
-    fn fit(&self, dataset: Dataset<R, T>) -> Self::Object;
+    fn fit(&self, dataset: &'a Dataset<R, T>) -> Self::Object;
 }
 
 /// Incremental algorithms
@@ -39,5 +39,5 @@ pub trait IncrementalFit<R: Records, T> {
 
 /// Predict with model
 pub trait Predict<R: Records, T> {
-    fn predict(&self, x: R) -> Dataset<R, T>;
+    fn predict(&self, x: R) -> T;
 }

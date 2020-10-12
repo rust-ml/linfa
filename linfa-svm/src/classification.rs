@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use super::permutable_kernel::{Kernel, PermutableKernel, PermutableKernelOneClass};
 use super::solver_smo::SolverState;
 use super::SolverParams;
-use super::{Float, SvmResult};
+use super::{Float, Svm};
 
 /// Support Vector Classification with C-penalizing parameter
 ///
@@ -22,12 +22,12 @@ use super::{Float, SvmResult};
 /// * `cpos` - C for positive targets
 /// * `cneg` - C for negative targets
 pub fn fit_c<'a, A: Float>(
-    params: &'a SolverParams<A>,
+    params: SolverParams<A>,
     kernel: &'a Kernel<A>,
     targets: &'a [bool],
     cpos: A,
     cneg: A,
-) -> SvmResult<'a, A> {
+) -> Svm<'a, A> {
     let bounds = targets
         .iter()
         .map(|x| if *x { cpos } else { cneg })
@@ -73,11 +73,11 @@ pub fn fit_c<'a, A: Float>(
 /// * `targets` - the ground truth targets `y_i`
 /// * `nu` - Nu penalizing term
 pub fn fit_nu<'a, A: Float>(
-    params: &'a SolverParams<A>,
+    params: SolverParams<A>,
     kernel: &'a Kernel<A>,
     targets: &'a [bool],
     nu: A,
-) -> SvmResult<'a, A> {
+) -> Svm<'a, A> {
     let mut sum_pos = nu * A::from(targets.len()).unwrap() / A::from(2.0).unwrap();
     let mut sum_neg = nu * A::from(targets.len()).unwrap() / A::from(2.0).unwrap();
     let init_alpha = targets
@@ -135,10 +135,10 @@ pub fn fit_nu<'a, A: Float>(
 /// * `kernel` - the kernel matrix `Q`
 /// * `nu` - Nu penalizing term
 pub fn fit_one_class<'a, A: Float + num_traits::ToPrimitive>(
-    params: &'a SolverParams<A>,
+    params: SolverParams<A>,
     kernel: &'a Kernel<A>,
     nu: A,
-) -> SvmResult<'a, A> {
+) -> Svm<'a, A> {
     let size = kernel.size();
     let n = (nu * A::from(size).unwrap()).to_usize().unwrap();
 
