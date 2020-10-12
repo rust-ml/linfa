@@ -411,7 +411,7 @@ impl<A: Float> FittedGaussianNb<A> {
             let mut nij = self
                 .sigma
                 .row(i)
-                .mapv(|x| A::from(2.).unwrap() * A::from(std::f64::consts::PI).unwrap() * x)
+                .mapv(|x| A::from(2. * std::f64::consts::PI).unwrap() * x)
                 .mapv(|x| x.ln())
                 .sum();
             nij = A::from(-0.5).unwrap() * nij;
