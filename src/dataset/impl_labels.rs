@@ -4,14 +4,26 @@ use std::collections::HashSet;
 
 impl<L: Label> Targets for Vec<L> {
     type Elem = L;
+
+    fn labels(&self) -> HashSet<&L> {
+        self.iter().collect()
+    }
 }
 
 impl<L: Label> Targets for &[L] {
     type Elem = L;
+
+    fn labels(&self) -> HashSet<&L> {
+        self.iter().collect()
+    }
 }
 
 impl<L: Label, S: ndarray::Data<Elem = L>, I: Dimension> Targets for ArrayBase<S, I> {
     type Elem = L;
+
+    fn labels(&self) -> HashSet<&L> {
+        self.iter().collect()
+    }
 }
 
 pub struct TargetsWithLabels<L: Label, T: Targets<Elem = L>> {
@@ -21,6 +33,10 @@ pub struct TargetsWithLabels<L: Label, T: Targets<Elem = L>> {
 
 impl<L: Label, T: Targets<Elem = L>> Targets for TargetsWithLabels<L, T> {
     type Elem = L;
+
+    fn labels(&self) -> HashSet<&L> {
+        self.labels.iter().collect()
+    }
 }
 
 impl<D: Data, L: Label, T: Targets<Elem=L>> Dataset<D, T> {
@@ -34,17 +50,5 @@ impl<D: Data, L: Label, T: Targets<Elem=L>> Dataset<D, T> {
             data: self.data,
             targets
         }
-    }
-}
-
-impl<D: Data, L: Label> Dataset<D, Vec<L>> {
-    pub fn labels(&self) -> HashSet<&L> {
-        self.targets.iter().collect()
-    }
-}
-
-impl<D: Data, L: Label, T: Targets<Elem = L>> Dataset<D, TargetsWithLabels<L, T>> {
-    pub fn labels(&self) -> &HashSet<L> {
-        &self.targets.labels
     }
 }

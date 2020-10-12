@@ -1,4 +1,5 @@
 use std::hash::Hash;
+use std::collections::HashSet;
 use ndarray::NdFloat;
 use num_traits::FromPrimitive;
 
@@ -33,4 +34,6 @@ pub trait Data: Sized {
 
 pub trait Targets {
     type Elem;
+
+    fn labels<'a>(&'a self) -> HashSet<&'a Self::Elem>;
 }
