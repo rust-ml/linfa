@@ -1,19 +1,20 @@
 use hnsw::{Params, Searcher, HNSW};
-use ndarray::{ArrayBase, ArrayView1, Axis, Data, Ix2, NdFloat};
+use ndarray::{ArrayBase, ArrayView1, Axis, Data, Ix2};
 use space::{MetricPoint, Neighbor};
 use sprs::{CsMat, CsMatBase};
+use linfa::Float;
 
 /// Implementation of euclidean distance for ndarray
-struct Euclidean<'a, A>(ArrayView1<'a, A>);
+struct Euclidean<'a, F>(ArrayView1<'a, F>);
 
-impl<A: NdFloat + std::iter::Sum + Default> MetricPoint for Euclidean<'_, A> {
+impl<F: Float> MetricPoint for Euclidean<'_, F> {
     fn distance(&self, rhs: &Self) -> u32 {
         let val = self
             .0
             .iter()
             .zip(rhs.0.iter())
             .map(|(&a, &b)| (a - b) * (a - b))
-            .sum::<A>()
+            .sum::<F>()
             .sqrt();
 
         space::f32_metric(val.to_f32().unwrap())
@@ -21,10 +22,10 @@ impl<A: NdFloat + std::iter::Sum + Default> MetricPoint for Euclidean<'_, A> {
 }
 
 /// Create sparse adjacency matrix from dense dataset
-pub fn adjacency_matrix<A: NdFloat + std::iter::Sum + Default, D: Data<Elem = A>>(
+pub fn adjacency_matrix<F: Float, D: Data<Elem = F>>(
     dataset: &ArrayBase<D, Ix2>,
     k: usize,
-) -> CsMat<A> {
+) -> CsMat<F> {
     let n_points = dataset.len_of(Axis(0));
 
     // ensure that the number of neighbours is at least one and less than the total number of
@@ -35,7 +36,7 @@ pub fn adjacency_matrix<A: NdFloat + std::iter::Sum + Default, D: Data<Elem = A>
     let params = Params::new().ef_construction(k);
 
     let mut searcher = Searcher::default();
-    let mut hnsw: HNSW<Euclidean<A>> = HNSW::new_params(params);
+    let mut hnsw: HNSW<Euclidean<F>> = HNSW::new_params(params);
 
     // insert all rows as data points into HNSW graph
     for feature in dataset.genrows().into_iter() {
@@ -66,14 +67,14 @@ pub fn adjacency_matrix<A: NdFloat + std::iter::Sum + Default, D: Data<Elem = A>
         neighbours.sort_unstable();
 
         indices.push(m);
-        data.push(A::one());
+        data.push(F::one());
         added += 1;
 
         // push each index into the indices array
         for n in &neighbours {
             if m != n.index {
                 indices.push(n.index);
-                data.push(A::one());
+                data.push(F::one());
                 added += 1;
             }
         }
@@ -86,7 +87,7 @@ pub fn adjacency_matrix<A: NdFloat + std::iter::Sum + Default, D: Data<Elem = A>
     let mut mat = &mat + &mat.transpose_view();
 
     // ensure that all values are one
-    let val: A = A::one();
+    let val: F = F::one();
     mat.map_inplace(|_| val);
 
     mat

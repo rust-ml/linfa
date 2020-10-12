@@ -1,3 +1,4 @@
+use std::iter::Sum;
 use std::hash::Hash;
 use std::collections::HashSet;
 use ndarray::NdFloat;
@@ -9,7 +10,7 @@ mod impl_records;
 
 mod iter;
 
-pub trait Float: NdFloat + FromPrimitive + Default {}
+pub trait Float: NdFloat + FromPrimitive + Default + Sum {}
 impl Float for f32 {}
 impl Float for f64 {}
 

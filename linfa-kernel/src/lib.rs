@@ -4,38 +4,45 @@
 mod sparse;
 
 use ndarray::prelude::*;
-use ndarray::{linalg::Dot, NdFloat};
+use ndarray::{linalg::Dot, Data};
 use sprs::CsMat;
 
-use linfa::{Float, dataset::Data};
+use linfa::{Float, traits::Transformer, dataset::Records};
 
+/// Distance function between two data points
 type SimFnc<F> = Box<dyn Fn(ArrayView1<F>, ArrayView1<F>) -> F>;
 
+/// Kernel representation, can be either dense or sparse
+#[derive(Clone)]
 pub enum KernelType {
     Dense,
     Sparse(usize),
 }
 
+/// Storage for the kernel matrix
 #[derive(Debug)]
 pub enum KernelInner<F: Float> {
     Dense(Array2<F>),
     Sparse(CsMat<F>),
 }
 
-pub struct Kernel<'a, F: Float, D: Data<Elem = F>> {
+/// A generic kernel
+///
+/// 
+pub struct Kernel<'a, F: Float, R: Records<Elem = F>> {
     pub inner: KernelInner<F>,
     pub fnc: SimFnc<F>,
-    pub dataset: &'a D,
+    pub dataset: &'a R,
     pub linear: bool,
 }
 
-impl<'a, F: Float, D: Data<Elem = F>> Kernel<'a, F, D> {
-    pub fn new<F: Fn(ArrayView1<F>, ArrayView1<F>) -> F + 'static>(
-        dataset: &'a Data,
-        fnc: F,
+impl<'a, F: Float> Kernel<'a, F, Array2<F>> {
+    pub fn new<G: Fn(ArrayView1<F>, ArrayView1<F>) -> F + 'static>(
+        dataset: &'a Array2<F>,
+        fnc: G,
         kind: KernelType,
         linear: bool,
-    ) -> Kernel<'a, F, D> {
+    ) -> Kernel<'a, F, Array2<F>> {
         let inner = match kind {
             KernelType::Dense => KernelInner::Dense(dense_from_fn(dataset, &fnc)),
             KernelType::Sparse(k) => KernelInner::Sparse(sparse_from_fn(dataset, k, &fnc)),
@@ -49,14 +56,14 @@ impl<'a, F: Float, D: Data<Elem = F>> Kernel<'a, F, D> {
         }
     }
 
-    pub fn dot(&self, rhs: &ArrayView2<A>) -> Array2<A> {
+    pub fn dot(&self, rhs: &ArrayView2<F>) -> Array2<F> {
         match &self.inner {
             KernelInner::Dense(mat) => mat.dot(rhs),
             KernelInner::Sparse(mat) => mat.dot(rhs),
         }
     }
 
-    pub fn sum(&self) -> Array1<A> {
+    pub fn sum(&self) -> Array1<F> {
         match &self.inner {
             KernelInner::Dense(mat) => mat.sum_axis(Axis(1)),
             KernelInner::Sparse(mat) => {
@@ -78,7 +85,7 @@ impl<'a, F: Float, D: Data<Elem = F>> Kernel<'a, F, D> {
         }
     }
 
-    pub fn to_upper_triangle(&self) -> Vec<A> {
+    pub fn to_upper_triangle(&self) -> Vec<F> {
         match &self.inner {
             KernelInner::Dense(mat) => mat
                 .indexed_iter()
@@ -95,7 +102,7 @@ impl<'a, F: Float, D: Data<Elem = F>> Kernel<'a, F, D> {
         }
     }
 
-    pub fn diagonal(&self) -> Array1<A> {
+    pub fn diagonal(&self) -> Array1<F> {
         match &self.inner {
             KernelInner::Dense(mat) => mat.diag().to_owned(),
             KernelInner::Sparse(_) => self
@@ -106,16 +113,16 @@ impl<'a, F: Float, D: Data<Elem = F>> Kernel<'a, F, D> {
         }
     }
 
-    pub fn column(&self, i: usize) -> Vec<A> {
+    pub fn column(&self, i: usize) -> Vec<F> {
         match &self.inner {
             KernelInner::Dense(mat) => mat.column(i).to_vec(),
             KernelInner::Sparse(mat) => (0..self.size())
-                .map(|j| *mat.get(j, i).unwrap_or(&A::neg_zero()))
+                .map(|j| *mat.get(j, i).unwrap_or(&F::neg_zero()))
                 .collect::<Vec<_>>(),
         }
     }
 
-    pub fn weighted_sum(&self, weights: &[A], sample: ArrayView1<A>) -> A {
+    pub fn weighted_sum(&self, weights: &[F], sample: ArrayView1<F>) -> F {
         self.dataset
             .outer_iter()
             .zip(weights.iter())
@@ -127,68 +134,65 @@ impl<'a, F: Float, D: Data<Elem = F>> Kernel<'a, F, D> {
         self.linear
     }
 
-    pub fn linear(dataset: &'a ArrayBase<D, Ix2>) -> Kernel<A, D> {
-        let fnc = |a: ArrayView1<A>, b: ArrayView1<A>| a.dot(&b);
-
-        Kernel::new(dataset, fnc, KernelType::Dense, true)
-    }
-
-    pub fn linear_sparse(dataset: &'a ArrayBase<D, Ix2>, nneigh: usize) -> Kernel<A, D> {
-        let fnc = |a: ArrayView1<A>, b: ArrayView1<A>| a.dot(&b);
-
-        Kernel::new(dataset, fnc, KernelType::Sparse(nneigh), true)
-    }
-
-    pub fn gaussian(dataset: &'a ArrayBase<D, Ix2>, eps: A) -> Kernel<A, D> {
-        let fnc = move |a: ArrayView1<A>, b: ArrayView1<A>| {
-            let distance = a
-                .iter()
-                .zip(b.iter())
-                .map(|(x, y)| (*x - *y) * (*x - *y))
-                .sum::<A>();
-
-            (-distance / eps).exp()
-        };
-
-        Kernel::new(dataset, fnc, KernelType::Dense, false)
-    }
-
-    pub fn gaussian_sparse(dataset: &'a ArrayBase<D, Ix2>, eps: A, nneigh: usize) -> Kernel<A, D> {
-        let fnc = move |a: ArrayView1<A>, b: ArrayView1<A>| {
-            let distance = a
-                .iter()
-                .zip(b.iter())
-                .map(|(x, y)| (*x - *y) * (*x - *y))
-                .sum::<A>();
-
-            (-distance / eps).exp()
-        };
-
-        Kernel::new(dataset, fnc, KernelType::Sparse(nneigh), false)
-    }
-
-    pub fn polynomial(dataset: &'a ArrayBase<D, Ix2>, c: A, d: A) -> Kernel<A, D> {
-        let fnc = move |a: ArrayView1<A>, b: ArrayView1<A>| (a.dot(&b) + c).powf(d);
-
-        Kernel::new(dataset, fnc, KernelType::Dense, false)
-    }
-
-    pub fn polynomial_sparse(
-        dataset: &'a ArrayBase<D, Ix2>,
-        c: A,
-        d: A,
-        nneigh: usize,
-    ) -> Kernel<A, D> {
-        let fnc = move |a: ArrayView1<A>, b: ArrayView1<A>| (a.dot(&b) + c).powf(d);
-
-        Kernel::new(dataset, fnc, KernelType::Sparse(nneigh), false)
+    pub fn params() -> KernelParams<F> {
+        KernelParams {
+            kind: KernelType::Dense,
+            method: KernelMethod::Gaussian(F::from(0.5).unwrap())
+        }
     }
 }
 
-fn dense_from_fn<A: NdFloat, D: Data<Elem = A>, T: Fn(ArrayView1<A>, ArrayView1<A>) -> A>(
+pub enum KernelMethod<F> {
+    Gaussian(F),
+    Linear,
+    Polynomial(F, F)
+}
+
+impl<F: Float> KernelMethod<F> {
+    pub fn method(&self) -> SimFnc<F> {
+        match *self {
+            KernelMethod::Gaussian(eps) => {
+                Box::new(move |a: ArrayView1<F>, b: ArrayView1<F>| {
+                    let distance = a
+                        .iter()
+                        .zip(b.iter())
+                        .map(|(x, y)| (*x - *y) * (*x - *y))
+                        .sum::<F>();
+
+                    (-distance / eps).exp()
+                })
+            },
+            KernelMethod::Linear => Box::new(move |a: ArrayView1<F>, b: ArrayView1<F>| a.dot(&b)),
+            KernelMethod::Polynomial(c, d) => Box::new(move |a: ArrayView1<F>, b: ArrayView1<F>| (a.dot(&b) + c).powf(d))
+        }
+    }
+
+    pub fn is_linear(&self) -> bool {
+        match *self {
+            KernelMethod::Linear => true,
+            _ => false
+        }
+    }
+}
+
+pub struct KernelParams<F> {
+    kind: KernelType,
+    method: KernelMethod<F>
+}
+
+impl<'a, F: Float> Transformer<&'a Array2<F>, Kernel<'a, F, Array2<F>>> for KernelParams<F> {
+    fn transform(&self, x: &'a Array2<F>) -> Kernel<'a, F, Array2<F>> {
+        let fnc = self.method.method();
+        let is_linear = self.method.is_linear();
+
+        Kernel::new(x, fnc, self.kind.clone(), is_linear)
+    }
+}
+
+fn dense_from_fn<F: Float, D: Data<Elem = F>, T: Fn(ArrayView1<F>, ArrayView1<F>) -> F>(
     dataset: &ArrayBase<D, Ix2>,
     fnc: &T,
-) -> Array2<A> {
+) -> Array2<F> {
     let n_observations = dataset.len_of(Axis(0));
     let mut similarity = Array2::eye(n_observations);
 
@@ -205,14 +209,14 @@ fn dense_from_fn<A: NdFloat, D: Data<Elem = A>, T: Fn(ArrayView1<A>, ArrayView1<
 }
 
 fn sparse_from_fn<
-    A: NdFloat + Default + std::iter::Sum,
-    D: Data<Elem = A>,
-    T: Fn(ArrayView1<A>, ArrayView1<A>) -> A,
+    F: Float,
+    D: Data<Elem = F>,
+    T: Fn(ArrayView1<F>, ArrayView1<F>) -> F,
 >(
     dataset: &ArrayBase<D, Ix2>,
     k: usize,
     fnc: &T,
-) -> CsMat<A> {
+) -> CsMat<F> {
     let mut data = sparse::adjacency_matrix(dataset, k);
 
     for (i, mut vec) in data.outer_iterator_mut().enumerate() {
