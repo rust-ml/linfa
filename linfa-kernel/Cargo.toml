@@ -21,6 +21,8 @@ sprs = "0.7"
 hnsw = "0.6"
 space = "0.10"
 
+linfa = { path = ".." }
+
 [dev-dependencies]
 
 [features]

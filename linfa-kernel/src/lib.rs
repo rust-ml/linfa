@@ -1,11 +1,15 @@
+//! Kernel methods
+//!
+
 mod sparse;
 
 use ndarray::prelude::*;
-use ndarray::Data;
 use ndarray::{linalg::Dot, NdFloat};
 use sprs::CsMat;
 
-type SimFnc<A> = Box<dyn Fn(ArrayView1<A>, ArrayView1<A>) -> A>;
+use linfa::{Float, dataset::Data};
+
+type SimFnc<F> = Box<dyn Fn(ArrayView1<F>, ArrayView1<F>) -> F>;
 
 pub enum KernelType {
     Dense,
@@ -13,25 +17,25 @@ pub enum KernelType {
 }
 
 #[derive(Debug)]
-pub enum KernelInner<A: NdFloat> {
-    Dense(Array2<A>),
-    Sparse(CsMat<A>),
+pub enum KernelInner<F: Float> {
+    Dense(Array2<F>),
+    Sparse(CsMat<F>),
 }
 
-pub struct Kernel<'a, A: NdFloat, D: Data<Elem = A>> {
-    pub inner: KernelInner<A>,
-    pub fnc: SimFnc<A>,
-    pub dataset: &'a ArrayBase<D, Ix2>,
+pub struct Kernel<'a, F: Float, D: Data<Elem = F>> {
+    pub inner: KernelInner<F>,
+    pub fnc: SimFnc<F>,
+    pub dataset: &'a D,
     pub linear: bool,
 }
 
-impl<'a, A: NdFloat + Default + std::iter::Sum, D: Data<Elem = A>> Kernel<'a, A, D> {
-    pub fn new<F: Fn(ArrayView1<A>, ArrayView1<A>) -> A + 'static>(
-        dataset: &'a ArrayBase<D, Ix2>,
+impl<'a, F: Float, D: Data<Elem = F>> Kernel<'a, F, D> {
+    pub fn new<F: Fn(ArrayView1<F>, ArrayView1<F>) -> F + 'static>(
+        dataset: &'a Data,
         fnc: F,
         kind: KernelType,
         linear: bool,
-    ) -> Kernel<'a, A, D> {
+    ) -> Kernel<'a, F, D> {
         let inner = match kind {
             KernelType::Dense => KernelInner::Dense(dense_from_fn(dataset, &fnc)),
             KernelType::Sparse(k) => KernelInner::Sparse(sparse_from_fn(dataset, k, &fnc)),

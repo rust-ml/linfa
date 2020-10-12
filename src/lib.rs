@@ -30,10 +30,6 @@
 
 /// Clustering algorithms for unlabeled data.
 
-pub mod clustering {
-    pub use linfa_clustering::*;
-}
-
 mod metrics_classification;
 mod metrics_regression;
 pub mod dataset;

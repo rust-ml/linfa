@@ -4,8 +4,9 @@ use ndarray::NdFloat;
 use num_traits::FromPrimitive;
 
 mod impl_dataset;
-mod impl_labels;
-mod impl_data;
+mod impl_targets;
+mod impl_records;
+
 mod iter;
 
 pub trait Float: NdFloat + FromPrimitive + Default {}
@@ -18,15 +19,15 @@ impl Label for bool {}
 impl Label for usize {}
 impl Label for String {}
 
-pub struct Dataset<T, S>
+pub struct Dataset<R, S>
 where
-    T: Data,
+    R: Records
 {
-    data: T,
+    records: R,
     targets: S,
 }
 
-pub trait Data: Sized {
+pub trait Records: Sized {
     type Elem;
 
     fn observations(&self) -> usize;

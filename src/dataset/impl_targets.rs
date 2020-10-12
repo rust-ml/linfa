@@ -1,5 +1,5 @@
-use super::{Targets, Label, Dataset, Data};
-use ndarray::{Dimension, ArrayBase};
+use super::{Targets, Label, Dataset, Records};
+use ndarray::{Dimension, ArrayBase, Data};
 use std::collections::HashSet;
 
 impl<L: Label> Targets for Vec<L> {
@@ -18,7 +18,7 @@ impl<L: Label> Targets for &[L] {
     }
 }
 
-impl<L: Label, S: ndarray::Data<Elem = L>, I: Dimension> Targets for ArrayBase<S, I> {
+impl<L: Label, S: Data<Elem = L>, I: Dimension> Targets for ArrayBase<S, I> {
     type Elem = L;
 
     fn labels(&self) -> HashSet<&L> {
@@ -39,15 +39,15 @@ impl<L: Label, T: Targets<Elem = L>> Targets for TargetsWithLabels<L, T> {
     }
 }
 
-impl<D: Data, L: Label, T: Targets<Elem=L>> Dataset<D, T> {
-    pub fn with_labels(self, labels: Vec<L>) -> Dataset<D, TargetsWithLabels<L, T>> {
+impl<R: Records, L: Label, T: Targets<Elem=L>> Dataset<R, T> {
+    pub fn with_labels(self, labels: Vec<L>) -> Dataset<R, TargetsWithLabels<L, T>> {
         let targets = TargetsWithLabels {
             targets: self.targets,
             labels: labels.into_iter().collect()
         };
 
         Dataset {
-            data: self.data,
+            records: self.records,
             targets
         }
     }
