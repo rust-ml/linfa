@@ -57,7 +57,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Initialize the model
     let mut model: GaussianNb<f64> = GaussianNb::new();
 
-    // Trian the model using the incremental learning api
+    // Train the model using the incremental learning api
     // `fit` method is also available for training using all data
     for (x, y) in train_data
         .axis_chunks_iter(Axis(0), 120)

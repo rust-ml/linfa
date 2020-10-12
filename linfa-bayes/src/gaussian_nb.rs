@@ -149,7 +149,7 @@ impl<A: Float + PartialEq + PartialOrd> GaussianNb<A> {
         classes: &Array1<A>,
     ) -> Result<()> {
         // If the ratio of the variance between dimensions is too small, it will cause
-        // numberical errors. We address this by artificially boosting the variance
+        // numerical errors. We address this by artificially boosting the variance
         // by `epsilon` (a small fraction of the variance of the largest feature)
         let epsilon = A::from(self.var_smoothing).unwrap()
             * *x.var_axis(Axis(0), A::from(0.).unwrap()).max()?;
