@@ -8,6 +8,10 @@ impl<L: Label> Targets for Vec<L> {
     fn labels(&self) -> HashSet<&L> {
         self.iter().collect()
     }
+
+    fn as_slice(&self) -> &[Self::Elem] {
+        &self
+    }
 }
 
 impl<L: Label> Targets for &[L] {
@@ -16,6 +20,10 @@ impl<L: Label> Targets for &[L] {
     fn labels(&self) -> HashSet<&L> {
         self.iter().collect()
     }
+
+    fn as_slice(&self) -> &[Self::Elem] {
+        self
+    }
 }
 
 impl<L: Label, S: Data<Elem = L>, I: Dimension> Targets for ArrayBase<S, I> {
@@ -23,6 +31,10 @@ impl<L: Label, S: Data<Elem = L>, I: Dimension> Targets for ArrayBase<S, I> {
 
     fn labels(&self) -> HashSet<&L> {
         self.iter().collect()
+    }
+
+    fn as_slice(&self) -> &[Self::Elem] {
+        self.as_slice().unwrap()
     }
 }
 
@@ -36,6 +48,10 @@ impl<L: Label, T: Targets<Elem = L>> Targets for TargetsWithLabels<L, T> {
 
     fn labels(&self) -> HashSet<&L> {
         self.labels.iter().collect()
+    }
+
+    fn as_slice(&self) -> &[Self::Elem] {
+        self.targets.as_slice()
     }
 }
 

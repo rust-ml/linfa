@@ -760,7 +760,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
         (r1 - r2) / A::from(2.0).unwrap()
     }
 
-    pub fn solve(mut self) -> Svm<'a, A> {
+    pub fn solve(mut self) -> Svm<'a, A, A> {
         let mut iter = 0;
         let max_iter = if self.targets.len() > std::usize::MAX / 100 {
             std::usize::MAX
@@ -850,6 +850,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
             iterations: iter,
             kernel: self.kernel.inner(),
             linear_decision,
+            phantom: PhantomData
         }
     }
 }

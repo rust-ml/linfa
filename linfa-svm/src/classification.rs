@@ -1,4 +1,6 @@
 use std::cmp::Ordering;
+use std::marker::PhantomData;
+use linfa::dataset::Pr;
 
 use super::permutable_kernel::{Kernel, PermutableKernel, PermutableKernelOneClass};
 use super::solver_smo::SolverState;
@@ -27,7 +29,7 @@ pub fn fit_c<'a, A: Float>(
     targets: &'a [bool],
     cpos: A,
     cneg: A,
-) -> Svm<'a, A> {
+) -> Svm<'a, A, Pr> {
     let bounds = targets
         .iter()
         .map(|x| if *x { cpos } else { cneg })
@@ -54,7 +56,7 @@ pub fn fit_c<'a, A: Float>(
         .map(|(a, b)| if *b { a } else { -a })
         .collect();
 
-    res
+    res.with_phantom()
 }
 
 /// Support Vector Classification with Nu-penalizing term
@@ -77,7 +79,7 @@ pub fn fit_nu<'a, A: Float>(
     kernel: &'a Kernel<A>,
     targets: &'a [bool],
     nu: A,
-) -> Svm<'a, A> {
+) -> Svm<'a, A, Pr> {
     let mut sum_pos = nu * A::from(targets.len()).unwrap() / A::from(2.0).unwrap();
     let mut sum_neg = nu * A::from(targets.len()).unwrap() / A::from(2.0).unwrap();
     let init_alpha = targets
@@ -121,7 +123,7 @@ pub fn fit_nu<'a, A: Float>(
     res.rho /= r;
     res.obj /= r * r;
 
-    res
+    res.with_phantom()
 }
 
 /// Support Vector Classification for one-class problems
@@ -138,7 +140,7 @@ pub fn fit_one_class<'a, A: Float + num_traits::ToPrimitive>(
     params: SolverParams<A>,
     kernel: &'a Kernel<A>,
     nu: A,
-) -> Svm<'a, A> {
+) -> Svm<'a, A, Pr> {
     let size = kernel.size();
     let n = (nu * A::from(size).unwrap()).to_usize().unwrap();
 
@@ -162,7 +164,9 @@ pub fn fit_one_class<'a, A: Float + num_traits::ToPrimitive>(
         false,
     );
 
-    solver.solve()
+    let res = solver.solve();
+    
+    res.with_phantom()
 }
 
 #[cfg(test)]

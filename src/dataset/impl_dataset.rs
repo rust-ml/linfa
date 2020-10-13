@@ -12,5 +12,9 @@ impl<R: Records, S: Targets> Dataset<R, S> {
     pub fn labels(&self) -> HashSet<&S::Elem> {
         self.targets.labels()
     }
+
+    pub fn targets(&self) -> &[S::Elem] {
+        self.targets.as_slice()
+    }
 }
 

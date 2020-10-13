@@ -67,8 +67,9 @@
 //! accuracy 0.98818624, MCC 0.9523008
 //! ```
 use std::fmt;
+use std::marker::PhantomData;
 use ndarray::{Array1, Array2, ArrayBase, Data, Ix1, NdFloat};
-use linfa::{Float, traits::Fit, traits::Predict, dataset::Dataset};
+use linfa::{Float, traits::Fit, traits::Predict, dataset::Dataset, dataset::Pr, dataset::Targets};
 
 mod classification;
 mod permutable_kernel;
@@ -78,28 +79,52 @@ pub mod solver_smo;
 use permutable_kernel::Kernel;
 pub use solver_smo::SolverParams;
 
-pub struct SvmParams<F: Float> {
+pub struct SvmParams<F: Float, T> {
     c: Option<f32>,
     nu: Option<f32>,
-    solver_params: SolverParams<F>
+    solver_params: SolverParams<F>,
+    phantom: PhantomData<T>
 }
 
-impl<'a, F: Float> Fit<'a, Kernel<'a, F>, ()> for SvmParams<F> {
+/*impl<'a, F: Float> Fit<'a, Kernel<'a, F>, ()> for SvmParams<F> {
     type Object = Svm<'a, F>;
 
     fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, ()>) -> Svm<'a, F> {
         classification::fit_one_class(self.solver_params.clone(), &dataset.records, F::one())
     }
+}*/
+
+impl<'a, F: Float> Fit<'a, Kernel<'a, F>, Vec<bool>> for SvmParams<F, Pr> {
+    type Object = Svm<'a, F, Pr>;
+
+    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, Vec<bool>>) -> Self::Object {
+        classification::fit_c(self.solver_params.clone(), &dataset.records, dataset.targets(), F::one(), F::one())
+    }
 }
 
-impl<'a, F: Float> Fit<'a, Kernel<'a, F>, Vec<bool>> for SvmParams<F> {
+impl<'a, F: Float> Fit<'a, Kernel<'a, F>, ()> for SvmParams<F, Pr> {
+    type Object = Svm<'a, F, Pr>;
+
+    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, ()>) -> Self::Object {
+        classification::fit_one_class(self.solver_params.clone(), &dataset.records, F::one())
+    }
+}
+impl<'a, F: Float> Fit<'a, Kernel<'a, F>, ()> for SvmParams<F, bool> {
+    type Object = Svm<'a, F, bool>;
+
+    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, ()>) -> Self::Object {
+        let res = classification::fit_one_class(self.solver_params.clone(), &dataset.records, F::one());
+
+        res.with_phantom()
+    }
+}
+/*impl<'a, F: Float, P: Pr> Fit<'a, Kernel<'a, F>, Vec<P>> for SvmParams<F> {
     type Object = Svm<'a, F>;
 
     fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, Vec<bool>>) -> Svm<'a, F> {
         classification::fit_c(self.solver_params.clone(), &dataset.records, &dataset.targets, F::one(), F::one())
     }
-}
-
+}*/
 /// Support Vector Classification
 #[allow(non_snake_case)]
 pub mod SVClassify {
@@ -120,7 +145,7 @@ pub enum ExitReason {
 }
 
 /// The result of the SMO solver
-pub struct Svm<'a, A: Float> {
+pub struct Svm<'a, A: Float, T> {
     pub alpha: Vec<A>,
     pub rho: A,
     r: Option<A>,
@@ -129,9 +154,10 @@ pub struct Svm<'a, A: Float> {
     obj: A,
     kernel: &'a Kernel<'a, A>,
     linear_decision: Option<Array1<A>>,
+    phantom: PhantomData<T>
 }
 
-impl<'a, A: Float> Svm<'a, A> {
+impl<'a, A: Float, T> Svm<'a, A, T> {
     /// Returns the number of support vectors
     pub fn nsupport(&self) -> usize {
         self.alpha
@@ -139,9 +165,22 @@ impl<'a, A: Float> Svm<'a, A> {
             .filter(|x| x.abs() > A::from(1e-5).unwrap())
             .count()
     }
+    pub fn with_phantom<S>(self) -> Svm<'a, A, S> {
+        Svm {
+            alpha: self.alpha,
+            rho: self.rho,
+            r: self.r,
+            exit_reason: self.exit_reason,
+            obj: self.obj,
+            iterations: self.iterations,
+            kernel: self.kernel,
+            linear_decision: self.linear_decision,
+            phantom: PhantomData
+        }
+    }
 }
 
-impl<'a, F: Float> Predict<Array1<F>, F> for Svm<'a, F> {
+impl<'a, F: Float> Predict<Array1<F>, F> for Svm<'a, F, bool> {
     /// Predict new values with the model
     ///
     /// In case of a classification task this returns a probability, for regression the predicted
@@ -154,13 +193,13 @@ impl<'a, F: Float> Predict<Array1<F>, F> for Svm<'a, F> {
     }
 }
 
-impl<'a, F: Float> Predict<Array2<F>, Dataset<Array2<F>, Vec<F>>> for Svm<'a, F> {
+impl<'a, F: Float> Predict<Array2<F>, Dataset<Array2<F>, Vec<F>>> for Svm<'a, F, ()> {
     fn predict(&self, data: Array2<F>) -> Dataset<Array2<F>, Vec<F>> {
         panic!("")
     }
 }
 
-impl<'a, A: Float> fmt::Display for Svm<'a, A> {
+impl<'a, A: Float, T> fmt::Display for Svm<'a, A, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.exit_reason {
             ExitReason::ReachedThreshold => write!(

@@ -1,4 +1,7 @@
 ///! Support Vector Regression
+use std::marker::PhantomData;
+use linfa::dataset::Pr;
+
 use super::permutable_kernel::{Kernel, PermutableKernelRegression};
 use super::solver_smo::SolverState;
 use super::SolverParams;
@@ -21,7 +24,7 @@ pub fn fit_epsilon<'a, A: Float>(
     target: &'a [A],
     c: A,
     p: A,
-) -> Svm<'a, A> {
+) -> Svm<'a, A, Pr> {
     let mut linear_term = vec![A::zero(); 2 * target.len()];
     let mut targets = vec![true; 2 * target.len()];
 
@@ -52,7 +55,7 @@ pub fn fit_epsilon<'a, A: Float>(
     }
     res.alpha.truncate(target.len());
 
-    res
+    res.with_phantom()
 }
 
 /// Support Vector Regression with nu parameter
@@ -72,7 +75,7 @@ pub fn fit_nu<'a, A: Float>(
     target: &'a [A],
     c: A,
     nu: A,
-) -> Svm<'a, A> {
+) -> Svm<'a, A, Pr> {
     let mut alpha = vec![A::zero(); 2 * target.len()];
     let mut linear_term = vec![A::zero(); 2 * target.len()];
     let mut targets = vec![true; 2 * target.len()];
@@ -109,7 +112,7 @@ pub fn fit_nu<'a, A: Float>(
     }
     res.alpha.truncate(target.len());
 
-    res
+    res.with_phantom()
 }
 
 #[cfg(test)]

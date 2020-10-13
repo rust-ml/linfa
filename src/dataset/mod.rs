@@ -20,6 +20,9 @@ impl Label for bool {}
 impl Label for usize {}
 impl Label for String {}
 
+/// Probability types
+pub type Pr = f32;
+
 pub struct Dataset<R, S>
 where
     R: Records
@@ -38,4 +41,5 @@ pub trait Targets {
     type Elem;
 
     fn labels<'a>(&'a self) -> HashSet<&'a Self::Elem>;
+    fn as_slice<'a>(&'a self) -> &'a [Self::Elem];
 }
