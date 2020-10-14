@@ -80,19 +80,38 @@ use permutable_kernel::Kernel;
 pub use solver_smo::SolverParams;
 
 pub struct SvmParams<F: Float, T> {
-    c: Option<f32>,
-    nu: Option<f32>,
+    c: Option<(F, F)>,
+    nu: Option<F>,
     solver_params: SolverParams<F>,
     phantom: PhantomData<T>
 }
 
-/*impl<'a, F: Float> Fit<'a, Kernel<'a, F>, ()> for SvmParams<F> {
-    type Object = Svm<'a, F>;
-
-    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, ()>) -> Svm<'a, F> {
-        classification::fit_one_class(self.solver_params.clone(), &dataset.records, F::one())
+impl<F: Float, T> SvmParams<F, T> {
+    pub fn eps(mut self, new_eps: F) -> Self {
+        self.solver_params.eps = new_eps;
+        self
     }
-}*/
+
+    pub fn shrinking(mut self, shrinking: bool) -> Self {
+        self.solver_params.shrinking = shrinking;
+
+        self
+    }
+
+    pub fn c_values(mut self, c: (F, F)) -> Self {
+        self.c = Some(c);
+        self.nu = None;
+
+        self
+    }
+
+    pub fn nu_value(mut self, nu: F) -> Self {
+        self.nu = Some(nu);
+        self.c = None;
+
+        self
+    }
+}
 
 impl<'a, F: Float> Fit<'a, Kernel<'a, F>, Vec<bool>> for SvmParams<F, Pr> {
     type Object = Svm<'a, F, Pr>;
@@ -102,11 +121,31 @@ impl<'a, F: Float> Fit<'a, Kernel<'a, F>, Vec<bool>> for SvmParams<F, Pr> {
     }
 }
 
+impl<'a, F: Float> Fit<'a, Kernel<'a, F>, &Vec<bool>> for SvmParams<F, bool> {
+    type Object = Svm<'a, F, bool>;
+
+    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, &Vec<bool>>) -> Self::Object {
+        let res = classification::fit_c(self.solver_params.clone(), &dataset.records, dataset.targets(), F::one(), F::one());
+
+        res.with_phantom()
+    }
+}
+
 impl<'a, F: Float> Fit<'a, Kernel<'a, F>, ()> for SvmParams<F, Pr> {
     type Object = Svm<'a, F, Pr>;
 
     fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, ()>) -> Self::Object {
         classification::fit_one_class(self.solver_params.clone(), &dataset.records, F::one())
+    }
+}
+
+impl<'a, F: Float> Fit<'a, Kernel<'a, F>, Vec<bool>> for SvmParams<F, bool> {
+    type Object = Svm<'a, F, bool>;
+
+    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, Vec<bool>>) -> Self::Object {
+        let res = classification::fit_one_class(self.solver_params.clone(), &dataset.records, F::one());
+
+        res.with_phantom()
     }
 }
 impl<'a, F: Float> Fit<'a, Kernel<'a, F>, ()> for SvmParams<F, bool> {
@@ -118,13 +157,7 @@ impl<'a, F: Float> Fit<'a, Kernel<'a, F>, ()> for SvmParams<F, bool> {
         res.with_phantom()
     }
 }
-/*impl<'a, F: Float, P: Pr> Fit<'a, Kernel<'a, F>, Vec<P>> for SvmParams<F> {
-    type Object = Svm<'a, F>;
 
-    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, Vec<bool>>) -> Svm<'a, F> {
-        classification::fit_c(self.solver_params.clone(), &dataset.records, &dataset.targets, F::one(), F::one())
-    }
-}*/
 /// Support Vector Classification
 #[allow(non_snake_case)]
 pub mod SVClassify {
@@ -158,6 +191,18 @@ pub struct Svm<'a, A: Float, T> {
 }
 
 impl<'a, A: Float, T> Svm<'a, A, T> {
+    pub fn params() -> SvmParams<A, T> {
+        SvmParams {
+            c: Some((A::one(), A::one())),
+            nu: None,
+            solver_params: SolverParams {
+                eps: A::from(1e-7).unwrap(),
+                shrinking: false
+            },
+            phantom: PhantomData
+        }
+    }
+
     /// Returns the number of support vectors
     pub fn nsupport(&self) -> usize {
         self.alpha
@@ -218,4 +263,22 @@ impl<'a, A: Float, T> fmt::Display for Svm<'a, A, T> {
             ),
         }
     }
+}
+
+fn test() {
+    use linfa::traits::Transformer;
+
+    let dataset: Dataset<Array2<f32>, Vec<bool>> = Dataset {
+        records: Array2::zeros((10, 10)),
+        targets: vec![false, true]
+    };
+
+    let dataset = Kernel::params()
+        .transform(&dataset);
+
+    let model = Svm::<f32, bool>::params()
+        .shrinking(true)
+        .eps(1e-10)
+        .fit(&dataset);
+        
 }

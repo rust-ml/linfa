@@ -24,3 +24,11 @@ impl<F: Float, D: Records<Elem = F>, T> Records for Dataset<D, T> {
         self.records.observations()
     }
 }
+
+impl<F: Float, D: Records<Elem = F>, T> Records for &Dataset<D, T> {
+    type Elem = F;
+
+    fn observations(&self) -> usize {
+        self.records.observations()
+    }
+}

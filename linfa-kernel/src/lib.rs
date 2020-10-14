@@ -7,7 +7,7 @@ use ndarray::prelude::*;
 use ndarray::{linalg::Dot, Data};
 use sprs::CsMat;
 
-use linfa::{Float, traits::Transformer, dataset::Records};
+use linfa::{Float, traits::Transformer, dataset::Records, dataset::Dataset, dataset::Targets};
 
 /// Distance function between two data points
 type SimFnc<F> = Box<dyn Fn(ArrayView1<F>, ArrayView1<F>) -> F>;
@@ -188,12 +188,40 @@ pub struct KernelParams<F> {
     method: KernelMethod<F>
 }
 
+impl<F: Float> KernelParams<F> {
+    pub fn method(mut self, method: KernelMethod<F>) -> KernelParams<F> {
+        self.method = method;
+
+        self
+    }
+
+    pub fn kind(mut self, kind: KernelType) -> KernelParams<F> {
+        self.kind = kind;
+
+        self
+    }
+}
+
 impl<'a, F: Float> Transformer<&'a Array2<F>, Kernel<'a, F, Array2<F>>> for KernelParams<F> {
     fn transform(&self, x: &'a Array2<F>) -> Kernel<'a, F, Array2<F>> {
         let fnc = self.method.method();
         let is_linear = self.method.is_linear();
 
         Kernel::new(x, fnc, self.kind.clone(), is_linear)
+    }
+}
+
+impl<'a, F: Float, T: Targets> Transformer<&'a Dataset<Array2<F>, T>, Dataset<Kernel<'a, F, Array2<F>>, &'a T>> for KernelParams<F> {
+    fn transform(&self, x: &'a Dataset<Array2<F>, T>) -> Dataset<Kernel<'a, F, Array2<F>>, &'a T> {
+        let fnc = self.method.method();
+        let is_linear = self.method.is_linear();
+
+        let kernel = Kernel::new(&x.records, fnc, self.kind.clone(), is_linear);
+
+        Dataset {
+            records: kernel,
+            targets: &x.targets
+        }
     }
 }
 

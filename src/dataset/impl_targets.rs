@@ -14,6 +14,18 @@ impl<L: Label> Targets for Vec<L> {
     }
 }
 
+impl<L: Label> Targets for &Vec<L> {
+    type Elem = L;
+
+    fn labels(&self) -> HashSet<&L> {
+        self.iter().collect()
+    }
+
+    fn as_slice(&self) -> &[Self::Elem] {
+        self
+    }
+}
+
 impl<L: Label> Targets for &[L] {
     type Elem = L;
 

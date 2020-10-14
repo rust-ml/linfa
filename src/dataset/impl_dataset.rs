@@ -16,5 +16,12 @@ impl<R: Records, S: Targets> Dataset<R, S> {
     pub fn targets(&self) -> &[S::Elem] {
         self.targets.as_slice()
     }
+
+    pub fn with_records<T: Records>(self, records: T) -> Dataset<T, S> {
+        Dataset {
+            records,
+            targets: self.targets
+        }
+    }
 }
 
