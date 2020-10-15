@@ -1,11 +1,11 @@
 use std::cmp::Ordering;
-use std::marker::PhantomData;
-use linfa::dataset::Pr;
+use linfa::{dataset::Pr, traits::Fit, traits::Predict, dataset::Dataset};
+use ndarray::{Array1, Array2};
 
 use super::permutable_kernel::{Kernel, PermutableKernel, PermutableKernelOneClass};
 use super::solver_smo::SolverState;
 use super::SolverParams;
-use super::{Float, Svm};
+use super::{Float, Svm, SvmParams};
 
 /// Support Vector Classification with C-penalizing parameter
 ///
@@ -169,6 +169,80 @@ pub fn fit_one_class<'a, A: Float + num_traits::ToPrimitive>(
     res.with_phantom()
 }
 
+impl<'a, F: Float> Fit<'a, Kernel<'a, F>, Vec<bool>> for SvmParams<F, Pr> {
+    type Object = Svm<'a, F, Pr>;
+
+    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, Vec<bool>>) -> Self::Object {
+        match (self.c, self.nu) {
+            (Some((c_p, c_n)), _) => fit_c(self.solver_params.clone(), &dataset.records, dataset.targets(), c_p, c_n),
+            (None, Some((nu, _))) => fit_nu(self.solver_params.clone(), &dataset.records, dataset.targets(), nu),
+            _ => panic!("Set either C value or Nu value")
+        }
+    }
+}
+
+impl<'a, F: Float> Fit<'a, Kernel<'a, F>, &Vec<bool>> for SvmParams<F, Pr> {
+    type Object = Svm<'a, F, Pr>;
+
+    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, &Vec<bool>>) -> Self::Object {
+        match (self.c, self.nu) {
+            (Some((c_p, c_n)), _) => fit_c(self.solver_params.clone(), &dataset.records, dataset.targets(), c_p, c_n),
+            (None, Some((nu, _))) => fit_nu(self.solver_params.clone(), &dataset.records, dataset.targets(), nu),
+            _ => panic!("Set either C value or Nu value")
+        }
+    }
+}
+
+impl<'a, F: Float> Fit<'a, Kernel<'a, F>, ()> for SvmParams<F, Pr> {
+    type Object = Svm<'a, F, Pr>;
+
+    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, ()>) -> Self::Object {
+        match self.nu {
+            Some((nu, _)) => fit_one_class(self.solver_params.clone(), &dataset.records, nu),
+            None => panic!("One class needs Nu value")
+        }
+    }
+}
+
+/// Predict a probability with a feature vector
+impl<'a, F: Float> Predict<Array1<F>, Pr> for Svm<'a, F, Pr> {
+    fn predict(&self, data: Array1<F>) -> Pr {
+        let val = match self.linear_decision {
+            Some(ref x) => x.dot(&data) - self.rho,
+            None => self.kernel.weighted_sum(&self.alpha, data.view()) - self.rho,
+        };
+
+        // this is safe because `F` is only implemented for `f32` and `f64`
+        val.to_f32().unwrap()
+    }
+}
+
+/// Predict a probability with a set of observations
+impl<'a, F: Float> Predict<&Array2<F>, Vec<Pr>> for Svm<'a, F, Pr> {
+    fn predict(&self, data: &Array2<F>) -> Vec<Pr> {
+        data.outer_iter().map(|data| {
+            let val = match self.linear_decision {
+                Some(ref x) => x.dot(&data) - self.rho,
+                None => self.kernel.weighted_sum(&self.alpha, data.view()) - self.rho,
+            };
+
+            // this is safe because `F` is only implemented for `f32` and `f64`
+            val.to_f32().unwrap()
+        }).collect()
+    }
+}
+
+impl<'a, F: Float, T> Predict<Dataset<Array2<F>, T>, Dataset<Array2<F>, Vec<Pr>>> for Svm<'a, F, Pr> {
+    fn predict(&self, data: Dataset<Array2<F>, T>) -> Dataset<Array2<F>, Vec<Pr>> {
+        let Dataset { records, .. } = data;
+        let predicted = self.predict(&records);
+
+        Dataset {
+            records,
+            targets: predicted
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::{fit_c, fit_nu, fit_one_class, SolverParams};

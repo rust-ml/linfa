@@ -1,11 +1,10 @@
 ///! Support Vector Regression
-use std::marker::PhantomData;
-use linfa::dataset::Pr;
+use linfa::{traits::Fit, dataset::Dataset};
 
 use super::permutable_kernel::{Kernel, PermutableKernelRegression};
 use super::solver_smo::SolverState;
 use super::SolverParams;
-use super::{Float, Svm};
+use super::{Float, Svm, SvmParams};
 
 /// Support Vector Regression with epsilon tolerance
 ///
@@ -24,7 +23,7 @@ pub fn fit_epsilon<'a, A: Float>(
     target: &'a [A],
     c: A,
     p: A,
-) -> Svm<'a, A, Pr> {
+) -> Svm<'a, A, A> {
     let mut linear_term = vec![A::zero(); 2 * target.len()];
     let mut targets = vec![true; 2 * target.len()];
 
@@ -75,7 +74,7 @@ pub fn fit_nu<'a, A: Float>(
     target: &'a [A],
     c: A,
     nu: A,
-) -> Svm<'a, A, Pr> {
+) -> Svm<'a, A, A> {
     let mut alpha = vec![A::zero(); 2 * target.len()];
     let mut linear_term = vec![A::zero(); 2 * target.len()];
     let mut targets = vec![true; 2 * target.len()];
@@ -115,6 +114,29 @@ pub fn fit_nu<'a, A: Float>(
     res.with_phantom()
 }
 
+impl<'a, F: Float> Fit<'a, Kernel<'a, F>, Vec<F>> for SvmParams<F, F> {
+    type Object = Svm<'a, F, F>;
+
+    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, Vec<F>>) -> Self::Object {
+        match (self.c, self.nu) {
+            (Some((c, eps)), _) => fit_epsilon(self.solver_params.clone(), &dataset.records, dataset.targets(), c, eps),
+            (None, Some((nu, eps))) => fit_nu(self.solver_params.clone(), &dataset.records, dataset.targets(), nu, eps),
+            _ => panic!("Set either C value or Nu value")
+        }
+    }
+}
+
+impl<'a, F: Float> Fit<'a, Kernel<'a, F>, &Vec<F>> for SvmParams<F, F> {
+    type Object = Svm<'a, F, F>;
+
+    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, &Vec<F>>) -> Self::Object {
+        match (self.c, self.nu) {
+            (Some((c, eps)), _) => fit_epsilon(self.solver_params.clone(), &dataset.records, dataset.targets(), c, eps),
+            (None, Some((nu, eps))) => fit_nu(self.solver_params.clone(), &dataset.records, dataset.targets(), nu, eps),
+            _ => panic!("Set either C value or Nu value")
+        }
+    }
+}
 #[cfg(test)]
 pub mod tests {
     use super::{fit_epsilon, fit_nu, SolverParams};

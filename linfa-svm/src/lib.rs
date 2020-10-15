@@ -81,7 +81,7 @@ pub use solver_smo::SolverParams;
 
 pub struct SvmParams<F: Float, T> {
     c: Option<(F, F)>,
-    nu: Option<F>,
+    nu: Option<(F, F)>,
     solver_params: SolverParams<F>,
     phantom: PhantomData<T>
 }
@@ -97,64 +97,37 @@ impl<F: Float, T> SvmParams<F, T> {
 
         self
     }
+}
 
-    pub fn c_values(mut self, c: (F, F)) -> Self {
-        self.c = Some(c);
+impl<F: Float> SvmParams<F, Pr> {
+    pub fn pos_neg_weights(mut self, c_pos: F, c_neg: F) -> Self {
+        self.c = Some((c_pos, c_neg));
         self.nu = None;
 
         self
     }
 
-    pub fn nu_value(mut self, nu: F) -> Self {
-        self.nu = Some(nu);
+    pub fn nu_weight(mut self, nu: F) -> Self {
+        self.nu = Some((nu, nu));
         self.c = None;
 
         self
     }
 }
 
-impl<'a, F: Float> Fit<'a, Kernel<'a, F>, Vec<bool>> for SvmParams<F, Pr> {
-    type Object = Svm<'a, F, Pr>;
+impl<F: Float> SvmParams<F, F> {
+    pub fn c_eps(mut self, c: F, eps: F) -> Self {
+        self.c = Some((c, eps));
+        self.nu = None;
 
-    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, Vec<bool>>) -> Self::Object {
-        classification::fit_c(self.solver_params.clone(), &dataset.records, dataset.targets(), F::one(), F::one())
+        self
     }
-}
 
-impl<'a, F: Float> Fit<'a, Kernel<'a, F>, &Vec<bool>> for SvmParams<F, bool> {
-    type Object = Svm<'a, F, bool>;
+    pub fn nu_eps(mut self, nu: F, eps: F) -> Self {
+        self.nu = Some((nu, eps));
+        self.c = None;
 
-    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, &Vec<bool>>) -> Self::Object {
-        let res = classification::fit_c(self.solver_params.clone(), &dataset.records, dataset.targets(), F::one(), F::one());
-
-        res.with_phantom()
-    }
-}
-
-impl<'a, F: Float> Fit<'a, Kernel<'a, F>, ()> for SvmParams<F, Pr> {
-    type Object = Svm<'a, F, Pr>;
-
-    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, ()>) -> Self::Object {
-        classification::fit_one_class(self.solver_params.clone(), &dataset.records, F::one())
-    }
-}
-
-impl<'a, F: Float> Fit<'a, Kernel<'a, F>, Vec<bool>> for SvmParams<F, bool> {
-    type Object = Svm<'a, F, bool>;
-
-    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, Vec<bool>>) -> Self::Object {
-        let res = classification::fit_one_class(self.solver_params.clone(), &dataset.records, F::one());
-
-        res.with_phantom()
-    }
-}
-impl<'a, F: Float> Fit<'a, Kernel<'a, F>, ()> for SvmParams<F, bool> {
-    type Object = Svm<'a, F, bool>;
-
-    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, ()>) -> Self::Object {
-        let res = classification::fit_one_class(self.solver_params.clone(), &dataset.records, F::one());
-
-        res.with_phantom()
+        self
     }
 }
 
@@ -225,25 +198,6 @@ impl<'a, A: Float, T> Svm<'a, A, T> {
     }
 }
 
-impl<'a, F: Float> Predict<Array1<F>, F> for Svm<'a, F, bool> {
-    /// Predict new values with the model
-    ///
-    /// In case of a classification task this returns a probability, for regression the predicted
-    /// regressor is returned.
-    fn predict(&self, data: Array1<F>) -> F {
-        match self.linear_decision {
-            Some(ref x) => x.dot(&data) - self.rho,
-            None => self.kernel.weighted_sum(&self.alpha, data.view()) - self.rho,
-        }
-    }
-}
-
-impl<'a, F: Float> Predict<Array2<F>, Dataset<Array2<F>, Vec<F>>> for Svm<'a, F, ()> {
-    fn predict(&self, data: Array2<F>) -> Dataset<Array2<F>, Vec<F>> {
-        panic!("")
-    }
-}
-
 impl<'a, A: Float, T> fmt::Display for Svm<'a, A, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.exit_reason {
@@ -270,15 +224,19 @@ fn test() {
 
     let dataset: Dataset<Array2<f32>, Vec<bool>> = Dataset {
         records: Array2::zeros((10, 10)),
-        targets: vec![false, true]
+        targets: vec![true, false]
     };
 
     let dataset = Kernel::params()
         .transform(&dataset);
 
-    let model = Svm::<f32, bool>::params()
+    let model = Svm::params()
         .shrinking(true)
         .eps(1e-10)
         .fit(&dataset);
+
+    let dataset = Dataset::from(Array2::zeros((10, 2)));
+
+    let res = model.predict(dataset).map_targets(|x| *x > 0.5);
         
 }

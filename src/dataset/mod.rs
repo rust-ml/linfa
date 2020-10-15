@@ -40,6 +40,11 @@ pub trait Records: Sized {
 pub trait Targets {
     type Elem;
 
-    fn labels<'a>(&'a self) -> HashSet<&'a Self::Elem>;
     fn as_slice<'a>(&'a self) -> &'a [Self::Elem];
+}
+
+pub trait Labels {
+    type Elem: Label;
+
+    fn labels<'a>(&'a self) -> HashSet<&'a Self::Elem>;
 }
