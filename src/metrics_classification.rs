@@ -12,7 +12,7 @@ use ndarray::Data;
 use ndarray::IntoNdProducer;
 
 use crate::Float;
-use crate::dataset::{Dataset, Records, Targets, Labels, Label};
+use crate::dataset::{Dataset, Records, Targets, Labels, Label, Pr};
 
 /// Return tuple of class index for each element of prediction and ground_truth
 fn map_prediction_to_idx<L: Label>(
@@ -371,24 +371,24 @@ fn trapezoidal<A: NdFloat>(vals: &[(A, A)]) -> A {
 /// A Receiver Operating Characteristic for binary-label classification
 ///
 /// The ROC curve gives insight about the seperability of a binary classification task.
-pub struct ReceiverOperatingCharacteristic<A> {
-    curve: Vec<(A, A)>,
-    thresholds: Vec<A>,
+pub struct ReceiverOperatingCharacteristic {
+    curve: Vec<(f32, f32)>,
+    thresholds: Vec<f32>,
 }
 
-impl<A: NdFloat> ReceiverOperatingCharacteristic<A> {
+impl ReceiverOperatingCharacteristic {
     /// Returns the true-positive, false-positive curve
-    pub fn get_curve(&self) -> Vec<(A, A)> {
+    pub fn get_curve(&self) -> Vec<(f32, f32)> {
         self.curve.clone()
     }
 
     /// Returns the threshold corresponding to each point
-    pub fn get_thresholds(&self) -> Vec<A> {
+    pub fn get_thresholds(&self) -> Vec<f32> {
         self.thresholds.clone()
     }
 
     /// Returns the Area-Under-Curve metric
-    pub fn area_under_curve(&self) -> A {
+    pub fn area_under_curve(&self) -> f32 {
         trapezoidal(&self.curve)
     }
 }
@@ -397,33 +397,33 @@ impl<A: NdFloat> ReceiverOperatingCharacteristic<A> {
 ///
 /// This contains Receiver-Operating-Characterstics curves as these only work for binary
 /// classification tasks.
-pub trait BinaryClassification<A> {
-    fn roc(&self, y: &[bool]) -> ReceiverOperatingCharacteristic<A>;
+pub trait BinaryClassification<T> {
+    fn roc(&self, y: T) -> ReceiverOperatingCharacteristic;
 }
 
-impl<A: NdFloat, D: Data<Elem = A>> BinaryClassification<A> for ArrayBase<D, Ix1> {
-    fn roc(&self, y: &[bool]) -> ReceiverOperatingCharacteristic<A> {
-        let mut tuples = self
+impl<R: Records, R2: Records, T: Targets<Elem = bool>, T2: Targets<Elem = Pr>> BinaryClassification<&Dataset<R, T>> for Dataset<R2, T2> {
+    fn roc(&self, y: &Dataset<R, T>) -> ReceiverOperatingCharacteristic {
+        let mut tuples = self.targets()
             .iter()
-            .zip(y.iter())
+            .zip(y.targets().iter())
             .filter_map(|(a, b)| {
-                if *a >= A::zero() {
+                if *a >= 0.0 {
                     Some((*a, *b))
                 } else {
                     None
                 }
             })
-            .collect::<Vec<(A, bool)>>();
+            .collect::<Vec<(Pr, bool)>>();
 
-        tuples.sort_unstable_by(&|a: &(A, _), b: &(A, _)| match a.0.partial_cmp(&b.0) {
+        tuples.sort_unstable_by(&|a: &(Pr, _), b: &(Pr, _)| match a.0.partial_cmp(&b.0) {
             Some(ord) => ord,
             None => unreachable!(),
         });
 
-        let (mut tp, mut fp) = (A::zero(), A::zero());
+        let (mut tp, mut fp) = (0.0, 0.0);
         let mut tps_fps = Vec::new();
         let mut thresholds = Vec::new();
-        let mut s0 = A::zero();
+        let mut s0 = 0.0;
 
         for (s, t) in tuples {
             if s != s0 {
@@ -433,9 +433,9 @@ impl<A: NdFloat, D: Data<Elem = A>> BinaryClassification<A> for ArrayBase<D, Ix1
             }
 
             if t {
-                tp += A::one();
+                tp += 1.0;
             } else {
-                fp += A::one();
+                fp += 1.0;
             }
         }
         tps_fps.push((tp, fp));
