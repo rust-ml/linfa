@@ -16,7 +16,7 @@ impl<L: Label> Labels for Vec<L> {
     }
 }
 
-impl<L> Targets for &Vec<L> {
+/*impl<L> Targets for &Vec<L> {
     type Elem = L;
 
     fn as_slice(&self) -> &[Self::Elem] {
@@ -30,7 +30,7 @@ impl<L: Label> Labels for &Vec<L> {
     fn labels(&self) -> Vec<L> {
         self.iter().cloned().collect()
     }
-}
+}*/
 
 
 impl<L> Targets for &[L] {
@@ -71,6 +71,24 @@ impl Targets for () {
 
     fn as_slice(&self) -> &[()] {
         &[()]
+    }
+}
+
+//impl<'a, T> Targets for &'a T where T: Targets {}
+
+impl<T: Targets> Targets for &T {
+    type Elem = T::Elem;
+
+    fn as_slice(&self) -> &[Self::Elem] {
+        (*self).as_slice()
+    }
+}
+
+impl<T: Labels> Labels for &T {
+    type Elem = T::Elem;
+
+    fn labels(&self) -> Vec<Self::Elem> {
+        (*self).labels()
     }
 }
 

@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use linfa::{dataset::Pr, traits::Fit, traits::Predict, dataset::Dataset};
+use linfa::{dataset::Pr, traits::Fit, traits::Predict, dataset::Dataset, dataset::Targets};
 use ndarray::{Array1, Array2};
 
 use super::permutable_kernel::{Kernel, PermutableKernel, PermutableKernelOneClass};
@@ -232,23 +232,24 @@ impl<'a, F: Float> Predict<&Array2<F>, Vec<Pr>> for Svm<'a, F, Pr> {
     }
 }
 
-impl<'a, F: Float, T> Predict<Dataset<Array2<F>, T>, Dataset<Array2<F>, Vec<Pr>>> for Svm<'a, F, Pr> {
+impl<'a, F: Float, T: Targets> Predict<Dataset<Array2<F>, T>, Dataset<Array2<F>, Vec<Pr>>> for Svm<'a, F, Pr> {
     fn predict(&self, data: Dataset<Array2<F>, T>) -> Dataset<Array2<F>, Vec<Pr>> {
         let Dataset { records, .. } = data;
         let predicted = self.predict(&records);
 
-        Dataset {
-            records,
-            targets: predicted
-        }
+        Dataset::new(records, predicted)
     }
 }
+
 #[cfg(test)]
 mod tests {
+    extern crate openblas_src; // or another backend of your choice
+
+
     use super::Svm;
     use linfa::dataset::Dataset;
     use linfa::traits::{Fit, Transformer, Predict};
-    use linfa::metrics::IntoConfusionMatrix;
+    use linfa::metrics::ToConfusionMatrix;
     use linfa_kernel::{Kernel, KernelMethod};
 
     use ndarray::{Array, Array2, Axis};
@@ -285,11 +286,21 @@ mod tests {
         )
         .unwrap();
         let targets = (0..20).map(|x| x < 10).collect::<Vec<_>>();
-        let dataset = Dataset::new(entries, targets);
+        let dataset = Dataset::new(entries.clone(), targets);
 
         let dataset = Kernel::params()
             .method(KernelMethod::Linear)
             .transform(&dataset);
+
+        let model = Svm::params()
+            .pos_neg_weights(1.0, 1.0)
+            .fit(&dataset);
+
+        let valid = model.predict(Dataset::from(entries))
+            .map_targets(|x| *x > 0.5);
+
+        let cm = valid.confusion_matrix(dataset);
+        println!("{:?}", cm);
     }
 }
 /*

@@ -263,7 +263,7 @@ pub trait ToConfusionMatrix<A, T> {
     fn confusion_matrix(self, ground_truth: T) -> ConfusionMatrix<A>;
 }
 
-impl<R: Records, L: Label, T: Targets<Elem = L> + Labels<Elem = L>> ToConfusionMatrix<L, Dataset<R, T>> for Dataset<R, T> {
+impl<R: Records, R2: Records, L: Label, T: Targets<Elem = L> + Labels<Elem = L>, T2: Targets<Elem = L> + Labels<Elem = L>> ToConfusionMatrix<L, Dataset<R, T>> for Dataset<R2, T2> {
     fn confusion_matrix(self, ground_truth: Dataset<R, T>) -> ConfusionMatrix<L> {
         let classes: Vec<L> = ground_truth.labels();
         let indices = map_prediction_to_idx(&self.targets.as_slice(), &ground_truth.targets.as_slice(), &classes);

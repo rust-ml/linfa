@@ -12,9 +12,15 @@ readme = "README.md"
 keywords = ["kernel", "machine-learning", "linfa"]
 categories = ["algorithms", "mathematics", "science"]
 
+[features]
+default = []
+openblas = ["ndarray-linalg/openblas"]
+intel-mkl = ["ndarray-linalg/intel-mkl"]
+netlib = ["ndarray-linalg/netlib"]
+
 [dependencies]
-ndarray = { version = "0.13", default-features = false, features = ["blas"] }
-ndarray-linalg = { version = "0.12", default-features = false }
+ndarray = { version = "0.13" }
+ndarray-linalg = { version = "0.12" }
 
 #sprs = { git = "https://github.com/vbarrielle/sprs/", default-features = false, features = [] }
 sprs = "0.7"
@@ -24,8 +30,3 @@ space = "0.10"
 linfa = { path = ".." }
 
 [dev-dependencies]
-
-[features]
-openblas = ["ndarray-linalg/openblas"]
-netlib = ["ndarray-linalg/netlib"]
-intel-mkl = ["ndarray-linalg/intel-mkl"]

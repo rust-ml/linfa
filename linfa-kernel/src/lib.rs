@@ -218,10 +218,13 @@ impl<'a, F: Float, T: Targets> Transformer<&'a Dataset<Array2<F>, T>, Dataset<Ke
 
         let kernel = Kernel::new(&x.records, fnc, self.kind.clone(), is_linear);
 
-        Dataset {
+        Dataset::new(kernel, &x.targets)
+        /*Dataset {
             records: kernel,
-            targets: &x.targets
-        }
+            targets: &x.targets,
+            labels: Vec::new(),
+            weights: Vec::new()
+        }*/
     }
 }
 

@@ -14,12 +14,12 @@ categories = ["algorithms", "mathematics", "science"]
 
 [features]
 default = []
-openblas = ["ndarray-linalg/openblas"]
-intel-mkl = ["ndarray-linalg/intel-mkl"]
-netlib = ["ndarray-linalg/netlib"]
+openblas = ["ndarray-linalg/openblas", "linfa-kernel/openblas"]
+intel-mkl = ["ndarray-linalg/intel-mkl", "linfa-kernel/intel-mkl"]
+netlib = ["ndarray-linalg/netlib", "linfa-kernel/netlib"]
 
 [dependencies]
-ndarray = { version = "0.13" , features = ["rayon", "serde", "approx"]}
+ndarray = { version = "0.13", default-features=false, features=["blas"] }
 ndarray-linalg = { version = "0.12" }
 ndarray-rand = "0.11"
 rand_isaac = "0.2.0"
@@ -29,8 +29,8 @@ linfa = { path = ".." }
 linfa-kernel = { path = "../linfa-kernel" }
 
 [dev-dependencies]
-linfa = { path = ".." }
 approx = "0.3"
 csv = "1.1"
 ndarray-csv = "0.4"
 flate2 = "1.0"
+openblas-src = "0.9" # or another backend of your choice
