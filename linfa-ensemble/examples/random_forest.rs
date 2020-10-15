@@ -36,9 +36,6 @@ fn main() {
     let imp = rf.feature_importances();
     println!("Feature importances: {:?}", &imp);
 
-    let most_imp_feat = imp.iter().max_by(|a, b| a.1.cmp(&b.1)).map(|(k, _v)| k);
-    println!("Most important feature is ids={:?}", most_imp_feat);
-
     let preds = rf.predict(&xtrain);
     println!("Predictions: {:?}", &preds);
 
