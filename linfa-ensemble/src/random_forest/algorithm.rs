@@ -105,10 +105,8 @@ impl RandomForest {
         let n_estimators = hyperparameters.n_estimators;
         let mut trees: Vec<DecisionTree> = Vec::with_capacity(n_estimators);
         let single_tree_params = hyperparameters.tree_hyperparameters;
-        let max_n_rows = max_n_rows.unwrap_or_else(|| x.nrows());
+        let max_n_rows = max_n_rows.unwrap_or(x.nrows());
 
-        //TODO check bootstrap
-        let _bootstrap = hyperparameters.bootstrap;
         for _ in 0..n_estimators {
             // Bagging here
             let rnd_idx = Array::random((1, max_n_rows), Uniform::new(0, x.nrows())).into_raw_vec();
@@ -126,7 +124,7 @@ impl RandomForest {
 
     /// Collect features from each tree in the forest and return hashmap(feature_idx: counts)
     ///
-    pub fn feature_importances(&self) -> HashMap<usize, usize> {
+    pub fn feature_importances(&self) -> Vec<usize> {
         let mut counter: HashMap<usize, usize> = HashMap::new();
         for st in &self.trees {
             // features in the single tree
@@ -136,8 +134,11 @@ impl RandomForest {
             }
         }
 
-        counter
-    }
+        let mut top_feats: Vec<_> = counter.into_iter().collect();
+        top_feats.sort_by(|a, b| b.1.cmp(&a.1));
+
+        top_feats.iter().map(|(a, _)| *a).collect()
+   }
 }
 
 #[cfg(test)]
@@ -177,10 +178,7 @@ mod tests {
         assert_eq!(rf.trees.len(), ntrees);
 
         let imp = rf.feature_importances();
-        dbg!("Feature importances: ", &imp);
-
-        let most_imp_feat = imp.iter().max_by(|a, b| a.1.cmp(&b.1)).map(|(k, _v)| k);
-        assert_eq!(most_imp_feat, Some(&4));
+        dbg!("Feature importances (decreasing order): ", &imp);
 
         let preds = rf.predict(&xtrain).unwrap();
         dbg!("Predictions: {}", preds);

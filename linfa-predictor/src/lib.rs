@@ -27,7 +27,6 @@ impl Error for LinfaError {
     }
 }
 
-
 /// Trait every predictor should implement
 pub trait Predictor {
     /// predict class for each sample

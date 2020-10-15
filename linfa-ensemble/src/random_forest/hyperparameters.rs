@@ -8,8 +8,6 @@ pub struct RandomForestParams {
     pub tree_hyperparameters: DecisionTreeParams,
     // max number of features for the ensemble
     pub max_features: u64,
-    // use all dataset or not
-    pub bootstrap: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -67,13 +65,11 @@ impl RandomForestParamsBuilder {
             MaxFeatures::Log2 => 42,
             MaxFeatures::Sqrt => 42,
         };
-        let bootstrap = self.bootstrap.unwrap_or(false);
 
         RandomForestParams {
             tree_hyperparameters: self.tree_hyperparameters,
             n_estimators: self.n_estimators,
             max_features,
-            bootstrap,
         }
     }
 }
