@@ -11,11 +11,14 @@ use ndarray::prelude::*;
 use ndarray::Data;
 use ndarray::IntoNdProducer;
 
+use crate::Float;
+use crate::dataset::{Dataset, Records, Targets, Labels, Label};
+
 /// Return tuple of class index for each element of prediction and ground_truth
-fn map_prediction_to_idx<A: Eq + Hash, C: Data<Elem = A>, D: Data<Elem = A>>(
-    prediction: &ArrayBase<C, Ix1>,
-    ground_truth: &ArrayBase<D, Ix1>,
-    classes: &[A],
+fn map_prediction_to_idx<L: Label>(
+    prediction: &[L],
+    ground_truth: &[L],
+    classes: &[L],
 ) -> Vec<Option<(usize, usize)>> {
     // create a map from class label to index
     let set = classes
@@ -30,66 +33,6 @@ fn map_prediction_to_idx<A: Eq + Hash, C: Data<Elem = A>, D: Data<Elem = A>>(
         .zip(ground_truth.iter())
         .map(|(a, b)| set.get(&a).and_then(|x| set.get(&b).map(|y| (*x, *y))))
         .collect::<Vec<Option<_>>>()
-}
-
-/// A modified prediction
-///
-/// It can happen that only a subset of classes are of interest or the samples have different
-/// weights in the resulting evaluations. For this a `ModifiedPrediction` struct offers the
-/// possibility to modify a prediction before evaluation.
-pub struct ModifiedPrediction<A, D: Data<Elem = A>> {
-    prediction: ArrayBase<D, Ix1>,
-    weights: Vec<f32>,
-    classes: Vec<A>,
-}
-
-/// Modify prediction weights or classes
-pub trait Modify<A: PartialOrd + Eq + Hash, D: Data<Elem = A>> {
-    /// Add weights to prediction, each weight-entry correspond to a single prediction. The
-    /// prediction influence is scaled according to the weight.
-    fn with_weights(self, weights: &[f32]) -> ModifiedPrediction<A, D>;
-    /// Select certain classes. This can be used to select a subset of classes or re-order classes.
-    fn with_classes(self, classes: &[A]) -> ModifiedPrediction<A, D>;
-}
-
-/// Modify a prediction stored in `ndarray`
-impl<A: PartialOrd + Eq + Hash + Clone, D: Data<Elem = A>> Modify<A, D> for ArrayBase<D, Ix1> {
-    fn with_weights(self, weights: &[f32]) -> ModifiedPrediction<A, D> {
-        ModifiedPrediction {
-            prediction: self,
-            weights: weights.to_vec(),
-            classes: Vec::new(),
-        }
-    }
-
-    fn with_classes(self, classes: &[A]) -> ModifiedPrediction<A, D> {
-        ModifiedPrediction {
-            prediction: self,
-            weights: Vec::new(),
-            classes: classes.to_vec(),
-        }
-    }
-}
-
-/// Modify a already modified prediction
-impl<A: PartialOrd + Eq + Hash + Clone, D: Data<Elem = A>> Modify<A, D>
-    for ModifiedPrediction<A, D>
-{
-    fn with_weights(self, weights: &[f32]) -> ModifiedPrediction<A, D> {
-        ModifiedPrediction {
-            prediction: self.prediction,
-            weights: weights.to_vec(),
-            classes: self.classes,
-        }
-    }
-
-    fn with_classes(self, classes: &[A]) -> ModifiedPrediction<A, D> {
-        ModifiedPrediction {
-            prediction: self.prediction,
-            weights: self.weights,
-            classes: classes.to_vec(),
-        }
-    }
 }
 
 /// Confusion matrix for multi-label evaluation
@@ -316,43 +259,19 @@ impl<A: fmt::Display> fmt::Debug for ConfusionMatrix<A> {
 /// Classification for multi-label evaluation
 ///
 /// Contains a routine to calculate the confusion matrix, all other scores are derived form it.
-pub trait IntoConfusionMatrix<A> {
-    fn into_confusion_matrix<'a, T>(self, ground_truth: T) -> ConfusionMatrix<A>
-    where
-        A: 'a,
-        T: IntoNdProducer<Item = &'a A, Dim = Ix1, Output = ArrayView1<'a, A>>;
+pub trait ToConfusionMatrix<A, T> {
+    fn confusion_matrix(self, ground_truth: T) -> ConfusionMatrix<A>;
 }
 
-impl<A: Clone + Ord + Hash, D: Data<Elem = A>> IntoConfusionMatrix<A> for ModifiedPrediction<A, D> {
-    fn into_confusion_matrix<'a, T>(self, ground_truth: T) -> ConfusionMatrix<A>
-    where
-        A: 'a,
-        T: IntoNdProducer<Item = &'a A, Dim = Ix1, Output = ArrayView1<'a, A>>,
-    {
-        let ground_truth = ground_truth.into_producer();
-
-        // if we don't have any classes, create a set of predicted labels
-        let classes = if self.classes.is_empty() {
-            let mut classes = ground_truth
-                .iter()
-                .chain(self.prediction.iter())
-                .cloned()
-                .collect::<Vec<_>>();
-            // create a set
-            classes.sort();
-            classes.dedup();
-            classes
-        } else {
-            self.classes
-        };
-
-        // find indices to labels
-        let indices = map_prediction_to_idx(&self.prediction, &ground_truth, &classes);
+impl<R: Records, L: Label, T: Targets<Elem = L> + Labels<Elem = L>> ToConfusionMatrix<L, Dataset<R, T>> for Dataset<R, T> {
+    fn confusion_matrix(self, ground_truth: Dataset<R, T>) -> ConfusionMatrix<L> {
+        let classes: Vec<L> = ground_truth.labels();
+        let indices = map_prediction_to_idx(&self.targets.as_slice(), &ground_truth.targets.as_slice(), &classes);
 
         // count each index tuple in the confusion matrix
         let mut confusion_matrix = Array2::zeros((classes.len(), classes.len()));
         for (i1, i2) in indices.into_iter().filter_map(|x| x) {
-            confusion_matrix[(i1, i2)] += *self.weights.get(i1).unwrap_or(&1.0);
+            confusion_matrix[(i1, i2)] += *ground_truth.weights().get(i1).unwrap_or(&1.0);
         }
 
         ConfusionMatrix {
@@ -362,6 +281,26 @@ impl<A: Clone + Ord + Hash, D: Data<Elem = A>> IntoConfusionMatrix<A> for Modifi
     }
 }
 
+impl<R: Records, L: Label, T: Targets<Elem=L>+Labels<Elem=L>> ToConfusionMatrix<L, Dataset<R, T>> for Vec<L> {
+    fn confusion_matrix(self, ground_truth: Dataset<R, T>) -> ConfusionMatrix<L> {
+        let classes: Vec<L> = ground_truth.labels();
+        let indices = map_prediction_to_idx(&self, &ground_truth.targets.as_slice(), &classes);
+
+        // count each index tuple in the confusion matrix
+        let mut confusion_matrix = Array2::zeros((classes.len(), classes.len()));
+        for (i1, i2) in indices.into_iter().filter_map(|x| x) {
+            confusion_matrix[(i1, i2)] += *ground_truth.weights().get(i1).unwrap_or(&1.0);
+        }
+
+        ConfusionMatrix {
+            matrix: confusion_matrix,
+            members: Array1::from(classes),
+        }
+
+    }
+}
+
+/*
 impl<A: Clone + Ord + Hash, D: Data<Elem = A>> IntoConfusionMatrix<A> for ArrayBase<D, Ix1> {
     fn into_confusion_matrix<'a, T>(self, ground_truth: T) -> ConfusionMatrix<A>
     where
@@ -392,7 +331,7 @@ impl<A: Clone + Ord + Hash> IntoConfusionMatrix<A> for Vec<A> {
 
         tmp.into_confusion_matrix(ground_truth)
     }
-}
+}*/
 
 /*
  * TODO: specialization requires unstable Rust

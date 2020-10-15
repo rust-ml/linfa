@@ -222,10 +222,10 @@ impl<'a, A: Float, T> fmt::Display for Svm<'a, A, T> {
 fn test() {
     use linfa::traits::Transformer;
 
-    let dataset: Dataset<Array2<f32>, Vec<bool>> = Dataset {
-        records: Array2::zeros((10, 10)),
-        targets: vec![true, false]
-    };
+    let dataset = Dataset::from((
+            Array2::zeros((10, 10)),
+            vec![true; 10]
+    ));
 
     let dataset = Kernel::params()
         .transform(&dataset);

@@ -41,7 +41,7 @@ pub use dataset::{Float, Label};
 
 pub mod metrics {
     pub use crate::metrics_classification::{
-        BinaryClassification, ConfusionMatrix, IntoConfusionMatrix, Modify,
+        BinaryClassification, ConfusionMatrix, ToConfusionMatrix,
         ReceiverOperatingCharacteristic,
     };
     pub use crate::metrics_regression::Regression;
