@@ -1,8 +1,8 @@
 use super::permutable_kernel::Permutable;
 use super::{ExitReason, Float, Svm};
 
-use std::marker::PhantomData;
 use ndarray::{Array1, Axis};
+use std::marker::PhantomData;
 
 /// Parameters of the solver routine
 #[derive(Clone)]
@@ -74,7 +74,7 @@ pub struct SolverState<'a, A: Float, K: Permutable<'a, A>> {
     /// Parameters, e.g. stopping condition etc.
     params: SolverParams<A>,
 
-    phantom: PhantomData<&'a K>
+    phantom: PhantomData<&'a K>,
 }
 
 #[allow(clippy::needless_range_loop)]
@@ -139,7 +139,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
             params,
             nu_constraint,
             r: A::zero(),
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 
@@ -850,7 +850,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
             iterations: iter,
             kernel: self.kernel.inner(),
             linear_decision,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 }

@@ -28,11 +28,10 @@
 //! and get involved!
 //!
 
+pub mod dataset;
 /// Clustering algorithms for unlabeled data.
-
 mod metrics_classification;
 mod metrics_regression;
-pub mod dataset;
 pub mod traits;
 
 pub use dataset::{Float, Label};
@@ -41,8 +40,7 @@ pub use dataset::{Float, Label};
 
 pub mod metrics {
     pub use crate::metrics_classification::{
-        BinaryClassification, ConfusionMatrix, ToConfusionMatrix,
-        ReceiverOperatingCharacteristic,
+        BinaryClassification, ConfusionMatrix, ReceiverOperatingCharacteristic, ToConfusionMatrix,
     };
     pub use crate::metrics_regression::Regression;
 }

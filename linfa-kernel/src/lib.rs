@@ -7,7 +7,7 @@ use ndarray::prelude::*;
 use ndarray::{linalg::Dot, Data};
 use sprs::CsMat;
 
-use linfa::{Float, traits::Transformer, dataset::Records, dataset::Dataset, dataset::Targets};
+use linfa::{dataset::Dataset, dataset::Records, dataset::Targets, traits::Transformer, Float};
 
 /// Distance function between two data points
 type SimFnc<F> = Box<dyn Fn(ArrayView1<F>, ArrayView1<F>) -> F>;
@@ -28,7 +28,7 @@ pub enum KernelInner<F: Float> {
 
 /// A generic kernel
 ///
-/// 
+///
 pub struct Kernel<'a, F: Float, R: Records<Elem = F>> {
     pub inner: KernelInner<F>,
     pub fnc: SimFnc<F>,
@@ -137,7 +137,7 @@ impl<'a, F: Float> Kernel<'a, F, Array2<F>> {
     pub fn params() -> KernelParams<F> {
         KernelParams {
             kind: KernelType::Dense,
-            method: KernelMethod::Gaussian(F::from(0.5).unwrap())
+            method: KernelMethod::Gaussian(F::from(0.5).unwrap()),
         }
     }
 }
@@ -153,39 +153,39 @@ impl<'a, F: Float> Records for Kernel<'a, F, Array2<F>> {
 pub enum KernelMethod<F> {
     Gaussian(F),
     Linear,
-    Polynomial(F, F)
+    Polynomial(F, F),
 }
 
 impl<F: Float> KernelMethod<F> {
     pub fn method(&self) -> SimFnc<F> {
         match *self {
-            KernelMethod::Gaussian(eps) => {
-                Box::new(move |a: ArrayView1<F>, b: ArrayView1<F>| {
-                    let distance = a
-                        .iter()
-                        .zip(b.iter())
-                        .map(|(x, y)| (*x - *y) * (*x - *y))
-                        .sum::<F>();
+            KernelMethod::Gaussian(eps) => Box::new(move |a: ArrayView1<F>, b: ArrayView1<F>| {
+                let distance = a
+                    .iter()
+                    .zip(b.iter())
+                    .map(|(x, y)| (*x - *y) * (*x - *y))
+                    .sum::<F>();
 
-                    (-distance / eps).exp()
-                })
-            },
+                (-distance / eps).exp()
+            }),
             KernelMethod::Linear => Box::new(move |a: ArrayView1<F>, b: ArrayView1<F>| a.dot(&b)),
-            KernelMethod::Polynomial(c, d) => Box::new(move |a: ArrayView1<F>, b: ArrayView1<F>| (a.dot(&b) + c).powf(d))
+            KernelMethod::Polynomial(c, d) => {
+                Box::new(move |a: ArrayView1<F>, b: ArrayView1<F>| (a.dot(&b) + c).powf(d))
+            }
         }
     }
 
     pub fn is_linear(&self) -> bool {
         match *self {
             KernelMethod::Linear => true,
-            _ => false
+            _ => false,
         }
     }
 }
 
 pub struct KernelParams<F> {
     kind: KernelType,
-    method: KernelMethod<F>
+    method: KernelMethod<F>,
 }
 
 impl<F: Float> KernelParams<F> {
@@ -211,7 +211,10 @@ impl<'a, F: Float> Transformer<&'a Array2<F>, Kernel<'a, F, Array2<F>>> for Kern
     }
 }
 
-impl<'a, F: Float, T: Targets> Transformer<&'a Dataset<Array2<F>, T>, Dataset<Kernel<'a, F, Array2<F>>, &'a T>> for KernelParams<F> {
+impl<'a, F: Float, T: Targets>
+    Transformer<&'a Dataset<Array2<F>, T>, Dataset<Kernel<'a, F, Array2<F>>, &'a T>>
+    for KernelParams<F>
+{
     fn transform(&self, x: &'a Dataset<Array2<F>, T>) -> Dataset<Kernel<'a, F, Array2<F>>, &'a T> {
         let fnc = self.method.method();
         let is_linear = self.method.is_linear();
@@ -247,11 +250,7 @@ fn dense_from_fn<F: Float, D: Data<Elem = F>, T: Fn(ArrayView1<F>, ArrayView1<F>
     similarity
 }
 
-fn sparse_from_fn<
-    F: Float,
-    D: Data<Elem = F>,
-    T: Fn(ArrayView1<F>, ArrayView1<F>) -> F,
->(
+fn sparse_from_fn<F: Float, D: Data<Elem = F>, T: Fn(ArrayView1<F>, ArrayView1<F>) -> F>(
     dataset: &ArrayBase<D, Ix2>,
     k: usize,
     fnc: &T,

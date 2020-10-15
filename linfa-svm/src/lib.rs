@@ -66,10 +66,10 @@
 //!
 //! accuracy 0.98818624, MCC 0.9523008
 //! ```
+use linfa::{dataset::Dataset, dataset::Pr, dataset::Targets, traits::Fit, traits::Predict, Float};
+use ndarray::{Array1, Array2, ArrayBase, Data, Ix1, NdFloat};
 use std::fmt;
 use std::marker::PhantomData;
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix1, NdFloat};
-use linfa::{Float, traits::Fit, traits::Predict, dataset::Dataset, dataset::Pr, dataset::Targets};
 
 mod classification;
 mod permutable_kernel;
@@ -83,7 +83,7 @@ pub struct SvmParams<F: Float, T> {
     c: Option<(F, F)>,
     nu: Option<(F, F)>,
     solver_params: SolverParams<F>,
-    phantom: PhantomData<T>
+    phantom: PhantomData<T>,
 }
 
 impl<F: Float, T> SvmParams<F, T> {
@@ -160,7 +160,7 @@ pub struct Svm<'a, A: Float, T> {
     obj: A,
     kernel: &'a Kernel<'a, A>,
     linear_decision: Option<Array1<A>>,
-    phantom: PhantomData<T>
+    phantom: PhantomData<T>,
 }
 
 impl<'a, A: Float, T> Svm<'a, A, T> {
@@ -170,9 +170,9 @@ impl<'a, A: Float, T> Svm<'a, A, T> {
             nu: None,
             solver_params: SolverParams {
                 eps: A::from(1e-7).unwrap(),
-                shrinking: false
+                shrinking: false,
             },
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 
@@ -193,7 +193,7 @@ impl<'a, A: Float, T> Svm<'a, A, T> {
             iterations: self.iterations,
             kernel: self.kernel,
             linear_decision: self.linear_decision,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 }
@@ -222,21 +222,13 @@ impl<'a, A: Float, T> fmt::Display for Svm<'a, A, T> {
 fn test() {
     use linfa::traits::Transformer;
 
-    let dataset = Dataset::from((
-            Array2::zeros((10, 10)),
-            vec![true; 10]
-    ));
+    let dataset = Dataset::from((Array2::zeros((10, 10)), vec![true; 10]));
 
-    let dataset = Kernel::params()
-        .transform(&dataset);
+    let dataset = Kernel::params().transform(&dataset);
 
-    let model = Svm::params()
-        .shrinking(true)
-        .eps(1e-10)
-        .fit(&dataset);
+    let model = Svm::params().shrinking(true).eps(1e-10).fit(&dataset);
 
     let dataset = Dataset::from(Array2::zeros((10, 2)));
 
     let res = model.predict(dataset).map_targets(|x| *x > 0.5);
-        
 }

@@ -1,8 +1,8 @@
 use hnsw::{Params, Searcher, HNSW};
+use linfa::Float;
 use ndarray::{ArrayBase, ArrayView1, Axis, Data, Ix2};
 use space::{MetricPoint, Neighbor};
 use sprs::{CsMat, CsMatBase};
-use linfa::Float;
 
 /// Implementation of euclidean distance for ndarray
 struct Euclidean<'a, F>(ArrayView1<'a, F>);

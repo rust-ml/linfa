@@ -1,5 +1,5 @@
 ///! Support Vector Regression
-use linfa::{traits::Fit, dataset::Dataset};
+use linfa::{dataset::Dataset, traits::Fit};
 
 use super::permutable_kernel::{Kernel, PermutableKernelRegression};
 use super::solver_smo::SolverState;
@@ -119,9 +119,21 @@ impl<'a, F: Float> Fit<'a, Kernel<'a, F>, Vec<F>> for SvmParams<F, F> {
 
     fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, Vec<F>>) -> Self::Object {
         match (self.c, self.nu) {
-            (Some((c, eps)), _) => fit_epsilon(self.solver_params.clone(), &dataset.records, dataset.targets(), c, eps),
-            (None, Some((nu, eps))) => fit_nu(self.solver_params.clone(), &dataset.records, dataset.targets(), nu, eps),
-            _ => panic!("Set either C value or Nu value")
+            (Some((c, eps)), _) => fit_epsilon(
+                self.solver_params.clone(),
+                &dataset.records,
+                dataset.targets(),
+                c,
+                eps,
+            ),
+            (None, Some((nu, eps))) => fit_nu(
+                self.solver_params.clone(),
+                &dataset.records,
+                dataset.targets(),
+                nu,
+                eps,
+            ),
+            _ => panic!("Set either C value or Nu value"),
         }
     }
 }
@@ -131,9 +143,21 @@ impl<'a, F: Float> Fit<'a, Kernel<'a, F>, &Vec<F>> for SvmParams<F, F> {
 
     fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, &Vec<F>>) -> Self::Object {
         match (self.c, self.nu) {
-            (Some((c, eps)), _) => fit_epsilon(self.solver_params.clone(), &dataset.records, dataset.targets(), c, eps),
-            (None, Some((nu, eps))) => fit_nu(self.solver_params.clone(), &dataset.records, dataset.targets(), nu, eps),
-            _ => panic!("Set either C value or Nu value")
+            (Some((c, eps)), _) => fit_epsilon(
+                self.solver_params.clone(),
+                &dataset.records,
+                dataset.targets(),
+                c,
+                eps,
+            ),
+            (None, Some((nu, eps))) => fit_nu(
+                self.solver_params.clone(),
+                &dataset.records,
+                dataset.targets(),
+                nu,
+                eps,
+            ),
+            _ => panic!("Set either C value or Nu value"),
         }
     }
 }

@@ -1,12 +1,12 @@
-use std::iter::Sum;
-use std::hash::Hash;
-use std::collections::HashSet;
 use ndarray::NdFloat;
 use num_traits::FromPrimitive;
+use std::collections::HashSet;
+use std::hash::Hash;
+use std::iter::Sum;
 
 mod impl_dataset;
-mod impl_targets;
 mod impl_records;
+mod impl_targets;
 
 mod iter;
 
@@ -26,13 +26,13 @@ pub type Pr = f32;
 pub struct Dataset<R, T>
 where
     R: Records,
-    T: Targets
+    T: Targets,
 {
     pub records: R,
     pub targets: T,
 
     labels: Vec<T::Elem>,
-    weights: Vec<f32>
+    weights: Vec<f32>,
 }
 
 pub trait Records: Sized {

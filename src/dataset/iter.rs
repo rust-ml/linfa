@@ -1,10 +1,10 @@
-use super::{Float, Label, Dataset, Records, Targets};
-use ndarray::{Array2, ArrayView1, s};
+use super::{Dataset, Float, Label, Records, Targets};
+use ndarray::{s, Array2, ArrayView1};
 
 pub struct Iter<'a, R: Records, T: Targets> {
     records: &'a R,
     targets: &'a T,
-    idx: usize
+    idx: usize,
 }
 
 impl<'a, R: Records, T: Targets> Iter<'a, R, T> {
@@ -12,7 +12,7 @@ impl<'a, R: Records, T: Targets> Iter<'a, R, T> {
         Iter {
             records,
             targets,
-            idx: 0
+            idx: 0,
         }
     }
 }
@@ -25,6 +25,9 @@ impl<'a, F: Float, L: Label> Iterator for Iter<'a, Array2<F>, Vec<L>> {
             return None;
         }
 
-        Some((self.records.slice(s![self.idx, ..]), &self.targets[self.idx]))
+        Some((
+            self.records.slice(s![self.idx, ..]),
+            &self.targets[self.idx],
+        ))
     }
 }

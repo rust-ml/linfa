@@ -1,5 +1,5 @@
+use super::{iter::Iter, Dataset, Float, Label, Labels, Records, Targets};
 use ndarray::Array2;
-use super::{Float, Label, Dataset, iter::Iter, Records, Targets, Labels};
 
 impl<F: Float, L: Label> Dataset<Array2<F>, Vec<L>> {
     pub fn iter<'a>(&'a self) -> Iter<'a, Array2<F>, Vec<L>> {
@@ -13,7 +13,7 @@ impl<R: Records, S: Targets> Dataset<R, S> {
             records,
             targets,
             labels: Vec::new(),
-            weights: Vec::new()
+            weights: Vec::new(),
         }
     }
 
@@ -30,22 +30,25 @@ impl<R: Records, S: Targets> Dataset<R, S> {
             records,
             targets: self.targets,
             labels: self.labels,
-            weights: Vec::new()
+            weights: Vec::new(),
         }
     }
 
     pub fn map_targets<T, G: FnMut(&S::Elem) -> T>(self, fnc: G) -> Dataset<R, Vec<T>> {
-        let Dataset { records, targets, labels, weights } = self;
+        let Dataset {
+            records,
+            targets,
+            labels,
+            weights,
+        } = self;
 
-        let new_targets = targets.as_slice().into_iter()
-            .map(fnc)
-            .collect::<Vec<T>>();
+        let new_targets = targets.as_slice().into_iter().map(fnc).collect::<Vec<T>>();
 
         Dataset {
             records,
             targets: new_targets,
             labels: Vec::new(),
-            weights
+            weights,
         }
     }
 }
@@ -62,7 +65,7 @@ impl<F: Float> From<Array2<F>> for Dataset<Array2<F>, ()> {
             records,
             targets: (),
             labels: Vec::new(),
-            weights: Vec::new()
+            weights: Vec::new(),
         }
     }
 }
@@ -73,7 +76,7 @@ impl<F: Float, T: Targets> From<(Array2<F>, T)> for Dataset<Array2<F>, T> {
             records: rec_tar.0,
             targets: rec_tar.1,
             labels: Vec::new(),
-            weights: Vec::new()
+            weights: Vec::new(),
         }
     }
 }

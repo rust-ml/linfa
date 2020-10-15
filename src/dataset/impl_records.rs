@@ -1,6 +1,6 @@
-use ndarray::{ArrayBase, Axis, Dimension, Data};
+use ndarray::{ArrayBase, Axis, Data, Dimension};
 
-use super::{Records, Float, Dataset, Targets};
+use super::{Dataset, Float, Records, Targets};
 
 impl<F: Float, S: Data<Elem = F>, I: Dimension> Records for ArrayBase<S, I> {
     type Elem = F;

@@ -1,5 +1,5 @@
-use super::{Targets, Label, Dataset, Records, Labels};
-use ndarray::{Dimension, ArrayBase, Data};
+use super::{Dataset, Label, Labels, Records, Targets};
+use ndarray::{ArrayBase, Data, Dimension};
 impl<L> Targets for Vec<L> {
     type Elem = L;
 
@@ -32,7 +32,6 @@ impl<L: Label> Labels for &Vec<L> {
     }
 }*/
 
-
 impl<L> Targets for &[L] {
     type Elem = L;
 
@@ -40,7 +39,6 @@ impl<L> Targets for &[L] {
         self
     }
 }
-
 
 impl<L: Label> Labels for &[L] {
     type Elem = L;
@@ -92,13 +90,13 @@ impl<T: Labels> Labels for &T {
     }
 }
 
-impl<R: Records, L: Label, T: Targets<Elem=L>> Dataset<R, T> {
+impl<R: Records, L: Label, T: Targets<Elem = L>> Dataset<R, T> {
     pub fn with_labels(self, labels: Vec<L>) -> Dataset<R, T> {
         Dataset {
             records: self.records,
             targets: self.targets,
             weights: self.weights,
-            labels
+            labels,
         }
     }
 }

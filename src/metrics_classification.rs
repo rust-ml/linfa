@@ -11,8 +11,8 @@ use ndarray::prelude::*;
 use ndarray::Data;
 use ndarray::IntoNdProducer;
 
+use crate::dataset::{Dataset, Label, Labels, Pr, Records, Targets};
 use crate::Float;
-use crate::dataset::{Dataset, Records, Targets, Labels, Label, Pr};
 
 /// Return tuple of class index for each element of prediction and ground_truth
 fn map_prediction_to_idx<L: Label>(
@@ -263,10 +263,21 @@ pub trait ToConfusionMatrix<A, T> {
     fn confusion_matrix(self, ground_truth: T) -> ConfusionMatrix<A>;
 }
 
-impl<R: Records, R2: Records, L: Label, T: Targets<Elem = L> + Labels<Elem = L>, T2: Targets<Elem = L> + Labels<Elem = L>> ToConfusionMatrix<L, Dataset<R, T>> for Dataset<R2, T2> {
+impl<
+        R: Records,
+        R2: Records,
+        L: Label,
+        T: Targets<Elem = L> + Labels<Elem = L>,
+        T2: Targets<Elem = L> + Labels<Elem = L>,
+    > ToConfusionMatrix<L, Dataset<R, T>> for Dataset<R2, T2>
+{
     fn confusion_matrix(self, ground_truth: Dataset<R, T>) -> ConfusionMatrix<L> {
         let classes: Vec<L> = ground_truth.labels();
-        let indices = map_prediction_to_idx(&self.targets.as_slice(), &ground_truth.targets.as_slice(), &classes);
+        let indices = map_prediction_to_idx(
+            &self.targets.as_slice(),
+            &ground_truth.targets.as_slice(),
+            &classes,
+        );
 
         // count each index tuple in the confusion matrix
         let mut confusion_matrix = Array2::zeros((classes.len(), classes.len()));
@@ -281,7 +292,9 @@ impl<R: Records, R2: Records, L: Label, T: Targets<Elem = L> + Labels<Elem = L>,
     }
 }
 
-impl<R: Records, L: Label, T: Targets<Elem=L>+Labels<Elem=L>> ToConfusionMatrix<L, Dataset<R, T>> for Vec<L> {
+impl<R: Records, L: Label, T: Targets<Elem = L> + Labels<Elem = L>>
+    ToConfusionMatrix<L, Dataset<R, T>> for Vec<L>
+{
     fn confusion_matrix(self, ground_truth: Dataset<R, T>) -> ConfusionMatrix<L> {
         let classes: Vec<L> = ground_truth.labels();
         let indices = map_prediction_to_idx(&self, &ground_truth.targets.as_slice(), &classes);
@@ -296,7 +309,6 @@ impl<R: Records, L: Label, T: Targets<Elem=L>+Labels<Elem=L>> ToConfusionMatrix<
             matrix: confusion_matrix,
             members: Array1::from(classes),
         }
-
     }
 }
 
@@ -401,18 +413,15 @@ pub trait BinaryClassification<T> {
     fn roc(&self, y: T) -> ReceiverOperatingCharacteristic;
 }
 
-impl<R: Records, R2: Records, T: Targets<Elem = bool>, T2: Targets<Elem = Pr>> BinaryClassification<&Dataset<R, T>> for Dataset<R2, T2> {
+impl<R: Records, R2: Records, T: Targets<Elem = bool>, T2: Targets<Elem = Pr>>
+    BinaryClassification<&Dataset<R, T>> for Dataset<R2, T2>
+{
     fn roc(&self, y: &Dataset<R, T>) -> ReceiverOperatingCharacteristic {
-        let mut tuples = self.targets()
+        let mut tuples = self
+            .targets()
             .iter()
             .zip(y.targets().iter())
-            .filter_map(|(a, b)| {
-                if *a >= 0.0 {
-                    Some((*a, *b))
-                } else {
-                    None
-                }
-            })
+            .filter_map(|(a, b)| if *a >= 0.0 { Some((*a, *b)) } else { None })
             .collect::<Vec<(Pr, bool)>>();
 
         tuples.sort_unstable_by(&|a: &(Pr, _), b: &(Pr, _)| match a.0.partial_cmp(&b.0) {

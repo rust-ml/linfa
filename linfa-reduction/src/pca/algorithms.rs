@@ -3,19 +3,19 @@
 /// Reduce dimensionality with a linear projection using Singular Value Decomposition. The data is
 /// centered before applying the SVD. This uses TruncatedSvd from ndarray-linalg package.
 use ndarray::{Array1, Array2, ArrayBase, Axis, DataMut, Ix2};
-use ndarray_linalg::{TruncatedOrder, TruncatedSvd, Lapack, Scalar};
+use ndarray_linalg::{Lapack, Scalar, TruncatedOrder, TruncatedSvd};
 
-use linfa::{Float, traits::Transformer};
+use linfa::{traits::Transformer, Float};
 
 /// Pincipal Component Analysis
 pub struct PrincipalComponentAnalysis {
-    embedding_size: usize
+    embedding_size: usize,
 }
 
 impl PrincipalComponentAnalysis {
     pub fn embedding_size(size: usize) -> PrincipalComponentAnalysis {
         PrincipalComponentAnalysis {
-            embedding_size: size
+            embedding_size: size,
         }
     }
 }
@@ -40,7 +40,6 @@ impl Transformer<Array2<f64>, PcaResult<f64>> for PrincipalComponentAnalysis {
             explained_variance,
             mean,
         }
-
     }
 }
 
