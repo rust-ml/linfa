@@ -5,14 +5,10 @@
 //! Aread-Under-Curve.
 use std::collections::HashMap;
 use std::fmt;
-use std::hash::Hash;
 
 use ndarray::prelude::*;
-use ndarray::Data;
-use ndarray::IntoNdProducer;
 
 use crate::dataset::{Dataset, Label, Labels, Pr, Records, Targets};
-use crate::Float;
 
 /// Return tuple of class index for each element of prediction and ground_truth
 fn map_prediction_to_idx<L: Label>(
@@ -260,7 +256,7 @@ impl<A: fmt::Display> fmt::Debug for ConfusionMatrix<A> {
 ///
 /// Contains a routine to calculate the confusion matrix, all other scores are derived form it.
 pub trait ToConfusionMatrix<A, T> {
-    fn confusion_matrix(self, ground_truth: T) -> ConfusionMatrix<A>;
+    fn confusion_matrix(&self, ground_truth: T) -> ConfusionMatrix<A>;
 }
 
 impl<
@@ -269,9 +265,9 @@ impl<
         L: Label,
         T: Targets<Elem = L> + Labels<Elem = L>,
         T2: Targets<Elem = L> + Labels<Elem = L>,
-    > ToConfusionMatrix<L, Dataset<R, T>> for Dataset<R2, T2>
+    > ToConfusionMatrix<L, &Dataset<R, T>> for Dataset<R2, T2>
 {
-    fn confusion_matrix(self, ground_truth: Dataset<R, T>) -> ConfusionMatrix<L> {
+    fn confusion_matrix(&self, ground_truth: &Dataset<R, T>) -> ConfusionMatrix<L> {
         let classes: Vec<L> = ground_truth.labels();
         let indices = map_prediction_to_idx(
             &self.targets.as_slice(),
@@ -293,9 +289,9 @@ impl<
 }
 
 impl<R: Records, L: Label, T: Targets<Elem = L> + Labels<Elem = L>>
-    ToConfusionMatrix<L, Dataset<R, T>> for Vec<L>
+    ToConfusionMatrix<L, &Dataset<R, T>> for Vec<L>
 {
-    fn confusion_matrix(self, ground_truth: Dataset<R, T>) -> ConfusionMatrix<L> {
+    fn confusion_matrix(&self, ground_truth: &Dataset<R, T>) -> ConfusionMatrix<L> {
         let classes: Vec<L> = ground_truth.labels();
         let indices = map_prediction_to_idx(&self, &ground_truth.targets.as_slice(), &classes);
 

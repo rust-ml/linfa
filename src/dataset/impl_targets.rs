@@ -1,5 +1,7 @@
 use super::{Dataset, Label, Labels, Records, Targets};
+use std::collections::HashSet;
 use ndarray::{ArrayBase, Data, Dimension};
+
 impl<L> Targets for Vec<L> {
     type Elem = L;
 
@@ -12,7 +14,8 @@ impl<L: Label> Labels for Vec<L> {
     type Elem = L;
 
     fn labels(&self) -> Vec<L> {
-        self.iter().cloned().collect()
+        self.iter().cloned().collect::<HashSet<L>>()
+            .into_iter().collect()
     }
 }
 
@@ -44,7 +47,8 @@ impl<L: Label> Labels for &[L] {
     type Elem = L;
 
     fn labels(&self) -> Vec<L> {
-        self.iter().cloned().collect()
+        self.iter().cloned().collect::<HashSet<L>>()
+            .into_iter().collect()
     }
 }
 
@@ -60,7 +64,8 @@ impl<L: Label, S: Data<Elem = L>, I: Dimension> Labels for ArrayBase<S, I> {
     type Elem = L;
 
     fn labels(&self) -> Vec<L> {
-        self.iter().cloned().collect()
+        self.iter().cloned().collect::<HashSet<L>>()
+            .into_iter().collect()
     }
 }
 

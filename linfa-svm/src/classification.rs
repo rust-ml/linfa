@@ -215,10 +215,10 @@ impl<'a, F: Float> Fit<'a, Kernel<'a, F>, &Vec<bool>> for SvmParams<F, Pr> {
     }
 }
 
-impl<'a, F: Float> Fit<'a, Kernel<'a, F>, ()> for SvmParams<F, Pr> {
+impl<'a, F: Float> Fit<'a, Kernel<'a, F>, &()> for SvmParams<F, Pr> {
     type Object = Svm<'a, F, Pr>;
 
-    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, ()>) -> Self::Object {
+    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, &()>) -> Self::Object {
         match self.nu {
             Some((nu, _)) => fit_one_class(self.solver_params.clone(), &dataset.records, nu),
             None => panic!("One class needs Nu value"),
@@ -317,148 +317,112 @@ mod tests {
             .method(KernelMethod::Linear)
             .transform(&dataset);
 
+        // train model with positive and negative weight
         let model = Svm::params().pos_neg_weights(1.0, 1.0).fit(&dataset);
 
         let valid = model
             .predict(Dataset::from(entries))
-            .map_targets(|x| *x > 0.5);
+            .map_targets(|x| *x > 0.0);
 
-        let cm = valid.confusion_matrix(dataset);
-        println!("{:?}", cm);
-    }
-}
-/*
-        let params = SolverParams {
-            eps: 1e-3,
-            shrinking: false,
-        };
-
-        // test C Support Vector Classification
-        let svc = fit_c(&params, &kernel, &targets, 1.0, 1.0);
-
-        let pred = entries
-            .outer_iter()
-            .map(|x| svc.predict(x))
-            .map(|x| x > 0.0)
-            .collect::<Vec<_>>();
-
-        let cm = pred.into_confusion_matrix(&targets);
+        let cm = valid.confusion_matrix(&dataset);
         assert_eq!(cm.accuracy(), 1.0);
 
-        // test nu Support Vector Classification
-        let svc = fit_nu(&params, &kernel, &targets, 0.01);
-        println!("{}", svc);
+        // train model with Nu parameter
+        let model = Svm::params().nu_weight(0.05).fit(&dataset);
 
-        let pred = entries
-            .outer_iter()
-            .map(|x| svc.predict(x))
-            .map(|x| x > 0.0)
-            .collect::<Vec<_>>();
+        let valid = model
+            .predict(valid)
+            .map_targets(|x| *x > 0.0);
 
-        let cm = pred.into_confusion_matrix(&targets);
+        let cm = valid.confusion_matrix(&dataset);
         assert_eq!(cm.accuracy(), 1.0);
     }
 
     #[test]
     fn test_polynomial_classification() {
         // construct parabolica and classify middle area as positive and borders as negative
-        let dataset = Array::random((40, 1), Uniform::new(-2f64, 2.));
-        let targets = dataset.map_axis(Axis(1), |x| x[0] * x[0] < 0.5).to_vec();
+        let records = Array::random((40, 1), Uniform::new(-2f64, 2.));
+        let targets = records.map_axis(Axis(1), |x| x[0] * x[0] < 0.5).to_vec();
+        let dataset = Dataset::new(records.clone(), targets);
 
-        // choose a polynomial kernel, which corresponds to the parabolical data
-        let kernel = Kernel::polynomial(&dataset, 0.0, 2.0);
+        let dataset = Kernel::params()
+            .method(KernelMethod::Polynomial(0.0, 2.0))
+            .transform(&dataset);
 
-        let params = SolverParams {
-            eps: 1e-3,
-            shrinking: false,
-        };
+        // train model with positive and negative weight
+        let model = Svm::params().pos_neg_weights(1.0, 1.0).fit(&dataset);
 
-        // test C Support Vector Classification
-        let svc = fit_c(&params, &kernel, &targets, 1.0, 1.0);
-        println!("C {}", svc);
+        let valid = model
+            .predict(Dataset::from(records))
+            .map_targets(|x| *x > 0.0);
 
-        let pred = dataset
-            .outer_iter()
-            .map(|x| svc.predict(x))
-            .map(|x| x > 0.0)
-            .collect::<Vec<_>>();
-
-        let cm = pred.into_confusion_matrix(&targets);
+        let cm = valid.confusion_matrix(&dataset);
         assert!(cm.accuracy() > 0.9);
 
-        // test nu Support Vector Classification
-        let svc = fit_nu(&params, &kernel, &targets, 0.01);
-        println!("Nu {}", svc);
+        // train model with Nu parameter
+        let model = Svm::params().nu_weight(0.01).fit(&dataset);
 
-        let pred = dataset
-            .outer_iter()
-            .map(|x| svc.predict(x))
-            .map(|x| x > 0.0)
-            .collect::<Vec<_>>();
+        let valid = model
+            .predict(valid)
+            .map_targets(|x| *x > 0.0);
 
-        let cm = pred.into_confusion_matrix(&targets);
+        let cm = valid.confusion_matrix(&dataset);
         assert!(cm.accuracy() > 0.9);
     }
 
     #[test]
     fn test_convoluted_rings_classification() {
-        let dataset = generate_convoluted_rings(10);
+        let records = generate_convoluted_rings(10);
         let targets = (0..20).map(|x| x < 10).collect::<Vec<_>>();
-        let kernel = Kernel::gaussian(&dataset, 50.0);
+        let dataset = Dataset::new(records.clone(), targets);
 
-        let params = SolverParams {
-            eps: 1e-3,
-            shrinking: false,
-        };
+        let dataset = Kernel::params()
+            .method(KernelMethod::Gaussian(50.0))
+            .transform(&dataset);
 
-        let svc = fit_c(&params, &kernel, &targets, 1.0, 1.0);
+        // train model with positive and negative weight
+        let model = Svm::params().pos_neg_weights(1.0, 1.0).fit(&dataset);
 
-        let pred = dataset
-            .outer_iter()
-            .map(|x| svc.predict(x))
-            .map(|x| x > 0.0)
-            .collect::<Vec<_>>();
+        let valid = model
+            .predict(Dataset::from(records))
+            .map_targets(|x| *x > 0.0);
 
-        let cm = pred.into_confusion_matrix(&targets);
-        assert_eq!(cm.accuracy(), 1.0);
+        let cm = valid.confusion_matrix(&dataset);
+        assert!(cm.accuracy() > 0.9);
 
-        let svc = fit_nu(&params, &kernel, &targets, 0.01);
+        // train model with Nu parameter
+        let model = Svm::params().nu_weight(0.01).fit(&dataset);
 
-        let pred = dataset
-            .outer_iter()
-            .map(|x| svc.predict(x))
-            .map(|x| x > 0.0)
-            .collect::<Vec<_>>();
+        let valid = model
+            .predict(valid)
+            .map_targets(|x| *x > 0.0);
 
-        let cm = pred.into_confusion_matrix(&targets);
-        assert_eq!(cm.accuracy(), 1.0);
+        let cm = valid.confusion_matrix(&dataset);
+        assert!(cm.accuracy() > 0.9);
     }
 
     #[test]
     fn test_reject_classification() {
         // generate two clusters with 100 samples each
         let entries = Array::random((100, 2), Uniform::new(-4., 4.));
-        let kernel = Kernel::gaussian(&entries, 100.);
+        let dataset = Dataset::new(entries.clone(), ());
 
-        let params = SolverParams {
-            eps: 1e-3,
-            shrinking: false,
-        };
+        let dataset = Kernel::params()
+            .method(KernelMethod::Gaussian(100.0))
+            .transform(&dataset);
 
-        let svc = fit_one_class(&params, &kernel, 0.1);
-        println!("{}", svc);
+        // train model with positive and negative weight
+        let model = Svm::params().nu_weight(1.0).fit(&dataset);
 
-        // now test that points outside the circle are rejected
-        let validation = Array::random((100, 2), Uniform::new(-10., 10f32));
-        let pred = validation
-            .outer_iter()
-            .map(|x| svc.predict(x) > 0.0)
-            .collect::<Vec<_>>();
+        let valid = Dataset::from(Array::random((100, 2), Uniform::new(-10., 10f32)));
+        let valid = model
+            .predict(valid)
+            .map_targets(|x| *x > 0.0);
 
         // count the number of correctly rejected samples
         let mut rejected = 0;
         let mut total = 0;
-        for (pred, pos) in pred.iter().zip(validation.outer_iter()) {
+        for (pred, pos) in valid.targets().iter().zip(valid.records.outer_iter()) {
             let distance = (pos[0] * pos[0] + pos[1] * pos[1]).sqrt();
             if distance >= 5.0 {
                 if !pred {
@@ -471,4 +435,4 @@ mod tests {
         // at least 95% should be correctly rejected
         assert!((rejected as f32) / (total as f32) > 0.95);
     }
-}*/
+}

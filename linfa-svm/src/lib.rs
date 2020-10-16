@@ -218,17 +218,3 @@ impl<'a, A: Float, T> fmt::Display for Svm<'a, A, T> {
         }
     }
 }
-
-fn test() {
-    use linfa::traits::Transformer;
-
-    let dataset = Dataset::from((Array2::zeros((10, 10)), vec![true; 10]));
-
-    let dataset = Kernel::params().transform(&dataset);
-
-    let model = Svm::params().shrinking(true).eps(1e-10).fit(&dataset);
-
-    let dataset = Dataset::from(Array2::zeros((10, 2)));
-
-    let res = model.predict(dataset).map_targets(|x| *x > 0.5);
-}

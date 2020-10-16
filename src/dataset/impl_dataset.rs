@@ -38,8 +38,8 @@ impl<R: Records, S: Targets> Dataset<R, S> {
         let Dataset {
             records,
             targets,
-            labels,
             weights,
+            ..
         } = self;
 
         let new_targets = targets.as_slice().into_iter().map(fnc).collect::<Vec<T>>();

@@ -1,4 +1,4 @@
-use super::{Dataset, Float, Label, Records, Targets};
+use super::{Float, Label, Records, Targets};
 use ndarray::{s, Array2, ArrayView1};
 
 pub struct Iter<'a, R: Records, T: Targets> {

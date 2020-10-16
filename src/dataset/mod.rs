@@ -1,6 +1,5 @@
 use ndarray::NdFloat;
 use num_traits::FromPrimitive;
-use std::collections::HashSet;
 use std::hash::Hash;
 use std::iter::Sum;
 
