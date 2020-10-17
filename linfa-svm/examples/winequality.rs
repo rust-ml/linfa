@@ -1,5 +1,3 @@
-#[macro_use]
-extern crate ndarray;
 extern crate openblas_src;
 
 use std::error::Error;
@@ -76,7 +74,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // predict and map targets
     let pred = model.predict(&valid)
-        .map_targets(|x| *x > 0.0)
+        .map_targets(|x| **x > 0.0)
         .map_targets(tag_classes);
 
     // create a confusion matrix

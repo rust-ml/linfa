@@ -257,7 +257,7 @@ impl<'a, F: Float> Predict<Array1<F>, Pr> for Svm<'a, F, Pr> {
         };
 
         // this is safe because `F` is only implemented for `f32` and `f64`
-        val.to_f32().unwrap()
+        Pr(val.to_f32().unwrap())
     }
 }
 
@@ -272,7 +272,7 @@ impl<'a, F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Vec<Pr>> for Sv
                 };
 
                 // this is safe because `F` is only implemented for `f32` and `f64`
-                val.to_f32().unwrap()
+                Pr(val.to_f32().unwrap())
             })
             .collect()
     }
@@ -356,7 +356,7 @@ mod tests {
 
         let valid = model
             .predict(Dataset::from(entries))
-            .map_targets(|x| *x > 0.0);
+            .map_targets(|x| **x > 0.0);
 
         let cm = valid.confusion_matrix(&dataset);
         assert_eq!(cm.accuracy(), 1.0);
@@ -366,7 +366,7 @@ mod tests {
 
         let valid = model
             .predict(valid)
-            .map_targets(|x| *x > 0.0);
+            .map_targets(|x| **x > 0.0);
 
         let cm = valid.confusion_matrix(&dataset);
         assert_eq!(cm.accuracy(), 1.0);
@@ -388,7 +388,7 @@ mod tests {
 
         let valid = model
             .predict(Dataset::from(records))
-            .map_targets(|x| *x > 0.0);
+            .map_targets(|x| **x > 0.0);
 
         let cm = valid.confusion_matrix(&dataset);
         assert!(cm.accuracy() > 0.9);
@@ -398,7 +398,7 @@ mod tests {
 
         let valid = model
             .predict(valid)
-            .map_targets(|x| *x > 0.0);
+            .map_targets(|x| **x > 0.0);
 
         let cm = valid.confusion_matrix(&dataset);
         assert!(cm.accuracy() > 0.9);
@@ -419,7 +419,7 @@ mod tests {
 
         let valid = model
             .predict(Dataset::from(records))
-            .map_targets(|x| *x > 0.0);
+            .map_targets(|x| **x > 0.0);
 
         let cm = valid.confusion_matrix(&dataset);
         assert!(cm.accuracy() > 0.9);
@@ -429,7 +429,7 @@ mod tests {
 
         let valid = model
             .predict(valid)
-            .map_targets(|x| *x > 0.0);
+            .map_targets(|x| **x > 0.0);
 
         let cm = valid.confusion_matrix(&dataset);
         assert!(cm.accuracy() > 0.9);
@@ -451,7 +451,7 @@ mod tests {
         let valid = Dataset::from(Array::random((100, 2), Uniform::new(-10., 10f32)));
         let valid = model
             .predict(valid)
-            .map_targets(|x| *x > 0.0);
+            .map_targets(|x| **x > 0.0);
 
         // count the number of correctly rejected samples
         let mut rejected = 0;

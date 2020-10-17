@@ -66,8 +66,8 @@
 //!
 //! accuracy 0.98818624, MCC 0.9523008
 //! ```
-use linfa::{dataset::Dataset, dataset::Pr, dataset::Targets, traits::Fit, traits::Predict, Float};
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix1, NdFloat};
+use linfa::{dataset::Pr, Float};
+use ndarray::Array1;
 use std::fmt;
 use std::marker::PhantomData;
 

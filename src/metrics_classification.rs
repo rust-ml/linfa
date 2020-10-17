@@ -417,7 +417,7 @@ impl<R: Records, R2: Records, T: Targets<Elem = bool>, T2: Targets<Elem = Pr>>
             .targets()
             .iter()
             .zip(y.targets().iter())
-            .filter_map(|(a, b)| if *a >= 0.0 { Some((*a, *b)) } else { None })
+            .filter_map(|(a, b)| if **a >= 0.0 { Some((*a, *b)) } else { None })
             .collect::<Vec<(Pr, bool)>>();
 
         tuples.sort_unstable_by(&|a: &(Pr, _), b: &(Pr, _)| match a.0.partial_cmp(&b.0) {
@@ -431,10 +431,10 @@ impl<R: Records, R2: Records, T: Targets<Elem = bool>, T2: Targets<Elem = Pr>>
         let mut s0 = 0.0;
 
         for (s, t) in tuples {
-            if s != s0 {
+            if *s != s0 {
                 tps_fps.push((tp, fp));
                 thresholds.push(s);
-                s0 = s;
+                s0 = *s;
             }
 
             if t {
@@ -453,7 +453,7 @@ impl<R: Records, R2: Records, T: Targets<Elem = bool>, T2: Targets<Elem = Pr>>
 
         ReceiverOperatingCharacteristic {
             curve: tps_fps,
-            thresholds,
+            thresholds: thresholds.into_iter().map(|x| *x).collect()
         }
     }
 }

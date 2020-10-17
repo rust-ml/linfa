@@ -2,6 +2,8 @@ use ndarray::NdFloat;
 use num_traits::FromPrimitive;
 use std::hash::Hash;
 use std::iter::Sum;
+use std::cmp::{Ordering, PartialOrd};
+use std::ops::Deref;
 
 mod impl_dataset;
 mod impl_records;
@@ -20,7 +22,28 @@ impl Label for usize {}
 impl Label for String {}
 
 /// Probability types
-pub type Pr = f32;
+#[derive(Debug, Copy, Clone)]
+pub struct Pr(pub f32);
+
+impl PartialEq for Pr {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl PartialOrd for Pr {
+    fn partial_cmp(&self, other: &Pr) -> Option<Ordering> {
+        self.0.partial_cmp(&other.0)
+    }
+}
+
+impl Deref for Pr {
+    type Target = f32;
+
+    fn deref(&self) -> &f32 {
+        &self.0
+    }
+}
 
 pub struct Dataset<R, T>
 where

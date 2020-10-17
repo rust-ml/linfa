@@ -1,5 +1,6 @@
-///! Support Vector Regression
-use linfa::{dataset::Dataset, traits::Fit};
+//! Support Vector Regression
+use linfa::{dataset::Dataset, traits::Fit, traits::Predict};
+use ndarray::{ArrayBase, Ix2, Data};
 
 use super::permutable_kernel::{Kernel, PermutableKernelRegression};
 use super::solver_smo::SolverState;
@@ -161,13 +162,31 @@ impl<'a, F: Float> Fit<'a, Kernel<'a, F>, &Vec<F>> for SvmParams<F, F> {
         }
     }
 }
-/*
+
+/// Predict a probability with a set of observations
+impl<'a, D: Data<Elem = f64>> Predict<ArrayBase<D, Ix2>, Vec<f64>> for Svm<'a, f64, f64> {
+    fn predict(&self, data: ArrayBase<D, Ix2>) -> Vec<f64> {
+        data.outer_iter()
+            .map(|data| {
+                let val = match self.linear_decision {
+                    Some(ref x) => x.dot(&data) - self.rho,
+                    None => self.kernel.weighted_sum(&self.alpha, data.view()) - self.rho,
+                };
+
+                // this is safe because `F` is only implemented for `f32` and `f64`
+                val
+            })
+            .collect()
+    }
+}
 #[cfg(test)]
 pub mod tests {
-    use super::{fit_epsilon, fit_nu, SolverParams};
+    use super::Svm;
 
     use linfa::metrics::Regression;
-    use linfa_kernel::Kernel;
+    use linfa::traits::{Fit, Predict, Transformer};
+    use linfa::dataset::Dataset;
+    use linfa_kernel::{Kernel, KernelMethod};
     use ndarray::{Array, Array1};
 
     #[test]
@@ -178,24 +197,20 @@ pub mod tests {
             sin_curve[(i, 0)] = *val;
         }
 
-        let kernel = Kernel::gaussian(&sin_curve, 50.);
+        let kernel = Kernel::params()
+            .method(KernelMethod::Gaussian(50.))
+            .transform(&sin_curve);
 
-        let params = SolverParams {
-            eps: 1e-8,
-            shrinking: false,
-        };
+        let dataset = Dataset::new(kernel, &target);
 
-        let svr = fit_epsilon(&params, &kernel, &target, 2.0, 0.01);
-        println!("{}", svr);
+        let model = Svm::params()
+            .nu_eps(2., 0.01)
+            .fit(&dataset);
 
-        let predicted = sin_curve
-            .outer_iter()
-            .map(|x| svr.predict(x))
-            .collect::<Array1<_>>();
+        println!("{}", model);
 
+        let predicted = Array1::from(model.predict(sin_curve.clone()));
         assert!(predicted.mean_squared_error(&target) < 1e-2);
-
-        //dbg!(&predicted);
     }
 
     #[test]
@@ -206,21 +221,19 @@ pub mod tests {
             sin_curve[(i, 0)] = *val;
         }
 
-        let kernel = Kernel::gaussian(&sin_curve, 50.);
+        let kernel = Kernel::params()
+            .method(KernelMethod::Gaussian(50.))
+            .transform(&sin_curve);
 
-        let params = SolverParams {
-            eps: 1e-8,
-            shrinking: false,
-        };
+        let dataset = Dataset::new(kernel, &target);
 
-        let svr = fit_nu(&params, &kernel, &target, 2.0, 1.0);
-        println!("{}", svr);
+        let model = Svm::params()
+            .nu_eps(2., 0.01)
+            .fit(&dataset);
 
-        let predicted = sin_curve
-            .outer_iter()
-            .map(|x| svr.predict(x))
-            .collect::<Array1<_>>();
+        println!("{}", model);
 
+        let predicted = Array1::from(model.predict(sin_curve.clone()));
         assert!(predicted.mean_squared_error(&target) < 1e-2);
     }
-}*/
+}
