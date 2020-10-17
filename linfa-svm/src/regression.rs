@@ -19,7 +19,7 @@ use super::{Float, Svm, SvmParams};
 /// * `p` - epsilon value for all targets
 pub fn fit_epsilon<'a, A: Float>(
     params: SolverParams<A>,
-    kernel: &'a Kernel<A>,
+    kernel: &'a Kernel<'a, A>,
     target: &'a [A],
     c: A,
     p: A,
@@ -70,7 +70,7 @@ pub fn fit_epsilon<'a, A: Float>(
 /// * `nu` - nu value for all targets
 pub fn fit_nu<'a, A: Float>(
     params: SolverParams<A>,
-    kernel: &'a Kernel<A>,
+    kernel: &'a Kernel<'a, A>,
     target: &'a [A],
     c: A,
     nu: A,

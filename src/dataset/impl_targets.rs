@@ -1,6 +1,6 @@
 use super::{Dataset, Label, Labels, Records, Targets};
 use std::collections::HashSet;
-use ndarray::{ArrayBase, Data, Dimension};
+use ndarray::{ArrayBase, Data, Dimension, Ix1};
 
 impl<L> Targets for Vec<L> {
     type Elem = L;
@@ -52,7 +52,7 @@ impl<L: Label> Labels for &[L] {
     }
 }
 
-impl<L, S: Data<Elem = L>, I: Dimension> Targets for ArrayBase<S, I> {
+impl<L, S: Data<Elem = L>> Targets for ArrayBase<S, Ix1> {
     type Elem = L;
 
     fn as_slice(&self) -> &[Self::Elem] {

@@ -1,8 +1,8 @@
 use crate::Float;
 use linfa_kernel::Kernel as LinfaKernel;
-use ndarray::{Array1, Array2};
+use ndarray::{Array1, ArrayView2};
 
-pub type Kernel<'a, A> = LinfaKernel<'a, A, Array2<A>>;
+pub type Kernel<'a, A> = LinfaKernel<ArrayView2<'a, A>>;
 
 pub trait Permutable<'a, A: Float> {
     fn swap_indices(&mut self, i: usize, j: usize);
@@ -23,7 +23,7 @@ pub struct PermutableKernel<'a, A: Float> {
 }
 
 impl<'a, A: Float> PermutableKernel<'a, A> {
-    pub fn new(kernel: &'a Kernel<A>, targets: Vec<bool>) -> PermutableKernel<'a, A> {
+    pub fn new(kernel: &'a Kernel<'a, A>, targets: Vec<bool>) -> PermutableKernel<'a, A> {
         let kernel_diag = kernel.diagonal();
         let kernel_indices = (0..kernel.size()).collect::<Vec<_>>();
 
@@ -84,7 +84,7 @@ pub struct PermutableKernelOneClass<'a, A: Float> {
 }
 
 impl<'a, A: Float> PermutableKernelOneClass<'a, A> {
-    pub fn new(kernel: &'a Kernel<A>) -> PermutableKernelOneClass<'a, A> {
+    pub fn new(kernel: &'a Kernel<'a, A>) -> PermutableKernelOneClass<'a, A> {
         let kernel_diag = kernel.diagonal();
         let kernel_indices = (0..kernel.size()).collect::<Vec<_>>();
 
@@ -135,7 +135,7 @@ pub struct PermutableKernelRegression<'a, A: Float> {
 }
 
 impl<'a, A: Float> PermutableKernelRegression<'a, A> {
-    pub fn new(kernel: &'a Kernel<A>) -> PermutableKernelRegression<'a, A> {
+    pub fn new(kernel: &'a Kernel<'a, A>) -> PermutableKernelRegression<'a, A> {
         let kernel_diag = kernel.diagonal();
         let kernel_indices = (0..2 * kernel.size())
             .map(|x| {
@@ -212,7 +212,7 @@ mod tests {
         let dist = Kernel {
             inner: KernelInner::Dense(dist.clone()),
             fnc: Box::new(|_, _| 0.0),
-            dataset: &dist,
+            dataset: dist.view(),
             linear: false,
         };
 

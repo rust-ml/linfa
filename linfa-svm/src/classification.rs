@@ -1,5 +1,5 @@
 use linfa::{dataset::Dataset, dataset::Pr, dataset::Targets, traits::Fit, traits::Predict};
-use ndarray::{Array1, Array2};
+use ndarray::{Array1, Array2, Data, Ix2, ArrayBase, ArrayView2};
 use std::cmp::Ordering;
 
 use super::permutable_kernel::{Kernel, PermutableKernel, PermutableKernelOneClass};
@@ -25,7 +25,7 @@ use super::{Float, Svm, SvmParams};
 /// * `cneg` - C for negative targets
 pub fn fit_c<'a, A: Float>(
     params: SolverParams<A>,
-    kernel: &'a Kernel<A>,
+    kernel: &'a Kernel<'a, A>,
     targets: &'a [bool],
     cpos: A,
     cneg: A,
@@ -76,7 +76,7 @@ pub fn fit_c<'a, A: Float>(
 /// * `nu` - Nu penalizing term
 pub fn fit_nu<'a, A: Float>(
     params: SolverParams<A>,
-    kernel: &'a Kernel<A>,
+    kernel: &'a Kernel<'a, A>,
     targets: &'a [bool],
     nu: A,
 ) -> Svm<'a, A, Pr> {
@@ -138,7 +138,7 @@ pub fn fit_nu<'a, A: Float>(
 /// * `nu` - Nu penalizing term
 pub fn fit_one_class<'a, A: Float + num_traits::ToPrimitive>(
     params: SolverParams<A>,
-    kernel: &'a Kernel<A>,
+    kernel: &'a Kernel<'a, A>,
     nu: A,
 ) -> Svm<'a, A, Pr> {
     let size = kernel.size();
@@ -215,6 +215,28 @@ impl<'a, F: Float> Fit<'a, Kernel<'a, F>, &Vec<bool>> for SvmParams<F, Pr> {
     }
 }
 
+impl<'a, F: Float> Fit<'a, Kernel<'a, F>, &[bool]> for SvmParams<F, Pr> {
+    type Object = Svm<'a, F, Pr>;
+
+    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, &[bool]>) -> Self::Object {
+        match (self.c, self.nu) {
+            (Some((c_p, c_n)), _) => fit_c(
+                self.solver_params.clone(),
+                &dataset.records,
+                dataset.targets(),
+                c_p,
+                c_n,
+            ),
+            (None, Some((nu, _))) => fit_nu(
+                self.solver_params.clone(),
+                &dataset.records,
+                dataset.targets(),
+                nu,
+            ),
+            _ => panic!("Set either C value or Nu value"),
+        }
+    }
+}
 impl<'a, F: Float> Fit<'a, Kernel<'a, F>, &()> for SvmParams<F, Pr> {
     type Object = Svm<'a, F, Pr>;
 
@@ -240,8 +262,8 @@ impl<'a, F: Float> Predict<Array1<F>, Pr> for Svm<'a, F, Pr> {
 }
 
 /// Predict a probability with a set of observations
-impl<'a, F: Float> Predict<&Array2<F>, Vec<Pr>> for Svm<'a, F, Pr> {
-    fn predict(&self, data: &Array2<F>) -> Vec<Pr> {
+impl<'a, F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Vec<Pr>> for Svm<'a, F, Pr> {
+    fn predict(&self, data: ArrayBase<D, Ix2>) -> Vec<Pr> {
         data.outer_iter()
             .map(|data| {
                 let val = match self.linear_decision {
@@ -261,11 +283,23 @@ impl<'a, F: Float, T: Targets> Predict<Dataset<Array2<F>, T>, Dataset<Array2<F>,
 {
     fn predict(&self, data: Dataset<Array2<F>, T>) -> Dataset<Array2<F>, Vec<Pr>> {
         let Dataset { records, .. } = data;
-        let predicted = self.predict(&records);
+        let predicted = self.predict(records.view());
 
         Dataset::new(records, predicted)
     }
 }
+
+impl<'a, F: Float, T: Targets, D: Data<Elem = F>>Predict<&'a Dataset<ArrayBase<D, Ix2>, T>, Dataset<ArrayView2<'a, F>, Vec<Pr>>>
+    for Svm<'a, F, Pr>
+{
+    fn predict(&self, data: &'a Dataset<ArrayBase<D, Ix2>, T>) -> Dataset<ArrayView2<'a, F>, Vec<Pr>> {
+        let predicted = self.predict(data.records.view());
+
+        Dataset::new(data.records.view(), predicted)
+    }
+}
+
+
 
 #[cfg(test)]
 mod tests {

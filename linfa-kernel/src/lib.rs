@@ -29,23 +29,25 @@ pub enum KernelInner<F: Float> {
 /// A generic kernel
 ///
 ///
-pub struct Kernel<'a, F: Float, R: Records<Elem = F>> {
-    pub inner: KernelInner<F>,
-    pub fnc: SimFnc<F>,
-    pub dataset: &'a R,
+pub struct Kernel<R: Records>
+    where R::Elem: Float 
+{
+    pub inner: KernelInner<R::Elem>,
+    pub fnc: SimFnc<R::Elem>,
+    pub dataset: R,
     pub linear: bool,
 }
 
-impl<'a, F: Float> Kernel<'a, F, Array2<F>> {
+impl<'a, F: Float> Kernel<ArrayView2<'a, F>> {
     pub fn new<G: Fn(ArrayView1<F>, ArrayView1<F>) -> F + 'static>(
-        dataset: &'a Array2<F>,
+        dataset: ArrayView2<'a, F>,
         fnc: G,
         kind: KernelType,
         linear: bool,
-    ) -> Kernel<'a, F, Array2<F>> {
+    ) -> Kernel<ArrayView2<'a, F>> {
         let inner = match kind {
-            KernelType::Dense => KernelInner::Dense(dense_from_fn(dataset, &fnc)),
-            KernelType::Sparse(k) => KernelInner::Sparse(sparse_from_fn(dataset, k, &fnc)),
+            KernelType::Dense => KernelInner::Dense(dense_from_fn(&dataset, &fnc)),
+            KernelType::Sparse(k) => KernelInner::Sparse(sparse_from_fn(&dataset, k, &fnc)),
         };
 
         Kernel {
@@ -142,7 +144,7 @@ impl<'a, F: Float> Kernel<'a, F, Array2<F>> {
     }
 }
 
-impl<'a, F: Float> Records for Kernel<'a, F, Array2<F>> {
+impl<'a, F: Float> Records for Kernel<ArrayView2<'a, F>> {
     type Elem = F;
 
     fn observations(&self) -> usize {
@@ -202,32 +204,40 @@ impl<F: Float> KernelParams<F> {
     }
 }
 
-impl<'a, F: Float> Transformer<&'a Array2<F>, Kernel<'a, F, Array2<F>>> for KernelParams<F> {
-    fn transform(&self, x: &'a Array2<F>) -> Kernel<'a, F, Array2<F>> {
+impl<'a, F: Float> Transformer<&'a Array2<F>, Kernel<ArrayView2<'a, F>>> for KernelParams<F> {
+    fn transform(&self, x: &'a Array2<F>) -> Kernel<ArrayView2<'a, F>> {
         let fnc = self.method.method();
         let is_linear = self.method.is_linear();
 
-        Kernel::new(x, fnc, self.kind.clone(), is_linear)
+        Kernel::new(x.view(), fnc, self.kind.clone(), is_linear)
     }
 }
 
 impl<'a, F: Float, T: Targets>
-    Transformer<&'a Dataset<Array2<F>, T>, Dataset<Kernel<'a, F, Array2<F>>, &'a T>>
+    Transformer<&'a Dataset<Array2<F>, T>, Dataset<Kernel<ArrayView2<'a, F>>, &'a T>>
     for KernelParams<F>
 {
-    fn transform(&self, x: &'a Dataset<Array2<F>, T>) -> Dataset<Kernel<'a, F, Array2<F>>, &'a T> {
+    fn transform(&self, x: &'a Dataset<Array2<F>, T>) -> Dataset<Kernel<ArrayView2<'a, F>>, &'a T> {
         let fnc = self.method.method();
         let is_linear = self.method.is_linear();
 
-        let kernel = Kernel::new(&x.records, fnc, self.kind.clone(), is_linear);
+        let kernel = Kernel::new(x.records.view(), fnc, self.kind.clone(), is_linear);
 
         Dataset::new(kernel, &x.targets)
-        /*Dataset {
-            records: kernel,
-            targets: &x.targets,
-            labels: Vec::new(),
-            weights: Vec::new()
-        }*/
+    }
+}
+
+impl<'a, F: Float, T: Targets>
+    Transformer<&'a Dataset<ArrayView2<'a, F>, T>, Dataset<Kernel<ArrayView2<'a, F>>, &'a [T::Elem]>>
+    for KernelParams<F>
+{
+    fn transform(&self, x: &'a Dataset<ArrayView2<'a, F>, T>) -> Dataset<Kernel<ArrayView2<'a, F>>, &'a [T::Elem]> {
+        let fnc = self.method.method();
+        let is_linear = self.method.is_linear();
+
+        let kernel = Kernel::new(x.records, fnc, self.kind.clone(), is_linear);
+
+        Dataset::new(kernel, x.targets.as_slice())
     }
 }
 
