@@ -1,5 +1,5 @@
 use super::{iter::Iter, Dataset, Float, Label, Labels, Records, Targets};
-use ndarray::{Axis, Array2, ArrayView2};
+use ndarray::{Axis, Array2, ArrayView2, ArrayBase, Ix2, Data};
 
 impl<F: Float, L: Label> Dataset<Array2<F>, Vec<L>> {
     pub fn iter<'a>(&'a self) -> Iter<'a, Array2<F>, Vec<L>> {
@@ -89,8 +89,8 @@ impl<R: Records, S: Targets + Labels> Dataset<R, S> {
     }
 }
 
-impl<F: Float> From<Array2<F>> for Dataset<Array2<F>, ()> {
-    fn from(records: Array2<F>) -> Self {
+impl<F: Float, D: Data<Elem = F>> From<ArrayBase<D, Ix2>> for Dataset<ArrayBase<D, Ix2>, ()> {
+    fn from(records: ArrayBase<D, Ix2>) -> Self {
         Dataset {
             records,
             targets: (),

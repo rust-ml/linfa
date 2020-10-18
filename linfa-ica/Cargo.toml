@@ -26,6 +26,8 @@ ndarray-linalg = { version = "0.12", default-features = false}
 num-traits = "0.1.32"
 rand_isaac = "0.2.0"
 
+linfa = { path = ".." }
+
 [dev-dependencies]
 ndarray-npy = { version = "0.5", default-features = false }
 paste = "1.0"

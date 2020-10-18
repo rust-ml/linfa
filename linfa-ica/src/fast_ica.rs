@@ -6,39 +6,39 @@
 //!
 //! Input data is whitened (remove underlying correlation) before modeling.
 
-use ndarray::{Array, Array1, Array2, Axis};
-use ndarray_linalg::{eigh::Eigh, lapack::UPLO, svd::SVD};
+use ndarray::{Array, Array1, Array2, Axis, Data, Ix2, ArrayBase};
+use ndarray_linalg::{eigh::Eigh, lapack::UPLO, svd::SVD, Lapack};
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
 use ndarray_stats::QuantileExt;
 use rand_isaac::Isaac64Rng;
+use linfa::{Float, traits::*, dataset::{Dataset, Targets}};
 
 use crate::error::{FastIcaError, Result};
-use crate::Float;
 
 /// Fast Independent Component Analysis (ICA)
 #[derive(Debug)]
-pub struct FastIca {
+pub struct FastIca<F: Float> {
     ncomponents: Option<usize>,
     gfunc: GFunc,
     max_iter: usize,
-    tol: f64,
+    tol: F,
     random_state: Option<usize>,
 }
 
-impl Default for FastIca {
+impl<F: Float> Default for FastIca<F> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl FastIca {
+impl<F: Float> FastIca<F> {
     /// Create new FastICA algorithm with default values for its parameters
     pub fn new() -> Self {
         FastIca {
             ncomponents: None,
             gfunc: GFunc::Logcosh(1.),
             max_iter: 200,
-            tol: 1e-4,
+            tol: F::from(1e-4).unwrap(),
             random_state: None,
         }
     }
@@ -62,7 +62,7 @@ impl FastIca {
     }
 
     /// Set tolerance on upate at each iteration
-    pub fn tol(mut self, tol: f64) -> Self {
+    pub fn tol(mut self, tol: F) -> Self {
         self.tol = tol;
         self
     }
@@ -74,7 +74,9 @@ impl FastIca {
     }
 }
 
-impl FastIca {
+impl<'a, F: Float + Lapack, D: Data<Elem=F>, T: Targets> Fit<'a, ArrayBase<D, Ix2>, T> for FastIca<F> {
+    type Object = Result<FittedFastIca<F>>;
+
     /// Fit the model
     ///
     /// # Errors
@@ -84,7 +86,8 @@ impl FastIca {
     ///
     /// If the `alpha` value set for [`GFunc::Logcosh`] is not between 1 and 2
     /// inclusive
-    pub fn fit<A: Float>(&self, x: &Array2<A>) -> Result<FittedFastIca<A>> {
+    fn fit(&self, dataset: &Dataset<ArrayBase<D, Ix2>, T>) -> Result<FittedFastIca<F>> {
+        let x = &dataset.records;
         let (nsamples, nfeatures) = (x.nrows(), x.ncols());
 
         // If the number of components is not set, we take the minimum of
@@ -111,7 +114,7 @@ impl FastIca {
         // the components
         let k = match xcentered.svd(true, false)? {
             (Some(u), s, _) => {
-                let s = s.mapv(|x| A::from(x).unwrap());
+                let s = s.mapv(|x| F::from(x).unwrap());
                 (u.slice(s![.., ..nsamples.min(nfeatures)]).to_owned() / s)
                     .t()
                     .slice(s![..ncomponents, ..])
@@ -122,7 +125,7 @@ impl FastIca {
         let mut xwhitened = k.dot(&xcentered);
 
         // We multiply the matrix with root of the number of records
-        let nsamples_sqrt = A::from((nsamples as f64).sqrt()).unwrap();
+        let nsamples_sqrt = F::from((nsamples as f64).sqrt()).unwrap();
         xwhitened.mapv_inplace(|x| x * nsamples_sqrt);
 
         // We initialize the de-mixing matrix with a uniform distribution
@@ -133,7 +136,7 @@ impl FastIca {
         } else {
             w = Array::random((ncomponents, ncomponents), Uniform::new(0., 1.));
         }
-        let mut w = w.mapv(|x| A::from(x).unwrap());
+        let mut w = w.mapv(|x| F::from(x).unwrap());
 
         // We find the optimized de-mixing matrix
         w = self.ica_parallel(&xwhitened, &w)?;
@@ -146,9 +149,11 @@ impl FastIca {
             components,
         })
     }
+}
 
+impl<F: Float + Lapack> FastIca<F> {
     // Parallel FastICA, Optimization step
-    fn ica_parallel<A: Float>(&self, x: &Array2<A>, w: &Array2<A>) -> Result<Array2<A>> {
+    fn ica_parallel(&self, x: &Array2<F>, w: &Array2<F>) -> Result<Array2<F>> {
         let mut w = Self::sym_decorrelation(&w)?;
 
         let p = x.ncols() as f64;
@@ -156,7 +161,7 @@ impl FastIca {
         for _ in 0..self.max_iter {
             let (gwtx, g_wtx) = self.gfunc.exec(&w.dot(x))?;
 
-            let lhs = gwtx.dot(&x.t()).mapv(|x| x / A::from(p).unwrap());
+            let lhs = gwtx.dot(&x.t()).mapv(|x| x / F::from(p).unwrap());
             let rhs = &w * &g_wtx.insert_axis(Axis(1));
             let wnew = Self::sym_decorrelation(&(lhs - rhs))?;
 
@@ -166,16 +171,16 @@ impl FastIca {
                 .outer_iter()
                 .zip(w.outer_iter())
                 .map(|(a, b)| a.dot(&b))
-                .collect::<Array1<A>>()
+                .collect::<Array1<F>>()
                 .mapv(num_traits::Float::abs)
-                .mapv(|x| x - A::from(1.).unwrap())
+                .mapv(|x| x - F::from(1.).unwrap())
                 .mapv(num_traits::Float::abs)
                 .max()
                 .unwrap();
 
             w = wnew;
 
-            if lim < A::from(self.tol).unwrap() {
+            if lim < F::from(self.tol).unwrap() {
                 break;
             }
         }
@@ -186,14 +191,14 @@ impl FastIca {
     // Symmetric decorrelation
     //
     // W <- (W * W.T)^{-1/2} * W
-    fn sym_decorrelation<A: Float>(w: &Array2<A>) -> Result<Array2<A>> {
+    fn sym_decorrelation(w: &Array2<F>) -> Result<Array2<F>> {
         let (eig_val, eig_vec) = w.dot(&w.t()).eigh(UPLO::Upper)?;
-        let eig_val = eig_val.mapv(|x| A::from(x).unwrap());
+        let eig_val = eig_val.mapv(|x| F::from(x).unwrap());
 
         let tmp = &eig_vec
             * &(eig_val.mapv(num_traits::Float::sqrt).mapv(|x| {
                 // We lower bound the float value at 1e-7 when taking the reciprocal
-                let lower_bound = A::from(1e-7).unwrap();
+                let lower_bound = F::from(1e-7).unwrap();
                 if x < lower_bound {
                     return num_traits::Float::recip(lower_bound);
                 }
@@ -207,14 +212,14 @@ impl FastIca {
 
 /// Fitted FastICA model for recovering the sources
 #[derive(Debug)]
-pub struct FittedFastIca<A> {
-    mean: Array1<A>,
-    components: Array2<A>,
+pub struct FittedFastIca<F> {
+    mean: Array1<F>,
+    components: Array2<F>,
 }
 
-impl<A: Float> FittedFastIca<A> {
+impl<F: Float> Predict<&Array2<F>, Array2<F>> for FittedFastIca<F> {
     /// Recover the sources
-    pub fn transform(&self, x: &Array2<A>) -> Array2<A> {
+    fn predict(&self, x: &Array2<F>) -> Array2<F> {
         let xcentered = x - &self.mean.view().insert_axis(Axis(0));
         xcentered.dot(&self.components.t())
     }
@@ -278,6 +283,7 @@ impl GFunc {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use linfa::traits::{Fit, Predict};
 
     use ndarray_rand::rand_distr::StudentT;
 
@@ -285,7 +291,7 @@ mod tests {
     // that the minimum of the number of rows and columns of the input
     #[test]
     fn test_ncomponents_err() {
-        let input = Array::random((4, 4), Uniform::new(0.0, 1.0));
+        let input = Dataset::from(Array::random((4, 4), Uniform::new(0.0, 1.0)));
         let ica = FastIca::new().ncomponents(100);
         let ica = ica.fit(&input);
         assert!(ica.is_err());
@@ -295,7 +301,7 @@ mod tests {
     // 1 and 2 inclusive
     #[test]
     fn test_logcosh_alpha_err() {
-        let input = Array::random((4, 4), Uniform::new(0.0, 1.0));
+        let input = Dataset::from(Array::random((4, 4), Uniform::new(0.0, 1.0)));
         let ica = FastIca::new().gfunc(GFunc::Logcosh(10.));
         let ica = ica.fit(&input);
         assert!(ica.is_err());
@@ -363,8 +369,10 @@ mod tests {
 
         // We fit and transform using the model to unmix the two sources
         let ica = FastIca::new().ncomponents(2).gfunc(gfunc).random_state(42);
-        let ica = ica.fit(&sources).unwrap();
-        let mut output = ica.transform(&sources);
+
+        let sources_dataset = Dataset::from(sources.view());
+        let ica = ica.fit(&sources_dataset).unwrap();
+        let mut output = ica.predict(&sources);
 
         center_and_norm(&mut output);
 

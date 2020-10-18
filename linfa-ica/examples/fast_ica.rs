@@ -1,4 +1,5 @@
 use linfa_ica::fast_ica::{FastIca, GFunc};
+use linfa::{traits::{Fit, Predict}, dataset::Dataset};
 use ndarray::{array, stack};
 use ndarray::{Array, Array2, Axis};
 use ndarray_npy::write_npy;
@@ -19,10 +20,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     // `ncomponents` is not set, it will be automatically be assigned 2 from
     // the input
     let ica = FastIca::new().gfunc(GFunc::Logcosh(1.0));
-    let ica = ica.fit(&sources_mixed)?;
+    let ica = ica.fit(&Dataset::from(sources_mixed.view()))?;
 
     // Here we unmix the data to recover back the original signals
-    let sources_ica = ica.transform(&sources_mixed);
+    let sources_ica = ica.predict(&sources_mixed);
 
     // Saving to disk
     write_npy("sources_original.npy", sources_original).expect("Failed to write .npy file");
