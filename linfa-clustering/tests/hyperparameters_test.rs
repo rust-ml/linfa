@@ -1,9 +1,9 @@
-use linfa_clustering::KMeansHyperParams;
+use linfa_clustering::{KMeans, KMeansHyperParams};
 
 #[test]
 #[should_panic]
 fn n_clusters_cannot_be_zero() {
-    KMeansHyperParams::new(0).build();
+    KMeans::<f32>::params(0).build();
 }
 
 #[test]

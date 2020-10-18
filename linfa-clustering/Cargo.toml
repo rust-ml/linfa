@@ -12,18 +12,25 @@ readme = "README.md"
 keywords = ["clustering", "machine-learning", "linfa", "k-means", "unsupervised"]
 categories = ["algorithms", "mathematics", "science"]
 
+[features]
+default = []
+openblas = ["ndarray-linalg/openblas"]
+intel-mkl = ["ndarray-linalg/intel-mkl"]
+netlib = ["ndarray-linalg/netlib"]
+
 [dependencies]
 ndarray = { version = "0.13" , features = ["rayon", "serde", "approx"]}
 ndarray-rand = "0.11"
 ndarray-stats = "0.3"
-ndarray-linalg = { version = "0.12", features = ["openblas"] }
+ndarray-linalg = { version = "0.12" }
 sprs = "0.7"
 serde = { version = "1", features = ["derive"] }
 num-traits = "0.1.32"
-linfa-kernel = { path = "../linfa-kernel" }
+rand_isaac = "0.2.0"
+linfa = { path = ".." }
 
 [dev-dependencies]
-rand_isaac = "0.2.0"
+openblas-src = "0.9"
 ndarray-npy = { version = "0.5", default-features = false }
 criterion = "0.3"
 serde_json = "1"

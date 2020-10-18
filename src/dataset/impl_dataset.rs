@@ -25,12 +25,25 @@ impl<R: Records, S: Targets> Dataset<R, S> {
         &self.weights
     }
 
+    pub fn records(&self) -> &R {
+        &self.records
+    }
+
     pub fn with_records<T: Records>(self, records: T) -> Dataset<T, S> {
         Dataset {
             records,
             targets: self.targets,
             labels: self.labels,
             weights: Vec::new(),
+        }
+    }
+
+    pub fn with_targets<T: Targets>(self, targets: T) -> Dataset<R, T> {
+        Dataset {
+            records: self.records,
+            targets,
+            labels: Vec::new(),
+            weights: self.weights
         }
     }
 

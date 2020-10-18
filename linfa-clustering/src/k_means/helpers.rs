@@ -1,3 +1,4 @@
+use linfa::Float;
 use ndarray::{Array1, ArrayBase, Data, Ix1};
 
 /// The observation matrix will not be partitioned by cluster membership: we might have
@@ -22,23 +23,23 @@ use ndarray::{Array1, ArrayBase, Data, Ix1};
 /// - the number of observations we have seen so far (`n`).
 ///
 /// We can store this information in a struct:
-pub(crate) struct IncrementalMean {
-    pub current_mean: Array1<f64>,
+pub(crate) struct IncrementalMean<F: Float> {
+    pub current_mean: Array1<F>,
     pub n_observations: usize,
 }
 
-impl IncrementalMean {
-    pub fn new(first_observation: Array1<f64>) -> Self {
+impl<F: Float> IncrementalMean<F> {
+    pub fn new(first_observation: Array1<F>) -> Self {
         Self {
             current_mean: first_observation,
             n_observations: 1,
         }
     }
 
-    pub fn update(&mut self, new_observation: &ArrayBase<impl Data<Elem = f64>, Ix1>) {
+    pub fn update(&mut self, new_observation: &ArrayBase<impl Data<Elem = F>, Ix1>) {
         self.n_observations += 1;
         let shift =
-            (new_observation - &self.current_mean).mapv_into(|x| x / self.n_observations as f64);
+            (new_observation - &self.current_mean).mapv_into(|x| x / F::from(self.n_observations).unwrap());
         self.current_mean += &shift;
     }
 }
@@ -59,7 +60,7 @@ mod tests {
 
         // We need to initialise `incremental_mean` with the first observation
         // We'll mark it as uninitialised using `None`
-        let mut incremental_mean: Option<IncrementalMean> = None;
+        let mut incremental_mean: Option<IncrementalMean<f64>> = None;
 
         for observation in observations.genrows().into_iter() {
             // If it has already been initialised, update it

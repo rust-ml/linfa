@@ -34,7 +34,7 @@ mod metrics_classification;
 mod metrics_regression;
 pub mod traits;
 
-pub use dataset::{Float, Label};
+pub use dataset::{Float, Label, Dataset};
 
 /// Common metrics functions for classification and regression
 

@@ -1,5 +1,5 @@
 use ndarray::NdFloat;
-use num_traits::FromPrimitive;
+use num_traits::{FromPrimitive, Signed};
 use std::hash::Hash;
 use std::iter::Sum;
 use std::cmp::{Ordering, PartialOrd};
@@ -11,7 +11,7 @@ mod impl_targets;
 
 mod iter;
 
-pub trait Float: NdFloat + FromPrimitive + Default + Sum {}
+pub trait Float: NdFloat + FromPrimitive + Signed + Default + Sum {}
 impl Float for f32 {}
 impl Float for f64 {}
 
