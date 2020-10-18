@@ -1,47 +1,45 @@
-use ndarray::{Array1, Array2, OwnedRepr};
+use ndarray::{Array1, Array2, OwnedRepr, ArrayView2};
 use ndarray_linalg::{
-    eigh::EighInto, lapack::UPLO, lobpcg, lobpcg::LobpcgResult, Scalar, TruncatedOrder,
+    eigh::EighInto, lapack::UPLO, lobpcg, lobpcg::LobpcgResult, Scalar, TruncatedOrder, Lapack
 };
 use ndarray_rand::{rand_distr::Uniform, RandomExt};
 use num_traits::NumCast;
 
+use linfa::{Float, Dataset, traits::Transformer};
 use linfa_kernel::Kernel;
 
-use super::hyperparameters::DiffusionMapHyperParams;
-use crate::Float;
+use super::hyperparameters::{DiffusionMapHyperParams, DiffusionMapHyperParamsBuilder};
 
-pub struct DiffusionMap<A> {
-    hyperparameters: DiffusionMapHyperParams,
-    embedding: Array2<A>,
-    eigvals: Array1<A>,
+pub struct DiffusionMap<F> {
+    embedding: Array2<F>,
+    eigvals: Array1<F>,
 }
 
-impl<A: Float> DiffusionMap<A> {
-    pub fn project(
-        hyperparameters: DiffusionMapHyperParams,
-        kernel: Kernel<A, OwnedRepr<A>>,
-    ) -> Self {
+impl<'a, F: Float + Lapack> Transformer<&'a Kernel<ArrayView2<'a, F>>, DiffusionMap<F>> for DiffusionMapHyperParams {
+    fn transform(
+        &self,
+        kernel: &'a Kernel<ArrayView2<'a, F>>,
+    ) -> DiffusionMap<F> {
         // compute spectral embedding with diffusion map
         let (embedding, eigvals) = compute_diffusion_map(
             kernel,
-            hyperparameters.steps(),
+            self.steps(),
             0.0,
-            hyperparameters.embedding_size(),
+            self.embedding_size(),
             None,
         );
 
         DiffusionMap {
-            hyperparameters,
             embedding,
             eigvals,
         }
     }
+}
 
-    /// Return the hyperparameters used to train this spectral mode instance.
-    pub fn hyperparameters(&self) -> &DiffusionMapHyperParams {
-        &self.hyperparameters
+impl<F: Float + Lapack> DiffusionMap<F> {
+    pub fn params(embedding_size: usize) -> DiffusionMapHyperParamsBuilder {
+        DiffusionMapHyperParams::new(embedding_size)
     }
-
     /// Estimate the number of clusters in this embedding (very crude for now)
     pub fn estimate_clusters(&self) -> usize {
         let mean = self.eigvals.sum() / NumCast::from(self.eigvals.len()).unwrap();
@@ -49,22 +47,22 @@ impl<A: Float> DiffusionMap<A> {
     }
 
     /// Return a copy of the eigenvalues
-    pub fn eigvals(&self) -> Array1<A> {
+    pub fn eigvals(&self) -> Array1<F> {
         self.eigvals.clone()
     }
 
-    pub fn embedding(&self) -> Array2<A> {
+    pub fn embedding(&self) -> Array2<F> {
         self.embedding.clone()
     }
 }
 
-fn compute_diffusion_map<A: Float>(
-    kernel: Kernel<A, OwnedRepr<A>>,
+fn compute_diffusion_map<'b, F: Float + Lapack>(
+    kernel: &'b Kernel<ArrayView2<'b, F>>,
     steps: usize,
     alpha: f32,
     embedding_size: usize,
-    guess: Option<Array2<A>>,
-) -> (Array2<A>, Array1<A>) {
+    guess: Option<Array2<F>>,
+) -> (Array2<F>, Array1<F>) {
     assert!(embedding_size < kernel.size());
 
     let d = kernel.sum().mapv(|x| x.recip());

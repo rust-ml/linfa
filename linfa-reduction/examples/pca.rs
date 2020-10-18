@@ -1,5 +1,6 @@
+use linfa::prelude::*;
 use linfa_clustering::generate_blobs;
-use linfa_reduction::PrincipalComponentAnalysis;
+use linfa_reduction::Pca;
 use ndarray::array;
 use ndarray_npy::write_npy;
 use ndarray_rand::rand::SeedableRng;
@@ -14,16 +15,17 @@ fn main() {
     // For each our expected centroids, generate `n` data points around it (a "blob")
     let expected_centroids = array![[10., 10.], [1., 12.], [20., 30.], [-20., 30.],];
     let n = 10;
-    let dataset = generate_blobs(n, &expected_centroids, &mut rng);
+    let dataset = Dataset::from(generate_blobs(n, &expected_centroids, &mut rng));
 
-    dbg!(&dataset);
+    let embedding: Pca<f64> = Pca::params(1)
+        .fit(&dataset);
 
-    let embedding = PrincipalComponentAnalysis::fit(dataset.clone(), 1).predict(&dataset);
+    let embedding = embedding.predict(dataset.records().view());
 
     dbg!(&embedding);
 
     // Save to disk our dataset (and the cluster label assigned to each observation)
     // We use the `npy` format for compatibility with NumPy
-    write_npy("pca_dataset.npy", dataset).expect("Failed to write .npy file");
+    write_npy("pca_dataset.npy", dataset.records().view()).expect("Failed to write .npy file");
     write_npy("pca_embedding.npy", embedding).expect("Failed to write .npy file");
 }
