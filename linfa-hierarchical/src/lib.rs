@@ -3,8 +3,11 @@ use std::iter;
 
 use kodama::linkage;
 pub use kodama::Method;
-use ndarray::{Data, NdFloat};
+use ndarray::ArrayView2;
 
+use linfa::Float;
+use linfa::dataset::{Dataset, Targets};
+use linfa::traits::Transformer;
 use linfa_kernel::Kernel;
 
 /// Criterion when to stop merging
@@ -27,9 +30,9 @@ pub struct HierarchicalCluster<T> {
     stopping: Criterion<T>,
 }
 
-impl<T: NdFloat + iter::Sum + Default> HierarchicalCluster<T> {
+impl<F: Float> HierarchicalCluster<F> {
     /// Select a merging method
-    pub fn with_method(mut self, method: Method) -> HierarchicalCluster<T> {
+    pub fn with_method(mut self, method: Method) -> HierarchicalCluster<F> {
         self.method = method;
 
         self
@@ -39,7 +42,7 @@ impl<T: NdFloat + iter::Sum + Default> HierarchicalCluster<T> {
     ///
     /// In the fitting process points are merged until a certain criterion is reached. With this
     /// option the merging process will stop, when the number of clusters drops below this value.
-    pub fn num_clusters(mut self, num_clusters: usize) -> HierarchicalCluster<T> {
+    pub fn num_clusters(mut self, num_clusters: usize) -> HierarchicalCluster<F> {
         self.stopping = Criterion::NumClusters(num_clusters);
 
         self
@@ -49,18 +52,20 @@ impl<T: NdFloat + iter::Sum + Default> HierarchicalCluster<T> {
     ///
     /// In the fitting process points are merged until a certain criterion is reached. With this
     /// option the merging process will stop, then the distance exceeds this value.
-    pub fn max_distance(mut self, max_distance: T) -> HierarchicalCluster<T> {
+    pub fn max_distance(mut self, max_distance: F) -> HierarchicalCluster<F> {
         self.stopping = Criterion::Distance(max_distance);
 
         self
     }
+}
 
+impl<'b: 'a, 'a, F: Float> Transformer<Kernel<ArrayView2<'a, F>>, Dataset<Kernel<ArrayView2<'a, F>>, Vec<usize>>> for HierarchicalCluster<F> {
     /// Perform hierarchical clustering of a similarity matrix
     ///
     /// Returns the class id for each data point
-    pub fn fit_transform<'a, D: Data<Elem = T>>(self, kernel: &'a Kernel<'a, T, D>) -> Vec<usize> {
+    fn transform(&self, kernel: Kernel<ArrayView2<'a, F>>) -> Dataset<Kernel<ArrayView2<'a, F>>, Vec<usize>> {
         // ignore all similarities below this value
-        let threshold = T::from(1e-6).unwrap();
+        let threshold = F::from(1e-6).unwrap();
 
         // transform similarities to distances with log transformation
         let mut distance = kernel
@@ -120,9 +125,20 @@ impl<T: NdFloat + iter::Sum + Default> HierarchicalCluster<T> {
         }
 
         // return node_index -> cluster_index map
-        tmp
+        Dataset::new(kernel, tmp)
     }
 }
+
+impl<'a, F: Float, T: Targets> Transformer<Dataset<Kernel<ArrayView2<'a, F>>, T>, Dataset<Kernel<ArrayView2<'a, F>>, Vec<usize>>> for HierarchicalCluster<F> {
+    /// Perform hierarchical clustering of a similarity matrix
+    ///
+    /// Returns the class id for each data point
+    fn transform(&self, dataset: Dataset<Kernel<ArrayView2<'a, F>>, T>) -> Dataset<Kernel<ArrayView2<'a, F>>, Vec<usize>> {
+        //let Dataset { records, .. } = dataset;
+        self.transform(dataset.records)
+    }
+}
+
 
 /// Initialize hierarchical clustering, which averages in-cluster points and stops when two
 /// clusters are reached.
@@ -137,7 +153,10 @@ impl<T> Default for HierarchicalCluster<T> {
 
 #[cfg(test)]
 mod tests {
-    use linfa_kernel::Kernel;
+    extern crate openblas_src;
+
+    use linfa::traits::Transformer;
+    use linfa_kernel::{Kernel, KernelMethod};
     use ndarray::{Array, Axis};
     use ndarray_rand::{rand_distr::Normal, RandomExt};
 
@@ -157,15 +176,16 @@ mod tests {
         )
         .unwrap();
 
-        // apply RBF kernel with sigma=5.0
-        let kernel = Kernel::gaussian(&entries, 5.0);
+        let kernel = Kernel::params()
+            .method(KernelMethod::Gaussian(5.0))
+            .transform(&entries);
 
-        // perform hierarchical clustering until distance 0.1 is reached
-        let ids = HierarchicalCluster::default()
+        let kernel = HierarchicalCluster::default()
             .max_distance(0.1)
-            .fit_transform(&kernel);
+            .transform(kernel);
 
         // check that all assigned ids are equal for the first cluster
+        let ids = kernel.targets();
         let first_cluster_id = &ids[0];
         assert!(ids
             .iter()
@@ -183,11 +203,12 @@ mod tests {
         assert_ne!(first_cluster_id, second_cluster_id);
 
         // perform hierarchical clustering until we have two clusters left
-        let ids = HierarchicalCluster::default()
+        let kernel = HierarchicalCluster::default()
             .num_clusters(2)
-            .fit_transform(&kernel);
+            .transform(kernel);
 
         // check that all assigned ids are equal for the first cluster
+        let ids = kernel.targets();
         let first_cluster_id = &ids[0];
         assert!(ids
             .iter()

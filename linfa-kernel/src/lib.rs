@@ -152,6 +152,14 @@ impl<'a, F: Float> Records for Kernel<ArrayView2<'a, F>> {
     }
 }
 
+impl<'a, F: Float> Records for &'a Kernel<ArrayView2<'a, F>> {
+    type Elem = F;
+
+    fn observations(&self) -> usize {
+        self.size()
+    }
+}
+
 pub enum KernelMethod<F> {
     Gaussian(F),
     Linear,
@@ -210,6 +218,15 @@ impl<'a, F: Float> Transformer<&'a Array2<F>, Kernel<ArrayView2<'a, F>>> for Ker
         let is_linear = self.method.is_linear();
 
         Kernel::new(x.view(), fnc, self.kind.clone(), is_linear)
+    }
+}
+
+impl<'a, F: Float> Transformer<ArrayView2<'a, F>, Kernel<ArrayView2<'a, F>>> for KernelParams<F> {
+    fn transform(&self, x: ArrayView2<'a, F>) -> Kernel<ArrayView2<'a, F>> {
+        let fnc = self.method.method();
+        let is_linear = self.method.is_linear();
+
+        Kernel::new(x, fnc, self.kind.clone(), is_linear)
     }
 }
 

@@ -22,6 +22,7 @@ netlib = ["linfa-kernel/netlib"]
 [dependencies]
 ndarray = { version = "0.13", default-features = false }
 kodama = "0.2"
+linfa = { path = ".." }
 linfa-kernel = { path = "../linfa-kernel" }
 
 [dev-dependencies]
@@ -29,3 +30,4 @@ ndarray-rand = "0.11"
 csv = "1.1"
 ndarray-csv = "0.4"
 flate2 = "1.0"
+openblas-src = "0.9" # or another backend of your choice
