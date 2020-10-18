@@ -29,15 +29,14 @@
 //!
 
 pub mod dataset;
-/// Clustering algorithms for unlabeled data.
 mod metrics_classification;
 mod metrics_regression;
 pub mod traits;
+pub mod prelude;
 
 pub use dataset::{Float, Label, Dataset};
 
 /// Common metrics functions for classification and regression
-
 pub mod metrics {
     pub use crate::metrics_classification::{
         BinaryClassification, ConfusionMatrix, ReceiverOperatingCharacteristic, ToConfusionMatrix,
