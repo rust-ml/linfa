@@ -3,7 +3,7 @@ use ndarray::{Array1, NdFloat};
 use ndarray_linalg::Lapack;
 use num_traits::float::FloatConst;
 use num_traits::FromPrimitive;
-use serde::{Deserialize, Serialize};
+//use serde::{Deserialize, Serialize};
 
 // A Float trait that captures the requirements we need for the various places
 // we need floats. There requirements are imposed y ndarray and argmin
@@ -45,7 +45,8 @@ impl ArgminMul<ArgminParam<Self>, ArgminParam<Self>> for f32 {
 
 // Here we create a new type over ndarray's Array1. This is required
 // to implement traits required by argmin
-#[derive(Serialize, Clone, Deserialize, Debug, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate="serde_crate"))]
+#[derive(Clone, Debug, Default)]
 pub struct ArgminParam<A>(pub Array1<A>);
 
 impl<A> ArgminParam<A> {

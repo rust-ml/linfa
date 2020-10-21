@@ -47,6 +47,12 @@ impl<R: Records, S: Targets> Dataset<R, S> {
         }
     }
 
+    pub fn with_weights(mut self, weights: Vec<f32>) -> Dataset<R, S> {
+        self.weights = weights;
+
+        self
+    }
+    
     pub fn map_targets<T, G: FnMut(&S::Elem) -> T>(self, fnc: G) -> Dataset<R, Vec<T>> {
         let Dataset {
             records,
@@ -96,9 +102,13 @@ impl<'a, F: Float, T: Targets> Dataset<ArrayView2<'a, F>, T> {
     }
 }
 
-impl<R: Records, S: Targets + Labels> Dataset<R, S> {
+impl<R: Records, L: Label, S: Targets<Elem = L> + Labels<Elem = L>> Dataset<R, S> {
     pub fn labels(&self) -> Vec<<S as Labels>::Elem> {
-        self.targets.labels()
+        if self.labels.len() == 0 {
+            self.targets.labels()
+        } else {
+            self.labels.clone()
+        }
     }
 }
 

@@ -10,6 +10,14 @@ default = []
 openblas = ["ndarray-linalg/openblas"]
 intel-mkl = ["ndarray-linalg/intel-mkl"]
 netlib = ["ndarray-linalg/netlib"]
+serde = ["serde_crate"]
+
+[dependencies.serde_crate]
+package = "serde"
+optional = true
+version = "1.0"
+default-features = false
+features = ["std", "derive"]
 
 [dependencies]
 ndarray = {version = "0.13", features = ["blas", "approx"]}
@@ -17,7 +25,6 @@ ndarray-linalg = {version = "0.12", default-features = false}
 ndarray-stats = {version = "0.3"}
 num-traits = {version="0.2"}
 argmin = {version="0.3.1", features=["ndarrayl"]}
-serde = "1.0"
 
 [dev-dependencies]
 csv = "1.1"

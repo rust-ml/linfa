@@ -4,9 +4,11 @@
 //! common scoring functions like precision, accuracy, recall, f1-score, ROC and ROC
 //! Aread-Under-Curve.
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt;
 
 use ndarray::prelude::*;
+use ndarray::Data;
 
 use crate::dataset::{Dataset, Label, Labels, Pr, Records, Targets};
 
@@ -308,6 +310,44 @@ impl<R: Records, L: Label, T: Targets<Elem = L> + Labels<Elem = L>>
     }
 }
 
+impl<L: Label> ToConfusionMatrix<L, &[L]> for &[L]
+{
+    fn confusion_matrix(&self, ground_truth: &[L]) -> ConfusionMatrix<L> {
+        let classes = ground_truth
+            .into_iter().collect::<HashSet<_>>()
+            .into_iter().cloned().collect::<Vec<_>>();
+
+        let indices = map_prediction_to_idx(&self, &ground_truth, &classes);
+
+        // count each index tuple in the confusion matrix
+        let mut confusion_matrix = Array2::zeros((classes.len(), classes.len()));
+        for (i1, i2) in indices.into_iter().filter_map(|x| x) {
+            confusion_matrix[(i1, i2)] += 1.0;
+        }
+
+        ConfusionMatrix {
+            matrix: confusion_matrix,
+            members: Array1::from(classes),
+        }
+    }
+}
+
+impl<L: Label, S: Data<Elem = L>, T: Data<Elem = L>> ToConfusionMatrix<L, ArrayBase<S, Ix1>> for ArrayBase<T, Ix1> 
+{
+    fn confusion_matrix(&self, ground_truth: ArrayBase<S, Ix1>) -> ConfusionMatrix<L> {
+        let s1 = self.as_slice().unwrap();
+        let s2 = ground_truth.as_slice().unwrap();
+
+        s1.confusion_matrix(s2)
+    }
+}
+
+impl<L: Label, S: Data<Elem = L>, T: Targets<Elem = L> + Labels<Elem = L>, R: Records> ToConfusionMatrix<L, &Dataset<R, T>> for ArrayBase<S, Ix1> {
+    fn confusion_matrix(&self, ground_truth: &Dataset<R, T>) -> ConfusionMatrix<L> {
+        Dataset::new((), self).confusion_matrix(ground_truth)
+    }
+}
+
 /*
 impl<A: Clone + Ord + Hash, D: Data<Elem = A>> IntoConfusionMatrix<A> for ArrayBase<D, Ix1> {
     fn into_confusion_matrix<'a, T>(self, ground_truth: T) -> ConfusionMatrix<A>
@@ -409,14 +449,11 @@ pub trait BinaryClassification<T> {
     fn roc(&self, y: T) -> ReceiverOperatingCharacteristic;
 }
 
-impl<R: Records, R2: Records, T: Targets<Elem = bool>, T2: Targets<Elem = Pr>>
-    BinaryClassification<&Dataset<R, T>> for Dataset<R2, T2>
-{
-    fn roc(&self, y: &Dataset<R, T>) -> ReceiverOperatingCharacteristic {
+impl BinaryClassification<&[bool]> for &[Pr] {
+    fn roc(&self, y: &[bool]) -> ReceiverOperatingCharacteristic {
         let mut tuples = self
-            .targets()
             .iter()
-            .zip(y.targets().iter())
+            .zip(y.iter())
             .filter_map(|(a, b)| if **a >= 0.0 { Some((*a, *b)) } else { None })
             .collect::<Vec<(Pr, bool)>>();
 
@@ -457,9 +494,25 @@ impl<R: Records, R2: Records, T: Targets<Elem = bool>, T2: Targets<Elem = Pr>>
         }
     }
 }
+
+impl<D: Data<Elem = Pr>> BinaryClassification<&[bool]> for ArrayBase<D, Ix1> {
+    fn roc(&self, y: &[bool]) -> ReceiverOperatingCharacteristic {
+        self.as_slice().unwrap().roc(y)
+    }
+}
+
+impl<R: Records, R2: Records, T: Targets<Elem = bool>, T2: Targets<Elem = Pr>>
+    BinaryClassification<&Dataset<R, T>> for Dataset<R2, T2>
+{
+    fn roc(&self, y: &Dataset<R, T>) -> ReceiverOperatingCharacteristic {
+        self.targets().roc(y.targets())
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{BinaryClassification, IntoConfusionMatrix, Modify};
+    use super::{Dataset, Pr};
+    use super::{BinaryClassification, ToConfusionMatrix};
     use approx::{abs_diff_eq, AbsDiffEq};
     use ndarray::{array, Array1, ArrayBase, ArrayView1, Data, Dimension};
     use rand::{distributions::Uniform, Rng};
@@ -501,7 +554,7 @@ mod tests {
         let predicted = ArrayView1::from(&[0, 1, 0, 1, 0, 1]);
         let ground_truth = ArrayView1::from(&[1, 1, 0, 1, 0, 1]);
 
-        let cm = predicted.into_confusion_matrix(&ground_truth);
+        let cm = predicted.confusion_matrix(ground_truth);
 
         assert_eq_slice(cm.matrix, &[2., 1., 0., 3.]);
     }
@@ -511,7 +564,7 @@ mod tests {
         let predicted = Array1::from(vec![0, 1, 0, 1, 0, 1]);
         let ground_truth = Array1::from(vec![1, 1, 0, 1, 0, 1]);
 
-        let x = predicted.into_confusion_matrix(&ground_truth);
+        let x = predicted.confusion_matrix(ground_truth);
 
         abs_diff_eq!(x.accuracy(), 5.0 / 6.0 as f32);
         abs_diff_eq!(
@@ -536,21 +589,23 @@ mod tests {
     #[test]
     fn test_modification() {
         let predicted = array![0, 3, 2, 0, 1, 1, 1, 3, 2, 3];
-        let ground_truth = array![0, 2, 3, 0, 1, 2, 1, 2, 3, 2];
+
+        let ground_truth = Dataset::new((), array![0, 2, 3, 0, 1, 2, 1, 2, 3, 2])
+            .with_labels(vec![0, 1, 2]);
 
         // exclude class 3 from evaluation
         let cm = predicted
-            .clone()
-            .with_classes(&[0, 1, 2])
-            .into_confusion_matrix(&ground_truth);
+            .confusion_matrix(&ground_truth);
 
         assert_eq_slice(cm.matrix, &[2., 0., 0., 0., 2., 1., 0., 0., 0.]);
 
         // weight errors in class 2 more severe and exclude class 1
+        let ground_truth = ground_truth
+            .with_weights(vec![1., 2., 1., 1., 1., 2., 1., 2., 1., 2.])
+            .with_labels(vec![0, 2, 3]);
+
         let cm = predicted
-            .with_weights(&[1., 2., 1., 1., 1., 2., 1., 2., 1., 2.])
-            .with_classes(&[0, 2, 3])
-            .into_confusion_matrix(&ground_truth);
+            .confusion_matrix(&ground_truth);
 
         // the false-positive error for label=2 is twice severe here
         assert_eq_slice(cm.matrix, &[2., 0., 0., 0., 0., 4., 0., 3., 0.]);
@@ -558,7 +613,9 @@ mod tests {
 
     #[test]
     fn test_roc_curve() {
-        let predicted = ArrayView1::from(&[0.1, 0.3, 0.5, 0.7, 0.8, 0.9]);
+        let predicted = ArrayView1::from(&[0.1, 0.3, 0.5, 0.7, 0.8, 0.9])
+            .mapv(|x| Pr(x));
+
         let groundtruth = vec![false, true, false, true, true, true];
 
         let result = &[
@@ -577,7 +634,9 @@ mod tests {
 
     #[test]
     fn test_roc_auc() {
-        let predicted = Array1::linspace(0.0, 1.0, 1000);
+        let predicted = Array1::linspace(0.0, 1.0, 1000)
+            .mapv(|x| Pr(x));
+
 
         let mut rng = rand::thread_rng();
         let range = Uniform::new(0, 2);
@@ -598,7 +657,7 @@ mod tests {
         let ground_truth = array![0, 2, 3, 0, 1, 2, 1, 2, 3, 2];
 
         // create a confusion matrix
-        let cm = predicted.into_confusion_matrix(&ground_truth);
+        let cm = predicted.confusion_matrix(ground_truth);
 
         // split four class confusion matrix into 4 binary confusion matrix
         let n_cm = cm.split_one_vs_all();
