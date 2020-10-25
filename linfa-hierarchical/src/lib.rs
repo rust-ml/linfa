@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::iter;
 
 use kodama::linkage;
 pub use kodama::Method;

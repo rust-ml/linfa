@@ -1,5 +1,5 @@
 use super::{iter::Iter, Dataset, Float, Label, Labels, Records, Targets};
-use ndarray::{Axis, Array2, ArrayView2, ArrayBase, Ix2, Data};
+use ndarray::{Axis, Array2, ArrayView2, ArrayBase, Data, Dimension};
 
 impl<F: Float, L: Label> Dataset<Array2<F>, Vec<L>> {
     pub fn iter<'a>(&'a self) -> Iter<'a, Array2<F>, Vec<L>> {
@@ -12,7 +12,6 @@ impl<R: Records, S: Targets> Dataset<R, S> {
         Dataset {
             records,
             targets,
-            labels: Vec::new(),
             weights: Vec::new(),
         }
     }
@@ -33,7 +32,6 @@ impl<R: Records, S: Targets> Dataset<R, S> {
         Dataset {
             records,
             targets: self.targets,
-            labels: self.labels,
             weights: Vec::new(),
         }
     }
@@ -42,7 +40,6 @@ impl<R: Records, S: Targets> Dataset<R, S> {
         Dataset {
             records: self.records,
             targets,
-            labels: Vec::new(),
             weights: self.weights
         }
     }
@@ -66,7 +63,6 @@ impl<R: Records, S: Targets> Dataset<R, S> {
         Dataset {
             records,
             targets: new_targets,
-            labels: Vec::new(),
             weights,
         }
     }
@@ -102,33 +98,27 @@ impl<'a, F: Float, T: Targets> Dataset<ArrayView2<'a, F>, T> {
     }
 }
 
-impl<R: Records, L: Label, S: Labels<Elem = L>> Dataset<R, S> {
+impl<R: Records, S: Labels> Dataset<R, S> {
     pub fn labels(&self) -> Vec<S::Elem> {
-        if self.labels.len() == 0 {
-            self.targets.labels()
-        } else {
-            self.labels.clone()
-        }
+        self.targets.labels()
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> From<ArrayBase<D, Ix2>> for Dataset<ArrayBase<D, Ix2>, ()> {
-    fn from(records: ArrayBase<D, Ix2>) -> Self {
+impl<F: Float, D: Data<Elem = F>, I: Dimension> From<ArrayBase<D, I>> for Dataset<ArrayBase<D, I>, ()> {
+    fn from(records: ArrayBase<D, I>) -> Self {
         Dataset {
             records,
             targets: (),
-            labels: Vec::new(),
             weights: Vec::new(),
         }
     }
 }
 
-impl<F: Float, T: Targets> From<(Array2<F>, T)> for Dataset<Array2<F>, T> {
-    fn from(rec_tar: (Array2<F>, T)) -> Self {
+impl<F: Float, T: Targets, D: Data<Elem = F>, I: Dimension> From<(ArrayBase<D, I>, T)> for Dataset<ArrayBase<D, I>, T> {
+    fn from(rec_tar: (ArrayBase<D, I>, T)) -> Self {
         Dataset {
             records: rec_tar.0,
             targets: rec_tar.1,
-            labels: Vec::new(),
             weights: Vec::new(),
         }
     }

@@ -591,7 +591,7 @@ mod tests {
         let predicted = array![0, 3, 2, 0, 1, 1, 1, 3, 2, 3];
 
         let ground_truth = Dataset::new((), array![0, 2, 3, 0, 1, 2, 1, 2, 3, 2])
-            .with_labels(vec![0, 1, 2]);
+            .with_labels(&[0, 1, 2]);
 
         // exclude class 3 from evaluation
         let cm = predicted
@@ -602,7 +602,7 @@ mod tests {
         // weight errors in class 2 more severe and exclude class 1
         let ground_truth = ground_truth
             .with_weights(vec![1., 2., 1., 1., 1., 2., 1., 2., 1., 2.])
-            .with_labels(vec![0, 2, 3]);
+            .with_labels(&[0, 2, 3]);
 
         let cm = predicted
             .confusion_matrix(&ground_truth);

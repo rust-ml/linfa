@@ -152,14 +152,6 @@ impl<'a, F: Float> Records for Kernel<ArrayView2<'a, F>> {
     }
 }
 
-impl<'a, F: Float> Records for &'a Kernel<ArrayView2<'a, F>> {
-    type Elem = F;
-
-    fn observations(&self) -> usize {
-        self.size()
-    }
-}
-
 pub enum KernelMethod<F> {
     Gaussian(F),
     Linear,

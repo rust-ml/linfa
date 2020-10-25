@@ -1,11 +1,11 @@
-use ndarray::{Array1, Array2, OwnedRepr, ArrayView2};
+use ndarray::{Array1, Array2, ArrayView2};
 use ndarray_linalg::{
     eigh::EighInto, lapack::UPLO, lobpcg, lobpcg::LobpcgResult, Scalar, TruncatedOrder, Lapack
 };
 use ndarray_rand::{rand_distr::Uniform, RandomExt};
 use num_traits::NumCast;
 
-use linfa::{Float, Dataset, traits::Transformer};
+use linfa::{Float, traits::Transformer};
 use linfa_kernel::Kernel;
 
 use super::hyperparameters::{DiffusionMapHyperParams, DiffusionMapHyperParamsBuilder};

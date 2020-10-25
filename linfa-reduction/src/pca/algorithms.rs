@@ -2,7 +2,7 @@
 ///
 /// Reduce dimensionality with a linear projection using Singular Value Decomposition. The data is
 /// centered before applying the SVD. This uses TruncatedSvd from ndarray-linalg package.
-use ndarray::{Array1, Array2, ArrayBase, Axis, DataMut, Ix2, Data};
+use ndarray::{Array1, Array2, ArrayBase, Axis, Ix2, Data};
 use ndarray_linalg::{TruncatedOrder, TruncatedSvd};
 
 use linfa::{traits::{Fit, Predict}, Float, Dataset};
