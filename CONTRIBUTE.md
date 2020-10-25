@@ -75,3 +75,34 @@ impl<'a, F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Vec<Pr>> for Sv
     }
 }
 ```
+
+For an example of a `Transformer` please look into the [linfa-kernel](linfa-kernel/src/lib.rs) implementation.
+
+## Make serde optionally
+
+If you want to implement `Serialize` and `Deserialize` for your parameters, please do that behind a feature flag. You can add to your cargo manifest
+```
+[features]
+serde = ["serde_crate", "ndarray/serde"]
+
+[dependencies.serde_crate]
+package = "serde"
+optional = true
+version = "1.0"
+```
+which basically renames the `serde` crate to `serde_crate` and adds a feature `serde`. In your parameter struct, move the macro definition behind the `serde` feature:
+```rust
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
+
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
+#[derive(Clone, Debug, PartialEq)]
+pub struct HyperParams {
+...
+}
+```
+
