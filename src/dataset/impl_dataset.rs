@@ -1,5 +1,5 @@
 use super::{iter::Iter, Dataset, Float, Label, Labels, Records, Targets};
-use ndarray::{Axis, Array2, ArrayView2, ArrayBase, Data, Dimension};
+use ndarray::{Array2, ArrayBase, ArrayView2, Axis, Data, Dimension};
 
 impl<F: Float, L: Label> Dataset<Array2<F>, Vec<L>> {
     pub fn iter<'a>(&'a self) -> Iter<'a, Array2<F>, Vec<L>> {
@@ -40,7 +40,7 @@ impl<R: Records, S: Targets> Dataset<R, S> {
         Dataset {
             records: self.records,
             targets,
-            weights: self.weights
+            weights: self.weights,
         }
     }
 
@@ -49,7 +49,7 @@ impl<R: Records, S: Targets> Dataset<R, S> {
 
         self
     }
-    
+
     pub fn map_targets<T, G: FnMut(&S::Elem) -> T>(self, fnc: G) -> Dataset<R, Vec<T>> {
         let Dataset {
             records,
@@ -69,7 +69,13 @@ impl<R: Records, S: Targets> Dataset<R, S> {
 }
 
 impl<F: Float, T: Targets> Dataset<Array2<F>, T> {
-    pub fn split_with_ratio<'a>(&'a self, ratio: f32) -> (Dataset<ArrayView2<'a, F>, &'a [T::Elem]>, Dataset<ArrayView2<'a, F>, &'a [T::Elem]>) {
+    pub fn split_with_ratio<'a>(
+        &'a self,
+        ratio: f32,
+    ) -> (
+        Dataset<ArrayView2<'a, F>, &'a [T::Elem]>,
+        Dataset<ArrayView2<'a, F>, &'a [T::Elem]>,
+    ) {
         let n = (self.observations() as f32 * ratio).ceil() as usize;
         let (a, b) = self.records.view().split_at(Axis(0), n);
 
@@ -84,7 +90,13 @@ impl<F: Float, T: Targets> Dataset<Array2<F>, T> {
 }
 
 impl<'a, F: Float, T: Targets> Dataset<ArrayView2<'a, F>, T> {
-    pub fn split_with_ratio(&'a self, ratio: f32) -> (Dataset<ArrayView2<'a, F>, &'a [T::Elem]>, Dataset<ArrayView2<'a, F>, &'a [T::Elem]>) {
+    pub fn split_with_ratio(
+        &'a self,
+        ratio: f32,
+    ) -> (
+        Dataset<ArrayView2<'a, F>, &'a [T::Elem]>,
+        Dataset<ArrayView2<'a, F>, &'a [T::Elem]>,
+    ) {
         let n = (self.observations() as f32 * ratio).ceil() as usize;
         let (a, b) = self.records.split_at(Axis(0), n);
 
@@ -104,7 +116,9 @@ impl<R: Records, S: Labels> Dataset<R, S> {
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, I: Dimension> From<ArrayBase<D, I>> for Dataset<ArrayBase<D, I>, ()> {
+impl<F: Float, D: Data<Elem = F>, I: Dimension> From<ArrayBase<D, I>>
+    for Dataset<ArrayBase<D, I>, ()>
+{
     fn from(records: ArrayBase<D, I>) -> Self {
         Dataset {
             records,
@@ -114,7 +128,9 @@ impl<F: Float, D: Data<Elem = F>, I: Dimension> From<ArrayBase<D, I>> for Datase
     }
 }
 
-impl<F: Float, T: Targets, D: Data<Elem = F>, I: Dimension> From<(ArrayBase<D, I>, T)> for Dataset<ArrayBase<D, I>, T> {
+impl<F: Float, T: Targets, D: Data<Elem = F>, I: Dimension> From<(ArrayBase<D, I>, T)>
+    for Dataset<ArrayBase<D, I>, T>
+{
     fn from(rec_tar: (ArrayBase<D, I>, T)) -> Self {
         Dataset {
             records: rec_tar.0,

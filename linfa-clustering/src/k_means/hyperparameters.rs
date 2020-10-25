@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
+use linfa::Float;
 use ndarray_rand::rand::{Rng, SeedableRng};
 use rand_isaac::Isaac64Rng;
-use linfa::Float;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 /// The set of hyperparameters that can be specified for the execution of
@@ -56,7 +56,12 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParamsBuilder<F, R> {
     ///
     /// **Panics** if any of the validation checks fails.
     pub fn build(self) -> KMeansHyperParams<F, R> {
-        KMeansHyperParams::build(self.n_clusters, self.tolerance, self.max_n_iterations, self.rng)
+        KMeansHyperParams::build(
+            self.n_clusters,
+            self.tolerance,
+            self.max_n_iterations,
+            self.rng,
+        )
     }
 }
 
@@ -87,7 +92,7 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParams<F, R> {
             tolerance: F::from(1e-4).unwrap(),
             max_n_iterations: 300,
             n_clusters,
-            rng
+            rng,
         }
     }
 

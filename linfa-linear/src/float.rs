@@ -45,7 +45,11 @@ impl ArgminMul<ArgminParam<Self>, ArgminParam<Self>> for f32 {
 
 // Here we create a new type over ndarray's Array1. This is required
 // to implement traits required by argmin
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate="serde_crate"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Clone, Debug, Default)]
 pub struct ArgminParam<A>(pub Array1<A>);
 

@@ -4,9 +4,9 @@ use kodama::linkage;
 pub use kodama::Method;
 use ndarray::ArrayView2;
 
-use linfa::Float;
 use linfa::dataset::{Dataset, Targets};
 use linfa::traits::Transformer;
+use linfa::Float;
 use linfa_kernel::Kernel;
 
 /// Criterion when to stop merging
@@ -58,11 +58,17 @@ impl<F: Float> HierarchicalCluster<F> {
     }
 }
 
-impl<'b: 'a, 'a, F: Float> Transformer<Kernel<ArrayView2<'a, F>>, Dataset<Kernel<ArrayView2<'a, F>>, Vec<usize>>> for HierarchicalCluster<F> {
+impl<'b: 'a, 'a, F: Float>
+    Transformer<Kernel<ArrayView2<'a, F>>, Dataset<Kernel<ArrayView2<'a, F>>, Vec<usize>>>
+    for HierarchicalCluster<F>
+{
     /// Perform hierarchical clustering of a similarity matrix
     ///
     /// Returns the class id for each data point
-    fn transform(&self, kernel: Kernel<ArrayView2<'a, F>>) -> Dataset<Kernel<ArrayView2<'a, F>>, Vec<usize>> {
+    fn transform(
+        &self,
+        kernel: Kernel<ArrayView2<'a, F>>,
+    ) -> Dataset<Kernel<ArrayView2<'a, F>>, Vec<usize>> {
         // ignore all similarities below this value
         let threshold = F::from(1e-6).unwrap();
 
@@ -128,16 +134,23 @@ impl<'b: 'a, 'a, F: Float> Transformer<Kernel<ArrayView2<'a, F>>, Dataset<Kernel
     }
 }
 
-impl<'a, F: Float, T: Targets> Transformer<Dataset<Kernel<ArrayView2<'a, F>>, T>, Dataset<Kernel<ArrayView2<'a, F>>, Vec<usize>>> for HierarchicalCluster<F> {
+impl<'a, F: Float, T: Targets>
+    Transformer<
+        Dataset<Kernel<ArrayView2<'a, F>>, T>,
+        Dataset<Kernel<ArrayView2<'a, F>>, Vec<usize>>,
+    > for HierarchicalCluster<F>
+{
     /// Perform hierarchical clustering of a similarity matrix
     ///
     /// Returns the class id for each data point
-    fn transform(&self, dataset: Dataset<Kernel<ArrayView2<'a, F>>, T>) -> Dataset<Kernel<ArrayView2<'a, F>>, Vec<usize>> {
+    fn transform(
+        &self,
+        dataset: Dataset<Kernel<ArrayView2<'a, F>>, T>,
+    ) -> Dataset<Kernel<ArrayView2<'a, F>>, Vec<usize>> {
         //let Dataset { records, .. } = dataset;
         self.transform(dataset.records)
     }
 }
-
 
 /// Initialize hierarchical clustering, which averages in-cluster points and stops when two
 /// clusters are reached.

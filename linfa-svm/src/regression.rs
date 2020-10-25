@@ -1,6 +1,6 @@
 //! Support Vector Regression
 use linfa::{dataset::Dataset, traits::Fit, traits::Predict};
-use ndarray::{ArrayBase, Ix2, Data};
+use ndarray::{ArrayBase, Data, Ix2};
 
 use super::permutable_kernel::{Kernel, PermutableKernelRegression};
 use super::solver_smo::SolverState;
@@ -183,9 +183,9 @@ impl<'a, D: Data<Elem = f64>> Predict<ArrayBase<D, Ix2>, Vec<f64>> for Svm<'a, f
 pub mod tests {
     use super::Svm;
 
+    use linfa::dataset::Dataset;
     use linfa::metrics::Regression;
     use linfa::traits::{Fit, Predict, Transformer};
-    use linfa::dataset::Dataset;
     use linfa_kernel::{Kernel, KernelMethod};
     use ndarray::{Array, Array1};
 
@@ -203,9 +203,7 @@ pub mod tests {
 
         let dataset = Dataset::new(kernel, &target);
 
-        let model = Svm::params()
-            .nu_eps(2., 0.01)
-            .fit(&dataset);
+        let model = Svm::params().nu_eps(2., 0.01).fit(&dataset);
 
         println!("{}", model);
 
@@ -227,9 +225,7 @@ pub mod tests {
 
         let dataset = Dataset::new(kernel, &target);
 
-        let model = Svm::params()
-            .nu_eps(2., 0.01)
-            .fit(&dataset);
+        let model = Svm::params().nu_eps(2., 0.01).fit(&dataset);
 
         println!("{}", model);
 

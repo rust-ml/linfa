@@ -1,13 +1,17 @@
 use crate::k_means::helpers::IncrementalMean;
 use crate::k_means::hyperparameters::{KMeansHyperParams, KMeansHyperParamsBuilder};
+use linfa::{
+    dataset::{Dataset, Targets},
+    traits::*,
+    Float,
+};
 use ndarray::{s, Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
 use ndarray_rand::rand;
 use ndarray_rand::rand::Rng;
 use ndarray_stats::DeviationExt;
+use rand_isaac::Isaac64Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use linfa::{Float, dataset::{Dataset, Targets}, traits::*};
-use rand_isaac::Isaac64Rng;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 /// K-means clustering aims to partition a set of unlabeled observations into clusters,
@@ -124,7 +128,10 @@ impl<F: Float> KMeans<F> {
         KMeansHyperParams::new(nclusters)
     }
 
-    pub fn params_with_rng<R: Rng + Clone>(nclusters: usize, rng: R) -> KMeansHyperParamsBuilder<F, R> {
+    pub fn params_with_rng<R: Rng + Clone>(
+        nclusters: usize,
+        rng: R,
+    ) -> KMeansHyperParamsBuilder<F, R> {
         KMeansHyperParams::new_with_rng(nclusters, rng)
     }
 
@@ -135,7 +142,9 @@ impl<F: Float> KMeans<F> {
     }
 }
 
-impl<'a, F: Float, R: Rng + Clone, D: Data<Elem = F>, T: Targets> Fit<'a, ArrayBase<D, Ix2>, T> for KMeansHyperParams<F, R> {
+impl<'a, F: Float, R: Rng + Clone, D: Data<Elem = F>, T: Targets> Fit<'a, ArrayBase<D, Ix2>, T>
+    for KMeansHyperParams<F, R>
+{
     type Object = KMeans<F>;
 
     /// Given an input matrix `observations`, with shape `(n_observations, n_features)`,
@@ -143,10 +152,7 @@ impl<'a, F: Float, R: Rng + Clone, D: Data<Elem = F>, T: Targets> Fit<'a, ArrayB
     ///
     /// An instance of `KMeans` is returned.
     ///
-    fn fit(
-        &self,
-        dataset: &Dataset<ArrayBase<D, Ix2>, T>
-    ) -> Self::Object {
+    fn fit(&self, dataset: &Dataset<ArrayBase<D, Ix2>, T>) -> Self::Object {
         let mut rng = self.rng();
         let observations = dataset.records().view();
 
@@ -159,14 +165,12 @@ impl<'a, F: Float, R: Rng + Clone, D: Data<Elem = F>, T: Targets> Fit<'a, ArrayB
 
         loop {
             update_cluster_memberships(&centroids, &observations, &mut memberships);
-            let new_centroids =
-                compute_centroids(self.n_clusters(), &observations, &memberships);
+            let new_centroids = compute_centroids(self.n_clusters(), &observations, &memberships);
 
             let distance = centroids
                 .sq_l2_dist(&new_centroids)
                 .expect("Failed to compute distance");
-            has_converged = distance < self.tolerance()
-                || n_iterations > self.max_n_iterations();
+            has_converged = distance < self.tolerance() || n_iterations > self.max_n_iterations();
 
             centroids = new_centroids;
             n_iterations += 1;
@@ -176,11 +180,8 @@ impl<'a, F: Float, R: Rng + Clone, D: Data<Elem = F>, T: Targets> Fit<'a, ArrayB
             }
         }
 
-        KMeans {
-            centroids,
-        }
+        KMeans { centroids }
     }
-
 }
 
 impl<F: Float, D: Data<Elem = F>> Predict<&ArrayBase<D, Ix2>, Array1<usize>> for KMeans<F> {
@@ -194,8 +195,14 @@ impl<F: Float, D: Data<Elem = F>> Predict<&ArrayBase<D, Ix2>, Array1<usize>> for
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T: Targets> Predict<Dataset<ArrayBase<D, Ix2>, T>, Dataset<ArrayBase<D, Ix2>, Array1<usize>>> for KMeans<F> {
-    fn predict(&self, dataset: Dataset<ArrayBase<D, Ix2>, T>) -> Dataset<ArrayBase<D, Ix2>, Array1<usize>> {
+impl<F: Float, D: Data<Elem = F>, T: Targets>
+    Predict<Dataset<ArrayBase<D, Ix2>, T>, Dataset<ArrayBase<D, Ix2>, Array1<usize>>>
+    for KMeans<F>
+{
+    fn predict(
+        &self,
+        dataset: Dataset<ArrayBase<D, Ix2>, T>,
+    ) -> Dataset<ArrayBase<D, Ix2>, Array1<usize>> {
         let predicted = self.predict(dataset.records());
         dataset.with_targets(predicted)
     }
@@ -329,8 +336,7 @@ fn get_random_centroids<F: Float, D: Data<Elem = F>>(
     n_clusters: usize,
     observations: &ArrayBase<D, Ix2>,
     rng: &mut impl Rng,
-) -> Array2<F>
-{
+) -> Array2<F> {
     let (n_samples, _) = observations.dim();
     let indices = rand::seq::index::sample(rng, n_samples, n_clusters).into_vec();
     observations.select(Axis(0), &indices)

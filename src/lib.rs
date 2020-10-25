@@ -31,10 +31,10 @@
 pub mod dataset;
 mod metrics_classification;
 mod metrics_regression;
-pub mod traits;
 pub mod prelude;
+pub mod traits;
 
-pub use dataset::{Float, Label, Dataset};
+pub use dataset::{Dataset, Float, Label};
 
 /// Common metrics functions for classification and regression
 pub mod metrics {

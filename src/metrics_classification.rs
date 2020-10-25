@@ -310,12 +310,14 @@ impl<R: Records, L: Label, T: Targets<Elem = L> + Labels<Elem = L>>
     }
 }
 
-impl<L: Label> ToConfusionMatrix<L, &[L]> for &[L]
-{
+impl<L: Label> ToConfusionMatrix<L, &[L]> for &[L] {
     fn confusion_matrix(&self, ground_truth: &[L]) -> ConfusionMatrix<L> {
         let classes = ground_truth
-            .into_iter().collect::<HashSet<_>>()
-            .into_iter().cloned().collect::<Vec<_>>();
+            .into_iter()
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .cloned()
+            .collect::<Vec<_>>();
 
         let indices = map_prediction_to_idx(&self, &ground_truth, &classes);
 
@@ -332,7 +334,8 @@ impl<L: Label> ToConfusionMatrix<L, &[L]> for &[L]
     }
 }
 
-impl<L: Label, S: Data<Elem = L>, T: Data<Elem = L>> ToConfusionMatrix<L, ArrayBase<S, Ix1>> for ArrayBase<T, Ix1> 
+impl<L: Label, S: Data<Elem = L>, T: Data<Elem = L>> ToConfusionMatrix<L, ArrayBase<S, Ix1>>
+    for ArrayBase<T, Ix1>
 {
     fn confusion_matrix(&self, ground_truth: ArrayBase<S, Ix1>) -> ConfusionMatrix<L> {
         let s1 = self.as_slice().unwrap();
@@ -342,7 +345,9 @@ impl<L: Label, S: Data<Elem = L>, T: Data<Elem = L>> ToConfusionMatrix<L, ArrayB
     }
 }
 
-impl<L: Label, S: Data<Elem = L>, T: Targets<Elem = L> + Labels<Elem = L>, R: Records> ToConfusionMatrix<L, &Dataset<R, T>> for ArrayBase<S, Ix1> {
+impl<L: Label, S: Data<Elem = L>, T: Targets<Elem = L> + Labels<Elem = L>, R: Records>
+    ToConfusionMatrix<L, &Dataset<R, T>> for ArrayBase<S, Ix1>
+{
     fn confusion_matrix(&self, ground_truth: &Dataset<R, T>) -> ConfusionMatrix<L> {
         Dataset::new((), self).confusion_matrix(ground_truth)
     }
@@ -490,7 +495,7 @@ impl BinaryClassification<&[bool]> for &[Pr] {
 
         ReceiverOperatingCharacteristic {
             curve: tps_fps,
-            thresholds: thresholds.into_iter().map(|x| *x).collect()
+            thresholds: thresholds.into_iter().map(|x| *x).collect(),
         }
     }
 }
@@ -511,8 +516,8 @@ impl<R: Records, R2: Records, T: Targets<Elem = bool>, T2: Targets<Elem = Pr>>
 
 #[cfg(test)]
 mod tests {
-    use super::{Dataset, Pr};
     use super::{BinaryClassification, ToConfusionMatrix};
+    use super::{Dataset, Pr};
     use approx::{abs_diff_eq, AbsDiffEq};
     use ndarray::{array, Array1, ArrayBase, ArrayView1, Data, Dimension};
     use rand::{distributions::Uniform, Rng};
@@ -590,12 +595,11 @@ mod tests {
     fn test_modification() {
         let predicted = array![0, 3, 2, 0, 1, 1, 1, 3, 2, 3];
 
-        let ground_truth = Dataset::new((), array![0, 2, 3, 0, 1, 2, 1, 2, 3, 2])
-            .with_labels(&[0, 1, 2]);
+        let ground_truth =
+            Dataset::new((), array![0, 2, 3, 0, 1, 2, 1, 2, 3, 2]).with_labels(&[0, 1, 2]);
 
         // exclude class 3 from evaluation
-        let cm = predicted
-            .confusion_matrix(&ground_truth);
+        let cm = predicted.confusion_matrix(&ground_truth);
 
         assert_eq_slice(cm.matrix, &[2., 0., 0., 0., 2., 1., 0., 0., 0.]);
 
@@ -604,8 +608,7 @@ mod tests {
             .with_weights(vec![1., 2., 1., 1., 1., 2., 1., 2., 1., 2.])
             .with_labels(&[0, 2, 3]);
 
-        let cm = predicted
-            .confusion_matrix(&ground_truth);
+        let cm = predicted.confusion_matrix(&ground_truth);
 
         // the false-positive error for label=2 is twice severe here
         assert_eq_slice(cm.matrix, &[2., 0., 0., 0., 0., 4., 0., 3., 0.]);
@@ -613,8 +616,7 @@ mod tests {
 
     #[test]
     fn test_roc_curve() {
-        let predicted = ArrayView1::from(&[0.1, 0.3, 0.5, 0.7, 0.8, 0.9])
-            .mapv(|x| Pr(x));
+        let predicted = ArrayView1::from(&[0.1, 0.3, 0.5, 0.7, 0.8, 0.9]).mapv(|x| Pr(x));
 
         let groundtruth = vec![false, true, false, true, true, true];
 
@@ -634,9 +636,7 @@ mod tests {
 
     #[test]
     fn test_roc_auc() {
-        let predicted = Array1::linspace(0.0, 1.0, 1000)
-            .mapv(|x| Pr(x));
-
+        let predicted = Array1::linspace(0.0, 1.0, 1000).mapv(|x| Pr(x));
 
         let mut rng = rand::thread_rng();
         let range = Uniform::new(0, 2);

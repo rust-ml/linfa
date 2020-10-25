@@ -11,7 +11,7 @@ pub use crate::traits::*;
 pub use crate::dataset::{Dataset, Float};
 
 #[doc(no_inline)]
-pub use crate::metrics_classification::{ConfusionMatrix, BinaryClassification};
+pub use crate::metrics_classification::{BinaryClassification, ConfusionMatrix};
 
 #[doc(no_inline)]
 pub use crate::metrics_regression::Regression;

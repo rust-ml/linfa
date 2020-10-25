@@ -17,8 +17,7 @@ fn main() {
     let n = 10;
     let dataset = Dataset::from(generate_blobs(n, &expected_centroids, &mut rng));
 
-    let embedding: Pca<f64> = Pca::params(1)
-        .fit(&dataset);
+    let embedding: Pca<f64> = Pca::params(1).fit(&dataset);
 
     let embedding = embedding.predict(dataset.records().view());
 

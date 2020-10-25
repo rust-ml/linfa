@@ -1,5 +1,5 @@
 use linfa::{dataset::Dataset, dataset::Pr, dataset::Targets, traits::Fit, traits::Predict};
-use ndarray::{Array1, Array2, Data, Ix2, ArrayBase, ArrayView2};
+use ndarray::{Array1, Array2, ArrayBase, ArrayView2, Data, Ix2};
 use std::cmp::Ordering;
 
 use super::permutable_kernel::{Kernel, PermutableKernel, PermutableKernelOneClass};
@@ -289,17 +289,19 @@ impl<'a, F: Float, T: Targets> Predict<Dataset<Array2<F>, T>, Dataset<Array2<F>,
     }
 }
 
-impl<'a, F: Float, T: Targets, D: Data<Elem = F>>Predict<&'a Dataset<ArrayBase<D, Ix2>, T>, Dataset<ArrayView2<'a, F>, Vec<Pr>>>
+impl<'a, F: Float, T: Targets, D: Data<Elem = F>>
+    Predict<&'a Dataset<ArrayBase<D, Ix2>, T>, Dataset<ArrayView2<'a, F>, Vec<Pr>>>
     for Svm<'a, F, Pr>
 {
-    fn predict(&self, data: &'a Dataset<ArrayBase<D, Ix2>, T>) -> Dataset<ArrayView2<'a, F>, Vec<Pr>> {
+    fn predict(
+        &self,
+        data: &'a Dataset<ArrayBase<D, Ix2>, T>,
+    ) -> Dataset<ArrayView2<'a, F>, Vec<Pr>> {
         let predicted = self.predict(data.records.view());
 
         Dataset::new(data.records.view(), predicted)
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -364,9 +366,7 @@ mod tests {
         // train model with Nu parameter
         let model = Svm::params().nu_weight(0.05).fit(&dataset);
 
-        let valid = model
-            .predict(valid)
-            .map_targets(|x| **x > 0.0);
+        let valid = model.predict(valid).map_targets(|x| **x > 0.0);
 
         let cm = valid.confusion_matrix(&dataset);
         assert_eq!(cm.accuracy(), 1.0);
@@ -396,9 +396,7 @@ mod tests {
         // train model with Nu parameter
         let model = Svm::params().nu_weight(0.01).fit(&dataset);
 
-        let valid = model
-            .predict(valid)
-            .map_targets(|x| **x > 0.0);
+        let valid = model.predict(valid).map_targets(|x| **x > 0.0);
 
         let cm = valid.confusion_matrix(&dataset);
         assert!(cm.accuracy() > 0.9);
@@ -427,9 +425,7 @@ mod tests {
         // train model with Nu parameter
         let model = Svm::params().nu_weight(0.01).fit(&dataset);
 
-        let valid = model
-            .predict(valid)
-            .map_targets(|x| **x > 0.0);
+        let valid = model.predict(valid).map_targets(|x| **x > 0.0);
 
         let cm = valid.confusion_matrix(&dataset);
         assert!(cm.accuracy() > 0.9);
@@ -449,9 +445,7 @@ mod tests {
         let model = Svm::params().nu_weight(1.0).fit(&dataset);
 
         let valid = Dataset::from(Array::random((100, 2), Uniform::new(-10., 10f32)));
-        let valid = model
-            .predict(valid)
-            .map_targets(|x| **x > 0.0);
+        let valid = model.predict(valid).map_targets(|x| **x > 0.0);
 
         // count the number of correctly rejected samples
         let mut rejected = 0;

@@ -4,9 +4,9 @@
 //! functionality.
 use ndarray::NdFloat;
 use num_traits::{FromPrimitive, Signed};
+use std::cmp::{Ordering, PartialOrd};
 use std::hash::Hash;
 use std::iter::Sum;
-use std::cmp::{Ordering, PartialOrd};
 use std::ops::Deref;
 
 mod impl_dataset;

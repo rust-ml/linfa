@@ -1,5 +1,5 @@
-use linfa::Dataset;
 use linfa::traits::{Fit, Predict};
+use linfa::Dataset;
 use linfa_clustering::{generate_blobs, KMeans, KMeansHyperParams};
 use ndarray::{array, Axis};
 use ndarray_npy::write_npy;
@@ -27,14 +27,13 @@ fn main() {
 
     // Assign each point to a cluster using the set of centroids found using `fit`
     let dataset = model.predict(dataset);
-    let Dataset { records, targets, .. } = dataset;
+    let Dataset {
+        records, targets, ..
+    } = dataset;
 
     // Save to disk our dataset (and the cluster label assigned to each observation)
     // We use the `npy` format for compatibility with NumPy
     write_npy("clustered_dataset.npy", records).expect("Failed to write .npy file");
-    write_npy(
-        "clustered_memberships.npy",
-        targets.map(|&x| x as u64),
-    )
-    .expect("Failed to write .npy file");
+    write_npy("clustered_memberships.npy", targets.map(|&x| x as u64))
+        .expect("Failed to write .npy file");
 }

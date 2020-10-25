@@ -3,9 +3,9 @@ use ndarray::{Array1, ArrayBase, ArrayView, Axis, Data, Ix1, Ix2};
 use ndarray_stats::DeviationExt;
 use serde::{Deserialize, Serialize};
 
-use linfa::{Float, Dataset};
 use linfa::dataset::Targets;
 use linfa::traits::Transformer;
+use linfa::{Dataset, Float};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 /// DBSCAN (Density-based Spatial Clustering of Applications with Noise)
@@ -78,23 +78,18 @@ impl Dbscan {
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<usize>>> for DbscanHyperParams {
-    fn transform(
-        &self,
-        observations: &ArrayBase<D, Ix2>,
-    ) -> Array1<Option<usize>> {
+impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<usize>>>
+    for DbscanHyperParams
+{
+    fn transform(&self, observations: &ArrayBase<D, Ix2>) -> Array1<Option<usize>> {
         let mut cluster_memberships = Array1::from_elem(observations.dim().1, None);
         let mut current_cluster_id = 0;
         for (i, obs) in observations.axis_iter(Axis(1)).enumerate() {
             if cluster_memberships[i].is_some() {
                 continue;
             }
-            let (neighbor_count, mut search_queue) = find_neighbors(
-                &obs,
-                observations,
-                self.tolerance(),
-                &cluster_memberships,
-            );
+            let (neighbor_count, mut search_queue) =
+                find_neighbors(&obs, observations, self.tolerance(), &cluster_memberships);
             if neighbor_count < self.minimum_points() {
                 continue;
             }
@@ -121,7 +116,10 @@ impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T: Targets> Transformer<Dataset<ArrayBase<D, Ix2>, T>, Dataset<ArrayBase<D, Ix2>, Array1<Option<usize>>>> for DbscanHyperParams {
+impl<F: Float, D: Data<Elem = F>, T: Targets>
+    Transformer<Dataset<ArrayBase<D, Ix2>, T>, Dataset<ArrayBase<D, Ix2>, Array1<Option<usize>>>>
+    for DbscanHyperParams
+{
     fn transform(
         &self,
         dataset: Dataset<ArrayBase<D, Ix2>, T>,
@@ -183,10 +181,7 @@ mod tests {
 
         data.slice_mut(s![.., 40..]).fill(5.0);
 
-        let labels = Dbscan::params(2)
-            .tolerance(1.0)
-            .build()
-            .transform(&data);
+        let labels = Dbscan::params(2).tolerance(1.0).build().transform(&data);
 
         assert!(labels.slice(s![..40]).iter().all(|x| x == &Some(0)));
         assert!(labels.slice(s![40..]).iter().all(|x| x == &Some(1)));
@@ -198,9 +193,7 @@ mod tests {
         let mut data: Array2<f64> = Array2::zeros((2, 5));
         data.slice_mut(s![.., 0]).assign(&arr1(&[10.0, 10.0]));
 
-        let labels = Dbscan::params(4)
-            .build()
-            .transform(&data);
+        let labels = Dbscan::params(4).build().transform(&data);
 
         let expected = arr1(&[None, Some(0), Some(0), Some(0), Some(0)]);
         assert_eq!(labels, expected);
@@ -212,9 +205,7 @@ mod tests {
 
         let data: Array2<f64> = Array2::zeros((2, 3));
 
-        let labels = Dbscan::params(4)
-            .build()
-            .transform(&data);
+        let labels = Dbscan::params(4).build().transform(&data);
 
         assert!(labels.iter().all(|x| x.is_none()));
     }

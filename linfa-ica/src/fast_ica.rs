@@ -6,12 +6,16 @@
 //!
 //! Input data is whitened (remove underlying correlation) before modeling.
 
-use ndarray::{Array, Array1, Array2, Axis, Data, Ix2, ArrayBase};
+use linfa::{
+    dataset::{Dataset, Targets},
+    traits::*,
+    Float,
+};
+use ndarray::{Array, Array1, Array2, ArrayBase, Axis, Data, Ix2};
 use ndarray_linalg::{eigh::Eigh, lapack::UPLO, svd::SVD, Lapack};
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
 use ndarray_stats::QuantileExt;
 use rand_isaac::Isaac64Rng;
-use linfa::{Float, traits::*, dataset::{Dataset, Targets}};
 
 use crate::error::{FastIcaError, Result};
 
@@ -74,7 +78,9 @@ impl<F: Float> FastIca<F> {
     }
 }
 
-impl<'a, F: Float + Lapack, D: Data<Elem=F>, T: Targets> Fit<'a, ArrayBase<D, Ix2>, T> for FastIca<F> {
+impl<'a, F: Float + Lapack, D: Data<Elem = F>, T: Targets> Fit<'a, ArrayBase<D, Ix2>, T>
+    for FastIca<F>
+{
     type Object = Result<FittedFastIca<F>>;
 
     /// Fit the model

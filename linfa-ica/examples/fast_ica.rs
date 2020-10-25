@@ -1,5 +1,8 @@
+use linfa::{
+    dataset::Dataset,
+    traits::{Fit, Predict},
+};
 use linfa_ica::fast_ica::{FastIca, GFunc};
-use linfa::{traits::{Fit, Predict}, dataset::Dataset};
 use ndarray::{array, stack};
 use ndarray::{Array, Array2, Axis};
 use ndarray_npy::write_npy;

@@ -1,6 +1,6 @@
 use super::{Dataset, Label, Labels, Records, Targets};
-use std::collections::HashSet;
 use ndarray::{ArrayBase, Data, Ix1};
+use std::collections::HashSet;
 
 /// A vector can act as targets
 impl<L> Targets for Vec<L> {
@@ -14,8 +14,11 @@ impl<L> Targets for Vec<L> {
 /// A vector with discrete labels can act as labels
 impl<L: Label> Labels for Vec<L> {
     fn labels(&self) -> Vec<L> {
-        self.iter().cloned().collect::<HashSet<L>>()
-            .into_iter().collect()
+        self.iter()
+            .cloned()
+            .collect::<HashSet<L>>()
+            .into_iter()
+            .collect()
     }
 }
 
@@ -31,8 +34,11 @@ impl<L> Targets for &[L] {
 /// A slice with discrete labels can act as labels
 impl<L: Label> Labels for &[L] {
     fn labels(&self) -> Vec<L> {
-        self.iter().cloned().collect::<HashSet<L>>()
-            .into_iter().collect()
+        self.iter()
+            .cloned()
+            .collect::<HashSet<L>>()
+            .into_iter()
+            .collect()
     }
 }
 
@@ -48,8 +54,11 @@ impl<L, S: Data<Elem = L>> Targets for ArrayBase<S, Ix1> {
 /// A NdArray with discrete labels can act as labels
 impl<L: Label, S: Data<Elem = L>> Labels for ArrayBase<S, Ix1> {
     fn labels(&self) -> Vec<L> {
-        self.iter().cloned().collect::<HashSet<L>>()
-            .into_iter().collect()
+        self.iter()
+            .cloned()
+            .collect::<HashSet<L>>()
+            .into_iter()
+            .collect()
     }
 }
 
@@ -61,7 +70,6 @@ impl Targets for () {
         &[()]
     }
 }
-
 
 impl<T: Targets> Targets for &T {
     type Elem = T::Elem;
@@ -80,7 +88,7 @@ impl<T: Labels> Labels for &T {
 /// Targets with precomputed labels
 pub struct TargetsWithLabels<L: Labels> {
     targets: L,
-    labels: HashSet<L::Elem>
+    labels: HashSet<L::Elem>,
 }
 
 impl<L: Labels> Targets for TargetsWithLabels<L> {
@@ -101,7 +109,7 @@ impl<R: Records, L: Label, T: Labels<Elem = L>> Dataset<R, T> {
     pub fn with_labels(self, labels: &[L]) -> Dataset<R, TargetsWithLabels<T>> {
         let targets = TargetsWithLabels {
             targets: self.targets,
-            labels: labels.into_iter().cloned().collect()
+            labels: labels.into_iter().cloned().collect(),
         };
 
         Dataset {

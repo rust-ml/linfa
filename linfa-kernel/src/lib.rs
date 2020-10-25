@@ -30,7 +30,8 @@ pub enum KernelInner<F: Float> {
 ///
 ///
 pub struct Kernel<R: Records>
-    where R::Elem: Float 
+where
+    R::Elem: Float,
 {
     pub inner: KernelInner<R::Elem>,
     pub fnc: SimFnc<R::Elem>,
@@ -237,10 +238,15 @@ impl<'a, F: Float, T: Targets>
 }
 
 impl<'a, F: Float, T: Targets>
-    Transformer<&'a Dataset<ArrayView2<'a, F>, T>, Dataset<Kernel<ArrayView2<'a, F>>, &'a [T::Elem]>>
-    for KernelParams<F>
+    Transformer<
+        &'a Dataset<ArrayView2<'a, F>, T>,
+        Dataset<Kernel<ArrayView2<'a, F>>, &'a [T::Elem]>,
+    > for KernelParams<F>
 {
-    fn transform(&self, x: &'a Dataset<ArrayView2<'a, F>, T>) -> Dataset<Kernel<ArrayView2<'a, F>>, &'a [T::Elem]> {
+    fn transform(
+        &self,
+        x: &'a Dataset<ArrayView2<'a, F>, T>,
+    ) -> Dataset<Kernel<ArrayView2<'a, F>>, &'a [T::Elem]> {
         let fnc = self.method.method();
         let is_linear = self.method.is_linear();
 

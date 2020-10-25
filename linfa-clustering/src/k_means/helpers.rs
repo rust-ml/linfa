@@ -38,8 +38,8 @@ impl<F: Float> IncrementalMean<F> {
 
     pub fn update(&mut self, new_observation: &ArrayBase<impl Data<Elem = F>, Ix1>) {
         self.n_observations += 1;
-        let shift =
-            (new_observation - &self.current_mean).mapv_into(|x| x / F::from(self.n_observations).unwrap());
+        let shift = (new_observation - &self.current_mean)
+            .mapv_into(|x| x / F::from(self.n_observations).unwrap());
         self.current_mean += &shift;
     }
 }

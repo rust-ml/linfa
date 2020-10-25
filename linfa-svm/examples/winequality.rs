@@ -8,10 +8,10 @@ use flate2::read::GzDecoder;
 use ndarray::{Array1, Array2, Axis};
 use ndarray_csv::Array2Reader;
 
-use linfa::traits::*;
-use linfa::metrics::ToConfusionMatrix;
-use linfa::dataset::Records;
 use linfa::dataset::Dataset;
+use linfa::dataset::Records;
+use linfa::metrics::ToConfusionMatrix;
+use linfa::traits::*;
 use linfa_kernel::{Kernel, KernelMethod};
 use linfa_svm::Svm;
 
@@ -38,12 +38,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let targets = targets.into_iter().collect::<Array1<_>>();
 
     // everything above 6.5 is considered a good wine
-    let dataset = Dataset::new(data, targets)
-        .map_targets(|x| **x > 6.5);
+    let dataset = Dataset::new(data, targets).map_targets(|x| **x > 6.5);
 
     // split into training and validation dataset
     let (train, valid) = dataset.split_with_ratio(0.1);
-    
+
     // transform with RBF kernel
     let train_kernel = Kernel::params()
         .method(KernelMethod::Gaussian(80.0))
@@ -55,9 +54,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     // fit a SVM with C value 7 and 0.6 for positive and negative classes
-    let model = Svm::params()
-        .pos_neg_weights(7., 0.6)
-        .fit(&train_kernel);
+    let model = Svm::params().pos_neg_weights(7., 0.6).fit(&train_kernel);
 
     println!("{}", model);
     // A positive prediction indicates a good wine, a negative, a bad one
@@ -73,7 +70,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let valid = valid.map_targets(tag_classes);
 
     // predict and map targets
-    let pred = model.predict(&valid)
+    let pred = model
+        .predict(&valid)
         .map_targets(|x| **x > 0.0)
         .map_targets(tag_classes);
 

@@ -1,5 +1,5 @@
-use ndarray::{ArrayBase, Axis, Data, Dimension};
 use super::{Dataset, Float, Records, Targets};
+use ndarray::{ArrayBase, Axis, Data, Dimension};
 
 /// Implement records for NdArrays
 impl<F: Float, S: Data<Elem = F>, I: Dimension> Records for ArrayBase<S, I> {
