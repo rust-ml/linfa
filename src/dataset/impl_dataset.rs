@@ -102,8 +102,8 @@ impl<'a, F: Float, T: Targets> Dataset<ArrayView2<'a, F>, T> {
     }
 }
 
-impl<R: Records, L: Label, S: Targets<Elem = L> + Labels<Elem = L>> Dataset<R, S> {
-    pub fn labels(&self) -> Vec<<S as Labels>::Elem> {
+impl<R: Records, L: Label, S: Labels<Elem = L>> Dataset<R, S> {
+    pub fn labels(&self) -> Vec<S::Elem> {
         if self.labels.len() == 0 {
             self.targets.labels()
         } else {

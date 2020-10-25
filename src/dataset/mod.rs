@@ -69,8 +69,6 @@ pub trait Targets {
     fn as_slice<'a>(&'a self) -> &'a [Self::Elem];
 }
 
-pub trait Labels {
-    type Elem: Label;
-
+pub trait Labels: Targets {
     fn labels(&self) -> Vec<Self::Elem>;
 }

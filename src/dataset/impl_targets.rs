@@ -1,6 +1,6 @@
 use super::{Dataset, Label, Labels, Records, Targets};
 use std::collections::HashSet;
-use ndarray::{ArrayBase, Data, Dimension, Ix1};
+use ndarray::{ArrayBase, Data, Ix1};
 
 impl<L> Targets for Vec<L> {
     type Elem = L;
@@ -11,8 +11,6 @@ impl<L> Targets for Vec<L> {
 }
 
 impl<L: Label> Labels for Vec<L> {
-    type Elem = L;
-
     fn labels(&self) -> Vec<L> {
         self.iter().cloned().collect::<HashSet<L>>()
             .into_iter().collect()
@@ -44,8 +42,6 @@ impl<L> Targets for &[L] {
 }
 
 impl<L: Label> Labels for &[L] {
-    type Elem = L;
-
     fn labels(&self) -> Vec<L> {
         self.iter().cloned().collect::<HashSet<L>>()
             .into_iter().collect()
@@ -60,9 +56,7 @@ impl<L, S: Data<Elem = L>> Targets for ArrayBase<S, Ix1> {
     }
 }
 
-impl<L: Label, S: Data<Elem = L>, I: Dimension> Labels for ArrayBase<S, I> {
-    type Elem = L;
-
+impl<L: Label, S: Data<Elem = L>> Labels for ArrayBase<S, Ix1> {
     fn labels(&self) -> Vec<L> {
         self.iter().cloned().collect::<HashSet<L>>()
             .into_iter().collect()
@@ -77,8 +71,6 @@ impl Targets for () {
     }
 }
 
-//impl<'a, T> Targets for &'a T where T: Targets {}
-
 impl<T: Targets> Targets for &T {
     type Elem = T::Elem;
 
@@ -88,9 +80,7 @@ impl<T: Targets> Targets for &T {
 }
 
 impl<T: Labels> Labels for &T {
-    type Elem = T::Elem;
-
-    fn labels(&self) -> Vec<Self::Elem> {
+    fn labels(&self) -> Vec<T::Elem> {
         (*self).labels()
     }
 }
