@@ -541,7 +541,7 @@ mod tests {
             array![1.0163, 1.5245, 2.0327],
             epsilon = 1e-3
         );
-        // assert_almost_equal(clf.dual_gap_, 0)
+        assert_abs_diff_eq!(model.duality_gap(), 0.0);
 
         let model = ElasticNetRegression::new()
             .l1_ratio(0.5)
@@ -555,7 +555,7 @@ mod tests {
             array![0.9090, 1.3636, 1.8181],
             epsilon = 1e-3
         );
-        // assert_almost_equal(clf.dual_gap_, 0)
+        assert_abs_diff_eq!(model.duality_gap(), 0.0);
     }
 
     #[test]
@@ -568,5 +568,5 @@ mod tests {
             .unwrap();
         assert_abs_diff_eq!(model.intercept(), 2.5);
         assert_abs_diff_eq!(model.parameters(), &array![0.5, -0.5], epsilon = 0.001);
-    }
+    }   
 }
