@@ -1,5 +1,5 @@
 use super::{iter::Iter, Dataset, Float, Label, Labels, Records, Targets};
-use ndarray::{Array2, ArrayBase, ArrayView2, Axis, Data, Dimension};
+use ndarray::{Array2, ArrayBase, ArrayView2, Axis, Data, Dimension, Ix2};
 
 impl<F: Float, L: Label> Dataset<Array2<F>, Vec<L>> {
     pub fn iter<'a>(&'a self) -> Iter<'a, Array2<F>, Vec<L>> {
@@ -68,7 +68,7 @@ impl<R: Records, S: Targets> Dataset<R, S> {
     }
 }
 
-impl<F: Float, T: Targets> Dataset<Array2<F>, T> {
+impl<F: Float, T: Targets, D: Data<Elem = F>> Dataset<ArrayBase<D, Ix2>, T> {
     pub fn split_with_ratio<'a>(
         &'a self,
         ratio: f32,
@@ -89,24 +89,15 @@ impl<F: Float, T: Targets> Dataset<Array2<F>, T> {
     }
 }
 
-impl<'a, F: Float, T: Targets> Dataset<ArrayView2<'a, F>, T> {
-    pub fn split_with_ratio(
-        &'a self,
-        ratio: f32,
-    ) -> (
-        Dataset<ArrayView2<'a, F>, &'a [T::Elem]>,
-        Dataset<ArrayView2<'a, F>, &'a [T::Elem]>,
-    ) {
-        let n = (self.observations() as f32 * ratio).ceil() as usize;
-        let (a, b) = self.records.split_at(Axis(0), n);
+impl<F: Float, L: Label, T: Labels<Elem = L>, D: Data<Elem = F>> Dataset<ArrayBase<D, Ix2>, T> {
+    pub fn one_vs_all<'a>(&'a self) -> Vec<Dataset<ArrayView2<'a, F>, Vec<bool>>> {
+        self.labels().into_iter().map(|label| {
+            let targets = self.targets().as_slice().into_iter()
+                .map(|x| x == &label)
+                .collect();
 
-        let targets = self.targets();
-        let (c, d) = (&targets[..n], &targets[n..]);
-
-        let d1 = Dataset::new(a, c);
-        let d2 = Dataset::new(b, d);
-
-        (d1, d2)
+            Dataset::new(self.records().view(), targets)
+        }).collect()
     }
 }
 
