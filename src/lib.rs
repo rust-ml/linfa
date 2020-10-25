@@ -28,6 +28,7 @@
 //! and get involved!
 //!
 
+pub mod error;
 pub mod dataset;
 mod metrics_classification;
 mod metrics_regression;

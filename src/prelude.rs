@@ -5,6 +5,9 @@
 //!
 
 #[doc(no_inline)]
+pub use crate::error::{Error, Result};
+
+#[doc(no_inline)]
 pub use crate::traits::*;
 
 #[doc(no_inline)]
@@ -15,3 +18,4 @@ pub use crate::metrics_classification::{BinaryClassification, ConfusionMatrix};
 
 #[doc(no_inline)]
 pub use crate::metrics_regression::Regression;
+

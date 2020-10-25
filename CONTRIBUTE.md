@@ -1,6 +1,6 @@
 # How to contribute to the Linfa project
 
-This document should be used as a reference when contributing to Linfa. It describes how an algorithm should be implemented to fit well into Linfas ecosystem. First, there are implementation details, how to use a generic float type, how to accept a `Dataset` etc. Second, the cargo manifest should be set up, such that a user can choose for different backends. 
+This document should be used as a reference when contributing to Linfa. It describes how an algorithm should be implemented to fit well into the Linfa ecosystem. First, there are implementation details, how to use a generic float type, how to use the `Dataset` type in arguments etc. Second, the cargo manifest should be set up, such that a user can choose for different backends. 
 
 ## Let the user choose their favourite linear algebra library
 
@@ -55,9 +55,9 @@ impl<'a, F: Float> Fit<'a, Kernel<'a, F>, Vec<bool>> for SvmParams<F, Pr> {
     }
 }
 ```
-the type of the dataset is `&'a Dataset<Kernel<'a, F>, Vec<bool>>`, ensuring that the kernel lives long enough for the fitting process. It produces a fitted state, called `Svm<'a, F, Pr>` with probability type `Pr`.
+the type of the dataset is `&'a Dataset<Kernel<'a, F>, Vec<bool>>`, ensuring that the kernel lives long enough during the training. It produces a fitted state, called `Svm<'a, F, Pr>` with probability type `Pr`.
 
-The [Predict](src/traits.rs) should be implemented for datasets, as well as arrays. If a dataset is provided, then predict takes its ownership and returns a new dataset with overwritten targets. For an array, predict takes a reference and returns predicted targets. In the same context, SVM implemented predict like this:
+The [Predict](src/traits.rs) should be implemented with dataset arguments, as well as arrays. If a dataset is provided, then predict takes its ownership and returns a new dataset with predicted targets. For an array, predict takes a reference and returns predicted targets. In the same context, SVM implemented predict like this:
 ```rust
 impl<'a, F: Float, T: Targets> Predict<Dataset<Array2<F>, T>, Dataset<Array2<F>, Vec<Pr>>>
     for Svm<'a, F, Pr>
