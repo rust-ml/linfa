@@ -16,14 +16,6 @@ categories = ["algorithms", "mathematics", "science"]
 ndarray = { version = "0.13" }
 num-traits = "0.1.32"
 
-#linfa-clustering = { path = "linfa-clustering", version = "0.1" }
-#linfa-trees = { path = "linfa-trees", version = "0.1" }
-#linfa-reduction = { path = "linfa-reduction", version = "0.1" }
-#linfa-linear = { path = "linfa-linear", version = "0.1" }
-#linfa-logistic = { path = "linfa-logistic", version = "0.1" }
-#linfa-svm = { path = "linfa-svm", version = "0.1" }
-#linfa-hierarchical = { path = "linfa-hierarchical", version = "0.1" }
-
 [dev-dependencies]
 rand = "0.7"
 ndarray-rand = "0.11"

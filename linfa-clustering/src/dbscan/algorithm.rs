@@ -1,13 +1,19 @@
 use crate::dbscan::hyperparameters::{DbscanHyperParams, DbscanHyperParamsBuilder};
 use ndarray::{Array1, ArrayBase, ArrayView, Axis, Data, Ix1, Ix2};
 use ndarray_stats::DeviationExt;
-use serde::{Deserialize, Serialize};
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 use linfa::dataset::Targets;
 use linfa::traits::Transformer;
 use linfa::{Dataset, Float};
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
+#[derive(Clone, Debug, PartialEq)]
 /// DBSCAN (Density-based Spatial Clustering of Applications with Noise)
 /// clusters together points which are close together with enough neighbors
 /// labelled points which are sparsely neighbored as noise. As points may be
@@ -165,8 +171,6 @@ mod tests {
     fn nested_clusters() {
         // Create a circuit of points and then a cluster in the centre
         // and ensure they are identified as two separate clusters
-        let params = DbscanHyperParams::new(2).tolerance(1.0).build();
-
         let mut data: Array2<f64> = Array2::zeros((2, 50));
         let rising = Array1::linspace(0.0, 8.0, 10);
         data.slice_mut(s![0, 0..10]).assign(&rising);
@@ -189,7 +193,6 @@ mod tests {
 
     #[test]
     fn non_cluster_points() {
-        let params = DbscanHyperParams::new(4).build();
         let mut data: Array2<f64> = Array2::zeros((2, 5));
         data.slice_mut(s![.., 0]).assign(&arr1(&[10.0, 10.0]));
 
@@ -201,8 +204,6 @@ mod tests {
 
     #[test]
     fn dataset_too_small() {
-        let params = DbscanHyperParams::new(4).build();
-
         let data: Array2<f64> = Array2::zeros((2, 3));
 
         let labels = Dbscan::params(4).build().transform(&data);

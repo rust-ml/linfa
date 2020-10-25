@@ -1,5 +1,5 @@
 use linfa::traits::Transformer;
-use linfa_clustering::{generate_blobs, Dbscan, DbscanHyperParams};
+use linfa_clustering::{generate_blobs, Dbscan};
 use ndarray::array;
 use ndarray_npy::write_npy;
 use ndarray_rand::rand::SeedableRng;

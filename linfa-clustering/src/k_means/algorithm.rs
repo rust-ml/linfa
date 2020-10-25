@@ -10,10 +10,17 @@ use ndarray_rand::rand;
 use ndarray_rand::rand::Rng;
 use ndarray_stats::DeviationExt;
 use rand_isaac::Isaac64Rng;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
+
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
+#[derive(Clone, Debug, PartialEq)]
 /// K-means clustering aims to partition a set of unlabeled observations into clusters,
 /// where each observation belongs to the cluster with the nearest mean.
 ///

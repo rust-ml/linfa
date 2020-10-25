@@ -1,6 +1,6 @@
 use linfa::traits::{Fit, Predict};
 use linfa::Dataset;
-use linfa_clustering::{generate_blobs, KMeans, KMeansHyperParams};
+use linfa_clustering::{generate_blobs, KMeans};
 use ndarray::{array, Axis};
 use ndarray_npy::write_npy;
 use ndarray_rand::rand::SeedableRng;
