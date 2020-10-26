@@ -33,6 +33,8 @@ num-traits = "0.1.32"
 rand_isaac = "0.2.0"
 
 linfa = { version = "0.2.1", path = ".." }
+linfa-kernel = { path = "../linfa-kernel" }
+partitions = "0.2.4"
 
 [dev-dependencies]
 openblas-src = { version = "0.9", default-features = false, features = ["system"] }
@@ -47,4 +49,8 @@ harness = false
 
 [[bench]]
 name = "dbscan"
+harness = false
+
+[[bench]]
+name = "appx_dbscan"
 harness = false

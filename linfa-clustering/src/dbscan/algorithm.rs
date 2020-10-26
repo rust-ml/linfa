@@ -44,7 +44,7 @@ use linfa::{Dataset, Float};
 ///
 /// Let's do a walkthrough of an example running DBSCAN on some data.
 ///
-/// ```
+/// ```rust
 /// use linfa::traits::Transformer;
 /// use linfa_clustering::{DbscanHyperParams, Dbscan, generate_blobs};
 /// use ndarray::{Axis, array, s};
@@ -88,14 +88,18 @@ impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<
     for DbscanHyperParams
 {
     fn transform(&self, observations: &ArrayBase<D, Ix2>) -> Array1<Option<usize>> {
-        let mut cluster_memberships = Array1::from_elem(observations.dim().1, None);
+        let mut cluster_memberships = Array1::from_elem(observations.dim().0, None);
         let mut current_cluster_id = 0;
-        for (i, obs) in observations.axis_iter(Axis(1)).enumerate() {
+        for (i, obs) in observations.axis_iter(Axis(0)).enumerate() {
             if cluster_memberships[i].is_some() {
                 continue;
             }
-            let (neighbor_count, mut search_queue) =
-                find_neighbors(&obs, observations, self.tolerance(), &cluster_memberships);
+            let (neighbor_count, mut search_queue) = find_neighbors(
+                &obs,
+                observations,
+                self.tolerance(),
+                &cluster_memberships,
+            );
             if neighbor_count < self.minimum_points() {
                 continue;
             }
@@ -146,7 +150,7 @@ fn find_neighbors<'a, F: Float>(
     let mut res = vec![];
     let mut count = 0;
     for (i, (obs, cluster)) in observations
-        .axis_iter(Axis(1))
+        .axis_iter(Axis(0))
         .zip(clusters.iter())
         .enumerate()
     {
@@ -171,21 +175,25 @@ mod tests {
     fn nested_clusters() {
         // Create a circuit of points and then a cluster in the centre
         // and ensure they are identified as two separate clusters
-        let mut data: Array2<f64> = Array2::zeros((2, 50));
+        let mut data: Array2<f64> = Array2::zeros((50, 2));
         let rising = Array1::linspace(0.0, 8.0, 10);
-        data.slice_mut(s![0, 0..10]).assign(&rising);
-        data.slice_mut(s![0, 10..20]).assign(&rising);
-        data.slice_mut(s![1, 20..30]).assign(&rising);
-        data.slice_mut(s![1, 30..40]).assign(&rising);
+        data.column_mut(0).slice_mut(s![0..10]).assign(&rising);
+        data.column_mut(0).slice_mut(s![10..20]).assign(&rising);
+        data.column_mut(1).slice_mut(s![20..30]).assign(&rising);
+        data.column_mut(1).slice_mut(s![30..40]).assign(&rising);
 
-        data.slice_mut(s![1, 0..10]).fill(0.0);
-        data.slice_mut(s![1, 10..20]).fill(8.0);
-        data.slice_mut(s![0, 20..30]).fill(0.0);
-        data.slice_mut(s![0, 30..40]).fill(8.0);
+        data.column_mut(1).slice_mut(s![0..10]).fill(0.0);
+        data.column_mut(1).slice_mut(s![10..20]).fill(8.0);
+        data.column_mut(0).slice_mut(s![20..30]).fill(0.0);
+        data.column_mut(0).slice_mut(s![30..40]).fill(8.0);
 
-        data.slice_mut(s![.., 40..]).fill(5.0);
+        data.column_mut(0).slice_mut(s![40..]).fill(5.0);
+        data.column_mut(1).slice_mut(s![40..]).fill(5.0);
 
-        let labels = Dbscan::params(2).tolerance(1.0).build().transform(&data);
+        let labels = Dbscan::params(2)
+            .tolerance(1.0)
+            .build()
+            .transform(&data);
 
         assert!(labels.slice(s![..40]).iter().all(|x| x == &Some(0)));
         assert!(labels.slice(s![40..]).iter().all(|x| x == &Some(1)));
@@ -193,10 +201,12 @@ mod tests {
 
     #[test]
     fn non_cluster_points() {
-        let mut data: Array2<f64> = Array2::zeros((2, 5));
-        data.slice_mut(s![.., 0]).assign(&arr1(&[10.0, 10.0]));
+        let mut data: Array2<f64> = Array2::zeros((5, 2));
+        data.row_mut(0).assign(&arr1(&[10.0, 10.0]));
 
-        let labels = Dbscan::params(4).build().transform(&data);
+        let labels = Dbscan::params(4)
+            .build()
+            .transform(&data);
 
         let expected = arr1(&[None, Some(0), Some(0), Some(0), Some(0)]);
         assert_eq!(labels, expected);
@@ -204,10 +214,11 @@ mod tests {
 
     #[test]
     fn dataset_too_small() {
-        let data: Array2<f64> = Array2::zeros((2, 3));
+        let data: Array2<f64> = Array2::zeros((3, 2));
 
-        let labels = Dbscan::params(4).build().transform(&data);
-
+        let labels = Dbscan::params(4)
+            .build()
+            .transform(&data);
         assert!(labels.iter().all(|x| x.is_none()));
     }
 }
