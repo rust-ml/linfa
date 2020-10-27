@@ -327,9 +327,7 @@ fn coordinate_descent<F: AbsDiffEq + Float + FromPrimitive + ScalarOperand + Num
     // the residuals are updated during the algorithm as the parameters change
     let mut r = y.clone();
     let mut n_steps = 0u32;
-    let norm_cols_x = x.map_axis(Axis(0), |col| {
-        col.fold(F::zero(), |sum_sq, &x| sum_sq + x * x)
-    });
+    let norm_cols_x = x.map_axis(Axis(0), |col| col.dot(&col));
     let mut gap = F::one() + tol;
     let d_w_tol = tol;
     let tol = tol * y.dot(y);
@@ -684,6 +682,6 @@ mod tests {
             epsilon = 0.01
         );
         assert_abs_diff_eq!(model.intercept(), 126.279, epsilon = 1e-1);
-        assert_abs_diff_eq!(model.duality_gap(), 0.00011079, epsilon=1e-4);
+        assert_abs_diff_eq!(model.duality_gap(), 0.00011079, epsilon = 1e-4);
     }
 }
