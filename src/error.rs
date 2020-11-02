@@ -17,7 +17,7 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Parameters(msg) => write!(f, "Invalid parameter: {}", msg),
+            Error::Parameters(msg) => write!(f, "Parameter: {}", msg),
             Error::NdShape(msg) => write!(f, "NdArray shape: {}", msg)
         }
     }
