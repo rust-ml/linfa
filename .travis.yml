@@ -9,6 +9,7 @@ addons:
       - libopenblas-dev
       - liblapack-dev
       - liblapacke-dev
+      - libblas-dev
 cache: cargo
 env:
   global: RUSTFLAGS='-D warnings -C link-args=-llapacke -C link-args=-lcblas'
