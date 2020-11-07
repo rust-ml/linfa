@@ -1,4 +1,4 @@
-use ndarray::{Array2, ArrayBase, Axis, Data, Ix2, Ix1};
+use ndarray::{Array2, ArrayBase, Axis, Data, Ix1, Ix2};
 use ndarray_rand::rand::Rng;
 use ndarray_rand::rand_distr::StandardNormal;
 use ndarray_rand::RandomExt;

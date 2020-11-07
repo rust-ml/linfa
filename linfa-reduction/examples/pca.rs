@@ -1,7 +1,7 @@
 extern crate openblas_src;
 
 use linfa::prelude::*;
-use linfa_reduction::{Pca, utils::generate_blobs};
+use linfa_reduction::{utils::generate_blobs, Pca};
 use ndarray::array;
 use ndarray_npy::write_npy;
 use ndarray_rand::rand::SeedableRng;

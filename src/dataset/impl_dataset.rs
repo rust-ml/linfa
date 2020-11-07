@@ -91,13 +91,19 @@ impl<F: Float, T: Targets, D: Data<Elem = F>> Dataset<ArrayBase<D, Ix2>, T> {
 
 impl<F: Float, L: Label, T: Labels<Elem = L>, D: Data<Elem = F>> Dataset<ArrayBase<D, Ix2>, T> {
     pub fn one_vs_all<'a>(&'a self) -> Vec<Dataset<ArrayView2<'a, F>, Vec<bool>>> {
-        self.labels().into_iter().map(|label| {
-            let targets = self.targets().as_slice().into_iter()
-                .map(|x| x == &label)
-                .collect();
+        self.labels()
+            .into_iter()
+            .map(|label| {
+                let targets = self
+                    .targets()
+                    .as_slice()
+                    .into_iter()
+                    .map(|x| x == &label)
+                    .collect();
 
-            Dataset::new(self.records().view(), targets)
-        }).collect()
+                Dataset::new(self.records().view(), targets)
+            })
+            .collect()
     }
 }
 

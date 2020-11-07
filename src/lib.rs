@@ -28,8 +28,8 @@
 //! and get involved!
 //!
 
-pub mod error;
 pub mod dataset;
+pub mod error;
 mod metrics_classification;
 mod metrics_regression;
 pub mod prelude;
