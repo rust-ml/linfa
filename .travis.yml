@@ -7,6 +7,7 @@ addons:
       - libssl-dev
       - gfortran
       - libopenblas-dev
+      - liblapack-dev
 cache: cargo
 env:
   global: RUSTFLAGS='-D warnings -C link-args=-llapacke'
