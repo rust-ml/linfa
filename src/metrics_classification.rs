@@ -616,7 +616,7 @@ mod tests {
 
     #[test]
     fn test_roc_curve() {
-        let predicted = ArrayView1::from(&[0.1, 0.3, 0.5, 0.7, 0.8, 0.9]).mapv(|x| Pr(x));
+        let predicted = ArrayView1::from(&[0.1, 0.3, 0.5, 0.7, 0.8, 0.9]).mapv(Pr);
 
         let groundtruth = vec![false, true, false, true, true, true];
 
@@ -636,7 +636,7 @@ mod tests {
 
     #[test]
     fn test_roc_auc() {
-        let predicted = Array1::linspace(0.0, 1.0, 1000).mapv(|x| Pr(x));
+        let predicted = Array1::linspace(0.0, 1.0, 1000).mapv(Pr);
 
         let mut rng = rand::thread_rng();
         let range = Uniform::new(0, 2);

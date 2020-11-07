@@ -6,9 +6,7 @@ _Documentation_: [latest](https://docs.rs/linfa).
 
 ## The big picture
 
-`linfa-hierarchical` is a crate in the [`linfa`](https://crates.io/crates/linfa) ecosystem, a wider effort to
-bootstrap a toolkit for classical Machine Learning implemented in pure Rust,
-kin in spirit to Python's `scikit-learn`.
+`linfa-hierarchical` is a crate in the [`linfa`](https://crates.io/crates/linfa) ecosystem, a wider effort to bootstrap a toolkit for classical Machine Learning implemented in pure Rust, akin in spirit to Python's `scikit-learn`.
 
 ## Current state
 

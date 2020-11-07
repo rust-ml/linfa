@@ -170,10 +170,10 @@ mod tests {
     use ndarray::{Array, Axis};
     use ndarray_rand::{rand_distr::Normal, RandomExt};
 
-    use super::HierarchicalCluster;
+    use super::{HierarchicalCluster, Method};
 
     #[test]
-    fn test_gaussian_distribution() {
+    fn test_blobs() {
         // we have 10 observations per cluster
         let npoints = 10;
         // generate data
@@ -234,5 +234,23 @@ mod tests {
 
         // the cluster ids shouldn't be equal
         assert_ne!(first_cluster_id, second_cluster_id);
+    }
+
+    #[test]
+    fn test_noise() {
+        // generate 1000 normal distributed points
+        let data = Array::random((100, 2), Normal::new(0., 1.0).unwrap());
+
+        let kernel = Kernel::params()
+            .method(KernelMethod::Linear)
+            .transform(&data);
+
+        dbg!(&kernel.to_upper_triangle());
+        let predictions = HierarchicalCluster::default()
+            //.num_clusters(3)
+            .max_distance(3.0)
+            .transform(kernel);
+
+        dbg!(&predictions.targets());
     }
 }
