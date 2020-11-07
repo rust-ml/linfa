@@ -77,15 +77,15 @@ impl<F: Float, T: Targets, D: Data<Elem = F>> Dataset<ArrayBase<D, Ix2>, T> {
         Dataset<ArrayView2<'a, F>, &'a [T::Elem]>,
     ) {
         let n = (self.observations() as f32 * ratio).ceil() as usize;
-        let (a, b) = self.records.view().split_at(Axis(0), n);
+        let (first, second) = self.records.view().split_at(Axis(0), n);
 
         let targets = self.targets();
-        let (c, d) = (&targets[..n], &targets[n..]);
+        let (first_targets, second_targets) = (&targets[..n], &targets[n..]);
 
-        let d1 = Dataset::new(a, c);
-        let d2 = Dataset::new(b, d);
+        let dataset1 = Dataset::new(first, first_targets);
+        let dataset2 = Dataset::new(second, second_targets);
 
-        (d1, d2)
+        (dataset1, dataset2)
     }
 }
 

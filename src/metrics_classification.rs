@@ -473,7 +473,7 @@ impl BinaryClassification<&[bool]> for &[Pr] {
         let mut s0 = 0.0;
 
         for (s, t) in tuples {
-            if *s != s0 {
+            if (*s - s0).abs() < 1e-10 {
                 tps_fps.push((tp, fp));
                 thresholds.push(s);
                 s0 = *s;
