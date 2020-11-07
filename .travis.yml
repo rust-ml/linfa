@@ -10,6 +10,7 @@ addons:
       - liblapack-dev
       - liblapacke-dev
       - libblas-dev
+      - libatlas-base-dev 
 cache: cargo
 env:
   global: RUSTFLAGS='-D warnings -C link-args=-llapacke -C link-args=-lcblas'
