@@ -109,7 +109,7 @@ impl<R: Records, L: Label, T: Labels<Elem = L>> Dataset<R, T> {
     pub fn with_labels(self, labels: &[L]) -> Dataset<R, TargetsWithLabels<T>> {
         let targets = TargetsWithLabels {
             targets: self.targets,
-            labels: labels.into_iter().cloned().collect(),
+            labels: labels.iter().cloned().collect(),
         };
 
         Dataset {

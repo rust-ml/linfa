@@ -83,7 +83,7 @@ pub trait Records: Sized {
 pub trait Targets {
     type Elem;
 
-    fn as_slice<'a>(&'a self) -> &'a [Self::Elem];
+    fn as_slice(&self) -> &[Self::Elem];
 }
 
 /// Labels

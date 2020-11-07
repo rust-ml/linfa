@@ -179,10 +179,7 @@ impl<F: Float> KernelMethod<F> {
     }
 
     pub fn is_linear(&self) -> bool {
-        match *self {
-            KernelMethod::Linear => true,
-            _ => false,
-        }
+        matches!(*self, KernelMethod::Linear)
     }
 }
 

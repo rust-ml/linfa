@@ -270,6 +270,7 @@ impl GFunc {
         )
     }
 
+    #[allow(clippy::manual_range_contains)]
     fn logcosh<A: Float>(x: &Array2<A>, alpha: f64) -> Result<(Array2<A>, Array1<A>)> {
         if !(alpha >= 1. && alpha <= 2.) {
             return Err(FastIcaError::InvalidValue(format!(

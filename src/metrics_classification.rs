@@ -313,7 +313,7 @@ impl<R: Records, L: Label, T: Targets<Elem = L> + Labels<Elem = L>>
 impl<L: Label> ToConfusionMatrix<L, &[L]> for &[L] {
     fn confusion_matrix(&self, ground_truth: &[L]) -> ConfusionMatrix<L> {
         let classes = ground_truth
-            .into_iter()
+            .iter()
             .collect::<HashSet<_>>()
             .into_iter()
             .cloned()
@@ -473,7 +473,7 @@ impl BinaryClassification<&[bool]> for &[Pr] {
         let mut s0 = 0.0;
 
         for (s, t) in tuples {
-            if (*s - s0).abs() < 1e-10 {
+            if (*s - s0).abs() > 1e-10 {
                 tps_fps.push((tp, fp));
                 thresholds.push(s);
                 s0 = *s;

@@ -2,7 +2,7 @@ use super::{iter::Iter, Dataset, Float, Label, Labels, Records, Targets};
 use ndarray::{Array2, ArrayBase, ArrayView2, Axis, Data, Dimension, Ix2};
 
 impl<F: Float, L: Label> Dataset<Array2<F>, Vec<L>> {
-    pub fn iter<'a>(&'a self) -> Iter<'a, Array2<F>, Vec<L>> {
+    pub fn iter(&self) -> Iter<'_, Array2<F>, Vec<L>> {
         Iter::new(&self.records, &self.targets)
     }
 }
@@ -58,7 +58,7 @@ impl<R: Records, S: Targets> Dataset<R, S> {
             ..
         } = self;
 
-        let new_targets = targets.as_slice().into_iter().map(fnc).collect::<Vec<T>>();
+        let new_targets = targets.as_slice().iter().map(fnc).collect::<Vec<T>>();
 
         Dataset {
             records,
@@ -68,13 +68,14 @@ impl<R: Records, S: Targets> Dataset<R, S> {
     }
 }
 
+#[allow(clippy::type_complexity)]
 impl<F: Float, T: Targets, D: Data<Elem = F>> Dataset<ArrayBase<D, Ix2>, T> {
-    pub fn split_with_ratio<'a>(
-        &'a self,
+    pub fn split_with_ratio(
+        &self,
         ratio: f32,
     ) -> (
-        Dataset<ArrayView2<'a, F>, &'a [T::Elem]>,
-        Dataset<ArrayView2<'a, F>, &'a [T::Elem]>,
+        Dataset<ArrayView2<'_, F>, &[T::Elem]>,
+        Dataset<ArrayView2<'_, F>, &[T::Elem]>,
     ) {
         let n = (self.observations() as f32 * ratio).ceil() as usize;
         let (first, second) = self.records.view().split_at(Axis(0), n);
@@ -90,14 +91,14 @@ impl<F: Float, T: Targets, D: Data<Elem = F>> Dataset<ArrayBase<D, Ix2>, T> {
 }
 
 impl<F: Float, L: Label, T: Labels<Elem = L>, D: Data<Elem = F>> Dataset<ArrayBase<D, Ix2>, T> {
-    pub fn one_vs_all<'a>(&'a self) -> Vec<Dataset<ArrayView2<'a, F>, Vec<bool>>> {
+    pub fn one_vs_all(&self) -> Vec<Dataset<ArrayView2<'_, F>, Vec<bool>>> {
         self.labels()
             .into_iter()
             .map(|label| {
                 let targets = self
                     .targets()
                     .as_slice()
-                    .into_iter()
+                    .iter()
                     .map(|x| x == &label)
                     .collect();
 
