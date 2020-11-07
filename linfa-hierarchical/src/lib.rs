@@ -165,8 +165,6 @@ impl<T> Default for HierarchicalCluster<T> {
 
 #[cfg(test)]
 mod tests {
-    extern crate openblas_src;
-
     use linfa::traits::Transformer;
     use linfa_kernel::{Kernel, KernelMethod};
     use ndarray::{Array, Axis};

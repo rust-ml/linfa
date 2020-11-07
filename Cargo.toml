@@ -13,8 +13,8 @@ keywords = ["machine-learning", "linfa", "ai", "ml"]
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
-ndarray = "0.13"
 num-traits = "0.1.32"
+ndarray = { version = "0.13", default-features = false }
 
 [dev-dependencies]
 rand = "0.7"

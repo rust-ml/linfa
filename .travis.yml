@@ -12,7 +12,7 @@ env:
   global: RUSTFLAGS='-D warnings'
 jobs:
   include:
-  - rust: 1.38.0 # Minimum Supported Rust Version
+  - rust: 1.42.0 # Minimum Supported Rust Version
   - rust: stable
   - rust: beta
   - rust: nightly

@@ -73,7 +73,6 @@ use serde_crate::{Deserialize, Serialize};
 /// Let's do a walkthrough of a training-predict-save example.
 ///
 /// ```
-/// extern crate openblas_src;
 /// use linfa::Dataset;
 /// use linfa::traits::{Fit, Predict};
 /// use linfa_clustering::{KMeansHyperParams, KMeans, generate_blobs};

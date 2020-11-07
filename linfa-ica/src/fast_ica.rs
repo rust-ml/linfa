@@ -288,6 +288,8 @@ impl GFunc {
 
 #[cfg(test)]
 mod tests {
+    extern crate openblas_src;
+
     use super::*;
     use linfa::traits::{Fit, Predict};
 

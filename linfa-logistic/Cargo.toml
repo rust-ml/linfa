@@ -6,18 +6,17 @@ edition = "2018"
 workspace = ".."
 
 [features]
-default = []
-openblas = ["ndarray-linalg/openblas"]
-intel-mkl = ["ndarray-linalg/intel-mkl"]
-netlib = ["ndarray-linalg/netlib"]
+default = ["tests-openblas-system"]
+tests-openblas-system = ["openblas-src/system"]
+tests-openblas-build = ["openblas-src/cblas", "openblas-src/lapacke"]
 
 [dependencies]
 ndarray = {version = "0.13", features = ["blas", "approx"]}
-ndarray-linalg = {version = "0.12", default-features = false}
-num-traits = {version="0.2"}
+ndarray-linalg = "0.12"
+num-traits = "0.2"
 argmin = {version="0.3.1", features=["ndarrayl"]}
 serde = "1.0"
 
 [dev-dependencies]
+openblas-src = { version = "0.9", default-features = false }
 approx = "0.3.2"
-ndarray-linalg = {version = "0.12", features = ["openblas"]}

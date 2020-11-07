@@ -12,13 +12,6 @@ readme = "README.md"
 keywords = ["clustering", "machine-learning", "linfa", "k-means", "unsupervised"]
 categories = ["algorithms", "mathematics", "science"]
 
-[features]
-default = []
-openblas = ["ndarray-linalg/openblas"]
-intel-mkl = ["ndarray-linalg/intel-mkl"]
-netlib = ["ndarray-linalg/netlib"]
-serde = ["serde_crate", "ndarray/serde"]
-
 [dependencies.serde_crate]
 package = "serde"
 optional = true
@@ -30,14 +23,13 @@ features = ["std", "derive"]
 ndarray = { version = "0.13" , features = ["rayon", "approx"]}
 ndarray-rand = "0.11"
 ndarray-stats = "0.3"
-ndarray-linalg = { version = "0.12" }
 sprs = "0.7"
 num-traits = "0.1.32"
 rand_isaac = "0.2.0"
+
 linfa = { path = ".." }
 
 [dev-dependencies]
-openblas-src = "0.9"
 ndarray-npy = { version = "0.5", default-features = false }
 criterion = "0.3"
 serde_json = "1"

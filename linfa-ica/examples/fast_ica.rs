@@ -1,3 +1,5 @@
+extern crate openblas_src;
+
 use linfa::{
     dataset::Dataset,
     traits::{Fit, Predict},
