@@ -6,8 +6,9 @@ use flate2::read::GzDecoder;
 use ndarray::{Array2, Axis};
 use ndarray_csv::Array2Reader;
 
+use linfa::traits::Transformer;
 use linfa_hierarchical::HierarchicalCluster;
-use linfa_kernel::Kernel;
+use linfa_kernel::{Kernel, KernelMethod};
 
 /// Extract a gziped CSV file and return as dataset
 fn read_array(path: &str) -> Result<Array2<f64>, Box<dyn Error>> {
@@ -30,13 +31,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     let dataset = read_array("../datasets/iris.csv.gz")?;
     let (dataset, targets) = dataset.view().split_at(Axis(1), 4);
 
-    let kernel = Kernel::gaussian(&dataset, 1.0);
+    let kernel = Kernel::params()
+        .method(KernelMethod::Gaussian(1.0))
+        .transform(dataset);
 
-    let ids = HierarchicalCluster::default()
+    let kernel = HierarchicalCluster::default()
         .num_clusters(3)
-        .fit_transform(&kernel);
+        .transform(kernel);
 
-    for (id, target) in ids.into_iter().zip(targets.into_iter()) {
+    for (id, target) in kernel.targets().into_iter().zip(targets.into_iter()) {
         let name = match *target as usize {
             0 => "setosa",
             1 => "versicolor",

@@ -1,13 +1,26 @@
 use crate::k_means::helpers::IncrementalMean;
-use crate::k_means::hyperparameters::KMeansHyperParams;
+use crate::k_means::hyperparameters::{KMeansHyperParams, KMeansHyperParamsBuilder};
+use linfa::{
+    dataset::{Dataset, Targets},
+    traits::*,
+    Float,
+};
 use ndarray::{s, Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
 use ndarray_rand::rand;
 use ndarray_rand::rand::Rng;
 use ndarray_stats::DeviationExt;
-use serde::{Deserialize, Serialize};
+use rand_isaac::Isaac64Rng;
 use std::collections::HashMap;
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
+
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
+#[derive(Clone, Debug, PartialEq)]
 /// K-means clustering aims to partition a set of unlabeled observations into clusters,
 /// where each observation belongs to the cluster with the nearest mean.
 ///
@@ -60,6 +73,8 @@ use std::collections::HashMap;
 /// Let's do a walkthrough of a training-predict-save example.
 ///
 /// ```
+/// use linfa::Dataset;
+/// use linfa::traits::{Fit, Predict};
 /// use linfa_clustering::{KMeansHyperParams, KMeans, generate_blobs};
 /// use ndarray::{Axis, array, s};
 /// use ndarray_rand::rand::SeedableRng;
@@ -75,7 +90,7 @@ use std::collections::HashMap;
 /// let expected_centroids = array![[0., 1.], [-10., 20.], [-1., 10.]];
 /// // Let's generate a synthetic dataset: three blobs of observations
 /// // (100 points each) centered around our `expected_centroids`
-/// let observations = generate_blobs(100, &expected_centroids, &mut rng);
+/// let observations = Dataset::from(generate_blobs(100, &expected_centroids, &mut rng));
 ///
 /// // Let's configure and run our K-means algorithm
 /// // We use the builder pattern to specify the hyperparameters
@@ -83,19 +98,20 @@ use std::collections::HashMap;
 /// // If you don't specify the others (e.g. `tolerance` or `max_n_iterations`)
 /// // default values will be used.
 /// let n_clusters = expected_centroids.len_of(Axis(0));
-/// let hyperparams = KMeansHyperParams::new(n_clusters)
+/// let model = KMeans::params(n_clusters)
 ///     .tolerance(1e-2)
-///     .build();
-/// // Let's run the algorithm!
-/// let model = KMeans::fit(hyperparams, &observations, &mut rng);
+///     .build()
+///     .fit(&observations);
 ///
 /// // Once we found our set of centroids, we can also assign new points to the nearest cluster
-/// let new_observation = array![[-9., 20.5]];
+/// let new_observation = Dataset::from(array![[-9., 20.5]]);
 /// // Predict returns the **index** of the nearest cluster
-/// let closest_cluster_index = model.predict(&new_observation);
+/// let dataset = model.predict(new_observation);
 /// // We can retrieve the actual centroid of the closest cluster using `.centroids()`
-/// let closest_centroid = &model.centroids().index_axis(Axis(0), closest_cluster_index[0]);
+/// let closest_centroid = &model.centroids().index_axis(Axis(0), dataset.targets()[0]);
+/// ```
 ///
+/*///
 /// // The model can be serialised (and deserialised) to disk using serde
 /// // We'll use the JSON format here for simplicity
 /// let filename = "k_means_model.json";
@@ -103,29 +119,50 @@ use std::collections::HashMap;
 /// serde_json::to_writer(writer, &model).expect("Failed to serialise model.");
 ///
 /// let reader = std::fs::File::open(filename).expect("Failed to open file.");
-/// let loaded_model: KMeans = serde_json::from_reader(reader).expect("Failed to deserialise model");
+/// let loaded_model: KMeans<f64> = serde_json::from_reader(reader).expect("Failed to deserialise model");
 ///
 /// assert_abs_diff_eq!(model.centroids(), loaded_model.centroids(), epsilon = 1e-10);
 /// assert_eq!(model.hyperparameters(), loaded_model.hyperparameters());
 /// ```
-///
-pub struct KMeans {
-    hyperparameters: KMeansHyperParams,
-    centroids: Array2<f64>,
+*/
+pub struct KMeans<F: Float> {
+    centroids: Array2<F>,
 }
 
-impl KMeans {
+impl<F: Float> KMeans<F> {
+    pub fn params(nclusters: usize) -> KMeansHyperParamsBuilder<F, Isaac64Rng> {
+        KMeansHyperParams::new(nclusters)
+    }
+
+    pub fn params_with_rng<R: Rng + Clone>(
+        nclusters: usize,
+        rng: R,
+    ) -> KMeansHyperParamsBuilder<F, R> {
+        KMeansHyperParams::new_with_rng(nclusters, rng)
+    }
+
+    /// Return the set of centroids as a 2-dimensional matrix with shape
+    /// `(n_centroids, n_features)`.
+    pub fn centroids(&self) -> &Array2<F> {
+        &self.centroids
+    }
+}
+
+impl<'a, F: Float, R: Rng + Clone, D: Data<Elem = F>, T: Targets> Fit<'a, ArrayBase<D, Ix2>, T>
+    for KMeansHyperParams<F, R>
+{
+    type Object = KMeans<F>;
+
     /// Given an input matrix `observations`, with shape `(n_observations, n_features)`,
     /// `fit` identifies `n_clusters` centroids based on the training data distribution.
     ///
     /// An instance of `KMeans` is returned.
     ///
-    pub fn fit(
-        hyperparameters: KMeansHyperParams,
-        observations: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
-        rng: &mut impl Rng,
-    ) -> Self {
-        let mut centroids = get_random_centroids(hyperparameters.n_clusters(), observations, rng);
+    fn fit(&self, dataset: &Dataset<ArrayBase<D, Ix2>, T>) -> Self::Object {
+        let mut rng = self.rng();
+        let observations = dataset.records().view();
+
+        let mut centroids = get_random_centroids(self.n_clusters(), &observations, &mut rng);
 
         let mut has_converged;
         let mut n_iterations = 0;
@@ -133,15 +170,13 @@ impl KMeans {
         let mut memberships = Array1::zeros(observations.dim().0);
 
         loop {
-            update_cluster_memberships(&centroids, observations, &mut memberships);
-            let new_centroids =
-                compute_centroids(hyperparameters.n_clusters(), observations, &memberships);
+            update_cluster_memberships(&centroids, &observations, &mut memberships);
+            let new_centroids = compute_centroids(self.n_clusters(), &observations, &memberships);
 
             let distance = centroids
                 .sq_l2_dist(&new_centroids)
                 .expect("Failed to compute distance");
-            has_converged = distance < hyperparameters.tolerance()
-                || n_iterations > hyperparameters.max_n_iterations();
+            has_converged = distance < self.tolerance() || n_iterations > self.max_n_iterations();
 
             centroids = new_centroids;
             n_iterations += 1;
@@ -151,30 +186,31 @@ impl KMeans {
             }
         }
 
-        Self {
-            hyperparameters,
-            centroids,
-        }
+        KMeans { centroids }
     }
+}
 
+impl<F: Float, D: Data<Elem = F>> Predict<&ArrayBase<D, Ix2>, Array1<usize>> for KMeans<F> {
     /// Given an input matrix `observations`, with shape `(n_observations, n_features)`,
     /// `predict` returns, for each observation, the index of the closest cluster/centroid.
     ///
     /// You can retrieve the centroid associated to an index using the
     /// [`centroids` method](#method.centroids).
-    pub fn predict(&self, observations: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<usize> {
+    fn predict(&self, observations: &ArrayBase<D, Ix2>) -> Array1<usize> {
         compute_cluster_memberships(&self.centroids, observations)
     }
+}
 
-    /// Return the set of centroids as a 2-dimensional matrix with shape
-    /// `(n_centroids, n_features)`.
-    pub fn centroids(&self) -> &Array2<f64> {
-        &self.centroids
-    }
-
-    /// Return the hyperparameters used to train this K-means model instance.
-    pub fn hyperparameters(&self) -> &KMeansHyperParams {
-        &self.hyperparameters
+impl<F: Float, D: Data<Elem = F>, T: Targets>
+    Predict<Dataset<ArrayBase<D, Ix2>, T>, Dataset<ArrayBase<D, Ix2>, Array1<usize>>>
+    for KMeans<F>
+{
+    fn predict(
+        &self,
+        dataset: Dataset<ArrayBase<D, Ix2>, T>,
+    ) -> Dataset<ArrayBase<D, Ix2>, Array1<usize>> {
+        let predicted = self.predict(dataset.records());
+        dataset.with_targets(predicted)
     }
 }
 
@@ -187,7 +223,7 @@ impl KMeans {
 ///
 /// `compute_centroids` wraps our `compute_centroids_hashmap` to return a 2-dimensional array,
 /// where the i-th row corresponds to the i-th cluster.
-fn compute_centroids(
+fn compute_centroids<F: Float>(
     // The number of clusters could be inferred from `centroids_hashmap`,
     // but it is indeed possible for a cluster to become empty during the
     // multiple rounds of assignment-update optimisations
@@ -195,14 +231,14 @@ fn compute_centroids(
     // and several errors down the line due to shape mismatches
     n_clusters: usize,
     // (n_observations, n_features)
-    observations: &ArrayBase<impl Data<Elem = f64>, Ix2>,
+    observations: &ArrayBase<impl Data<Elem = F>, Ix2>,
     // (n_observations,)
     cluster_memberships: &ArrayBase<impl Data<Elem = usize>, Ix1>,
-) -> Array2<f64> {
+) -> Array2<F> {
     let centroids_hashmap = compute_centroids_hashmap(&observations, &cluster_memberships);
     let (_, n_features) = observations.dim();
 
-    let mut centroids: Array2<f64> = Array2::zeros((n_clusters, n_features));
+    let mut centroids: Array2<F> = Array2::zeros((n_clusters, n_features));
     for (centroid_index, centroid) in centroids_hashmap.into_iter() {
         centroids
             .slice_mut(s![centroid_index, ..])
@@ -213,13 +249,13 @@ fn compute_centroids(
 
 /// Iterate over our observations and capture in a HashMap the new centroids.
 /// The HashMap is a (cluster_index => new centroid) mapping.
-fn compute_centroids_hashmap(
+fn compute_centroids_hashmap<F: Float>(
     // (n_observations, n_features)
-    observations: &ArrayBase<impl Data<Elem = f64>, Ix2>,
+    observations: &ArrayBase<impl Data<Elem = F>, Ix2>,
     // (n_observations,)
     cluster_memberships: &ArrayBase<impl Data<Elem = usize>, Ix1>,
-) -> HashMap<usize, IncrementalMean> {
-    let mut new_centroids: HashMap<usize, IncrementalMean> = HashMap::new();
+) -> HashMap<usize, IncrementalMean<F>> {
+    let mut new_centroids: HashMap<usize, IncrementalMean<F>> = HashMap::new();
     Zip::from(observations.genrows())
         .and(cluster_memberships)
         .apply(|observation, cluster_membership| {
@@ -241,9 +277,9 @@ fn compute_centroids_hashmap(
 ///
 /// membership[i] == closest_centroid(&centroids, &observations.slice(s![i, ..])
 ///
-fn update_cluster_memberships(
-    centroids: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
-    observations: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
+fn update_cluster_memberships<F: Float>(
+    centroids: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
+    observations: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
     cluster_memberships: &mut ArrayBase<impl DataMut<Elem = usize>, Ix1>,
 ) {
     Zip::from(observations.axis_iter(Axis(0)))
@@ -259,11 +295,11 @@ fn update_cluster_memberships(
 ///
 /// membership[i] == closest_centroid(&centroids, &observations.slice(s![i, ..])
 ///
-fn compute_cluster_memberships(
+fn compute_cluster_memberships<F: Float>(
     // (n_centroids, n_features)
-    centroids: &ArrayBase<impl Data<Elem = f64>, Ix2>,
+    centroids: &ArrayBase<impl Data<Elem = F>, Ix2>,
     // (n_observations, n_features)
-    observations: &ArrayBase<impl Data<Elem = f64>, Ix2>,
+    observations: &ArrayBase<impl Data<Elem = F>, Ix2>,
 ) -> Array1<usize> {
     observations.map_axis(Axis(1), |observation| {
         closest_centroid(&centroids, &observation)
@@ -272,11 +308,11 @@ fn compute_cluster_memberships(
 
 /// Given a matrix of centroids with shape (n_centroids, n_features) and an observation,
 /// return the index of the closest centroid (the index of the corresponding row in `centroids`).
-fn closest_centroid(
+fn closest_centroid<F: Float>(
     // (n_centroids, n_features)
-    centroids: &ArrayBase<impl Data<Elem = f64>, Ix2>,
+    centroids: &ArrayBase<impl Data<Elem = F>, Ix2>,
     // (n_features)
-    observation: &ArrayBase<impl Data<Elem = f64>, Ix1>,
+    observation: &ArrayBase<impl Data<Elem = F>, Ix1>,
 ) -> usize {
     let mut iterator = centroids.genrows().into_iter().peekable();
 
@@ -302,14 +338,11 @@ fn closest_centroid(
     closest_index
 }
 
-fn get_random_centroids<S>(
+fn get_random_centroids<F: Float, D: Data<Elem = F>>(
     n_clusters: usize,
-    observations: &ArrayBase<S, Ix2>,
+    observations: &ArrayBase<D, Ix2>,
     rng: &mut impl Rng,
-) -> Array2<f64>
-where
-    S: Data<Elem = f64>,
-{
+) -> Array2<F> {
     let (n_samples, _) = observations.dim();
     let indices = rand::seq::index::sample(rng, n_samples, n_clusters).into_vec();
     observations.select(Axis(0), &indices)

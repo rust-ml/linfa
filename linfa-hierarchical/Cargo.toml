@@ -13,15 +13,11 @@ readme = "README.md"
 keywords = ["hierachical", "agglomerative", "clustering", "cluster", "machine-learning", "linfa", "unsupervised"]
 categories = ["algorithms", "mathematics", "science"]
 
-[features]
-default = []
-openblas = ["linfa-kernel/openblas"]
-intel-mkl = ["linfa-kernel/intel-mkl"]
-netlib = ["linfa-kernel/netlib"]
-
 [dependencies]
 ndarray = { version = "0.13", default-features = false }
 kodama = "0.2"
+
+linfa = { path = ".." }
 linfa-kernel = { path = "../linfa-kernel" }
 
 [dev-dependencies]

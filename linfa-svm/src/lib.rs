@@ -66,8 +66,10 @@
 //!
 //! accuracy 0.98818624, MCC 0.9523008
 //! ```
-use ndarray::{Array1, ArrayBase, Data, Ix1, NdFloat};
+use linfa::{dataset::Pr, Float};
+use ndarray::Array1;
 use std::fmt;
+use std::marker::PhantomData;
 
 mod classification;
 mod permutable_kernel;
@@ -76,6 +78,58 @@ pub mod solver_smo;
 
 use permutable_kernel::Kernel;
 pub use solver_smo::SolverParams;
+
+pub struct SvmParams<F: Float, T> {
+    c: Option<(F, F)>,
+    nu: Option<(F, F)>,
+    solver_params: SolverParams<F>,
+    phantom: PhantomData<T>,
+}
+
+impl<F: Float, T> SvmParams<F, T> {
+    pub fn eps(mut self, new_eps: F) -> Self {
+        self.solver_params.eps = new_eps;
+        self
+    }
+
+    pub fn shrinking(mut self, shrinking: bool) -> Self {
+        self.solver_params.shrinking = shrinking;
+
+        self
+    }
+}
+
+impl<F: Float> SvmParams<F, Pr> {
+    pub fn pos_neg_weights(mut self, c_pos: F, c_neg: F) -> Self {
+        self.c = Some((c_pos, c_neg));
+        self.nu = None;
+
+        self
+    }
+
+    pub fn nu_weight(mut self, nu: F) -> Self {
+        self.nu = Some((nu, nu));
+        self.c = None;
+
+        self
+    }
+}
+
+impl<F: Float> SvmParams<F, F> {
+    pub fn c_eps(mut self, c: F, eps: F) -> Self {
+        self.c = Some((c, eps));
+        self.nu = None;
+
+        self
+    }
+
+    pub fn nu_eps(mut self, nu: F, eps: F) -> Self {
+        self.nu = Some((nu, eps));
+        self.c = None;
+
+        self
+    }
+}
 
 /// Support Vector Classification
 #[allow(non_snake_case)]
@@ -89,12 +143,6 @@ pub mod SVRegress {
     pub use crate::regression::{fit_epsilon, fit_nu};
 }
 
-/// An extension of the NdArray float type
-pub trait Float: NdFloat + Default + Clone + std::iter::Sum {}
-
-impl Float for f32 {}
-impl Float for f64 {}
-
 /// SMO can either exit because a threshold is reached or the iterations are maxed out
 #[derive(Debug)]
 pub enum ExitReason {
@@ -103,7 +151,7 @@ pub enum ExitReason {
 }
 
 /// The result of the SMO solver
-pub struct SvmResult<'a, A: Float> {
+pub struct Svm<'a, A: Float, T> {
     pub alpha: Vec<A>,
     pub rho: A,
     r: Option<A>,
@@ -112,17 +160,19 @@ pub struct SvmResult<'a, A: Float> {
     obj: A,
     kernel: &'a Kernel<'a, A>,
     linear_decision: Option<Array1<A>>,
+    phantom: PhantomData<T>,
 }
 
-impl<'a, A: Float> SvmResult<'a, A> {
-    /// Predict new values with the model
-    ///
-    /// In case of a classification task this returns a probability, for regression the predicted
-    /// regressor is returned.
-    pub fn predict<S: Data<Elem = A>>(&self, data: ArrayBase<S, Ix1>) -> A {
-        match self.linear_decision {
-            Some(ref x) => x.dot(&data) - self.rho,
-            None => self.kernel.weighted_sum(&self.alpha, data.view()) - self.rho,
+impl<'a, A: Float, T> Svm<'a, A, T> {
+    pub fn params() -> SvmParams<A, T> {
+        SvmParams {
+            c: Some((A::one(), A::one())),
+            nu: None,
+            solver_params: SolverParams {
+                eps: A::from(1e-7).unwrap(),
+                shrinking: false,
+            },
+            phantom: PhantomData,
         }
     }
 
@@ -133,9 +183,22 @@ impl<'a, A: Float> SvmResult<'a, A> {
             .filter(|x| x.abs() > A::from(1e-5).unwrap())
             .count()
     }
+    pub fn with_phantom<S>(self) -> Svm<'a, A, S> {
+        Svm {
+            alpha: self.alpha,
+            rho: self.rho,
+            r: self.r,
+            exit_reason: self.exit_reason,
+            obj: self.obj,
+            iterations: self.iterations,
+            kernel: self.kernel,
+            linear_decision: self.linear_decision,
+            phantom: PhantomData,
+        }
+    }
 }
 
-impl<'a, A: Float> fmt::Display for SvmResult<'a, A> {
+impl<'a, A: Float, T> fmt::Display for Svm<'a, A, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.exit_reason {
             ExitReason::ReachedThreshold => write!(

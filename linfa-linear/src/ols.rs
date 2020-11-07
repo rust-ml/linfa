@@ -232,6 +232,8 @@ impl<A: Scalar + ScalarOperand> FittedLinearRegression<A> {
 
 #[cfg(test)]
 mod tests {
+    extern crate openblas_src;
+
     use super::*;
     use approx::abs_diff_eq;
     use ndarray::{array, s, Array1, Array2};

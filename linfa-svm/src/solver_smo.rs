@@ -1,7 +1,8 @@
 use super::permutable_kernel::Permutable;
-use super::{ExitReason, Float, SvmResult};
+use super::{ExitReason, Float, Svm};
 
 use ndarray::{Array1, Axis};
+use std::marker::PhantomData;
 
 /// Parameters of the solver routine
 #[derive(Clone)]
@@ -71,7 +72,9 @@ pub struct SolverState<'a, A: Float, K: Permutable<'a, A>> {
     bounds: Vec<A>,
 
     /// Parameters, e.g. stopping condition etc.
-    params: &'a SolverParams<A>,
+    params: SolverParams<A>,
+
+    phantom: PhantomData<&'a K>,
 }
 
 #[allow(clippy::needless_range_loop)]
@@ -85,7 +88,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
         targets: Vec<bool>,
         kernel: K,
         bounds: Vec<A>,
-        params: &'a SolverParams<A>,
+        params: SolverParams<A>,
         nu_constraint: bool,
     ) -> SolverState<'a, A, K> {
         // initialize alpha status according to bound
@@ -136,6 +139,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
             params,
             nu_constraint,
             r: A::zero(),
+            phantom: PhantomData,
         }
     }
 
@@ -756,7 +760,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
         (r1 - r2) / A::from(2.0).unwrap()
     }
 
-    pub fn solve(mut self) -> SvmResult<'a, A> {
+    pub fn solve(mut self) -> Svm<'a, A, A> {
         let mut iter = 0;
         let max_iter = if self.targets.len() > std::usize::MAX / 100 {
             std::usize::MAX
@@ -837,7 +841,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
             None
         };
 
-        SvmResult {
+        Svm {
             alpha,
             rho,
             r,
@@ -846,6 +850,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
             iterations: iter,
             kernel: self.kernel.inner(),
             linear_decision,
+            phantom: PhantomData,
         }
     }
 }
@@ -854,7 +859,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
 #[cfg(test)]
 mod tests {
     use crate::permutable_kernel::PermutableKernel;
-    use super::{SolverState, SolverParams, SvmResult};
+    use super::{SolverState, SolverParams, Svm};
     use ndarray::array;
     use linfa_kernel::{Kernel, KernelInner};
 
@@ -878,7 +883,7 @@ mod tests {
 
         let solver = SolverState::new(vec![1.0, 1.0], p, targets, kernel, vec![1000.0; 2], &params, false);
 
-        let res: SvmResult<f64> = solver.solve();
+        let res: Svm<f64> = solver.solve();
 
         println!("{:?}", res.alpha);
         println!("{}", res);

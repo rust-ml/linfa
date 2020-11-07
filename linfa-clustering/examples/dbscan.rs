@@ -1,4 +1,5 @@
-use linfa_clustering::{generate_blobs, Dbscan, DbscanHyperParams};
+use linfa::traits::Transformer;
+use linfa_clustering::{generate_blobs, Dbscan};
 use ndarray::array;
 use ndarray_npy::write_npy;
 use ndarray_rand::rand::SeedableRng;
@@ -17,10 +18,11 @@ fn main() {
 
     // Configure our training algorithm
     let min_points = 3;
-    let hyperparams = DbscanHyperParams::new(min_points).tolerance(1e-5).build();
-
     // Infer an optimal set of centroids based on the training data distribution
-    let cluster_memberships = Dbscan::predict(&hyperparams, &dataset);
+    let cluster_memberships = Dbscan::params(min_points)
+        .tolerance(1e-5)
+        .build()
+        .transform(&dataset);
 
     // Save to disk our dataset (and the cluster label assigned to each observation)
     // We use the `npy` format for compatibility with NumPy

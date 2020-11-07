@@ -7,12 +7,15 @@ addons:
       - libssl-dev
       - gfortran
       - libopenblas-dev
+      - liblapack-dev
+      - liblapacke-dev
+      - libatlas-base-dev 
 cache: cargo
 env:
-  global: RUSTFLAGS='-D warnings'
+  global: RUSTFLAGS='-D warnings -C link-arg=-llapacke -C link-arg=-lcblas'
 jobs:
   include:
-  - rust: 1.38.0 # Minimum Supported Rust Version
+  - rust: 1.42.0 # Minimum Supported Rust Version
   - rust: stable
   - rust: beta
   - rust: nightly
@@ -25,7 +28,7 @@ jobs:
     before_script:
       - rustup component add clippy
     script:
-      - cargo clippy --all-targets --all-features
+      - cargo clippy --all-targets --all-features --all
   allow_failures:
     - rust: nightly
   fast_finish: true

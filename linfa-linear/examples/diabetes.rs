@@ -1,3 +1,5 @@
+extern crate openblas_src;
+
 use csv::ReaderBuilder;
 use flate2::read::GzDecoder;
 use linfa_linear::LinearRegression;

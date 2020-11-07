@@ -28,21 +28,19 @@
 //! and get involved!
 //!
 
-/// Clustering algorithms for unlabeled data.
-
-pub mod clustering {
-    pub use linfa_clustering::*;
-}
-
+pub mod dataset;
+pub mod error;
 mod metrics_classification;
 mod metrics_regression;
+pub mod prelude;
+pub mod traits;
+
+pub use dataset::{Dataset, Float, Label};
 
 /// Common metrics functions for classification and regression
-
 pub mod metrics {
     pub use crate::metrics_classification::{
-        BinaryClassification, ConfusionMatrix, IntoConfusionMatrix, Modify,
-        ReceiverOperatingCharacteristic,
+        BinaryClassification, ConfusionMatrix, ReceiverOperatingCharacteristic, ToConfusionMatrix,
     };
     pub use crate::metrics_regression::Regression;
 }

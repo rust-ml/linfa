@@ -1,6 +1,9 @@
-use linfa_kernel::Kernel;
+extern crate openblas_src;
+
+use linfa::traits::Transformer;
+use linfa_kernel::{Kernel, KernelMethod, KernelType};
 use linfa_reduction::utils::generate_convoluted_rings;
-use linfa_reduction::{DiffusionMap, DiffusionMapHyperParams};
+use linfa_reduction::DiffusionMap;
 use ndarray_npy::write_npy;
 use ndarray_rand::rand::SeedableRng;
 use rand_isaac::Isaac64Rng;
@@ -15,14 +18,19 @@ fn main() {
     // generate three convoluted rings
     let dataset = generate_convoluted_rings(&[(0.0, 3.0), (10.0, 13.0), (20.0, 23.0)], n, &mut rng);
 
-    let params = DiffusionMapHyperParams::new(4).steps(1).build();
-
     // generate sparse polynomial kernel with k = 14, c = 5 and d = 2
-    let kernel = Kernel::polynomial_sparse(&dataset, 5.0, 2.0, 14);
-    let diffusion_map = DiffusionMap::project(params, kernel);
+    let kernel = Kernel::params()
+        .method(KernelMethod::Polynomial(5.0, 2.0))
+        .kind(KernelType::Sparse(14))
+        .transform(&dataset);
+
+    let embedding = DiffusionMap::<f64>::params(4)
+        .steps(1)
+        .build()
+        .transform(&kernel);
 
     // get embedding
-    let embedding = diffusion_map.embedding();
+    let embedding = embedding.embedding();
 
     // Save to disk our dataset (and the cluster label assigned to each observation)
     // We use the `npy` format for compatibility with NumPy

@@ -12,19 +12,24 @@ readme = "README.md"
 keywords = ["dimensionality reduction", "machine-learning", "linfa", "spectral", "unsupervised"]
 categories = ["algorithms", "mathematics", "science"]
 
+[features]
+default = ["tests-openblas-system"]
+tests-openblas-system = ["openblas-src/system"]
+tests-openblas-build = ["openblas-src/cblas", "openblas-src/lapacke"]
+
 [dependencies]
-ndarray = { version = "0.13" , features = ["rayon", "serde", "approx"]}
+ndarray = "0.13"
 ndarray-rand = "0.11"
 ndarray-stats = "0.3"
-ndarray-linalg = { version = "0.12", features = ["openblas"] }
-serde = { version = "1", features = ["derive"] }
+ndarray-linalg = "0.12"
 num-traits = "0.1.32"
+
+linfa = { path = ".." }
 linfa-kernel = { path = "../linfa-kernel" }
 
 [dev-dependencies]
+openblas-src = { version = "0.9", default-features = false }
 rand_isaac = "0.2.0"
 ndarray-npy = { version = "0.5", default-features = false }
 criterion = "0.3"
-serde_json = "1" 
 approx = "0.3"
-linfa-clustering = { path = "../linfa-clustering" }
