@@ -9,7 +9,7 @@ addons:
       - libopenblas-dev
 cache: cargo
 env:
-  global: RUSTFLAGS='-D warnings'
+  global: RUSTFLAGS='-D warnings -C link-args=-llapacke'
 jobs:
   include:
   - rust: 1.42.0 # Minimum Supported Rust Version
