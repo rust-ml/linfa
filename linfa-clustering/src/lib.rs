@@ -22,10 +22,12 @@
 extern crate ndarray;
 
 mod dbscan;
+mod gaussian_mixture;
 #[allow(clippy::new_ret_no_self)]
 mod k_means;
 mod utils;
 
 pub use dbscan::*;
+pub use gaussian_mixture::*;
 pub use k_means::*;
 pub use utils::*;
