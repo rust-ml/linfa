@@ -99,7 +99,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
             .collect::<Vec<_>>();
 
         // initialize full active set
-        let active_set = (0..alpha.len()).map(|i| i).collect::<Vec<_>>();
+        let active_set = (0..alpha.len()).collect::<Vec<_>>();
 
         // initialize gradient
         let mut gradient = p.clone();
