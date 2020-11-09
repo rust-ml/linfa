@@ -148,6 +148,8 @@ impl<F: Float + Into<f64>> GaussianMixtureModel<F> {
         let observations = dataset.records().view();
         let n_samples = observations.nrows();
 
+        // We can initialize responsabilities (n_samples, n_clusters) that is probability that
+        // a given sample belong to a given cluster.
         let resp = match hyperparameters.init_method() {
             GmmInitMethod::KMeans => {
                 let model = KMeans::params_with_rng(hyperparameters.n_clusters(), rng)
@@ -171,13 +173,15 @@ impl<F: Float + Into<f64>> GaussianMixtureModel<F> {
             }
         };
 
+        // We compute an initial GMM model from dataset and initial responsabilities wrt
+        // to the type of covariance specification.
         let (mut weights, means, covariances) = Self::estimate_gaussian_parameters(
             &observations,
             &resp,
             hyperparameters.covariance_type(),
             hyperparameters.reg_covariance(),
         );
-        weights = weights / F::from(n_samples).unwrap();
+        weights /= F::from(n_samples).unwrap();
 
         // GmmCovarType = full
         let precisions = Self::compute_precision_cholesky_full(&covariances);
@@ -216,11 +220,10 @@ impl<F: Float + Into<f64>> GaussianMixtureModel<F> {
         let n_features = means.ncols();
         let mut covariances = Array::zeros((n_clusters, n_features, n_features));
         for k in 0..n_clusters {
-            let diff = observations - &means.slice(s![k..k + 1, ..]);
-            let m = diff.t().to_owned() * resp.slice(s![.., k]);
+            let diff = observations - &means.row(k);
+            let m = &diff.t() * &resp.index_axis(Axis(1), k);
             let mut cov_k = m.dot(&diff) / nk[k];
-            let diag = cov_k.diag().to_owned() + reg_covar;
-            cov_k.diag_mut().assign(&diag);
+            cov_k.diag_mut().mapv_inplace(|x| x + reg_covar);
             covariances.slice_mut(s![k, .., ..]).assign(&cov_k);
         }
         covariances
@@ -238,8 +241,7 @@ impl<F: Float + Into<f64>> GaussianMixtureModel<F> {
                 Ok(cov_chol) => {
                     let sol = cov_chol
                         .solve_triangular(UPLO::Lower, Diag::NonUnit, &Array::eye(n_features))
-                        .unwrap()
-                        .to_owned();
+                        .unwrap();
                     precisions_chol.slice_mut(s![k, .., ..]).assign(&sol.t());
                 }
                 Err(_) => panic!(
@@ -255,7 +257,7 @@ impl<F: Float + Into<f64>> GaussianMixtureModel<F> {
 
     fn e_step<D: Data<Elem = F>>(&self, observations: &ArrayBase<D, Ix2>) -> (F, Array2<F>) {
         let (log_prob_norm, log_resp) = self.estimate_log_prob_resp(&observations);
-        let log_mean = log_prob_norm.sum() / F::from(log_prob_norm.len()).unwrap();
+        let log_mean = log_prob_norm.mean().unwrap();
         (log_mean, log_resp)
     }
 
@@ -347,8 +349,7 @@ impl<F: Float + Into<f64>> GaussianMixtureModel<F> {
             .slice(s![.., ..; n_features+1])
             .to_owned()
             .mapv(|v| v.ln());
-        let log_det_chol = log_diags.sum_axis(Axis(1));
-        log_det_chol
+        log_diags.sum_axis(Axis(1))
     }
 
     fn estimate_log_weights(&self) -> Array1<F> {
@@ -382,7 +383,7 @@ impl<'a, F: Float + Into<f64>, R: Rng + Clone, D: Data<Elem = F>, T: Targets>
                 lower_bound =
                     GaussianMixtureModel::<F>::compute_lower_bound(&log_resp, log_prob_norm);
                 let change = lower_bound - prev_lower_bound;
-                if num_traits::sign::Signed::abs(&change) < self.tolerance() {
+                if change.abs() < self.tolerance() {
                     converged_iter = Some(n_iter);
                     break;
                 }
@@ -416,9 +417,9 @@ impl<F: Float + Into<f64>, D: Data<Elem = F>> Predict<&ArrayBase<D, Ix2>, Array1
 {
     fn predict(&self, observations: &ArrayBase<D, Ix2>) -> Array1<usize> {
         let (_, log_resp) = self.estimate_log_prob_resp(&observations);
-        return log_resp
+        log_resp
             .mapv(|v| v.exp())
-            .map_axis(Axis(1), |row| row.argmax().unwrap());
+            .map_axis(Axis(1), |row| row.argmax().unwrap())
     }
 }
 

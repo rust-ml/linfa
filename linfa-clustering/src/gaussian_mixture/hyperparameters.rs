@@ -63,7 +63,7 @@ pub struct GmmHyperParamsBuilder<F: Float, R: Rng> {
 }
 
 impl<F: Float, R: Rng + Clone> GmmHyperParamsBuilder<F, R> {
-    /// Set covariance type.
+    /// Set the covariance type.
     pub fn covariance_type(mut self, covar_type: GmmCovarType) -> Self {
         self.covar_type = covar_type;
         self
@@ -115,6 +115,7 @@ impl<F: Float, R: Rng + Clone> GmmHyperParamsBuilder<F, R> {
 }
 
 impl<F: Float> GmmHyperParams<F, Isaac64Rng> {
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(n_clusters: usize) -> GmmHyperParamsBuilder<F, Isaac64Rng> {
         Self::new_with_rng(n_clusters, Isaac64Rng::seed_from_u64(42))
     }
@@ -166,6 +167,7 @@ impl<F: Float, R: Rng + Clone> GmmHyperParams<F, R> {
         self.rng.clone()
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn build(
         n_clusters: usize,
         covar_type: GmmCovarType,
