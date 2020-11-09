@@ -12,6 +12,11 @@ readme = "README.md"
 keywords = ["clustering", "machine-learning", "linfa", "k-means", "unsupervised"]
 categories = ["algorithms", "mathematics", "science"]
 
+[features]
+default = ["tests-openblas-system"]
+tests-openblas-system = ["openblas-src/system"]
+tests-openblas-build = ["openblas-src/cblas", "openblas-src/lapacke"]
+
 [dependencies.serde_crate]
 package = "serde"
 optional = true
