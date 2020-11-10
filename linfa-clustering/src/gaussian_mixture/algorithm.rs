@@ -415,13 +415,11 @@ impl<'a, F: Float + Into<f64>, R: Rng + Clone, D: Data<Elem = F>, T: Targets>
                     "No lower bound improvement (-inf)".to_string(),
                 )),
             },
-            None => {
-                Err(GmmError::NotConverged(
-                    format!("EM fitting algorithm {} did not converge. Try different init parameters, \
-                        or increase max_n_iterations, tolerance or check for degenerate data.",
-                    (n_init + 1))
-                );
-            }
+            None => Err(GmmError::NotConverged(format!(
+                "EM fitting algorithm {} did not converge. Try different init parameters, \
+                            or increase max_n_iterations, tolerance or check for degenerate data.",
+                (n_init + 1)
+            ))),
         }
     }
 }

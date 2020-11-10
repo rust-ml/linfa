@@ -13,7 +13,7 @@ pub enum GmmError {
     LinalgError(LinalgError),
     /// When a cluster has no more data point while fitting GMM
     EmptyCluster(String),
-    /// When lower bound computation fail
+    /// When lower bound computation fails
     LowerBoundError(String),
     /// When fitting EM algorithm does not converge
     NotConverged(String),
@@ -32,7 +32,9 @@ impl Display for GmmError {
             or increase reg_covar. Error: {}",
                 error
             ),
-            Self::EmptyCluster(message) => write!(f, "Empty cluster: {}", message),
+            Self::EmptyCluster(message) => write!(f, "Fitting failed: {}", message),
+            Self::LowerBoundError(message) => write!(f, "Fitting failed: {}", message),
+            Self::NotConverged(message) => write!(f, "Fitting failed: {}", message),
         }
     }
 }
