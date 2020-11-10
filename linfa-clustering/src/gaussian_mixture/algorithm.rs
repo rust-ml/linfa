@@ -1,3 +1,4 @@
+use crate::gaussian_mixture::errors::{GmmError, Result};
 use crate::gaussian_mixture::hyperparameters::{
     GmmCovarType, GmmHyperParams, GmmHyperParamsBuilder, GmmInitMethod,
 };
@@ -79,8 +80,8 @@ use serde_crate::{Deserialize, Serialize};
 /// let gmm = GaussianMixtureModel::params_with_rng(n_clusters, rng)
 ///             .n_init(10)
 ///             .tolerance(1e-4)
-///             .build()
-///             .fit(&dataset);
+///             .build().unwrap()
+///             .fit(&dataset).unwrap();
 ///
 /// // We can get predicted centroids (ie means of learnt gaussian distributions) from the model
 /// let gmm_centroids = gmm.centroids();
@@ -144,12 +145,12 @@ impl<F: Float + Into<f64>> GaussianMixtureModel<F> {
         hyperparameters: &GmmHyperParams<F, R>,
         dataset: &Dataset<ArrayBase<D, Ix2>, T>,
         mut rng: R,
-    ) -> GaussianMixtureModel<F> {
+    ) -> Result<GaussianMixtureModel<F>> {
         let observations = dataset.records().view();
         let n_samples = observations.nrows();
 
-        // We can initialize responsabilities (n_samples, n_clusters) that is probability that
-        // a given sample belong to a given cluster.
+        // We can initialize responsabilities (n_samples, n_clusters) of each clusters
+        // that is, given a sample, the probabilities of being from a cluster.
         let resp = match hyperparameters.init_method() {
             GmmInitMethod::KMeans => {
                 let model = KMeans::params_with_rng(hyperparameters.n_clusters(), rng)
@@ -180,18 +181,18 @@ impl<F: Float + Into<f64>> GaussianMixtureModel<F> {
             &resp,
             hyperparameters.covariance_type(),
             hyperparameters.reg_covariance(),
-        );
+        )?;
         weights /= F::from(n_samples).unwrap();
 
         // GmmCovarType = full
-        let precisions = Self::compute_precision_cholesky_full(&covariances);
+        let precisions = Self::compute_precision_cholesky_full(&covariances)?;
 
-        GaussianMixtureModel {
+        Ok(GaussianMixtureModel {
             covar_type: *hyperparameters.covariance_type(),
             weights,
             means,
             precisions,
-        }
+        })
     }
 
     fn estimate_gaussian_parameters<D: Data<Elem = F>>(
@@ -199,14 +200,21 @@ impl<F: Float + Into<f64>> GaussianMixtureModel<F> {
         resp: &Array2<F>,
         _covar_type: &GmmCovarType,
         reg_covar: F,
-    ) -> (Array1<F>, Array2<F>, Array3<F>) {
-        let nk = resp.sum_axis(Axis(0)) + F::from(10.).unwrap() * F::epsilon();
+    ) -> Result<(Array1<F>, Array2<F>, Array3<F>)> {
+        let nk = resp.sum_axis(Axis(0));
+        if nk.min().unwrap() < &(F::from(10.).unwrap() * F::epsilon()) {
+            return Err(GmmError::EmptyCluster(format!(
+                "Cluster #{} has no more point. Consider decreasing number of cluster or change intialization.",
+                nk.argmin().unwrap() + 1
+            )));
+        }
+
         let nk2 = nk.to_owned().insert_axis(Axis(1));
         let means = resp.t().dot(observations) / nk2;
         // GmmCovarType = Full
         let covariances =
             Self::estimate_gaussian_covariances_full(&observations, resp, &nk, &means, reg_covar);
-        (nk, means, covariances)
+        Ok((nk, means, covariances))
     }
 
     fn estimate_gaussian_covariances_full<D: Data<Elem = F>>(
@@ -231,34 +239,27 @@ impl<F: Float + Into<f64>> GaussianMixtureModel<F> {
 
     fn compute_precision_cholesky_full<D: Data<Elem = F>>(
         covariances: &ArrayBase<D, Ix3>,
-    ) -> Array3<F> {
+    ) -> Result<Array3<F>> {
         let n_clusters = covariances.shape()[0];
         let n_features = covariances.shape()[1];
         let mut precisions_chol = Array::zeros((n_clusters, n_features, n_features));
         for (k, covariance) in covariances.outer_iter().enumerate() {
             let cov: Array2<f64> = covariance.mapv(|v| v.into());
-            match cov.cholesky(UPLO::Lower) {
-                Ok(cov_chol) => {
-                    let sol = cov_chol
-                        .solve_triangular(UPLO::Lower, Diag::NonUnit, &Array::eye(n_features))
-                        .unwrap();
-                    precisions_chol.slice_mut(s![k, .., ..]).assign(&sol.t());
-                }
-                Err(_) => panic!(
-                    "Fitting the mixture model failed because some components have \
-                ill-defined empirical covariance (for instance caused by singleton \
-                or collapsed samples). Try to decrease the number of components, \
-                or increase reg_covar."
-                ),
-            };
+            let cov_chol = cov.cholesky(UPLO::Lower)?;
+            let sol =
+                cov_chol.solve_triangular(UPLO::Lower, Diag::NonUnit, &Array::eye(n_features))?;
+            precisions_chol.slice_mut(s![k, .., ..]).assign(&sol.t());
         }
-        precisions_chol.mapv(|v| F::from(v).unwrap())
+        Ok(precisions_chol.mapv(|v| F::from(v).unwrap()))
     }
 
-    fn e_step<D: Data<Elem = F>>(&self, observations: &ArrayBase<D, Ix2>) -> (F, Array2<F>) {
+    fn e_step<D: Data<Elem = F>>(
+        &self,
+        observations: &ArrayBase<D, Ix2>,
+    ) -> Result<(F, Array2<F>)> {
         let (log_prob_norm, log_resp) = self.estimate_log_prob_resp(&observations);
         let log_mean = log_prob_norm.mean().unwrap();
-        (log_mean, log_resp)
+        Ok((log_mean, log_resp))
     }
 
     fn m_step<D: Data<Elem = F>>(
@@ -266,20 +267,23 @@ impl<F: Float + Into<f64>> GaussianMixtureModel<F> {
         reg_covar: F,
         observations: &ArrayBase<D, Ix2>,
         log_resp: &Array2<F>,
-    ) {
+    ) -> Result<()> {
         let n_samples = observations.nrows();
         let (weights, means, covariances) = Self::estimate_gaussian_parameters(
             &observations,
             &log_resp.mapv(F::exp),
             &self.covar_type,
             reg_covar,
-        );
+        )?;
         self.means = means;
         self.weights = weights / F::from(n_samples).unwrap();
         // GmmCovarType = Full()
-        self.precisions = Self::compute_precision_cholesky_full(&covariances);
+        self.precisions = Self::compute_precision_cholesky_full(&covariances)?;
+        Ok(())
     }
 
+    // We keep methods names and method boundaries from scikit-learn implementation
+    // which handles also Bayesian mixture hence below the _log_resp argument which is not used.
     fn compute_lower_bound<D: Data<Elem = F>>(
         _log_resp: &ArrayBase<D, Ix2>,
         log_prob_norm: F,
@@ -287,6 +291,9 @@ impl<F: Float + Into<f64>> GaussianMixtureModel<F> {
         log_prob_norm
     }
 
+    // Estimate log probabilities (log P(X)) and responsibilities for each sample.
+    // Compute weighted log probabilities per component (log P(X)) and responsibilities
+    // for each sample in X with respect to the current state of the model.
     fn estimate_log_prob_resp<D: Data<Elem = F>>(
         &self,
         observations: &ArrayBase<D, Ix2>,
@@ -300,6 +307,7 @@ impl<F: Float + Into<f64>> GaussianMixtureModel<F> {
         (log_prob_norm, log_resp)
     }
 
+    // Estimate weighted log probabilities for each samples wrt to the model
     fn estimate_weighted_log_prob<D: Data<Elem = F>>(
         &self,
         observations: &ArrayBase<D, Ix2>,
@@ -307,10 +315,13 @@ impl<F: Float + Into<f64>> GaussianMixtureModel<F> {
         self.estimate_log_prob(&observations) + self.estimate_log_weights()
     }
 
+    // Compute log probabilities for each samples wrt to the model which is gaussian
     fn estimate_log_prob<D: Data<Elem = F>>(&self, observations: &ArrayBase<D, Ix2>) -> Array2<F> {
         self.estimate_log_gaussian_prob(&observations)
     }
 
+    // Compute the log likelihood in case of the gaussian probabilities
+    // log(P(X|Mean, Precision)) = -0.5*(d*ln(2*PI)-ln(det(Precision))-(X-Mean)^t.Precision.(X-Mean)
     fn estimate_log_gaussian_prob<D: Data<Elem = F>>(
         &self,
         observations: &ArrayBase<D, Ix2>,
@@ -321,6 +332,7 @@ impl<F: Float + Into<f64>> GaussianMixtureModel<F> {
         let precisions_chol = self.precisions();
         let n_clusters = means.nrows();
         // GmmCovarType = full
+        // det(precision_chol) is half of det(precision)
         let log_det = Self::compute_log_det_cholesky_full(&precisions_chol, n_features);
         let mut log_prob: Array2<F> = Array::zeros((n_samples, n_clusters));
         Zip::indexed(means.genrows())
@@ -360,11 +372,11 @@ impl<F: Float + Into<f64>> GaussianMixtureModel<F> {
 impl<'a, F: Float + Into<f64>, R: Rng + Clone, D: Data<Elem = F>, T: Targets>
     Fit<'a, ArrayBase<D, Ix2>, T> for GmmHyperParams<F, R>
 {
-    type Object = GaussianMixtureModel<F>;
+    type Object = Result<GaussianMixtureModel<F>>;
 
     fn fit(&self, dataset: &Dataset<ArrayBase<D, Ix2>, T>) -> Self::Object {
         let observations = dataset.records().view();
-        let mut gmm = GaussianMixtureModel::<F>::new(self, dataset, self.rng());
+        let mut gmm = GaussianMixtureModel::<F>::new(self, dataset, self.rng())?;
 
         let mut max_lower_bound = -F::infinity();
         let mut best_params = None;
@@ -378,8 +390,8 @@ impl<'a, F: Float + Into<f64>, R: Rng + Clone, D: Data<Elem = F>, T: Targets>
             let mut converged_iter: Option<u64> = None;
             for n_iter in 0..self.max_n_iterations() {
                 let prev_lower_bound = lower_bound;
-                let (log_prob_norm, log_resp) = gmm.e_step(&observations);
-                gmm.m_step(self.reg_covariance(), &observations, &log_resp);
+                let (log_prob_norm, log_resp) = gmm.e_step(&observations)?;
+                gmm.m_step(self.reg_covariance(), &observations, &log_resp)?;
                 lower_bound =
                     GaussianMixtureModel::<F>::compute_lower_bound(&log_resp, log_prob_norm);
                 let change = lower_bound - prev_lower_bound;
@@ -398,14 +410,16 @@ impl<'a, F: Float + Into<f64>, R: Rng + Clone, D: Data<Elem = F>, T: Targets>
 
         match best_iter {
             Some(_n_iter) => match best_params {
-                Some(gmm) => gmm,
-                _ => panic!("No lower bound improvement. GMM fit fail!"),
+                Some(gmm) => Ok(gmm),
+                _ => Err(GmmError::LowerBoundError(
+                    "No lower bound improvement (-inf)".to_string(),
+                )),
             },
             None => {
-                panic!(
-                    "Initialization {} did not converge. Try different init parameters, \
-                         or increase max_n_iterations, tolerance or check for degenerate data.",
-                    (n_init + 1)
+                Err(GmmError::NotConverged(
+                    format!("EM fitting algorithm {} did not converge. Try different init parameters, \
+                        or increase max_n_iterations, tolerance or check for degenerate data.",
+                    (n_init + 1))
                 );
             }
         }
@@ -456,7 +470,9 @@ mod tests {
         let n_clusters = expected_centroids.len_of(Axis(0));
         let gmm = GaussianMixtureModel::params_with_rng(n_clusters, rng)
             .build()
-            .fit(&blobs);
+            .unwrap()
+            .fit(&blobs)
+            .unwrap();
 
         let gmm_centroids = gmm.centroids();
         let memberships = gmm.predict(&expected_centroids);

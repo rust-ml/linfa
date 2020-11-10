@@ -1,3 +1,4 @@
+use crate::gaussian_mixture::errors::{GmmError, Result};
 use linfa::Float;
 use ndarray_rand::rand::{Rng, SeedableRng};
 use rand_isaac::Isaac64Rng;
@@ -100,7 +101,7 @@ impl<F: Float, R: Rng + Clone> GmmHyperParamsBuilder<F, R> {
         self
     }
 
-    pub fn build(self) -> GmmHyperParams<F, R> {
+    pub fn build(self) -> Result<GmmHyperParams<F, R>> {
         GmmHyperParams::build(
             self.n_clusters,
             self.covar_type,
@@ -177,24 +178,32 @@ impl<F: Float, R: Rng + Clone> GmmHyperParams<F, R> {
         max_n_iter: u64,
         init_method: GmmInitMethod,
         rng: R,
-    ) -> Self {
+    ) -> Result<Self> {
         if n_clusters == 0 {
-            panic!("`n_clusters` cannot be 0!");
+            return Err(GmmError::InvalidValue(
+                "`n_clusters` cannot be 0!".to_string(),
+            ));
         }
         if tolerance <= F::zero() {
-            panic!("`tolerance` must be greater than 0!");
+            return Err(GmmError::InvalidValue(
+                "`tolerance` must be greater than 0!".to_string(),
+            ));
         }
         if reg_covar <= F::zero() {
-            panic!("`reg_covar` must be greater than 0!");
+            return Err(GmmError::InvalidValue(
+                "`reg_covar` must be greater than 0!".to_string(),
+            ));
         }
         if n_init == 0 {
-            panic!("`n_init` cannot be 0!");
+            return Err(GmmError::InvalidValue("`n_init` cannot be 0!".to_string()));
         }
         if max_n_iter == 0 {
-            panic!("`max_n_iterations` cannot be 0!");
+            return Err(GmmError::InvalidValue(
+                "`max_n_iterations` cannot be 0!".to_string(),
+            ));
         }
 
-        GmmHyperParams {
+        Ok(GmmHyperParams {
             n_clusters,
             covar_type,
             tolerance,
@@ -203,6 +212,6 @@ impl<F: Float, R: Rng + Clone> GmmHyperParams<F, R> {
             max_n_iter,
             init_method,
             rng,
-        }
+        })
     }
 }

@@ -100,8 +100,8 @@ use serde_crate::{Deserialize, Serialize};
 /// let n_clusters = expected_centroids.len_of(Axis(0));
 /// let model = KMeans::params(n_clusters)
 ///     .tolerance(1e-2)
-///     .build()
-///     .fit(&observations);
+///     .build().unwrap()
+///     .fit(&observations).unwrap();
 ///
 /// // Once we found our set of centroids, we can also assign new points to the nearest cluster
 /// let new_observation = Dataset::from(array![[-9., 20.5]]);
