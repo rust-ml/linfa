@@ -12,11 +12,15 @@
 //!
 //! ## Current state
 //!
+<<<<<<< HEAD:algorithms/linfa-clustering/src/lib.rs
 //! Right now `linfa-clustering` provides the following clustering algorithms:
 //! * [K-Means](struct.KMeans.html)
 //! * [DBSCAN](struct.Dbscan.html)
 //! * [Approximated DBSCAN](struct.AppxDbscan.html)
 //! * [Gaussian-Mixture-Model](struct.GaussianMixtureModel.html)
+=======
+//! Right now `linfa-clustering` provides, `K-Means` `DBSCAN`, `OPTICS` clustering as well as a couple of helper functions.
+>>>>>>> 36ce293... oh hey it's optics again:linfa-clustering/src/lib.rs
 //!
 //! Implementation choices, algorithmic details and tutorials can be found in the page dedicated to the specific algorithms.
 //!
@@ -28,10 +32,12 @@ mod dbscan;
 mod gaussian_mixture;
 #[allow(clippy::new_ret_no_self)]
 mod k_means;
+mod optics;
 mod utils;
 
 pub use appx_dbscan::*;
 pub use dbscan::*;
 pub use gaussian_mixture::*;
 pub use k_means::*;
+pub use optics::*;
 pub use utils::*;
