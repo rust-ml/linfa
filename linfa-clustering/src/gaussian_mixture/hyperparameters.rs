@@ -128,8 +128,8 @@ impl<F: Float, R: Rng + Clone> GmmHyperParams<F, R> {
             n_clusters,
             covar_type: GmmCovarType::Full,
             tolerance: F::from(1e-3).unwrap(),
-            reg_covar: F::from(1e-6).unwrap(),
-            n_init: 20,
+            reg_covar: F::from(0.).unwrap(),
+            n_init: 1,
             max_n_iter: 100,
             init_method: GmmInitMethod::KMeans,
             rng,
@@ -189,7 +189,7 @@ impl<F: Float, R: Rng + Clone> GmmHyperParams<F, R> {
                 "`tolerance` must be greater than 0!".to_string(),
             ));
         }
-        if reg_covar <= F::zero() {
+        if reg_covar < F::zero() {
             return Err(GmmError::InvalidValue(
                 "`reg_covar` must be greater than 0!".to_string(),
             ));
