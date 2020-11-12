@@ -9,7 +9,7 @@ use linfa::{
     Float,
 };
 use ndarray::{s, Array, Array1, Array2, Array3, ArrayBase, Axis, Data, Ix2, Ix3, Zip};
-use ndarray_linalg::{cholesky::*, triangular::*};
+use ndarray_linalg::{cholesky::*, triangular::*, Lapack, Scalar};
 use ndarray_rand::rand::Rng;
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
@@ -125,7 +125,7 @@ impl<F: Float> Clone for GaussianMixtureModel<F> {
     }
 }
 
-impl<F: Float + Into<f64>> GaussianMixtureModel<F> {
+impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
     pub fn params(n_clusters: usize) -> GmmHyperParamsBuilder<F, Isaac64Rng> {
         GmmHyperParams::new(n_clusters)
     }
@@ -257,13 +257,12 @@ impl<F: Float + Into<f64>> GaussianMixtureModel<F> {
         let n_features = covariances.shape()[1];
         let mut precisions_chol = Array::zeros((n_clusters, n_features, n_features));
         for (k, covariance) in covariances.outer_iter().enumerate() {
-            let cov: Array2<f64> = covariance.mapv(|v| v.into());
-            let cov_chol = cov.cholesky(UPLO::Lower)?;
+            let cov_chol = covariance.cholesky(UPLO::Lower)?;
             let sol =
                 cov_chol.solve_triangular(UPLO::Lower, Diag::NonUnit, &Array::eye(n_features))?;
             precisions_chol.slice_mut(s![k, .., ..]).assign(&sol.t());
         }
-        Ok(precisions_chol.mapv(|v| F::from(v).unwrap()))
+        Ok(precisions_chol)
     }
 
     fn compute_precisions_full<D: Data<Elem = F>>(
@@ -301,7 +300,7 @@ impl<F: Float + Into<f64>> GaussianMixtureModel<F> {
         let n_samples = observations.nrows();
         let (weights, means, covariances) = Self::estimate_gaussian_parameters(
             &observations,
-            &log_resp.mapv(F::exp),
+            &log_resp.mapv(|v| v.exp()),
             &self.covar_type,
             reg_covar,
         )?;
@@ -398,7 +397,7 @@ impl<F: Float + Into<f64>> GaussianMixtureModel<F> {
     }
 }
 
-impl<'a, F: Float + Into<f64>, R: Rng + Clone, D: Data<Elem = F>, T: Targets>
+impl<'a, F: Float + Lapack + Scalar, R: Rng + Clone, D: Data<Elem = F>, T: Targets>
     Fit<'a, ArrayBase<D, Ix2>, T> for GmmHyperParams<F, R>
 {
     type Object = Result<GaussianMixtureModel<F>>;
@@ -454,7 +453,7 @@ impl<'a, F: Float + Into<f64>, R: Rng + Clone, D: Data<Elem = F>, T: Targets>
     }
 }
 
-impl<F: Float + Into<f64>, D: Data<Elem = F>> Predict<&ArrayBase<D, Ix2>, Array1<usize>>
+impl<F: Float + Lapack + Scalar, D: Data<Elem = F>> Predict<&ArrayBase<D, Ix2>, Array1<usize>>
     for GaussianMixtureModel<F>
 {
     fn predict(&self, observations: &ArrayBase<D, Ix2>) -> Array1<usize> {
@@ -465,7 +464,7 @@ impl<F: Float + Into<f64>, D: Data<Elem = F>> Predict<&ArrayBase<D, Ix2>, Array1
     }
 }
 
-impl<F: Float + Into<f64>, D: Data<Elem = F>, T: Targets>
+impl<F: Float + Lapack + Scalar, D: Data<Elem = F>, T: Targets>
     Predict<Dataset<ArrayBase<D, Ix2>, T>, Dataset<ArrayBase<D, Ix2>, Array1<usize>>>
     for GaussianMixtureModel<F>
 {
