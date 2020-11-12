@@ -101,6 +101,20 @@ impl<F: Float, R: Rng + Clone> GmmHyperParamsBuilder<F, R> {
         self
     }
 
+    /// Set the random generator
+    pub fn with_rng<R2: Rng + Clone>(self, rng: R2) -> GmmHyperParamsBuilder<F, R2> {
+        GmmHyperParamsBuilder {
+            n_clusters: self.n_clusters,
+            covar_type: self.covar_type,
+            tolerance: self.tolerance,
+            reg_covar: self.reg_covar,
+            n_init: self.n_init,
+            max_n_iter: self.max_n_iter,
+            init_method: self.init_method,
+            rng,
+        }
+    }
+
     pub fn build(self) -> Result<GmmHyperParams<F, R>> {
         GmmHyperParams::build(
             self.n_clusters,
@@ -132,6 +146,19 @@ impl<F: Float, R: Rng + Clone> GmmHyperParams<F, R> {
             n_init: 1,
             max_n_iter: 100,
             init_method: GmmInitMethod::KMeans,
+            rng,
+        }
+    }
+
+    pub fn with_rng<R2: Rng + Clone>(self, rng: R2) -> GmmHyperParams<F, R2> {
+        GmmHyperParams {
+            n_clusters: self.n_clusters,
+            covar_type: self.covar_type,
+            tolerance: self.tolerance,
+            reg_covar: self.reg_covar,
+            n_init: self.n_init,
+            max_n_iter: self.max_n_iter,
+            init_method: self.init_method,
             rng,
         }
     }

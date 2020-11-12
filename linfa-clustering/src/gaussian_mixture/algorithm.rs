@@ -77,10 +77,11 @@ use serde_crate::{Deserialize, Serialize};
 /// let n_clusters = expected_centroids.len_of(Axis(0));
 ///
 /// // We fit the model from the dataset setting some options
-/// let gmm = GaussianMixtureModel::params_with_rng(n_clusters, rng)
+/// let gmm = GaussianMixtureModel::params(n_clusters)
 ///             .n_init(10)
 ///             .tolerance(1e-4)
 ///             .build().expect("GMM parameterization")
+///             .with_rng(rng)
 ///             .fit(&dataset).expect("GMM fitting");
 ///
 /// // Then we can get dataset membership information, targets contain **cluster indexes**
@@ -127,13 +128,6 @@ impl<F: Float> Clone for GaussianMixtureModel<F> {
 impl<F: Float + Into<f64>> GaussianMixtureModel<F> {
     pub fn params(n_clusters: usize) -> GmmHyperParamsBuilder<F, Isaac64Rng> {
         GmmHyperParams::new(n_clusters)
-    }
-
-    pub fn params_with_rng<R: Rng + Clone>(
-        n_clusters: usize,
-        rng: R,
-    ) -> GmmHyperParamsBuilder<F, R> {
-        GmmHyperParams::new_with_rng(n_clusters, rng)
     }
 
     pub fn weights(&self) -> &Array1<F> {
@@ -542,7 +536,8 @@ mod tests {
             row.assign(&sample);
         }
         let dataset = Dataset::from(observations);
-        let gmm = GaussianMixtureModel::params_with_rng(2, rng)
+        let gmm = GaussianMixtureModel::params(2)
+            .with_rng(rng)
             .build()
             .unwrap()
             .fit(&dataset)
@@ -565,9 +560,10 @@ mod tests {
         let blobs = Dataset::from(generate_blobs(n, &expected_centroids, &mut rng));
 
         let n_clusters = expected_centroids.len_of(Axis(0));
-        let gmm = GaussianMixtureModel::params_with_rng(n_clusters, rng)
+        let gmm = GaussianMixtureModel::params(n_clusters)
             .build()
             .expect("GMM parameterization")
+            .with_rng(rng)
             .fit(&blobs)
             .expect("GMM fitting");
 
