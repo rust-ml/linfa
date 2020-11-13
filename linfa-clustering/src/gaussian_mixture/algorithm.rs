@@ -1,7 +1,5 @@
 use crate::gaussian_mixture::errors::{GmmError, Result};
-use crate::gaussian_mixture::hyperparameters::{
-    GmmCovarType, GmmHyperParams, GmmHyperParamsBuilder, GmmInitMethod,
-};
+use crate::gaussian_mixture::hyperparameters::{GmmCovarType, GmmHyperParams, GmmInitMethod};
 use crate::k_means::KMeans;
 use linfa::{
     dataset::{Dataset, Targets},
@@ -78,9 +76,8 @@ use serde_crate::{Deserialize, Serialize};
 ///
 /// // We fit the model from the dataset setting some options
 /// let gmm = GaussianMixtureModel::params(n_clusters)
-///             .n_init(10)
-///             .tolerance(1e-4)
-///             .build().expect("GMM parameterization")
+///             .with_n_init(10)
+///             .with_tolerance(1e-4)
 ///             .with_rng(rng)
 ///             .fit(&dataset).expect("GMM fitting");
 ///
@@ -126,7 +123,7 @@ impl<F: Float> Clone for GaussianMixtureModel<F> {
 }
 
 impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
-    pub fn params(n_clusters: usize) -> GmmHyperParamsBuilder<F, Isaac64Rng> {
+    pub fn params(n_clusters: usize) -> GmmHyperParams<F, Isaac64Rng> {
         GmmHyperParams::new(n_clusters)
     }
 
@@ -403,6 +400,7 @@ impl<'a, F: Float + Lapack + Scalar, R: Rng + Clone, D: Data<Elem = F>, T: Targe
     type Object = Result<GaussianMixtureModel<F>>;
 
     fn fit(&self, dataset: &Dataset<ArrayBase<D, Ix2>, T>) -> Self::Object {
+        self.validate()?;
         let observations = dataset.records().view();
         let mut gmm = GaussianMixtureModel::<F>::new(self, dataset, self.rng())?;
 
@@ -537,10 +535,8 @@ mod tests {
         let dataset = Dataset::from(observations);
         let gmm = GaussianMixtureModel::params(2)
             .with_rng(rng)
-            .build()
-            .unwrap()
             .fit(&dataset)
-            .unwrap();
+            .expect("GMM fitting");
 
         // check weights
         let w = gmm.weights();
@@ -560,8 +556,6 @@ mod tests {
 
         let n_clusters = expected_centroids.len_of(Axis(0));
         let gmm = GaussianMixtureModel::params(n_clusters)
-            .build()
-            .expect("GMM parameterization")
             .with_rng(rng)
             .fit(&blobs)
             .expect("GMM fitting");
@@ -576,5 +570,59 @@ mod tests {
                 .and(&expected_c)
                 .apply(|a, b| assert_abs_diff_eq!(a, b, epsilon = 1.))
         }
+    }
+
+    #[test]
+    fn test_invalid_n_init() {
+        assert!(
+            GaussianMixtureModel::params(1)
+                .with_n_init(0)
+                .fit(&Dataset::from(array![[0.]]))
+                .is_err(),
+            "n_init must be strictly positive"
+        );
+    }
+
+    #[test]
+    fn test_invalid_tolerance() {
+        assert!(
+            GaussianMixtureModel::params(1)
+                .with_tolerance(0.)
+                .fit(&Dataset::from(array![[0.]]))
+                .is_err(),
+            "tolerance must be strictly positive"
+        );
+    }
+
+    #[test]
+    fn test_invalid_n_clusters() {
+        assert!(
+            GaussianMixtureModel::params(0)
+                .fit(&Dataset::from(array![[0., 0.]]))
+                .is_err(),
+            "n_clusters must be strictly positive"
+        );
+    }
+
+    #[test]
+    fn test_invalid_reg_covariance() {
+        assert!(
+            GaussianMixtureModel::params(1)
+                .with_reg_covariance(-1e-6)
+                .fit(&Dataset::from(array![[0.]]))
+                .is_err(),
+            "reg_covariance must be positive"
+        );
+    }
+
+    #[test]
+    fn test_invalid_max_n_iterations() {
+        assert!(
+            GaussianMixtureModel::params(1)
+                .with_max_n_iterations(0)
+                .fit(&Dataset::from(array![[0.]]))
+                .is_err(),
+            "max_n_iterations must be stricly positive"
+        );
     }
 }
