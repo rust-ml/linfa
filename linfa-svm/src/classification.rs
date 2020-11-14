@@ -386,17 +386,11 @@ mod tests {
         // train model with positive and negative weight
         let model = Svm::params().pos_neg_weights(1.0, 1.0).fit(&dataset);
 
+        //println!("{:?}", model.predict(Dataset::from(records.clone())).targets());
+
         let valid = model
             .predict(Dataset::from(records))
             .map_targets(|x| **x > 0.0);
-
-        let cm = valid.confusion_matrix(&dataset);
-        assert!(cm.accuracy() > 0.9);
-
-        // train model with Nu parameter
-        let model = Svm::params().nu_weight(0.01).fit(&dataset);
-
-        let valid = model.predict(valid).map_targets(|x| **x > 0.0);
 
         let cm = valid.confusion_matrix(&dataset);
         assert!(cm.accuracy() > 0.9);

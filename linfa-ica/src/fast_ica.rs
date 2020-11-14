@@ -270,9 +270,10 @@ impl GFunc {
         )
     }
 
-    #[allow(clippy::manual_range_contains)]
+    //#[allow(clippy::manual_range_contains)]
     fn logcosh<A: Float>(x: &Array2<A>, alpha: f64) -> Result<(Array2<A>, Array1<A>)> {
-        if alpha < 1. || alpha > 2. {
+        //if alpha < 1.0 || alpha > 2.0 {
+        if !(1.0..=2.0).contains(&alpha) {
             return Err(FastIcaError::InvalidValue(format!(
                 "alpha must be between 1 and 2 inclusive, got {}",
                 alpha

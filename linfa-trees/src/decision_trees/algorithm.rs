@@ -1,6 +1,5 @@
 use crate::decision_trees::hyperparameters::{DecisionTreeParams, SplitQuality};
 use ndarray::{Array1, ArrayBase, Axis, Data, Ix1, Ix2};
-use std::iter::FromIterator;
 
 /// `RowMask` is used to track which rows are still included up to a particular
 /// node in the tree for one particular feature.
@@ -236,11 +235,10 @@ impl DecisionTree {
 
     /// Make predictions for each row of a matrix of features `x`.
     pub fn predict(&self, x: &ArrayBase<impl Data<Elem = f64>, Ix2>) -> Array1<u64> {
-        Array1::from_iter(
-            x.genrows()
-                .into_iter()
-                .map(|row| make_prediction(&row, &self.root_node)),
-        )
+        x.genrows()
+            .into_iter()
+            .map(|row| make_prediction(&row, &self.root_node))
+            .collect::<Array1<_>>()
     }
 
     pub fn hyperparameters(&self) -> &DecisionTreeParams {

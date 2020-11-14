@@ -25,7 +25,7 @@ impl TweedieDistribution {
                     power
                 )));
             }
-            power if power >= 1. && power < 2. => Self {
+            power if (1.0..2.0).contains(&power) => Self {
                 power,
                 lower_bound: 0.,
                 inclusive: true,
