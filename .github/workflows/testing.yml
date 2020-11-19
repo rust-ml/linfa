@@ -9,9 +9,6 @@ jobs:
     strategy:
       matrix:
         toolchain:
-          - 1.42.0
-          - nightly
-          - beta
           - stable
 
     steps:
@@ -27,13 +24,6 @@ jobs:
           profile: minimal
           toolchain: ${{ matrix.toolchain }}
           override: true
-          components: rustfmt, clippy
-
-      - name: Run cargo build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --all
 
       - name: Run cargo test
         uses: actions-rs/cargo@v1
