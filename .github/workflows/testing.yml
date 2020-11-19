@@ -1,10 +1,10 @@
 on: [push, pull_request]
 
-name: Codequality Lints
+name: Run Tests
 
 jobs:
-  codequality:
-    name: codequality
+  testing:
+    name: testing
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -18,6 +18,9 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v2
 
+      - name: Install ubuntu packages
+        run: sudo apt-get install libssl-dev gfortran libopenblas-dev liblapack-dev liblapacke-dev libatlas-base-dev
+
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -26,14 +29,16 @@ jobs:
           override: true
           components: rustfmt, clippy
 
-      - name: Run cargo fmt
+      - name: Run cargo build
         uses: actions-rs/cargo@v1
         with:
-          command: fmt
-          args: --all -- --check
+          command: build
+          args: --all
 
-      - name: Run cargo clippy
+      - name: Run cargo test
         uses: actions-rs/cargo@v1
         with:
-          command: clippy
-          args: --all-targets --all-features -- -D warnings
+          command: test
+          args: --all
+        env:
+          RUSTFLAGS: -C link-arg=-llapacke -C link-arg=-lcblas
