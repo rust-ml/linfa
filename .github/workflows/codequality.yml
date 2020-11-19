@@ -3,9 +3,17 @@ on: [push, pull_request]
 name: Codequality lints
 
 jobs:
-  nightly:
-    name: nightly
+  codequality:
+    name: codequality
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        toolchain:
+          - 1.42.0
+          - nightly
+          - beta
+          - stable
+
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
@@ -14,59 +22,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly
-          override: true
-          components: rustfmt, clippy
-
-      - name: Run cargo fmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
-
-      - name: Run cargo clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --all-targets --all-features --all -- -D warnings
-  beta:
-    name: beta
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
-
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: beta
-          override: true
-          components: rustfmt, clippy
-
-      - name: Run cargo fmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
-
-      - name: Run cargo clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --all-targets --all-features --all -- -D warnings
-  stable:
-    name: stable
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
-
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
+          toolchain: ${{ toolchain }}
           override: true
           components: rustfmt, clippy
 
