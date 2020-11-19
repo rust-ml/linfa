@@ -54,6 +54,17 @@ jobs:
           override: true
           components: rustfmt, clippy
 
+      - name: Get rustc version
+        id: rustc-version
+        run: echo "::set-output name=version::$(cargo +nightly --version | cut -d ' ' -f 2)"
+        shell: bash
+
+      - uses: actions/cache@v2
+        with:
+        path: |
+          ~/.cargo/bin/cargo-tarpaulin
+        key: ${{ runner.os }}-cargo-${{ steps.rustc-version.outputs.version }}
+
       - name: Install tarpaulin
         run: cargo +nightly install cargo-tarpaulin
 
