@@ -50,9 +50,12 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: nightly
           override: true
           components: rustfmt, clippy
+
+      - name: Install tarpaulin
+        run: cargo +nightly install cargo-tarpaulin
 
       - name: Generate code coverage
         run: |
@@ -61,4 +64,4 @@ jobs:
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1
         with:
-          fail_ci_if_error:     true
+          fail_ci_if_error: true
