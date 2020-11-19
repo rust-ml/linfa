@@ -60,12 +60,14 @@ jobs:
         shell: bash
 
       - uses: actions/cache@v2
+        id: tarpaulin-cache
         with:
           path: |
             ~/.cargo/bin/cargo-tarpaulin
           key: ${{ runner.os }}-cargo-${{ steps.rustc-version.outputs.version }}
 
       - name: Install tarpaulin
+        if: steps.tarpaulin-cache.outputs.cache-hit != 'true'
         run: cargo +nightly install cargo-tarpaulin
 
       - name: Generate code coverage
