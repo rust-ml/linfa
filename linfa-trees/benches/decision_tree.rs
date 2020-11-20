@@ -1,12 +1,24 @@
+use linfa::prelude::*;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use linfa_clustering::generate_blobs;
-use linfa_trees::{DecisionTree, DecisionTreeParams};
-use ndarray::{Array, Array2};
+use linfa_trees::DecisionTree;
+use ndarray::{Array, Array2, Axis, stack};
 use ndarray_rand::rand::SeedableRng;
-use ndarray_rand::rand_distr::Uniform;
+use ndarray_rand::rand_distr::{StandardNormal, Uniform};
 use ndarray_rand::RandomExt;
 use rand_isaac::Isaac64Rng;
 use std::iter::FromIterator;
+
+fn generate_blobs(means: &Array2<f64>, samples: usize, mut rng: &mut Isaac64Rng) -> Array2<f64> {
+    let out = means
+        .axis_iter(Axis(0))
+        .map(|mean| {
+            Array::random_using((samples, 4), StandardNormal, &mut rng) + mean
+        })
+        .collect::<Vec<_>>();
+    let out2 = out.iter().map(|x| x.view()).collect::<Vec<_>>();
+
+    stack(Axis(0), &out2).unwrap()
+}
 
 fn decision_tree_bench(c: &mut Criterion) {
     let mut rng = Isaac64Rng::seed_from_u64(42);
@@ -14,11 +26,11 @@ fn decision_tree_bench(c: &mut Criterion) {
     // Controls how many samples for each class are generated
     let training_set_sizes = vec![100, 1000, 10000, 100000];
 
-    let n_classes: u64 = 4;
+    let n_classes = 4;
     let n_features = 4;
 
     // Use the default configuration
-    let hyperparams = DecisionTreeParams::new(n_classes as u64);
+    let hyperparams = DecisionTree::params(n_classes);
 
     // Benchmark training time 10 times for each training sample size
     let mut group = c.benchmark_group("decision_tree");
@@ -26,22 +38,23 @@ fn decision_tree_bench(c: &mut Criterion) {
 
     for n in training_set_sizes.iter() {
         let centroids = Array2::random_using(
-            (n_classes as usize, n_features),
+            (n_classes, n_features),
             Uniform::new(-30., 30.),
             &mut rng,
         );
 
-        let train_x = generate_blobs(*n, &centroids, &mut rng);
+        let train_x = generate_blobs(&centroids, *n, &mut rng);
         let train_y = Array::from_iter(
             (0..n_classes)
-                .map(|x| std::iter::repeat(x).take(*n).collect::<Vec<u64>>())
+                .map(|x| std::iter::repeat(x).take(*n).collect::<Vec<usize>>())
                 .flatten(),
         );
+        let dataset = Dataset::new(train_x, train_y);
 
         group.bench_with_input(
             BenchmarkId::from_parameter(n),
-            &(train_x, train_y),
-            |b, (x, y)| b.iter(|| DecisionTree::fit(hyperparams.build(), &x, &y)),
+            &dataset,
+            |b, d| b.iter(|| hyperparams.fit(&d)),
         );
     }
 

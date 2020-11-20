@@ -1,119 +1,158 @@
-use crate::decision_trees::hyperparameters::{DecisionTreeParams, SplitQuality};
-use linfa_predictor::{LinfaError, Predictor};
-use ndarray::{Array1, ArrayBase, Axis, Data, Ix1, Ix2};
-use std::collections::HashSet;
+//! Linear decision trees
+//!
+use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
-use std::iter::FromIterator;
+use std::marker::PhantomData;
 
-/// `RowMask` is used to track which rows are still included up to a particular
-/// node in the tree for one particular feature.
+use ndarray::{ArrayBase, ArrayView2, Axis, Data, Ix1, Ix2};
+use crate::decision_trees::hyperparameters::{DecisionTreeParams, SplitQuality};
+use linfa::{dataset::Labels, traits::*, Dataset, Float, Label};
+
+/// RowMask tracks observations
+///
+/// The decision tree algorithm splits observations at a certain split value for a specific feature. The
+/// left and right children can then only use a certain number of observations. In order to track
+/// that the observations are masked with a boolean vector, hiding all observations which are not
+/// applicable in a lower tree.
 struct RowMask {
     mask: Vec<bool>,
-    n_samples: u64,
+    nsamples: usize,
 }
 
 impl RowMask {
-    fn all(n_samples: u64) -> Self {
+    fn all(nsamples: usize) -> Self {
         RowMask {
-            mask: vec![true; n_samples as usize],
-            n_samples,
+            mask: vec![true; nsamples as usize],
+            nsamples,
         }
+    }
+
+    fn none(nsamples: usize) -> Self {
+        RowMask {
+            mask: vec![false; nsamples as usize],
+            nsamples: 0,
+        }
+    }
+
+    fn mark(&mut self, idx: usize) {
+        self.mask[idx] = true;
+        self.nsamples += 1;
     }
 }
 
-struct SortedIndex {
-    presorted_indices: Vec<usize>,
-    features: Vec<f64>,
+/// Sorted values of observations with indices (always for a particular feature)
+struct SortedIndex<F: Float> {
+    sorted_values: Vec<(usize, F)>,
 }
 
-impl SortedIndex {
-    fn of_array_column(x: &ArrayBase<impl Data<Elem = f64>, Ix2>, feature_idx: usize) -> Self {
-        let sliced_column: Vec<f64> = x.index_axis(Axis(1), feature_idx).to_vec();
-        let mut pairs: Vec<(usize, f64)> = sliced_column.into_iter().enumerate().collect();
+impl<F: Float> SortedIndex<F> {
+    fn of_array_column(x: &ArrayBase<impl Data<Elem = F>, Ix2>, feature_idx: usize) -> Self {
+        let sliced_column: Vec<F> = x.index_axis(Axis(1), feature_idx).to_vec();
+        let mut pairs: Vec<(usize, F)> = sliced_column.into_iter().enumerate().collect();
         pairs.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Greater));
 
         SortedIndex {
-            presorted_indices: pairs.iter().map(|a| a.0).collect(),
-            features: pairs.iter().map(|a| a.1).collect(),
+            sorted_values: pairs,
         }
     }
 }
 
 #[derive(Debug, Clone)]
-struct TreeNode {
+/// A node in the decision tree
+struct TreeNode<F, L> {
     feature_idx: usize,
-    split_value: f64,
-    left_child: Option<Box<TreeNode>>,
-    right_child: Option<Box<TreeNode>>,
+    split_value: F,
+    left_child: Option<Box<TreeNode<F, L>>>,
+    right_child: Option<Box<TreeNode<F, L>>>,
     leaf_node: bool,
-    prediction: u64,
+    prediction: L,
 }
 
-impl Hash for TreeNode {
+impl<F: Float, L: Label> Hash for TreeNode<F, L> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         let mut data: Vec<u64> = vec![];
         data.push(self.feature_idx as u64);
-        data.push(self.prediction);
+        //data.push(self.prediction);
         data.push(self.leaf_node as u64);
         data.hash(state);
     }
 }
 
-impl Eq for TreeNode {}
+impl<F, L> Eq for TreeNode<F, L> {}
 
-impl PartialEq for TreeNode {
+impl<F, L> PartialEq for TreeNode<F, L> {
     fn eq(&self, other: &Self) -> bool {
         self.feature_idx == other.feature_idx
     }
 }
 
-impl TreeNode {
-    fn fit(
-        x: &ArrayBase<impl Data<Elem = f64>, Ix2>,
-        y: &ArrayBase<impl Data<Elem = u64>, Ix1>,
-        mask: &RowMask,
-        hyperparameters: &DecisionTreeParams,
-        sorted_indices: &[SortedIndex],
-        depth: u64,
-    ) -> Self {
-        let mut leaf_node = false;
-
-        leaf_node |= mask.n_samples < hyperparameters.min_samples_split;
-
-        if let Some(max_depth) = hyperparameters.max_depth {
-            leaf_node |= depth > max_depth;
+impl<F: Float, L: Label> TreeNode<F, L> {
+    fn empty_leaf(prediction: L) -> Self {
+        TreeNode {
+            feature_idx: 0,
+            split_value: F::zero(),
+            left_child: None,
+            right_child: None,
+            leaf_node: true,
+            prediction,
         }
+    }
 
-        let parent_class_freq = class_frequencies(&y, mask, hyperparameters.n_classes);
+    fn fit<T: Labels<Elem = L>>(
+        x: ArrayView2<F>,
+        y: &T,
+        mask: &RowMask,
+        hyperparameters: &DecisionTreeParams<F, L>,
+        sorted_indices: &[SortedIndex<F>],
+        depth: usize,
+    ) -> Self {
+        // count occurences of each target class
+        let parent_class_freq = y.frequencies_with_mask(&mask.mask);
+        // find class which occures the most
         let prediction = prediction_for_rows(&parent_class_freq);
 
-        let mut best_feature_idx = None;
-        let mut best_split_value = None;
-        let mut best_score = None;
+        // return empty leaf when we don't have enough samples or the maximal depth is reached
+        if mask.nsamples < hyperparameters.min_samples_split
+            || hyperparameters
+                .max_depth
+                .map(|max_depth| depth > max_depth)
+                .unwrap_or(false)
+        {
+            return Self::empty_leaf(prediction);
+        }
 
         // Find best split for current level
+        let mut best = None;
+
+        // iterate over features
         for (feature_idx, sorted_index) in sorted_indices.iter().enumerate() {
             let mut left_class_freq = parent_class_freq.clone();
-            let mut right_class_freq = vec![0; hyperparameters.n_classes as usize];
+            let mut right_class_freq = HashMap::new();
 
+            // iterate over sorted values
             for i in 0..mask.mask.len() - 1 {
-                let split_value = sorted_index.features[i];
-                let presorted_index = sorted_index.presorted_indices[i];
+                let (presorted_index, split_value) = sorted_index.sorted_values[i];
 
                 if !mask.mask[presorted_index] {
                     continue;
                 }
 
-                // Move the class of the current sample from the left subset to the right
-                left_class_freq[y[presorted_index as usize] as usize] -= 1;
-                right_class_freq[y[presorted_index as usize] as usize] += 1;
+                // move the class of the current sample from the left subset to the right
+                *left_class_freq
+                    .get_mut(&y.as_slice()[presorted_index as usize])
+                    .unwrap() -= 1;
+                *right_class_freq
+                    .entry(&y.as_slice()[presorted_index as usize])
+                    .or_insert(0) += 1;
 
-                if left_class_freq.iter().sum::<u64>() < hyperparameters.min_samples_split
-                    || right_class_freq.iter().sum::<u64>() < hyperparameters.min_samples_split
+                // when classes get too unbalanced, continue
+                if left_class_freq.values().sum::<usize>() < hyperparameters.min_samples_split
+                    || right_class_freq.values().sum::<usize>() < hyperparameters.min_samples_split
                 {
                     continue;
                 }
 
+                // calculate split quality with given metric
                 let (left_score, right_score) = match hyperparameters.split_quality {
                     SplitQuality::Gini => (
                         gini_impurity(&left_class_freq),
@@ -124,99 +163,87 @@ impl TreeNode {
                     }
                 };
 
+                // calculate score as weighted sum of left and right weights
                 let left_weight: f64 =
-                    left_class_freq.iter().sum::<u64>() as f64 / mask.mask.len() as f64;
+                    left_class_freq.values().sum::<usize>() as f64 / mask.mask.len() as f64;
                 let right_weight: f64 =
-                    right_class_freq.iter().sum::<u64>() as f64 / mask.mask.len() as f64;
+                    right_class_freq.values().sum::<usize>() as f64 / mask.mask.len() as f64;
 
                 let score = left_weight * left_score + right_weight * right_score;
 
-                if best_score.is_none() || score < best_score.unwrap() {
-                    best_feature_idx = Some(feature_idx);
-                    best_split_value = Some(split_value);
-                    best_score = Some(score);
-                }
+                // override best indices when score improved
+                best = match best.take() {
+                    None => Some((feature_idx, split_value, score)),
+                    Some((_, _, best_score)) if score < best_score => {
+                        Some((feature_idx, split_value, score))
+                    }
+                    x => x,
+                };
             }
         }
 
-        leaf_node |= best_score.is_none();
-
-        if let Some(best_score) = best_score {
+        let leaf_node = if let Some((_, _, best_score)) = best {
             let parent_score = match hyperparameters.split_quality {
                 SplitQuality::Gini => gini_impurity(&parent_class_freq),
                 SplitQuality::Entropy => entropy(&parent_class_freq),
             };
+            let parent_score = F::from(parent_score).unwrap();
 
-            leaf_node |= parent_score - best_score < hyperparameters.min_impurity_decrease;
-        }
+            // return empty leaf if impurity is not decreased enough
+            parent_score - F::from(best_score).unwrap() < hyperparameters.min_impurity_decrease
+        } else {
+            // return empty leaf if we have not found any solution
+            true
+        };
 
         if leaf_node {
-            return TreeNode {
-                feature_idx: 0,
-                split_value: 0.0,
-                left_child: None,
-                right_child: None,
-                leaf_node: true,
-                prediction,
-            };
+            return Self::empty_leaf(prediction);
         }
 
-        let best_feature_idx = best_feature_idx.unwrap();
-        let best_split_value = best_split_value.unwrap();
+        let (best_feature_idx, best_split_value, _) = best.unwrap();
 
-        // Determine new masks for the left and right subtrees
-        let mut left_mask = vec![false; x.nrows()];
-        let mut left_n_samples = 0;
-        let mut right_mask = vec![false; x.nrows()];
-        let mut right_n_samples = 0;
-        for i in 0..(x.nrows()) {
+        // determine new masks for the left and right subtrees
+        let mut left_mask = RowMask::none(x.nrows());
+        let mut right_mask = RowMask::none(x.nrows());
+
+        for i in 0..x.nrows() {
             if mask.mask[i] {
-                if x[[i, best_feature_idx]] < best_split_value {
-                    left_mask[i] = true;
-                    left_n_samples += 1;
+                if x[(i, best_feature_idx)] < best_split_value {
+                    left_mask.mark(i);
                 } else {
-                    right_mask[i] = true;
-                    right_n_samples += 1;
+                    right_mask.mark(i);
                 }
             }
         }
 
-        let left_mask = RowMask {
-            mask: left_mask,
-            n_samples: left_n_samples,
-        };
-
-        let right_mask = RowMask {
-            mask: right_mask,
-            n_samples: right_n_samples,
-        };
-
         // Recurse and refit on left and right subtrees
-        let left_child = match left_mask.n_samples {
-            l if l > 0 => Some(Box::new(TreeNode::fit(
-                &x,
-                &y,
+        let left_child = if left_mask.nsamples > 0 {
+            Some(Box::new(TreeNode::fit(
+                x,
+                y,
                 &left_mask,
                 &hyperparameters,
                 &sorted_indices,
                 depth + 1,
-            ))),
-            _ => None,
+            )))
+        } else {
+            None
         };
 
-        let right_child = match right_mask.n_samples {
-            l if l > 0 => Some(Box::new(TreeNode::fit(
-                &x,
-                &y,
+        let right_child = if right_mask.nsamples > 0 {
+            Some(Box::new(TreeNode::fit(
+                x,
+                y,
                 &right_mask,
                 &hyperparameters,
                 &sorted_indices,
                 depth + 1,
-            ))),
-            _ => None,
+            )))
+        } else {
+            None
         };
 
-        leaf_node |= left_child.is_none() || right_child.is_none();
+        let leaf_node = left_child.is_none() || right_child.is_none();
 
         TreeNode {
             feature_idx: best_feature_idx,
@@ -231,43 +258,75 @@ impl TreeNode {
 
 /// A fitted decision tree model.
 #[derive(Debug)]
-pub struct DecisionTree {
-    hyperparameters: DecisionTreeParams,
-    root_node: TreeNode,
+pub struct DecisionTree<F: Float, L: Label> {
+    root_node: TreeNode<F, L>,
 }
 
-impl Predictor for DecisionTree {
+impl<F: Float, L: Label, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Vec<L>>
+    for DecisionTree<F, L>
+{
     /// Make predictions for each row of a matrix of features `x`.
-    fn predict(
-        &self,
-        x: &ArrayBase<impl Data<Elem = f64>, Ix2>,
-    ) -> Result<Array1<u64>, LinfaError> {
-        Ok(Array1::from_iter(
-            x.genrows()
-                .into_iter()
-                .map(|row| make_prediction(&row, &self.root_node)),
-        ))
+    fn predict(&self, x: ArrayBase<D, Ix2>) -> Vec<L> {
+        x.genrows()
+            .into_iter()
+            .map(|row| make_prediction(&row, &self.root_node))
+            .collect()
     }
 }
 
-impl DecisionTree {
+impl<F: Float, L: Label, D: Data<Elem = F>> Predict<&ArrayBase<D, Ix2>, Vec<L>>
+    for DecisionTree<F, L>
+{
+    fn predict(&self, x: &ArrayBase<D, Ix2>) -> Vec<L> {
+        self.predict(x.view())
+    }
+}
+
+impl<'a, F: Float, L: Label + 'a, D: Data<Elem = F>, T: Labels<Elem = L>>
+    Fit<'a, ArrayBase<D, Ix2>, T> for DecisionTreeParams<F, L>
+{
+    type Object = DecisionTree<F, L>;
+
     /// Fit a decision tree using `hyperparamters` on the dataset consisting of
     /// a matrix of features `x` and an array of labels `y`.
-    pub fn fit(
-        hyperparameters: DecisionTreeParams,
-        x: &ArrayBase<impl Data<Elem = f64>, Ix2>,
-        y: &ArrayBase<impl Data<Elem = u64>, Ix1>,
-    ) -> Self {
-        let all_idxs = RowMask::all(x.nrows() as u64);
+    fn fit(&self, dataset: &Dataset<ArrayBase<D, Ix2>, T>) -> Self::Object {
+        let x = dataset.records();
+        let all_idxs = RowMask::all(x.nrows());
         let sorted_indices: Vec<_> = (0..(x.ncols()))
             .map(|feature_idx| SortedIndex::of_array_column(&x, feature_idx))
             .collect();
 
-        let root_node = TreeNode::fit(&x, &y, &all_idxs, &hyperparameters, &sorted_indices, 0);
+        let root_node = TreeNode::fit(
+            x.view(),
+            &dataset.targets(),
+            &all_idxs,
+            &self,
+            &sorted_indices,
+            0,
+        );
 
-        Self {
-            hyperparameters,
-            root_node,
+        DecisionTree { root_node }
+    }
+}
+
+impl<F: Float, L: Label> DecisionTree<F, L> {
+    /// Defaults are provided if the optional parameters are not specified:
+    /// * `split_quality = SplitQuality::Gini`
+    /// * `max_depth = None`
+    /// * `min_samples_split = 2`
+    /// * `min_samples_leaf = 1`
+    /// * `min_impurity_decrease = 0.00001`
+    // Violates the convention that new should return a value of type `Self`
+    #[allow(clippy::new_ret_no_self)]
+    pub fn params(n_classes: usize) -> DecisionTreeParams<F, L> {
+        DecisionTreeParams {
+            n_classes,
+            split_quality: SplitQuality::Gini,
+            max_depth: None,
+            min_samples_split: 2,
+            min_samples_leaf: 1,
+            min_impurity_decrease: F::from(0.00001).unwrap(),
+            phantom: PhantomData
         }
     }
 
@@ -275,9 +334,9 @@ impl DecisionTree {
     ///
     pub fn features(&self) -> Vec<usize> {
         // features visited and counted
-        let mut visited: HashSet<TreeNode> = HashSet::new();
+        let mut visited: HashSet<TreeNode<F, L>> = HashSet::new();
         // queue of nodes yet to explore
-        let mut queue: Vec<&TreeNode> = vec![];
+        let mut queue: Vec<&TreeNode<F, L>> = vec![];
         // vector of feature indexes to return
         let mut fitted_features: Vec<usize> = vec![];
         // starting node
@@ -317,16 +376,15 @@ impl DecisionTree {
 
         fitted_features
     }
-
-    pub fn hyperparameters(&self) -> &DecisionTreeParams {
-        &self.hyperparameters
-    }
 }
 
 /// Classify a sample &x recursively using the tree node `node`.
-fn make_prediction(x: &ArrayBase<impl Data<Elem = f64>, Ix1>, node: &TreeNode) -> u64 {
+fn make_prediction<F: Float, L: Label>(
+    x: &ArrayBase<impl Data<Elem = F>, Ix1>,
+    node: &TreeNode<F, L>,
+) -> L {
     if node.leaf_node {
-        node.prediction
+        node.prediction.clone()
     } else if x[node.feature_idx] < node.split_value {
         make_prediction(x, node.left_child.as_ref().unwrap())
     } else {
@@ -334,34 +392,12 @@ fn make_prediction(x: &ArrayBase<impl Data<Elem = f64>, Ix1>, node: &TreeNode) -
     }
 }
 
-/// Given an array of labels and a row mask `mask` calculate the frequency of
-/// each class from 0 to `n_classes-1`.
-fn class_frequencies(
-    labels: &ArrayBase<impl Data<Elem = u64>, Ix1>,
-    mask: &RowMask,
-    n_classes: u64,
-) -> Vec<u64> {
-    let n_samples = mask.n_samples;
-    assert!(n_samples > 0);
-
-    let mut class_freq = vec![0; n_classes as usize];
-
-    for (idx, included) in mask.mask.iter().enumerate() {
-        if *included {
-            class_freq[labels[idx] as usize] += 1;
-        }
-    }
-
-    class_freq
-}
-
 /// Make a point prediction for a subset of rows in the dataset based on the
 /// class that occurs the most frequent. If two classes occur with the same
 /// frequency then the first class is selected.
-fn prediction_for_rows(class_freq: &[u64]) -> u64 {
-    class_freq
-        .iter()
-        .enumerate()
+fn prediction_for_rows<L: Label>(class_freq: &HashMap<&L, usize>) -> L {
+    let val = class_freq
+        .into_iter()
         .fold(None, |acc, (idx, freq)| match acc {
             None => Some((idx, freq)),
             Some((_best_idx, best_freq)) => {
@@ -373,16 +409,18 @@ fn prediction_for_rows(class_freq: &[u64]) -> u64 {
             }
         })
         .unwrap()
-        .0 as u64
+        .0;
+
+    (*val).clone()
 }
 
 /// Given the class frequencies calculates the gini impurity of the subset.
-fn gini_impurity(class_freq: &[u64]) -> f64 {
-    let n_samples: u64 = class_freq.iter().sum();
+fn gini_impurity<L: Label>(class_freq: &HashMap<&L, usize>) -> f64 {
+    let n_samples = class_freq.values().sum::<usize>();
     assert!(n_samples > 0);
 
     let purity: f64 = class_freq
-        .iter()
+        .values()
         .map(|x| (*x as f64) / (n_samples as f64))
         .map(|x| x * x)
         .sum();
@@ -391,12 +429,12 @@ fn gini_impurity(class_freq: &[u64]) -> f64 {
 }
 
 /// Given the class frequencies calculates the entropy of the subset.
-fn entropy(class_freq: &[u64]) -> f64 {
-    let n_samples: u64 = class_freq.iter().sum();
+fn entropy<L: Label>(class_freq: &HashMap<&L, usize>) -> f64 {
+    let n_samples = class_freq.values().sum::<usize>();
     assert!(n_samples > 0);
 
     class_freq
-        .iter()
+        .values()
         .map(|x| (*x as f64) / (n_samples as f64))
         .map(|x| if x > 0.0 { -x * x.log2() } else { 0.0 })
         .sum()
@@ -408,45 +446,19 @@ mod tests {
     use approx::assert_abs_diff_eq;
     use ndarray::Array;
 
-    fn of_vec(mask: Vec<bool>) -> RowMask {
-        RowMask {
-            n_samples: mask.len() as u64,
-            mask: mask,
-        }
-    }
-
-    #[test]
-    fn class_freq_example() {
-        let labels = Array::from(vec![0, 0, 0, 0, 0, 0, 1, 1]);
-
-        assert_eq!(
-            class_frequencies(&labels, &RowMask::all(labels.len() as u64), 3),
-            vec![6, 2, 0]
-        );
-        assert_eq!(
-            class_frequencies(
-                &labels,
-                &tests::of_vec(vec![false, false, false, false, false, true, true, true]),
-                3
-            ),
-            vec![1, 2, 0]
-        );
-    }
-
     #[test]
     fn prediction_for_rows_example() {
         let labels = Array::from(vec![0, 0, 0, 0, 0, 0, 1, 1]);
-        let row_mask = RowMask::all(labels.len() as u64);
-        let n_classes = 3;
+        let row_mask = RowMask::all(labels.len());
 
-        let class_freq = class_frequencies(&labels, &row_mask, n_classes);
+        let class_freq = labels.frequencies_with_mask(&row_mask.mask);
 
         assert_eq!(prediction_for_rows(&class_freq), 0);
     }
 
     #[test]
     fn gini_impurity_example() {
-        let class_freq = vec![6, 2, 0];
+        let class_freq = vec![(&0, 6), (&1, 2), (&2, 0)].into_iter().collect();
 
         // Class 0 occurs 75% of the time
         // Class 1 occurs 25% of the time
@@ -457,7 +469,7 @@ mod tests {
 
     #[test]
     fn entropy_example() {
-        let class_freq = vec![6, 2, 0];
+        let class_freq = vec![(&0, 6), (&1, 2), (&2, 0)].into_iter().collect();
 
         // Class 0 occurs 75% of the time
         // Class 1 occurs 25% of the time
@@ -466,7 +478,8 @@ mod tests {
         assert_abs_diff_eq!(entropy(&class_freq), 0.81127, epsilon = 1e-5);
 
         // If split is perfect then entropy is zero
-        let perfect_class_freq = vec![8, 0, 0];
+        let perfect_class_freq = vec![(&0, 8), (&1, 0), (&2, 0)].into_iter().collect();
+
         assert_abs_diff_eq!(entropy(&perfect_class_freq), 0.0, epsilon = 1e-5);
     }
 }

@@ -13,11 +13,11 @@ keywords = ["machine-learning", "linfa", "ai", "ml"]
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
+rand = "0.7"
 num-traits = "0.1.32"
 ndarray = { version = "0.13", default-features = false }
 
 [dev-dependencies]
-rand = "0.7"
 ndarray-rand = "0.11"
 approx = "0.3"
 
@@ -31,8 +31,7 @@ members = [
     "linfa-trees",
     "linfa-svm",
     "linfa-hierarchical",
-    "linfa-ensemble",
-    "linfa-predictor",
+    #"linfa-ensemble",
 ]
 
 [profile.release]

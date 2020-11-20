@@ -52,7 +52,7 @@ impl Predictor for RandomForest {
             // hashmap to store most common prediction across trees
             let mut counter_stats: HashMap<u64, u64> = HashMap::new();
             for i in 0..ntrees {
-                *counter_stats.entry(predictions[[i,j]]).or_insert(0) += 1;
+                *counter_stats.entry(predictions[[i, j]]).or_insert(0) += 1;
             }
 
             let final_pred = counter_stats

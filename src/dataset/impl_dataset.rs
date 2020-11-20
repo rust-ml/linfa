@@ -1,5 +1,7 @@
+use ndarray::{Array1, Array2, ArrayBase, ArrayView2, Axis, Data, Dimension, Ix2};
+use rand::{seq::SliceRandom, Rng};
+
 use super::{iter::Iter, Dataset, Float, Label, Labels, Records, Targets};
-use ndarray::{Array2, ArrayBase, ArrayView2, Axis, Data, Dimension, Ix2};
 
 impl<F: Float, L: Label> Dataset<Array2<F>, Vec<L>> {
     pub fn iter(&self) -> Iter<'_, Array2<F>, Vec<L>> {
@@ -68,6 +70,36 @@ impl<R: Records, S: Targets> Dataset<R, S> {
     }
 }
 
+impl<F: Float, T: Clone> Dataset<Array2<F>, Vec<T>> {
+    pub fn shuffle<R: Rng>(self, mut rng: &mut R) -> Self {
+        let mut indices = (0..self.observations()).collect::<Vec<_>>();
+        indices.shuffle(&mut rng);
+
+        let records = self.records().select(Axis(0), &indices);
+        let targets = indices
+            .iter()
+            .map(|x| self.targets[*x].clone())
+            .collect::<Vec<_>>();
+
+        Dataset::new(records, targets)
+    }
+}
+
+impl<F: Float, T: Clone> Dataset<Array2<F>, Array1<T>> {
+    pub fn shuffle<R: Rng>(self, mut rng: &mut R) -> Self {
+        let mut indices = (0..self.observations()).collect::<Vec<_>>();
+        indices.shuffle(&mut rng);
+
+        let records = self.records().select(Axis(0), &indices);
+        let targets = indices
+            .iter()
+            .map(|x| self.targets[*x].clone())
+            .collect::<Array1<_>>();
+
+        Dataset::new(records, targets)
+    }
+}
+
 #[allow(clippy::type_complexity)]
 impl<F: Float, T: Targets, D: Data<Elem = F>> Dataset<ArrayBase<D, Ix2>, T> {
     pub fn split_with_ratio(
@@ -108,8 +140,8 @@ impl<F: Float, L: Label, T: Labels<Elem = L>, D: Data<Elem = F>> Dataset<ArrayBa
     }
 }
 
-impl<R: Records, S: Labels> Dataset<R, S> {
-    pub fn labels(&self) -> Vec<S::Elem> {
+impl<L: Label, R: Records, S: Labels<Elem = L>> Dataset<R, S> {
+    pub fn labels(&self) -> Vec<L> {
         self.targets.labels()
     }
 }
