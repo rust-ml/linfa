@@ -162,7 +162,7 @@ impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
             GmmInitMethod::KMeans => {
                 let model = KMeans::params_with_rng(hyperparameters.n_clusters(), rng)
                     .build()
-                    .fit(&dataset);
+                    .fit(&dataset)?;
                 let mut resp = Array::<F, Ix2>::zeros((n_samples, hyperparameters.n_clusters()));
                 for (k, idx) in model.predict(dataset.records()).iter().enumerate() {
                     resp[[k, *idx]] = F::from(1.).unwrap();

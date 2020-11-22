@@ -1,3 +1,4 @@
+use crate::k_means::errors::{KMeansError, Result};
 use crate::k_means::helpers::IncrementalMean;
 use crate::k_means::hyperparameters::{KMeansHyperParams, KMeansHyperParamsBuilder};
 use linfa::{
@@ -95,7 +96,7 @@ use serde_crate::{Deserialize, Serialize};
 /// // Let's configure and run our K-means algorithm
 /// // We use the builder pattern to specify the hyperparameters
 /// // `n_clusters` is the only mandatory parameter.
-/// // If you don't specify the others (e.g. `tolerance` or `max_n_iterations`)
+/// // If you don't specify the others (e.g. `n_init`, `tolerance`, `max_n_iterations`)
 /// // default values will be used.
 /// let n_clusters = expected_centroids.len_of(Axis(0));
 /// let model = KMeans::params(n_clusters)
@@ -151,7 +152,7 @@ impl<F: Float> KMeans<F> {
 impl<'a, F: Float, R: Rng + Clone, D: Data<Elem = F>, T: Targets> Fit<'a, ArrayBase<D, Ix2>, T>
     for KMeansHyperParams<F, R>
 {
-    type Object = KMeans<F>;
+    type Object = Result<KMeans<F>>;
 
     /// Given an input matrix `observations`, with shape `(n_observations, n_features)`,
     /// `fit` identifies `n_clusters` centroids based on the training data distribution.
@@ -162,31 +163,50 @@ impl<'a, F: Float, R: Rng + Clone, D: Data<Elem = F>, T: Targets> Fit<'a, ArrayB
         let mut rng = self.rng();
         let observations = dataset.records().view();
 
-        let mut centroids = get_random_centroids(self.n_clusters(), &observations, &mut rng);
-
-        let mut has_converged;
-        let mut n_iterations = 0;
-
+        let mut min_inertia = F::infinity();
+        let mut best_centroids = None;
+        let mut best_iter = None;
         let mut memberships = Array1::zeros(observations.dim().0);
 
-        loop {
-            update_cluster_memberships(&centroids, &observations, &mut memberships);
-            let new_centroids = compute_centroids(self.n_clusters(), &observations, &memberships);
+        let n_init = self.n_init();
 
-            let distance = centroids
-                .sq_l2_dist(&new_centroids)
-                .expect("Failed to compute distance");
-            has_converged = distance < self.tolerance() || n_iterations > self.max_n_iterations();
-
-            centroids = new_centroids;
-            n_iterations += 1;
-
-            if has_converged {
-                break;
+        for _ in 0..n_init {
+            let mut inertia = min_inertia;
+            let mut centroids = get_random_centroids(self.n_clusters(), &observations, &mut rng);
+            let mut converged_iter: Option<u64> = None;
+            for n_iter in 0..self.max_n_iterations() {
+                update_cluster_memberships(&centroids, &observations, &mut memberships);
+                let new_centroids =
+                    compute_centroids(self.n_clusters(), &observations, &memberships);
+                inertia = compute_inertia(&new_centroids, &observations, &memberships);
+                let distance = centroids
+                    .sq_l2_dist(&new_centroids)
+                    .expect("Failed to compute distance");
+                centroids = new_centroids;
+                if distance < self.tolerance() {
+                    converged_iter = Some(n_iter);
+                    break;
+                }
+            }
+            if inertia < min_inertia {
+                min_inertia = inertia;
+                best_centroids = Some(centroids.clone());
+                best_iter = converged_iter;
             }
         }
-
-        KMeans { centroids }
+        match best_iter {
+            Some(_n_iter) => match best_centroids {
+                Some(centroids) => Ok(KMeans { centroids }),
+                _ => Err(KMeansError::InertiaError(
+                    "No inertia improvement (-inf)".to_string(),
+                )),
+            },
+            None => Err(KMeansError::NotConverged(format!(
+                "KMeans fitting algorithm {} did not converge. Try different init parameters, \
+                or increase max_n_iterations, tolerance or check for degenerate data.",
+                (n_init + 1)
+            ))),
+        }
     }
 }
 
@@ -212,6 +232,24 @@ impl<F: Float, D: Data<Elem = F>, T: Targets>
         let predicted = self.predict(dataset.records());
         dataset.with_targets(predicted)
     }
+}
+
+fn compute_inertia<F: Float>(
+    centroids: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
+    observations: &ArrayBase<impl Data<Elem = F>, Ix2>,
+    cluster_memberships: &ArrayBase<impl Data<Elem = usize>, Ix1>,
+) -> F {
+    let mut dists = Array1::<F>::zeros(observations.nrows());
+    Zip::from(observations.genrows())
+        .and(cluster_memberships)
+        .and(&mut dists)
+        .par_apply(|observation, &cluster_membership, d| {
+            *d = centroids
+                .row(cluster_membership)
+                .sq_l2_dist(&observation)
+                .expect("Failed to compute distance");
+        });
+    dists.sum()
 }
 
 /// K-means is an iterative algorithm.
@@ -350,13 +388,58 @@ fn get_random_centroids<F: Float, D: Data<Elem = F>>(
 
 #[cfg(test)]
 mod tests {
+    extern crate openblas_src;
+
     use super::*;
     use approx::assert_abs_diff_eq;
     use ndarray::{array, stack, Array, Array1, Array2, Axis};
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::Uniform;
     use ndarray_rand::RandomExt;
-    use rand_isaac::Isaac64Rng;
+
+    fn function_test_1d(x: &Array2<f64>) -> Array2<f64> {
+        let mut y = Array2::zeros(x.dim());
+        Zip::from(&mut y).and(x).apply(|yi, &xi| {
+            if xi < 0.4 {
+                *yi = xi * xi;
+            } else if xi >= 0.4 && xi < 0.8 {
+                *yi = 3. * xi + 1.;
+            } else {
+                *yi = f64::sin(10. * xi);
+            }
+        });
+        y
+    }
+
+    #[test]
+    fn test_n_init() {
+        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let xt = Array::random_using(50, Uniform::new(0., 1.), &mut rng).insert_axis(Axis(1));
+        let yt = function_test_1d(&xt);
+        let data = stack(Axis(1), &[xt.view(), yt.view()]).unwrap();
+
+        // First clustering with one iteration
+        let dataset = Dataset::from(data);
+        let model = KMeans::params_with_rng(3, rng.clone())
+            .n_init(1)
+            .build()
+            .fit(&dataset)
+            .expect("KMeans fitted");
+        let clusters = model.predict(dataset);
+        let inertia = compute_inertia(model.centroids(), &clusters.records, &clusters.targets);
+
+        // Second clustering with 10 iterations (default)
+        let dataset2 = Dataset::from(clusters.records().clone());
+        let model2 = KMeans::params_with_rng(3, rng)
+            .build()
+            .fit(&dataset2)
+            .expect("KMeans fitted");
+        let clusters2 = model2.predict(dataset2);
+        let inertia2 = compute_inertia(model2.centroids(), &clusters2.records, &clusters2.targets);
+
+        // Check we improve inertia
+        assert!(inertia2 < inertia);
+    }
 
     #[test]
     fn compute_centroids_works() {

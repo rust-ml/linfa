@@ -26,3 +26,9 @@ fn max_n_iterations_cannot_be_zero() {
         .max_n_iterations(0)
         .build();
 }
+
+#[test]
+#[should_panic]
+fn n_init_cannot_be_zero() {
+    KMeansHyperParams::new(1).tolerance(1.).n_init(0).build();
+}

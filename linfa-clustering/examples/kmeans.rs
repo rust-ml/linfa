@@ -23,7 +23,8 @@ fn main() {
         .max_n_iterations(200)
         .tolerance(1e-5)
         .build()
-        .fit(&dataset);
+        .fit(&dataset)
+        .expect("KMeans fitted");
 
     // Assign each point to a cluster using the set of centroids found using `fit`
     let dataset = model.predict(dataset);
