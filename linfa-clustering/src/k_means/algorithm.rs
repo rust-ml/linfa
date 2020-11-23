@@ -189,6 +189,10 @@ impl<'a, F: Float, R: Rng + Clone, D: Data<Elem = F>, T: Targets> Fit<'a, ArrayB
                     break;
                 }
             }
+
+            // We keep the centroids which minimize the inertia (defined as the sum of
+            // the squared distances of the closest centroid for all observations)
+            // over the n runs of the KMeans algorithm.
             if inertia < min_inertia {
                 min_inertia = inertia;
                 best_centroids = Some(centroids.clone());
@@ -235,6 +239,8 @@ impl<F: Float, D: Data<Elem = F>, T: Targets>
     }
 }
 
+/// We compute inertia defined as the sum of the squared distances
+/// of the closest centroid for all observations.
 fn compute_inertia<F: Float>(
     centroids: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
     observations: &ArrayBase<impl Data<Elem = F>, Ix2>,
