@@ -1,6 +1,8 @@
-<img src="./mascot.svg" width="50px" height="50px" align="left" alt="Linfa mascot icon" />
+<img align="left" src="./mascot.svg" width="70px" height="70px" alt="Linfa mascot icon">
 
 # Linfa
+
+<br />
 
 [![crates.io](https://img.shields.io/crates/v/linfa.svg)](https://crates.io/crates/linfa)
 [![Documentation](https://docs.rs/linfa/badge.svg)](https://docs.rs/linfa)
