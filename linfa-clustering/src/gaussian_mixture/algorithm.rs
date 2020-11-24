@@ -47,7 +47,7 @@ use serde_crate::{Deserialize, Serialize};
 /// We stop iterating when there is no significant gaussian parameters change (controlled by the `tolerance` parameter) or
 /// if we reach a max number of iterations (controlled by `max_n_iterations` parameter)
 /// As the initialization of the algorithm is subject to randomness, several initializations are performed (controlled by
-/// the `n_init` parameter).   
+/// the `n_runs` parameter).   
 ///
 /// ## Tutorial
 ///
@@ -76,7 +76,7 @@ use serde_crate::{Deserialize, Serialize};
 ///
 /// // We fit the model from the dataset setting some options
 /// let gmm = GaussianMixtureModel::params(n_clusters)
-///             .with_n_init(10)
+///             .with_n_runs(10)
 ///             .with_tolerance(1e-4)
 ///             .with_rng(rng)
 ///             .fit(&dataset).expect("GMM fitting");
@@ -162,7 +162,7 @@ impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
             GmmInitMethod::KMeans => {
                 let model = KMeans::params_with_rng(hyperparameters.n_clusters(), rng)
                     .build()
-                    .fit(&dataset);
+                    .fit(&dataset)?;
                 let mut resp = Array::<F, Ix2>::zeros((n_samples, hyperparameters.n_clusters()));
                 for (k, idx) in model.predict(dataset.records()).iter().enumerate() {
                     resp[[k, *idx]] = F::from(1.).unwrap();
@@ -408,9 +408,9 @@ impl<'a, F: Float + Lapack + Scalar, R: Rng + Clone, D: Data<Elem = F>, T: Targe
         let mut best_params = None;
         let mut best_iter = None;
 
-        let n_init = self.n_init();
+        let n_runs = self.n_runs();
 
-        for _ in 0..n_init {
+        for _ in 0..n_runs {
             let mut lower_bound = -F::infinity();
 
             let mut converged_iter: Option<u64> = None;
@@ -445,7 +445,7 @@ impl<'a, F: Float + Lapack + Scalar, R: Rng + Clone, D: Data<Elem = F>, T: Targe
             None => Err(GmmError::NotConverged(format!(
                 "EM fitting algorithm {} did not converge. Try different init parameters, \
                             or increase max_n_iterations, tolerance or check for degenerate data.",
-                (n_init + 1)
+                (n_runs + 1)
             ))),
         }
     }
@@ -574,13 +574,13 @@ mod tests {
     }
 
     #[test]
-    fn test_invalid_n_init() {
+    fn test_invalid_n_runs() {
         assert!(
             GaussianMixtureModel::params(1)
-                .with_n_init(0)
+                .with_n_runs(0)
                 .fit(&Dataset::from(array![[0.]]))
                 .is_err(),
-            "n_init must be strictly positive"
+            "n_runs must be strictly positive"
         );
     }
 
