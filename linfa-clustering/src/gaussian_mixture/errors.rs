@@ -1,3 +1,4 @@
+use crate::k_means::KMeansError;
 use ndarray_linalg::error::LinalgError;
 use std::error::Error;
 use std::fmt::{self, Display};
@@ -17,6 +18,8 @@ pub enum GmmError {
     LowerBoundError(String),
     /// When fitting EM algorithm does not converge
     NotConverged(String),
+    /// When initial KMeans fails
+    KMeansError(String),
 }
 
 impl Display for GmmError {
@@ -35,6 +38,7 @@ impl Display for GmmError {
             Self::EmptyCluster(message) => write!(f, "Fitting failed: {}", message),
             Self::LowerBoundError(message) => write!(f, "Fitting failed: {}", message),
             Self::NotConverged(message) => write!(f, "Fitting failed: {}", message),
+            Self::KMeansError(message) => write!(f, "Initial KMeans failed: {}", message),
         }
     }
 }
@@ -44,5 +48,11 @@ impl Error for GmmError {}
 impl From<LinalgError> for GmmError {
     fn from(error: LinalgError) -> GmmError {
         GmmError::LinalgError(error)
+    }
+}
+
+impl From<KMeansError> for GmmError {
+    fn from(error: KMeansError) -> GmmError {
+        GmmError::KMeansError(error.to_string())
     }
 }

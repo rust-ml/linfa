@@ -13,6 +13,8 @@ use serde_crate::{Deserialize, Serialize};
 /// The set of hyperparameters that can be specified for the execution of
 /// the [K-means algorithm](struct.KMeans.html).
 pub struct KMeansHyperParams<F: Float, R: Rng> {
+    /// Number of time the k-means algorithm will be run with different centroid seeds.
+    n_runs: u64,
     /// The training is considered complete if the euclidean distance
     /// between the old set of centroids and the new set of centroids
     /// after a training iteration is lower or equal than `tolerance`.
@@ -30,6 +32,7 @@ pub struct KMeansHyperParams<F: Float, R: Rng> {
 /// An helper struct used to construct a set of [valid hyperparameters](struct.KMeansHyperParams.html) for
 /// the [K-means algorithm](struct.KMeans.html) (using the builder pattern).
 pub struct KMeansHyperParamsBuilder<F: Float, R: Rng> {
+    n_runs: u64,
     tolerance: F,
     max_n_iterations: u64,
     n_clusters: usize,
@@ -37,6 +40,15 @@ pub struct KMeansHyperParamsBuilder<F: Float, R: Rng> {
 }
 
 impl<F: Float, R: Rng + Clone> KMeansHyperParamsBuilder<F, R> {
+    /// Set the value of `n_runs`.
+    ///
+    /// The final results will be the best output of n_runs consecutive runs in terms of inertia
+    /// (sum of squared distances to the closest centroid for all observations in the training set)
+    pub fn n_runs(mut self, n_runs: u64) -> Self {
+        self.n_runs = n_runs;
+        self
+    }
+
     /// Set the value of `max_n_iterations`.
     ///
     /// We exit the training loop when the number of training iterations
@@ -64,6 +76,7 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParamsBuilder<F, R> {
     pub fn build(self) -> KMeansHyperParams<F, R> {
         KMeansHyperParams::build(
             self.n_clusters,
+            self.n_runs,
             self.tolerance,
             self.max_n_iterations,
             self.rng,
@@ -86,6 +99,10 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParams<F, R> {
     /// * we exit the training loop when the number of training iterations
     ///   exceeds `max_n_iterations` even if the `tolerance` convergence
     ///   condition has not been met.
+    /// * As KMeans convergence depends on centroids initialization
+    ///   we run the algorithm `n_runs` times and we keep the best outputs
+    ///   in terms of inertia that the ones which minimizes the sum of squared
+    ///   euclidean distances to the closest centroid for all observations.
     ///
     /// `n_clusters` is mandatory.
     ///
@@ -95,11 +112,17 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParams<F, R> {
 
     pub fn new_with_rng(n_clusters: usize, rng: R) -> KMeansHyperParamsBuilder<F, R> {
         KMeansHyperParamsBuilder {
+            n_runs: 10,
             tolerance: F::from(1e-4).unwrap(),
             max_n_iterations: 300,
             n_clusters,
             rng,
         }
+    }
+
+    /// The final results will be the best output of n_runs consecutive runs in terms of inertia.
+    pub fn n_runs(&self) -> u64 {
+        self.n_runs
     }
 
     /// The training is considered complete if the euclidean distance
@@ -126,7 +149,10 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParams<F, R> {
         self.rng.clone()
     }
 
-    fn build(n_clusters: usize, tolerance: F, max_n_iterations: u64, rng: R) -> Self {
+    fn build(n_clusters: usize, n_runs: u64, tolerance: F, max_n_iterations: u64, rng: R) -> Self {
+        if n_runs == 0 {
+            panic!("`n_runs` cannot be 0!");
+        }
         if max_n_iterations == 0 {
             panic!("`max_n_iterations` cannot be 0!");
         }
@@ -137,6 +163,7 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParams<F, R> {
             panic!("`n_clusters` cannot be 0!");
         }
         KMeansHyperParams {
+            n_runs,
             tolerance,
             max_n_iterations,
             n_clusters,
