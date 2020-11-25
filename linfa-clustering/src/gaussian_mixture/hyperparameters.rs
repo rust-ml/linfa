@@ -10,7 +10,7 @@ use serde_crate::{Deserialize, Serialize};
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 /// A specifier for the type of the relation between components' covariances.
 pub enum GmmCovarType {
     /// each component has its own general covariance matrix

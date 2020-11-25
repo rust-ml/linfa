@@ -100,6 +100,7 @@ use serde_crate::{Deserialize, Serialize};
 /// // We can retrieve the actual centroid of the closest cluster using `.centroids()` (alias of .means())
 /// let closest_centroid = &gmm.centroids().index_axis(Axis(0), dataset.targets()[0]);
 /// ```
+#[derive(Debug, PartialEq)]
 pub struct GaussianMixtureModel<F: Float> {
     covar_type: GmmCovarType,
     weights: Array1<F>,
@@ -482,7 +483,8 @@ mod tests {
     use super::*;
     use crate::generate_blobs;
     use approx::assert_abs_diff_eq;
-    use ndarray::{array, ArrayView1, ArrayView2, Axis};
+    use ndarray::{array, stack, ArrayView1, ArrayView2, Axis};
+    use ndarray_linalg::error::LinalgError;
     use ndarray_linalg::error::Result as LAResult;
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::{Distribution, StandardNormal};
@@ -546,6 +548,48 @@ mod tests {
         assert_abs_diff_eq!(gmm.means(), &means, epsilon = 1e-1);
         // check covariances
         assert_abs_diff_eq!(gmm.covariances(), &covars, epsilon = 1e-1);
+    }
+
+    fn function_test_1d(x: &Array2<f64>) -> Array2<f64> {
+        let mut y = Array2::zeros(x.dim());
+        Zip::from(&mut y).and(x).apply(|yi, &xi| {
+            if xi < 0.4 {
+                *yi = xi * xi;
+            } else if xi >= 0.4 && xi < 0.8 {
+                *yi = 3. * xi + 1.;
+            } else {
+                *yi = f64::sin(10. * xi);
+            }
+        });
+        y
+    }
+
+    #[test]
+    fn test_zeroed_reg_covar_failure() {
+        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let xt = Array2::random_using((50, 1), Uniform::new(0., 1.), &mut rng);
+        let yt = function_test_1d(&xt);
+        let data = stack(Axis(1), &[xt.view(), yt.view()]).unwrap();
+        let dataset = Dataset::from(data);
+        // Test that cholesky decomposition fails when reg_covariance is zero
+        let gmm = GaussianMixtureModel::params(3)
+            .with_reg_covariance(0.)
+            .with_rng(rng.clone())
+            .fit(&dataset);
+        assert!(
+            match gmm.expect_err("should generate an error with reg_covar being nul") {
+                GmmError::LinalgError(e) => match e {
+                    LinalgError::Lapack { return_code: 2 } => true,
+                    _ => panic!("should be a lapack error 2"),
+                },
+                _ => panic!("should be a linear algebra error"),
+            }
+        );
+        // Test it passes when default value is used
+        assert!(GaussianMixtureModel::params(3)
+            .with_rng(rng)
+            .fit(&dataset)
+            .is_ok());
     }
 
     #[test]
