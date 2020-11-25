@@ -10,7 +10,7 @@ use serde_crate::{Deserialize, Serialize};
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 /// A specifier for the type of the relation between components' covariances.
 pub enum GmmCovarType {
     /// each component has its own general covariance matrix
@@ -63,7 +63,7 @@ impl<F: Float, R: Rng + Clone> GmmHyperParams<F, R> {
             n_clusters,
             covar_type: GmmCovarType::Full,
             tolerance: F::from(1e-3).unwrap(),
-            reg_covar: F::from(0.).unwrap(),
+            reg_covar: F::from(1e-6).unwrap(),
             n_runs: 1,
             max_n_iter: 100,
             init_method: GmmInitMethod::KMeans,
