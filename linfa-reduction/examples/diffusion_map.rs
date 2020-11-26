@@ -16,7 +16,8 @@ fn main() {
     let n = 500;
 
     // generate three convoluted rings
-    let dataset = generate_convoluted_rings2d(&[(0.0, 3.0), (10.0, 13.0), (20.0, 23.0)], n, &mut rng);
+    let dataset =
+        generate_convoluted_rings2d(&[(0.0, 3.0), (10.0, 13.0), (20.0, 23.0)], n, &mut rng);
 
     // generate sparse polynomial kernel with k = 14, c = 5 and d = 2
     let kernel = Kernel::params()

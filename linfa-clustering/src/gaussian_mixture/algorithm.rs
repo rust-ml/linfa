@@ -616,9 +616,7 @@ mod tests {
         );
 
         // Test it passes when default value is used
-        assert!(GaussianMixtureModel::params(1)
-            .fit(&dataset)
-            .is_ok());
+        assert!(GaussianMixtureModel::params(1).fit(&dataset).is_ok());
     }
 
     #[test]
