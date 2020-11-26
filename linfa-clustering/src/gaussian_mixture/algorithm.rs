@@ -571,6 +571,7 @@ mod tests {
         let yt = function_test_1d(&xt);
         let data = stack(Axis(1), &[xt.view(), yt.view()]).unwrap();
         let dataset = Dataset::from(data);
+
         // Test that cholesky decomposition fails when reg_covariance is zero
         let gmm = GaussianMixtureModel::params(3)
             .with_reg_covariance(0.)
@@ -588,6 +589,34 @@ mod tests {
         // Test it passes when default value is used
         assert!(GaussianMixtureModel::params(3)
             .with_rng(rng)
+            .fit(&dataset)
+            .is_ok());
+    }
+
+    #[test]
+    fn test_zeroed_reg_covar_const_failure() {
+        // repeat values such that covariance is zero
+        let xt = Array2::ones((50, 1));
+        let data = stack(Axis(1), &[xt.view(), xt.view()]).unwrap();
+        let dataset = Dataset::from(data);
+
+        // Test that cholesky decomposition fails when reg_covariance is zero
+        let gmm = GaussianMixtureModel::params(1)
+            .with_reg_covariance(0.)
+            .fit(&dataset);
+
+        assert!(
+            match gmm.expect_err("should generate an error with reg_covar being nul") {
+                GmmError::LinalgError(e) => match e {
+                    LinalgError::Lapack { return_code: 1 } => true,
+                    _ => panic!("should be a lapack error 1"),
+                },
+                _ => panic!("should be a linear algebra error"),
+            }
+        );
+
+        // Test it passes when default value is used
+        assert!(GaussianMixtureModel::params(1)
             .fit(&dataset)
             .is_ok());
     }

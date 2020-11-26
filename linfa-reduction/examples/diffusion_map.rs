@@ -2,7 +2,7 @@ extern crate openblas_src;
 
 use linfa::traits::Transformer;
 use linfa_kernel::{Kernel, KernelMethod, KernelType};
-use linfa_reduction::utils::generate_convoluted_rings;
+use linfa_reduction::utils::generate_convoluted_rings2d;
 use linfa_reduction::DiffusionMap;
 use ndarray_npy::write_npy;
 use ndarray_rand::rand::SeedableRng;
@@ -13,18 +13,20 @@ fn main() {
     let mut rng = Isaac64Rng::seed_from_u64(42);
 
     // For each our expected centroids, generate `n` data points around it (a "blob")
-    let n = 3000;
+    let n = 500;
 
     // generate three convoluted rings
-    let dataset = generate_convoluted_rings(&[(0.0, 3.0), (10.0, 13.0), (20.0, 23.0)], n, &mut rng);
+    let dataset = generate_convoluted_rings2d(&[(0.0, 3.0), (10.0, 13.0), (20.0, 23.0)], n, &mut rng);
 
     // generate sparse polynomial kernel with k = 14, c = 5 and d = 2
     let kernel = Kernel::params()
-        .method(KernelMethod::Polynomial(5.0, 2.0))
-        .kind(KernelType::Sparse(14))
+        //.method(KernelMethod::Polynomial(5.0, 2.0))
+        .kind(KernelType::Sparse(15))
+        .method(KernelMethod::Gaussian(2.0))
+        //.kind(KernelType::Dense)
         .transform(&dataset);
 
-    let embedding = DiffusionMap::<f64>::params(4)
+    let embedding = DiffusionMap::<f64>::params(2)
         .steps(1)
         .build()
         .transform(&kernel);
