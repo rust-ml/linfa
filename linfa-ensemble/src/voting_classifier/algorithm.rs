@@ -1,6 +1,8 @@
-use linfa_predictor::{LinfaError, Predictor};
-use ndarray::{Array1, ArrayBase, Data, Ix2};
+use ndarray::{Array1, ArrayBase, Data, Ix2, ArrayView2};
 use std::collections::HashMap;
+use std::marker::PhantomData;
+
+use linfa::{traits::Predict, Float, Label, dataset::{Records, Labels, Targets}};
 
 #[derive(Clone)]
 /// A VotingClassifier can be composed of heterogeneous learners (previously fitted) and
@@ -8,24 +10,42 @@ use std::collections::HashMap;
 /// if hard, majority rule is applied
 /// if soft, the argmax of the sums of the predicted probabilities is returned
 ///
-pub struct VotingClassifier<P: Predictor> {
-    pub estimators: Vec<P>,
-    // pub voting: Voting,
+pub struct VotingClassifier<R: Records, T: Labels, P: Predict<R, T>>
+    where <T as Targets>::Elem: Label
+{
+    estimators: Vec<P>,
+    r: PhantomData<R>,
+    t: PhantomData<T>,
 }
 
-impl<P: Predictor> VotingClassifier<P> {
+impl<R: Records, T: Labels, P: Predict<R, T>> VotingClassifier<R, T, P> 
+    where <T as Targets>::Elem: Label
+{
     /// Create new voting classifier.
     /// If voting not provided, choose Voting::Hard by default
-    pub fn new(estimators: Vec<P>) -> VotingClassifier<P> {
-        // assign user-defined weights or balanced weights
-        // let voting = match voting {
-        //     Some(v) => v,
-        //     None => Voting::Hard,
-        // };
-
-        VotingClassifier { estimators }
+    pub fn params() -> VotingClassifier<R, T, P> {
+        Self::params_with(vec![])
     }
 
+    pub fn params_with(estimators: Vec<P>) -> VotingClassifier<R, T, P> {
+        VotingClassifier { estimators, r: PhantomData, t: PhantomData }
+    }
+}
+
+impl<'a, F: Float, D: Data<Elem = F>, T: Labels, P: Predict<ArrayView2<'_, F>, T>> Predict<ArrayBase<D, Ix2>, T> for VotingClassifier<ArrayView2<'_, F>, T, P> 
+    where <T as Targets>::Elem: Label
+{
+    fn predict(&self, records: ArrayBase<D, Ix2>) -> T {
+        let predictions = self.estimators.iter()
+            .map(|e| e.predict(records.view()))
+            .collect::<Vec<_>>();
+
+        panic!("")
+    }
+}
+
+
+    /*
     /// Call .predict() from each estimator and applies fitted weights to results
     pub fn predict(
         &self,
@@ -60,8 +80,7 @@ impl<P: Predictor> VotingClassifier<P> {
         };
         // return aggregated prediction
         Ok(Array1::from(result))
-    }
-}
+    }*/
 
 #[cfg(test)]
 mod tests {
@@ -85,11 +104,17 @@ mod tests {
 
         let xtrain = Array::from(data).into_shape((10, 5)).unwrap();
         let ytrain = Array1::from(vec![0, 1, 0, 1, 1, 0, 1, 0, 1, 1]);
+        let dataset = Dataset::new(xtrain, ytrain);
 
         let tree_params = DecisionTreeParams::new(2)
             .max_depth(Some(3))
             .min_samples_leaf(2 as u64)
             .build();
+
+        (0..3)
+            .map(|_| tree_params.fit(&dataset))
+            .map(|model| model.predict(&xtrain))
+            .fold(Ensemble::hard(), |e, p| e.add(p))
 
         let mod1 = DecisionTree::fit(tree_params, &xtrain, &ytrain);
         let mod2 = DecisionTree::fit(tree_params, &xtrain, &ytrain);

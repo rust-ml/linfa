@@ -15,7 +15,8 @@ categories = ["algorithms", "mathematics", "science"]
 [dependencies]
 ndarray = { version = "0.13" , features = ["rayon", "approx"]}
 ndarray-rand = "0.11"
-linfa-trees = {path = "../linfa-trees", version = "0.1"}
+linfa = { path = ".." }
+linfa-trees = { path = "../linfa-trees" }
 
 [dev-dependencies]
 rand_isaac = "0.2.0"

@@ -1,20 +1,21 @@
-use crate::random_forest::hyperparameters::RandomForestParams;
-use linfa_predictor::{LinfaError, Predictor, ProbabilisticPredictor};
-use linfa_trees::DecisionTree;
-use ndarray::Array;
-use ndarray::Axis;
-use ndarray::{Array1, ArrayBase, Data, Ix1, Ix2};
-use ndarray_rand::rand_distr::Uniform;
-use ndarray_rand::RandomExt;
+//! Random Forest algorithm
 use std::collections::HashMap;
 
+use ndarray::{Array1, Array2, ArrayBase, Data, Ix1, Ix2, Array, Axis};
+use ndarray_rand::rand_distr::Uniform;
+use ndarray_rand::RandomExt;
+
+use linfa::{traits::*, Float, Label, error::Result};
+use linfa_trees::DecisionTree;
+
+use crate::random_forest::hyperparameters::RandomForestParams;
+
 /// A random forest is composed of independent decision trees whose predictions are aggregated by majority voting
-pub struct RandomForest {
-    pub hyperparameters: RandomForestParams,
-    pub trees: Vec<DecisionTree>,
+pub struct RandomForest<F, L> {
+    pub trees: Vec<DecisionTree<F, L>>,
 }
 
-impl Predictor for RandomForest {
+impl<F: Float, L: Label, D: Data<Elem = F>> Predict<&ArrayBase<D, Ix2>, Result<Array1<L>>> for RandomForest<F, L> {
     /// Return predicted class for each sample calculated with majority voting
     ///
     /// # Arguments
@@ -24,8 +25,8 @@ impl Predictor for RandomForest {
     ///
     fn predict(
         &self,
-        x: &ArrayBase<impl Data<Elem = f64>, Ix2>,
-    ) -> Result<Array1<u64>, LinfaError> {
+        x: &ArrayBase<D, Ix2>,
+    ) -> Result<Array1<u64>> {
         let ntrees = self.hyperparameters.n_estimators;
         assert!(ntrees > 0, "Run .fit() method first");
 
@@ -67,6 +68,7 @@ impl Predictor for RandomForest {
     }
 }
 
+/*
 impl ProbabilisticPredictor for RandomForest {
     /// Return probability of predicted class for each sample, calculated as the rate of independent trees that
     /// have agreed on such prediction
@@ -149,7 +151,7 @@ impl RandomForest {
 
         counter
     }
-}
+}*/
 
 #[cfg(test)]
 mod tests {
