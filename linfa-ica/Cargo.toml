@@ -12,11 +12,6 @@ readme = "README.md"
 keywords = ["factorization", "machine-learning", "linfa", "unsupervised"]
 categories = ["algorithms", "mathematics", "science"]
 
-[features]
-default = ["tests-openblas-system"]
-tests-openblas-system = ["openblas-src/system"]
-tests-openblas-build = ["openblas-src/cblas", "openblas-src/lapacke"]
-
 [dependencies]
 ndarray = { version = "0.13", default-features = false }
 ndarray-rand = "0.11"
@@ -28,6 +23,6 @@ rand_isaac = "0.2.0"
 linfa = { path = ".." }
 
 [dev-dependencies]
-openblas-src = { version = "0.9", default-features = false }
+openblas-src = { version = "0.9", default-features = false, features = ["system"] }
 ndarray-npy = { version = "0.5", default-features = false }
 paste = "1.0"

@@ -5,11 +5,6 @@ authors = ["Paul Körbitz / Google <koerbitz@google.com>"]
 edition = "2018"
 workspace = ".."
 
-[features]
-default = ["tests-openblas-system"]
-tests-openblas-system = ["openblas-src/system"]
-tests-openblas-build = ["openblas-src/cblas", "openblas-src/lapacke"]
-
 [dependencies]
 ndarray = {version = "0.13", features = ["blas", "approx"]}
 ndarray-linalg = "0.12"
@@ -19,7 +14,7 @@ argmin = {version="0.3.1", features=["ndarrayl"]}
 serde = "1.0"
 
 [dev-dependencies]
-openblas-src = { version = "0.9", default-features = false }
+openblas-src = { version = "0.9", default-features = false, features = ["system"] }
 csv = "1.1"
 ndarray-csv = "0.4"
 approx = "0.3.2"

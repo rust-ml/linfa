@@ -12,12 +12,6 @@ readme = "README.md"
 keywords = ["svm", "support vector machine", "machine-learning", "linfa", "supervised"]
 categories = ["algorithms", "mathematics", "science"]
 
-[features]
-default = ["tests-openblas-system"]
-
-tests-openblas-system = ["openblas-src/system"]
-tests-openblas-build = ["openblas-src/cblas", "openblas-src/lapacke"]
-
 [dependencies]
 ndarray = { version = "0.13", default-features=false, features=["blas"] }
 ndarray-rand = "0.11"
@@ -27,7 +21,7 @@ linfa = { path = ".." }
 linfa-kernel = { path = "../linfa-kernel" }
 
 [dev-dependencies]
-openblas-src = { version = "0.9", default-features = false }
+openblas-src = { version = "0.9", default-features = false, features = ["system"] }
 csv = "1.1"
 ndarray-csv = "0.4"
 flate2 = "1.0"

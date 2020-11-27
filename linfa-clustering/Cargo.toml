@@ -12,11 +12,6 @@ readme = "README.md"
 keywords = ["clustering", "machine-learning", "linfa", "k-means", "unsupervised"]
 categories = ["algorithms", "mathematics", "science"]
 
-[features]
-default = ["tests-openblas-system"]
-tests-openblas-system = ["openblas-src/system"]
-tests-openblas-build = ["openblas-src/cblas", "openblas-src/lapacke"]
-
 [dependencies.serde_crate]
 package = "serde"
 optional = true
@@ -36,7 +31,7 @@ rand_isaac = "0.2.0"
 linfa = { path = ".." }
 
 [dev-dependencies]
-openblas-src = { version = "0.9", default-features = false }
+openblas-src = { version = "0.9", default-features = false, features = ["system"] }
 ndarray-npy = { version = "0.5", default-features = false }
 criterion = "0.3"
 serde_json = "1"

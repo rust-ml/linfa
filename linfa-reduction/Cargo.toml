@@ -13,7 +13,7 @@ keywords = ["dimensionality reduction", "machine-learning", "linfa", "spectral",
 categories = ["algorithms", "mathematics", "science"]
 
 [features]
-default = ["tests-openblas-system"]
+default = []
 tests-openblas-system = ["openblas-src/system"]
 tests-openblas-build = ["openblas-src/cblas", "openblas-src/lapacke"]
 
@@ -28,7 +28,7 @@ linfa = { path = ".." }
 linfa-kernel = { path = "../linfa-kernel" }
 
 [dev-dependencies]
-openblas-src = { version = "0.9", default-features = false }
+openblas-src = { version = "0.9", default-features=false }
 rand_isaac = "0.2.0"
 ndarray-npy = { version = "0.5", default-features = false }
 criterion = "0.3"
