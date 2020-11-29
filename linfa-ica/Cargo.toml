@@ -1,6 +1,6 @@
 [package]
 name = "linfa-ica"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["VasanthakumarV <vasanth260m12@gmail.com>"]
 description = "A collection of Independent Component Analysis (ICA) algorithms"
 edition = "2018"
@@ -17,10 +17,10 @@ ndarray = { version = "0.13", default-features = false }
 ndarray-rand = "0.11"
 ndarray-stats = "0.3"
 ndarray-linalg = "0.12"
-num-traits = "0.1.32"
+num-traits = "0.2"
 rand_isaac = "0.2.0"
 
-linfa = { path = ".." }
+linfa = { version = "0.2.1", path = ".." }
 
 [dev-dependencies]
 openblas-src = { version = "0.9", default-features = false, features = ["system"] }

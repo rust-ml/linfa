@@ -1,8 +1,12 @@
 [package]
 name = "linfa-clustering"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2018"
-authors = ["Luca Palmieri <rust@lpalmieri.com>"]
+authors = [
+    "Luca Palmieri <rust@lpalmieri.com>",
+    "xd009642 <danielmckenna93@gmail.com>",
+    "Rémi Lafage <remi.lafage@onera.fr>"
+]
 description = "A collection of clustering algorithms"
 license = "MIT/Apache-2.0"
 
@@ -28,7 +32,7 @@ sprs = "0.7"
 num-traits = "0.1.32"
 rand_isaac = "0.2.0"
 
-linfa = { path = ".." }
+linfa = { version = "0.2.1", path = ".." }
 
 [dev-dependencies]
 openblas-src = { version = "0.9", default-features = false, features = ["system"] }

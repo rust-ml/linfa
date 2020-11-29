@@ -1,12 +1,12 @@
 [package]
 name = "linfa-kernel"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Lorenz Schmidt <bytesnake@mailbox.org>"]
 description = "Kernel methods for non-linear algorithms"
 edition = "2018"
 license = "MIT/Apache-2.0"
 
-repository = "https://github.com/rust-ml/linfa/"
+repository = "https://github.com/rust-ml/linfa"
 readme = "README.md"
 
 keywords = ["kernel", "machine-learning", "linfa"]
@@ -18,4 +18,4 @@ sprs = { version = "0.9", default-features = false }
 hnsw = "0.6"
 space = "0.10"
 
-linfa = { path = ".." }
+linfa = { version = "0.2.1", path = ".." }
