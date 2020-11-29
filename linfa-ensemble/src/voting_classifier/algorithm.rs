@@ -1,8 +1,6 @@
-use ndarray::{Array1, ArrayBase, Data, Ix2, ArrayView2};
 use std::collections::HashMap;
-use std::marker::PhantomData;
 
-use linfa::{traits::Predict, Float, Label, dataset::{Records, Labels, Targets}};
+use linfa::{Label, dataset::{Labels, Targets}};
 
 #[derive(Clone)]
 /// A VotingClassifier can be composed of heterogeneous learners (previously fitted) and
@@ -10,40 +8,50 @@ use linfa::{traits::Predict, Float, Label, dataset::{Records, Labels, Targets}};
 /// if hard, majority rule is applied
 /// if soft, the argmax of the sums of the predicted probabilities is returned
 ///
-pub struct VotingClassifier<R: Records, T: Labels, P: Predict<R, T>>
+pub struct VotingClassifier<T: Labels>
     where <T as Targets>::Elem: Label
 {
-    estimators: Vec<P>,
-    r: PhantomData<R>,
-    t: PhantomData<T>,
+    predictions: Vec<T>,
+    weights: Vec<f32>
 }
 
-impl<R: Records, T: Labels, P: Predict<R, T>> VotingClassifier<R, T, P> 
+impl<T: Labels> VotingClassifier<T>
     where <T as Targets>::Elem: Label
 {
-    /// Create new voting classifier.
-    /// If voting not provided, choose Voting::Hard by default
-    pub fn params() -> VotingClassifier<R, T, P> {
-        Self::params_with(vec![])
+    pub fn new() -> VotingClassifier<T> {
+        VotingClassifier {
+            predictions: Vec::new(),
+            weights: Vec::new()
+        }
     }
 
-    pub fn params_with(estimators: Vec<P>) -> VotingClassifier<R, T, P> {
-        VotingClassifier { estimators, r: PhantomData, t: PhantomData }
+    pub fn consider(self, prediction: T) -> Self {
+        self.consider_with_weight(prediction, 1.0)
     }
+
+    pub fn consider_with_weight(mut self, prediction: T, weight: f32) -> Self {
+        self.predictions.push(prediction);
+        self.weights.push(weight);
+
+        self
+    }
+
+    pub fn argmax(&self) -> Vec<&T::Elem> {
+        (0..self.predictions[0].as_slice().len()).map(|i| {
+            let mut map = HashMap::new();
+            for j in 0..self.predictions.len() {
+                *map.entry(&self.predictions[j].as_slice()[i]).or_insert(0) += 1;
+            }
+
+            map.into_iter().max_by(|a, b| a.1.cmp(&b.1))
+                .map(|(k, _v)| k)
+                .unwrap()
+        }).collect()
+    }
+
+    /*pub fn probability(self) -> Array2<Pr> {
+    }*/
 }
-
-impl<'a, F: Float, D: Data<Elem = F>, T: Labels, P: Predict<ArrayView2<'_, F>, T>> Predict<ArrayBase<D, Ix2>, T> for VotingClassifier<ArrayView2<'_, F>, T, P> 
-    where <T as Targets>::Elem: Label
-{
-    fn predict(&self, records: ArrayBase<D, Ix2>) -> T {
-        let predictions = self.estimators.iter()
-            .map(|e| e.predict(records.view()))
-            .collect::<Vec<_>>();
-
-        panic!("")
-    }
-}
-
 
     /*
     /// Call .predict() from each estimator and applies fitted weights to results
@@ -82,6 +90,7 @@ impl<'a, F: Float, D: Data<Elem = F>, T: Labels, P: Predict<ArrayView2<'_, F>, T
         Ok(Array1::from(result))
     }*/
 
+/*
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -126,3 +135,4 @@ mod tests {
         assert_eq!(preds.len(), xtrain.shape()[0]);
     }
 }
+*/

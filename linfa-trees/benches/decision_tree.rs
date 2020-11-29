@@ -1,7 +1,7 @@
-use linfa::prelude::*;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use linfa::prelude::*;
 use linfa_trees::DecisionTree;
-use ndarray::{Array, Array2, Axis, stack};
+use ndarray::{stack, Array, Array2, Axis};
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::{StandardNormal, Uniform};
 use ndarray_rand::RandomExt;
@@ -11,9 +11,7 @@ use std::iter::FromIterator;
 fn generate_blobs(means: &Array2<f64>, samples: usize, mut rng: &mut Isaac64Rng) -> Array2<f64> {
     let out = means
         .axis_iter(Axis(0))
-        .map(|mean| {
-            Array::random_using((samples, 4), StandardNormal, &mut rng) + mean
-        })
+        .map(|mean| Array::random_using((samples, 4), StandardNormal, &mut rng) + mean)
         .collect::<Vec<_>>();
     let out2 = out.iter().map(|x| x.view()).collect::<Vec<_>>();
 
@@ -37,11 +35,8 @@ fn decision_tree_bench(c: &mut Criterion) {
     group.sample_size(10);
 
     for n in training_set_sizes.iter() {
-        let centroids = Array2::random_using(
-            (n_classes, n_features),
-            Uniform::new(-30., 30.),
-            &mut rng,
-        );
+        let centroids =
+            Array2::random_using((n_classes, n_features), Uniform::new(-30., 30.), &mut rng);
 
         let train_x = generate_blobs(&centroids, *n, &mut rng);
         let train_y = Array::from_iter(
@@ -51,11 +46,9 @@ fn decision_tree_bench(c: &mut Criterion) {
         );
         let dataset = Dataset::new(train_x, train_y);
 
-        group.bench_with_input(
-            BenchmarkId::from_parameter(n),
-            &dataset,
-            |b, d| b.iter(|| hyperparams.fit(&d)),
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(n), &dataset, |b, d| {
+            b.iter(|| hyperparams.fit(&d))
+        });
     }
 
     group.finish();

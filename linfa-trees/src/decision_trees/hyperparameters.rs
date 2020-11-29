@@ -1,5 +1,5 @@
-use std::marker::PhantomData;
 use linfa::{Float, Label};
+use std::marker::PhantomData;
 
 /// The possible impurity measures for training.
 #[derive(Clone, Copy, Debug)]
@@ -18,7 +18,7 @@ pub struct DecisionTreeParams<F, L> {
     pub min_samples_split: usize,
     pub min_samples_leaf: usize,
     pub min_impurity_decrease: F,
-    pub phantom: PhantomData<L>
+    pub phantom: PhantomData<L>,
 }
 
 impl<F: Float, L: Label> DecisionTreeParams<F, L> {

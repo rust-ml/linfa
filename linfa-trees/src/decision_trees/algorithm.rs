@@ -4,9 +4,9 @@ use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 
-use ndarray::{ArrayBase, ArrayView2, Axis, Data, Ix1, Ix2};
 use crate::decision_trees::hyperparameters::{DecisionTreeParams, SplitQuality};
 use linfa::{dataset::Labels, traits::*, Dataset, Float, Label};
+use ndarray::{ArrayBase, ArrayView2, Axis, Data, Ix1, Ix2};
 
 /// RowMask tracks observations
 ///
@@ -326,7 +326,7 @@ impl<F: Float, L: Label> DecisionTree<F, L> {
             min_samples_split: 2,
             min_samples_leaf: 1,
             min_impurity_decrease: F::from(0.00001).unwrap(),
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 

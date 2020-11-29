@@ -83,6 +83,27 @@ impl<F: Float, T: Clone> Dataset<Array2<F>, Vec<T>> {
 
         Dataset::new(records, targets)
     }
+
+    pub fn bootstrap<'a, R: Rng>(
+        &'a self,
+        num_samples: usize,
+        rng: &'a mut R,
+    ) -> impl Iterator<Item = Dataset<Array2<F>, Vec<T>>> + 'a {
+        std::iter::repeat(()).map(move |_| {
+            // sample with replacement
+            let indices = (0..num_samples)
+                .map(|_| rng.gen_range(0, self.observations()))
+                .collect::<Vec<_>>();
+
+            let records = self.records().select(Axis(0), &indices);
+            let targets = indices
+                .iter()
+                .map(|x| self.targets.as_slice()[*x].clone())
+                .collect::<Vec<_>>();
+
+            Dataset::new(records, targets)
+        })
+    }
 }
 
 impl<F: Float, T: Clone> Dataset<Array2<F>, Array1<T>> {
