@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use linfa::{Label, dataset::{Labels, Targets}};
+use linfa::{
+    dataset::{Labels, Targets},
+    Label,
+};
 
 #[derive(Clone)]
 /// A VotingClassifier can be composed of heterogeneous learners (previously fitted) and
@@ -9,19 +12,21 @@ use linfa::{Label, dataset::{Labels, Targets}};
 /// if soft, the argmax of the sums of the predicted probabilities is returned
 ///
 pub struct VotingClassifier<T: Labels>
-    where <T as Targets>::Elem: Label
+where
+    <T as Targets>::Elem: Label,
 {
     predictions: Vec<T>,
-    weights: Vec<f32>
+    weights: Vec<f32>,
 }
 
 impl<T: Labels> VotingClassifier<T>
-    where <T as Targets>::Elem: Label
+where
+    <T as Targets>::Elem: Label,
 {
     pub fn new() -> VotingClassifier<T> {
         VotingClassifier {
             predictions: Vec::new(),
-            weights: Vec::new()
+            weights: Vec::new(),
         }
     }
 
@@ -37,58 +42,61 @@ impl<T: Labels> VotingClassifier<T>
     }
 
     pub fn argmax(&self) -> Vec<&T::Elem> {
-        (0..self.predictions[0].as_slice().len()).map(|i| {
-            let mut map = HashMap::new();
-            for j in 0..self.predictions.len() {
-                *map.entry(&self.predictions[j].as_slice()[i]).or_insert(0) += 1;
-            }
+        (0..self.predictions[0].as_slice().len())
+            .map(|i| {
+                let mut map = HashMap::new();
+                for j in 0..self.predictions.len() {
+                    *map.entry(&self.predictions[j].as_slice()[i]).or_insert(0) += 1;
+                }
 
-            map.into_iter().max_by(|a, b| a.1.cmp(&b.1))
-                .map(|(k, _v)| k)
-                .unwrap()
-        }).collect()
+                map.into_iter()
+                    .max_by(|a, b| a.1.cmp(&b.1))
+                    .map(|(k, _v)| k)
+                    .unwrap()
+            })
+            .collect()
     }
 
     /*pub fn probability(self) -> Array2<Pr> {
     }*/
 }
 
-    /*
-    /// Call .predict() from each estimator and applies fitted weights to results
-    pub fn predict(
-        &self,
-        x: &ArrayBase<impl Data<Elem = f64>, Ix2>,
-    ) -> Result<Array1<u64>, LinfaError> {
-        let _result: Array1<u64> = Array1::from(vec![1, 2, 3]);
-        // store predictions from each single model
-        let mut predictions: Vec<Vec<u64>> = vec![];
-        // collect predictions from each estimator
-        for (_i, e) in self.estimators.iter().enumerate() {
-            let single_pred = e.predict(&x).unwrap().to_vec();
-            predictions.push(single_pred);
-        }
+/*
+/// Call .predict() from each estimator and applies fitted weights to results
+pub fn predict(
+    &self,
+    x: &ArrayBase<impl Data<Elem = f64>, Ix2>,
+) -> Result<Array1<u64>, LinfaError> {
+    let _result: Array1<u64> = Array1::from(vec![1, 2, 3]);
+    // store predictions from each single model
+    let mut predictions: Vec<Vec<u64>> = vec![];
+    // collect predictions from each estimator
+    for (_i, e) in self.estimators.iter().enumerate() {
+        let single_pred = e.predict(&x).unwrap().to_vec();
+        predictions.push(single_pred);
+    }
 
-        // apply magority voting and return final result
-        let result: Vec<u64> = {
-            let mut res: Vec<u64> = vec![];
-            for sample_idx in 0..x.nrows() {
-                let mut counter: HashMap<u64, u64> = HashMap::new();
-                for sp in &predictions {
-                    *counter.entry(sp[sample_idx]).or_insert(0) += 1;
-                }
-                res.push(
-                    *counter
-                        .iter()
-                        .max_by(|a, b| a.1.cmp(&b.1))
-                        .map(|(k, _v)| k)
-                        .unwrap(),
-                );
+    // apply magority voting and return final result
+    let result: Vec<u64> = {
+        let mut res: Vec<u64> = vec![];
+        for sample_idx in 0..x.nrows() {
+            let mut counter: HashMap<u64, u64> = HashMap::new();
+            for sp in &predictions {
+                *counter.entry(sp[sample_idx]).or_insert(0) += 1;
             }
-            res
-        };
-        // return aggregated prediction
-        Ok(Array1::from(result))
-    }*/
+            res.push(
+                *counter
+                    .iter()
+                    .max_by(|a, b| a.1.cmp(&b.1))
+                    .map(|(k, _v)| k)
+                    .unwrap(),
+            );
+        }
+        res
+    };
+    // return aggregated prediction
+    Ok(Array1::from(result))
+}*/
 
 /*
 #[cfg(test)]
