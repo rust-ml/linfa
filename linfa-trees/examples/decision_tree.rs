@@ -1,5 +1,5 @@
 use linfa_trees::{DecisionTree, DecisionTreeParams, SplitQuality};
-use ndarray::{array, Array, ArrayBase, Data, Ix1, Ix2, Array2, s};
+use ndarray::{array, s, Array, Array2, ArrayBase, Data, Ix1, Ix2};
 use ndarray_rand::rand::Rng;
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::StandardNormal;
