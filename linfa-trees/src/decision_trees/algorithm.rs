@@ -59,7 +59,7 @@ impl<F: Float> SortedIndex<F> {
 
 #[derive(Debug, Clone)]
 /// A node in the decision tree
-struct TreeNode<F, L> {
+pub struct TreeNode<F, L> {
     feature_idx: usize,
     split_value: F,
     left_child: Option<Box<TreeNode<F, L>>>,
@@ -208,7 +208,7 @@ impl<F: Float, L: Label> TreeNode<F, L> {
 
         for i in 0..x.nrows() {
             if mask.mask[i] {
-                if x[(i, best_feature_idx)] < best_split_value {
+                if x[(i, best_feature_idx)] <= best_split_value {
                     left_mask.mark(i);
                 } else {
                     right_mask.mark(i);
@@ -376,6 +376,10 @@ impl<F: Float, L: Label> DecisionTree<F, L> {
 
         fitted_features
     }
+
+    pub fn root_node(&self) -> &TreeNode<F, L> {
+        &self.root_node
+    }
 }
 
 /// Classify a sample &x recursively using the tree node `node`.
@@ -444,7 +448,10 @@ fn entropy<L: Label>(class_freq: &HashMap<&L, usize>) -> f64 {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::Array;
+    use ndarray::{Array, Array1, s};
+
+    use ndarray_rand::rand_distr::Uniform;
+    use ndarray_rand::RandomExt;
 
     #[test]
     fn prediction_for_rows_example() {
@@ -481,5 +488,29 @@ mod tests {
         let perfect_class_freq = vec![(&0, 8), (&1, 0), (&2, 0)].into_iter().collect();
 
         assert_abs_diff_eq!(entropy(&perfect_class_freq), 0.0, epsilon = 1e-5);
+    }
+
+    #[test]
+    /// Single feature test
+    ///
+    /// Generate a dataset where a single feature perfectly correlates
+    /// with the target while the remaining features are random gaussian
+    /// noise and do not add any information.
+    fn single_feature_random_noise() {
+        // generate data with 9 white noise and a single correlated feature
+        let mut data = Array::random((50, 10), Uniform::new(-4., 4.));
+        data.slice_mut(s![.., 8]).assign(
+            &(0..50).map(|x| if x < 25 { 0.0 } else { 1.0 }).collect::<Array1<_>>()
+        );
+
+        let targets = (0..50).map(|x| x < 25).collect::<Vec<_>>();
+
+        let dataset = Dataset::new(data, targets);
+
+        let model = DecisionTree::params(2)
+            .max_depth(Some(2))
+            .fit(&dataset);
+
+        assert_eq!(&model.features(), &[8]);
     }
 }
