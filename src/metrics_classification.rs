@@ -280,7 +280,7 @@ impl<
         // count each index tuple in the confusion matrix
         let mut confusion_matrix = Array2::zeros((classes.len(), classes.len()));
         for (i1, i2) in indices.into_iter().filter_map(|x| x) {
-            confusion_matrix[(i1, i2)] += *ground_truth.weights().get(i1).unwrap_or(&1.0);
+            confusion_matrix[(i1, i2)] += ground_truth.weight_for(i1);
         }
 
         ConfusionMatrix {
@@ -300,7 +300,7 @@ impl<R: Records, L: Label, T: Targets<Elem = L> + Labels<Elem = L>>
         // count each index tuple in the confusion matrix
         let mut confusion_matrix = Array2::zeros((classes.len(), classes.len()));
         for (i1, i2) in indices.into_iter().filter_map(|x| x) {
-            confusion_matrix[(i1, i2)] += *ground_truth.weights().get(i1).unwrap_or(&1.0);
+            confusion_matrix[(i1, i2)] += ground_truth.weight_for(i1);
         }
 
         ConfusionMatrix {

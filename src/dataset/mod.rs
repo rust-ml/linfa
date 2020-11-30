@@ -5,7 +5,6 @@
 use ndarray::NdFloat;
 use num_traits::{FromPrimitive, Signed};
 use std::cmp::{Ordering, PartialOrd};
-use std::collections::HashMap;
 use std::hash::Hash;
 use std::iter::Sum;
 use std::ops::Deref;
@@ -96,20 +95,4 @@ where
     Self::Elem: Label,
 {
     fn labels(&self) -> Vec<Self::Elem>;
-
-    fn frequencies_with_mask(&self, mask: &[bool]) -> HashMap<&Self::Elem, usize> {
-        let mut freqs = HashMap::new();
-
-        for elm in self
-            .as_slice()
-            .iter()
-            .zip(mask.iter())
-            .filter(|(_, x)| **x)
-            .map(|(x, _)| x)
-        {
-            *freqs.entry(elm).or_insert(0) += 1;
-        }
-
-        freqs
-    }
 }

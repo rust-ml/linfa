@@ -5,8 +5,8 @@ use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 
 use crate::decision_trees::hyperparameters::{DecisionTreeParams, SplitQuality};
-use linfa::{dataset::Labels, traits::*, Dataset, Float, Label};
-use ndarray::{ArrayBase, ArrayView2, Axis, Data, Ix1, Ix2};
+use linfa::{dataset::{Labels, Records}, traits::*, Dataset, Float, Label};
+use ndarray::{ArrayBase, Axis, Data, Ix1, Ix2};
 
 /// RowMask tracks observations
 ///
@@ -98,16 +98,15 @@ impl<F: Float, L: Label> TreeNode<F, L> {
         }
     }
 
-    fn fit<T: Labels<Elem = L>>(
-        x: ArrayView2<F>,
-        y: &T,
+    fn fit<D: Data<Elem = F>, T: Labels<Elem = L>>(
+        data: &Dataset<ArrayBase<D, Ix2>, T>,
         mask: &RowMask,
         hyperparameters: &DecisionTreeParams<F, L>,
         sorted_indices: &[SortedIndex<F>],
         depth: usize,
     ) -> Self {
         // count occurences of each target class
-        let parent_class_freq = y.frequencies_with_mask(&mask.mask);
+        let parent_class_freq = data.frequencies_with_mask(&mask.mask);
         // find class which occures the most
         let prediction = prediction_for_rows(&parent_class_freq);
 
@@ -128,6 +127,7 @@ impl<F: Float, L: Label> TreeNode<F, L> {
         for (feature_idx, sorted_index) in sorted_indices.iter().enumerate() {
             let mut left_class_freq = parent_class_freq.clone();
             let mut right_class_freq = HashMap::new();
+            let mut num_left = data.observations();
 
             // iterate over sorted values
             for i in 0..mask.mask.len() - 1 {
@@ -139,15 +139,18 @@ impl<F: Float, L: Label> TreeNode<F, L> {
 
                 // move the class of the current sample from the left subset to the right
                 *left_class_freq
-                    .get_mut(&y.as_slice()[presorted_index as usize])
-                    .unwrap() -= 1;
+                    .get_mut(data.target(presorted_index))
+                    .unwrap() -= data.weight_for(presorted_index);
+
                 *right_class_freq
-                    .entry(&y.as_slice()[presorted_index as usize])
-                    .or_insert(0) += 1;
+                    .entry(data.target(presorted_index as usize))
+                    .or_insert(0.0) += data.weight_for(presorted_index);
+                
+                num_left -= 1;
 
                 // when classes get too unbalanced, continue
-                if left_class_freq.values().sum::<usize>() < hyperparameters.min_samples_split
-                    || right_class_freq.values().sum::<usize>() < hyperparameters.min_samples_split
+                if num_left < hyperparameters.min_samples_split
+                    || (data.observations() - num_left) < hyperparameters.min_samples_split
                 {
                     continue;
                 }
@@ -165,9 +168,9 @@ impl<F: Float, L: Label> TreeNode<F, L> {
 
                 // calculate score as weighted sum of left and right weights
                 let left_weight: f64 =
-                    left_class_freq.values().sum::<usize>() as f64 / mask.mask.len() as f64;
+                    left_class_freq.values().sum::<f32>() as f64 / mask.mask.len() as f64;
                 let right_weight: f64 =
-                    right_class_freq.values().sum::<usize>() as f64 / mask.mask.len() as f64;
+                    right_class_freq.values().sum::<f32>() as f64 / mask.mask.len() as f64;
 
                 let score = left_weight * left_score + right_weight * right_score;
 
@@ -203,12 +206,12 @@ impl<F: Float, L: Label> TreeNode<F, L> {
         let (best_feature_idx, best_split_value, _) = best.unwrap();
 
         // determine new masks for the left and right subtrees
-        let mut left_mask = RowMask::none(x.nrows());
-        let mut right_mask = RowMask::none(x.nrows());
+        let mut left_mask = RowMask::none(data.observations());
+        let mut right_mask = RowMask::none(data.observations());
 
-        for i in 0..x.nrows() {
+        for i in 0..data.observations() {
             if mask.mask[i] {
-                if x[(i, best_feature_idx)] <= best_split_value {
+                if data.records()[(i, best_feature_idx)] <= best_split_value {
                     left_mask.mark(i);
                 } else {
                     right_mask.mark(i);
@@ -219,8 +222,7 @@ impl<F: Float, L: Label> TreeNode<F, L> {
         // Recurse and refit on left and right subtrees
         let left_child = if left_mask.nsamples > 0 {
             Some(Box::new(TreeNode::fit(
-                x,
-                y,
+                data,
                 &left_mask,
                 &hyperparameters,
                 &sorted_indices,
@@ -232,8 +234,7 @@ impl<F: Float, L: Label> TreeNode<F, L> {
 
         let right_child = if right_mask.nsamples > 0 {
             Some(Box::new(TreeNode::fit(
-                x,
-                y,
+                data,
                 &right_mask,
                 &hyperparameters,
                 &sorted_indices,
@@ -297,8 +298,7 @@ impl<'a, F: Float, L: Label + 'a, D: Data<Elem = F>, T: Labels<Elem = L>>
             .collect();
 
         let root_node = TreeNode::fit(
-            x.view(),
-            &dataset.targets(),
+            &dataset,
             &all_idxs,
             &self,
             &sorted_indices,
@@ -399,7 +399,7 @@ fn make_prediction<F: Float, L: Label>(
 /// Make a point prediction for a subset of rows in the dataset based on the
 /// class that occurs the most frequent. If two classes occur with the same
 /// frequency then the first class is selected.
-fn prediction_for_rows<L: Label>(class_freq: &HashMap<&L, usize>) -> L {
+fn prediction_for_rows<L: Label>(class_freq: &HashMap<&L, f32>) -> L {
     let val = class_freq
         .into_iter()
         .fold(None, |acc, (idx, freq)| match acc {
@@ -419,9 +419,9 @@ fn prediction_for_rows<L: Label>(class_freq: &HashMap<&L, usize>) -> L {
 }
 
 /// Given the class frequencies calculates the gini impurity of the subset.
-fn gini_impurity<L: Label>(class_freq: &HashMap<&L, usize>) -> f64 {
-    let n_samples = class_freq.values().sum::<usize>();
-    assert!(n_samples > 0);
+fn gini_impurity<L: Label>(class_freq: &HashMap<&L, f32>) -> f64 {
+    let n_samples = class_freq.values().sum::<f32>();
+    assert!(n_samples > 0.0);
 
     let purity: f64 = class_freq
         .values()
@@ -433,9 +433,9 @@ fn gini_impurity<L: Label>(class_freq: &HashMap<&L, usize>) -> f64 {
 }
 
 /// Given the class frequencies calculates the entropy of the subset.
-fn entropy<L: Label>(class_freq: &HashMap<&L, usize>) -> f64 {
-    let n_samples = class_freq.values().sum::<usize>();
-    assert!(n_samples > 0);
+fn entropy<L: Label>(class_freq: &HashMap<&L, f32>) -> f64 {
+    let n_samples = class_freq.values().sum::<f32>();
+    assert!(n_samples > 0.0);
 
     class_freq
         .values()
@@ -458,14 +458,15 @@ mod tests {
         let labels = Array::from(vec![0, 0, 0, 0, 0, 0, 1, 1]);
         let row_mask = RowMask::all(labels.len());
 
-        let class_freq = labels.frequencies_with_mask(&row_mask.mask);
+        let dataset = Dataset::new((), labels);
+        let class_freq = dataset.frequencies_with_mask(&row_mask.mask);
 
         assert_eq!(prediction_for_rows(&class_freq), 0);
     }
 
     #[test]
     fn gini_impurity_example() {
-        let class_freq = vec![(&0, 6), (&1, 2), (&2, 0)].into_iter().collect();
+        let class_freq = vec![(&0, 6.0), (&1, 2.0), (&2, 0.0)].into_iter().collect();
 
         // Class 0 occurs 75% of the time
         // Class 1 occurs 25% of the time
@@ -476,7 +477,7 @@ mod tests {
 
     #[test]
     fn entropy_example() {
-        let class_freq = vec![(&0, 6), (&1, 2), (&2, 0)].into_iter().collect();
+        let class_freq = vec![(&0, 6.0), (&1, 2.0), (&2, 0.0)].into_iter().collect();
 
         // Class 0 occurs 75% of the time
         // Class 1 occurs 25% of the time
@@ -485,7 +486,7 @@ mod tests {
         assert_abs_diff_eq!(entropy(&class_freq), 0.81127, epsilon = 1e-5);
 
         // If split is perfect then entropy is zero
-        let perfect_class_freq = vec![(&0, 8), (&1, 0), (&2, 0)].into_iter().collect();
+        let perfect_class_freq = vec![(&0, 8.0), (&1, 0.0), (&2, 0.0)].into_iter().collect();
 
         assert_abs_diff_eq!(entropy(&perfect_class_freq), 0.0, epsilon = 1e-5);
     }
@@ -496,7 +497,7 @@ mod tests {
     /// Generate a dataset where a single feature perfectly correlates
     /// with the target while the remaining features are random gaussian
     /// noise and do not add any information.
-    fn single_feature_random_noise() {
+    fn single_feature_random_noise_binary() {
         // generate data with 9 white noise and a single correlated feature
         let mut data = Array::random((50, 10), Uniform::new(-4., 4.));
         data.slice_mut(s![.., 8]).assign(

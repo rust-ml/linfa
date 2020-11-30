@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use ndarray::{Array1, Array2, ArrayBase, ArrayView2, Axis, Data, Dimension, Ix2};
 use rand::{seq::SliceRandom, Rng};
 
@@ -22,8 +23,20 @@ impl<R: Records, S: Targets> Dataset<R, S> {
         self.targets.as_slice()
     }
 
-    pub fn weights(&self) -> &[f32] {
-        &self.weights
+    pub fn target(&self, idx: usize) -> &S::Elem {
+        &self.targets.as_slice()[idx]
+    }
+
+    pub fn weights(&self) -> Option<&[f32]> {
+        if self.weights.len() > 0 {
+            Some(&self.weights)
+        } else {
+            None
+        }
+    }
+
+    pub fn weight_for(&self, idx: usize) -> f32 {
+        self.weights.get(idx).map(|x| *x).unwrap_or(1.0)
     }
 
     pub fn records(&self) -> &R {
@@ -164,6 +177,22 @@ impl<F: Float, L: Label, T: Labels<Elem = L>, D: Data<Elem = F>> Dataset<ArrayBa
 impl<L: Label, R: Records, S: Labels<Elem = L>> Dataset<R, S> {
     pub fn labels(&self) -> Vec<L> {
         self.targets.labels()
+    }
+
+    pub fn frequencies_with_mask(&self, mask: &[bool]) -> HashMap<&L, f32> {
+        let mut freqs = HashMap::new();
+
+        for (elm, val) in self.targets
+            .as_slice()
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| mask[*i])
+            .map(|(i, x)| (x, self.weight_for(i)))
+        {
+            *freqs.entry(elm).or_insert(0.0) += val;
+        }
+
+        freqs
     }
 }
 
