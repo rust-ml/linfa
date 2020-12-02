@@ -394,6 +394,7 @@ fn get_random_centroids<F: Float, D: Data<Elem = F>>(
 }
 
 #[cfg(test)]
+#[cfg(feature = "tests-openblas-build")]
 mod tests {
     extern crate openblas_src;
 
