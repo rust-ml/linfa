@@ -94,12 +94,8 @@ impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<
             if cluster_memberships[i].is_some() {
                 continue;
             }
-            let (neighbor_count, mut search_queue) = find_neighbors(
-                &obs,
-                observations,
-                self.tolerance(),
-                &cluster_memberships,
-            );
+            let (neighbor_count, mut search_queue) =
+                find_neighbors(&obs, observations, self.tolerance(), &cluster_memberships);
             if neighbor_count < self.minimum_points() {
                 continue;
             }
@@ -190,10 +186,7 @@ mod tests {
         data.column_mut(0).slice_mut(s![40..]).fill(5.0);
         data.column_mut(1).slice_mut(s![40..]).fill(5.0);
 
-        let labels = Dbscan::params(2)
-            .tolerance(1.0)
-            .build()
-            .transform(&data);
+        let labels = Dbscan::params(2).tolerance(1.0).build().transform(&data);
 
         assert!(labels.slice(s![..40]).iter().all(|x| x == &Some(0)));
         assert!(labels.slice(s![40..]).iter().all(|x| x == &Some(1)));
@@ -204,9 +197,7 @@ mod tests {
         let mut data: Array2<f64> = Array2::zeros((5, 2));
         data.row_mut(0).assign(&arr1(&[10.0, 10.0]));
 
-        let labels = Dbscan::params(4)
-            .build()
-            .transform(&data);
+        let labels = Dbscan::params(4).build().transform(&data);
 
         let expected = arr1(&[None, Some(0), Some(0), Some(0), Some(0)]);
         assert_eq!(labels, expected);
@@ -216,9 +207,7 @@ mod tests {
     fn dataset_too_small() {
         let data: Array2<f64> = Array2::zeros((3, 2));
 
-        let labels = Dbscan::params(4)
-            .build()
-            .transform(&data);
+        let labels = Dbscan::params(4).build().transform(&data);
         assert!(labels.iter().all(|x| x.is_none()));
     }
 }
