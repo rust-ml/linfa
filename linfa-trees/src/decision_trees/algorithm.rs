@@ -127,7 +127,7 @@ impl<F: Float, L: Label> TreeNode<F, L> {
         for (feature_idx, sorted_index) in sorted_indices.iter().enumerate() {
             let mut left_class_freq = parent_class_freq.clone();
             let mut right_class_freq = HashMap::new();
-            let mut num_left = data.observations();
+            let mut num_left = data.observations() - 1;
 
             // iterate over sorted values
             for i in 0..mask.mask.len() - 1 {
@@ -143,7 +143,7 @@ impl<F: Float, L: Label> TreeNode<F, L> {
                     .unwrap() -= data.weight_for(presorted_index);
 
                 *right_class_freq
-                    .entry(data.target(presorted_index as usize))
+                    .entry(data.target(presorted_index))
                     .or_insert(0.0) += data.weight_for(presorted_index);
                 
                 num_left -= 1;
