@@ -109,15 +109,13 @@ impl<F: Float, L: Label> TreeNode<F, L> {
         sorted_indices: &[SortedIndex<F>],
         depth: usize,
     ) -> Self {
-        println!("Entering fit");
-
         // compute weighted frequencies for target classes
         let parent_class_freq = data.frequencies_with_mask(&mask.mask);
         // set our prediction for this subset to the modal class
         let prediction = find_modal_class(&parent_class_freq);
 
         // return empty leaf when we don't have enough samples or the maximal depth is reached
-        if (mask.nsamples as f32) < hyperparameters.min_samples_split
+        if (mask.nsamples as f32) < hyperparameters.min_weight_split
             || hyperparameters
                 .max_depth
                 .map(|max_depth| depth > max_depth)
@@ -163,8 +161,8 @@ impl<F: Float, L: Label> TreeNode<F, L> {
 
                 // If the split would result in too few samples in a leaf
                 // then skip computing the quality
-                if weight_on_left_side < hyperparameters.min_samples_leaf
-                    || weight_on_right_side < hyperparameters.min_samples_leaf
+                if weight_on_left_side < hyperparameters.min_weight_leaf
+                    || weight_on_right_side < hyperparameters.min_weight_leaf
                 {
                     continue;
                 }
@@ -317,8 +315,8 @@ impl<F: Float, L: Label> DecisionTree<F, L> {
     /// Defaults are provided if the optional parameters are not specified:
     /// * `split_quality = SplitQuality::Gini`
     /// * `max_depth = None`
-    /// * `min_samples_split = 2`
-    /// * `min_samples_leaf = 1`
+    /// * `min_weight_split = 2.0`
+    /// * `min_weight_leaf = 1.0`
     /// * `min_impurity_decrease = 0.00001`
     // Violates the convention that new should return a value of type `Self`
     #[allow(clippy::new_ret_no_self)]
@@ -327,8 +325,8 @@ impl<F: Float, L: Label> DecisionTree<F, L> {
             n_classes,
             split_quality: SplitQuality::Gini,
             max_depth: None,
-            min_samples_split: 2.0,
-            min_samples_leaf: 1.0,
+            min_weight_split: 2.0,
+            min_weight_leaf: 1.0,
             min_impurity_decrease: F::from(0.00001).unwrap(),
             phantom: PhantomData,
         }

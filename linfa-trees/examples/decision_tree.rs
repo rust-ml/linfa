@@ -42,8 +42,8 @@ fn main() {
     let gini_model = DecisionTree::params(n_classes)
         .split_quality(SplitQuality::Gini)
         .max_depth(Some(100))
-        .min_samples_split(10.0)
-        .min_samples_leaf(10.0)
+        .min_weight_split(10.0)
+        .min_weight_leaf(10.0)
         .fit(&train);
 
     let gini_pred_y = gini_model.predict(test.records().view());
@@ -60,8 +60,8 @@ fn main() {
     let entropy_model = DecisionTree::params(n_classes)
         .split_quality(SplitQuality::Entropy)
         .max_depth(Some(100))
-        .min_samples_split(10.0)
-        .min_samples_leaf(10.0)
+        .min_weight_split(10.0)
+        .min_weight_leaf(10.0)
         .fit(&train);
 
     let entropy_pred_y = gini_model.predict(test.records().view());
