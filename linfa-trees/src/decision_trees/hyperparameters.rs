@@ -15,8 +15,8 @@ pub struct DecisionTreeParams<F, L> {
     pub n_classes: usize,
     pub split_quality: SplitQuality,
     pub max_depth: Option<usize>,
-    pub min_samples_split: usize,
-    pub min_samples_leaf: usize,
+    pub min_samples_split: f32,
+    pub min_samples_leaf: f32,
     pub min_impurity_decrease: F,
     pub phantom: PhantomData<L>,
 }
@@ -37,12 +37,12 @@ impl<F: Float, L: Label> DecisionTreeParams<F, L> {
         self
     }
 
-    pub fn min_samples_split(mut self, min_samples_split: usize) -> Self {
+    pub fn min_samples_split(mut self, min_samples_split: f32) -> Self {
         self.min_samples_split = min_samples_split;
         self
     }
 
-    pub fn min_samples_leaf(mut self, min_samples_leaf: usize) -> Self {
+    pub fn min_samples_leaf(mut self, min_samples_leaf: f32) -> Self {
         self.min_samples_leaf = min_samples_leaf;
         self
     }
