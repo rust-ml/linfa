@@ -405,7 +405,7 @@ fn find_modal_class<L: Label>(class_freq: &HashMap<&L, f32>) -> L {
     // TODO: Refactor this with fold_first
 
     let val = class_freq
-        .into_iter()
+        .iter()
         .fold(None, |acc, (idx, freq)| match acc {
             None => Some((idx, freq)),
             Some((_best_idx, best_freq)) => {

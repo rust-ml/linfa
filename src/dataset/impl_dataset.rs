@@ -28,7 +28,7 @@ impl<R: Records, S: Targets> Dataset<R, S> {
     }
 
     pub fn weights(&self) -> Option<&[f32]> {
-        if self.weights.len() > 0 {
+        if !self.weights.is_empty() {
             Some(&self.weights)
         } else {
             None
@@ -36,7 +36,7 @@ impl<R: Records, S: Targets> Dataset<R, S> {
     }
 
     pub fn weight_for(&self, idx: usize) -> f32 {
-        self.weights.get(idx).map(|x| *x).unwrap_or(1.0)
+        self.weights.get(idx).copied().unwrap_or(1.0)
     }
 
     pub fn records(&self) -> &R {
