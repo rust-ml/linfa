@@ -21,7 +21,6 @@ fn main() {
     // Infer an optimal set of centroids based on the training data distribution
     let cluster_memberships = Dbscan::params(min_points)
         .tolerance(1e-5)
-        .build()
         .transform(&dataset);
 
     // Save to disk our dataset (and the cluster label assigned to each observation)

@@ -66,24 +66,12 @@ impl<F: Float> CellsGrid<F> {
         &self.labeled
     }
 
-    pub fn cells_count(&self) -> usize {
-        self.cells.len()
-    }
-
-    pub fn core_cells_count(&self) -> usize {
-        self.cells.iter().filter(|c| c.is_core()).count()
-    }
-
     pub fn cells(&self) -> &PartitionVec<Cell<F>> {
         &self.cells
     }
 
     pub fn cells_mut(&mut self) -> &mut PartitionVec<Cell<F>> {
         &mut self.cells
-    }
-
-    pub fn cell_at(&self, index: usize) -> Option<&Cell<F>> {
-        self.cells.get(index)
     }
 
     fn insert_point(

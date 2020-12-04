@@ -49,7 +49,7 @@ impl<F: Float> AppxDbscanHyperParamsBuilder<F> {
     /// validation checks on all hyperparameters.
     ///
     /// **Panics** if any of the validation checks fail.
-    pub fn build(self) -> AppxDbscanHyperParams<F> {
+    pub fn build(&self) -> AppxDbscanHyperParams<F> {
         AppxDbscanHyperParams::build(self.tolerance, self.min_points, self.slack)
     }
 }

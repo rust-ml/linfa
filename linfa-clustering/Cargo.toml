@@ -23,11 +23,6 @@ version = "1.0"
 default-features = false
 features = ["std", "derive"]
 
-[features]
-default = ["tests-openblas-system"]
-tests-openblas-system = ["openblas-src/system"]
-tests-openblas-build = ["openblas-src/cblas", "openblas-src/lapacke"]
-
 [dependencies]
 ndarray = { version = "0.13", features = ["rayon", "approx"]}
 ndarray-linalg = "0.12"
@@ -38,7 +33,6 @@ num-traits = "0.1.32"
 rand_isaac = "0.2.0"
 
 linfa = { version = "0.2.1", path = ".." }
-linfa-kernel = { path = "../linfa-kernel" }
 partitions = "0.2.4"
 
 [dev-dependencies]

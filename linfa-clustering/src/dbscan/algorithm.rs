@@ -71,7 +71,6 @@ use linfa::{Dataset, Float};
 /// let min_points = 3;
 /// let clusters = Dbscan::params(min_points)
 ///     .tolerance(1e-2)
-///     .build()
 ///     .transform(&observations);
 /// // Points are `None` if noise `Some(id)` if belonging to a cluster.
 /// ```
@@ -79,13 +78,13 @@ use linfa::{Dataset, Float};
 pub struct Dbscan;
 
 impl Dbscan {
-    pub fn params(min_points: usize) -> DbscanHyperParamsBuilder {
+    pub fn params<F: Float>(min_points: usize) -> DbscanHyperParamsBuilder<F> {
         DbscanHyperParams::new(min_points)
     }
 }
 
 impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<usize>>>
-    for DbscanHyperParams
+    for DbscanHyperParams<F>
 {
     fn transform(&self, observations: &ArrayBase<D, Ix2>) -> Array1<Option<usize>> {
         let mut cluster_memberships = Array1::from_elem(observations.dim().0, None);
@@ -124,7 +123,7 @@ impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<
 
 impl<F: Float, D: Data<Elem = F>, T: Targets>
     Transformer<Dataset<ArrayBase<D, Ix2>, T>, Dataset<ArrayBase<D, Ix2>, Array1<Option<usize>>>>
-    for DbscanHyperParams
+    for DbscanHyperParams<F>
 {
     fn transform(
         &self,
@@ -135,12 +134,32 @@ impl<F: Float, D: Data<Elem = F>, T: Targets>
     }
 }
 
+impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<usize>>>
+    for DbscanHyperParamsBuilder<F>
+{
+    fn transform(&self, observations: &ArrayBase<D, Ix2>) -> Array1<Option<usize>> {
+        self.build().transform(observations)
+    }
+}
+
+impl<F: Float, D: Data<Elem = F>, T: Targets>
+    Transformer<Dataset<ArrayBase<D, Ix2>, T>, Dataset<ArrayBase<D, Ix2>, Array1<Option<usize>>>>
+    for DbscanHyperParamsBuilder<F>
+{
+    fn transform(
+        &self,
+        dataset: Dataset<ArrayBase<D, Ix2>, T>,
+    ) -> Dataset<ArrayBase<D, Ix2>, Array1<Option<usize>>> {
+        self.build().transform(dataset)
+    }
+}
+
 type Neighbors<'a, F> = Vec<(usize, ArrayView<'a, F, Ix1>)>;
 
 fn find_neighbors<'a, F: Float>(
     candidate: &ArrayBase<impl Data<Elem = F>, Ix1>,
     observations: &'a ArrayBase<impl Data<Elem = F>, Ix2>,
-    eps: f64,
+    eps: F,
     clusters: &Array1<Option<usize>>,
 ) -> (usize, Neighbors<'a, F>) {
     let mut res = vec![];
@@ -150,7 +169,7 @@ fn find_neighbors<'a, F: Float>(
         .zip(clusters.iter())
         .enumerate()
     {
-        if candidate.l2_dist(&obs).unwrap() < eps {
+        if F::from(candidate.l2_dist(&obs).unwrap()).unwrap() < eps {
             count += 1;
             if cluster.is_none() {
                 res.push((i, obs));
@@ -186,7 +205,7 @@ mod tests {
         data.column_mut(0).slice_mut(s![40..]).fill(5.0);
         data.column_mut(1).slice_mut(s![40..]).fill(5.0);
 
-        let labels = Dbscan::params(2).tolerance(1.0).build().transform(&data);
+        let labels = Dbscan::params(2).tolerance(1.0).transform(&data);
 
         assert!(labels.slice(s![..40]).iter().all(|x| x == &Some(0)));
         assert!(labels.slice(s![40..]).iter().all(|x| x == &Some(1)));
@@ -197,7 +216,7 @@ mod tests {
         let mut data: Array2<f64> = Array2::zeros((5, 2));
         data.row_mut(0).assign(&arr1(&[10.0, 10.0]));
 
-        let labels = Dbscan::params(4).build().transform(&data);
+        let labels = Dbscan::params(4).transform(&data);
 
         let expected = arr1(&[None, Some(0), Some(0), Some(0), Some(0)]);
         assert_eq!(labels, expected);
@@ -207,7 +226,7 @@ mod tests {
     fn dataset_too_small() {
         let data: Array2<f64> = Array2::zeros((3, 2));
 
-        let labels = Dbscan::params(4).build().transform(&data);
+        let labels = Dbscan::params(4).transform(&data);
         assert!(labels.iter().all(|x| x.is_none()));
     }
 }

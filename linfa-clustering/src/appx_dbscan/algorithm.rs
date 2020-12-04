@@ -116,3 +116,23 @@ impl<F: Float, D: Data<Elem = F>, T: Targets>
         dataset.with_targets(predicted)
     }
 }
+
+impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<usize>>>
+    for AppxDbscanHyperParamsBuilder<F>
+{
+    fn transform(&self, observations: &ArrayBase<D, Ix2>) -> Array1<Option<usize>> {
+        self.build().transform(observations)
+    }
+}
+
+impl<F: Float, D: Data<Elem = F>, T: Targets>
+    Transformer<Dataset<ArrayBase<D, Ix2>, T>, Dataset<ArrayBase<D, Ix2>, Array1<Option<usize>>>>
+    for AppxDbscanHyperParamsBuilder<F>
+{
+    fn transform(
+        &self,
+        dataset: Dataset<ArrayBase<D, Ix2>, T>,
+    ) -> Dataset<ArrayBase<D, Ix2>, Array1<Option<usize>>> {
+        self.build().transform(dataset)
+    }
+}

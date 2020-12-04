@@ -161,7 +161,7 @@ impl<F: Float> Cell<F> {
     /// Recursively finds neighbours of a cell. The neighbours are all cells that may potentionally
     /// contain points at a distance up to `tolerance`. Given the specific side size of the cells
     /// and the particular choice of indexing of the cells, it is possible to find neighbouring
-    /// cells based solely on their indexes. The `tolerance` maximum distance for points translates
+    /// cells based solely on their indices. The `tolerance` maximum distance for points translates
     /// to `sqrt(4 * dimensionality)` for indexes.  The neighbours are found by computing all
     /// possible nieghbouring indexes and chacking if they are in the table. The indexes are computed
     /// by translating each feature of the index of this cell up to the maximum distance for cells in both
@@ -182,11 +182,11 @@ impl<F: Float> Cell<F> {
     fn get_neighbours_rec(&mut self, index_c: &Array1<i64>, j: usize, cells: &CellTable) {
         let dimensionality = self.index.dim();
         // Maximum distance between two cells indexes for them to be neighbours.
-        let max_dist_squared = 4 * dimensionality as u64;
+        let max_dist_squared = 4 * dimensionality as i64;
 
         // The distance between two points can only increase if additional dimensions are
         // added
-        let part_dist_squared = part_l2_dist_squared(&self.index.view(), index_c.view(), j);
+        let part_dist_squared = part_l2_dist_squared(self.index.view(), index_c.view(), j);
         // So if the distance on the first j dimensions is already too big it makes no sense to go forward
         if part_dist_squared > max_dist_squared {
             return;
@@ -276,14 +276,9 @@ impl<F: Float> Cell<F> {
     }
 }
 
-fn part_l2_dist_squared(arr1: &ArrayView1<i64>, arr2: ArrayView1<i64>, max_dim: usize) -> u64 {
+fn part_l2_dist_squared(arr1: ArrayView1<i64>, arr2: ArrayView1<i64>, max_dim: usize) -> i64 {
     if max_dim == 0 {
         return 0;
     }
-    let mut part_dist = 0;
-    for j in 0..max_dim {
-        // pow2 always positive
-        part_dist += (arr1[j] - arr2[j]).pow(2) as u64;
-    }
-    part_dist
+    (&arr1 - &arr2).mapv_into(|x| x * x).sum()
 }

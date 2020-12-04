@@ -18,10 +18,6 @@
 //! Implementation choices, algorithmic details and a tutorial can be found [here](struct.KMeans.html).
 //!
 //! Check [here](https://github.com/LukeMathWalker/clustering-benchmarks) for extensive benchmarks against `scikit-learn`'s K-means implementation.
-extern crate ndarray;
-extern crate ndarray_linalg;
-extern crate partitions;
-
 mod appx_dbscan;
 mod dbscan;
 mod gaussian_mixture;

@@ -477,7 +477,6 @@ impl<F: Float + Lapack + Scalar, D: Data<Elem = F>, T: Targets>
 }
 
 #[cfg(test)]
-#[cfg(feature = "tests-openblas-build")]
 mod tests {
     extern crate openblas_src;
 

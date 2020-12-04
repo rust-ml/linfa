@@ -28,7 +28,6 @@ fn k_means_bench(c: &mut Criterion) {
                     KMeans::params_with_rng(n_clusters, rng.clone())
                         .max_n_iterations(1000)
                         .tolerance(1e-3)
-                        .build()
                         .fit(&dataset),
                 )
             });

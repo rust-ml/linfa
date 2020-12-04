@@ -75,7 +75,7 @@ impl<F: Float> TreeStructure<F> {
         for point in &points {
             let mut curr_side_size = base_side_size;
             let mut prev_child = &mut root;
-            //il livello 0 è occupato dalla radice
+            //level 0 is already used by the root
             for _ in 1..=levels_count {
                 curr_side_size = curr_side_size / F::from(2.0).unwrap();
                 let index_arr = get_cell_index(point, curr_side_size);
@@ -218,9 +218,10 @@ pub fn determine_intersection<F: Float>(
 fn get_corners<F: Float>(cell_center: &Array1<F>, side_size: F) -> Array2<F> {
     let dist = side_size / F::from(2.0).unwrap();
     let dimensionality = cell_center.dim();
-    //Ho 2^d combinazioni. Posso pensare ogni combinazione come un numero binario di d cifre.
-    //Immagino di sostituire lo 0 con -dist e l'1 con +dist. Allora posso partire da cell_center
-    //e fare la sua somma con ogni numero binario per trovare tutti i vertici
+    // There are 2^d combination of vertices. I can think of each combination as a binary
+    // number with d digits. I imagine to associate 0 with quantity -dist and 1 with quantity +dist.
+    // Then for each of the 2^d combinations I can sum the associated array of values to the cell
+    // center to obtain the corner.
     let top = 2_usize.pow(dimensionality as u32);
     let mut corners = Array2::<F>::zeros((top, dimensionality));
     for bin_rep in 0..top {

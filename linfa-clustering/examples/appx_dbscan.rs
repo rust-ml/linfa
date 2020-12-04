@@ -22,7 +22,6 @@ fn main() {
     let cluster_memberships = AppxDbscan::params(min_points)
         .tolerance(1e-5)
         .slack(1e-2)
-        .build()
         .transform(&dataset);
 
     // Save to disk our dataset (and the cluster label assigned to each observation)
