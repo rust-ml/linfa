@@ -127,8 +127,6 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
         // Find best split for current level
         let mut best = None;
 
-        dbg!(&mask.mask);
-
         // Iterate over features
         for (feature_idx, sorted_index) in sorted_indices.iter().enumerate() {
             let mut left_class_freq = parent_class_freq.clone();
@@ -224,7 +222,6 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
             return Self::empty_leaf(prediction);
         }
 
-        dbg!(&best);
         let (best_feature_idx, best_split_value, _) = best.unwrap();
 
         // determine new masks for the left and right subtrees
@@ -352,39 +349,33 @@ impl<F: Float, L: Label> DecisionTree<F, L> {
         // features visited and counted
         let mut visited: HashSet<TreeNode<F, L>> = HashSet::new();
         // queue of nodes yet to explore
-        let mut queue: Vec<&TreeNode<F, L>> = vec![];
+        let mut queue = vec![&self.root_node];
         // vector of feature indexes to return
         let mut fitted_features: Vec<usize> = vec![];
-        // starting node
-        let root = self.root_node.clone();
-        queue.push(&root);
 
-        while !queue.is_empty() {
-            let s = queue.pop();
-            if let Some(node) = s {
-                // count only internal nodes (where features are)
-                if !node.leaf_node {
-                    // add feature index to list of used features
-                    fitted_features.push(node.feature_idx);
-                }
+        while let Some(node) = queue.pop() {
+            // count only internal nodes (where features are)
+            if !node.leaf_node {
+                // add feature index to list of used features
+                fitted_features.push(node.feature_idx);
+            }
 
-                // get children and enque them
-                let lc = match &node.left_child {
-                    Some(child) => Some(child),
-                    _ => None,
-                };
-                let rc = match &node.right_child {
-                    Some(child) => Some(child),
-                    _ => None,
-                };
-                let children = vec![lc, rc];
-                for child in children {
-                    // extract TreeNode if any
-                    if let Some(node) = child {
-                        if !visited.contains(&node) {
-                            visited.insert(*node.clone());
-                            queue.push(&node);
-                        }
+            // get children and enque them
+            let lc = match &node.left_child {
+                Some(child) => Some(child),
+                _ => None,
+            };
+            let rc = match &node.right_child {
+                Some(child) => Some(child),
+                _ => None,
+            };
+            let children = vec![lc, rc];
+            for child in children {
+                // extract TreeNode if any
+                if let Some(node) = child {
+                    if !visited.contains(&node) {
+                        visited.insert(*node.clone());
+                        queue.push(&node);
                     }
                 }
             }
@@ -393,8 +384,31 @@ impl<F: Float, L: Label> DecisionTree<F, L> {
         fitted_features
     }
 
+    /// Return root node of the tree
     pub fn root_node(&self) -> &TreeNode<F, L> {
         &self.root_node
+    }
+
+    /// Return depth of the tree
+    pub fn max_depth(&self) -> usize {
+        // queue of nodes yet to explore
+        let mut queue = vec![(0usize, &self.root_node)];
+        // max depth, i.e. maximal distance from root to leaf in the current tree
+        let mut max_depth = 0;
+
+        while let Some((current_depth, node)) = queue.pop() {
+            max_depth = usize::max(max_depth, current_depth);
+
+            if let Some(child) = &node.left_child {
+                queue.push((current_depth + 1, &child));
+            }
+
+            if let Some(child) = &node.right_child {
+                queue.push((current_depth + 1, &child));
+            }
+        }
+
+        max_depth
     }
 }
 
