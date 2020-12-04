@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use ndarray::{Array1, Array2, ArrayBase, ArrayView2, Axis, Data, Dimension, Ix2};
 use rand::{seq::SliceRandom, Rng};
+use std::collections::HashMap;
 
 use super::{iter::Iter, Dataset, Float, Label, Labels, Records, Targets};
 
@@ -182,7 +182,8 @@ impl<L: Label, R: Records, S: Labels<Elem = L>> Dataset<R, S> {
     pub fn frequencies_with_mask(&self, mask: &[bool]) -> HashMap<&L, f32> {
         let mut freqs = HashMap::new();
 
-        for (elm, val) in self.targets
+        for (elm, val) in self
+            .targets
             .as_slice()
             .iter()
             .enumerate()
