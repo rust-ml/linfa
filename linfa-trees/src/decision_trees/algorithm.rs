@@ -162,7 +162,9 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
                 weight_on_right_side += sample_weight;
 
                 // Continue if the next values is equal
-                if (sorted_index.sorted_values[i].1 - sorted_index.sorted_values[i+1].1).abs() < F::from(1e-5).unwrap() {
+                if (sorted_index.sorted_values[i].1 - sorted_index.sorted_values[i + 1].1).abs()
+                    < F::from(1e-5).unwrap()
+                {
                     continue;
                 }
 
@@ -190,7 +192,8 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
                 let score = w * left_score + (1.0 - w) * right_score;
 
                 // Take the midpoint from this value and the next one as split_value
-                split_value = (split_value + sorted_index.sorted_values[i+1].1) / F::from(2.0).unwrap();
+                split_value =
+                    (split_value + sorted_index.sorted_values[i + 1].1) / F::from(2.0).unwrap();
 
                 // override best indices when score improved
                 best = match best.take() {
