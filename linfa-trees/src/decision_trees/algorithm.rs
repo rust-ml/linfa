@@ -66,6 +66,7 @@ impl<F: Float> SortedIndex<F> {
 pub struct TreeNode<F, L> {
     feature_idx: usize,
     split_value: F,
+    impurity_decrease: F,
     left_child: Option<Box<TreeNode<F, L>>>,
     right_child: Option<Box<TreeNode<F, L>>>,
     leaf_node: bool,
@@ -95,11 +96,16 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
         TreeNode {
             feature_idx: 0,
             split_value: F::zero(),
+            impurity_decrease: F::zero(),
             left_child: None,
             right_child: None,
             leaf_node: true,
             prediction,
         }
+    }
+
+    pub fn is_leaf(&self) -> bool {
+        self.leaf_node
     }
 
     fn fit<D: Data<Elem = F>, T: Labels<Elem = L>>(
@@ -204,7 +210,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
             }
         }
 
-        let leaf_node = if let Some((_, _, best_score)) = best {
+        let impurity_decrease = if let Some((_, _, best_score)) = best {
             let parent_score = match hyperparameters.split_quality {
                 SplitQuality::Gini => gini_impurity(&parent_class_freq),
                 SplitQuality::Entropy => entropy(&parent_class_freq),
@@ -212,13 +218,13 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
             let parent_score = F::from(parent_score).unwrap();
 
             // return empty leaf if impurity has not decreased enough
-            parent_score - F::from(best_score).unwrap() < hyperparameters.min_impurity_decrease
+            parent_score - F::from(best_score).unwrap()
         } else {
-            // return empty leaf if we have not found any solution
-            true
+            // return zero impurity decrease if we have not found any solution
+            F::zero()
         };
 
-        if leaf_node {
+        if impurity_decrease < hyperparameters.min_impurity_decrease {
             return Self::empty_leaf(prediction);
         }
 
@@ -268,6 +274,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
         TreeNode {
             feature_idx: best_feature_idx,
             split_value: best_split_value,
+            impurity_decrease,
             left_child,
             right_child,
             leaf_node,
@@ -280,6 +287,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
 #[derive(Debug)]
 pub struct DecisionTree<F: Float, L: Label> {
     root_node: TreeNode<F, L>,
+    num_features: usize,
 }
 
 impl<F: Float, L: Label, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Vec<L>>
@@ -318,11 +326,14 @@ impl<'a, F: Float, L: Label + 'a + std::fmt::Debug, D: Data<Elem = F>, T: Labels
 
         let root_node = TreeNode::fit(&dataset, &all_idxs, &self, &sorted_indices, 0);
 
-        DecisionTree { root_node }
+        DecisionTree {
+            root_node,
+            num_features: dataset.observations(),
+        }
     }
 }
 
-impl<F: Float, L: Label> DecisionTree<F, L> {
+impl<F: Float, L: Label + std::fmt::Debug> DecisionTree<F, L> {
     /// Defaults are provided if the optional parameters are not specified:
     /// * `split_quality = SplitQuality::Gini`
     /// * `max_depth = None`
@@ -384,12 +395,44 @@ impl<F: Float, L: Label> DecisionTree<F, L> {
         fitted_features
     }
 
+    /// Return the relative impurity decrease for each feature
+    pub fn impurity_decrease(&self) -> Vec<F> {
+        // total impurity decrease for each feature
+        let mut impurity_decrease = vec![F::zero(); self.num_features];
+        // queue of nodes yet to explore
+        let mut queue = vec![&self.root_node];
+        // total impurity decrease
+        let mut total_impurity_decrease = F::zero();
+
+        while let Some(node) = queue.pop() {
+            // count only internal nodes (where features are)
+            if !node.leaf_node {
+                // add feature impurity decrease to list
+                impurity_decrease[node.feature_idx] += node.impurity_decrease;
+                total_impurity_decrease += node.impurity_decrease;
+            }
+
+            if let Some(child) = &node.left_child {
+                queue.push(child);
+            }
+
+            if let Some(child) = &node.right_child {
+                queue.push(child);
+            }
+        }
+
+        impurity_decrease
+            .into_iter()
+            .map(|x| x / total_impurity_decrease)
+            .collect()
+    }
+
     /// Return root node of the tree
     pub fn root_node(&self) -> &TreeNode<F, L> {
         &self.root_node
     }
 
-    /// Return depth of the tree
+    /// Return max depth of the tree
     pub fn max_depth(&self) -> usize {
         // queue of nodes yet to explore
         let mut queue = vec![(0usize, &self.root_node)];
@@ -409,6 +452,28 @@ impl<F: Float, L: Label> DecisionTree<F, L> {
         }
 
         max_depth
+    }
+
+    pub fn num_leaves(&self) -> usize {
+        // queue of nodes yet to explore
+        let mut queue = vec![(0usize, &self.root_node)];
+        let mut num_leaves = 0;
+
+        while let Some((current_depth, node)) = queue.pop() {
+            if node.is_leaf() {
+                num_leaves += 1;
+            }
+
+            if let Some(child) = &node.left_child {
+                queue.push((current_depth + 1, &child));
+            }
+
+            if let Some(child) = &node.right_child {
+                queue.push((current_depth + 1, &child));
+            }
+        }
+
+        num_leaves
     }
 }
 
