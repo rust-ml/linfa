@@ -342,9 +342,8 @@ impl<F: Float, L: Label + std::fmt::Debug> DecisionTree<F, L> {
     /// * `min_impurity_decrease = 0.00001`
     // Violates the convention that new should return a value of type `Self`
     #[allow(clippy::new_ret_no_self)]
-    pub fn params(n_classes: usize) -> DecisionTreeParams<F, L> {
+    pub fn params() -> DecisionTreeParams<F, L> {
         DecisionTreeParams {
-            n_classes,
             split_quality: SplitQuality::Gini,
             max_depth: None,
             min_weight_split: 2.0,
@@ -632,7 +631,7 @@ mod tests {
 
         let dataset = Dataset::new(data, targets);
 
-        let model = DecisionTree::params(2).max_depth(Some(2)).fit(&dataset);
+        let model = DecisionTree::params().max_depth(Some(2)).fit(&dataset);
 
         assert_eq!(&model.features(), &[8]);
         assert_eq!(
@@ -650,7 +649,7 @@ mod tests {
         let targets = array![0, 0, 1];
 
         let dataset = Dataset::new(data.clone(), targets);
-        let model = DecisionTree::params(2).max_depth(Some(1)).fit(&dataset);
+        let model = DecisionTree::params().max_depth(Some(1)).fit(&dataset);
 
         assert_eq!(&model.predict(data.clone()), &[0, 0, 1]);
     }
@@ -687,7 +686,7 @@ mod tests {
         let targets = array![1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0];
 
         let dataset = Dataset::new(data.clone(), targets);
-        let model = DecisionTree::params(2).fit(&dataset);
+        let model = DecisionTree::params().fit(&dataset);
         let prediction = model.predict(data);
 
         let cm = prediction.confusion_matrix(&dataset);
@@ -726,7 +725,7 @@ mod tests {
 
         let dataset = Dataset::new(data.clone(), targets);
 
-        let model = DecisionTree::params(2).fit(&dataset);
+        let model = DecisionTree::params().fit(&dataset);
         let prediction = model.predict(data);
 
         let cm = prediction.confusion_matrix(&dataset);

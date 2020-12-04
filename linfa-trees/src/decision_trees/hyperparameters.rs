@@ -12,7 +12,6 @@ pub enum SplitQuality {
 /// [decision tree](struct.DecisionTree.html).
 #[derive(Clone, Copy, Debug)]
 pub struct DecisionTreeParams<F, L> {
-    pub n_classes: usize,
     pub split_quality: SplitQuality,
     pub max_depth: Option<usize>,
     pub min_weight_split: f32,
@@ -22,11 +21,6 @@ pub struct DecisionTreeParams<F, L> {
 }
 
 impl<F: Float, L: Label> DecisionTreeParams<F, L> {
-    pub fn n_classes(mut self, n_classes: usize) -> Self {
-        self.n_classes = n_classes;
-        self
-    }
-
     pub fn split_quality(mut self, split_quality: SplitQuality) -> Self {
         self.split_quality = split_quality;
         self
