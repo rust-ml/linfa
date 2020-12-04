@@ -90,7 +90,7 @@ impl<F, L> PartialEq for TreeNode<F, L> {
     }
 }
 
-impl<F: Float, L: Label> TreeNode<F, L> {
+impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
     fn empty_leaf(prediction: L) -> Self {
         TreeNode {
             feature_idx: 0,
@@ -127,6 +127,8 @@ impl<F: Float, L: Label> TreeNode<F, L> {
         // Find best split for current level
         let mut best = None;
 
+        dbg!(&mask.mask);
+
         // Iterate over features
         for (feature_idx, sorted_index) in sorted_indices.iter().enumerate() {
             let mut left_class_freq = parent_class_freq.clone();
@@ -140,7 +142,7 @@ impl<F: Float, L: Label> TreeNode<F, L> {
 
             // Iterate over sorted values
             for i in 0..mask.mask.len() - 1 {
-                let (presorted_index, split_value) = sorted_index.sorted_values[i];
+                let (presorted_index, mut split_value) = sorted_index.sorted_values[i];
 
                 if !mask.mask[presorted_index] {
                     continue;
@@ -158,6 +160,11 @@ impl<F: Float, L: Label> TreeNode<F, L> {
                 // right side by the weight of this sample
                 *right_class_freq.entry(sample_class).or_insert(0.0) += sample_weight;
                 weight_on_right_side += sample_weight;
+
+                // Continue if the next values is equal
+                if (sorted_index.sorted_values[i].1 - sorted_index.sorted_values[i+1].1).abs() < F::from(1e-5).unwrap() {
+                    continue;
+                }
 
                 // If the split would result in too few samples in a leaf
                 // then skip computing the quality
@@ -182,6 +189,9 @@ impl<F: Float, L: Label> TreeNode<F, L> {
                 let w = weight_on_left_side / total_weight;
                 let score = w * left_score + (1.0 - w) * right_score;
 
+                // Take the midpoint from this value and the next one as split_value
+                split_value = (split_value + sorted_index.sorted_values[i+1].1) / F::from(2.0).unwrap();
+
                 // override best indices when score improved
                 best = match best.take() {
                     None => Some((feature_idx, split_value, score)),
@@ -200,7 +210,7 @@ impl<F: Float, L: Label> TreeNode<F, L> {
             };
             let parent_score = F::from(parent_score).unwrap();
 
-            // return empty leaf if impurity is not decreased enough
+            // return empty leaf if impurity has not decreased enough
             parent_score - F::from(best_score).unwrap() < hyperparameters.min_impurity_decrease
         } else {
             // return empty leaf if we have not found any solution
@@ -211,6 +221,7 @@ impl<F: Float, L: Label> TreeNode<F, L> {
             return Self::empty_leaf(prediction);
         }
 
+        dbg!(&best);
         let (best_feature_idx, best_split_value, _) = best.unwrap();
 
         // determine new masks for the left and right subtrees
@@ -291,7 +302,7 @@ impl<F: Float, L: Label, D: Data<Elem = F>> Predict<&ArrayBase<D, Ix2>, Vec<L>>
     }
 }
 
-impl<'a, F: Float, L: Label + 'a, D: Data<Elem = F>, T: Labels<Elem = L>>
+impl<'a, F: Float, L: Label + 'a + std::fmt::Debug, D: Data<Elem = F>, T: Labels<Elem = L>>
     Fit<'a, ArrayBase<D, Ix2>, T> for DecisionTreeParams<F, L>
 {
     type Object = DecisionTree<F, L>;
@@ -524,7 +535,7 @@ mod tests {
     ///
     /// This dataset of three elements is perfectly using the second feature.
     fn perfectly_separable_small() {
-        let data = array![[1.1, 2., 5.], [1., 2., 3.5], [0.9, 3., 4.]];
+        let data = array![[1., 2., 3.5], [1., 2., 3.5], [1., 3., 3.5]];
         let targets = array![0, 0, 1];
 
         let dataset = Dataset::new(data.clone(), targets);
