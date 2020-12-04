@@ -452,7 +452,7 @@ fn entropy<L: Label>(class_freq: &HashMap<&L, f32>) -> f32 {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::{s, Array, Array1};
+    use ndarray::{array, s, Array, Array1};
 
     use ndarray_rand::rand_distr::Uniform;
     use ndarray_rand::RandomExt;
@@ -517,5 +517,19 @@ mod tests {
         let model = DecisionTree::params(2).max_depth(Some(2)).fit(&dataset);
 
         assert_eq!(&model.features(), &[8]);
+    }
+
+    #[test]
+    /// Small perfectly separable dataset test
+    ///
+    /// This dataset of three elements is perfectly using the second feature.
+    fn perfectly_separable_small() {
+        let data = array![[1.1, 2., 5.], [1., 2., 3.5], [0.9, 3., 4.]];
+        let targets = array![0, 0, 1];
+
+        let dataset = Dataset::new(data.clone(), targets);
+        let model = DecisionTree::params(2).max_depth(Some(1)).fit(&dataset);
+
+        assert_eq!(&model.predict(data.clone()), &[0, 0, 1]);
     }
 }
