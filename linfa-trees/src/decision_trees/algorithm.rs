@@ -395,21 +395,21 @@ impl<F: Float, L: Label + std::fmt::Debug> DecisionTree<F, L> {
         fitted_features
     }
 
-    /// Return the relative impurity decrease for each feature
-    pub fn impurity_decrease(&self) -> Vec<F> {
+    /// Return the mean impurity decrease for each feature
+    pub fn mean_impurity_decrease(&self) -> Vec<F> {
         // total impurity decrease for each feature
         let mut impurity_decrease = vec![F::zero(); self.num_features];
+        let mut num_nodes = vec![0; self.num_features];
         // queue of nodes yet to explore
         let mut queue = vec![&self.root_node];
         // total impurity decrease
-        let mut total_impurity_decrease = F::zero();
 
         while let Some(node) = queue.pop() {
             // count only internal nodes (where features are)
             if !node.leaf_node {
                 // add feature impurity decrease to list
                 impurity_decrease[node.feature_idx] += node.impurity_decrease;
-                total_impurity_decrease += node.impurity_decrease;
+                num_nodes[node.feature_idx] += 1;
             }
 
             if let Some(child) = &node.left_child {
@@ -423,8 +423,25 @@ impl<F: Float, L: Label + std::fmt::Debug> DecisionTree<F, L> {
 
         impurity_decrease
             .into_iter()
-            .map(|x| x / total_impurity_decrease)
+            .zip(num_nodes.into_iter())
+            .map(|(val, n)| val / F::from(n).unwrap())
             .collect()
+    }
+
+    /// Return the relative impurity decrease for each feature
+    pub fn relative_impurity_decrease(&self) -> Vec<F> {
+        let mean_impurity_decrease = self.mean_impurity_decrease();
+        let sum = mean_impurity_decrease.iter().cloned().sum();
+
+        mean_impurity_decrease
+            .into_iter()
+            .map(|x| x / sum)
+            .collect()
+    }
+
+    /// Return the feature importance, i.e. the relative impurity decrease, for each feature
+    pub fn feature_importance(&self) -> Vec<F> {
+        self.relative_impurity_decrease()
     }
 
     /// Return root node of the tree
