@@ -328,7 +328,7 @@ impl<'a, F: Float, L: Label + 'a + std::fmt::Debug, D: Data<Elem = F>, T: Labels
 
         DecisionTree {
             root_node,
-            num_features: dataset.observations(),
+            num_features: dataset.records().ncols(),
         }
     }
 }
@@ -424,7 +424,13 @@ impl<F: Float, L: Label + std::fmt::Debug> DecisionTree<F, L> {
         impurity_decrease
             .into_iter()
             .zip(num_nodes.into_iter())
-            .map(|(val, n)| val / F::from(n).unwrap())
+            .map(|(val, n)| {
+                if n == 0 {
+                    F::zero()
+                } else {
+                    val / F::from(n).unwrap()
+                }
+            })
             .collect()
     }
 
@@ -561,8 +567,10 @@ fn entropy<L: Label>(class_freq: &HashMap<&L, f32>) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     use approx::assert_abs_diff_eq;
-    use ndarray::{array, s, Array, Array1};
+    use linfa::metrics::ToConfusionMatrix;
+    use ndarray::{array, s, stack, Array, Array1, Array2, Axis};
 
     use ndarray_rand::rand_distr::Uniform;
     use ndarray_rand::RandomExt;
@@ -627,6 +635,10 @@ mod tests {
         let model = DecisionTree::params(2).max_depth(Some(2)).fit(&dataset);
 
         assert_eq!(&model.features(), &[8]);
+        assert_eq!(
+            &model.feature_importance(),
+            &[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0]
+        );
     }
 
     #[test]
@@ -634,12 +646,90 @@ mod tests {
     ///
     /// This dataset of three elements is perfectly using the second feature.
     fn perfectly_separable_small() {
-        let data = array![[1., 2., 3.5], [1., 2., 3.5], [1., 3., 3.5]];
+        let data = array![[1., 2., 3.], [1., 2., 3.5], [1., 3., 4.]];
         let targets = array![0, 0, 1];
 
         let dataset = Dataset::new(data.clone(), targets);
         let model = DecisionTree::params(2).max_depth(Some(1)).fit(&dataset);
 
         assert_eq!(&model.predict(data.clone()), &[0, 0, 1]);
+    }
+
+    #[test]
+    /// Small toy dataset from sklearn
+    fn toy_dataset() {
+        let data = array![
+            [0.0, 0.0, 4.0, 0.0, 0.0, 0.0, 1.0, -14.0, 0.0, -4.0, 0.0, 0.0, 0.0, 0.0,],
+            [0.0, 0.0, 5.0, 3.0, 0.0, -4.0, 0.0, 0.0, 1.0, -5.0, 0.2, 0.0, 4.0, 1.0,],
+            [-1.0, -1.0, 0.0, 0.0, -4.5, 0.0, 0.0, 2.1, 1.0, 0.0, 0.0, -4.5, 0.0, 1.0,],
+            [-1.0, -1.0, 0.0, -1.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.0, 0.0, 1.0,],
+            [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0,],
+            [-1.0, -2.0, 0.0, 4.0, -3.0, 10.0, 4.0, 0.0, -3.2, 0.0, 4.0, 3.0, -4.0, 1.0,],
+            [2.11, 0.0, -6.0, -0.5, 0.0, 11.0, 0.0, 0.0, -3.2, 6.0, 0.5, 0.0, -3.0, 1.0,],
+            [2.11, 0.0, -6.0, -0.5, 0.0, 11.0, 0.0, 0.0, -3.2, 6.0, 0.0, 0.0, -2.0, 1.0,],
+            [2.11, 8.0, -6.0, -0.5, 0.0, 11.0, 0.0, 0.0, -3.2, 6.0, 0.0, 0.0, -2.0, 1.0,],
+            [2.11, 8.0, -6.0, -0.5, 0.0, 11.0, 0.0, 0.0, -3.2, 6.0, 0.5, 0.0, -1.0, 0.0,],
+            [2.0, 8.0, 5.0, 1.0, 0.5, -4.0, 10.0, 0.0, 1.0, -5.0, 3.0, 0.0, 2.0, 0.0,],
+            [2.0, 0.0, 1.0, 1.0, 1.0, -1.0, 1.0, 0.0, 0.0, -2.0, 3.0, 0.0, 1.0, 0.0,],
+            [2.0, 0.0, 1.0, 2.0, 3.0, -1.0, 10.0, 2.0, 0.0, -1.0, 1.0, 2.0, 2.0, 0.0,],
+            [1.0, 1.0, 0.0, 2.0, 2.0, -1.0, 1.0, 2.0, 0.0, -5.0, 1.0, 2.0, 3.0, 0.0,],
+            [3.0, 1.0, 0.0, 3.0, 0.0, -4.0, 10.0, 0.0, 1.0, -5.0, 3.0, 0.0, 3.0, 1.0,],
+            [2.11, 8.0, -6.0, -0.5, 0.0, 1.0, 0.0, 0.0, -3.2, 6.0, 0.5, 0.0, -3.0, 1.0,],
+            [2.11, 8.0, -6.0, -0.5, 0.0, 1.0, 0.0, 0.0, -3.2, 6.0, 1.5, 1.0, -1.0, -1.0,],
+            [2.11, 8.0, -6.0, -0.5, 0.0, 10.0, 0.0, 0.0, -3.2, 6.0, 0.5, 0.0, -1.0, -1.0,],
+            [2.0, 0.0, 5.0, 1.0, 0.5, -2.0, 10.0, 0.0, 1.0, -5.0, 3.0, 1.0, 0.0, -1.0,],
+            [2.0, 0.0, 1.0, 1.0, 1.0, -2.0, 1.0, 0.0, 0.0, -2.0, 0.0, 0.0, 0.0, 1.0,],
+            [2.0, 1.0, 1.0, 1.0, 2.0, -1.0, 10.0, 2.0, 0.0, -1.0, 0.0, 2.0, 1.0, 1.0,],
+            [1.0, 1.0, 0.0, 0.0, 1.0, -3.0, 1.0, 2.0, 0.0, -5.0, 1.0, 2.0, 1.0, 1.0,],
+            [3.0, 1.0, 0.0, 1.0, 0.0, -4.0, 1.0, 0.0, 1.0, -2.0, 0.0, 0.0, 1.0, 0.0,]
+        ];
+
+        let targets = array![1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0];
+
+        let dataset = Dataset::new(data.clone(), targets);
+        let model = DecisionTree::params(2).fit(&dataset);
+        let prediction = model.predict(data);
+
+        let cm = prediction.confusion_matrix(&dataset);
+        assert!(cm.accuracy() > 0.95);
+    }
+
+    #[test]
+    /// Multilabel classification
+    fn multilabel_four_uniform() {
+        let mut data = stack(
+            Axis(0),
+            &[Array2::random((40, 2), Uniform::new(-1., 1.)).view()],
+        )
+        .unwrap();
+
+        data.outer_iter_mut().enumerate().for_each(|(i, mut p)| {
+            if i < 10 {
+                p += &array![-2., -2.]
+            } else if i < 20 {
+                p += &array![-2., 2.];
+            } else if i < 30 {
+                p += &array![2., -2.];
+            } else {
+                p += &array![2., 2.];
+            }
+        });
+
+        let targets = (0..40)
+            .map(|x| match x {
+                x if x < 10 => 0,
+                x if x < 20 => 1,
+                x if x < 30 => 2,
+                _ => 3,
+            })
+            .collect::<Vec<_>>();
+
+        let dataset = Dataset::new(data.clone(), targets);
+
+        let model = DecisionTree::params(2).fit(&dataset);
+        let prediction = model.predict(data);
+
+        let cm = prediction.confusion_matrix(&dataset);
+        assert!(cm.accuracy() > 0.99);
     }
 }
