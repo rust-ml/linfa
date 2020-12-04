@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use ndarray::{Array1, Array2, ArrayBase, ArrayView2, Axis, Data, Dimension, Ix2};
 use rand::{seq::SliceRandom, Rng};
+use std::collections::HashMap;
 
 use super::{iter::Iter, Dataset, Float, Label, Labels, Records, Targets};
 
@@ -28,7 +28,7 @@ impl<R: Records, S: Targets> Dataset<R, S> {
     }
 
     pub fn weights(&self) -> Option<&[f32]> {
-        if self.weights.len() > 0 {
+        if !self.weights.is_empty() {
             Some(&self.weights)
         } else {
             None
@@ -36,7 +36,7 @@ impl<R: Records, S: Targets> Dataset<R, S> {
     }
 
     pub fn weight_for(&self, idx: usize) -> f32 {
-        self.weights.get(idx).map(|x| *x).unwrap_or(1.0)
+        self.weights.get(idx).copied().unwrap_or(1.0)
     }
 
     pub fn records(&self) -> &R {
@@ -182,7 +182,8 @@ impl<L: Label, R: Records, S: Labels<Elem = L>> Dataset<R, S> {
     pub fn frequencies_with_mask(&self, mask: &[bool]) -> HashMap<&L, f32> {
         let mut freqs = HashMap::new();
 
-        for (elm, val) in self.targets
+        for (elm, val) in self
+            .targets
             .as_slice()
             .iter()
             .enumerate()
