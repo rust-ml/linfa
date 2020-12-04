@@ -25,10 +25,10 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           override: true
 
-      - name: Run cargo test
+      - name: Run cargo test in release mode
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --all
+          args: --all --release
         env:
           RUSTFLAGS: -C link-arg=-llapacke -C link-arg=-lcblas

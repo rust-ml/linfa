@@ -73,13 +73,13 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParamsBuilder<F, R> {
     /// having performed validation checks on all the specified hyperparamters.
     ///
     /// **Panics** if any of the validation checks fails.
-    pub fn build(self) -> KMeansHyperParams<F, R> {
+    pub fn build(&self) -> KMeansHyperParams<F, R> {
         KMeansHyperParams::build(
             self.n_clusters,
             self.n_runs,
             self.tolerance,
             self.max_n_iterations,
-            self.rng,
+            self.rng.clone(),
         )
     }
 }

@@ -101,7 +101,6 @@ use serde_crate::{Deserialize, Serialize};
 /// let n_clusters = expected_centroids.len_of(Axis(0));
 /// let model = KMeans::params(n_clusters)
 ///     .tolerance(1e-2)
-///     .build()
 ///     .fit(&observations)
 ///     .expect("KMeans fitted");
 ///
@@ -212,6 +211,16 @@ impl<'a, F: Float, R: Rng + Clone, D: Data<Elem = F>, T: Targets> Fit<'a, ArrayB
                 (n_runs + 1)
             ))),
         }
+    }
+}
+
+impl<'a, F: Float, R: Rng + Clone, D: Data<Elem = F>, T: Targets> Fit<'a, ArrayBase<D, Ix2>, T>
+    for KMeansHyperParamsBuilder<F, R>
+{
+    type Object = Result<KMeans<F>>;
+
+    fn fit(&self, dataset: &Dataset<ArrayBase<D, Ix2>, T>) -> Self::Object {
+        self.build().fit(dataset)
     }
 }
 
@@ -429,7 +438,6 @@ mod tests {
         let dataset = Dataset::from(data);
         let model = KMeans::params_with_rng(3, rng.clone())
             .n_runs(1)
-            .build()
             .fit(&dataset)
             .expect("KMeans fitted");
         let clusters = model.predict(dataset);
@@ -438,7 +446,6 @@ mod tests {
         // Second clustering with 10 iterations (default)
         let dataset2 = Dataset::from(clusters.records().clone());
         let model2 = KMeans::params_with_rng(3, rng)
-            .build()
             .fit(&dataset2)
             .expect("KMeans fitted");
         let clusters2 = model2.predict(dataset2);

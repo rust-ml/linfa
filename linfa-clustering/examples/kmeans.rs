@@ -22,7 +22,6 @@ fn main() {
     let model = KMeans::params_with_rng(n_clusters, rng)
         .max_n_iterations(200)
         .tolerance(1e-5)
-        .build()
         .fit(&dataset)
         .expect("KMeans fitted");
 

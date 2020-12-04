@@ -1,3 +1,4 @@
+use linfa::Float;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 
@@ -9,23 +10,23 @@ use serde_crate::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq)]
 /// The set of hyperparameters that can be specified for the execution of
 /// the [DBSCAN algorithm](struct.Dbscan.html).
-pub struct DbscanHyperParams {
+pub struct DbscanHyperParams<F: Float> {
     /// Distance between points for them to be considered neighbours.
-    tolerance: f64,
+    tolerance: F,
     /// Minimum number of neighboring points a point needs to have to be a core
     /// point and not a noise point.
     min_points: usize,
 }
 
 /// Helper struct used to construct a set of hyperparameters for
-pub struct DbscanHyperParamsBuilder {
-    tolerance: f64,
+pub struct DbscanHyperParamsBuilder<F: Float> {
+    tolerance: F,
     min_points: usize,
 }
 
-impl DbscanHyperParamsBuilder {
+impl<F: Float> DbscanHyperParamsBuilder<F> {
     /// Distance between points for them to be considered neighbours.
-    pub fn tolerance(mut self, tolerance: f64) -> Self {
+    pub fn tolerance(mut self, tolerance: F) -> Self {
         self.tolerance = tolerance;
         self
     }
@@ -34,12 +35,12 @@ impl DbscanHyperParamsBuilder {
     /// validation checks on all hyperparameters.
     ///
     /// **Panics** if any of the validation checks fail.
-    pub fn build(self) -> DbscanHyperParams {
+    pub fn build(&self) -> DbscanHyperParams<F> {
         DbscanHyperParams::build(self.tolerance, self.min_points)
     }
 }
 
-impl DbscanHyperParams {
+impl<F: Float> DbscanHyperParams<F> {
     /// Minimum number of neighboring points a point needs to have to be a core
     /// point and not a noise point.
     ///
@@ -47,16 +48,16 @@ impl DbscanHyperParams {
     /// * `tolerance = 1e-4`
     // Violates the convention that new should return a value of type `Self`
     #[allow(clippy::new_ret_no_self)]
-    pub fn new(min_points: usize) -> DbscanHyperParamsBuilder {
+    pub fn new(min_points: usize) -> DbscanHyperParamsBuilder<F> {
         DbscanHyperParamsBuilder {
             min_points,
-            tolerance: 1e-4,
+            tolerance: F::from(1e-4).unwrap(),
         }
     }
 
     /// Two points are considered neighbors if the euclidean distance between
     /// them is below the tolerance
-    pub fn tolerance(&self) -> f64 {
+    pub fn tolerance(&self) -> F {
         self.tolerance
     }
 
@@ -66,8 +67,8 @@ impl DbscanHyperParams {
         self.min_points
     }
 
-    fn build(tolerance: f64, min_points: usize) -> Self {
-        if tolerance <= 0. {
+    fn build(tolerance: F, min_points: usize) -> Self {
+        if tolerance <= F::zero() {
             panic!("`tolerance` must be greater than 0!");
         }
         // There is always at least one neighbor to a point (itself)
