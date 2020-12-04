@@ -1,10 +1,13 @@
+/*
 use linfa_ensemble::random_forest::hyperparameters::MaxFeatures;
 use linfa_ensemble::{RandomForest, RandomForestParamsBuilder};
 use linfa_predictor::{Predictor, ProbabilisticPredictor};
 use linfa_trees::DecisionTreeParams;
 use ndarray::{Array, Array1};
+*/
 
 fn main() {
+    /*
     // Load data
     let data = vec![
         0.54439407, 0.26408166, 0.97446289, 0.81338034, 0.08248497, 0.30045893, 0.35535142,
@@ -44,4 +47,5 @@ fn main() {
 
     let pred_probas = rf.predict_probabilities(&xtrain);
     println!("Prediction probabilities: {:?}", pred_probas);
+    */
 }

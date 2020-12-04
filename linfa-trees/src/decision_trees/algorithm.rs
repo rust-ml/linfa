@@ -5,7 +5,11 @@ use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 
 use crate::decision_trees::hyperparameters::{DecisionTreeParams, SplitQuality};
-use linfa::{dataset::{Labels, Records}, traits::*, Dataset, Float, Label};
+use linfa::{
+    dataset::{Labels, Records},
+    traits::*,
+    Dataset, Float, Label,
+};
 use ndarray::{ArrayBase, Axis, Data, Ix1, Ix2};
 
 /// RowMask tracks observations
@@ -105,13 +109,13 @@ impl<F: Float, L: Label> TreeNode<F, L> {
         sorted_indices: &[SortedIndex<F>],
         depth: usize,
     ) -> Self {
-        // count occurences of each target class
+        // compute weighted frequencies for target classes
         let parent_class_freq = data.frequencies_with_mask(&mask.mask);
-        // find class which occures the most
-        let prediction = prediction_for_rows(&parent_class_freq);
+        // set our prediction for this subset to the modal class
+        let prediction = find_modal_class(&parent_class_freq);
 
         // return empty leaf when we don't have enough samples or the maximal depth is reached
-        if mask.nsamples < hyperparameters.min_samples_split
+        if (mask.nsamples as f32) < hyperparameters.min_weight_split
             || hyperparameters
                 .max_depth
                 .map(|max_depth| depth > max_depth)
@@ -123,13 +127,18 @@ impl<F: Float, L: Label> TreeNode<F, L> {
         // Find best split for current level
         let mut best = None;
 
-        // iterate over features
+        // Iterate over features
         for (feature_idx, sorted_index) in sorted_indices.iter().enumerate() {
             let mut left_class_freq = parent_class_freq.clone();
             let mut right_class_freq = HashMap::new();
-            let mut num_left = data.observations();
 
-            // iterate over sorted values
+            // We keep a running total of the aggregate weight in the left split
+            // to avoid having to sum over the hash map
+            let total_weight = parent_class_freq.values().sum::<f32>();
+            let mut weight_on_left_side = total_weight;
+            let mut weight_on_right_side = 0.0;
+
+            // Iterate over sorted values
             for i in 0..mask.mask.len() - 1 {
                 let (presorted_index, split_value) = sorted_index.sorted_values[i];
 
@@ -137,25 +146,28 @@ impl<F: Float, L: Label> TreeNode<F, L> {
                     continue;
                 }
 
-                // move the class of the current sample from the left subset to the right
-                *left_class_freq
-                    .get_mut(data.target(presorted_index))
-                    .unwrap() -= data.weight_for(presorted_index);
+                let sample_class = data.target(presorted_index);
+                let sample_weight = data.weight_for(presorted_index);
 
-                *right_class_freq
-                    .entry(data.target(presorted_index as usize))
-                    .or_insert(0.0) += data.weight_for(presorted_index);
-                
-                num_left -= 1;
+                // Decrement the weight on the class for this sample on the left
+                // side by the weight of this sample
+                *left_class_freq.get_mut(sample_class).unwrap() -= sample_weight;
+                weight_on_left_side -= sample_weight;
 
-                // when classes get too unbalanced, continue
-                if num_left < hyperparameters.min_samples_split
-                    || (data.observations() - num_left) < hyperparameters.min_samples_split
+                // Increment the weight on the class for this sample on the
+                // right side by the weight of this sample
+                *right_class_freq.entry(sample_class).or_insert(0.0) += sample_weight;
+                weight_on_right_side += sample_weight;
+
+                // If the split would result in too few samples in a leaf
+                // then skip computing the quality
+                if weight_on_left_side < hyperparameters.min_weight_leaf
+                    || weight_on_right_side < hyperparameters.min_weight_leaf
                 {
                     continue;
                 }
 
-                // calculate split quality with given metric
+                // Calculate the quality of each resulting subset of the dataset
                 let (left_score, right_score) = match hyperparameters.split_quality {
                     SplitQuality::Gini => (
                         gini_impurity(&left_class_freq),
@@ -166,13 +178,9 @@ impl<F: Float, L: Label> TreeNode<F, L> {
                     }
                 };
 
-                // calculate score as weighted sum of left and right weights
-                let left_weight: f64 =
-                    left_class_freq.values().sum::<f32>() as f64 / mask.mask.len() as f64;
-                let right_weight: f64 =
-                    right_class_freq.values().sum::<f32>() as f64 / mask.mask.len() as f64;
-
-                let score = left_weight * left_score + right_weight * right_score;
+                // Weight the qualities based on the number of samples in each subset
+                let w = weight_on_left_side / total_weight;
+                let score = w * left_score + (1.0 - w) * right_score;
 
                 // override best indices when score improved
                 best = match best.take() {
@@ -297,13 +305,7 @@ impl<'a, F: Float, L: Label + 'a, D: Data<Elem = F>, T: Labels<Elem = L>>
             .map(|feature_idx| SortedIndex::of_array_column(&x, feature_idx))
             .collect();
 
-        let root_node = TreeNode::fit(
-            &dataset,
-            &all_idxs,
-            &self,
-            &sorted_indices,
-            0,
-        );
+        let root_node = TreeNode::fit(&dataset, &all_idxs, &self, &sorted_indices, 0);
 
         DecisionTree { root_node }
     }
@@ -313,8 +315,8 @@ impl<F: Float, L: Label> DecisionTree<F, L> {
     /// Defaults are provided if the optional parameters are not specified:
     /// * `split_quality = SplitQuality::Gini`
     /// * `max_depth = None`
-    /// * `min_samples_split = 2`
-    /// * `min_samples_leaf = 1`
+    /// * `min_weight_split = 2.0`
+    /// * `min_weight_leaf = 1.0`
     /// * `min_impurity_decrease = 0.00001`
     // Violates the convention that new should return a value of type `Self`
     #[allow(clippy::new_ret_no_self)]
@@ -323,8 +325,8 @@ impl<F: Float, L: Label> DecisionTree<F, L> {
             n_classes,
             split_quality: SplitQuality::Gini,
             max_depth: None,
-            min_samples_split: 2,
-            min_samples_leaf: 1,
+            min_weight_split: 2.0,
+            min_weight_leaf: 1.0,
             min_impurity_decrease: F::from(0.00001).unwrap(),
             phantom: PhantomData,
         }
@@ -396,12 +398,14 @@ fn make_prediction<F: Float, L: Label>(
     }
 }
 
-/// Make a point prediction for a subset of rows in the dataset based on the
-/// class that occurs the most frequent. If two classes occur with the same
-/// frequency then the first class is selected.
-fn prediction_for_rows<L: Label>(class_freq: &HashMap<&L, f32>) -> L {
+/// Finds the most frequent class for a hash map of frequencies. If two
+/// classes have the same weight then the first class found with that
+/// frequency is returned.
+fn find_modal_class<L: Label>(class_freq: &HashMap<&L, f32>) -> L {
+    // TODO: Refactor this with fold_first
+
     let val = class_freq
-        .into_iter()
+        .iter()
         .fold(None, |acc, (idx, freq)| match acc {
             None => Some((idx, freq)),
             Some((_best_idx, best_freq)) => {
@@ -419,27 +423,27 @@ fn prediction_for_rows<L: Label>(class_freq: &HashMap<&L, f32>) -> L {
 }
 
 /// Given the class frequencies calculates the gini impurity of the subset.
-fn gini_impurity<L: Label>(class_freq: &HashMap<&L, f32>) -> f64 {
+fn gini_impurity<L: Label>(class_freq: &HashMap<&L, f32>) -> f32 {
     let n_samples = class_freq.values().sum::<f32>();
     assert!(n_samples > 0.0);
 
-    let purity: f64 = class_freq
+    let purity = class_freq
         .values()
-        .map(|x| (*x as f64) / (n_samples as f64))
+        .map(|x| x / n_samples)
         .map(|x| x * x)
-        .sum();
+        .sum::<f32>();
 
     1.0 - purity
 }
 
 /// Given the class frequencies calculates the entropy of the subset.
-fn entropy<L: Label>(class_freq: &HashMap<&L, f32>) -> f64 {
+fn entropy<L: Label>(class_freq: &HashMap<&L, f32>) -> f32 {
     let n_samples = class_freq.values().sum::<f32>();
     assert!(n_samples > 0.0);
 
     class_freq
         .values()
-        .map(|x| (*x as f64) / (n_samples as f64))
+        .map(|x| x / n_samples)
         .map(|x| if x > 0.0 { -x * x.log2() } else { 0.0 })
         .sum()
 }
@@ -448,7 +452,7 @@ fn entropy<L: Label>(class_freq: &HashMap<&L, f32>) -> f64 {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::{Array, Array1, s};
+    use ndarray::{array, s, Array, Array1};
 
     use ndarray_rand::rand_distr::Uniform;
     use ndarray_rand::RandomExt;
@@ -461,7 +465,7 @@ mod tests {
         let dataset = Dataset::new((), labels);
         let class_freq = dataset.frequencies_with_mask(&row_mask.mask);
 
-        assert_eq!(prediction_for_rows(&class_freq), 0);
+        assert_eq!(find_modal_class(&class_freq), 0);
     }
 
     #[test]
@@ -501,17 +505,31 @@ mod tests {
         // generate data with 9 white noise and a single correlated feature
         let mut data = Array::random((50, 10), Uniform::new(-4., 4.));
         data.slice_mut(s![.., 8]).assign(
-            &(0..50).map(|x| if x < 25 { 0.0 } else { 1.0 }).collect::<Array1<_>>()
+            &(0..50)
+                .map(|x| if x < 25 { 0.0 } else { 1.0 })
+                .collect::<Array1<_>>(),
         );
 
         let targets = (0..50).map(|x| x < 25).collect::<Vec<_>>();
 
         let dataset = Dataset::new(data, targets);
 
-        let model = DecisionTree::params(2)
-            .max_depth(Some(2))
-            .fit(&dataset);
+        let model = DecisionTree::params(2).max_depth(Some(2)).fit(&dataset);
 
         assert_eq!(&model.features(), &[8]);
+    }
+
+    #[test]
+    /// Small perfectly separable dataset test
+    ///
+    /// This dataset of three elements is perfectly using the second feature.
+    fn perfectly_separable_small() {
+        let data = array![[1.1, 2., 5.], [1., 2., 3.5], [0.9, 3., 4.]];
+        let targets = array![0, 0, 1];
+
+        let dataset = Dataset::new(data.clone(), targets);
+        let model = DecisionTree::params(2).max_depth(Some(1)).fit(&dataset);
+
+        assert_eq!(&model.predict(data.clone()), &[0, 0, 1]);
     }
 }
