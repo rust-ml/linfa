@@ -39,7 +39,7 @@ fn main() {
     let (train, test) = dataset.split_with_ratio(0.9);
 
     println!("Training model with Gini criterion ...");
-    let gini_model = DecisionTree::params(n_classes)
+    let gini_model = DecisionTree::params()
         .split_quality(SplitQuality::Gini)
         .max_depth(Some(100))
         .min_weight_split(10.0)
@@ -57,7 +57,7 @@ fn main() {
     );
 
     println!("Training model with entropy criterion ...");
-    let entropy_model = DecisionTree::params(n_classes)
+    let entropy_model = DecisionTree::params()
         .split_quality(SplitQuality::Entropy)
         .max_depth(Some(100))
         .min_weight_split(10.0)

@@ -645,7 +645,7 @@ mod tests {
     ///
     /// This dataset of three elements is perfectly using the second feature.
     fn perfectly_separable_small() {
-        let data = array![[1., 2., 3.], [1., 2., 3.5], [1., 3., 4.]];
+        let data = array![[1., 2., 3.], [1., 2., 4.], [1., 3., 3.5]];
         let targets = array![0, 0, 1];
 
         let dataset = Dataset::new(data.clone(), targets);
