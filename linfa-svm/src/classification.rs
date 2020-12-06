@@ -314,8 +314,8 @@ mod tests {
     use linfa_kernel::{Kernel, KernelMethod};
 
     use ndarray::{Array, Array2, Axis};
-    use ndarray_rand::rand_distr::Uniform;
     use ndarray_rand::rand::SeedableRng;
+    use ndarray_rand::rand_distr::Uniform;
     use ndarray_rand::RandomExt;
     use rand_isaac::Isaac64Rng;
 
