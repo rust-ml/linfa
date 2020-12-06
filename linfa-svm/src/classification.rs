@@ -315,7 +315,9 @@ mod tests {
 
     use ndarray::{Array, Array2, Axis};
     use ndarray_rand::rand_distr::Uniform;
+    use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::RandomExt;
+    use rand_isaac::Isaac64Rng;
 
     pub fn generate_convoluted_rings(n_points: usize) -> Array2<f64> {
         let mut out = Array::random((n_points * 2, 2), Uniform::new(0f64, 1.));
@@ -374,8 +376,9 @@ mod tests {
 
     #[test]
     fn test_polynomial_classification() {
+        let mut rng = Isaac64Rng::seed_from_u64(42);
         // construct parabolica and classify middle area as positive and borders as negative
-        let records = Array::random((40, 1), Uniform::new(-2f64, 2.));
+        let records = Array::random_using((40, 1), Uniform::new(-2f64, 2.), &mut rng);
         let targets = records.map_axis(Axis(1), |x| x[0] * x[0] < 0.5).to_vec();
         let dataset = Dataset::new(records.clone(), targets);
 

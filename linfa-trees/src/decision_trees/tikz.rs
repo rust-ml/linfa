@@ -24,8 +24,8 @@ impl<'a, F: Float, L: Debug + Label> Tikz<'a, F, L> {
         if let Some(prediction) = node.prediction() {
             format!("{}[Label: {:?}]", depth, prediction)
         } else {
-            let (idx, value, _) = node.split();
-            let mut out = format!("{}[Used index ${} < {:.2}$", depth, idx, value);
+            let (idx, value, impurity_decrease) = node.split();
+            let mut out = format!("{}[Val(${}$) $ \\geq {:.2}$ \\\\ Imp. ${:.2}$", depth, idx, value, impurity_decrease);
             for child in node.childs().into_iter().filter_map(|x| x.as_ref()) {
                 out.push_str("\n");
                 out.push_str(&self.format_node(child));
@@ -65,32 +65,35 @@ impl<'a, F: Float, L: Debug + Label> Tikz<'a, F, L> {
 \usetikzlibrary{arrows.meta}
 
 \forestset{
-    .style={
-        for tree={
-            base=bottom,
-            child anchor=north,
-            align=center,
-            s sep+=1cm,
-    straight edge/.style={
-        edge path={\noexpand\path[\forestoption{edge},thick,-{Latex}]
-        (!u.parent anchor) -- (.child anchor);}
-    },
-    if n children={0}
-        {tier=word, draw, thick, rectangle}
-        {draw, diamond, thick, aspect=2},
-    if n=1{%
-        edge path={\noexpand\path[\forestoption{edge},thick,-{Latex}]
-        (!u.parent anchor) -| (.child anchor) node[pos=.2, above] {Y};}
-        }{
-        edge path={\noexpand\path[\forestoption{edge},thick,-{Latex}]
-        (!u.parent anchor) -| (.child anchor) node[pos=.2, above] {N};}
-        }
-        }
-    }
+  default preamble={
+    before typesetting nodes={
+      !r.replace by={[, coordinate, append]}
+    },  
+    where n children=0{
+      tier=word,
+    }{  
+      %diamond, aspect=2,
+    },  
+    where level=0{}{
+      if n=1{
+        edge label={node[pos=.2, above] {Y}},
+      }{  
+        edge label={node[pos=.2, above] {N}},
+      }   
+    },  
+    for tree={
+      edge+={thick, -Latex},
+      s sep'+=2cm,
+      draw,
+      thick,
+      edge path'={ (!u) -| (.parent)},
+      align=center,
+    }   
+  }
 }
+
 \begin{document}
-\begin{forest}
-"#,
+\begin{forest}"#,
         );
 
         out.push_str(&self.format_node(self.tree.root_node()));
