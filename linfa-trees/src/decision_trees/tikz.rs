@@ -20,7 +20,7 @@ impl<'a, F: Float, L: Debug + Label> Tikz<'a, F, L> {
     }
 
     pub fn format_node(&self, node: &'a TreeNode<F, L>) -> String {
-        let depth = vec![""; node.depth()+1].join("\t");
+        let depth = vec![""; node.depth() + 1].join("\t");
         if let Some(prediction) = node.prediction() {
             format!("{}[Label: {:?}]", depth, prediction)
         } else {

@@ -309,6 +309,36 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
             depth,
         }
     }
+
+    /// Prune tree after fitting it
+    ///
+    /// This removes parts of the tree which results in the same prediction for
+    /// all sub-trees. This is called right after fit to ensure that the tree
+    /// is small.
+    fn prune(&mut self) -> Option<L> {
+        if self.is_leaf() {
+            return Some(self.prediction.clone());
+        }
+
+        let left = self.left_child.as_mut().and_then(|x| x.prune());
+        let right = self.right_child.as_mut().and_then(|x| x.prune());
+
+        match (left, right) {
+            (Some(x), Some(y)) => {
+                if x == y {
+                    self.prediction = x.clone();
+                    self.right_child = None;
+                    self.left_child = None;
+                    self.leaf_node = true;
+
+                    Some(x)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
 }
 
 /// A fitted decision tree model.
@@ -354,7 +384,8 @@ impl<'a, F: Float, L: Label + 'a + std::fmt::Debug, D: Data<Elem = F>, T: Labels
             .map(|feature_idx| SortedIndex::of_array_column(&x, feature_idx))
             .collect();
 
-        let root_node = TreeNode::fit(&dataset, &all_idxs, &self, &sorted_indices, 0);
+        let mut root_node = TreeNode::fit(&dataset, &all_idxs, &self, &sorted_indices, 0);
+        root_node.prune();
 
         DecisionTree {
             root_node,
