@@ -20,16 +20,20 @@ impl<'a, F: Float, L: Debug + Label> Tikz<'a, F, L> {
     }
 
     pub fn format_node(&self, node: &'a TreeNode<F, L>) -> String {
-        let (idx, value, _) = node.split();
-        let depth = vec![""; node.depth()].join("\t");
-        let mut out = format!("{}[Used index ${} < {}$", depth, idx, value);
-        for child in node.childs().into_iter().filter_map(|x| x.as_ref()) {
-            out.push_str("\n");
-            out.push_str(&self.format_node(child));
-        }
-        out.push_str("]");
+        let depth = vec![""; node.depth()+1].join("\t");
+        if let Some(prediction) = node.prediction() {
+            format!("{}[Label: {:?}]", depth, prediction)
+        } else {
+            let (idx, value, _) = node.split();
+            let mut out = format!("{}[Used index ${} < {:.2}$", depth, idx, value);
+            for child in node.childs().into_iter().filter_map(|x| x.as_ref()) {
+                out.push_str("\n");
+                out.push_str(&self.format_node(child));
+            }
+            out.push_str("]");
 
-        out
+            out
+        }
     }
 
     /// Whether a complete Tex document should be generated
@@ -56,11 +60,11 @@ impl<'a, F: Float, L: Debug + Label> Tikz<'a, F, L> {
     pub fn to_string(self) -> String {
         let mut out = String::from(
             r#"
-\\documentclass[margin=10pt]{standalone}
-\\usepackage{tikz,forest}
-\\usetikzlibrary{arrows.meta}
+\documentclass[margin=10pt]{standalone}
+\usepackage{tikz,forest}
+\usetikzlibrary{arrows.meta}
 
-\\forestset{
+\forestset{
     .style={
         for tree={
             base=bottom,
@@ -68,29 +72,29 @@ impl<'a, F: Float, L: Debug + Label> Tikz<'a, F, L> {
             align=center,
             s sep+=1cm,
     straight edge/.style={
-        edge path={\noexpand\\path[\\forestoption{edge},thick,-{Latex}]
+        edge path={\noexpand\path[\forestoption{edge},thick,-{Latex}]
         (!u.parent anchor) -- (.child anchor);}
     },
     if n children={0}
         {tier=word, draw, thick, rectangle}
         {draw, diamond, thick, aspect=2},
     if n=1{%
-        edge path={\noexpand\\path[\\forestoption{edge},thick,-{Latex}]
+        edge path={\noexpand\path[\forestoption{edge},thick,-{Latex}]
         (!u.parent anchor) -| (.child anchor) node[pos=.2, above] {Y};}
         }{
-        edge path={\noexpand\\path[\\forestoption{edge},thick,-{Latex}]
+        edge path={\noexpand\path[\forestoption{edge},thick,-{Latex}]
         (!u.parent anchor) -| (.child anchor) node[pos=.2, above] {N};}
         }
         }
     }
 }
-    }
-}
-        "#,
+\begin{document}
+\begin{forest}
+"#,
         );
 
         out.push_str(&self.format_node(self.tree.root_node()));
-        out.push_str("\\end{forest}\n\\end{document}");
+        out.push_str("\n\t\\end{forest}\n\\end{document}");
 
         out
     }

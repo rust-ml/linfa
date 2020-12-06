@@ -117,6 +117,14 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
         self.depth
     }
 
+    pub fn prediction(&self) -> Option<L> {
+        if self.is_leaf() {
+            return Some(self.prediction.clone());
+        } else {
+            None
+        }
+    }
+
     /// Return both childs
     pub fn childs(&self) -> Vec<&Option<Box<TreeNode<F, L>>>> {
         vec![&self.left_child, &self.right_child]
