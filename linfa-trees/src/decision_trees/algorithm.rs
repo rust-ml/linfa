@@ -8,6 +8,7 @@ use ndarray::{ArrayBase, Axis, Data, Ix1, Ix2};
 
 use super::hyperparameters::{DecisionTreeParams, SplitQuality};
 use super::NodeIter;
+use super::Tikz;
 use linfa::{
     dataset::{Labels, Records},
     traits::*,
@@ -112,9 +113,18 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
         self.leaf_node
     }
 
+    pub fn depth(&self) -> usize {
+        self.depth
+    }
+
     /// Return both childs
     pub fn childs(&self) -> Vec<&Option<Box<TreeNode<F, L>>>> {
         vec![&self.left_child, &self.right_child]
+    }
+
+    /// Return the split and its impurity decrease
+    pub fn split(&self) -> (usize, F, F) {
+        (self.feature_idx, self.split_value, self.impurity_decrease)
     }
 
     fn fit<D: Data<Elem = F>, T: Labels<Elem = L>>(
@@ -443,6 +453,11 @@ impl<F: Float, L: Label + std::fmt::Debug> DecisionTree<F, L> {
     /// Return the number of leaves in this tree
     pub fn num_leaves(&self) -> usize {
         self.iter_nodes().filter(|node| node.is_leaf()).count()
+    }
+
+    /// Export to tikz
+    pub fn export_to_tikz<'a>(&'a self) -> Tikz<'a, F, L> {
+        Tikz::new(&self)
     }
 }
 

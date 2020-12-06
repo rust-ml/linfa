@@ -76,4 +76,6 @@ fn main() {
 
     let feats = entropy_model.features();
     println!("Features trained in this tree {:?}", feats);
+
+    println!("{}", gini_model.export_to_tikz().to_string());
 }
