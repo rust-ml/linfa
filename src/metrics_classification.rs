@@ -280,7 +280,7 @@ impl<
         // count each index tuple in the confusion matrix
         let mut confusion_matrix = Array2::zeros((classes.len(), classes.len()));
         for (i1, i2) in indices.into_iter().filter_map(|x| x) {
-            confusion_matrix[(i1, i2)] += *ground_truth.weights().get(i1).unwrap_or(&1.0);
+            confusion_matrix[(i1, i2)] += ground_truth.weight_for(i1);
         }
 
         ConfusionMatrix {
@@ -300,7 +300,7 @@ impl<R: Records, L: Label, T: Targets<Elem = L> + Labels<Elem = L>>
         // count each index tuple in the confusion matrix
         let mut confusion_matrix = Array2::zeros((classes.len(), classes.len()));
         for (i1, i2) in indices.into_iter().filter_map(|x| x) {
-            confusion_matrix[(i1, i2)] += *ground_truth.weights().get(i1).unwrap_or(&1.0);
+            confusion_matrix[(i1, i2)] += ground_truth.weight_for(i1);
         }
 
         ConfusionMatrix {
@@ -520,7 +520,8 @@ mod tests {
     use super::{Dataset, Pr};
     use approx::{abs_diff_eq, AbsDiffEq};
     use ndarray::{array, Array1, ArrayBase, ArrayView1, Data, Dimension};
-    use rand::{distributions::Uniform, Rng};
+    use rand::{distributions::Uniform, Rng, SeedableRng};
+    use rand_isaac::Isaac64Rng;
     use std::borrow::Borrow;
 
     fn assert_eq_slice<
@@ -636,9 +637,9 @@ mod tests {
 
     #[test]
     fn test_roc_auc() {
+        let mut rng = Isaac64Rng::seed_from_u64(42);
         let predicted = Array1::linspace(0.0, 1.0, 1000).mapv(Pr);
 
-        let mut rng = rand::thread_rng();
         let range = Uniform::new(0, 2);
 
         // randomly sample ground truth

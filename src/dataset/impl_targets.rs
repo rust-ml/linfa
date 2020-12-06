@@ -79,34 +79,34 @@ impl<T: Targets> Targets for &T {
     }
 }
 
-impl<T: Labels> Labels for &T {
+impl<L: Label, T: Labels<Elem = L>> Labels for &T {
     fn labels(&self) -> Vec<T::Elem> {
         (*self).labels()
     }
 }
 
 /// Targets with precomputed labels
-pub struct TargetsWithLabels<L: Labels> {
+pub struct TargetsWithLabels<P: Label, L: Labels<Elem = P>> {
     targets: L,
     labels: HashSet<L::Elem>,
 }
 
-impl<L: Labels> Targets for TargetsWithLabels<L> {
-    type Elem = L::Elem;
+impl<L: Label, T: Labels<Elem = L>> Targets for TargetsWithLabels<L, T> {
+    type Elem = T::Elem;
 
     fn as_slice(&self) -> &[Self::Elem] {
         self.targets.as_slice()
     }
 }
 
-impl<L: Label + Clone, T: Labels<Elem = L>> Labels for TargetsWithLabels<T> {
+impl<L: Label + Clone, T: Labels<Elem = L>> Labels for TargetsWithLabels<L, T> {
     fn labels(&self) -> Vec<T::Elem> {
         self.labels.iter().cloned().collect()
     }
 }
 
 impl<R: Records, L: Label, T: Labels<Elem = L>> Dataset<R, T> {
-    pub fn with_labels(self, labels: &[L]) -> Dataset<R, TargetsWithLabels<T>> {
+    pub fn with_labels(self, labels: &[L]) -> Dataset<R, TargetsWithLabels<L, T>> {
         let targets = TargetsWithLabels {
             targets: self.targets,
             labels: labels.iter().cloned().collect(),

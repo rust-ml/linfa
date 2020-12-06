@@ -90,6 +90,9 @@ pub trait Targets {
 ///
 /// Same as targets, but with discrete elements. The labels trait can therefore return the set of
 /// labels of the targets
-pub trait Labels: Targets {
+pub trait Labels: Targets
+where
+    Self::Elem: Label,
+{
     fn labels(&self) -> Vec<Self::Elem>;
 }

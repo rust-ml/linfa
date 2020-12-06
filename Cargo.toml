@@ -20,11 +20,12 @@ exclude = [".github/"]
 
 [dependencies]
 num-traits = "0.2"
+rand = "0.7"
 ndarray = { version = "0.13", default-features = false }
 
 [dev-dependencies]
-rand = "0.7"
 ndarray-rand = "0.12"
+rand_isaac = "0.2"
 approx = "0.3"
 
 [workspace]
@@ -37,7 +38,6 @@ members = [
     "linfa-trees",
     "linfa-svm",
     "linfa-hierarchical",
-    "linfa-ica",
 ]
 
 [profile.release]

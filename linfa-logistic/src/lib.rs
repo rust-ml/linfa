@@ -437,7 +437,7 @@ impl<F: Float, C: PartialOrd + Clone> FittedLogisticRegression<F, C> {
 
     /// Given a feature matrix, predict the classes learned when the model was
     /// fitted.
-    pub fn predict_classes<A: Data<Elem = F>>(&self, x: &ArrayBase<A, Ix2>) -> Vec<C> {
+    pub fn predict<A: Data<Elem = F>>(&self, x: &ArrayBase<A, Ix2>) -> Vec<C> {
         let pos_class = class_from_label(&self.labels, F::POSITIVE_LABEL);
         let neg_class = class_from_label(&self.labels, F::NEGATIVE_LABEL);
         self.predict_probabilities(x)
@@ -647,7 +647,7 @@ mod test {
         let res = log_reg.fit(&x, &y).unwrap();
         assert_eq!(res.intercept(), 0.0);
         assert!(res.params().abs_diff_eq(&array![0.681], 1e-3));
-        assert_eq!(res.predict_classes(&x), y.to_vec());
+        assert_eq!(res.predict(&x), y.to_vec());
     }
 
     #[test]
@@ -661,7 +661,7 @@ mod test {
         assert!(res
             .predict_probabilities(&x)
             .abs_diff_eq(&array![0.501, 0.664, 0.335, 0.498], 1e-3));
-        assert_eq!(res.predict_classes(&x), y);
+        assert_eq!(res.predict(&x), y);
     }
 
     #[test]
@@ -683,7 +683,7 @@ mod test {
         let res = log_reg.fit(&x, &y).unwrap();
         assert!(res.intercept().abs_diff_eq(&-4.124, 1e-3));
         assert!(res.params().abs_diff_eq(&array![1.181], 1e-3));
-        assert_eq!(res.predict_classes(&x), y.to_vec());
+        assert_eq!(res.predict(&x), y.to_vec());
     }
 
     #[test]
@@ -776,7 +776,7 @@ mod test {
         let res = log_reg.fit(&x, &y).unwrap();
         assert!(res.intercept().abs_diff_eq(&-4.124, 1e-3));
         assert!(res.params().abs_diff_eq(&array![1.181], 1e-3));
-        assert_eq!(res.predict_classes(&x), y.to_vec());
+        assert_eq!(res.predict(&x), y.to_vec());
     }
 
     #[test]
@@ -787,6 +787,6 @@ mod test {
         let res = log_reg.fit(&x, &y).unwrap();
         assert_eq!(res.intercept(), 0.0 as f32);
         assert!(res.params().abs_diff_eq(&array![0.682 as f32], 1e-3));
-        assert_eq!(res.predict_classes(&x), y.to_vec());
+        assert_eq!(res.predict(&x), y.to_vec());
     }
 }
