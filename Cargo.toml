@@ -25,6 +25,7 @@ ndarray = { version = "0.13", default-features = false }
 
 [dev-dependencies]
 ndarray-rand = "0.12"
+rand_isaac = "0.2"
 approx = "0.3"
 
 [workspace]

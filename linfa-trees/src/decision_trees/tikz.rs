@@ -25,7 +25,10 @@ impl<'a, F: Float, L: Debug + Label> Tikz<'a, F, L> {
             format!("{}[Label: {:?}]", depth, prediction)
         } else {
             let (idx, value, impurity_decrease) = node.split();
-            let mut out = format!("{}[Val(${}$) $ \\geq {:.2}$ \\\\ Imp. ${:.2}$", depth, idx, value, impurity_decrease);
+            let mut out = format!(
+                "{}[Val(${}$) $ \\geq {:.2}$ \\\\ Imp. ${:.2}$",
+                depth, idx, value, impurity_decrease
+            );
             for child in node.childs().into_iter().filter_map(|x| x.as_ref()) {
                 out.push_str("\n");
                 out.push_str(&self.format_node(child));

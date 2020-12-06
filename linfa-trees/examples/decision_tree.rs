@@ -1,5 +1,5 @@
-use std::io::Write;
 use std::fs::File;
+use std::io::Write;
 
 use ndarray::{array, stack, Array, Array1, Array2, Axis};
 use ndarray_rand::rand::SeedableRng;
@@ -81,6 +81,7 @@ fn main() {
     println!("Features trained in this tree {:?}", feats);
 
     let mut tikz = File::create("decision_tree_example.tex").unwrap();
-    tikz.write(gini_model.export_to_tikz().to_string().as_bytes()).unwrap();
+    tikz.write(gini_model.export_to_tikz().to_string().as_bytes())
+        .unwrap();
     println!(" => generate tree description with `latex decision_tree_example.tex`!");
 }
