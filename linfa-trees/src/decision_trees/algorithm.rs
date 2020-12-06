@@ -514,12 +514,12 @@ fn entropy<L: Label>(class_freq: &HashMap<&L, f32>) -> f32 {
 mod tests {
     use super::*;
 
-    use rand_isaac::Isaac64Rng;
     use approx::assert_abs_diff_eq;
     use linfa::metrics::ToConfusionMatrix;
     use ndarray::{array, s, stack, Array, Array1, Array2, Axis};
+    use rand_isaac::Isaac64Rng;
 
-    use ndarray_rand::{RandomExt, rand::SeedableRng, rand_distr::Uniform};
+    use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
 
     #[test]
     fn prediction_for_rows_example() {
@@ -604,7 +604,11 @@ mod tests {
 
         // check that the provided depth is actually used
         for max_depth in vec![1, 5, 10, 20] {
-            let model = DecisionTree::params().max_depth(Some(max_depth)).min_impurity_decrease(1e-10f64).min_weight_split(1e-10).fit(&dataset);
+            let model = DecisionTree::params()
+                .max_depth(Some(max_depth))
+                .min_impurity_decrease(1e-10f64)
+                .min_weight_split(1e-10)
+                .fit(&dataset);
             assert_eq!(model.max_depth(), max_depth);
         }
     }
@@ -707,7 +711,7 @@ mod tests {
     fn panic_min_impurity_decrease() {
         DecisionTree::<f64, bool>::params()
             .min_impurity_decrease(0.0)
-            .validate().unwrap();
+            .validate()
+            .unwrap();
     }
-
 }
