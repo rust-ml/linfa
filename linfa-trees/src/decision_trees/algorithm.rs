@@ -4,13 +4,15 @@ use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 
-use crate::decision_trees::hyperparameters::{DecisionTreeParams, SplitQuality};
+use ndarray::{ArrayBase, Axis, Data, Ix1, Ix2};
+
+use super::hyperparameters::{DecisionTreeParams, SplitQuality};
+use super::NodeIter;
 use linfa::{
     dataset::{Labels, Records},
     traits::*,
     Dataset, Float, Label,
 };
-use ndarray::{ArrayBase, Axis, Data, Ix1, Ix2};
 
 /// RowMask tracks observations
 ///
@@ -71,6 +73,7 @@ pub struct TreeNode<F, L> {
     right_child: Option<Box<TreeNode<F, L>>>,
     leaf_node: bool,
     prediction: L,
+    depth: usize,
 }
 
 impl<F: Float, L: Label> Hash for TreeNode<F, L> {
@@ -92,7 +95,7 @@ impl<F, L> PartialEq for TreeNode<F, L> {
 }
 
 impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
-    fn empty_leaf(prediction: L) -> Self {
+    fn empty_leaf(prediction: L, depth: usize) -> Self {
         TreeNode {
             feature_idx: 0,
             split_value: F::zero(),
@@ -101,11 +104,17 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
             right_child: None,
             leaf_node: true,
             prediction,
+            depth,
         }
     }
 
     pub fn is_leaf(&self) -> bool {
         self.leaf_node
+    }
+
+    /// Return both childs
+    pub fn childs(&self) -> Vec<&Option<Box<TreeNode<F, L>>>> {
+        vec![&self.left_child, &self.right_child]
     }
 
     fn fit<D: Data<Elem = F>, T: Labels<Elem = L>>(
@@ -127,7 +136,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
                 .map(|max_depth| depth > max_depth)
                 .unwrap_or(false)
         {
-            return Self::empty_leaf(prediction);
+            return Self::empty_leaf(prediction, depth);
         }
 
         // Find best split for current level
@@ -225,7 +234,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
         };
 
         if impurity_decrease < hyperparameters.min_impurity_decrease {
-            return Self::empty_leaf(prediction);
+            return Self::empty_leaf(prediction, depth);
         }
 
         let (best_feature_idx, best_split_value, _) = best.unwrap();
@@ -279,6 +288,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
             right_child,
             leaf_node,
             prediction,
+            depth,
         }
     }
 }
@@ -353,10 +363,18 @@ impl<F: Float, L: Label + std::fmt::Debug> DecisionTree<F, L> {
         }
     }
 
+    /// Create a node iterator
+    pub fn iter_nodes<'a>(&'a self) -> NodeIter<'a, F, L> {
+        // queue of nodes yet to explore
+        let queue = vec![&self.root_node];
+
+        NodeIter::new(queue)
+    }
+
     /// Return features_idx of this tree (BFT)
     ///
     pub fn features(&self) -> Vec<usize> {
-        // features visited and counted
+        /*// features visited and counted
         let mut visited: HashSet<TreeNode<F, L>> = HashSet::new();
         // queue of nodes yet to explore
         let mut queue = vec![&self.root_node];
@@ -390,8 +408,18 @@ impl<F: Float, L: Label + std::fmt::Debug> DecisionTree<F, L> {
                 }
             }
         }
+        */
 
-        fitted_features
+        // vector of feature indexes to return
+        let mut fitted_features = HashSet::new();
+
+        for node in self.iter_nodes().filter(|node| !node.is_leaf()) {
+            if !fitted_features.contains(&node.feature_idx) {
+                fitted_features.insert(node.feature_idx);
+            }
+        }
+
+        fitted_features.into_iter().collect::<Vec<_>>()
     }
 
     /// Return the mean impurity decrease for each feature
@@ -399,25 +427,11 @@ impl<F: Float, L: Label + std::fmt::Debug> DecisionTree<F, L> {
         // total impurity decrease for each feature
         let mut impurity_decrease = vec![F::zero(); self.num_features];
         let mut num_nodes = vec![0; self.num_features];
-        // queue of nodes yet to explore
-        let mut queue = vec![&self.root_node];
-        // total impurity decrease
 
-        while let Some(node) = queue.pop() {
-            // count only internal nodes (where features are)
-            if !node.leaf_node {
-                // add feature impurity decrease to list
-                impurity_decrease[node.feature_idx] += node.impurity_decrease;
-                num_nodes[node.feature_idx] += 1;
-            }
-
-            if let Some(child) = &node.left_child {
-                queue.push(child);
-            }
-
-            if let Some(child) = &node.right_child {
-                queue.push(child);
-            }
+        for node in self.iter_nodes().filter(|node| !node.leaf_node) {
+            // add feature impurity decrease to list
+            impurity_decrease[node.feature_idx] += node.impurity_decrease;
+            num_nodes[node.feature_idx] += 1;
         }
 
         impurity_decrease
@@ -456,46 +470,13 @@ impl<F: Float, L: Label + std::fmt::Debug> DecisionTree<F, L> {
 
     /// Return max depth of the tree
     pub fn max_depth(&self) -> usize {
-        // queue of nodes yet to explore
-        let mut queue = vec![(0usize, &self.root_node)];
-        // max depth, i.e. maximal distance from root to leaf in the current tree
-        let mut max_depth = 0;
-
-        while let Some((current_depth, node)) = queue.pop() {
-            max_depth = usize::max(max_depth, current_depth);
-
-            if let Some(child) = &node.left_child {
-                queue.push((current_depth + 1, &child));
-            }
-
-            if let Some(child) = &node.right_child {
-                queue.push((current_depth + 1, &child));
-            }
-        }
-
-        max_depth
+        self.iter_nodes()
+            .fold(0, |max, node| usize::max(max, node.depth))
     }
 
+    /// Return the number of leaves in this tree
     pub fn num_leaves(&self) -> usize {
-        // queue of nodes yet to explore
-        let mut queue = vec![(0usize, &self.root_node)];
-        let mut num_leaves = 0;
-
-        while let Some((current_depth, node)) = queue.pop() {
-            if node.is_leaf() {
-                num_leaves += 1;
-            }
-
-            if let Some(child) = &node.left_child {
-                queue.push((current_depth + 1, &child));
-            }
-
-            if let Some(child) = &node.right_child {
-                queue.push((current_depth + 1, &child));
-            }
-        }
-
-        num_leaves
+        self.iter_nodes().filter(|node| node.is_leaf()).count()
     }
 }
 
