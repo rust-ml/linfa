@@ -1,14 +1,20 @@
 [package]
 name = "linfa-linear"
-version = "0.1.0"
-authors = ["Paul Körbitz / Google <koerbitz@google.com>"]
-edition = "2018"
-workspace = ".."
+version = "0.2.1"
+authors = [
+    "Paul Körbitz / Google <koerbitz@google.com>",
+    "VasanthakumarV <vasanth260m12@gmail.com>"
+]
 
-[features]
-default = ["tests-openblas-system"]
-tests-openblas-system = ["openblas-src/system"]
-tests-openblas-build = ["openblas-src/cblas", "openblas-src/lapacke"]
+description = "A Machine Learning framework for Rust"
+edition = "2018"
+license = "MIT/Apache-2.0"
+
+repository = "https://github.com/rust-ml/linfa"
+readme = "README.md"
+
+keywords = ["machine-learning", "linfa", "ai", "ml", "linear"]
+categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
 ndarray = {version = "0.13", features = ["blas", "approx"]}
@@ -19,7 +25,7 @@ argmin = {version="0.3.1", features=["ndarrayl"]}
 serde = "1.0"
 
 [dev-dependencies]
-openblas-src = { version = "0.9", default-features = false }
+openblas-src = { version = "0.9", default-features = false, features = ["system"] }
 csv = "1.1"
 ndarray-csv = "0.4"
 approx = "0.3.2"

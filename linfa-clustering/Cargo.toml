@@ -1,8 +1,12 @@
 [package]
 name = "linfa-clustering"
-version = "0.1.0"
+version = "0.2.1"
 edition = "2018"
-authors = ["Luca Palmieri <rust@lpalmieri.com>"]
+authors = [
+    "Luca Palmieri <rust@lpalmieri.com>",
+    "xd009642 <danielmckenna93@gmail.com>",
+    "Rémi Lafage <remi.lafage@onera.fr>"
+]
 description = "A collection of clustering algorithms"
 license = "MIT/Apache-2.0"
 
@@ -11,11 +15,6 @@ readme = "README.md"
 
 keywords = ["clustering", "machine-learning", "linfa", "k-means", "unsupervised"]
 categories = ["algorithms", "mathematics", "science"]
-
-[features]
-default = ["tests-openblas-system"]
-tests-openblas-system = ["openblas-src/system"]
-tests-openblas-build = ["openblas-src/cblas", "openblas-src/lapacke"]
 
 [dependencies.serde_crate]
 package = "serde"
@@ -33,10 +32,11 @@ sprs = "0.7"
 num-traits = "0.1.32"
 rand_isaac = "0.2.0"
 
-linfa = { path = ".." }
+linfa = { version = "0.2.1", path = ".." }
+partitions = "0.2.4"
 
 [dev-dependencies]
-openblas-src = { version = "0.9", default-features = false }
+openblas-src = { version = "0.9", default-features = false, features = ["system"] }
 ndarray-npy = { version = "0.5", default-features = false }
 criterion = "0.3"
 serde_json = "1"
@@ -48,4 +48,8 @@ harness = false
 
 [[bench]]
 name = "dbscan"
+harness = false
+
+[[bench]]
+name = "appx_dbscan"
 harness = false

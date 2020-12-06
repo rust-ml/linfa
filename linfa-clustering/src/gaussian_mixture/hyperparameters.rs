@@ -10,7 +10,7 @@ use serde_crate::{Deserialize, Serialize};
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 /// A specifier for the type of the relation between components' covariances.
 pub enum GmmCovarType {
     /// each component has its own general covariance matrix
@@ -44,7 +44,7 @@ pub struct GmmHyperParams<F: Float, R: Rng> {
     covar_type: GmmCovarType,
     tolerance: F,
     reg_covar: F,
-    n_init: u64,
+    n_runs: u64,
     max_n_iter: u64,
     init_method: GmmInitMethod,
     rng: R,
@@ -63,8 +63,8 @@ impl<F: Float, R: Rng + Clone> GmmHyperParams<F, R> {
             n_clusters,
             covar_type: GmmCovarType::Full,
             tolerance: F::from(1e-3).unwrap(),
-            reg_covar: F::from(0.).unwrap(),
-            n_init: 1,
+            reg_covar: F::from(1e-6).unwrap(),
+            n_runs: 1,
             max_n_iter: 100,
             init_method: GmmInitMethod::KMeans,
             rng,
@@ -87,8 +87,8 @@ impl<F: Float, R: Rng + Clone> GmmHyperParams<F, R> {
         self.reg_covar
     }
 
-    pub fn n_init(&self) -> u64 {
-        self.n_init
+    pub fn n_runs(&self) -> u64 {
+        self.n_runs
     }
 
     pub fn max_n_iterations(&self) -> u64 {
@@ -123,8 +123,8 @@ impl<F: Float, R: Rng + Clone> GmmHyperParams<F, R> {
     }
 
     /// Set the number of initializations to perform. The best results are kept.
-    pub fn with_n_init(mut self, n_init: u64) -> Self {
-        self.n_init = n_init;
+    pub fn with_n_runs(mut self, n_runs: u64) -> Self {
+        self.n_runs = n_runs;
         self
     }
 
@@ -146,7 +146,7 @@ impl<F: Float, R: Rng + Clone> GmmHyperParams<F, R> {
             covar_type: self.covar_type,
             tolerance: self.tolerance,
             reg_covar: self.reg_covar,
-            n_init: self.n_init,
+            n_runs: self.n_runs,
             max_n_iter: self.max_n_iter,
             init_method: self.init_method,
             rng,
@@ -170,8 +170,8 @@ impl<F: Float, R: Rng + Clone> GmmHyperParams<F, R> {
                 "`reg_covar` must be positive!".to_string(),
             ));
         }
-        if self.n_init == 0 {
-            return Err(GmmError::InvalidValue("`n_init` cannot be 0!".to_string()));
+        if self.n_runs == 0 {
+            return Err(GmmError::InvalidValue("`n_runs` cannot be 0!".to_string()));
         }
         if self.max_n_iter == 0 {
             return Err(GmmError::InvalidValue(

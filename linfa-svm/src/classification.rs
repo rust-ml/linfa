@@ -305,7 +305,7 @@ impl<'a, F: Float, T: Targets, D: Data<Elem = F>>
 
 #[cfg(test)]
 mod tests {
-    extern crate openblas_src; // or another backend of your choice
+    extern crate openblas_src;
 
     use super::Svm;
     use linfa::dataset::Dataset;

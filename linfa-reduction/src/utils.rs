@@ -86,6 +86,31 @@ pub fn generate_convoluted_rings(
 
     array
 }
+
+pub fn generate_convoluted_rings2d(
+    rings: &[(f64, f64)],
+    n_points: usize,
+    rng: &mut impl Rng,
+) -> Array2<f64> {
+    let n_points = (n_points as f32 / rings.len() as f32).ceil() as usize;
+    let mut array = Array2::zeros((n_points * rings.len(), 2));
+
+    for (n, (start, end)) in rings.iter().enumerate() {
+        // inner circle
+        for i in 0..n_points {
+            let r: f64 = rng.gen_range(start, end);
+            let phi: f64 = rng.gen_range(0.0, f64::PI() * 2.0);
+
+            let x = phi.cos() * r;
+            let y = phi.sin() * r;
+
+            array[(n * n_points + i, 0)] = x;
+            array[(n * n_points + i, 1)] = y;
+        }
+    }
+
+    array
+}
 /// Given an input matrix `blob_centroids`, with shape `(n_blobs, n_features)`,
 /// generate `blob_size` data points (a "blob") around each of the blob centroids.
 ///

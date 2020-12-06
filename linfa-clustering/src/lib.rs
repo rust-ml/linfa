@@ -18,15 +18,14 @@
 //! Implementation choices, algorithmic details and a tutorial can be found [here](struct.KMeans.html).
 //!
 //! Check [here](https://github.com/LukeMathWalker/clustering-benchmarks) for extensive benchmarks against `scikit-learn`'s K-means implementation.
-
-extern crate ndarray;
-
+mod appx_dbscan;
 mod dbscan;
 mod gaussian_mixture;
 #[allow(clippy::new_ret_no_self)]
 mod k_means;
 mod utils;
 
+pub use appx_dbscan::*;
 pub use dbscan::*;
 pub use gaussian_mixture::*;
 pub use k_means::*;

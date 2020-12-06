@@ -1,4 +1,7 @@
-# linfa
+<img align="left" src="./mascot.svg" width="70px" height="70px" alt="Linfa mascot icon">
+
+# Linfa
+
 [![crates.io](https://img.shields.io/crates/v/linfa.svg)](https://crates.io/crates/linfa)
 [![Documentation](https://docs.rs/linfa/badge.svg)](https://docs.rs/linfa)
 [![Codequality](https://github.com/rust-ml/linfa/workflows/Codequality%20Lints/badge.svg)](https://github.com/rust-ml/linfa/actions?query=workflow%3A%22Codequality+Lints%22)

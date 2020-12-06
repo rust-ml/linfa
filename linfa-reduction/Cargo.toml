@@ -1,6 +1,6 @@
 [package]
 name = "linfa-reduction"
-version = "0.1.0"
+version = "0.2.1"
 authors = ["Lorenz Schmidt <bytesnake@mailbox.org>"]
 description = "A collection of dimensionality reduction techniques"
 edition = "2018"
@@ -9,27 +9,20 @@ license = "MIT/Apache-2.0"
 repository = "https://github.com/rust-ml/linfa"
 readme = "README.md"
 
-keywords = ["dimensionality reduction", "machine-learning", "linfa", "spectral", "unsupervised"]
+keywords = ["reduction", "machine-learning", "linfa", "spectral", "unsupervised"]
 categories = ["algorithms", "mathematics", "science"]
-
-[features]
-default = ["tests-openblas-system"]
-tests-openblas-system = ["openblas-src/system"]
-tests-openblas-build = ["openblas-src/cblas", "openblas-src/lapacke"]
 
 [dependencies]
 ndarray = "0.13"
 ndarray-rand = "0.11"
 ndarray-stats = "0.3"
 ndarray-linalg = "0.12"
-num-traits = "0.1.32"
+num-traits = "0.2"
 
-linfa = { path = ".." }
-linfa-kernel = { path = "../linfa-kernel" }
+linfa = { version = "0.2.1", path = ".." }
+linfa-kernel = { version = "0.2.1", path = "../linfa-kernel" }
 
 [dev-dependencies]
-openblas-src = { version = "0.9", default-features = false }
+openblas-src = { version = "0.9", default-features=false, features = ["system"] }
 rand_isaac = "0.2.0"
 ndarray-npy = { version = "0.5", default-features = false }
-criterion = "0.3"
-approx = "0.3"

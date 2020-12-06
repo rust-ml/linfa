@@ -1,24 +1,30 @@
 [package]
 name = "linfa"
-version = "0.1.1"
-authors = ["Luca Palmieri <rust@lpalmieri.com>"]
+version = "0.2.1"
+authors = [
+    "Luca Palmieri <rust@lpalmieri.com>",
+    "Lorenz Schmidt <bytesnake@mailbox.org>",
+    "Paul Körbitz <koerbitz@google.com>"
+]
 description = "A Machine Learning framework for Rust"
 edition = "2018"
 license = "MIT/Apache-2.0"
 
-repository = "https://github.com/LukeMathWalker/linfa"
+repository = "https://github.com/rust-ml/linfa"
 readme = "README.md"
 
 keywords = ["machine-learning", "linfa", "ai", "ml"]
 categories = ["algorithms", "mathematics", "science"]
 
+exclude = [".github/"]
+
 [dependencies]
+num-traits = "0.2"
 rand = "0.7"
-num-traits = "0.1.32"
 ndarray = { version = "0.13", default-features = false }
 
 [dev-dependencies]
-ndarray-rand = "0.11"
+ndarray-rand = "0.12"
 approx = "0.3"
 
 [workspace]
