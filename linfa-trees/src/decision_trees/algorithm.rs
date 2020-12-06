@@ -133,7 +133,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
         if (mask.nsamples as f32) < hyperparameters.min_weight_split
             || hyperparameters
                 .max_depth
-                .map(|max_depth| depth > max_depth)
+                .map(|max_depth| depth >= max_depth)
                 .unwrap_or(false)
         {
             return Self::empty_leaf(prediction, depth);
@@ -328,6 +328,8 @@ impl<'a, F: Float, L: Label + 'a + std::fmt::Debug, D: Data<Elem = F>, T: Labels
     /// Fit a decision tree using `hyperparamters` on the dataset consisting of
     /// a matrix of features `x` and an array of labels `y`.
     fn fit(&self, dataset: &Dataset<ArrayBase<D, Ix2>, T>) -> Self::Object {
+        self.validate().unwrap();
+
         let x = dataset.records();
         let all_idxs = RowMask::all(x.nrows());
         let sorted_indices: Vec<_> = (0..(x.ncols()))
@@ -374,42 +376,6 @@ impl<F: Float, L: Label + std::fmt::Debug> DecisionTree<F, L> {
     /// Return features_idx of this tree (BFT)
     ///
     pub fn features(&self) -> Vec<usize> {
-        /*// features visited and counted
-        let mut visited: HashSet<TreeNode<F, L>> = HashSet::new();
-        // queue of nodes yet to explore
-        let mut queue = vec![&self.root_node];
-        // vector of feature indexes to return
-        let mut fitted_features: Vec<usize> = vec![];
-
-        while let Some(node) = queue.pop() {
-            // count only internal nodes (where features are)
-            if !node.leaf_node {
-                // add feature index to list of used features
-                fitted_features.push(node.feature_idx);
-            }
-
-            // get children and enque them
-            let lc = match &node.left_child {
-                Some(child) => Some(child),
-                _ => None,
-            };
-            let rc = match &node.right_child {
-                Some(child) => Some(child),
-                _ => None,
-            };
-            let children = vec![lc, rc];
-            for child in children {
-                // extract TreeNode if any
-                if let Some(node) = child {
-                    if !visited.contains(&node) {
-                        visited.insert(*node.clone());
-                        queue.push(&node);
-                    }
-                }
-            }
-        }
-        */
-
         // vector of feature indexes to return
         let mut fitted_features = HashSet::new();
 
@@ -548,12 +514,12 @@ fn entropy<L: Label>(class_freq: &HashMap<&L, f32>) -> f32 {
 mod tests {
     use super::*;
 
+    use rand_isaac::Isaac64Rng;
     use approx::assert_abs_diff_eq;
     use linfa::metrics::ToConfusionMatrix;
     use ndarray::{array, s, stack, Array, Array1, Array2, Axis};
 
-    use ndarray_rand::rand_distr::Uniform;
-    use ndarray_rand::RandomExt;
+    use ndarray_rand::{RandomExt, rand::SeedableRng, rand_distr::Uniform};
 
     #[test]
     fn prediction_for_rows_example() {
@@ -609,16 +575,38 @@ mod tests {
         );
 
         let targets = (0..50).map(|x| x < 25).collect::<Vec<_>>();
-
         let dataset = Dataset::new(data, targets);
 
         let model = DecisionTree::params().max_depth(Some(2)).fit(&dataset);
 
+        // we should only use feature index 8 here
         assert_eq!(&model.features(), &[8]);
         assert_eq!(
             &model.feature_importance(),
             &[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0]
         );
+
+        // check for perfect accuracy
+        let cm = model.predict(dataset.records()).confusion_matrix(&dataset);
+        assert!(cm.accuracy() == 1.0);
+    }
+
+    #[test]
+    /// Check that for random data the max depth is used
+    fn check_max_depth() {
+        let mut rng = Isaac64Rng::seed_from_u64(42);
+
+        // create very sparse data
+        let data = Array::random_using((50, 50), Uniform::new(-1., 1.), &mut rng);
+        let targets = (0..50).collect::<Vec<_>>();
+
+        let dataset = Dataset::new(data, targets);
+
+        // check that the provided depth is actually used
+        for max_depth in vec![1, 5, 10, 20] {
+            let model = DecisionTree::params().max_depth(Some(max_depth)).min_impurity_decrease(1e-10f64).min_weight_split(1e-10).fit(&dataset);
+            assert_eq!(model.max_depth(), max_depth);
+        }
     }
 
     #[test]
@@ -636,7 +624,7 @@ mod tests {
     }
 
     #[test]
-    /// Small toy dataset from sklearn
+    /// Small toy dataset from scikit-sklearn
     fn toy_dataset() {
         let data = array![
             [0.0, 0.0, 4.0, 0.0, 0.0, 0.0, 1.0, -14.0, 0.0, -4.0, 0.0, 0.0, 0.0, 0.0,],
@@ -666,9 +654,9 @@ mod tests {
 
         let targets = array![1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0];
 
-        let dataset = Dataset::new(data.clone(), targets);
+        let dataset = Dataset::new(data, targets);
         let model = DecisionTree::params().fit(&dataset);
-        let prediction = model.predict(data);
+        let prediction = model.predict(dataset.records());
 
         let cm = prediction.confusion_matrix(&dataset);
         assert!(cm.accuracy() > 0.95);
@@ -712,4 +700,14 @@ mod tests {
         let cm = prediction.confusion_matrix(&dataset);
         assert!(cm.accuracy() > 0.99);
     }
+
+    #[test]
+    #[should_panic]
+    /// Check that a small or negative impurity decrease panics
+    fn panic_min_impurity_decrease() {
+        DecisionTree::<f64, bool>::params()
+            .min_impurity_decrease(0.0)
+            .validate().unwrap();
+    }
+
 }

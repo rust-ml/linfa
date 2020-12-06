@@ -1,4 +1,4 @@
-use linfa::{Float, Label};
+use linfa::{Float, Label, error::{Result, Error}};
 use std::marker::PhantomData;
 
 /// The possible impurity measures for training.
@@ -44,5 +44,13 @@ impl<F: Float, L: Label> DecisionTreeParams<F, L> {
     pub fn min_impurity_decrease(mut self, min_impurity_decrease: F) -> Self {
         self.min_impurity_decrease = min_impurity_decrease;
         self
+    }
+
+    pub fn validate(&self) -> Result<()> {
+        if self.min_impurity_decrease < F::epsilon() {
+            return Err(Error::Parameters(format!("Minimum impurity decrease should be greater than zero, but was {}", self.min_impurity_decrease)));
+        }
+
+        Ok(())
     }
 }
