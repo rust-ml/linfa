@@ -9,8 +9,10 @@ use flate2::read::GzDecoder;
 use ndarray::{Array1, Array2, Axis};
 use ndarray_csv::Array2Reader;
 
-use linfa::metrics::IntoConfusionMatrix;
-use linfa_bayes::{FittedGaussianNb, GaussianNb};
+use linfa::dataset::Dataset;
+use linfa::metrics::ToConfusionMatrix;
+use linfa::traits::{Fit, Predict};
+use linfa_bayes::GaussianNbParams;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Read in the wine-quality dataset from dataset path
@@ -18,70 +20,35 @@ fn main() -> Result<(), Box<dyn Error>> {
     let dataset = read_array("../datasets/winequality-red.csv.gz")?;
 
     // Training data goes along the first axis (rows)
-    let npoints = dataset.len_of(Axis(0));
-    // Take 90% of the dataset as training data, and the remaining 10% as validation data
-    // `floor` is used here to explicitely down-round the number
-    let ntrain = (npoints as f32 * 0.9).floor() as usize;
-
     // The first 11 columns are features used in training and the last columns are targets
     let (data, targets) = dataset.view().split_at(Axis(1), 11);
     // group targets below 6.5 as bad wine and above as good wine
-    let targets = targets.into_iter().map(|x| *x > 6.5f64).collect::<Vec<_>>();
-    // split into training and validation data
-    let (train_data, train_targets) = (data.slice(s!(0..ntrain, ..)), &targets[0..ntrain]);
-    let (valid_data, valid_targets) = (data.slice(s!(ntrain.., ..)), &targets[ntrain..]);
-
-    let train_data = train_data.to_owned();
-    let valid_data = valid_data.to_owned();
-
-    fn tag_classes(x: bool) -> f64 {
-        if x {
-            1.
+    fn tag_classes(x: &f64) -> usize {
+        if *x > 6.5 {
+            1
         } else {
-            0.
+            0
         }
     };
+    let targets: Array1<_> = targets.into_iter().map(tag_classes).collect();
 
-    // Map targets from boolean to float
-    let train_targets: Array1<f64> = train_targets
-        .into_iter()
-        .cloned()
-        .map(tag_classes)
-        .collect();
-    let valid_targets: Array1<f64> = valid_targets
-        .into_iter()
-        .cloned()
-        .map(tag_classes)
-        .collect();
+    // Take 90% of the dataset as training data, and the remaining 10% as validation data
+    // `floor` is used here to explicitely down-round the number
+    let npoints = dataset.len_of(Axis(0));
 
-    // Initialize the model
-    let mut gnb: GaussianNb<f64> = GaussianNb::default();
-    let mut model = FittedGaussianNb::unfitted();
+    let ntrain = (npoints as f32 * 0.9).floor() as usize;
+    let (train_data, train_targets) = (data.slice(s!(0..ntrain, ..)), targets.slice(s!(0..ntrain)));
+    let (valid_data, valid_targets) = (data.slice(s!(ntrain.., ..)), targets.slice(s!(ntrain..)));
 
-    // Train the model using the incremental learning api
-    // `fit` method is also available for training using all data
-    for (x, y) in train_data
-        .axis_chunks_iter(Axis(0), 120)
-        .zip(train_targets.axis_chunks_iter(Axis(0), 120))
-    {
-        // The `&array![0., 1.]` represents the unique classes available
-        // in the dataset, this argument is required when training incrementally
-        model = gnb.fit_with(model, &x, &y, &array![0., 1.])?;
-    }
+    let train = Dataset::new(train_data, train_targets);
 
-    // Calculation predictions on the validation set
-    let prediction = model.predict(&valid_data)?;
+    // Train the model
+    let model = GaussianNbParams::params().fit(&train)?;
 
-    // We convert the predictions and the validation target as string for
-    // compatibility with the confusion matrix api
-    let prediction_str: Vec<_> = prediction.to_vec().iter().map(|x| x.to_string()).collect();
-    let valid_targets_str: Vec<_> = valid_targets
-        .to_vec()
-        .iter()
-        .map(|x| x.to_string())
-        .collect();
+    let pred = model.predict(valid_data)?;
 
-    let cm = prediction_str.into_confusion_matrix(&valid_targets_str);
+    // Construct confusion matrix
+    let cm = pred.confusion_matrix(valid_targets);
 
     // classes    | 0          | 1
     // 0          | 131        | 7

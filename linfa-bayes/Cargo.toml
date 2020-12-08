@@ -11,10 +11,9 @@ keywords = ["factorization", "machine-learning", "linfa", "unsupervised"]
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
-ndarray = { version = "0.13" , features = ["blas"]}
-ndarray-linalg = { version = "0.12", features = ["openblas"] }
+ndarray = { version = "0.13" , features = ["blas", "approx"]}
 ndarray-stats = "0.3"
-num-traits = "0.1.32"
+linfa = { version = "0.2.1", path=".." }
 
 [dev-dependencies]
 approx = "0.3"
