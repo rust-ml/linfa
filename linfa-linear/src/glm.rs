@@ -13,6 +13,7 @@ use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::LBFGS;
 use ndarray::{array, s, stack};
 use ndarray::{Array, Array1, Array2, Axis};
+use serde::{Deserialize, Serialize};
 
 /// Generalized Linear Model (GLM) with a Tweedie distribution
 ///
@@ -31,6 +32,7 @@ use ndarray::{Array, Array1, Array2, Axis};
 /// NOTE: No distribution exists between 0 and 1
 ///
 /// Learn more from sklearn's excellent [User Guide](https://scikit-learn.org/stable/modules/linear_model.html#generalized-linear-regression)
+#[derive(Serialize, Deserialize)]
 pub struct TweedieRegressor {
     alpha: f64,
     fit_intercept: bool,
@@ -263,6 +265,7 @@ impl<'a, A: Float> ArgminOp for TweedieProblem<'a, A> {
 }
 
 /// Fitted Tweedie regressor model for scoring
+#[derive(Serialize, Deserialize)]
 pub struct FittedTweedieRegressor<A> {
     /// Estimated coefficients for the linear predictor
     pub coef: Array1<A>,

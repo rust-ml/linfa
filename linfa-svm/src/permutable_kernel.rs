@@ -202,7 +202,7 @@ impl<'a, A: Float> Permutable<'a, A> for PermutableKernelRegression<'a, A> {
 #[cfg(test)]
 mod tests {
     use super::{Permutable, PermutableKernel};
-    use linfa_kernel::{Kernel, KernelInner};
+    use linfa_kernel::{Kernel, KernelInner, KernelMethod};
     use ndarray::array;
 
     #[test]
@@ -211,7 +211,7 @@ mod tests {
         let targets = vec![true, true, true];
         let dist = Kernel {
             inner: KernelInner::Dense(dist.clone()),
-            fnc: Box::new(|_, _| 0.0),
+            method: KernelMethod::Linear,
             dataset: dist.view(),
             linear: false,
         };

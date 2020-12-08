@@ -12,6 +12,17 @@ readme = "README.md"
 keywords = ["reduction", "machine-learning", "linfa", "spectral", "unsupervised"]
 categories = ["algorithms", "mathematics", "science"]
 
+[features]
+default = []
+serde = ["serde_crate", "ndarray/serde"]
+
+[dependencies.serde_crate]
+package = "serde"
+optional = true
+version = "1.0"
+default-features = false
+features = ["std", "derive"]
+
 [dependencies]
 ndarray = "0.13"
 ndarray-rand = "0.11"

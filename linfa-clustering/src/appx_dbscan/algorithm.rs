@@ -5,7 +5,7 @@ use linfa::traits::Transformer;
 use linfa::{Dataset, Float};
 use ndarray::{Array1, ArrayBase, Data, Ix2};
 #[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use serde_crate::{Deserialize, Serialize};
 
 #[cfg_attr(
     feature = "serde",

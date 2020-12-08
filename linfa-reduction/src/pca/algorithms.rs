@@ -4,6 +4,8 @@
 /// centered before applying the SVD. This uses TruncatedSvd from ndarray-linalg package.
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2};
 use ndarray_linalg::{TruncatedOrder, TruncatedSvd};
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 use linfa::{
     traits::{Fit, Predict},
@@ -11,6 +13,11 @@ use linfa::{
 };
 
 /// Pincipal Component Analysis
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub struct PrincipalComponentAnalysisParams {
     embedding_size: usize,
 }
@@ -41,6 +48,12 @@ impl<'a> Fit<'a, Array2<f64>, ()> for PrincipalComponentAnalysisParams {
     }
 }
 
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
+#[derive(Debug, Clone)]
 pub struct Pca<F> {
     embedding: Array2<F>,
     explained_variance: Array1<F>,

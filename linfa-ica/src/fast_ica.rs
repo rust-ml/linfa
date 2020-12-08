@@ -16,10 +16,17 @@ use ndarray_linalg::{eigh::Eigh, lapack::UPLO, svd::SVD, Lapack};
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
 use ndarray_stats::QuantileExt;
 use rand_isaac::Isaac64Rng;
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 use crate::error::{FastIcaError, Result};
 
 /// Fast Independent Component Analysis (ICA)
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Debug)]
 pub struct FastIca<F: Float> {
     ncomponents: Option<usize>,
@@ -217,6 +224,11 @@ impl<F: Float + Lapack> FastIca<F> {
 }
 
 /// Fitted FastICA model for recovering the sources
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Debug)]
 pub struct FittedFastIca<F> {
     mean: Array1<F>,
@@ -232,6 +244,11 @@ impl<F: Float> Predict<&Array2<F>, Array2<F>> for FittedFastIca<F> {
 }
 
 /// Some standard non-linear functions
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Debug)]
 pub enum GFunc {
     Logcosh(f64),

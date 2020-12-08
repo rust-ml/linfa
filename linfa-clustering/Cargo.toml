@@ -16,6 +16,10 @@ readme = "README.md"
 keywords = ["clustering", "machine-learning", "linfa", "k-means", "unsupervised"]
 categories = ["algorithms", "mathematics", "science"]
 
+[features]
+default = []
+serde = ["serde_crate", "ndarray/serde"]
+
 [dependencies.serde_crate]
 package = "serde"
 optional = true

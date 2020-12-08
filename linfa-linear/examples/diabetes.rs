@@ -1,12 +1,15 @@
 extern crate openblas_src;
 
+use std::error::Error;
+use std::fs::File;
+
 use csv::ReaderBuilder;
 use flate2::read::GzDecoder;
 use linfa_linear::LinearRegression;
 use ndarray::Array2;
 use ndarray_csv::Array2Reader;
-use std::error::Error;
-use std::fs::File;
+
+use linfa::{traits::Fit, Dataset};
 
 fn read_array(path: &str) -> Result<Array2<f64>, Box<dyn Error>> {
     let file = GzDecoder::new(File::open(path)?);
@@ -20,8 +23,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let target = read_array("../datasets/diabetes_target.csv.gz")?;
     let target = target.column(0);
 
+    let dataset = Dataset::new(data, target);
+
     let lin_reg = LinearRegression::new();
-    let model = lin_reg.fit(&data, &target)?;
+    let model = lin_reg.fit(&dataset)?;
 
     println!("intercept:  {}", model.intercept());
     println!("parameters: {}", model.params());

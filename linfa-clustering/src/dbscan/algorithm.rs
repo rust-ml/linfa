@@ -1,18 +1,11 @@
 use crate::dbscan::hyperparameters::{DbscanHyperParams, DbscanHyperParamsBuilder};
 use ndarray::{Array1, ArrayBase, ArrayView, Axis, Data, Ix1, Ix2};
 use ndarray_stats::DeviationExt;
-#[cfg(feature = "serde")]
-use serde_crate::{Deserialize, Serialize};
 
 use linfa::dataset::Targets;
 use linfa::traits::Transformer;
 use linfa::{Dataset, Float};
 
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
 #[derive(Clone, Debug, PartialEq)]
 /// DBSCAN (Density-based Spatial Clustering of Applications with Noise)
 /// clusters together points which are close together with enough neighbors

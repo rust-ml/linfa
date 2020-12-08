@@ -1,6 +1,6 @@
 use linfa::Float;
 #[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use serde_crate::{Deserialize, Serialize};
 
 #[cfg_attr(
     feature = "serde",

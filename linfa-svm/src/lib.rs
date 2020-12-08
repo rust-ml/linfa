@@ -71,6 +71,9 @@ use ndarray::Array1;
 use std::fmt;
 use std::marker::PhantomData;
 
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
+
 mod classification;
 mod permutable_kernel;
 mod regression;
@@ -144,6 +147,11 @@ pub mod SVRegress {
 }
 
 /// SMO can either exit because a threshold is reached or the iterations are maxed out
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Debug)]
 pub enum ExitReason {
     ReachedThreshold,
@@ -151,6 +159,11 @@ pub enum ExitReason {
 }
 
 /// The result of the SMO solver
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub struct Svm<'a, A: Float, T> {
     pub alpha: Vec<A>,
     pub rho: A,
@@ -158,6 +171,13 @@ pub struct Svm<'a, A: Float, T> {
     exit_reason: ExitReason,
     iterations: usize,
     obj: A,
+    #[cfg_attr(
+        feature = "serde",
+        serde(bound(
+            serialize = "&'a Kernel<'a, A>: Serialize",
+            deserialize = "&'a Kernel<'a, A>: Deserialize<'de>"
+        ))
+    )]
     kernel: &'a Kernel<'a, A>,
     linear_decision: Option<Array1<A>>,
     phantom: PhantomData<T>,

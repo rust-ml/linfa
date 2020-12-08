@@ -4,7 +4,15 @@ use linfa::{
 };
 use std::marker::PhantomData;
 
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
+
 /// The possible impurity measures for training.
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Clone, Copy, Debug)]
 pub enum SplitQuality {
     Gini,
@@ -13,6 +21,11 @@ pub enum SplitQuality {
 
 /// The set of hyperparameters that can be specified for fitting a
 /// [decision tree](struct.DecisionTree.html).
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Clone, Copy, Debug)]
 pub struct DecisionTreeParams<F, L> {
     pub split_quality: SplitQuality,

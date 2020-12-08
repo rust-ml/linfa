@@ -1,10 +1,11 @@
 //! Link functions used by GLM
 
 use ndarray::Array1;
+use serde::{Deserialize, Serialize};
 
 use crate::float::Float;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Serialize, Deserialize)]
 pub enum Link {
     /// The identity link function `g(x)=x`
     Identity,

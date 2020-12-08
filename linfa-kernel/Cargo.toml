@@ -12,6 +12,17 @@ readme = "README.md"
 keywords = ["kernel", "machine-learning", "linfa"]
 categories = ["algorithms", "mathematics", "science"]
 
+[features]
+default = []
+serde = ["serde_crate", "ndarray/serde", "sprs/serde"]
+
+[dependencies.serde_crate]
+package = "serde"
+optional = true
+version = "1.0"
+default-features = false
+features = ["std", "derive"]
+
 [dependencies]
 ndarray = "0.13"
 sprs = { version = "0.9", default-features = false }

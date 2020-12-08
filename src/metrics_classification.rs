@@ -510,7 +510,7 @@ impl<R: Records, R2: Records, T: Targets<Elem = bool>, T2: Targets<Elem = Pr>>
     BinaryClassification<&Dataset<R, T>> for Dataset<R2, T2>
 {
     fn roc(&self, y: &Dataset<R, T>) -> ReceiverOperatingCharacteristic {
-        self.targets().roc(y.targets())
+        self.targets().as_slice().roc(y.targets().as_slice())
     }
 }
 

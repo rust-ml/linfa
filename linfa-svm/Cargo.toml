@@ -12,6 +12,17 @@ readme = "README.md"
 keywords = ["svm", "machine-learning", "linfa", "supervised"]
 categories = ["algorithms", "mathematics", "science"]
 
+[features]
+default = []
+serde = ["serde_crate", "ndarray/serde", "linfa-kernel/serde"]
+
+[dependencies.serde_crate]
+package = "serde"
+optional = true
+version = "1.0"
+default-features = false
+features = ["std", "derive"]
+
 [dependencies]
 ndarray = { version = "0.13", default-features=false, features=["blas"] }
 ndarray-rand = "0.11"

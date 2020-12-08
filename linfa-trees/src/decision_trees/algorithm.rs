@@ -15,6 +15,9 @@ use linfa::{
     Dataset, Float, Label,
 };
 
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
+
 /// RowMask tracks observations
 ///
 /// The decision tree algorithm splits observations at a certain split value for a specific feature. The
@@ -64,6 +67,11 @@ impl<F: Float> SortedIndex<F> {
     }
 }
 
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Debug, Clone)]
 /// A node in the decision tree
 pub struct TreeNode<F, L> {
@@ -342,6 +350,11 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
 }
 
 /// A fitted decision tree model.
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Debug)]
 pub struct DecisionTree<F: Float, L: Label> {
     root_node: TreeNode<F, L>,

@@ -1,4 +1,4 @@
-use ndarray::{Array1, Array2, ArrayBase, ArrayView2, Axis, Data, Dimension, Ix2};
+use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Dimension, Ix2};
 use rand::{seq::SliceRandom, Rng};
 use std::collections::HashMap;
 
@@ -19,8 +19,8 @@ impl<R: Records, S: Targets> Dataset<R, S> {
         }
     }
 
-    pub fn targets(&self) -> &[S::Elem] {
-        self.targets.as_slice()
+    pub fn targets(&self) -> &S {
+        &self.targets
     }
 
     pub fn target(&self, idx: usize) -> &S::Elem {
@@ -146,13 +146,20 @@ impl<F: Float, T: Targets, D: Data<Elem = F>> Dataset<ArrayBase<D, Ix2>, T> {
         let n = (self.observations() as f32 * ratio).ceil() as usize;
         let (first, second) = self.records.view().split_at(Axis(0), n);
 
-        let targets = self.targets();
+        let targets = self.targets().as_slice();
         let (first_targets, second_targets) = (&targets[..n], &targets[n..]);
 
         let dataset1 = Dataset::new(first, first_targets);
         let dataset2 = Dataset::new(second, second_targets);
 
         (dataset1, dataset2)
+    }
+
+    pub fn view(&self) -> Dataset<ArrayView2<'_, F>, ArrayView1<'_, T::Elem>> {
+        let records = self.records().view();
+        let targets = ArrayView1::from(self.targets.as_slice());
+
+        Dataset::new(records, targets)
     }
 }
 

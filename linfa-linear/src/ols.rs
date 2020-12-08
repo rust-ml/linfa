@@ -24,11 +24,19 @@
 //! ```
 
 #![allow(non_snake_case)]
-use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2, ScalarOperand};
+use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2};
 use ndarray_linalg::{Lapack, Scalar, Solve};
 use ndarray_stats::SummaryStatisticsExt;
-use num_traits::float::Float;
+use serde::{Deserialize, Serialize};
 
+use linfa::dataset::Dataset;
+use linfa::traits::{Fit, Predict};
+
+pub trait Float: linfa::Float + Lapack + Scalar {}
+impl Float for f32 {}
+impl Float for f64 {}
+
+#[derive(Serialize, Deserialize)]
 /// An ordinary least squares linear regression model.
 ///
 /// LinearRegression fits a linear model to minimize the residual sum of
@@ -47,7 +55,7 @@ pub struct LinearRegression {
     options: Options,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 enum Options {
     None,
     WithIntercept,
@@ -64,6 +72,7 @@ impl Options {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 /// A fitted linear regression model which can be used for making predictions.
 pub struct FittedLinearRegression<A> {
     intercept: A,
@@ -115,6 +124,12 @@ impl LinearRegression {
         self.options = Options::WithInterceptAndNormalize;
         self
     }
+}
+
+impl<'a, F: Float, D: Data<Elem = F>, D2: Data<Elem = F>>
+    Fit<'a, ArrayBase<D, Ix2>, ArrayBase<D2, Ix1>> for LinearRegression
+{
+    type Object = Result<FittedLinearRegression<F>, String>;
 
     /// Fit a linear regression model given a feature matrix `X` and a target
     /// variable `y`.
@@ -126,16 +141,12 @@ impl LinearRegression {
     /// Returns a `FittedLinearRegression` object which contains the fitted
     /// parameters and can be used to `predict` values of the target variable
     /// for new feature values.
-    pub fn fit<A, B, C>(
+    fn fit(
         &self,
-        X: &ArrayBase<B, Ix2>,
-        y: &ArrayBase<C, Ix1>,
-    ) -> Result<FittedLinearRegression<A>, String>
-    where
-        A: Lapack + Scalar + ScalarOperand + Float,
-        B: Data<Elem = A>,
-        C: Data<Elem = A>,
-    {
+        dataset: &'a Dataset<ArrayBase<D, Ix2>, ArrayBase<D2, Ix1>>,
+    ) -> Result<FittedLinearRegression<F>, String> {
+        let X = dataset.records();
+        let y = dataset.targets();
         let (n_samples, _) = X.dim();
 
         // Check that our inputs have compatible shapes
@@ -146,21 +157,21 @@ impl LinearRegression {
             // compute the models parameters based on the centered X and y
             // and the intercept as the residual of fitted parameters applied
             // to the X_offset and y_offset
-            let X_offset: Array1<A> = X
+            let X_offset: Array1<F> = X
                 .mean_axis(Axis(0))
                 .ok_or_else(|| String::from("cannot compute mean of X"))?;
-            let X_centered: Array2<A> = X - &X_offset;
-            let y_offset: A = y
+            let X_centered: Array2<F> = X - &X_offset;
+            let y_offset: F = y
                 .mean()
                 .ok_or_else(|| String::from("cannot compute mean of y"))?;
-            let y_centered: Array1<A> = y - y_offset;
-            let params: Array1<A> =
+            let y_centered: Array1<F> = y - y_offset;
+            let params: Array1<F> =
                 compute_params(&X_centered, &y_centered, self.options.should_normalize())?;
-            let intercept: A = y_offset - X_offset.dot(&params);
+            let intercept: F = y_offset - X_offset.dot(&params);
             Ok(FittedLinearRegression { intercept, params })
         } else {
             Ok(FittedLinearRegression {
-                intercept: A::from(0).unwrap(),
+                intercept: F::from(0).unwrap(),
                 params: solve_normal_equation(X, y)?,
             })
         }
@@ -169,20 +180,20 @@ impl LinearRegression {
 
 /// Compute the parameters for the linear regression model with
 /// or without normalization.
-fn compute_params<A, B, C>(
+fn compute_params<F, B, C>(
     X: &ArrayBase<B, Ix2>,
     y: &ArrayBase<C, Ix1>,
     normalize: bool,
-) -> Result<Array1<A>, String>
+) -> Result<Array1<F>, String>
 where
-    A: Scalar + Lapack + Float,
-    B: Data<Elem = A>,
-    C: Data<Elem = A>,
+    F: Float,
+    B: Data<Elem = F>,
+    C: Data<Elem = F>,
 {
     if normalize {
-        let scale: Array1<A> = X.map_axis(Axis(0), |column| column.central_moment(2).unwrap());
-        let X: Array2<A> = X / &scale;
-        let mut params: Array1<A> = solve_normal_equation(&X, y)?;
+        let scale: Array1<F> = X.map_axis(Axis(0), |column| column.central_moment(2).unwrap());
+        let X: Array2<F> = X / &scale;
+        let mut params: Array1<F> = solve_normal_equation(&X, y)?;
         params /= &scale;
         Ok(params)
     } else {
@@ -193,14 +204,14 @@ where
 /// Solve the overconstrained model Xb = y by solving X^T X b = X^t y,
 /// this is (mathematically, not numerically) equivalent to computing
 /// the solution with the Moore-Penrose pseudo-inverse.
-fn solve_normal_equation<A, B, C>(
+fn solve_normal_equation<F, B, C>(
     X: &ArrayBase<B, Ix2>,
     y: &ArrayBase<C, Ix1>,
-) -> Result<Array1<A>, String>
+) -> Result<Array1<F>, String>
 where
-    A: Lapack + Scalar,
-    B: Data<Elem = A>,
-    C: Data<Elem = A>,
+    F: Float,
+    B: Data<Elem = F>,
+    C: Data<Elem = F>,
 {
     let rhs = X.t().dot(y);
     let linear_operator = X.t().dot(X);
@@ -211,22 +222,34 @@ where
 
 /// View the fitted parameters and make predictions with a fitted
 /// linear regresssion model.
-impl<A: Scalar + ScalarOperand> FittedLinearRegression<A> {
-    /// Given an input matrix `X`, with shape `(n_samples, n_features)`,
-    /// `predict` returns the target variable according to linear model
-    /// learned from the training data distribution.
-    pub fn predict(&self, X: &Array2<A>) -> Array1<A> {
-        X.dot(&self.params) + self.intercept
-    }
-
+impl<F: Float> FittedLinearRegression<F> {
     /// Get the fitted parameters
-    pub fn params(&self) -> &Array1<A> {
+    pub fn params(&self) -> &Array1<F> {
         &self.params
     }
 
     /// Get the fitted intercept, 0. if no intercept was fitted
-    pub fn intercept(&self) -> A {
+    pub fn intercept(&self) -> F {
         self.intercept
+    }
+}
+
+impl<F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Array1<F>>
+    for FittedLinearRegression<F>
+{
+    /// Given an input matrix `X`, with shape `(n_samples, n_features)`,
+    /// `predict` returns the target variable according to linear model
+    /// learned from the training data distribution.
+    fn predict(&self, x: ArrayBase<D, Ix2>) -> Array1<F> {
+        x.dot(&self.params) + self.intercept
+    }
+}
+
+impl<F: Float, D: Data<Elem = F>> Predict<&ArrayBase<D, Ix2>, Array1<F>>
+    for FittedLinearRegression<F>
+{
+    fn predict(&self, x: &ArrayBase<D, Ix2>) -> Array1<F> {
+        self.predict(x.view())
     }
 }
 
@@ -236,15 +259,14 @@ mod tests {
 
     use super::*;
     use approx::abs_diff_eq;
-    use ndarray::{array, s, Array1, Array2};
+    use ndarray::array;
 
     #[test]
     fn fits_a_line_through_two_dots() {
         let lin_reg = LinearRegression::new();
-        let A: Array2<f64> = array![[0.], [1.]];
-        let b: Array1<f64> = array![1., 2.];
-        let model = lin_reg.fit(&A, &b).unwrap();
-        let result = model.predict(&A);
+        let dataset = Dataset::new(array![[0f64], [1.]], array![1., 2.]);
+        let model = lin_reg.fit(&dataset).unwrap();
+        let result = model.predict(dataset.records());
 
         abs_diff_eq!(result, &array![1., 2.], epsilon = 1e-12);
     }
@@ -255,9 +277,8 @@ mod tests {
     #[test]
     fn without_intercept_fits_line_through_origin() {
         let lin_reg = LinearRegression::new().with_intercept(false);
-        let A: Array2<f64> = array![[1.]];
-        let b: Array1<f64> = array![1.];
-        let model = lin_reg.fit(&A, &b).unwrap();
+        let dataset = Dataset::new(array![[1.]], array![1.]);
+        let model = lin_reg.fit(&dataset).unwrap();
         let result = model.predict(&array![[0.], [1.]]);
 
         abs_diff_eq!(result, &array![0., 1.], epsilon = 1e-12);
@@ -271,10 +292,9 @@ mod tests {
     #[test]
     fn fits_least_squares_line_through_two_dots() {
         let lin_reg = LinearRegression::new().with_intercept(false);
-        let A: Array2<f64> = array![[-1.], [1.]];
-        let b: Array1<f64> = array![1., 1.];
-        let model = lin_reg.fit(&A, &b).unwrap();
-        let result = model.predict(&A);
+        let dataset = Dataset::new(array![[-1.], [1.]], array![1., 1.]);
+        let model = lin_reg.fit(&dataset).unwrap();
+        let result = model.predict(dataset.records());
 
         abs_diff_eq!(result, &array![0., 0.], epsilon = 1e-12);
     }
@@ -287,10 +307,9 @@ mod tests {
     #[test]
     fn fits_least_squares_line_through_three_dots() {
         let lin_reg = LinearRegression::new();
-        let A: Array2<f64> = array![[0.], [1.], [2.]];
-        let b: Array1<f64> = array![0., 0., 2.];
-        let model = lin_reg.fit(&A, &b).unwrap();
-        let actual = model.predict(&A);
+        let dataset = Dataset::new(array![[0.], [1.], [2.]], array![0., 0., 2.]);
+        let model = lin_reg.fit(&dataset).unwrap();
+        let actual = model.predict(dataset.records());
 
         abs_diff_eq!(actual, array![-1. / 3., 2. / 3., 5. / 3.], epsilon = 1e-12);
     }
@@ -301,9 +320,8 @@ mod tests {
     #[test]
     fn fits_three_parameters_through_three_dots() {
         let lin_reg = LinearRegression::new();
-        let A: Array2<f64> = array![[0., 0.], [1., 1.], [2., 4.]];
-        let b: Array1<f64> = array![1., 4., 9.];
-        let model = lin_reg.fit(&A, &b).unwrap();
+        let dataset = Dataset::new(array![[0f64, 0.], [1., 1.], [2., 4.]], array![1., 4., 9.]);
+        let model = lin_reg.fit(&dataset).unwrap();
 
         abs_diff_eq!(model.params(), &array![2., 1.], epsilon = 1e-12);
         abs_diff_eq!(model.intercept(), &1., epsilon = 1e-12);
@@ -315,9 +333,11 @@ mod tests {
     #[test]
     fn fits_four_parameters_through_four_dots() {
         let lin_reg = LinearRegression::new();
-        let A: Array2<f64> = array![[0., 0., 0.], [1., 1., 1.], [2., 4., 8.], [3., 9., 27.]];
-        let b: Array1<f64> = array![1., 8., 27., 64.];
-        let model = lin_reg.fit(&A, &b).unwrap();
+        let dataset = Dataset::new(
+            array![[0f64, 0., 0.], [1., 1., 1.], [2., 4., 8.], [3., 9., 27.]],
+            array![1., 8., 27., 64.],
+        );
+        let model = lin_reg.fit(&dataset).unwrap();
 
         abs_diff_eq!(model.params(), &array![3., 3., 1.], epsilon = 1e-12);
         abs_diff_eq!(model.intercept(), &1., epsilon = 1e-12);
@@ -329,9 +349,8 @@ mod tests {
     #[test]
     fn fits_three_parameters_through_three_dots_f32() {
         let lin_reg = LinearRegression::new();
-        let A: Array2<f32> = array![[0., 0.], [1., 1.], [2., 4.]];
-        let b: Array1<f32> = array![1., 4., 9.];
-        let model = lin_reg.fit(&A, &b).unwrap();
+        let dataset = Dataset::new(array![[0f64, 0.], [1., 1.], [2., 4.]], array![1., 4., 9.]);
+        let model = lin_reg.fit(&dataset).unwrap();
 
         abs_diff_eq!(model.params(), &array![2., 1.], epsilon = 1e-4);
         abs_diff_eq!(model.intercept(), &1., epsilon = 1e-6);
@@ -344,9 +363,11 @@ mod tests {
     #[test]
     fn fits_four_parameters_through_four_dots_with_normalization() {
         let lin_reg = LinearRegression::new().with_intercept_and_normalize();
-        let A: Array2<f64> = array![[0., 0., 0.], [1., 1., 1.], [2., 4., 8.], [3., 9., 27.]];
-        let b: Array1<f64> = array![1., 8., 27., 64.];
-        let model = lin_reg.fit(&A, &b).unwrap();
+        let dataset = Dataset::new(
+            array![[0f64, 0., 0.], [1., 1., 1.], [2., 4., 8.], [3., 9., 27.]],
+            array![1., 8., 27., 64.],
+        );
+        let model = lin_reg.fit(&dataset).unwrap();
 
         abs_diff_eq!(model.params(), &array![3., 3., 1.], epsilon = 1e-12);
         abs_diff_eq!(model.intercept(), 1., epsilon = 1e-12);
@@ -357,28 +378,18 @@ mod tests {
     #[test]
     fn works_with_viewed_and_owned_representations() {
         let lin_reg = LinearRegression::new().with_intercept_and_normalize();
-        let A: Array2<f64> = array![[0., 0., 0.], [1., 1., 1.], [2., 4., 8.], [3., 9., 27.]];
-        let b: Array1<f64> = array![1., 8., 27., 64.];
-        let A_view = A.slice(s![.., ..]);
-        let b_view = b.slice(s![..]);
+        let dataset = Dataset::new(
+            array![[0., 0., 0.], [1., 1., 1.], [2., 4., 8.], [3., 9., 27.]],
+            array![1., 8., 27., 64.],
+        );
+        let dataset_view = dataset.view();
 
-        let model1 = lin_reg.fit(&A, &b).expect("can't fit owned arrays");
+        let model1 = lin_reg.fit(&dataset).expect("can't fit owned arrays");
         let model2 = lin_reg
-            .fit(&A_view, &b)
+            .fit(&dataset_view)
             .expect("can't fit feature view with owned target");
-        let model3 = lin_reg
-            .fit(&A, &b_view)
-            .expect("can't fit owned features with target view");
-        let model4 = lin_reg
-            .fit(&A_view, &b_view)
-            .expect("can't fit viewed arrays");
 
         assert_eq!(model1.params(), model2.params());
-        assert_eq!(model2.params(), model3.params());
-        assert_eq!(model3.params(), model4.params());
-
         abs_diff_eq!(model1.intercept(), model2.intercept());
-        abs_diff_eq!(model2.intercept(), model3.intercept());
-        abs_diff_eq!(model3.intercept(), model4.intercept());
     }
 }
