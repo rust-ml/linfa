@@ -8,8 +8,8 @@ use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
 use ndarray_stats::QuantileExt;
 
 use crate::error::{BayesError, Result};
+use linfa::dataset::{Dataset, Labels};
 use linfa::traits::{Fit, Predict};
-use linfa::Dataset;
 use linfa::Float;
 
 /// Gaussian Naive Bayes (GaussianNB)
@@ -56,9 +56,10 @@ impl<A> GaussianNbParams<A> {
     }
 }
 
-impl<'a, A> Fit<'a, ArrayView2<'_, A>, ArrayView1<'_, usize>> for GaussianNbParams<A>
+impl<'a, A, L> Fit<'a, ArrayView2<'_, A>, L> for GaussianNbParams<A>
 where
     A: Float + PartialEq + PartialOrd,
+    L: Labels<Elem = usize>,
 {
     type Object = Result<GaussianNb<A>>;
 
@@ -81,19 +82,20 @@ where
     ///     [1., 2.],
     ///     [2., 1.]
     /// ];
-    /// let y = array![1, 1, 1, 2, 2, 2];
+    /// let y = vec![1, 1, 1, 2, 2, 2];
     ///
-    /// let data = Dataset::new(x.view(), y.view());
+    /// let data = Dataset::new(x.view(), &y);
     /// let model = GaussianNbParams::params().fit(&data)?;
     /// let pred = model.predict(x.view())?;
     ///
-    /// assert_eq!(pred, y);
+    /// assert_eq!(pred.to_vec(), y);
     /// # Ok(())
     /// # }
     /// ```
-    fn fit(&self, dataset: &'a Dataset<ArrayView2<A>, ArrayView1<usize>>) -> Self::Object {
+    fn fit(&self, dataset: &'a Dataset<ArrayView2<A>, L>) -> Self::Object {
         // We extract the unique classes in sorted order
-        let unique_classes = Self::unique(&dataset.targets.view());
+        let mut unique_classes = dataset.targets.labels();
+        unique_classes.sort_unstable();
 
         let mut model = GaussianNb::unfitted();
         if self.priors_provided {
@@ -104,7 +106,7 @@ where
         model = self.fit_with(
             model,
             dataset.records.view(),
-            dataset.targets.view(),
+            &dataset.targets,
             &unique_classes,
         )?;
 
@@ -132,7 +134,7 @@ impl<A: Float> GaussianNbParams<A> {
     ///     [2., 1.]
     /// ];
     /// let y = array![1, 1, 1, 2, 2, 2];
-    /// let classes = array![1, 2];
+    /// let classes = &[1, 2];
     ///
     /// let mut clf = GaussianNbParams::params();
     /// let mut model = GaussianNb::unfitted();
@@ -141,7 +143,7 @@ impl<A: Float> GaussianNbParams<A> {
     ///     .axis_chunks_iter(Axis(0), 2)
     ///     .zip(y.axis_chunks_iter(Axis(0), 2))
     /// {
-    ///     model = clf.fit_with(model, x, y, &classes)?;
+    ///     model = clf.fit_with(model, x, y.to_vec(), classes)?;
     /// }
     ///
     /// let pred = model.predict(x.view())?;
@@ -150,12 +152,12 @@ impl<A: Float> GaussianNbParams<A> {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn fit_with(
+    pub fn fit_with<L: Labels<Elem = usize>>(
         &self,
         mut model: GaussianNb<A>,
         x: ArrayView2<A>,
-        y: ArrayView1<usize>,
-        classes: &Array1<usize>,
+        y: L,
+        classes: &[usize],
     ) -> Result<GaussianNb<A>> {
         // If the ratio of the variance between dimensions is too small, it will cause
         // numerical errors. We address this by artificially boosting the variance
@@ -218,7 +220,7 @@ impl<A: Float> GaussianNbParams<A> {
             model.sigma.as_mut().unwrap().mapv_inplace(|x| x - epsilon);
         }
 
-        let yunique = Self::unique(&y);
+        let yunique = y.labels();
 
         // We make sure there are no new classes in `y` that are not available
         // in `self.classes`
@@ -243,7 +245,7 @@ impl<A: Float> GaussianNbParams<A> {
                 .unwrap();
 
             // We filter x for records that correspond to the current class
-            let xclass = Self::filter(&x, &y, *class);
+            let xclass = Self::filter(&x, y.as_slice(), *class);
 
             // We count the number of occurances of the class
             let nclass = xclass.nrows();
@@ -339,31 +341,19 @@ impl<A: Float> GaussianNbParams<A> {
         (mu_weighted, var_weighted)
     }
 
-    // Extract unique elements of the array in sorted order
-    fn unique(y: &ArrayView1<usize>) -> Array1<usize> {
-        // We are identifying unique classes in y,
-        // ndarray doesn't provide methods for extracting unique elements,
-        // So we are converting it to a Vec
-        let mut unique_classes = y.to_vec();
-        //unique_classes.sort_by(|x, y| x.cmp(y));
-        unique_classes.sort_unstable();
-        unique_classes.dedup();
-
-        Array1::from(unique_classes)
-    }
-
     // Returns a subset of x corresponding to the class specified by `ycondition`
-    fn filter(x: &ArrayView2<A>, y: &ArrayView1<usize>, ycondition: usize) -> Array2<A> {
+    fn filter(x: &ArrayView2<A>, y: &[usize], ycondition: usize) -> Array2<A> {
         // We identify the row numbers corresponding to the class we are interested in
-        let index: Vec<_> = y
-            .indexed_iter()
+        let index = y
+            .iter()
+            .enumerate()
             .filter_map(|(i, y)| {
                 if ycondition == *y {
                     return Some(i);
                 }
                 None
             })
-            .collect();
+            .collect::<Vec<_>>();
 
         // We subset x to only records corresponding to the class represented in `ycondition`
         let mut xsubset = Array2::zeros((index.len(), x.ncols()));
@@ -379,7 +369,7 @@ impl<A: Float> GaussianNbParams<A> {
 /// Fitted GaussianNB for predicting classes
 #[derive(Debug)]
 pub struct GaussianNb<A> {
-    classes: Option<Array1<usize>>,
+    classes: Option<Vec<usize>>,
     class_count: Option<Array1<usize>>,
     priors: Option<Array1<A>>,
     theta: Option<Array2<A>>,
@@ -498,7 +488,7 @@ mod tests {
             [2., 1.]
         ];
         let y = array![1, 1, 1, 2, 2, 2];
-        let classes = array![1, 2];
+        let classes = vec![1, 2];
 
         let clf = GaussianNbParams::params();
         let mut model = GaussianNb::unfitted();
