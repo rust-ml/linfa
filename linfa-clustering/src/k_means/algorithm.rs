@@ -404,8 +404,6 @@ fn get_random_centroids<F: Float, D: Data<Elem = F>>(
 
 #[cfg(test)]
 mod tests {
-    extern crate openblas_src;
-
     use super::*;
     use approx::assert_abs_diff_eq;
     use ndarray::{array, stack, Array, Array1, Array2, Axis};

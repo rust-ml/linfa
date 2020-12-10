@@ -25,6 +25,7 @@ features = ["std", "derive"]
 
 [dependencies]
 ndarray = { version = "0.13", default-features=false, features=["blas"] }
+ndarray-linalg = "0.12"
 ndarray-rand = "0.11"
 num-traits = "0.1.32"
 
@@ -32,7 +33,6 @@ linfa = { version = "0.2.1", path = ".." }
 linfa-kernel = { version = "0.2.1", path = "../linfa-kernel" }
 
 [dev-dependencies]
-openblas-src = { version = "0.9", default-features = false, features = ["system"] }
 csv = "1.1"
 ndarray-csv = "0.4"
 flate2 = "1.0"

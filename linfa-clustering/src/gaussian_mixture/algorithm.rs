@@ -54,7 +54,6 @@ use serde_crate::{Deserialize, Serialize};
 /// Let's do a walkthrough of a training-predict-save example.
 ///
 /// ```rust, ignore
-/// extern crate openblas_src;
 /// use linfa::Dataset;
 /// use linfa::traits::{Fit, Predict};
 /// use linfa_clustering::{GmmHyperParams, GaussianMixtureModel, generate_blobs};
@@ -478,8 +477,6 @@ impl<F: Float + Lapack + Scalar, D: Data<Elem = F>, T: Targets>
 
 #[cfg(test)]
 mod tests {
-    extern crate openblas_src;
-
     use super::*;
     use crate::generate_blobs;
     use approx::assert_abs_diff_eq;

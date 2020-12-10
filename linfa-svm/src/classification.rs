@@ -305,8 +305,6 @@ impl<'a, F: Float, T: Targets, D: Data<Elem = F>>
 
 #[cfg(test)]
 mod tests {
-    extern crate openblas_src;
-
     use super::Svm;
     use linfa::dataset::Dataset;
     use linfa::metrics::ToConfusionMatrix;

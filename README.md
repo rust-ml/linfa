@@ -41,6 +41,22 @@ We believe that only a significant community effort can nurture, build, and sust
 
 If this strikes a chord with you, please take a look at the [roadmap](https://github.com/rust-ml/linfa/issues/7) and get involved!
 
+## BLAS/Lapack Backend
+
+At the moment you can choose between the following BLAS/LAPACK backends: `openblas`, `netblas` or `intel-mkl`
+
+|Backend  | Linux | Windows | macOS |
+|:--------|:-----:|:-------:|:-----:|
+|OpenBLAS |✔️      |-        |-      |
+|Netlib   |✔️      |-        |-      |
+|Intel MKL|✔️      |✔️        |✔️      |
+
+For example if you want to use the system IntelMKL library, you can run the SVM example as follow:
+```
+cd linfa-reduction && cargo run --release --example pca --features linfa/intel-mkl-system
+```
+this selects the `intel-mkl` system library. If you want to compile the library and link it with the generated artifacts then pass `intel-mkl-static`.
+
 # License
 Dual-licensed to be compatible with the Rust project.
 

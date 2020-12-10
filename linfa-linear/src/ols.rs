@@ -255,8 +255,6 @@ impl<F: Float, D: Data<Elem = F>> Predict<&ArrayBase<D, Ix2>, Array1<F>>
 
 #[cfg(test)]
 mod tests {
-    extern crate openblas_src;
-
     use super::*;
     use approx::abs_diff_eq;
     use ndarray::array;

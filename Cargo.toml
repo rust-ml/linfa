@@ -21,24 +21,37 @@ exclude = [".github/"]
 [features]
 default = []
 
-netlib-static = ["ndarray-linalg/netlib-static"]
-netlib-system = ["ndarray-linalg/netlib-system"]
+netlib-static = ["ndarray-linalg", "netlib-src/static"]
+netlib-system = ["ndarray-linalg", "netlib-src/system"]
 
-openblas-static = ["ndarray-linalg/openblas-static"]
-openblas-system = ["ndarray-linalg/openblas-system"]
+openblas-static = ["ndarray-linalg", "openblas-src/static"]
+openblas-system = ["ndarray-linalg", "openblas-src/system"]
 
-intel-mkl-static = ["ndarray-linalg/intel-mkl-static"]
-intel-mkl-system = ["ndarray-linalg/intel-mkl-system"]
+intel-mkl-static = ["ndarray-linalg", "intel-mkl-src/mkl-static-lp64-seq", "intel-mkl-src/download"]
+intel-mkl-system = ["ndarray-linalg", "intel-mkl-src/mkl-dynamic-lp64-seq"]
 
 [dependencies]
 num-traits = "0.2"
 rand = "0.7"
-ndarray = { version = "0.13", default-features = false }
+ndarray = { version = "0.13", default-features = false, features = ["blas"] }
+ndarray-linalg = { version = "0.12", optional = true }
 
-[dependencies.ndarray-linalg]
-git = "https://github.com/rust-ndarray/ndarray-linalg.git"
-version = "0.13.0-alpha.0"
+[dependencies.intel-mkl-src]
+version = "0.6.0"
+default-features = false
 optional = true
+
+[dependencies.netlib-src]
+version = "0.8.0"
+optional = true
+features = ["cblas"]
+default-features = false
+
+[dependencies.openblas-src]
+version = "0.9.0"
+optional = true
+default-features = false
+features = ["cblas"]
 
 [dev-dependencies]
 ndarray-rand = "0.12"

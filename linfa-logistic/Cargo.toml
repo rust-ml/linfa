@@ -14,12 +14,13 @@ keywords = ["machine-learning", "linfa", "ai", "ml", "linear"]
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
-ndarray = {version = "0.13", features = ["blas", "approx"]}
+ndarray = {version = "0.13", features = ["approx", "blas"]}
 ndarray-linalg = "0.12"
 num-traits = "0.2"
 argmin = {version="0.3.1", features=["ndarrayl"]}
 serde = "1.0"
 
+linfa = { version = "0.2.1", path = ".." }
+
 [dev-dependencies]
-openblas-src = { version = "0.9", default-features = false, features = ["system"] }
 approx = "0.3.2"

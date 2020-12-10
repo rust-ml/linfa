@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Install ubuntu packages
-        run: sudo apt-get install libssl-dev gfortran libopenblas-dev liblapack-dev liblapacke-dev libatlas-base-dev
+        run: sudo apt-get install intel-mkl-full
 
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
@@ -29,6 +29,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --all --release
-        env:
-          RUSTFLAGS: -C link-arg=-llapacke -C link-arg=-lcblas
+          args: --all --release --features linfa/intel-mkl-system
