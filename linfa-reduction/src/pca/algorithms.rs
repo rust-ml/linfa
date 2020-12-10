@@ -12,7 +12,6 @@ use linfa::{
     Dataset, Float,
 };
 
-
 /// Pincipal Component Analysis
 #[cfg_attr(
     feature = "serde",

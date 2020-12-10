@@ -1,6 +1,6 @@
 use ndarray::{Array1, Array2, ArrayView2};
 use ndarray_linalg::{
-    eigh::EighInto, UPLO, lobpcg, lobpcg::LobpcgResult, Lapack, Scalar, TruncatedOrder,
+    eigh::EighInto, lobpcg, lobpcg::LobpcgResult, Lapack, Scalar, TruncatedOrder, UPLO,
 };
 use ndarray_rand::{rand_distr::Uniform, RandomExt};
 use num_traits::NumCast;

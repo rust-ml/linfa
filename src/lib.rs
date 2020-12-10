@@ -37,16 +37,16 @@ pub mod traits;
 
 pub use dataset::{Dataset, Float, Label};
 
-#[cfg(feature="ndarray-linalg")]
+#[cfg(feature = "ndarray-linalg")]
 pub use ndarray_linalg as linalg;
 
-#[cfg(any(feature="intel-mkl-system", feature="intel-mkl-static"))]
+#[cfg(any(feature = "intel-mkl-system", feature = "intel-mkl-static"))]
 extern crate intel_mkl_src;
 
-#[cfg(any(feature="openblas-system", feature="openblas-static"))]
+#[cfg(any(feature = "openblas-system", feature = "openblas-static"))]
 extern crate openblas_src;
 
-#[cfg(any(feature="netblas-system", feature="netblas-static"))]
+#[cfg(any(feature = "netblas-system", feature = "netblas-static"))]
 extern crate netblas_src;
 
 /// Common metrics functions for classification and regression
