@@ -510,7 +510,7 @@ impl<'a, F: Float, A: Data<Elem = F>> ArgminOp for LogisticRegressionProblem<'a,
 
 #[cfg(test)]
 mod test {
-    extern crate openblas_src;
+    extern crate linfa;
 
     use super::*;
     use approx::AbsDiffEq;

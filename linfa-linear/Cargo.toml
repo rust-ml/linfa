@@ -27,7 +27,6 @@ serde = { version = "1.0", default-features = false, features = ["derive"] }
 linfa = { version = "0.2.1", path = ".." }
 
 [dev-dependencies]
-openblas-src = { version = "0.9", default-features = false, features = ["system"] }
 csv = "1.1"
 ndarray-csv = "0.4"
 approx = "0.3.2"

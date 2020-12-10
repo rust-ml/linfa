@@ -1,5 +1,3 @@
-extern crate openblas_src;
-
 use std::error::Error;
 use std::fs::File;
 

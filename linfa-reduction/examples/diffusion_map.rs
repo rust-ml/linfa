@@ -1,5 +1,3 @@
-extern crate openblas_src;
-
 use linfa::traits::Transformer;
 use linfa_kernel::{Kernel, KernelMethod, KernelType};
 use linfa_reduction::utils::generate_convoluted_rings2d;
