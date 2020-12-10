@@ -11,7 +11,7 @@ jobs:
         toolchain:
           - 1.42.0
           - nightly
-          - beta
+            #- beta
           - stable
 
     steps:
@@ -75,7 +75,7 @@ jobs:
 
       - name: Generate code coverage
         run: |
-          cargo +nightly tarpaulin --verbose --features intel-mkl-system --timeout 120 --out Xml --all
+          cargo +nightly tarpaulin --verbose --features intel-mkl-system --timeout 120 --out Xml --all --release
 
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1
