@@ -29,4 +29,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --all --release --features linfa/intel-mkl-system
+          args: --all --release --features intel-mkl-system
