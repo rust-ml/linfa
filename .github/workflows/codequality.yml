@@ -11,7 +11,7 @@ jobs:
         toolchain:
           - 1.42.0
           - nightly
-            #- beta
+          - beta
           - stable
 
     steps:
@@ -36,7 +36,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --all-targets --all-features -- -D warnings
+          args: --all-targets -- -D warnings
 
   coverage:
     name: coverage
