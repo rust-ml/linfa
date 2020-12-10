@@ -37,6 +37,9 @@ pub mod traits;
 
 pub use dataset::{Dataset, Float, Label};
 
+#[cfg(feature="ndarray-linalg")]
+pub use ndarray_linalg as linalg;
+
 /// Common metrics functions for classification and regression
 pub mod metrics {
     pub use crate::metrics_classification::{

@@ -14,7 +14,17 @@ categories = ["algorithms", "mathematics", "science"]
 
 [features]
 default = []
+
 serde = ["serde_crate", "ndarray/serde"]
+
+netlib-static = ["linfa/netlib-static"]
+netlib-system = ["linfa/netlib-system"]
+
+openblas-static = ["linfa/openblas-static"]
+openblas-system = ["linfa/openblas-system"]
+
+intel-mkl-static = ["linfa/intel-mkl-static"]
+intel-mkl-system = ["linfa/intel-mkl-system"]
 
 [dependencies.serde_crate]
 package = "serde"
@@ -27,13 +37,11 @@ features = ["std", "derive"]
 ndarray = "0.13"
 ndarray-rand = "0.11"
 ndarray-stats = "0.3"
-ndarray-linalg = "0.12"
 num-traits = "0.2"
 
-linfa = { version = "0.2.1", path = ".." }
+linfa = { version = "0.2.1", path = "..", features=["ndarray-linalg"] }
 linfa-kernel = { version = "0.2.1", path = "../linfa-kernel" }
 
 [dev-dependencies]
-openblas-src = { version = "0.9", default-features=false, features = ["system"] }
 rand_isaac = "0.2.0"
 ndarray-npy = { version = "0.5", default-features = false }

@@ -1,5 +1,3 @@
-extern crate openblas_src;
-
 use linfa::prelude::*;
 use linfa_reduction::{utils::generate_blobs, Pca};
 use ndarray::array;
