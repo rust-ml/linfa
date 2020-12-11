@@ -21,8 +21,9 @@ $ cargo run --release --example decision_tree --features linfa/intel-mkl-system
 ```
 
 This generates the following tree:
-![Iris Decision Tree](./iris-decisiontree.svg)
-<img src="./iris-decisiontree.svg">
+<p align="center">
+   <img src="./iris-decisiontree.svg">
+</p>
 
 ## License
 Dual-licensed to be compatible with the Rust project.
