@@ -1,52 +1,56 @@
+use std::error::Error;
 use std::fs::File;
 use std::io::Write;
 
-use ndarray::{array, stack, Array, Array1, Array2, Axis};
+use csv::ReaderBuilder;
+use flate2::read::GzDecoder;
+use ndarray_csv::Array2Reader;
+
+use ndarray::{s, Array2};
 use ndarray_rand::rand::SeedableRng;
-use ndarray_rand::rand_distr::StandardNormal;
-use ndarray_rand::RandomExt;
 use rand_isaac::Isaac64Rng;
 
 use linfa::prelude::*;
 use linfa_trees::{DecisionTree, SplitQuality};
 
-fn generate_blobs(means: &[(f64, f64)], samples: usize, mut rng: &mut Isaac64Rng) -> Array2<f64> {
-    let out = means
-        .into_iter()
-        .map(|mean| {
-            Array::random_using((samples, 2), StandardNormal, &mut rng) + array![mean.0, mean.1]
-        })
-        .collect::<Vec<_>>();
-    let out2 = out.iter().map(|x| x.view()).collect::<Vec<_>>();
+/// Extract a gziped CSV file and return as dataset
+fn read_array(path: &str) -> std::result::Result<Array2<f64>, Box<dyn Error>> {
+    // unzip file
+    let file = GzDecoder::new(File::open(path)?);
+    // create a CSV reader with headers and `;` as delimiter
+    let mut reader = ReaderBuilder::new()
+        .has_headers(true)
+        .delimiter(b',')
+        .from_reader(file);
 
-    stack(Axis(0), &out2).unwrap()
+    // extract ndarray
+    let array = reader.deserialize_array2_dynamic()?;
+    Ok(array)
 }
 
 fn main() {
-    // Our random number generator, seeded for reproducibility
+    // Read in the iris-flower dataset from dataset path
+    // The `.csv` data is two dimensional: Axis(0) denotes y-axis (rows), Axis(1) denotes x-axis (columns)
+    let dataset = read_array("../datasets/iris.csv.gz").unwrap();
+    let (data, targets) = (
+        dataset.slice(s![.., 0..4]).to_owned(),
+        dataset.column(4).to_owned(),
+    );
+
+    let dataset = Dataset::new(data.to_owned(), targets.to_owned());
+    let dataset = dataset.map_targets(|x| *x as usize);
+
     let mut rng = Isaac64Rng::seed_from_u64(42);
+    let dataset = dataset.shuffle(&mut rng);
 
-    // For each our expected centroids, generate `n` data points around it (a "blob")
-    let n_classes: usize = 4;
-    let n = 300;
-
-    println!("Generating training data");
-
-    let train_x = generate_blobs(&[(0., 0.), (1., 4.), (-5., 0.), (4., 4.)], n, &mut rng);
-    let train_y = (0..n_classes)
-        .map(|x| std::iter::repeat(x).take(n).collect::<Vec<_>>())
-        .flatten()
-        .collect::<Array1<_>>();
-
-    let dataset = Dataset::new(train_x, train_y).shuffle(&mut rng);
-    let (train, test) = dataset.split_with_ratio(0.9);
+    let (train, test) = dataset.split_with_ratio(0.8);
 
     println!("Training model with Gini criterion ...");
     let gini_model = DecisionTree::params()
         .split_quality(SplitQuality::Gini)
         .max_depth(Some(100))
-        .min_weight_split(10.0)
-        .min_weight_leaf(10.0)
+        .min_weight_split(1.0)
+        .min_weight_leaf(1.0)
         .fit(&train);
 
     let gini_pred_y = gini_model.predict(test.records().view());

@@ -33,6 +33,9 @@ linfa = { path = ".." }
 rand_isaac = "0.2.0"
 criterion = "0.3"
 approx = "0.3"
+csv = "1.1"
+ndarray-csv = "0.4"
+flate2 = "1.0"
 
 [[bench]]
 name = "decision_tree"

@@ -6,6 +6,8 @@
 
 `linfa-trees` is a crate in the [`linfa`](https://crates.io/crates/linfa) ecosystem, an effort to create a toolkit for classical Machine Learning implemented in pure Rust, akin to Python's `scikit-learn`.
 
+Decision Trees (DTs) are a non-parametric supervised learning method used for classification and regression. The goal is to create a model that predicts the value of a target variable by learning simple decision rules inferred from the data features.
+
 ## Current state
 
 `linfa-trees` currently provides an implementation of single tree fitting
@@ -15,8 +17,12 @@
 There is an example in the `examples/` directory how to use decision trees. To run, use:
 
 ```bash
-$ cargo run --release --example decision_tree
+$ cargo run --release --example decision_tree --features linfa/intel-mkl-system
 ```
+
+This generates the following tree:
+![Iris Decision Tree](./iris-decisiontree.svg)
+<img src="./iris-decisiontree.svg">
 
 ## License
 Dual-licensed to be compatible with the Rust project.
