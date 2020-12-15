@@ -32,13 +32,10 @@ pub trait Fit<'a, R: Records, T: Targets> {
 /// parameters. If the former model is `None`, then the function acts like `Fit::fit` and
 /// initializes the model first.
 pub trait IncrementalFit<'a, R: Records, T: Targets> {
-    type Object: 'a;
+    type ObjectIn: 'a;
+    type ObjectOut: 'a;
 
-    fn fit_with<I: Into<Option<Self::Object>>>(
-        &self,
-        model: I,
-        dataset: &'a Dataset<R, T>,
-    ) -> Self::Object;
+    fn fit_with(&self, model: Self::ObjectIn, dataset: &'a Dataset<R, T>) -> Self::ObjectOut;
 }
 
 /// Predict with model

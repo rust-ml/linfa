@@ -1,4 +1,5 @@
 mod error;
 mod gaussian_nb;
 
-pub use gaussian_nb::{GaussianNb, GaussianNbParams};
+pub use error::BayesError;
+pub use gaussian_nb::GaussianNbParams;

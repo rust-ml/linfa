@@ -13,11 +13,9 @@ categories = ["algorithms", "mathematics", "science"]
 [dependencies]
 ndarray = { version = "0.13" , features = ["blas", "approx"]}
 ndarray-stats = "0.3"
-linfa = { version = "0.2.1", path=".." }
+linfa = { version = "0.2.1", path = ".." }
 
 [dev-dependencies]
 approx = "0.3"
 linfa = { path = ".." }
-csv = "1.1"
-ndarray-csv = "0.4"
-flate2 = "1.0"
+linfa-datasets = { version = "0.2.0", path = "../datasets", features = ["winequality"] }
