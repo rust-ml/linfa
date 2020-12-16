@@ -34,3 +34,4 @@ linfa-kernel = { version = "0.2.1", path = "../linfa-kernel" }
 
 [dev-dependencies]
 linfa-datasets = { version = "0.2.1", path = "../datasets", features = ["winequality"] }
+rand_isaac = "0.2"
