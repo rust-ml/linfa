@@ -253,14 +253,4 @@ mod tests {
 
         dbg!(&predictions.targets());
     }
-
-    #[test]
-    fn test_envvars() {
-        let path = linfa::get_dataset();
-        dbg!(&path);
-
-        for (k, v) in std::env::vars() {
-            println!("{} -> {}", k, v);
-        }
-    }
 }

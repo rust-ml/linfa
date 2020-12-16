@@ -56,8 +56,3 @@ pub mod metrics {
     };
     pub use crate::metrics_regression::Regression;
 }
-
-use std::path::PathBuf;
-pub fn get_dataset() -> PathBuf {
-    PathBuf::from(file!()).join("datasets")
-}
