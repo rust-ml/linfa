@@ -65,21 +65,6 @@ MyAlg::params()
     .fit(&dataset)?;
 ```
 
-## Use a specific backend for testing
-
-When you're implementing tests, which are relying on `ndarray-linalg`, you have to add the `openblas-src` crate. This will instruct cargo to compile the backend, in order to find the required symbols. The `linfa` framework uses the OpenBLAS system library by default, but an additional feature can be used to build the OpenBLAS library while compiling.
-```
-[features]
-default = ["tests-openblas-system"]
-tests-openblas-system = ["openblas-src/system"]
-tests-openblas-build = ["openblas-src/cblas", "openblas-src/lapacke"]
-
-[dev-dependencies]
-...
-openblas-src = "0.9" 
-```
-and you have to add an `extern crate openblas_src` to your the `tests` module.
-
 ## Generic float types
 
 Every algorithm should be implemented for `f32` and `f64` floating points. This can be achieved with the `linfa::Float` trait, which is basically just a combination of `ndarray::NdFloat` and `num_traits::Float`. You can look up most of the constants (like zero, one, PI) in the `num_traits` documentation. Here is a small example for a function, generic over `Float`:
@@ -118,3 +103,24 @@ pub struct HyperParams {
 }
 ```
 
+## Add a dataset
+
+When you want to add a dataset to the `linfa-datasets` crate, you have to do the following:
+ * create a tarball with your dataset as a semicolon separated CSV file and move it to `linfa-datasets/data/?.csv.gz`
+ * add a feature with the name of your dataset to `linfa-datasets`
+ * create a new function in `linfa-datasets/src/lib.rs` carrying the name of your dataset and loading it as a binary file
+
+For the last step you can look at similar implementations, for example the Iris plant dataset. The idea here is to put the dataset into the produced library directly and parse it from memory. This is obviously only feasible for small datasets.
+
+After adding it to the `linfa-datasets` crate you can include with the corresponding feature to your `Cargo.toml` file
+```
+linfa-datasets = { version = "0.2.1", path = "../datasets", features = ["winequality"] }
+```
+and then use it in your example or tests as
+```
+fn main() {
+    let (train, valid) = linfa_datasets::winequality()
+        .split_with_ratio(0.8);
+    /// ...
+}
+```
