@@ -69,6 +69,7 @@ members = [
     "linfa-svm",
     "linfa-hierarchical",
     "linfa-ica",
+    "datasets",
 ]
 
 [profile.release]

@@ -1,0 +1,18 @@
+[package]
+name = "linfa-datasets"
+version = "0.2.1"
+authors = ["Lorenz Schmidt <bytesnake@mailbox.org>"]
+edition = "2018"
+
+[dependencies]
+linfa = { version = "0.2.1", path = ".." }
+ndarray = { version = "0.13", default-features = false }
+ndarray-csv = "0.4"
+csv = "1.1"
+flate2 = "1.0"
+
+[features]
+default = []
+diabetes = []
+iris = []
+winequality = []
