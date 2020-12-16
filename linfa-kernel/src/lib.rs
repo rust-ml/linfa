@@ -3,10 +3,11 @@
 mod sparse;
 
 use ndarray::prelude::*;
-use ndarray::{linalg::Dot, Data};
+use ndarray::Data;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 use sprs::CsMat;
+use std::ops::Mul;
 
 use linfa::{dataset::Dataset, dataset::Records, dataset::Targets, traits::Transformer, Float};
 
@@ -83,8 +84,8 @@ impl<'a, F: Float> Kernel<ArrayView2<'a, F>> {
 
     pub fn dot(&self, rhs: &ArrayView2<F>) -> Array2<F> {
         match &self.inner {
-            KernelInner::Dense(mat) => mat.dot(rhs),
-            KernelInner::Sparse(mat) => mat.dot(rhs),
+            KernelInner::Dense(mat) => mat.mul(rhs),
+            KernelInner::Sparse(mat) => mat.mul(rhs),
         }
     }
 
@@ -199,8 +200,8 @@ impl<F: Float> KernelMethod<F> {
 
                 (-distance / eps).exp()
             }
-            KernelMethod::Linear => a.dot(&b),
-            KernelMethod::Polynomial(c, d) => (a.dot(&b) + c).powf(d),
+            KernelMethod::Linear => a.mul(&b).sum(),
+            KernelMethod::Polynomial(c, d) => (a.mul(&b).sum() + c).powf(d),
         }
     }
 

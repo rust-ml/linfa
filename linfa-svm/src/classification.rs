@@ -1,6 +1,7 @@
 use linfa::{dataset::Dataset, dataset::Pr, dataset::Targets, traits::Fit, traits::Predict};
 use ndarray::{Array1, Array2, ArrayBase, ArrayView2, Data, Ix2};
 use std::cmp::Ordering;
+use std::ops::Mul;
 
 use super::permutable_kernel::{Kernel, PermutableKernel, PermutableKernelOneClass};
 use super::solver_smo::SolverState;
@@ -252,7 +253,7 @@ impl<'a, F: Float> Fit<'a, Kernel<'a, F>, &()> for SvmParams<F, Pr> {
 impl<'a, F: Float> Predict<Array1<F>, Pr> for Svm<'a, F, Pr> {
     fn predict(&self, data: Array1<F>) -> Pr {
         let val = match self.linear_decision {
-            Some(ref x) => x.dot(&data) - self.rho,
+            Some(ref x) => x.mul(&data).sum() - self.rho,
             None => self.kernel.weighted_sum(&self.alpha, data.view()) - self.rho,
         };
 
@@ -267,7 +268,7 @@ impl<'a, F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Vec<Pr>> for Sv
         data.outer_iter()
             .map(|data| {
                 let val = match self.linear_decision {
-                    Some(ref x) => x.dot(&data) - self.rho,
+                    Some(ref x) => x.mul(&data).sum() - self.rho,
                     None => self.kernel.weighted_sum(&self.alpha, data.view()) - self.rho,
                 };
 

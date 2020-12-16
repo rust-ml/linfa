@@ -1,6 +1,7 @@
 //! Support Vector Regression
 use linfa::{dataset::Dataset, traits::Fit, traits::Predict};
 use ndarray::{ArrayBase, Data, Ix2};
+use std::ops::Mul;
 
 use super::permutable_kernel::{Kernel, PermutableKernelRegression};
 use super::solver_smo::SolverState;
@@ -169,7 +170,7 @@ impl<'a, D: Data<Elem = f64>> Predict<ArrayBase<D, Ix2>, Vec<f64>> for Svm<'a, f
         data.outer_iter()
             .map(|data| {
                 let val = match self.linear_decision {
-                    Some(ref x) => x.dot(&data) - self.rho,
+                    Some(ref x) => x.mul(&data).sum() - self.rho,
                     None => self.kernel.weighted_sum(&self.alpha, data.view()) - self.rho,
                 };
 
