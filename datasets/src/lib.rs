@@ -1,7 +1,7 @@
 use csv::ReaderBuilder;
 use flate2::read::GzDecoder;
 use linfa::Dataset;
-use ndarray::{s, Array2};
+use ndarray::prelude::*;
 use ndarray_csv::Array2Reader;
 
 #[cfg(any(feature = "iris", feature = "diabetes", feature = "winequality"))]

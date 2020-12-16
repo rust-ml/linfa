@@ -134,9 +134,10 @@ impl<F: Float, T: Clone> Dataset<Array2<F>, Vec<T>> {
         let second_targets = self.targets.split_off(n);
 
         // split weights into two disjoint Vec
-        let second_weights = match self.weights.len() == npoints {
-            true => self.weights.split_off(n),
-            false => vec![],
+        let second_weights = if self.weights.len() == npoints {
+            self.weights.split_off(n)
+        } else {
+            vec![]
         };
 
         // create new datasets with attached weights
