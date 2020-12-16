@@ -27,7 +27,4 @@ serde = { version = "1.0", default-features = false, features = ["derive"] }
 linfa = { version = "0.2.1", path = ".." }
 
 [dev-dependencies]
-csv = "1.1"
-ndarray-csv = "0.4"
-approx = "0.3.2"
-flate2 = "1.0"
+linfa-datasets = { version = "0.2.1", path = "../datasets", features = ["diabetes"] }

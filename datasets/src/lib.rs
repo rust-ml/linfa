@@ -1,9 +1,10 @@
-use ndarray::{Array2, Array1, s};
-use flate2::read::GzDecoder;
-use ndarray_csv::Array2Reader;
 use csv::ReaderBuilder;
+use flate2::read::GzDecoder;
 use linfa::Dataset;
+use ndarray::{s, Array2};
+use ndarray_csv::Array2Reader;
 
+#[cfg(any(feature = "iris", feature = "diabetes", feature = "winequality"))]
 fn array_from_buf(buf: &[u8]) -> Array2<f64> {
     // unzip file
     let file = GzDecoder::new(buf);
@@ -18,7 +19,9 @@ fn array_from_buf(buf: &[u8]) -> Array2<f64> {
 }
 
 #[cfg(feature = "iris")]
-pub fn irisflower() -> Dataset<Array2<f64>, Vec<usize>> {
+/// Read in the iris-flower dataset from dataset path
+/// The `.csv` data is two dimensional: Axis(0) denotes y-axis (rows), Axis(1) denotes x-axis (columns)
+pub fn iris() -> Dataset<Array2<f64>, Vec<usize>> {
     let data = include_bytes!("../data/iris.csv.gz");
     let array = array_from_buf(&data[..]);
 
@@ -27,6 +30,29 @@ pub fn irisflower() -> Dataset<Array2<f64>, Vec<usize>> {
         array.column(4).to_owned(),
     );
 
+    Dataset::new(data, targets).map_targets(|x| *x as usize)
+}
+
+#[cfg(feature = "diabetes")]
+pub fn diabetes() -> Dataset<Array2<f64>, Array1<f64>> {
+    let data = include_bytes!("../data/diabetes_data.csv.gz");
+    let data = array_from_buf(&data[..]);
+
+    let targets = include_bytes!("../data/diabetes_target.csv.gz");
+    let targets = array_from_buf(&targets[..]).column(0).to_owned();
+
     Dataset::new(data, targets)
-        .map_targets(|x| *x as usize)
+}
+
+#[cfg(feature = "winequality")]
+pub fn winequality() -> Dataset<Array2<f64>, Vec<usize>> {
+    let data = include_bytes!("../data/winequality-red.csv.gz");
+    let array = array_from_buf(&data[..]);
+
+    let (data, targets) = (
+        array.slice(s![.., 0..11]).to_owned(),
+        array.column(11).to_owned(),
+    );
+
+    Dataset::new(data, targets).map_targets(|x| *x as usize)
 }

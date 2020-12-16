@@ -23,6 +23,4 @@ linfa-kernel = { version = "0.2.1", path = "../linfa-kernel" }
 [dev-dependencies]
 rand = "0.7"
 ndarray-rand = "0.11"
-csv = "1.1"
-ndarray-csv = "0.4"
-flate2 = "1.0"
+linfa-datasets = { version = "0.2.1", path = "../datasets", features = ["iris"] }

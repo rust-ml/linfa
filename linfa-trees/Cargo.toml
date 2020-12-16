@@ -27,15 +27,14 @@ features = ["std", "derive"]
 ndarray = { version = "0.13" , features = ["rayon", "approx"]}
 ndarray-rand = "0.11"
 
-linfa = { path = ".." }
+linfa = { version = "0.2.1", path = ".." }
 
 [dev-dependencies]
 rand_isaac = "0.2.0"
 criterion = "0.3"
 approx = "0.3"
-csv = "1.1"
-ndarray-csv = "0.4"
-flate2 = "1.0"
+
+linfa-datasets = { version = "0.2.1", path = "../datasets/", features = ["iris"] }
 
 [[bench]]
 name = "decision_tree"

@@ -33,7 +33,4 @@ linfa = { version = "0.2.1", path = ".." }
 linfa-kernel = { version = "0.2.1", path = "../linfa-kernel" }
 
 [dev-dependencies]
-csv = "1.1"
-ndarray-csv = "0.4"
-flate2 = "1.0"
-rand_isaac = "0.2"
+linfa-datasets = { version = "0.2.1", path = "../datasets", features = ["winequality"] }

@@ -117,6 +117,35 @@ impl<F: Float, T: Clone> Dataset<Array2<F>, Vec<T>> {
             Dataset::new(records, targets)
         })
     }
+
+    pub fn split_with_ratio(mut self, ratio: f32) -> (Self, Self) {
+        let nfeatures = self.records.ncols();
+        let npoints = self.records.nrows();
+        let n = (npoints as f32 * ratio).ceil() as usize;
+
+        // split records into two disjoint arrays
+        let mut array_buf = self.records.into_raw_vec();
+        let second_array_buf = array_buf.split_off(n * nfeatures);
+
+        let first = Array2::from_shape_vec((n, nfeatures), array_buf).unwrap();
+        let second = Array2::from_shape_vec((npoints - n, nfeatures), second_array_buf).unwrap();
+
+        // split targets into two disjoint Vec
+        let second_targets = self.targets.split_off(n);
+
+        // split weights into two disjoint Vec
+        let second_weights = match self.weights.len() == npoints {
+            true => self.weights.split_off(n),
+            false => vec![],
+        };
+
+        // create new datasets with attached weights
+        let dataset1 = Dataset::new(first, self.targets).with_weights(self.weights);
+
+        let dataset2 = Dataset::new(second, second_targets).with_weights(second_weights);
+
+        (dataset1, dataset2)
+    }
 }
 
 impl<F: Float, T: Clone> Dataset<Array2<F>, Array1<T>> {
@@ -136,7 +165,7 @@ impl<F: Float, T: Clone> Dataset<Array2<F>, Array1<T>> {
 
 #[allow(clippy::type_complexity)]
 impl<F: Float, T: Targets, D: Data<Elem = F>> Dataset<ArrayBase<D, Ix2>, T> {
-    pub fn split_with_ratio(
+    pub fn split_with_ratio_view(
         &self,
         ratio: f32,
     ) -> (

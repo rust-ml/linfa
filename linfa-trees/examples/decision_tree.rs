@@ -1,49 +1,18 @@
-use std::error::Error;
 use std::fs::File;
 use std::io::Write;
 
-use csv::ReaderBuilder;
-use flate2::read::GzDecoder;
-use ndarray_csv::Array2Reader;
-
-use ndarray::{s, Array2};
 use ndarray_rand::rand::SeedableRng;
 use rand_isaac::Isaac64Rng;
 
 use linfa::prelude::*;
 use linfa_trees::{DecisionTree, SplitQuality};
 
-/// Extract a gziped CSV file and return as dataset
-fn read_array(path: &str) -> std::result::Result<Array2<f64>, Box<dyn Error>> {
-    // unzip file
-    let file = GzDecoder::new(File::open(path)?);
-    // create a CSV reader with headers and `;` as delimiter
-    let mut reader = ReaderBuilder::new()
-        .has_headers(true)
-        .delimiter(b',')
-        .from_reader(file);
-
-    // extract ndarray
-    let array = reader.deserialize_array2_dynamic()?;
-    Ok(array)
-}
-
 fn main() {
-    // Read in the iris-flower dataset from dataset path
-    // The `.csv` data is two dimensional: Axis(0) denotes y-axis (rows), Axis(1) denotes x-axis (columns)
-    let dataset = read_array("../datasets/iris.csv.gz").unwrap();
-    let (data, targets) = (
-        dataset.slice(s![.., 0..4]).to_owned(),
-        dataset.column(4).to_owned(),
-    );
-
-    let dataset = Dataset::new(data.to_owned(), targets.to_owned());
-    let dataset = dataset.map_targets(|x| *x as usize);
-
+    // load Iris dataset
     let mut rng = Isaac64Rng::seed_from_u64(42);
-    let dataset = dataset.shuffle(&mut rng);
-
-    let (train, test) = dataset.split_with_ratio(0.8);
+    let (train, test) = linfa_datasets::iris()
+        .shuffle(&mut rng)
+        .split_with_ratio(0.8);
 
     println!("Training model with Gini criterion ...");
     let gini_model = DecisionTree::params()

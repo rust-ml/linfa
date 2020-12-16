@@ -1,22 +1,19 @@
-use csv::ReaderBuilder;
-use flate2::read::GzDecoder;
 use linfa_linear::TweedieRegressor;
-use ndarray::Array2;
-use ndarray_csv::Array2Reader;
 use std::error::Error;
-use std::fs::File;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let data = read_array("../datasets/diabetes_data.csv.gz")?;
-    let target = read_array("../datasets/diabetes_target.csv.gz")?;
-    let target = target.column(0).to_owned();
+    // load the Diabetes dataset
+    let dataset = linfa_datasets::diabetes();
+
+    let data = dataset.records();
+    let targets = dataset.targets();
 
     // Here the power and alpha is set to 0
     // Setting the power to 0 makes it a Normal Regressioon
     // Setting the alpha to 0 removes any regularization
     // In total this is the regular old Linear Regression
     let lin_reg = TweedieRegressor::new().power(0.).alpha(0.);
-    let model = lin_reg.fit(&data, &target)?;
+    let model = lin_reg.fit(&data, &targets)?;
 
     // We print the learnt parameters
     //
@@ -29,15 +26,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     //
     // Some(43.27739632065444)
     let ypred = model.predict(&data);
-    let loss = (target - ypred).mapv(|x| x.abs()).mean();
+    let loss = (targets - &ypred).mapv(|x| x.abs()).mean();
+
     println!("{:?}", loss);
 
     Ok(())
-}
-
-fn read_array(path: &str) -> Result<Array2<f64>, Box<dyn Error>> {
-    let file = GzDecoder::new(File::open(path)?);
-    let mut reader = ReaderBuilder::new().has_headers(false).from_reader(file);
-    let array = reader.deserialize_array2_dynamic()?;
-    Ok(array)
 }
