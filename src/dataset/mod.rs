@@ -2,7 +2,7 @@
 //!
 //! This module implements the dataset struct and various helper traits to extend its
 //! functionality.
-use ndarray::NdFloat;
+use ndarray::{NdFloat, ArrayBase, Ix2, Ix1, ArrayView};
 use num_traits::{FromPrimitive, Signed};
 use std::cmp::{Ordering, PartialOrd};
 use std::hash::Hash;
@@ -55,11 +55,11 @@ impl Deref for Pr {
     }
 }
 
-/// Dataset
+/// DatasetBase
 ///
 /// A dataset contains a number of records and targets. Each record corresponds to a single target
 /// and may be weighted with the `weights` field during the training process.
-pub struct Dataset<R, T>
+pub struct DatasetBase<R, T>
 where
     R: Records,
     T: Targets,
@@ -69,6 +69,19 @@ where
 
     weights: Vec<f32>,
 }
+
+/// Dataset
+/// 
+/// The most commonly used typed of dataset. It contains a number of records 
+/// stored as an `Array2` and each record corresponds to a single target. Such 
+/// targets are stored as an `Array1`.
+pub type Dataset<D> = DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D, Ix1>>; 
+
+/// DatasetView
+/// 
+/// A read only view of a Dataset
+pub type DatasetView<'a, D> = DatasetBase<ArrayView<'a, D, Ix2>, ArrayView<'a, D, Ix2>>;
+
 
 /// Records
 ///

@@ -9,7 +9,7 @@ use serde_crate::{Deserialize, Serialize};
 use sprs::CsMat;
 use std::ops::Mul;
 
-use linfa::{dataset::Dataset, dataset::Records, dataset::Targets, traits::Transformer, Float};
+use linfa::{dataset::DatasetBase, dataset::Records, dataset::Targets, traits::Transformer, Float};
 
 /// Kernel representation, can be either dense or sparse
 #[derive(Clone)]
@@ -246,10 +246,10 @@ impl<'a, F: Float> Transformer<ArrayView2<'a, F>, Kernel<ArrayView2<'a, F>>> for
 }
 
 impl<'a, F: Float, T: Targets>
-    Transformer<&'a Dataset<Array2<F>, T>, Dataset<Kernel<ArrayView2<'a, F>>, &'a T>>
+    Transformer<&'a DatasetBase<Array2<F>, T>, DatasetBase<Kernel<ArrayView2<'a, F>>, &'a T>>
     for KernelParams<F>
 {
-    fn transform(&self, x: &'a Dataset<Array2<F>, T>) -> Dataset<Kernel<ArrayView2<'a, F>>, &'a T> {
+    fn transform(&self, x: &'a DatasetBase<Array2<F>, T>) -> DatasetBase<Kernel<ArrayView2<'a, F>>, &'a T> {
         let is_linear = self.method.is_linear();
 
         let kernel = Kernel::new(
@@ -259,25 +259,25 @@ impl<'a, F: Float, T: Targets>
             is_linear,
         );
 
-        Dataset::new(kernel, &x.targets)
+        DatasetBase::new(kernel, &x.targets)
     }
 }
 
 impl<'a, F: Float, T: Targets>
     Transformer<
-        &'a Dataset<ArrayView2<'a, F>, T>,
-        Dataset<Kernel<ArrayView2<'a, F>>, &'a [T::Elem]>,
+        &'a DatasetBase<ArrayView2<'a, F>, T>,
+        DatasetBase<Kernel<ArrayView2<'a, F>>, &'a [T::Elem]>,
     > for KernelParams<F>
 {
     fn transform(
         &self,
-        x: &'a Dataset<ArrayView2<'a, F>, T>,
-    ) -> Dataset<Kernel<ArrayView2<'a, F>>, &'a [T::Elem]> {
+        x: &'a DatasetBase<ArrayView2<'a, F>, T>,
+    ) -> DatasetBase<Kernel<ArrayView2<'a, F>>, &'a [T::Elem]> {
         let is_linear = self.method.is_linear();
 
         let kernel = Kernel::new(x.records, self.method.clone(), self.kind.clone(), is_linear);
 
-        Dataset::new(kernel, x.targets.as_slice())
+        DatasetBase::new(kernel, x.targets.as_slice())
     }
 }
 

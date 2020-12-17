@@ -1,5 +1,5 @@
 //! Support Vector Regression
-use linfa::{dataset::Dataset, traits::Fit, traits::Predict};
+use linfa::{dataset::DatasetBase, traits::Fit, traits::Predict};
 use ndarray::{ArrayBase, Data, Ix2};
 use std::ops::Mul;
 
@@ -119,7 +119,7 @@ pub fn fit_nu<'a, A: Float>(
 impl<'a, F: Float> Fit<'a, Kernel<'a, F>, Vec<F>> for SvmParams<F, F> {
     type Object = Svm<'a, F, F>;
 
-    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, Vec<F>>) -> Self::Object {
+    fn fit(&self, dataset: &'a DatasetBase<Kernel<'a, F>, Vec<F>>) -> Self::Object {
         match (self.c, self.nu) {
             (Some((c, eps)), _) => fit_epsilon(
                 self.solver_params.clone(),
@@ -143,7 +143,7 @@ impl<'a, F: Float> Fit<'a, Kernel<'a, F>, Vec<F>> for SvmParams<F, F> {
 impl<'a, F: Float> Fit<'a, Kernel<'a, F>, &Vec<F>> for SvmParams<F, F> {
     type Object = Svm<'a, F, F>;
 
-    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, &Vec<F>>) -> Self::Object {
+    fn fit(&self, dataset: &'a DatasetBase<Kernel<'a, F>, &Vec<F>>) -> Self::Object {
         match (self.c, self.nu) {
             (Some((c, eps)), _) => fit_epsilon(
                 self.solver_params.clone(),
@@ -184,7 +184,7 @@ impl<'a, D: Data<Elem = f64>> Predict<ArrayBase<D, Ix2>, Vec<f64>> for Svm<'a, f
 pub mod tests {
     use super::Svm;
 
-    use linfa::dataset::Dataset;
+    use linfa::dataset::DatasetBase;
     use linfa::metrics::Regression;
     use linfa::traits::{Fit, Predict, Transformer};
     use linfa_kernel::{Kernel, KernelMethod};
@@ -202,7 +202,7 @@ pub mod tests {
             .method(KernelMethod::Gaussian(50.))
             .transform(&sin_curve);
 
-        let dataset = Dataset::new(kernel, &target);
+        let dataset = DatasetBase::new(kernel, &target);
 
         let model = Svm::params().nu_eps(2., 0.01).fit(&dataset);
 
@@ -224,7 +224,7 @@ pub mod tests {
             .method(KernelMethod::Gaussian(50.))
             .transform(&sin_curve);
 
-        let dataset = Dataset::new(kernel, &target);
+        let dataset = DatasetBase::new(kernel, &target);
 
         let model = Svm::params().nu_eps(2., 0.01).fit(&dataset);
 

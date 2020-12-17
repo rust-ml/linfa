@@ -10,7 +10,7 @@ use std::fmt;
 use ndarray::prelude::*;
 use ndarray::Data;
 
-use crate::dataset::{Dataset, Label, Labels, Pr, Records, Targets};
+use crate::dataset::{DatasetBase, Label, Labels, Pr, Records, Targets};
 
 /// Return tuple of class index for each element of prediction and ground_truth
 fn map_prediction_to_idx<L: Label>(
@@ -267,9 +267,9 @@ impl<
         L: Label,
         T: Targets<Elem = L> + Labels<Elem = L>,
         T2: Targets<Elem = L> + Labels<Elem = L>,
-    > ToConfusionMatrix<L, &Dataset<R, T>> for Dataset<R2, T2>
+    > ToConfusionMatrix<L, &DatasetBase<R, T>> for DatasetBase<R2, T2>
 {
-    fn confusion_matrix(&self, ground_truth: &Dataset<R, T>) -> ConfusionMatrix<L> {
+    fn confusion_matrix(&self, ground_truth: &DatasetBase<R, T>) -> ConfusionMatrix<L> {
         let classes: Vec<L> = ground_truth.labels();
         let indices = map_prediction_to_idx(
             &self.targets.as_slice(),
@@ -291,9 +291,9 @@ impl<
 }
 
 impl<R: Records, L: Label, T: Targets<Elem = L> + Labels<Elem = L>>
-    ToConfusionMatrix<L, &Dataset<R, T>> for Vec<L>
+    ToConfusionMatrix<L, &DatasetBase<R, T>> for Vec<L>
 {
-    fn confusion_matrix(&self, ground_truth: &Dataset<R, T>) -> ConfusionMatrix<L> {
+    fn confusion_matrix(&self, ground_truth: &DatasetBase<R, T>) -> ConfusionMatrix<L> {
         let classes: Vec<L> = ground_truth.labels();
         let indices = map_prediction_to_idx(&self, &ground_truth.targets.as_slice(), &classes);
 
@@ -346,10 +346,10 @@ impl<L: Label, S: Data<Elem = L>, T: Data<Elem = L>> ToConfusionMatrix<L, ArrayB
 }
 
 impl<L: Label, S: Data<Elem = L>, T: Targets<Elem = L> + Labels<Elem = L>, R: Records>
-    ToConfusionMatrix<L, &Dataset<R, T>> for ArrayBase<S, Ix1>
+    ToConfusionMatrix<L, &DatasetBase<R, T>> for ArrayBase<S, Ix1>
 {
-    fn confusion_matrix(&self, ground_truth: &Dataset<R, T>) -> ConfusionMatrix<L> {
-        Dataset::new((), self).confusion_matrix(ground_truth)
+    fn confusion_matrix(&self, ground_truth: &DatasetBase<R, T>) -> ConfusionMatrix<L> {
+        DatasetBase::new((), self).confusion_matrix(ground_truth)
     }
 }
 
@@ -507,9 +507,9 @@ impl<D: Data<Elem = Pr>> BinaryClassification<&[bool]> for ArrayBase<D, Ix1> {
 }
 
 impl<R: Records, R2: Records, T: Targets<Elem = bool>, T2: Targets<Elem = Pr>>
-    BinaryClassification<&Dataset<R, T>> for Dataset<R2, T2>
+    BinaryClassification<&DatasetBase<R, T>> for DatasetBase<R2, T2>
 {
-    fn roc(&self, y: &Dataset<R, T>) -> ReceiverOperatingCharacteristic {
+    fn roc(&self, y: &DatasetBase<R, T>) -> ReceiverOperatingCharacteristic {
         self.targets().as_slice().roc(y.targets().as_slice())
     }
 }
@@ -517,7 +517,7 @@ impl<R: Records, R2: Records, T: Targets<Elem = bool>, T2: Targets<Elem = Pr>>
 #[cfg(test)]
 mod tests {
     use super::{BinaryClassification, ToConfusionMatrix};
-    use super::{Dataset, Pr};
+    use super::{DatasetBase, Pr};
     use approx::{abs_diff_eq, AbsDiffEq};
     use ndarray::{array, Array1, ArrayBase, ArrayView1, Data, Dimension};
     use rand::{distributions::Uniform, Rng, SeedableRng};
@@ -597,7 +597,7 @@ mod tests {
         let predicted = array![0, 3, 2, 0, 1, 1, 1, 3, 2, 3];
 
         let ground_truth =
-            Dataset::new((), array![0, 2, 3, 0, 1, 2, 1, 2, 3, 2]).with_labels(&[0, 1, 2]);
+            DatasetBase::new((), array![0, 2, 3, 0, 1, 2, 1, 2, 3, 2]).with_labels(&[0, 1, 2]);
 
         // exclude class 3 from evaluation
         let cm = predicted.confusion_matrix(&ground_truth);

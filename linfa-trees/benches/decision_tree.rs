@@ -44,7 +44,7 @@ fn decision_tree_bench(c: &mut Criterion) {
                 .map(|x| std::iter::repeat(x).take(*n).collect::<Vec<usize>>())
                 .flatten(),
         );
-        let dataset = Dataset::new(train_x, train_y);
+        let dataset = DatasetBase::new(train_x, train_y);
 
         group.bench_with_input(BenchmarkId::from_parameter(n), &dataset, |b, d| {
             b.iter(|| hyperparams.fit(&d))

@@ -1,4 +1,4 @@
-use super::{Dataset, Label, Labels, Records, Targets};
+use super::{DatasetBase, Label, Labels, Records, Targets};
 use ndarray::{ArrayBase, Data, Ix1};
 use std::collections::HashSet;
 
@@ -105,14 +105,14 @@ impl<L: Label + Clone, T: Labels<Elem = L>> Labels for TargetsWithLabels<L, T> {
     }
 }
 
-impl<R: Records, L: Label, T: Labels<Elem = L>> Dataset<R, T> {
-    pub fn with_labels(self, labels: &[L]) -> Dataset<R, TargetsWithLabels<L, T>> {
+impl<R: Records, L: Label, T: Labels<Elem = L>> DatasetBase<R, T> {
+    pub fn with_labels(self, labels: &[L]) -> DatasetBase<R, TargetsWithLabels<L, T>> {
         let targets = TargetsWithLabels {
             targets: self.targets,
             labels: labels.iter().cloned().collect(),
         };
 
-        Dataset {
+        DatasetBase {
             records: self.records,
             weights: self.weights,
             targets,

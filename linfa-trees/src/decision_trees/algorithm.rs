@@ -12,7 +12,7 @@ use super::Tikz;
 use linfa::{
     dataset::{Labels, Records},
     traits::*,
-    Dataset, Float, Label,
+    DatasetBase, Float, Label,
 };
 
 #[cfg(feature = "serde")]
@@ -144,7 +144,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
     }
 
     fn fit<D: Data<Elem = F>, T: Labels<Elem = L>>(
-        data: &Dataset<ArrayBase<D, Ix2>, T>,
+        data: &DatasetBase<ArrayBase<D, Ix2>, T>,
         mask: &RowMask,
         hyperparameters: &DecisionTreeParams<F, L>,
         sorted_indices: &[SortedIndex<F>],
@@ -388,7 +388,7 @@ impl<'a, F: Float, L: Label + 'a + std::fmt::Debug, D: Data<Elem = F>, T: Labels
 
     /// Fit a decision tree using `hyperparamters` on the dataset consisting of
     /// a matrix of features `x` and an array of labels `y`.
-    fn fit(&self, dataset: &Dataset<ArrayBase<D, Ix2>, T>) -> Self::Object {
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Self::Object {
         self.validate().unwrap();
 
         let x = dataset.records();
@@ -593,7 +593,7 @@ mod tests {
         let labels = Array::from(vec![0, 0, 0, 0, 0, 0, 1, 1]);
         let row_mask = RowMask::all(labels.len());
 
-        let dataset = Dataset::new((), labels);
+        let dataset = DatasetBase::new((), labels);
         let class_freq = dataset.frequencies_with_mask(&row_mask.mask);
 
         assert_eq!(find_modal_class(&class_freq), 0);
@@ -642,7 +642,7 @@ mod tests {
         );
 
         let targets = (0..50).map(|x| x < 25).collect::<Vec<_>>();
-        let dataset = Dataset::new(data, targets);
+        let dataset = DatasetBase::new(data, targets);
 
         let model = DecisionTree::params().max_depth(Some(2)).fit(&dataset);
 
@@ -667,7 +667,7 @@ mod tests {
         let data = Array::random_using((50, 50), Uniform::new(-1., 1.), &mut rng);
         let targets = (0..50).collect::<Vec<_>>();
 
-        let dataset = Dataset::new(data, targets);
+        let dataset = DatasetBase::new(data, targets);
 
         // check that the provided depth is actually used
         for max_depth in vec![1, 5, 10, 20] {
@@ -688,7 +688,7 @@ mod tests {
         let data = array![[1., 2., 3.], [1., 2., 4.], [1., 3., 3.5]];
         let targets = array![0, 0, 1];
 
-        let dataset = Dataset::new(data.clone(), targets);
+        let dataset = DatasetBase::new(data.clone(), targets);
         let model = DecisionTree::params().max_depth(Some(1)).fit(&dataset);
 
         assert_eq!(&model.predict(data.clone()), &[0, 0, 1]);
@@ -725,7 +725,7 @@ mod tests {
 
         let targets = array![1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0];
 
-        let dataset = Dataset::new(data, targets);
+        let dataset = DatasetBase::new(data, targets);
         let model = DecisionTree::params().fit(&dataset);
         let prediction = model.predict(dataset.records());
 
@@ -763,7 +763,7 @@ mod tests {
             })
             .collect::<Vec<_>>();
 
-        let dataset = Dataset::new(data.clone(), targets);
+        let dataset = DatasetBase::new(data.clone(), targets);
 
         let model = DecisionTree::params().fit(&dataset);
         let prediction = model.predict(data);

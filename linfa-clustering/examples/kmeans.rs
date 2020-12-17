@@ -1,5 +1,5 @@
 use linfa::traits::{Fit, Predict};
-use linfa::Dataset;
+use linfa::DatasetBase;
 use linfa_clustering::{generate_blobs, KMeans};
 use ndarray::{array, Axis};
 use ndarray_npy::write_npy;
@@ -15,7 +15,7 @@ fn main() {
     // For each our expected centroids, generate `n` data points around it (a "blob")
     let expected_centroids = array![[10., 10.], [1., 12.], [20., 30.], [-20., 30.],];
     let n = 10000;
-    let dataset = Dataset::from(generate_blobs(n, &expected_centroids, &mut rng));
+    let dataset = DatasetBase::from(generate_blobs(n, &expected_centroids, &mut rng));
 
     // Configure our training algorithm
     let n_clusters = expected_centroids.len_of(Axis(0));
@@ -27,7 +27,7 @@ fn main() {
 
     // Assign each point to a cluster using the set of centroids found using `fit`
     let dataset = model.predict(dataset);
-    let Dataset {
+    let DatasetBase {
         records, targets, ..
     } = dataset;
 
