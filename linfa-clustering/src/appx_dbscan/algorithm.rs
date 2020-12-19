@@ -107,8 +107,10 @@ impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<
 }
 
 impl<F: Float, D: Data<Elem = F>, T: Targets>
-    Transformer<DatasetBase<ArrayBase<D, Ix2>, T>, DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>>
-    for AppxDbscanHyperParams<F>
+    Transformer<
+        DatasetBase<ArrayBase<D, Ix2>, T>,
+        DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>,
+    > for AppxDbscanHyperParams<F>
 {
     fn transform(
         &self,
@@ -128,8 +130,10 @@ impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<
 }
 
 impl<F: Float, D: Data<Elem = F>, T: Targets>
-    Transformer<DatasetBase<ArrayBase<D, Ix2>, T>, DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>>
-    for AppxDbscanHyperParamsBuilder<F>
+    Transformer<
+        DatasetBase<ArrayBase<D, Ix2>, T>,
+        DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>,
+    > for AppxDbscanHyperParamsBuilder<F>
 {
     fn transform(
         &self,

@@ -1,8 +1,10 @@
-use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Dimension, Ix2};
+use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Dimension, Ix1, Ix2};
 use rand::{seq::SliceRandom, Rng};
 use std::collections::HashMap;
 
-use super::{iter::Iter, DatasetBase, Float, Label, Labels, Records, Targets};
+use super::{
+    iter::Iter, Dataset, DatasetBase, DatasetView, Float, Label, Labels, Records, Targets,
+};
 
 impl<F: Float, L: Label> DatasetBase<Array2<F>, Vec<L>> {
     pub fn iter(&self) -> Iter<'_, Array2<F>, Vec<L>> {
@@ -175,10 +177,8 @@ impl<F: Float, T: Targets, D: Data<Elem = F>> DatasetBase<ArrayBase<D, Ix2>, T> 
     ) {
         let n = (self.observations() as f32 * ratio).ceil() as usize;
         let (first, second) = self.records.view().split_at(Axis(0), n);
-
         let targets = self.targets().as_slice();
         let (first_targets, second_targets) = (&targets[..n], &targets[n..]);
-
         let dataset1 = DatasetBase::new(first, first_targets);
         let dataset2 = DatasetBase::new(second, second_targets);
 
@@ -255,5 +255,114 @@ impl<F: Float, T: Targets, D: Data<Elem = F>, I: Dimension> From<(ArrayBase<D, I
             targets: rec_tar.1,
             weights: Vec::new(),
         }
+    }
+}
+
+impl<F: Float, E: Clone> Dataset<F, E> {
+    pub fn map_targets_array<T, G: FnMut(&E) -> T>(self, fnc: G) -> Dataset<F, T> {
+        let DatasetBase {
+            records,
+            targets,
+            weights,
+            ..
+        } = self;
+
+        let new_targets = targets.iter().map(fnc).collect::<Vec<T>>();
+        let new_targets = Array1::from_shape_vec(new_targets.len(), new_targets).unwrap();
+
+        DatasetBase {
+            records,
+            targets: new_targets,
+            weights,
+        }
+    }
+
+    pub fn bootstrap<'a, R: Rng>(
+        &'a self,
+        num_samples: usize,
+        rng: &'a mut R,
+    ) -> impl Iterator<Item = Dataset<F, E>> + 'a {
+        std::iter::repeat(()).map(move |_| {
+            // sample with replacement
+            let indices = (0..num_samples)
+                .map(|_| rng.gen_range(0, self.observations()))
+                .collect::<Vec<_>>();
+
+            let records = self.records().select(Axis(0), &indices);
+            let targets = indices
+                .iter()
+                .map(|x| self.targets[*x].clone())
+                .collect::<ArrayBase<_, Ix1>>();
+
+            Dataset::new(records, targets)
+        })
+    }
+
+    pub fn split_with_ratio(mut self, ratio: f32) -> (Self, Self) {
+        let nfeatures = self.records.ncols();
+        let npoints = self.records.nrows();
+        let n = (npoints as f32 * ratio).ceil() as usize;
+
+        // split records into two disjoint arrays
+        let mut array_buf = self.records.into_raw_vec();
+        let second_array_buf = array_buf.split_off(n * nfeatures);
+
+        let first = Array2::from_shape_vec((n, nfeatures), array_buf).unwrap();
+        let second = Array2::from_shape_vec((npoints - n, nfeatures), second_array_buf).unwrap();
+
+        // split targets into two disjoint Vec
+        let mut array_buf = self.targets.into_raw_vec();
+        let second_array_buf = array_buf.split_off(n);
+
+        let first_targets = Array1::from_shape_vec(n, array_buf).unwrap();
+        let second_targets = Array1::from_shape_vec(npoints - n, second_array_buf).unwrap();
+
+        // split weights into two disjoint Vec
+        let second_weights = if self.weights.len() == npoints {
+            self.weights.split_off(n)
+        } else {
+            vec![]
+        };
+
+        // create new datasets with attached weights
+        let dataset1 = Dataset::new(first, first_targets).with_weights(self.weights);
+        let dataset2 = Dataset::new(second, second_targets).with_weights(second_weights);
+        (dataset1, dataset2)
+    }
+}
+
+impl<'a, F: Float, E: Clone> DatasetView<'a, F, E> {
+    pub fn bootstrap<R: Rng>(
+        &'a self,
+        num_samples: usize,
+        rng: &'a mut R,
+    ) -> impl Iterator<Item = Dataset<F, E>> + 'a {
+        std::iter::repeat(()).map(move |_| {
+            // sample with replacement
+            let indices = (0..num_samples)
+                .map(|_| rng.gen_range(0, self.observations()))
+                .collect::<Vec<_>>();
+
+            let records = self.records().select(Axis(0), &indices);
+            let targets = indices
+                .iter()
+                .map(|x| self.targets[*x].clone())
+                .collect::<ArrayBase<_, Ix1>>();
+
+            Dataset::new(records, targets)
+        })
+    }
+
+    pub fn shuffle<R: Rng>(&self, mut rng: &mut R) -> Dataset<F, E> {
+        let mut indices = (0..(&self).observations()).collect::<Vec<_>>();
+        indices.shuffle(&mut rng);
+
+        let records = (&self).records().select(Axis(0), &indices);
+        let targets = indices
+            .iter()
+            .map(|x| (self).targets[*x].clone())
+            .collect::<Array1<_>>();
+
+        DatasetBase::new(records, targets)
     }
 }

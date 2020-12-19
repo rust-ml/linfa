@@ -249,7 +249,10 @@ impl<'a, F: Float, T: Targets>
     Transformer<&'a DatasetBase<Array2<F>, T>, DatasetBase<Kernel<ArrayView2<'a, F>>, &'a T>>
     for KernelParams<F>
 {
-    fn transform(&self, x: &'a DatasetBase<Array2<F>, T>) -> DatasetBase<Kernel<ArrayView2<'a, F>>, &'a T> {
+    fn transform(
+        &self,
+        x: &'a DatasetBase<Array2<F>, T>,
+    ) -> DatasetBase<Kernel<ArrayView2<'a, F>>, &'a T> {
         let is_linear = self.method.is_linear();
 
         let kernel = Kernel::new(

@@ -10,7 +10,7 @@ impl<F: Float, S: Data<Elem = F>, I: Dimension> Records for ArrayBase<S, I> {
     }
 }
 
-/// Implement records for a dataset
+/// Implement records for a DatasetBase
 impl<F: Float, D: Records<Elem = F>, T: Targets> Records for DatasetBase<D, T> {
     type Elem = F;
 
