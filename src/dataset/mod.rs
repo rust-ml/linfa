@@ -82,6 +82,13 @@ pub type Dataset<D, T> = DatasetBase<ArrayBase<OwnedRepr<D>, Ix2>, ArrayBase<Own
 /// A read only view of a Dataset
 pub type DatasetView<'a, D, T> = DatasetBase<ArrayView<'a, D, Ix2>, ArrayView<'a, T, Ix1>>;
 
+/// DatasetPr
+/// 
+/// Dataset with probabilities as targets. Useful for multiclass probabilities.
+/// It stores records as an `Array2` of elements of type `D`, and targets as an `Array1`
+/// of elements of type `Pr`
+pub type DatasetPr<D> = Dataset<D, Pr>;
+
 /// Records
 ///
 /// The records are input data in the training
@@ -142,8 +149,8 @@ mod tests {
 
         //Split with ratio view
         let (train, val) = dataset.split_with_ratio_view(0.5);
-        assert_eq!(train.targets().len(), 25);
-        assert_eq!(val.targets().len(), 25);
+        assert_eq!(train.targets().dim(), 25);
+        assert_eq!(val.targets().dim(), 25);
         assert_eq!(train.records().dim().0, 25);
         assert_eq!(val.records().dim().0, 25);
 
@@ -213,8 +220,8 @@ mod tests {
         let view: DatasetView<f64, f64> = dataset.view();
 
         let (train, val) = view.split_with_ratio_view(0.5);
-        assert_eq!(train.targets().len(), 25);
-        assert_eq!(val.targets().len(), 25);
+        assert_eq!(train.targets().dim(), 25);
+        assert_eq!(val.targets().dim(), 25);
         assert_eq!(train.records().dim().0, 25);
         assert_eq!(val.records().dim().0, 25);
 
@@ -247,5 +254,27 @@ mod tests {
         assert_eq!(*freqs.get(&0).unwrap() as usize, 1);
         assert_eq!(*freqs.get(&1).unwrap() as usize, 1);
         assert_eq!(*freqs.get(&2).unwrap() as usize, 1);
+    }
+
+    #[test]
+    fn datasets_have_k_fold() {
+        let linspace: Array1<f64> = Array1::linspace(0.0, 0.8, 100);
+        let records = Array2::from_shape_vec((50, 2), linspace.to_vec()).unwrap();
+        let targets: Array1<f64> = Array1::linspace(0.0, 0.8, 50);
+        for (train, val) in DatasetView::new(records.view(), targets.view())
+            .fold(2)
+            .into_iter()
+        {
+            println!("{:?}", train.records().dim());
+            println!("{:?}", train.targets().dim());
+            println!("{:?}", val.records().dim());
+            println!("{:?}", val.targets().dim());
+
+            assert_eq!(train.records().dim(), (25, 2));
+            assert_eq!(val.records().dim(), (25, 2));
+            assert_eq!(train.targets().dim(), 25);
+            assert_eq!(val.targets().dim(), 25);
+        }
+        assert_eq!(Dataset::new(records, targets).fold(10).len(), 10);
     }
 }

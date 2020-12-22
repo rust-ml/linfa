@@ -1,5 +1,5 @@
 use linfa::{dataset::DatasetBase, dataset::Pr, dataset::Targets, traits::Fit, traits::Predict};
-use ndarray::{Array1, Array2, ArrayBase, ArrayView2, Data, Ix2};
+use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix2};
 use std::cmp::Ordering;
 use std::ops::Mul;
 
@@ -170,22 +170,22 @@ pub fn fit_one_class<'a, A: Float + num_traits::ToPrimitive>(
     res.with_phantom()
 }
 
-impl<'a, F: Float> Fit<'a, Kernel<'a, F>, Vec<bool>> for SvmParams<F, Pr> {
+impl<'a, F: Float> Fit<'a, Kernel<'a, F>, &Array1<bool>> for SvmParams<F, Pr> {
     type Object = Svm<'a, F, Pr>;
 
-    fn fit(&self, dataset: &'a DatasetBase<Kernel<'a, F>, Vec<bool>>) -> Self::Object {
+    fn fit(&self, dataset: &'a DatasetBase<Kernel<'a, F>, &Array1<bool>>) -> Self::Object {
         match (self.c, self.nu) {
             (Some((c_p, c_n)), _) => fit_c(
                 self.solver_params.clone(),
                 &dataset.records,
-                dataset.targets(),
+                dataset.targets().as_slice(),
                 c_p,
                 c_n,
             ),
             (None, Some((nu, _))) => fit_nu(
                 self.solver_params.clone(),
                 &dataset.records,
-                dataset.targets(),
+                dataset.targets().as_slice(),
                 nu,
             ),
             _ => panic!("Set either C value or Nu value"),
@@ -193,22 +193,22 @@ impl<'a, F: Float> Fit<'a, Kernel<'a, F>, Vec<bool>> for SvmParams<F, Pr> {
     }
 }
 
-impl<'a, F: Float> Fit<'a, Kernel<'a, F>, &Vec<bool>> for SvmParams<F, Pr> {
+impl<'a, F: Float> Fit<'a, Kernel<'a, F>, ArrayView1<'a, bool>> for SvmParams<F, Pr> {
     type Object = Svm<'a, F, Pr>;
 
-    fn fit(&self, dataset: &'a DatasetBase<Kernel<'a, F>, &Vec<bool>>) -> Self::Object {
+    fn fit(&self, dataset: &'a DatasetBase<Kernel<'a, F>, ArrayView1<'a, bool>>) -> Self::Object {
         match (self.c, self.nu) {
             (Some((c_p, c_n)), _) => fit_c(
                 self.solver_params.clone(),
                 &dataset.records,
-                dataset.targets(),
+                dataset.targets().as_slice().unwrap(),
                 c_p,
                 c_n,
             ),
             (None, Some((nu, _))) => fit_nu(
                 self.solver_params.clone(),
                 &dataset.records,
-                dataset.targets(),
+                dataset.targets().as_slice().unwrap(),
                 nu,
             ),
             _ => panic!("Set either C value or Nu value"),
@@ -263,8 +263,8 @@ impl<'a, F: Float> Predict<Array1<F>, Pr> for Svm<'a, F, Pr> {
 }
 
 /// Predict a probability with a set of observations
-impl<'a, F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Vec<Pr>> for Svm<'a, F, Pr> {
-    fn predict(&self, data: ArrayBase<D, Ix2>) -> Vec<Pr> {
+impl<'a, F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Array1<Pr>> for Svm<'a, F, Pr> {
+    fn predict(&self, data: ArrayBase<D, Ix2>) -> Array1<Pr> {
         data.outer_iter()
             .map(|data| {
                 let val = match self.linear_decision {
@@ -279,10 +279,10 @@ impl<'a, F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Vec<Pr>> for Sv
     }
 }
 
-impl<'a, F: Float, T: Targets> Predict<DatasetBase<Array2<F>, T>, DatasetBase<Array2<F>, Vec<Pr>>>
-    for Svm<'a, F, Pr>
+impl<'a, F: Float, T: Targets>
+    Predict<DatasetBase<Array2<F>, T>, DatasetBase<Array2<F>, Array1<Pr>>> for Svm<'a, F, Pr>
 {
-    fn predict(&self, data: DatasetBase<Array2<F>, T>) -> DatasetBase<Array2<F>, Vec<Pr>> {
+    fn predict(&self, data: DatasetBase<Array2<F>, T>) -> DatasetBase<Array2<F>, Array1<Pr>> {
         let DatasetBase { records, .. } = data;
         let predicted = self.predict(records.view());
 
@@ -291,13 +291,13 @@ impl<'a, F: Float, T: Targets> Predict<DatasetBase<Array2<F>, T>, DatasetBase<Ar
 }
 
 impl<'a, F: Float, T: Targets, D: Data<Elem = F>>
-    Predict<&'a DatasetBase<ArrayBase<D, Ix2>, T>, DatasetBase<ArrayView2<'a, F>, Vec<Pr>>>
+    Predict<&'a DatasetBase<ArrayBase<D, Ix2>, T>, DatasetBase<ArrayView2<'a, F>, Array1<Pr>>>
     for Svm<'a, F, Pr>
 {
     fn predict(
         &self,
         data: &'a DatasetBase<ArrayBase<D, Ix2>, T>,
-    ) -> DatasetBase<ArrayView2<'a, F>, Vec<Pr>> {
+    ) -> DatasetBase<ArrayView2<'a, F>, Array1<Pr>> {
         let predicted = self.predict(data.records.view());
 
         DatasetBase::new(data.records.view(), predicted)
@@ -308,11 +308,11 @@ impl<'a, F: Float, T: Targets, D: Data<Elem = F>>
 mod tests {
     use super::Svm;
     use linfa::dataset::DatasetBase;
-    use linfa::metrics::ToConfusionMatrix;
+    use linfa::prelude::ToConfusionMatrix;
     use linfa::traits::{Fit, Predict, Transformer};
     use linfa_kernel::{Kernel, KernelMethod};
 
-    use ndarray::{Array, Array2, Axis};
+    use ndarray::{Array, Array1, Array2, Axis};
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::Uniform;
     use ndarray_rand::RandomExt;
@@ -347,7 +347,7 @@ mod tests {
             ],
         )
         .unwrap();
-        let targets = (0..20).map(|x| x < 10).collect::<Vec<_>>();
+        let targets = (0..20).map(|x| x < 10).collect::<Array1<_>>();
         let dataset = DatasetBase::new(entries.clone(), targets);
 
         let dataset = Kernel::params()
@@ -378,7 +378,7 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(42);
         // construct parabolica and classify middle area as positive and borders as negative
         let records = Array::random_using((40, 1), Uniform::new(-2f64, 2.), &mut rng);
-        let targets = records.map_axis(Axis(1), |x| x[0] * x[0] < 0.5).to_vec();
+        let targets = records.map_axis(Axis(1), |x| x[0] * x[0] < 0.5);
         let dataset = DatasetBase::new(records.clone(), targets);
 
         let dataset = Kernel::params()
@@ -401,7 +401,7 @@ mod tests {
     #[test]
     fn test_convoluted_rings_classification() {
         let records = generate_convoluted_rings(10);
-        let targets = (0..20).map(|x| x < 10).collect::<Vec<_>>();
+        let targets = (0..20).map(|x| x < 10).collect::<Array1<_>>();
         let dataset = DatasetBase::new(records.clone(), targets);
 
         let dataset = Kernel::params()

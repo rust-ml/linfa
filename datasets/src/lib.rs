@@ -30,7 +30,7 @@ pub fn iris() -> Dataset<f64, usize> {
         array.column(4).to_owned(),
     );
 
-    Dataset::new(data, targets).map_targets_array(|x| *x as usize)
+    Dataset::new(data, targets).map_targets(|x| *x as usize)
 }
 
 #[cfg(feature = "diabetes")]
@@ -54,5 +54,5 @@ pub fn winequality() -> Dataset<f64, usize> {
         array.column(11).to_owned(),
     );
 
-    Dataset::new(data, targets).map_targets_array(|x| *x as usize)
+    Dataset::new(data, targets).map_targets(|x| *x as usize)
 }

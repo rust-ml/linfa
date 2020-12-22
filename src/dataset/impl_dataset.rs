@@ -66,8 +66,13 @@ impl<R: Records, S: Targets> DatasetBase<R, S> {
 
         self
     }
+}
 
-    pub fn map_targets<T, G: FnMut(&S::Elem) -> T>(self, fnc: G) -> DatasetBase<R, Vec<T>> {
+impl<F: Float, D: Data<Elem = F>, T: Targets> DatasetBase<ArrayBase<D, Ix2>, T> {
+    pub fn map_targets<S, G: FnMut(&T::Elem) -> S>(
+        self,
+        fnc: G,
+    ) -> DatasetBase<ArrayBase<D, Ix2>, Array1<S>> {
         let DatasetBase {
             records,
             targets,
@@ -75,7 +80,8 @@ impl<R: Records, S: Targets> DatasetBase<R, S> {
             ..
         } = self;
 
-        let new_targets = targets.as_slice().iter().map(fnc).collect::<Vec<T>>();
+        let new_targets = targets.as_slice().iter().map(fnc).collect::<Vec<S>>();
+        let new_targets = Array1::from_shape_vec(new_targets.len(), new_targets).unwrap();
 
         DatasetBase {
             records,
@@ -151,44 +157,27 @@ impl<F: Float, T: Clone> DatasetBase<Array2<F>, Vec<T>> {
     }
 }
 
-impl<F: Float, T: Clone> DatasetBase<Array2<F>, Array1<T>> {
-    pub fn shuffle<R: Rng>(self, mut rng: &mut R) -> Self {
-        let mut indices = (0..self.observations()).collect::<Vec<_>>();
-        indices.shuffle(&mut rng);
-
-        let records = self.records().select(Axis(0), &indices);
-        let targets = indices
-            .iter()
-            .map(|x| self.targets[*x].clone())
-            .collect::<Array1<_>>();
-
-        DatasetBase::new(records, targets)
-    }
-}
-
 #[allow(clippy::type_complexity)]
 impl<F: Float, T: Targets, D: Data<Elem = F>> DatasetBase<ArrayBase<D, Ix2>, T> {
     pub fn split_with_ratio_view(
         &self,
         ratio: f32,
-    ) -> (
-        DatasetBase<ArrayView2<'_, F>, &[T::Elem]>,
-        DatasetBase<ArrayView2<'_, F>, &[T::Elem]>,
-    ) {
+    ) -> (DatasetView<F, T::Elem>, DatasetView<F, T::Elem>) {
         let n = (self.observations() as f32 * ratio).ceil() as usize;
         let (first, second) = self.records.view().split_at(Axis(0), n);
         let targets = self.targets().as_slice();
-        let (first_targets, second_targets) = (&targets[..n], &targets[n..]);
+        let (first_targets, second_targets) = (
+            ArrayView1::from(&targets[..n]),
+            ArrayView1::from(&targets[n..]),
+        );
         let dataset1 = DatasetBase::new(first, first_targets);
         let dataset2 = DatasetBase::new(second, second_targets);
-
         (dataset1, dataset2)
     }
 
-    pub fn view(&self) -> DatasetBase<ArrayView2<'_, F>, ArrayView1<'_, T::Elem>> {
+    pub fn view(&self) -> DatasetView<F, T::Elem> {
         let records = self.records().view();
         let targets = ArrayView1::from(self.targets.as_slice());
-
         DatasetBase::new(records, targets)
     }
 }
@@ -216,6 +205,15 @@ impl<L: Label, R: Records, S: Labels<Elem = L>> DatasetBase<R, S> {
         self.targets.labels()
     }
 
+    /// Calculates label frequencies from a dataset while masking certain samples.
+    ///
+    /// ### Parameters
+    ///
+    /// * `mask`: a boolean array that specifies which samples to include in the count
+    ///
+    /// ### Returns
+    ///
+    /// A mapping of the Dataset's samples to their frequencies
     pub fn frequencies_with_mask(&self, mask: &[bool]) -> HashMap<&L, f32> {
         let mut freqs = HashMap::new();
 
@@ -258,25 +256,7 @@ impl<F: Float, T: Targets, D: Data<Elem = F>, I: Dimension> From<(ArrayBase<D, I
     }
 }
 
-impl<F: Float, E: Clone> Dataset<F, E> {
-    pub fn map_targets_array<T, G: FnMut(&E) -> T>(self, fnc: G) -> Dataset<F, T> {
-        let DatasetBase {
-            records,
-            targets,
-            weights,
-            ..
-        } = self;
-
-        let new_targets = targets.iter().map(fnc).collect::<Vec<T>>();
-        let new_targets = Array1::from_shape_vec(new_targets.len(), new_targets).unwrap();
-
-        DatasetBase {
-            records,
-            targets: new_targets,
-            weights,
-        }
-    }
-
+impl<F: Float, E: Copy> Dataset<F, E> {
     pub fn bootstrap<'a, R: Rng>(
         &'a self,
         num_samples: usize,
@@ -291,13 +271,37 @@ impl<F: Float, E: Clone> Dataset<F, E> {
             let records = self.records().select(Axis(0), &indices);
             let targets = indices
                 .iter()
-                .map(|x| self.targets[*x].clone())
+                .map(|x| self.targets[*x])
                 .collect::<ArrayBase<_, Ix1>>();
 
             Dataset::new(records, targets)
         })
     }
 
+    /// Produces a shuffled version of the current Dataset.
+    ///
+    /// ### Parameters
+    ///
+    /// * `rng`: the random number generator that will be used to shuffle the samples
+    ///
+    /// ### Returns
+    ///
+    /// A new shuffled version of the current Dataset
+    pub fn shuffle<R: Rng>(self, rng: &mut R) -> Self {
+        self.view().shuffle(rng)
+    }
+
+    /// Splits the current Dataset into two new ones according to the ratio given in input.
+    /// If the input Dataset contains `n` samples then the two new Datasets will have respectively
+    /// `n * ratio` and `n - (n*ratio)` samples.
+    ///
+    /// ### Parameters
+    ///
+    /// * `ratio`: the ratio of samples in the input Dataset to include in the first output one
+    ///
+    /// ### Returns
+    ///  
+    /// The input Dataset split into two according to the input ratio.
     pub fn split_with_ratio(mut self, ratio: f32) -> (Self, Self) {
         let nfeatures = self.records.ncols();
         let npoints = self.records.nrows();
@@ -329,9 +333,47 @@ impl<F: Float, E: Clone> Dataset<F, E> {
         let dataset2 = Dataset::new(second, second_targets).with_weights(second_weights);
         (dataset1, dataset2)
     }
+
+    /// Performs K-folding on the dataset.
+    /// The dataset is divided into `k` "folds", each containing
+    /// `(dataset size)/k` samples, used to generate `k` training-validation
+    /// dataset pairs. Each pair contains a validation `Dataset` with `k` samples(
+    ///  the ones contained in the i-th fold), and a training `Dataset` composed by the
+    /// union of all the samples in the remaining folds.
+    ///
+    /// ### Parameters
+    ///
+    /// * `k`: the number of folds to apply
+    ///
+    /// ### Returns
+    ///
+    /// A vector of `k` training-validation Dataset pairs.
+    ///
+    /// ### Example
+    ///
+    /// ```rust
+    /// use linfa::dataset::Dataset;
+    /// use ndarray::{arr1, arr2};
+    ///
+    /// let records = arr2(&[[1.,1.], [2.,1.], [3.,2.], [4.,1.],[5., 3.], [6.,2.]]);
+    /// let targets = arr1(&[1, 1, 0, 1, 0, 0]);
+    ///
+    /// let dataset : Dataset<f64, usize> = Dataset::new(records, targets);
+    /// let accuracies = dataset.fold(3).into_iter().map(|(train, valid)| {
+    ///     // Here you can train your model and perform validation
+    ///     
+    ///     // let model = params.fit(&dataset);
+    ///     // let predi = model.predict(&valid);
+    ///     // predi.confusion_matrix(&valid).accuracy()  
+    /// });
+    /// ```
+    ///
+    pub fn fold(&self, k: usize) -> Vec<(Dataset<F, E>, Dataset<F, E>)> {
+        self.view().fold(k)
+    }
 }
 
-impl<'a, F: Float, E: Clone> DatasetView<'a, F, E> {
+impl<'a, F: Float, E: Copy> DatasetView<'a, F, E> {
     pub fn bootstrap<R: Rng>(
         &'a self,
         num_samples: usize,
@@ -346,13 +388,22 @@ impl<'a, F: Float, E: Clone> DatasetView<'a, F, E> {
             let records = self.records().select(Axis(0), &indices);
             let targets = indices
                 .iter()
-                .map(|x| self.targets[*x].clone())
+                .map(|x| self.targets[*x])
                 .collect::<ArrayBase<_, Ix1>>();
 
             Dataset::new(records, targets)
         })
     }
 
+    /// Produces a shuffled version of the current Dataset.
+    ///
+    /// ### Parameters
+    ///
+    /// * `rng`: the random number generator that will be used to shuffle the samples
+    ///
+    /// ### Returns
+    ///
+    /// A new shuffled version of the current Dataset
     pub fn shuffle<R: Rng>(&self, mut rng: &mut R) -> Dataset<F, E> {
         let mut indices = (0..(&self).observations()).collect::<Vec<_>>();
         indices.shuffle(&mut rng);
@@ -360,9 +411,80 @@ impl<'a, F: Float, E: Clone> DatasetView<'a, F, E> {
         let records = (&self).records().select(Axis(0), &indices);
         let targets = indices
             .iter()
-            .map(|x| (self).targets[*x].clone())
+            .map(|x| (self).targets[*x])
             .collect::<Array1<_>>();
 
         DatasetBase::new(records, targets)
+    }
+
+    /// Performs K-folding on the dataset.
+    /// The dataset is divided into `k` "fold", each containing
+    /// `(dataset size)/k` samples, used to generate `k` training-validation
+    /// dataset pairs. Each pair contains a validation `Dataset` with `k` samples,
+    ///  the ones contained in the i-th fold, and a training `Dataset` composed by the
+    /// union of all the samples in the remaining folds.
+    ///
+    /// ### Parameters
+    ///
+    /// * `k`: the number of folds to apply
+    ///
+    /// ### Returns
+    ///
+    /// A vector of `k` training-validation Dataset pairs.
+    ///
+    /// ### Example
+    ///
+    /// ```rust
+    /// use linfa::dataset::DatasetView;
+    /// use ndarray::{arr1, arr2};
+    ///
+    /// let records = arr2(&[[1.,1.], [2.,1.], [3.,2.], [4.,1.],[5., 3.], [6.,2.]]);
+    /// let targets = arr1(&[1, 1, 0, 1, 0, 0]);
+    ///
+    /// let dataset : DatasetView<f64, usize> = DatasetView::new(records.view(), targets.view());
+    /// let accuracies = dataset.fold(3).into_iter().map(|(train, valid)| {
+    ///     // Here you can train your model and perform validation
+    ///     
+    ///     // let model = params.fit(&dataset);
+    ///     // let predi = model.predict(&valid);
+    ///     // predi.confusion_matrix(&valid).accuracy()  
+    /// });
+    /// ```
+    ///  
+    pub fn fold(&self, k: usize) -> Vec<(Dataset<F, E>, Dataset<F, E>)> {
+        let fold_size = self.targets().dim() / k;
+
+        let mut res = Vec::new();
+        for i in 0..k {
+            let fold_start = i * fold_size;
+
+            // fold end = max { fold_start + fold_size, #samples}
+            let fold_end = if (fold_size * (i + 1)) > self.targets.dim() {
+                self.targets.dim()
+            } else {
+                fold_size * (i + 1)
+            };
+
+            let fold_indices = (fold_start..fold_end).collect::<Vec<_>>();
+            let non_fold_indices = (0..self.targets.dim())
+                .filter(|x| *x < fold_start || *x >= fold_end)
+                .collect::<Vec<_>>();
+
+            // remaining records
+            let rem_rec = self.records.select(Axis(0), &non_fold_indices);
+            // remaining targets
+            let rem_tar = self.targets.select(Axis(0), &non_fold_indices);
+
+            // fold records
+            let fold_rec = self.records.select(Axis(0), &fold_indices);
+            // fold targets
+            let fold_tar = self.targets.select(Axis(0), &fold_indices);
+
+            res.push((
+                Dataset::new(rem_rec, rem_tar),
+                Dataset::new(fold_rec, fold_tar),
+            ))
+        }
+        res
     }
 }
