@@ -22,7 +22,8 @@ fn gaussian_mixture_bench(c: &mut Criterion) {
             let n_features = 3;
             let centroids =
                 Array2::random_using((n_clusters, n_features), Uniform::new(-30., 30.), &mut rng);
-            let dataset : DatasetBase<_,_> = (generate_blobs(cluster_size, &centroids, &mut rng),()).into();
+            let dataset: DatasetBase<_, _> =
+                (generate_blobs(cluster_size, &centroids, &mut rng), ()).into();
             bencher.iter(|| {
                 black_box(
                     GaussianMixtureModel::params(n_clusters)

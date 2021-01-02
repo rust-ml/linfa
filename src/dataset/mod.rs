@@ -83,7 +83,7 @@ pub type Dataset<D, T> = DatasetBase<ArrayBase<OwnedRepr<D>, Ix2>, ArrayBase<Own
 pub type DatasetView<'a, D, T> = DatasetBase<ArrayView<'a, D, Ix2>, ArrayView<'a, T, Ix1>>;
 
 /// DatasetPr
-/// 
+///
 /// Dataset with probabilities as targets. Useful for multiclass probabilities.
 /// It stores records as an `Array2` of elements of type `D`, and targets as an `Array1`
 /// of elements of type `Pr`

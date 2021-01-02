@@ -35,7 +35,7 @@ mod metrics_regression;
 pub mod prelude;
 pub mod traits;
 
-pub use dataset::{Dataset, DatasetBase, DatasetView, DatasetPr, Float, Label};
+pub use dataset::{Dataset, DatasetBase, DatasetPr, DatasetView, Float, Label};
 
 #[cfg(feature = "ndarray-linalg")]
 pub use ndarray_linalg as linalg;

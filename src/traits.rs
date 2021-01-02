@@ -35,7 +35,7 @@ pub trait IncrementalFit<'a, R: Records, T: Targets> {
     type ObjectIn: 'a;
     type ObjectOut: 'a;
 
-    fn fit_with(&self, model: Self::ObjectIn, dataset: &'a Dataset<R, T>) -> Self::ObjectOut;
+    fn fit_with(&self, model: Self::ObjectIn, dataset: &'a DatasetBase<R, T>) -> Self::ObjectOut;
 }
 
 /// Predict with model

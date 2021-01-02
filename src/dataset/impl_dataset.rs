@@ -1,4 +1,6 @@
-use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Dimension, Ix1, Ix2};
+use ndarray::{
+    stack, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Dimension, Ix1, Ix2,
+};
 use rand::{seq::SliceRandom, Rng};
 use std::collections::HashMap;
 
@@ -453,37 +455,28 @@ impl<'a, F: Float, E: Copy> DatasetView<'a, F, E> {
     ///  
     pub fn fold(&self, k: usize) -> Vec<(Dataset<F, E>, Dataset<F, E>)> {
         let fold_size = self.targets().dim() / k;
-
         let mut res = Vec::new();
-        for i in 0..k {
-            let fold_start = i * fold_size;
 
-            // fold end = max { fold_start + fold_size, #samples}
-            let fold_end = if (fold_size * (i + 1)) > self.targets.dim() {
-                self.targets.dim()
-            } else {
-                fold_size * (i + 1)
-            };
+        // Generates all k folds of records and targets
+        let mut folds_records: Vec<_> = self.records.axis_chunks_iter(Axis(0), fold_size).collect();
+        let mut folds_targets: Vec<_> = self.targets.axis_chunks_iter(Axis(0), fold_size).collect();
 
-            let fold_indices = (fold_start..fold_end).collect::<Vec<_>>();
-            let non_fold_indices = (0..self.targets.dim())
-                .filter(|x| *x < fold_start || *x >= fold_end)
-                .collect::<Vec<_>>();
-
-            // remaining records
-            let rem_rec = self.records.select(Axis(0), &non_fold_indices);
-            // remaining targets
-            let rem_tar = self.targets.select(Axis(0), &non_fold_indices);
-
-            // fold records
-            let fold_rec = self.records.select(Axis(0), &fold_indices);
-            // fold targets
-            let fold_tar = self.targets.select(Axis(0), &fold_indices);
+        // For each iteration, take the first fold for both records and targets as the validation set and
+        // stack all the other folds to create the training set. In the end, shift both vectors to the left
+        // so that the next fold will appear in the first position in the next iteration
+        for _ in 0..k {
+            let remaining_records = stack(Axis(0), &folds_records.as_slice()[1..]).unwrap();
+            let remaining_targets = stack(Axis(0), &folds_targets.as_slice()[1..]).unwrap();
 
             res.push((
-                Dataset::new(rem_rec, rem_tar),
-                Dataset::new(fold_rec, fold_tar),
-            ))
+                // training
+                Dataset::new(remaining_records, remaining_targets),
+                // validation
+                Dataset::new(folds_records[0].into_owned(), folds_targets[0].into_owned()),
+            ));
+
+            folds_records.rotate_left(1);
+            folds_targets.rotate_left(1);
         }
         res
     }
