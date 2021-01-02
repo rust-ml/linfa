@@ -454,7 +454,7 @@ impl<'a, F: Float, E: Copy> DatasetView<'a, F, E> {
     /// ```
     ///  
     pub fn fold(&self, k: usize) -> Vec<(Dataset<F, E>, Dataset<F, E>)> {
-        let fold_size = self.targets().dim() / k;
+        let fold_size = self.targets().len() / k;
         let mut res = Vec::new();
 
         // Generates all k folds of records and targets
