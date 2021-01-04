@@ -93,72 +93,6 @@ impl<F: Float, D: Data<Elem = F>, T: Targets> DatasetBase<ArrayBase<D, Ix2>, T> 
     }
 }
 
-impl<F: Float, T: Clone> DatasetBase<Array2<F>, Vec<T>> {
-    pub fn shuffle<R: Rng>(self, mut rng: &mut R) -> Self {
-        let mut indices = (0..self.observations()).collect::<Vec<_>>();
-        indices.shuffle(&mut rng);
-
-        let records = self.records().select(Axis(0), &indices);
-        let targets = indices
-            .iter()
-            .map(|x| self.targets[*x].clone())
-            .collect::<Vec<_>>();
-
-        DatasetBase::new(records, targets)
-    }
-
-    pub fn bootstrap<'a, R: Rng>(
-        &'a self,
-        num_samples: usize,
-        rng: &'a mut R,
-    ) -> impl Iterator<Item = DatasetBase<Array2<F>, Vec<T>>> + 'a {
-        std::iter::repeat(()).map(move |_| {
-            // sample with replacement
-            let indices = (0..num_samples)
-                .map(|_| rng.gen_range(0, self.observations()))
-                .collect::<Vec<_>>();
-
-            let records = self.records().select(Axis(0), &indices);
-            let targets = indices
-                .iter()
-                .map(|x| self.targets.as_slice()[*x].clone())
-                .collect::<Vec<_>>();
-
-            DatasetBase::new(records, targets)
-        })
-    }
-
-    pub fn split_with_ratio(mut self, ratio: f32) -> (Self, Self) {
-        let nfeatures = self.records.ncols();
-        let npoints = self.records.nrows();
-        let n = (npoints as f32 * ratio).ceil() as usize;
-
-        // split records into two disjoint arrays
-        let mut array_buf = self.records.into_raw_vec();
-        let second_array_buf = array_buf.split_off(n * nfeatures);
-
-        let first = Array2::from_shape_vec((n, nfeatures), array_buf).unwrap();
-        let second = Array2::from_shape_vec((npoints - n, nfeatures), second_array_buf).unwrap();
-
-        // split targets into two disjoint Vec
-        let second_targets = self.targets.split_off(n);
-
-        // split weights into two disjoint Vec
-        let second_weights = if self.weights.len() == npoints {
-            self.weights.split_off(n)
-        } else {
-            vec![]
-        };
-
-        // create new datasets with attached weights
-        let dataset1 = DatasetBase::new(first, self.targets).with_weights(self.weights);
-
-        let dataset2 = DatasetBase::new(second, second_targets).with_weights(second_weights);
-
-        (dataset1, dataset2)
-    }
-}
-
 #[allow(clippy::type_complexity)]
 impl<F: Float, T: Targets, D: Data<Elem = F>> DatasetBase<ArrayBase<D, Ix2>, T> {
     pub fn split_with_ratio_view(
@@ -458,25 +392,33 @@ impl<'a, F: Float, E: Copy> DatasetView<'a, F, E> {
         let mut res = Vec::new();
 
         // Generates all k folds of records and targets
-        let mut folds_records: Vec<_> = self.records.axis_chunks_iter(Axis(0), fold_size).collect();
-        let mut folds_targets: Vec<_> = self.targets.axis_chunks_iter(Axis(0), fold_size).collect();
+        let mut records_chunks: Vec<_> =
+            self.records.axis_chunks_iter(Axis(0), fold_size).collect();
+        let mut targets_chunks: Vec<_> =
+            self.targets.axis_chunks_iter(Axis(0), fold_size).collect();
 
-        // For each iteration, take the first fold for both records and targets as the validation set and
-        // stack all the other folds to create the training set. In the end, shift both vectors to the left
-        // so that the next fold will appear in the first position in the next iteration
-        for _ in 0..k {
-            let remaining_records = stack(Axis(0), &folds_records.as_slice()[1..]).unwrap();
-            let remaining_targets = stack(Axis(0), &folds_targets.as_slice()[1..]).unwrap();
+        // For each iteration, take the first chunk for both records and targets as the validation set and
+        // stack all the other chunks to create the training set. In the end swap the first chunk with the
+        // one in the next index so that it is ready for the next iteration
+        for i in 0..k {
+            let remaining_records = stack(Axis(0), &records_chunks.as_slice()[1..]).unwrap();
+            let remaining_targets = stack(Axis(0), &targets_chunks.as_slice()[1..]).unwrap();
 
             res.push((
                 // training
                 Dataset::new(remaining_records, remaining_targets),
                 // validation
-                Dataset::new(folds_records[0].into_owned(), folds_targets[0].into_owned()),
+                Dataset::new(
+                    records_chunks[0].into_owned(),
+                    targets_chunks[0].into_owned(),
+                ),
             ));
 
-            folds_records.rotate_left(1);
-            folds_targets.rotate_left(1);
+            // swap
+            if i < k - 1 {
+                records_chunks.swap(0, i + 1);
+                targets_chunks.swap(0, i + 1);
+            }
         }
         res
     }

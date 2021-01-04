@@ -265,16 +265,30 @@ mod tests {
             .fold(2)
             .into_iter()
         {
-            println!("{:?}", train.records().dim());
-            println!("{:?}", train.targets().dim());
-            println!("{:?}", val.records().dim());
-            println!("{:?}", val.targets().dim());
-
             assert_eq!(train.records().dim(), (25, 2));
             assert_eq!(val.records().dim(), (25, 2));
             assert_eq!(train.targets().dim(), 25);
             assert_eq!(val.targets().dim(), 25);
         }
         assert_eq!(Dataset::new(records, targets).fold(10).len(), 10);
+
+        let records =
+            Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
+        let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
+        for (i, (train, val)) in Dataset::new(records, targets)
+            .fold(5)
+            .into_iter()
+            .enumerate()
+        {
+            assert_eq!(val.records.row(0)[0] as usize, (i + 1));
+            assert_eq!(val.records.row(0)[1] as usize, (i + 1));
+            assert_eq!(val.targets[0] as usize, (i + 1));
+
+            for j in 0..4 {
+                assert!(train.records.row(j)[0] as usize != (i + 1));
+                assert!(train.records.row(j)[1] as usize != (i + 1));
+                assert!(train.targets[j] as usize != (i + 1));
+            }
+        }
     }
 }
