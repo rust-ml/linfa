@@ -123,6 +123,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::if_same_then_else)]
     fn adjacency_matrix_test() {
         // pts 0 & 1    pts 2 & 3    pts 4 & 5     pts 6 & 7
         // |0.| |0.1| _ |1.| |1.1| _ |2.| |2.1| _  |3.| |3.1|
