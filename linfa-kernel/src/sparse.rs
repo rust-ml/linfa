@@ -147,7 +147,7 @@ mod tests {
                 } else if i % 2 == 0 && j == i + 1 {
                     assert_eq!(*adj_mat.get(i, j).unwrap() as usize, 1);
                 // (1,0), (3,2), (5,4), (7,6) -> 4 elements
-                } else if j % 2 == 0 && j == i - 1 {
+                } else if j % 2 == 0 && i == j + 1 {
                     assert_eq!(*adj_mat.get(i, j).unwrap() as usize, 1);
                 // all other 48 elements
                 } else {
@@ -191,6 +191,34 @@ mod tests {
         assert_eq!(*adj_mat.get(7, 5).unwrap() as usize, 1);
 
         // it follows then that all other elements are `None`
+    }
+
+    #[test]
+    fn adjacency_matrix_test_2() {
+        // pts 0 & 1    pts 2 & 3    pts 4 & 5     pts 6 & 7
+        // |0.| |3.1| _ |1.| |2.1| _ |2.| |1.1| _  |3.| |0.1|
+        // |0.| |3.1|   |1.| |2.1|   |2.| |1.1|    |3.| |0.1|
+        let input_mat = vec![
+            0., 0., 3.1, 3.1, 1., 1., 2.1, 1.1, 2., 2., 1.1, 1.1, 3., 3., 0.1, 0.1,
+        ];
+
+        let input_arr = Array2::from_shape_vec((8, 2), input_mat).unwrap();
+        let adj_mat = adjacency_matrix(&input_arr, 1);
+        assert_eq!(adj_mat.nnz(), 16);
+
+        // I expext non-zeros in the diagonal and then:
+        // - point 0 to be neighbour of point 7 & vice versa
+        // - point 1 to be neighbour of point 6 & vice versa
+        // - point 2 to be neighbour of point 5 & vice versa
+        // - point 3 to be neighbour of point 4 & vice versa
+
+        for i in 0..8 {
+            assert_eq!(*adj_mat.get(i, i).unwrap() as usize, 1);
+            if i <= 3 {
+                assert_eq!(*adj_mat.get(i, 7 - i).unwrap() as usize, 1);
+                assert_eq!(*adj_mat.get(7 - i, i).unwrap() as usize, 1);
+            }
+        }
     }
 
     #[test]

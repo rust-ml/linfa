@@ -308,9 +308,17 @@ fn sparse_from_fn<F: Float, D: Data<Elem = F>>(
     k: usize,
     method: &KernelMethod<F>,
 ) -> CsMat<F> {
+    // compute adjacency matrix between points in the input dataset:
+    // one point for each row
     let mut data = sparse::adjacency_matrix(dataset, k);
 
+    // iterate through each row of the adjacency matrix where each
+    // row is represented by a vec containing a pair (col_index, value)
+    // for each non-zero element in the row
     for (i, mut vec) in data.outer_iterator_mut().enumerate() {
+        // If there is a non-zero element in row i at index j
+        // then it means that points i and j in the input matrix are
+        // k-neighbours and their distance is stored in position (i,j)
         for (j, val) in vec.iter_mut() {
             let a = dataset.row(i);
             let b = dataset.row(j);
@@ -318,6 +326,158 @@ fn sparse_from_fn<F: Float, D: Data<Elem = F>>(
             *val = method.distance(a, b);
         }
     }
-
     data
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ndarray::{Array1, Array2};
+    use std::f64::consts;
+
+    #[test]
+    fn sparse_from_fn_test() {
+        // pts 0 & 1    pts 2 & 3    pts 4 & 5     pts 6 & 7
+        // |0.| |0.1| _ |1.| |1.1| _ |2.| |2.1| _  |3.| |3.1|
+        // |0.| |0.1|   |1.| |1.1|   |2.| |2.1|    |3.| |3.1|
+        let input_mat = vec![
+            0., 0., 0.1, 0.1, 1., 1., 1.1, 1.1, 2., 2., 2.1, 2.1, 3., 3., 3.1, 3.1,
+        ];
+        let input_arr = Array2::from_shape_vec((8, 2), input_mat).unwrap();
+        let adj_mat = sparse_from_fn(&input_arr, 1, &KernelMethod::Linear);
+        assert_eq!(adj_mat.nnz(), 16);
+
+        // 2*0^2
+        assert_eq!(*adj_mat.get(0, 0).unwrap() as usize, 0);
+        // 2*0.1^2
+        assert_eq!((*adj_mat.get(1, 1).unwrap() * 100.) as usize, 2);
+        // 2*1^2
+        assert_eq!(*adj_mat.get(2, 2).unwrap() as usize, 2);
+        // 2*1.1^2
+        assert_eq!((*adj_mat.get(3, 3).unwrap() * 100.) as usize, 242);
+        // 2 * 2^2
+        assert_eq!(*adj_mat.get(4, 4).unwrap() as usize, 8);
+        // 2 * 2.1^2
+        assert_eq!((*adj_mat.get(5, 5).unwrap() * 100.) as usize, 882);
+        // 2 * 3^2
+        assert_eq!(*adj_mat.get(6, 6).unwrap() as usize, 18);
+        // 2 * 3.1^2
+        assert_eq!((*adj_mat.get(7, 7).unwrap() * 100.) as usize, 1922);
+
+        // 2*(0 * 0.1)
+        assert_eq!(*adj_mat.get(0, 1).unwrap() as usize, 0);
+        assert_eq!(*adj_mat.get(1, 0).unwrap() as usize, 0);
+
+        // 2*(1 * 1.1)
+        assert_eq!((*adj_mat.get(2, 3).unwrap() * 10.) as usize, 22);
+        assert_eq!((*adj_mat.get(3, 2).unwrap() * 10.) as usize, 22);
+
+        // 2*(2 * 2.1)
+        assert_eq!((*adj_mat.get(4, 5).unwrap() * 10.) as usize, 84);
+        assert_eq!((*adj_mat.get(5, 4).unwrap() * 10.) as usize, 84);
+
+        // 2*(3 * 3.1)
+        assert_eq!((*adj_mat.get(6, 7).unwrap() * 10.) as usize, 186);
+        assert_eq!((*adj_mat.get(7, 6).unwrap() * 10.) as usize, 186);
+    }
+
+    #[test]
+    fn dense_from_fn_test() {
+        // pts 0 & 1    pts 2 & 3    pts 4 & 5     pts 6 & 7
+        // |0.| |0.1| _ |1.| |1.1| _ |2.| |2.1| _  |3.| |3.1|
+        // |0.| |0.1|   |1.| |1.1|   |2.| |2.1|    |3.| |3.1|
+        let input_mat = vec![
+            0., 0., 0.1, 0.1, 1., 1., 1.1, 1.1, 2., 2., 2.1, 2.1, 3., 3., 3.1, 3.1,
+        ];
+        let input_arr = Array2::from_shape_vec((8, 2), input_mat).unwrap();
+        let method: KernelMethod<f64> = KernelMethod::Linear;
+
+        let similarity_matrix = dense_from_fn(&input_arr, &method);
+
+        for i in 0..8 {
+            for j in 0..8 {
+                assert!(
+                    (similarity_matrix.row(i)[j]
+                        - method.distance(input_arr.row(i), input_arr.row(j)))
+                    .abs()
+                        <= f64::EPSILON
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn gaussian_test() {
+        let gauss_1 = KernelMethod::Gaussian(1.);
+
+        let p1 = Array1::from_shape_vec(2, vec![0., 0.]).unwrap();
+        let p2 = Array1::from_shape_vec(2, vec![0., 0.]).unwrap();
+        let distance = gauss_1.distance(p1.view(), p2.view());
+        let expected = 1.;
+
+        assert!(((distance - expected) as f64).abs() <= f64::EPSILON);
+
+        let p1 = Array1::from_shape_vec(2, vec![1., 1.]).unwrap();
+        let p2 = Array1::from_shape_vec(2, vec![5., 5.]).unwrap();
+        let distance = gauss_1.distance(p1.view(), p2.view());
+        let expected = (consts::E).powf(-32.);
+        // this fails with e^-31 or e^-33 so f64::EPSILON still holds
+        assert!(((distance - expected) as f64).abs() <= f64::EPSILON);
+
+        let gauss_01 = KernelMethod::Gaussian(0.1);
+
+        let p1 = Array1::from_shape_vec(2, vec![0., 0.]).unwrap();
+        let p2 = Array1::from_shape_vec(2, vec![0., 0.]).unwrap();
+        let distance = gauss_01.distance(p1.view(), p2.view());
+        let expected = 1.;
+
+        assert!(((distance - expected) as f64).abs() <= f64::EPSILON);
+
+        let p1 = Array1::from_shape_vec(2, vec![1., 1.]).unwrap();
+        let p2 = Array1::from_shape_vec(2, vec![2., 2.]).unwrap();
+        let distance = gauss_01.distance(p1.view(), p2.view());
+        let expected = (consts::E).powf(-20.);
+
+        assert!(((distance - expected) as f64).abs() <= f64::EPSILON);
+    }
+
+    #[test]
+    fn poly2_test() {
+        let pol_0 = KernelMethod::Polynomial(0., 2.);
+
+        let p1 = Array1::from_shape_vec(2, vec![0., 0.]).unwrap();
+        let p2 = Array1::from_shape_vec(2, vec![0., 0.]).unwrap();
+        let distance = pol_0.distance(p1.view(), p2.view());
+        let expected = 0.;
+
+        assert!(((distance - expected) as f64).abs() <= f64::EPSILON);
+
+        let p1 = Array1::from_shape_vec(2, vec![1., 1.]).unwrap();
+        let p2 = Array1::from_shape_vec(2, vec![5., 5.]).unwrap();
+        let distance = pol_0.distance(p1.view(), p2.view());
+        let expected = 100.;
+        assert!(((distance - expected) as f64).abs() <= f64::EPSILON);
+
+        let pol_2 = KernelMethod::Polynomial(2., 2.);
+
+        let p1 = Array1::from_shape_vec(2, vec![0., 0.]).unwrap();
+        let p2 = Array1::from_shape_vec(2, vec![0., 0.]).unwrap();
+        let distance = pol_2.distance(p1.view(), p2.view());
+        let expected = 4.;
+
+        assert!(((distance - expected) as f64).abs() <= f64::EPSILON);
+
+        let p1 = Array1::from_shape_vec(2, vec![1., 1.]).unwrap();
+        let p2 = Array1::from_shape_vec(2, vec![2., 2.]).unwrap();
+        let distance = pol_2.distance(p1.view(), p2.view());
+        let expected = 36.;
+
+        assert!(((distance - expected) as f64).abs() <= f64::EPSILON);
+    }
+
+    #[test]
+    fn test_is_linear() {
+        /*let input = Array2::eye(8);
+        let linear_kernel : Kernel<Array2<f64>> = Kernel::new();*/
+    }
 }
