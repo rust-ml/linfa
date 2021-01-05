@@ -224,7 +224,6 @@ impl<F: Float> KernelParams<F> {
 
     pub fn kind(mut self, kind: KernelType) -> KernelParams<F> {
         self.kind = kind;
-
         self
     }
 }
@@ -476,8 +475,227 @@ mod tests {
     }
 
     #[test]
-    fn test_is_linear() {
-        /*let input = Array2::eye(8);
-        let linear_kernel : Kernel<Array2<f64>> = Kernel::new();*/
+    fn test_kernel_dot() {
+        let input_vec: Vec<f64> = (0..100).map(|v| v as f64 * 0.1).collect();
+        let vec_to_multiply: Vec<f64> = (0..100).map(|v| v as f64 * 0.3).collect();
+        let input_arr = Array2::from_shape_vec((10, 10), input_vec).unwrap();
+        let to_multiply = Array2::from_shape_vec((10, 10), vec_to_multiply).unwrap();
+
+        // dense kernel dot
+        let mul_mat = dense_from_fn(&input_arr, &KernelMethod::Linear).mul(to_multiply.view());
+        let kernel = Kernel::params()
+            .kind(KernelType::Dense)
+            .method(KernelMethod::Linear)
+            .transform(&input_arr);
+        let mul_ker = kernel.dot(&to_multiply.view());
+        assert!(kernels_almost_equal(mul_mat.view(), mul_ker.view()));
+
+        // sparse kernel dot
+        let mul_mat = sparse_from_fn(&input_arr, 3, &KernelMethod::Linear).mul(&to_multiply.view());
+        let kernel = Kernel::params()
+            .kind(KernelType::Sparse(3))
+            .method(KernelMethod::Linear)
+            .transform(&input_arr);
+        let mul_ker = kernel.dot(&to_multiply.view());
+        assert!(kernels_almost_equal(mul_mat.view(), mul_ker.view()));
+    }
+
+    #[test]
+    fn test_kernel_sum() {
+        let input_vec: Vec<f64> = (0..100).map(|v| v as f64 * 0.1).collect();
+        let input_arr = Array2::from_shape_vec((10, 10), input_vec).unwrap();
+
+        let method = KernelMethod::Linear;
+
+        // dense kernel sum
+        let cols_sum = dense_from_fn(&input_arr, &method).sum_axis(Axis(1));
+        let kernel = Kernel::params()
+            .kind(KernelType::Dense)
+            .method(method.clone())
+            .transform(&input_arr);
+        let kers_sum = kernel.sum();
+        assert!(arrays_almost_equal(cols_sum.view(), kers_sum.view()));
+
+        // sparse kernel sum
+        let cols_sum = sparse_from_fn(&input_arr, 3, &method)
+            .to_dense()
+            .sum_axis(Axis(1));
+        let kernel = Kernel::params()
+            .kind(KernelType::Sparse(3))
+            .method(method)
+            .transform(&input_arr);
+        let kers_sum = kernel.sum();
+        assert!(arrays_almost_equal(cols_sum.view(), kers_sum.view()));
+    }
+
+    #[test]
+    fn test_kernel_diag() {
+        let input_vec: Vec<f64> = (0..100).map(|v| v as f64 * 0.1).collect();
+        let input_arr = Array2::from_shape_vec((10, 10), input_vec).unwrap();
+
+        let method = KernelMethod::Linear;
+
+        // dense kernel sum
+        let input_diagonal = dense_from_fn(&input_arr, &method).diag().into_owned();
+        let kernel = Kernel::params()
+            .kind(KernelType::Dense)
+            .method(method.clone())
+            .transform(&input_arr);
+        let kers_diagonal = kernel.diagonal();
+        assert!(arrays_almost_equal(
+            input_diagonal.view(),
+            kers_diagonal.view()
+        ));
+
+        // sparse kernel sum
+        let input_diagonal: Vec<_> = sparse_from_fn(&input_arr, 3, &method)
+            .outer_iterator()
+            .enumerate()
+            .map(|(i, row)| *row.get(i).unwrap())
+            .collect();
+        let input_diagonal = Array1::from_shape_vec(10, input_diagonal).unwrap();
+        let kernel = Kernel::params()
+            .kind(KernelType::Sparse(3))
+            .method(method)
+            .transform(&input_arr);
+        let kers_diagonal = kernel.diagonal();
+        assert!(arrays_almost_equal(
+            input_diagonal.view(),
+            kers_diagonal.view()
+        ));
+    }
+
+    // inspired from scikit learn's tests
+    #[test]
+    fn test_kernel_transform_from_array2() {
+        let input_vec: Vec<f64> = (0..100).map(|v| v as f64 * 0.1).collect();
+        let input = Array2::from_shape_vec((50, 2), input_vec).unwrap();
+        // checks that the transform for Array2 builds the right kernel
+        // according to its input params.
+        check_kernel_from_array2_type(&input, KernelType::Dense);
+        check_kernel_from_array2_type(&input, KernelType::Sparse(3));
+        // checks that the transform for ArrayView2 builds the right kernel
+        // according to its input params.
+        check_kernel_from_array_view_2_type(input.view(), KernelType::Dense);
+        check_kernel_from_array_view_2_type(input.view(), KernelType::Sparse(3));
+    }
+
+    // inspired from scikit learn's tests
+    #[test]
+    fn test_kernel_transform_from_dataset() {
+        let input_vec: Vec<f64> = (0..100).map(|v| v as f64 * 0.1).collect();
+        let input_arr = Array2::from_shape_vec((50, 2), input_vec).unwrap();
+        let input = DatasetBase::new(input_arr, ());
+        // checks that the transform for dataset builds the right kernel
+        // according to its input params.
+        check_kernel_from_dataset_type(&input, KernelType::Dense);
+        check_kernel_from_dataset_type(&input, KernelType::Sparse(3));
+
+        // checks that the transform for dataset view builds the right kernel
+        // according to its input params.
+        check_kernel_from_dataset_view_type(&input.view(), KernelType::Dense);
+        check_kernel_from_dataset_view_type(&input.view(), KernelType::Sparse(3));
+    }
+
+    fn check_kernel_from_dataset_type<T: Targets>(
+        input: &DatasetBase<Array2<f64>, T>,
+        k_type: KernelType,
+    ) {
+        let methods = vec![
+            KernelMethod::Linear,
+            KernelMethod::Gaussian(0.1),
+            KernelMethod::Polynomial(1., 2.),
+        ];
+        for method in methods {
+            let kernel_ref =
+                Kernel::new(input.records().view(), method.clone(), k_type.clone(), true);
+            let kernel_tr = Kernel::params()
+                .kind(k_type.clone())
+                .method(method.clone())
+                .transform(input);
+            assert!(kernels_almost_equal(
+                kernel_ref.dataset,
+                kernel_tr.records.dataset
+            ));
+        }
+    }
+
+    fn check_kernel_from_dataset_view_type<'a, T: Targets>(
+        input: &'a DatasetBase<ArrayView2<'a, f64>, T>,
+        k_type: KernelType,
+    ) {
+        let methods = vec![
+            KernelMethod::Linear,
+            KernelMethod::Gaussian(0.1),
+            KernelMethod::Polynomial(1., 2.),
+        ];
+        for method in methods {
+            let kernel_ref = Kernel::new(*input.records(), method.clone(), k_type.clone(), true);
+            let kernel_tr = Kernel::params()
+                .kind(k_type.clone())
+                .method(method.clone())
+                .transform(input);
+            assert!(kernels_almost_equal(
+                kernel_ref.dataset,
+                kernel_tr.records.dataset
+            ));
+        }
+    }
+
+    fn check_kernel_from_array2_type(input: &Array2<f64>, k_type: KernelType) {
+        let methods = vec![
+            KernelMethod::Linear,
+            KernelMethod::Gaussian(0.1),
+            KernelMethod::Polynomial(1., 2.),
+        ];
+        for method in methods {
+            let kernel_ref = Kernel::new(input.view(), method.clone(), k_type.clone(), true);
+            let kernel_tr = Kernel::params()
+                .kind(k_type.clone())
+                .method(method.clone())
+                .transform(input);
+            assert!(kernels_almost_equal(kernel_ref.dataset, kernel_tr.dataset));
+        }
+    }
+
+    fn check_kernel_from_array_view_2_type(input: ArrayView2<f64>, k_type: KernelType) {
+        let methods = vec![
+            KernelMethod::Linear,
+            KernelMethod::Gaussian(0.1),
+            KernelMethod::Polynomial(1., 2.),
+        ];
+        for method in methods {
+            let kernel_ref = Kernel::new(input, method.clone(), k_type.clone(), true);
+            let kernel_tr = Kernel::params()
+                .kind(k_type.clone())
+                .method(method.clone())
+                .transform(input);
+            assert!(kernels_almost_equal(kernel_ref.dataset, kernel_tr.dataset));
+        }
+    }
+
+    fn kernels_almost_equal(reference: ArrayView2<f64>, transformed: ArrayView2<f64>) -> bool {
+        for (ref_row, tr_row) in reference
+            .axis_iter(Axis(0))
+            .zip(transformed.axis_iter(Axis(0)))
+        {
+            for (ref_item, tr_item) in ref_row.iter().zip(tr_row.iter()) {
+                let abs_diff = (ref_item - tr_item).abs();
+                if abs_diff > f64::EPSILON {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+
+    fn arrays_almost_equal(reference: ArrayView1<f64>, transformed: ArrayView1<f64>) -> bool {
+        for (ref_item, tr_item) in reference.iter().zip(transformed.iter()) {
+            let abs_diff = (ref_item - tr_item).abs();
+            if abs_diff > f64::EPSILON {
+                return false;
+            }
+        }
+        true
     }
 }
