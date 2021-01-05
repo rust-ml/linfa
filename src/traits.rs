@@ -1,7 +1,7 @@
 //! Provide traits for different classes of algorithms
 //!
 
-use crate::dataset::{Dataset, Records, Targets};
+use crate::dataset::{DatasetBase, Records, Targets};
 
 /// Transformation algorithms
 ///
@@ -23,7 +23,7 @@ pub trait Transformer<R: Records, T> {
 pub trait Fit<'a, R: Records, T: Targets> {
     type Object: 'a;
 
-    fn fit(&self, dataset: &'a Dataset<R, T>) -> Self::Object;
+    fn fit(&self, dataset: &'a DatasetBase<R, T>) -> Self::Object;
 }
 
 /// Incremental algorithms
@@ -35,7 +35,7 @@ pub trait IncrementalFit<'a, R: Records, T: Targets> {
     type ObjectIn: 'a;
     type ObjectOut: 'a;
 
-    fn fit_with(&self, model: Self::ObjectIn, dataset: &'a Dataset<R, T>) -> Self::ObjectOut;
+    fn fit_with(&self, model: Self::ObjectIn, dataset: &'a DatasetBase<R, T>) -> Self::ObjectOut;
 }
 
 /// Predict with model

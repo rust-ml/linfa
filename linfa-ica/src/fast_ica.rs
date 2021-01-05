@@ -7,7 +7,7 @@
 //! Input data is whitened (remove underlying correlation) before modeling.
 
 use linfa::{
-    dataset::{Dataset, Targets},
+    dataset::{DatasetBase, Targets},
     traits::*,
     Float,
 };
@@ -99,7 +99,7 @@ impl<'a, F: Float + Lapack, D: Data<Elem = F>, T: Targets> Fit<'a, ArrayBase<D, 
     ///
     /// If the `alpha` value set for [`GFunc::Logcosh`] is not between 1 and 2
     /// inclusive
-    fn fit(&self, dataset: &Dataset<ArrayBase<D, Ix2>, T>) -> Result<FittedFastIca<F>> {
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<FittedFastIca<F>> {
         let x = &dataset.records;
         let (nsamples, nfeatures) = (x.nrows(), x.ncols());
 
@@ -316,7 +316,7 @@ mod tests {
     // that the minimum of the number of rows and columns of the input
     #[test]
     fn test_ncomponents_err() {
-        let input = Dataset::from(Array::random((4, 4), Uniform::new(0.0, 1.0)));
+        let input = DatasetBase::from(Array::random((4, 4), Uniform::new(0.0, 1.0)));
         let ica = FastIca::new().ncomponents(100);
         let ica = ica.fit(&input);
         assert!(ica.is_err());
@@ -326,7 +326,7 @@ mod tests {
     // 1 and 2 inclusive
     #[test]
     fn test_logcosh_alpha_err() {
-        let input = Dataset::from(Array::random((4, 4), Uniform::new(0.0, 1.0)));
+        let input = DatasetBase::from(Array::random((4, 4), Uniform::new(0.0, 1.0)));
         let ica = FastIca::new().gfunc(GFunc::Logcosh(10.));
         let ica = ica.fit(&input);
         assert!(ica.is_err());
@@ -395,7 +395,7 @@ mod tests {
         // We fit and transform using the model to unmix the two sources
         let ica = FastIca::new().ncomponents(2).gfunc(gfunc).random_state(42);
 
-        let sources_dataset = Dataset::from(sources.view());
+        let sources_dataset = DatasetBase::from(sources.view());
         let ica = ica.fit(&sources_dataset).unwrap();
         let mut output = ica.predict(&sources);
 

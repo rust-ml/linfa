@@ -4,7 +4,7 @@ use ndarray_stats::DeviationExt;
 
 use linfa::dataset::Targets;
 use linfa::traits::Transformer;
-use linfa::{Dataset, Float};
+use linfa::{DatasetBase, Float};
 
 #[derive(Clone, Debug, PartialEq)]
 /// DBSCAN (Density-based Spatial Clustering of Applications with Noise)
@@ -115,13 +115,15 @@ impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<
 }
 
 impl<F: Float, D: Data<Elem = F>, T: Targets>
-    Transformer<Dataset<ArrayBase<D, Ix2>, T>, Dataset<ArrayBase<D, Ix2>, Array1<Option<usize>>>>
-    for DbscanHyperParams<F>
+    Transformer<
+        DatasetBase<ArrayBase<D, Ix2>, T>,
+        DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>,
+    > for DbscanHyperParams<F>
 {
     fn transform(
         &self,
-        dataset: Dataset<ArrayBase<D, Ix2>, T>,
-    ) -> Dataset<ArrayBase<D, Ix2>, Array1<Option<usize>>> {
+        dataset: DatasetBase<ArrayBase<D, Ix2>, T>,
+    ) -> DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>> {
         let predicted = self.transform(dataset.records());
         dataset.with_targets(predicted)
     }
@@ -136,13 +138,15 @@ impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<
 }
 
 impl<F: Float, D: Data<Elem = F>, T: Targets>
-    Transformer<Dataset<ArrayBase<D, Ix2>, T>, Dataset<ArrayBase<D, Ix2>, Array1<Option<usize>>>>
-    for DbscanHyperParamsBuilder<F>
+    Transformer<
+        DatasetBase<ArrayBase<D, Ix2>, T>,
+        DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>,
+    > for DbscanHyperParamsBuilder<F>
 {
     fn transform(
         &self,
-        dataset: Dataset<ArrayBase<D, Ix2>, T>,
-    ) -> Dataset<ArrayBase<D, Ix2>, Array1<Option<usize>>> {
+        dataset: DatasetBase<ArrayBase<D, Ix2>, T>,
+    ) -> DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>> {
         self.build().transform(dataset)
     }
 }

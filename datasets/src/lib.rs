@@ -21,7 +21,7 @@ fn array_from_buf(buf: &[u8]) -> Array2<f64> {
 #[cfg(feature = "iris")]
 /// Read in the iris-flower dataset from dataset path
 /// The `.csv` data is two dimensional: Axis(0) denotes y-axis (rows), Axis(1) denotes x-axis (columns)
-pub fn iris() -> Dataset<Array2<f64>, Vec<usize>> {
+pub fn iris() -> Dataset<f64, usize> {
     let data = include_bytes!("../data/iris.csv.gz");
     let array = array_from_buf(&data[..]);
 
@@ -34,7 +34,7 @@ pub fn iris() -> Dataset<Array2<f64>, Vec<usize>> {
 }
 
 #[cfg(feature = "diabetes")]
-pub fn diabetes() -> Dataset<Array2<f64>, Array1<f64>> {
+pub fn diabetes() -> Dataset<f64, f64> {
     let data = include_bytes!("../data/diabetes_data.csv.gz");
     let data = array_from_buf(&data[..]);
 
@@ -45,7 +45,7 @@ pub fn diabetes() -> Dataset<Array2<f64>, Array1<f64>> {
 }
 
 #[cfg(feature = "winequality")]
-pub fn winequality() -> Dataset<Array2<f64>, Vec<usize>> {
+pub fn winequality() -> Dataset<f64, usize> {
     let data = include_bytes!("../data/winequality-red.csv.gz");
     let array = array_from_buf(&data[..]);
 

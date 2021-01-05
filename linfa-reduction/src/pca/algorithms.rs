@@ -9,7 +9,7 @@ use serde_crate::{Deserialize, Serialize};
 
 use linfa::{
     traits::{Fit, Predict},
-    Dataset, Float,
+    DatasetBase, Float,
 };
 
 /// Pincipal Component Analysis
@@ -25,7 +25,7 @@ pub struct PrincipalComponentAnalysisParams {
 impl<'a> Fit<'a, Array2<f64>, ()> for PrincipalComponentAnalysisParams {
     type Object = Pca<f64>;
 
-    fn fit(&self, dataset: &Dataset<Array2<f64>, ()>) -> Pca<f64> {
+    fn fit(&self, dataset: &DatasetBase<Array2<f64>, ()>) -> Pca<f64> {
         let mut x = dataset.records().to_owned();
         // calculate mean of data and subtract it
         let mean = x.mean_axis(Axis(0)).unwrap();

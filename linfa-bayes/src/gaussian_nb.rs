@@ -9,7 +9,7 @@ use ndarray_stats::QuantileExt;
 use std::collections::HashMap;
 
 use crate::error::Result;
-use linfa::dataset::{Dataset, Labels};
+use linfa::dataset::{DatasetBase, Labels};
 use linfa::traits::{Fit, IncrementalFit, Predict};
 use linfa::Float;
 
@@ -55,7 +55,7 @@ where
     ///
     /// ```no_run
     /// # use ndarray::array;
-    /// # use linfa::Dataset;
+    /// # use linfa::DatasetBase;
     /// # use linfa_bayes::GaussianNbParams;
     /// # use linfa::traits::{Fit, Predict};
     /// # use std::error::Error;
@@ -70,7 +70,7 @@ where
     /// ];
     /// let y = vec![1, 1, 1, 2, 2, 2];
     ///
-    /// let data = Dataset::new(x.view(), &y);
+    /// let data = DatasetBase::new(x.view(), &y);
     /// let model = GaussianNbParams::params().fit(&data)?;
     /// let pred = model.predict(x.view());
     ///
@@ -78,7 +78,7 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    fn fit(&self, dataset: &'a Dataset<ArrayView2<A>, L>) -> Self::Object {
+    fn fit(&self, dataset: &'a DatasetBase<ArrayView2<A>, L>) -> Self::Object {
         // We extract the unique classes in sorted order
         let mut unique_classes = dataset.targets.labels();
         unique_classes.sort_unstable();
@@ -106,7 +106,7 @@ where
     ///
     /// ```no_run
     /// # use ndarray::{array, Axis};
-    /// # use linfa::Dataset;
+    /// # use linfa::DatasetBase;
     /// # use linfa_bayes::GaussianNbParams;
     /// # use linfa::traits::{Predict, IncrementalFit};
     /// # use std::error::Error;
@@ -128,7 +128,7 @@ where
     ///     .axis_chunks_iter(Axis(0), 2)
     ///     .zip(y.axis_chunks_iter(Axis(0), 2))
     /// {
-    ///     model = clf.fit_with(model, &Dataset::new(x, y))?;
+    ///     model = clf.fit_with(model, &DatasetBase::new(x, y))?;
     /// }
     ///
     /// let pred = model.as_ref().unwrap().predict(x.view());
@@ -140,7 +140,7 @@ where
     fn fit_with(
         &self,
         model_in: Self::ObjectIn,
-        dataset: &Dataset<ArrayView2<A>, L>,
+        dataset: &DatasetBase<ArrayView2<A>, L>,
     ) -> Self::ObjectOut {
         let x = dataset.records();
         let y = dataset.targets();
@@ -358,7 +358,7 @@ impl<A: Float> GaussianNb<A> {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use linfa::Dataset;
+    use linfa::DatasetBase;
     use ndarray::array;
 
     #[test]
@@ -374,7 +374,7 @@ mod tests {
         let y = array![1, 1, 1, 2, 2, 2];
 
         let clf = GaussianNbParams::params();
-        let data = Dataset::new(x.view(), y.view());
+        let data = DatasetBase::new(x.view(), y.view());
         let fitted_clf = clf.fit(&data).unwrap();
         let pred = fitted_clf.predict(x.view());
         assert_eq!(pred, y);
@@ -424,7 +424,7 @@ mod tests {
         let model = x
             .axis_chunks_iter(Axis(0), 2)
             .zip(y.axis_chunks_iter(Axis(0), 2))
-            .map(|(a, b)| Dataset::new(a, b))
+            .map(|(a, b)| DatasetBase::new(a, b))
             .fold(None, |current, d| clf.fit_with(current, &d).unwrap())
             .unwrap();
 

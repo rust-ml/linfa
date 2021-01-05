@@ -1,4 +1,4 @@
-use super::{Dataset, Float, Records, Targets};
+use super::{DatasetBase, Float, Records, Targets};
 use ndarray::{ArrayBase, Axis, Data, Dimension};
 
 /// Implement records for NdArrays
@@ -10,8 +10,8 @@ impl<F: Float, S: Data<Elem = F>, I: Dimension> Records for ArrayBase<S, I> {
     }
 }
 
-/// Implement records for a dataset
-impl<F: Float, D: Records<Elem = F>, T: Targets> Records for Dataset<D, T> {
+/// Implement records for a DatasetBase
+impl<F: Float, D: Records<Elem = F>, T: Targets> Records for DatasetBase<D, T> {
     type Elem = F;
 
     fn observations(&self) -> usize {

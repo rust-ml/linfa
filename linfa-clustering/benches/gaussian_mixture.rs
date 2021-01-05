@@ -3,7 +3,7 @@ use criterion::{
     PlotConfiguration,
 };
 use linfa::traits::Fit;
-use linfa::Dataset;
+use linfa::DatasetBase;
 use linfa_clustering::{generate_blobs, GaussianMixtureModel};
 use ndarray::Array2;
 use ndarray_rand::rand::SeedableRng;
@@ -22,7 +22,8 @@ fn gaussian_mixture_bench(c: &mut Criterion) {
             let n_features = 3;
             let centroids =
                 Array2::random_using((n_clusters, n_features), Uniform::new(-30., 30.), &mut rng);
-            let dataset = Dataset::from(generate_blobs(cluster_size, &centroids, &mut rng));
+            let dataset: DatasetBase<_, _> =
+                (generate_blobs(cluster_size, &centroids, &mut rng), ()).into();
             bencher.iter(|| {
                 black_box(
                     GaussianMixtureModel::params(n_clusters)

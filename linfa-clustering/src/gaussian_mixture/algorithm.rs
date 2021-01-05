@@ -2,7 +2,7 @@ use crate::gaussian_mixture::errors::{GmmError, Result};
 use crate::gaussian_mixture::hyperparameters::{GmmCovarType, GmmHyperParams, GmmInitMethod};
 use crate::k_means::KMeans;
 use linfa::{
-    dataset::{Dataset, Targets},
+    dataset::{DatasetBase, Targets},
     traits::*,
     Float,
 };
@@ -54,7 +54,7 @@ use serde_crate::{Deserialize, Serialize};
 /// Let's do a walkthrough of a training-predict-save example.
 ///
 /// ```rust, ignore
-/// use linfa::Dataset;
+/// use linfa::DatasetBase;
 /// use linfa::traits::{Fit, Predict};
 /// use linfa_clustering::{GmmHyperParams, GaussianMixtureModel, generate_blobs};
 /// use ndarray::{Axis, array, s, Zip};
@@ -67,7 +67,7 @@ use serde_crate::{Deserialize, Serialize};
 /// let n = 200;
 ///
 /// // We generate a dataset from points normally distributed around some distant centroids.  
-/// let dataset = Dataset::from(generate_blobs(n, &expected_centroids, &mut rng));
+/// let dataset = DatasetBase::from(generate_blobs(n, &expected_centroids, &mut rng));
 ///
 /// // Our GMM is expected to have a number of clusters equals the number of centroids
 /// // used to generate the dataset
@@ -83,7 +83,7 @@ use serde_crate::{Deserialize, Serialize};
 /// // Then we can get dataset membership information, targets contain **cluster indexes**
 /// // corresponding to the cluster infos in the list of GMM means and covariances
 /// let blobs_dataset = gmm.predict(dataset);
-/// let Dataset {
+/// let DatasetBase {
 ///     records: _blobs_records,
 ///     targets: blobs_targets,
 ///     ..
@@ -93,7 +93,7 @@ use serde_crate::{Deserialize, Serialize};
 /// println!("GMM membership = {:?}", blobs_targets);
 ///
 /// // We can also get the nearest cluster for a new point
-/// let new_observation = Dataset::from(array![[-9., 20.5]]);
+/// let new_observation = DatasetBase::from(array![[-9., 20.5]]);
 /// // Predict returns the **index** of the nearest cluster
 /// let dataset = gmm.predict(new_observation);
 /// // We can retrieve the actual centroid of the closest cluster using `.centroids()` (alias of .means())
@@ -149,7 +149,7 @@ impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
 
     fn new<D: Data<Elem = F>, R: Rng + Clone, T: Targets>(
         hyperparameters: &GmmHyperParams<F, R>,
-        dataset: &Dataset<ArrayBase<D, Ix2>, T>,
+        dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
         mut rng: R,
     ) -> Result<GaussianMixtureModel<F>> {
         let observations = dataset.records().view();
@@ -399,7 +399,7 @@ impl<'a, F: Float + Lapack + Scalar, R: Rng + Clone, D: Data<Elem = F>, T: Targe
 {
     type Object = Result<GaussianMixtureModel<F>>;
 
-    fn fit(&self, dataset: &Dataset<ArrayBase<D, Ix2>, T>) -> Self::Object {
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Self::Object {
         self.validate()?;
         let observations = dataset.records().view();
         let mut gmm = GaussianMixtureModel::<F>::new(self, dataset, self.rng())?;
@@ -463,13 +463,13 @@ impl<F: Float + Lapack + Scalar, D: Data<Elem = F>> Predict<&ArrayBase<D, Ix2>, 
 }
 
 impl<F: Float + Lapack + Scalar, D: Data<Elem = F>, T: Targets>
-    Predict<Dataset<ArrayBase<D, Ix2>, T>, Dataset<ArrayBase<D, Ix2>, Array1<usize>>>
+    Predict<DatasetBase<ArrayBase<D, Ix2>, T>, DatasetBase<ArrayBase<D, Ix2>, Array1<usize>>>
     for GaussianMixtureModel<F>
 {
     fn predict(
         &self,
-        dataset: Dataset<ArrayBase<D, Ix2>, T>,
-    ) -> Dataset<ArrayBase<D, Ix2>, Array1<usize>> {
+        dataset: DatasetBase<ArrayBase<D, Ix2>, T>,
+    ) -> DatasetBase<ArrayBase<D, Ix2>, Array1<usize>> {
         let predicted = self.predict(dataset.records());
         dataset.with_targets(predicted)
     }
@@ -532,7 +532,7 @@ mod tests {
             };
             row.assign(&sample);
         }
-        let dataset = Dataset::from(observations);
+        let dataset = DatasetBase::from(observations);
         let gmm = GaussianMixtureModel::params(2)
             .with_rng(rng)
             .fit(&dataset)
@@ -567,7 +567,7 @@ mod tests {
         let xt = Array2::random_using((50, 1), Uniform::new(0., 1.), &mut rng);
         let yt = function_test_1d(&xt);
         let data = stack(Axis(1), &[xt.view(), yt.view()]).unwrap();
-        let dataset = Dataset::from(data);
+        let dataset = DatasetBase::from(data);
 
         // Test that cholesky decomposition fails when reg_covariance is zero
         let gmm = GaussianMixtureModel::params(3)
@@ -595,7 +595,7 @@ mod tests {
         // repeat values such that covariance is zero
         let xt = Array2::ones((50, 1));
         let data = stack(Axis(1), &[xt.view(), xt.view()]).unwrap();
-        let dataset = Dataset::from(data);
+        let dataset = DatasetBase::from(data);
 
         // Test that cholesky decomposition fails when reg_covariance is zero
         let gmm = GaussianMixtureModel::params(1)
@@ -621,7 +621,7 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(42);
         let expected_centroids = array![[0., 1.], [-10., 20.], [-1., 10.]];
         let n = 1000;
-        let blobs = Dataset::from(generate_blobs(n, &expected_centroids, &mut rng));
+        let blobs = DatasetBase::from(generate_blobs(n, &expected_centroids, &mut rng));
 
         let n_clusters = expected_centroids.len_of(Axis(0));
         let gmm = GaussianMixtureModel::params(n_clusters)
@@ -646,7 +646,7 @@ mod tests {
         assert!(
             GaussianMixtureModel::params(1)
                 .with_n_runs(0)
-                .fit(&Dataset::from(array![[0.]]))
+                .fit(&DatasetBase::from(array![[0.]]))
                 .is_err(),
             "n_runs must be strictly positive"
         );
@@ -657,7 +657,7 @@ mod tests {
         assert!(
             GaussianMixtureModel::params(1)
                 .with_tolerance(0.)
-                .fit(&Dataset::from(array![[0.]]))
+                .fit(&DatasetBase::from(array![[0.]]))
                 .is_err(),
             "tolerance must be strictly positive"
         );
@@ -667,7 +667,7 @@ mod tests {
     fn test_invalid_n_clusters() {
         assert!(
             GaussianMixtureModel::params(0)
-                .fit(&Dataset::from(array![[0., 0.]]))
+                .fit(&DatasetBase::from(array![[0., 0.]]))
                 .is_err(),
             "n_clusters must be strictly positive"
         );
@@ -678,7 +678,7 @@ mod tests {
         assert!(
             GaussianMixtureModel::params(1)
                 .with_reg_covariance(-1e-6)
-                .fit(&Dataset::from(array![[0.]]))
+                .fit(&DatasetBase::from(array![[0.]]))
                 .is_err(),
             "reg_covariance must be positive"
         );
@@ -689,7 +689,7 @@ mod tests {
         assert!(
             GaussianMixtureModel::params(1)
                 .with_max_n_iterations(0)
-                .fit(&Dataset::from(array![[0.]]))
+                .fit(&DatasetBase::from(array![[0.]]))
                 .is_err(),
             "max_n_iterations must be stricly positive"
         );

@@ -2,7 +2,7 @@ use crate::k_means::errors::{KMeansError, Result};
 use crate::k_means::helpers::IncrementalMean;
 use crate::k_means::hyperparameters::{KMeansHyperParams, KMeansHyperParamsBuilder};
 use linfa::{
-    dataset::{Dataset, Targets},
+    dataset::{DatasetBase, Targets},
     traits::*,
     Float,
 };
@@ -74,7 +74,7 @@ use serde_crate::{Deserialize, Serialize};
 /// Let's do a walkthrough of a training-predict-save example.
 ///
 /// ```
-/// use linfa::Dataset;
+/// use linfa::DatasetBase;
 /// use linfa::traits::{Fit, Predict};
 /// use linfa_clustering::{KMeansHyperParams, KMeans, generate_blobs};
 /// use ndarray::{Axis, array, s};
@@ -91,7 +91,7 @@ use serde_crate::{Deserialize, Serialize};
 /// let expected_centroids = array![[0., 1.], [-10., 20.], [-1., 10.]];
 /// // Let's generate a synthetic dataset: three blobs of observations
 /// // (100 points each) centered around our `expected_centroids`
-/// let observations = Dataset::from(generate_blobs(100, &expected_centroids, &mut rng));
+/// let observations = DatasetBase::from(generate_blobs(100, &expected_centroids, &mut rng));
 ///
 /// // Let's configure and run our K-means algorithm
 /// // We use the builder pattern to specify the hyperparameters
@@ -105,7 +105,7 @@ use serde_crate::{Deserialize, Serialize};
 ///     .expect("KMeans fitted");
 ///
 /// // Once we found our set of centroids, we can also assign new points to the nearest cluster
-/// let new_observation = Dataset::from(array![[-9., 20.5]]);
+/// let new_observation = DatasetBase::from(array![[-9., 20.5]]);
 /// // Predict returns the **index** of the nearest cluster
 /// let dataset = model.predict(new_observation);
 /// // We can retrieve the actual centroid of the closest cluster using `.centroids()`
@@ -159,7 +159,7 @@ impl<'a, F: Float, R: Rng + Clone, D: Data<Elem = F>, T: Targets> Fit<'a, ArrayB
     ///
     /// An instance of `KMeans` is returned.
     ///
-    fn fit(&self, dataset: &Dataset<ArrayBase<D, Ix2>, T>) -> Self::Object {
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Self::Object {
         let mut rng = self.rng();
         let observations = dataset.records().view();
 
@@ -219,7 +219,7 @@ impl<'a, F: Float, R: Rng + Clone, D: Data<Elem = F>, T: Targets> Fit<'a, ArrayB
 {
     type Object = Result<KMeans<F>>;
 
-    fn fit(&self, dataset: &Dataset<ArrayBase<D, Ix2>, T>) -> Self::Object {
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Self::Object {
         self.build().fit(dataset)
     }
 }
@@ -236,13 +236,13 @@ impl<F: Float, D: Data<Elem = F>> Predict<&ArrayBase<D, Ix2>, Array1<usize>> for
 }
 
 impl<F: Float, D: Data<Elem = F>, T: Targets>
-    Predict<Dataset<ArrayBase<D, Ix2>, T>, Dataset<ArrayBase<D, Ix2>, Array1<usize>>>
+    Predict<DatasetBase<ArrayBase<D, Ix2>, T>, DatasetBase<ArrayBase<D, Ix2>, Array1<usize>>>
     for KMeans<F>
 {
     fn predict(
         &self,
-        dataset: Dataset<ArrayBase<D, Ix2>, T>,
-    ) -> Dataset<ArrayBase<D, Ix2>, Array1<usize>> {
+        dataset: DatasetBase<ArrayBase<D, Ix2>, T>,
+    ) -> DatasetBase<ArrayBase<D, Ix2>, Array1<usize>> {
         let predicted = self.predict(dataset.records());
         dataset.with_targets(predicted)
     }
@@ -433,7 +433,7 @@ mod tests {
         let data = stack(Axis(1), &[xt.view(), yt.view()]).unwrap();
 
         // First clustering with one iteration
-        let dataset = Dataset::from(data);
+        let dataset = DatasetBase::from(data);
         let model = KMeans::params_with_rng(3, rng.clone())
             .n_runs(1)
             .fit(&dataset)
@@ -442,7 +442,7 @@ mod tests {
         let inertia = compute_inertia(model.centroids(), &clusters.records, &clusters.targets);
 
         // Second clustering with 10 iterations (default)
-        let dataset2 = Dataset::from(clusters.records().clone());
+        let dataset2 = DatasetBase::from(clusters.records().clone());
         let model2 = KMeans::params_with_rng(3, rng)
             .fit(&dataset2)
             .expect("KMeans fitted");

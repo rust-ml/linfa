@@ -1,5 +1,5 @@
-use linfa::{dataset::Dataset, dataset::Pr, dataset::Targets, traits::Fit, traits::Predict};
-use ndarray::{Array1, Array2, ArrayBase, ArrayView2, Data, Ix2};
+use linfa::{dataset::DatasetBase, dataset::Pr, dataset::Targets, traits::Fit, traits::Predict};
+use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix2};
 use std::cmp::Ordering;
 use std::ops::Mul;
 
@@ -170,22 +170,22 @@ pub fn fit_one_class<'a, A: Float + num_traits::ToPrimitive>(
     res.with_phantom()
 }
 
-impl<'a, F: Float> Fit<'a, Kernel<'a, F>, Vec<bool>> for SvmParams<F, Pr> {
+impl<'a, F: Float> Fit<'a, Kernel<'a, F>, &Array1<bool>> for SvmParams<F, Pr> {
     type Object = Svm<'a, F, Pr>;
 
-    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, Vec<bool>>) -> Self::Object {
+    fn fit(&self, dataset: &'a DatasetBase<Kernel<'a, F>, &Array1<bool>>) -> Self::Object {
         match (self.c, self.nu) {
             (Some((c_p, c_n)), _) => fit_c(
                 self.solver_params.clone(),
                 &dataset.records,
-                dataset.targets(),
+                dataset.targets().as_slice(),
                 c_p,
                 c_n,
             ),
             (None, Some((nu, _))) => fit_nu(
                 self.solver_params.clone(),
                 &dataset.records,
-                dataset.targets(),
+                dataset.targets().as_slice(),
                 nu,
             ),
             _ => panic!("Set either C value or Nu value"),
@@ -193,22 +193,22 @@ impl<'a, F: Float> Fit<'a, Kernel<'a, F>, Vec<bool>> for SvmParams<F, Pr> {
     }
 }
 
-impl<'a, F: Float> Fit<'a, Kernel<'a, F>, &Vec<bool>> for SvmParams<F, Pr> {
+impl<'a, F: Float> Fit<'a, Kernel<'a, F>, ArrayView1<'a, bool>> for SvmParams<F, Pr> {
     type Object = Svm<'a, F, Pr>;
 
-    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, &Vec<bool>>) -> Self::Object {
+    fn fit(&self, dataset: &'a DatasetBase<Kernel<'a, F>, ArrayView1<'a, bool>>) -> Self::Object {
         match (self.c, self.nu) {
             (Some((c_p, c_n)), _) => fit_c(
                 self.solver_params.clone(),
                 &dataset.records,
-                dataset.targets(),
+                dataset.targets().as_slice().unwrap(),
                 c_p,
                 c_n,
             ),
             (None, Some((nu, _))) => fit_nu(
                 self.solver_params.clone(),
                 &dataset.records,
-                dataset.targets(),
+                dataset.targets().as_slice().unwrap(),
                 nu,
             ),
             _ => panic!("Set either C value or Nu value"),
@@ -219,7 +219,7 @@ impl<'a, F: Float> Fit<'a, Kernel<'a, F>, &Vec<bool>> for SvmParams<F, Pr> {
 impl<'a, F: Float> Fit<'a, Kernel<'a, F>, &[bool]> for SvmParams<F, Pr> {
     type Object = Svm<'a, F, Pr>;
 
-    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, &[bool]>) -> Self::Object {
+    fn fit(&self, dataset: &'a DatasetBase<Kernel<'a, F>, &[bool]>) -> Self::Object {
         match (self.c, self.nu) {
             (Some((c_p, c_n)), _) => fit_c(
                 self.solver_params.clone(),
@@ -241,7 +241,7 @@ impl<'a, F: Float> Fit<'a, Kernel<'a, F>, &[bool]> for SvmParams<F, Pr> {
 impl<'a, F: Float> Fit<'a, Kernel<'a, F>, &()> for SvmParams<F, Pr> {
     type Object = Svm<'a, F, Pr>;
 
-    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, &()>) -> Self::Object {
+    fn fit(&self, dataset: &'a DatasetBase<Kernel<'a, F>, &()>) -> Self::Object {
         match self.nu {
             Some((nu, _)) => fit_one_class(self.solver_params.clone(), &dataset.records, nu),
             None => panic!("One class needs Nu value"),
@@ -263,8 +263,8 @@ impl<'a, F: Float> Predict<Array1<F>, Pr> for Svm<'a, F, Pr> {
 }
 
 /// Predict a probability with a set of observations
-impl<'a, F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Vec<Pr>> for Svm<'a, F, Pr> {
-    fn predict(&self, data: ArrayBase<D, Ix2>) -> Vec<Pr> {
+impl<'a, F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Array1<Pr>> for Svm<'a, F, Pr> {
+    fn predict(&self, data: ArrayBase<D, Ix2>) -> Array1<Pr> {
         data.outer_iter()
             .map(|data| {
                 let val = match self.linear_decision {
@@ -279,40 +279,40 @@ impl<'a, F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Vec<Pr>> for Sv
     }
 }
 
-impl<'a, F: Float, T: Targets> Predict<Dataset<Array2<F>, T>, Dataset<Array2<F>, Vec<Pr>>>
-    for Svm<'a, F, Pr>
+impl<'a, F: Float, T: Targets>
+    Predict<DatasetBase<Array2<F>, T>, DatasetBase<Array2<F>, Array1<Pr>>> for Svm<'a, F, Pr>
 {
-    fn predict(&self, data: Dataset<Array2<F>, T>) -> Dataset<Array2<F>, Vec<Pr>> {
-        let Dataset { records, .. } = data;
+    fn predict(&self, data: DatasetBase<Array2<F>, T>) -> DatasetBase<Array2<F>, Array1<Pr>> {
+        let DatasetBase { records, .. } = data;
         let predicted = self.predict(records.view());
 
-        Dataset::new(records, predicted)
+        DatasetBase::new(records, predicted)
     }
 }
 
 impl<'a, F: Float, T: Targets, D: Data<Elem = F>>
-    Predict<&'a Dataset<ArrayBase<D, Ix2>, T>, Dataset<ArrayView2<'a, F>, Vec<Pr>>>
+    Predict<&'a DatasetBase<ArrayBase<D, Ix2>, T>, DatasetBase<ArrayView2<'a, F>, Array1<Pr>>>
     for Svm<'a, F, Pr>
 {
     fn predict(
         &self,
-        data: &'a Dataset<ArrayBase<D, Ix2>, T>,
-    ) -> Dataset<ArrayView2<'a, F>, Vec<Pr>> {
+        data: &'a DatasetBase<ArrayBase<D, Ix2>, T>,
+    ) -> DatasetBase<ArrayView2<'a, F>, Array1<Pr>> {
         let predicted = self.predict(data.records.view());
 
-        Dataset::new(data.records.view(), predicted)
+        DatasetBase::new(data.records.view(), predicted)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::Svm;
-    use linfa::dataset::Dataset;
-    use linfa::metrics::ToConfusionMatrix;
+    use linfa::dataset::DatasetBase;
+    use linfa::prelude::ToConfusionMatrix;
     use linfa::traits::{Fit, Predict, Transformer};
     use linfa_kernel::{Kernel, KernelMethod};
 
-    use ndarray::{Array, Array2, Axis};
+    use ndarray::{Array, Array1, Array2, Axis};
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::Uniform;
     use ndarray_rand::RandomExt;
@@ -347,8 +347,8 @@ mod tests {
             ],
         )
         .unwrap();
-        let targets = (0..20).map(|x| x < 10).collect::<Vec<_>>();
-        let dataset = Dataset::new(entries.clone(), targets);
+        let targets = (0..20).map(|x| x < 10).collect::<Array1<_>>();
+        let dataset = DatasetBase::new(entries.clone(), targets);
 
         let dataset = Kernel::params()
             .method(KernelMethod::Linear)
@@ -358,7 +358,7 @@ mod tests {
         let model = Svm::params().pos_neg_weights(1.0, 1.0).fit(&dataset);
 
         let valid = model
-            .predict(Dataset::from(entries))
+            .predict(DatasetBase::from(entries))
             .map_targets(|x| **x > 0.0);
 
         let cm = valid.confusion_matrix(&dataset);
@@ -378,8 +378,8 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(42);
         // construct parabolica and classify middle area as positive and borders as negative
         let records = Array::random_using((40, 1), Uniform::new(-2f64, 2.), &mut rng);
-        let targets = records.map_axis(Axis(1), |x| x[0] * x[0] < 0.5).to_vec();
-        let dataset = Dataset::new(records.clone(), targets);
+        let targets = records.map_axis(Axis(1), |x| x[0] * x[0] < 0.5);
+        let dataset = DatasetBase::new(records.clone(), targets);
 
         let dataset = Kernel::params()
             .method(KernelMethod::Polynomial(0.0, 2.0))
@@ -388,10 +388,10 @@ mod tests {
         // train model with positive and negative weight
         let model = Svm::params().pos_neg_weights(1.0, 1.0).fit(&dataset);
 
-        //println!("{:?}", model.predict(Dataset::from(records.clone())).targets());
+        //println!("{:?}", model.predict(DatasetBase::from(records.clone())).targets());
 
         let valid = model
-            .predict(Dataset::from(records))
+            .predict(DatasetBase::from(records))
             .map_targets(|x| **x > 0.0);
 
         let cm = valid.confusion_matrix(&dataset);
@@ -401,8 +401,8 @@ mod tests {
     #[test]
     fn test_convoluted_rings_classification() {
         let records = generate_convoluted_rings(10);
-        let targets = (0..20).map(|x| x < 10).collect::<Vec<_>>();
-        let dataset = Dataset::new(records.clone(), targets);
+        let targets = (0..20).map(|x| x < 10).collect::<Array1<_>>();
+        let dataset = DatasetBase::new(records.clone(), targets);
 
         let dataset = Kernel::params()
             .method(KernelMethod::Gaussian(50.0))
@@ -412,7 +412,7 @@ mod tests {
         let model = Svm::params().pos_neg_weights(1.0, 1.0).fit(&dataset);
 
         let valid = model
-            .predict(Dataset::from(records))
+            .predict(DatasetBase::from(records))
             .map_targets(|x| **x > 0.0);
 
         let cm = valid.confusion_matrix(&dataset);
@@ -431,7 +431,7 @@ mod tests {
     fn test_reject_classification() {
         // generate two clusters with 100 samples each
         let entries = Array::random((100, 2), Uniform::new(-4., 4.));
-        let dataset = Dataset::new(entries.clone(), ());
+        let dataset = DatasetBase::new(entries.clone(), ());
 
         let dataset = Kernel::params()
             .method(KernelMethod::Gaussian(100.0))
@@ -440,7 +440,7 @@ mod tests {
         // train model with positive and negative weight
         let model = Svm::params().nu_weight(1.0).fit(&dataset);
 
-        let valid = Dataset::from(Array::random((100, 2), Uniform::new(-10., 10f32)));
+        let valid = DatasetBase::from(Array::random((100, 2), Uniform::new(-10., 10f32)));
         let valid = model.predict(valid).map_targets(|x| **x > 0.0);
 
         // count the number of correctly rejected samples
