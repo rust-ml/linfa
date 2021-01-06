@@ -15,6 +15,8 @@ use linfa::{dataset::DatasetBase, dataset::Records, dataset::Targets, traits::Tr
 #[derive(Clone)]
 pub enum KernelType {
     Dense,
+    /// A sparse kernel requires to define a number of neighbours
+    /// between 1 and the total number of samples in input minus one.
     Sparse(usize),
 }
 
@@ -82,6 +84,21 @@ impl<'a, F: Float> Kernel<ArrayView2<'a, F>> {
         }
     }
 
+    /// Performs the element-wise product between the kernel matrix
+    /// and the input
+    ///
+    /// ## Parameters
+    ///
+    /// - `rhs`: The matrix on the right-hand side of the multiplication
+    ///
+    /// ## Returns
+    ///
+    /// A new matrix containing the element-wise product between the kernel
+    /// and `rhs`
+    ///
+    /// ## Panics
+    ///
+    /// If the shapes of kernel and `rhs` are not compatible for multiplication
     pub fn dot(&self, rhs: &ArrayView2<F>) -> Array2<F> {
         match &self.inner {
             KernelInner::Dense(mat) => mat.mul(rhs),
@@ -89,6 +106,11 @@ impl<'a, F: Float> Kernel<ArrayView2<'a, F>> {
         }
     }
 
+    /// Sums all elements in the same row of the kernel matrix
+    ///
+    /// ## Returns
+    ///
+    /// A new array with the sum of all the elements in each row
     pub fn sum(&self) -> Array1<F> {
         match &self.inner {
             KernelInner::Dense(mat) => mat.sum_axis(Axis(1)),
@@ -104,6 +126,7 @@ impl<'a, F: Float> Kernel<ArrayView2<'a, F>> {
         }
     }
 
+    /// Gives the size of the side of the square kernel matrix
     pub fn size(&self) -> usize {
         match &self.inner {
             KernelInner::Dense(mat) => mat.ncols(),
@@ -111,6 +134,13 @@ impl<'a, F: Float> Kernel<ArrayView2<'a, F>> {
         }
     }
 
+    /// Getter for the data in the upper triangle of the kernel
+    /// matrix
+    ///
+    /// ## Returns
+    ///
+    /// A copy of all elements in the upper triangle of the kernel
+    /// matrix, stored in a `Vec`
     pub fn to_upper_triangle(&self) -> Vec<F> {
         match &self.inner {
             KernelInner::Dense(mat) => mat
@@ -128,6 +158,12 @@ impl<'a, F: Float> Kernel<ArrayView2<'a, F>> {
         }
     }
 
+    /// Getter for the elements in the diagonal of the kernel matrix
+    ///
+    /// ## Returns
+    ///
+    /// A new array containing the copy of all elements in the diagonal fo
+    /// the kernel matrix
     pub fn diagonal(&self) -> Array1<F> {
         match &self.inner {
             KernelInner::Dense(mat) => mat.diag().to_owned(),
@@ -139,6 +175,19 @@ impl<'a, F: Float> Kernel<ArrayView2<'a, F>> {
         }
     }
 
+    /// Getter for a column of the kernel matrix
+    ///
+    /// ## Params
+    ///
+    /// - `i`: the index of the column
+    ///
+    /// ## Returns
+    ///
+    /// The i-th column of the kernel matrix, stored as a `Vec`
+    ///
+    /// ## Panics
+    ///
+    /// If `i` is out of bounds
     pub fn column(&self, i: usize) -> Vec<F> {
         match &self.inner {
             KernelInner::Dense(mat) => mat.column(i).to_vec(),
@@ -148,6 +197,22 @@ impl<'a, F: Float> Kernel<ArrayView2<'a, F>> {
         }
     }
 
+    /// Sums the inner product of `sample` and every row of the kernel, weighted
+    /// according to `weights`
+    ///
+    /// ## Parameters
+    ///
+    /// * `weights`: the weight of each row of the kernel matrix
+    /// * `sample`: the sample to multiply by each row
+    ///
+    /// ## Returns
+    ///
+    /// The weighted sum of all inner products of `smple` and the row of the kernel matrix
+    ///
+    /// ## Panics
+    ///
+    /// If the shapes of `weights` or `sample` are not compatible with the
+    /// shape of the kernel matrix
     pub fn weighted_sum(&self, weights: &[F], sample: ArrayView1<F>) -> F {
         self.dataset
             .outer_iter()
@@ -156,10 +221,34 @@ impl<'a, F: Float> Kernel<ArrayView2<'a, F>> {
             .sum()
     }
 
+    /// Wheter the kernel is a linear kernel
+    ///
+    /// ## Returns
+    ///
+    /// - `true`: if the kernel is linear
+    /// - `false`: otherwise
     pub fn is_linear(&self) -> bool {
         self.linear
     }
 
+    /// Generates the default set of parameters for building a kernel.
+    /// Use this to initialize a set of parameters to be customized using `KernelParams`'s methods
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    ///
+    /// use linfa_kernel::Kernel;
+    /// use linfa::traits::Transformer;
+    /// use ndarray::Array2;
+    ///
+    /// let data = Array2::from_shape_vec((3,2), vec![1., 2., 3., 4., 5., 6.,]).unwrap();
+    ///
+    /// // Build a kernel from `data` with the defaul parameters
+    /// let params = Kernel::params();
+    /// let kernel = params.transform(&data);
+    ///
+    /// ```
     pub fn params() -> KernelParams<F> {
         KernelParams {
             kind: KernelType::Dense,
@@ -176,6 +265,13 @@ impl<'a, F: Float> Records for Kernel<ArrayView2<'a, F>> {
     }
 }
 
+/// The inner product definition used by a kernel.
+///
+/// There are three methods available:
+///
+/// - Gaussian(eps):  `d(x, x') = exp(-norm(x - x')/eps) `
+/// - Linear: `d(x, x') = <x, x'>`
+/// - Polynomial(constant, degree):  `d(x, x') = (<x, x'> + costant)^(degree)`
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -183,8 +279,11 @@ impl<'a, F: Float> Records for Kernel<ArrayView2<'a, F>> {
 )]
 #[derive(Debug, Clone)]
 pub enum KernelMethod<F> {
+    /// Gaussian(eps) inner product
     Gaussian(F),
+    /// Euclidean inner product
     Linear,
+    /// Plynomial(constant, degree) inner product
     Polynomial(F, F),
 }
 
@@ -210,18 +309,69 @@ impl<F: Float> KernelMethod<F> {
     }
 }
 
+/// Defines the set of prameters needed to build a kernel
 pub struct KernelParams<F> {
+    /// Wether to construct a dense or sparse kernel
     kind: KernelType,
+    /// The inner product used by the kernel
     method: KernelMethod<F>,
 }
 
 impl<F: Float> KernelParams<F> {
+    /// Setter for `method`. Can be chained with `kind` and `transform`.
+    ///
+    /// ## Arguments
+    ///
+    /// - `method`: The inner product that will be used by the kernel
+    ///
+    /// ## Returns
+    ///
+    /// The modified set of params
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// use linfa_kernel::{Kernel, KernelMethod};
+    /// use linfa::traits::Transformer;
+    /// use ndarray::Array2;
+    ///
+    /// let data = Array2::from_shape_vec((3,2), vec![1., 2., 3., 4., 5., 6.,]).unwrap();
+    ///
+    /// // Build a kernel from `data` with the defaul parameters
+    /// // and then set the preferred method
+    /// let params = Kernel::params().method(KernelMethod::Linear);
+    /// let kernel = params.transform(&data);
+    /// ```
     pub fn method(mut self, method: KernelMethod<F>) -> KernelParams<F> {
         self.method = method;
 
         self
     }
 
+    /// Setter for `kind`. Can be chained with `method` and `transform`.
+    ///
+    /// ## Arguments
+    ///
+    /// - `kind`: The kind of kernel to build, either dense or sparse
+    ///
+    /// ## Returns
+    ///
+    /// The modified set of params
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// use linfa_kernel::{Kernel, KernelType};
+    /// use linfa::traits::Transformer;
+    /// use ndarray::Array2;
+    ///
+    /// let data = Array2::from_shape_vec((3,2), vec![1., 2., 3., 4., 5., 6.,]).unwrap();
+    ///
+    /// // Build a kernel from `data` with the defaul parameters
+    /// // and then set the preferred kind
+    /// let params = Kernel::params().kind(KernelType::Dense);
+    /// let kernel = params.transform(&data);
+    /// ```
     pub fn kind(mut self, kind: KernelType) -> KernelParams<F> {
         self.kind = kind;
         self
@@ -229,6 +379,24 @@ impl<F: Float> KernelParams<F> {
 }
 
 impl<'a, F: Float> Transformer<&'a Array2<F>, Kernel<ArrayView2<'a, F>>> for KernelParams<F> {
+    /// Builds a kernel from the input data without copying it.
+    ///
+    /// A reference to the input data will be kept by the kernel
+    /// through an `ArrayView`
+    ///
+    /// ## Parameters
+    ///
+    /// - `x`: matrix of records (##records, ##features) in input
+    ///
+    /// ## Returns
+    ///
+    /// A kernel build from `x` according to the parameters on which
+    /// this method is called
+    ///
+    /// ## Panics
+    ///
+    /// If the kernel type is `Sparse` and the number of neighbors specified is
+    /// not between 1 and ##records-1
     fn transform(&self, x: &'a Array2<F>) -> Kernel<ArrayView2<'a, F>> {
         let is_linear = self.method.is_linear();
 
@@ -237,6 +405,22 @@ impl<'a, F: Float> Transformer<&'a Array2<F>, Kernel<ArrayView2<'a, F>>> for Ker
 }
 
 impl<'a, F: Float> Transformer<ArrayView2<'a, F>, Kernel<ArrayView2<'a, F>>> for KernelParams<F> {
+    /// Builds a kernel from a view of the input data.
+    ///
+    /// A reference to the input data will be kept by the kernel
+    /// through an `ArrayView`
+    ///
+    /// ## Parameters
+    ///
+    /// - `x`: view of a matrix of records (##records, ##features)
+    ///
+    /// A kernel build from `x` according to the parameters on which
+    /// this method is called
+    ///
+    /// ## Panics
+    ///
+    /// If the kernel type is `Sparse` and the number of neighbors specified is
+    /// not between 1 and ##records-1
     fn transform(&self, x: ArrayView2<'a, F>) -> Kernel<ArrayView2<'a, F>> {
         let is_linear = self.method.is_linear();
 
@@ -248,6 +432,26 @@ impl<'a, F: Float, T: Targets>
     Transformer<&'a DatasetBase<Array2<F>, T>, DatasetBase<Kernel<ArrayView2<'a, F>>, &'a T>>
     for KernelParams<F>
 {
+    /// Builds a new Dataset with the kernel as the records and the same targets as the input one.
+    ///
+    /// A reference to the input records will be kept by the kernel
+    /// through an `ArrayView`
+    ///
+    /// ## Parameters
+    ///
+    /// - `x`: A dataset with a matrix of records (##records, ##features) and any targets
+    ///
+    /// ## Returns
+    ///
+    /// A new dataset with:
+    ///  - records: a kernel build from `x.records()` according to the parameters on which
+    /// this method is called
+    ///  - targets: same as `x.targets()`
+    ///
+    /// ## Panics
+    ///
+    /// If the kernel type is `Sparse` and the number of neighbors specified is
+    /// not between 1 and ##records-1
     fn transform(
         &self,
         x: &'a DatasetBase<Array2<F>, T>,
@@ -271,6 +475,26 @@ impl<'a, F: Float, T: Targets>
         DatasetBase<Kernel<ArrayView2<'a, F>>, &'a [T::Elem]>,
     > for KernelParams<F>
 {
+    /// Builds a new Dataset with the kernel as the records and the same targets as the input one.
+    ///
+    /// A reference to the input records will be kept by the kernel
+    /// through an `ArrayView`
+    ///
+    /// ## Parameters
+    ///
+    /// - `x`: A dataset with a matrix of records (##records, ##features) and any targets
+    ///
+    /// ## Returns
+    ///
+    /// A new dataset with:
+    ///  - records: a kernel build from `x.records()` according to the parameters on which
+    /// this method is called
+    ///  - targets: a slice of `x.targets()`
+    ///
+    /// ## Panics
+    ///
+    /// If the kernel type is `Sparse` and the number of neighbors specified is
+    /// not between 1 and ##records-1
     fn transform(
         &self,
         x: &'a DatasetBase<ArrayView2<'a, F>, T>,
