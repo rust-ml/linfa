@@ -1,4 +1,4 @@
-use ndarray::{Array1, Array2, ArrayView2};
+use ndarray::{Array1, Array2};
 use ndarray_linalg::{
     eigh::EighInto, lobpcg, lobpcg::LobpcgResult, Lapack, Scalar, TruncatedOrder, UPLO,
 };
@@ -16,10 +16,10 @@ pub struct DiffusionMap<F> {
     eigvals: Array1<F>,
 }
 
-impl<'a, F: Float + Lapack> Transformer<&'a Kernel<ArrayView2<'a, F>>, DiffusionMap<F>>
+impl<'a, F: Float + Lapack> Transformer<&'a Kernel<'a, F>, DiffusionMap<F>>
     for DiffusionMapHyperParams
 {
-    fn transform(&self, kernel: &'a Kernel<ArrayView2<'a, F>>) -> DiffusionMap<F> {
+    fn transform(&self, kernel: &'a Kernel<'a, F>) -> DiffusionMap<F> {
         // compute spectral embedding with diffusion map
         let (embedding, eigvals) =
             compute_diffusion_map(kernel, self.steps(), 0.0, self.embedding_size(), None);
@@ -49,7 +49,7 @@ impl<F: Float + Lapack> DiffusionMap<F> {
 }
 
 fn compute_diffusion_map<'b, F: Float + Lapack>(
-    kernel: &'b Kernel<ArrayView2<'b, F>>,
+    kernel: &'b Kernel<'b, F>,
     steps: usize,
     alpha: f32,
     embedding_size: usize,

@@ -78,7 +78,7 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    fn fit(&self, dataset: &'a DatasetBase<ArrayView2<A>, L>) -> Self::Object {
+    fn fit(&self, dataset: &DatasetBase<ArrayView2<A>, L>) -> Self::Object {
         // We extract the unique classes in sorted order
         let mut unique_classes = dataset.targets.labels();
         unique_classes.sort_unstable();

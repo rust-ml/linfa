@@ -58,17 +58,13 @@ impl<F: Float> HierarchicalCluster<F> {
     }
 }
 
-impl<'b: 'a, 'a, F: Float>
-    Transformer<Kernel<ArrayView2<'a, F>>, DatasetBase<Kernel<ArrayView2<'a, F>>, Vec<usize>>>
+impl<'b: 'a, 'a, F: Float> Transformer<Kernel<'a, F>, DatasetBase<Kernel<'a, F>, Vec<usize>>>
     for HierarchicalCluster<F>
 {
     /// Perform hierarchical clustering of a similarity matrix
     ///
     /// Returns the class id for each data point
-    fn transform(
-        &self,
-        kernel: Kernel<ArrayView2<'a, F>>,
-    ) -> DatasetBase<Kernel<ArrayView2<'a, F>>, Vec<usize>> {
+    fn transform(&self, kernel: Kernel<'a, F>) -> DatasetBase<Kernel<'a, F>, Vec<usize>> {
         // ignore all similarities below this value
         let threshold = F::from(1e-6).unwrap();
 
@@ -135,18 +131,16 @@ impl<'b: 'a, 'a, F: Float>
 }
 
 impl<'a, F: Float, T: Targets>
-    Transformer<
-        DatasetBase<Kernel<ArrayView2<'a, F>>, T>,
-        DatasetBase<Kernel<ArrayView2<'a, F>>, Vec<usize>>,
-    > for HierarchicalCluster<F>
+    Transformer<DatasetBase<Kernel<'a, F>, T>, DatasetBase<Kernel<'a, F>, Vec<usize>>>
+    for HierarchicalCluster<F>
 {
     /// Perform hierarchical clustering of a similarity matrix
     ///
     /// Returns the class id for each data point
     fn transform(
         &self,
-        dataset: DatasetBase<Kernel<ArrayView2<'a, F>>, T>,
-    ) -> DatasetBase<Kernel<ArrayView2<'a, F>>, Vec<usize>> {
+        dataset: DatasetBase<Kernel<'a, F>, T>,
+    ) -> DatasetBase<Kernel<'a, F>, Vec<usize>> {
         //let Dataset { records, .. } = dataset;
         self.transform(dataset.records)
     }
@@ -188,7 +182,7 @@ mod tests {
 
         let kernel = Kernel::params()
             .method(KernelMethod::Gaussian(5.0))
-            .transform(&entries);
+            .transform(entries.view());
 
         let kernel = HierarchicalCluster::default()
             .max_distance(0.1)
@@ -243,7 +237,7 @@ mod tests {
 
         let kernel = Kernel::params()
             .method(KernelMethod::Linear)
-            .transform(&data);
+            .transform(data.view());
 
         dbg!(&kernel.to_upper_triangle());
         let predictions = HierarchicalCluster::default()

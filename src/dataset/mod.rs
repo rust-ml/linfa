@@ -292,4 +292,112 @@ mod tests {
             }
         }
     }
+
+    struct MockFittable {}
+
+    struct MockFittableResult {
+        mock_var: usize,
+    }
+
+    use crate::traits::Fit;
+    use ndarray::{ArrayView1, ArrayView2};
+
+    impl<'a> Fit<'a, ArrayView2<'a, f64>, ArrayView1<'a, f64>> for MockFittable {
+        type Object = MockFittableResult;
+
+        fn fit(&self, training_data: &DatasetView<f64, f64>) -> Self::Object {
+            MockFittableResult {
+                mock_var: training_data.targets().dim(),
+            }
+        }
+    }
+
+    #[test]
+    fn test_iter_fit() {
+        let records =
+            Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
+        let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
+        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let params = MockFittable {};
+
+        for (i, (model, validation_set)) in
+            dataset.iter_fold(5, &params, |a, v| a.fit(&v)).enumerate()
+        {
+            assert_eq!(model.mock_var, 4);
+            assert_eq!(validation_set.records().row(0)[0] as usize, i + 1);
+            assert_eq!(validation_set.records().row(0)[1] as usize, i + 1);
+            assert_eq!(validation_set.targets()[0] as usize, i + 1);
+            assert_eq!(validation_set.records().dim(), (1, 2));
+            assert_eq!(validation_set.targets().dim(), 1);
+        }
+    }
+
+    #[test]
+    fn test_iter_fit_uneven_folds() {
+        let records =
+            Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
+        let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
+        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let params = MockFittable {};
+
+        // If we request three folds from a dataset with 5 samples it will cut the
+        // last two samples from the folds and always add them as a tail of the training
+        // data
+        for (i, (model, validation_set)) in
+            dataset.iter_fold(3, &params, |a, v| a.fit(&v)).enumerate()
+        {
+            assert_eq!(model.mock_var, 4);
+            assert_eq!(validation_set.records().row(0)[0] as usize, i + 1);
+            assert_eq!(validation_set.records().row(0)[1] as usize, i + 1);
+            assert_eq!(validation_set.targets()[0] as usize, i + 1);
+            assert_eq!(validation_set.records().dim(), (1, 2));
+            assert_eq!(validation_set.targets().dim(), 1);
+            assert!(i < 3);
+        }
+
+        // the seme goes for the last sample if we choose 4 folds
+        for (i, (model, validation_set)) in
+            dataset.iter_fold(4, &params, |a, v| a.fit(&v)).enumerate()
+        {
+            assert_eq!(model.mock_var, 4);
+            assert_eq!(validation_set.records().row(0)[0] as usize, i + 1);
+            assert_eq!(validation_set.records().row(0)[1] as usize, i + 1);
+            assert_eq!(validation_set.targets()[0] as usize, i + 1);
+            assert_eq!(validation_set.records().dim(), (1, 2));
+            assert_eq!(validation_set.targets().dim(), 1);
+            assert!(i < 4);
+        }
+
+        // if we choose 2 folds then again the last sample will be only
+        // used for trainig
+        for (i, (model, validation_set)) in
+            dataset.iter_fold(2, &params, |a, v| a.fit(&v)).enumerate()
+        {
+            assert_eq!(model.mock_var, 3);
+            assert_eq!(validation_set.targets().dim(), 2);
+            assert!(i < 2);
+        }
+    }
+
+    #[test]
+    #[should_panic]
+    fn iter_fold_panics_k_0() {
+        let records =
+            Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
+        let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
+        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let params = MockFittable {};
+        let _ = dataset.iter_fold(0, &params, |a, v| a.fit(&v)).enumerate();
+    }
+
+    #[test]
+    #[should_panic]
+    fn iter_fold_panics_k_more_than_samples() {
+        let records =
+            Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
+        let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
+        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let params = MockFittable {};
+        let _ = dataset.iter_fold(6, &params, |a, v| a.fit(&v)).enumerate();
+    }
 }

@@ -8,6 +8,8 @@ use super::{
     iter::Iter, Dataset, DatasetBase, DatasetView, Float, Label, Labels, Records, Targets,
 };
 
+use crate::traits::Fit;
+
 impl<F: Float, L: Label> DatasetBase<Array2<F>, Vec<L>> {
     pub fn iter(&self) -> Iter<'_, Array2<F>, Vec<L>> {
         Iter::new(&self.records, &self.targets)
@@ -307,6 +309,145 @@ impl<F: Float, E: Copy> Dataset<F, E> {
     pub fn fold(&self, k: usize) -> Vec<(Dataset<F, E>, Dataset<F, E>)> {
         self.view().fold(k)
     }
+
+    pub fn axis_chunks_iter(
+        &self,
+        axis: Axis,
+        chunk_size: usize,
+    ) -> impl Iterator<Item = DatasetView<F, E>> {
+        self.records()
+            .axis_chunks_iter(axis, chunk_size)
+            .zip(self.targets().axis_chunks_iter(axis, chunk_size))
+            .map(|(rec, tar)| (rec, tar).into())
+    }
+
+    /// Allows to perform k-folding cross validation on fittable algorithms.
+    ///
+    /// Given in input a dataset, a value of k and the desired params for the fittable
+    /// algorithm, returns an iterator over the k trained models and the
+    /// associated validation set.
+    ///
+    /// The models are trained according to a closure specified
+    /// as an input.
+    ///
+    /// ## Parameters
+    ///
+    /// - `k`: the number of folds to apply to the dataset
+    /// - `params`: the desired parameters for the fittable algorithm at hand
+    /// - `fit_closure`: a closure of the type `(params, training_data) -> fitted_model`
+    /// that will be used to produce the trained model for each fold. The training data given in input
+    /// won't outlive the closure.
+    ///
+    /// ## Returns
+    ///
+    /// An iterator over couples `(trained_model, validation_set)`.
+    ///
+    /// ## Panics
+    ///
+    /// This method will panic for any of the following three reasons:
+    ///
+    /// - The value of `k` provided is not positive;
+    /// - The value of `k` provided is greater than the total number of samples in the dataset;
+    /// - The dataset's data is not stored contiguously and in standard order;
+    ///
+    /// ## Example
+    /// ```rust
+    /// use linfa::traits::Fit;
+    /// use linfa::dataset::{Dataset, DatasetView};
+    /// use ndarray::{array, ArrayView1, ArrayView2};
+    ///
+    /// struct MockFittable {}
+    ///
+    /// struct MockFittableResult {
+    ///     mock_var: usize,
+    /// }
+    ///
+    /// impl<'a> Fit<'a, ArrayView2<'a, f64>, ArrayView1<'a, f64>> for MockFittable {
+    ///     type Object = MockFittableResult;
+    ///
+    ///     fn fit(&self, training_data: &DatasetView<f64, f64>) -> Self::Object {
+    ///         MockFittableResult { mock_var: training_data.targets().dim()}
+    ///     }
+    /// }
+    ///
+    /// let records = array![[1.,1.], [2.,2.], [3.,3.], [4.,4.], [5.,5.]];
+    /// let targets = array![1.,2.,3.,4.,5.];
+    /// let mut dataset: Dataset<f64, f64> = (records, targets).into();
+    /// let params = MockFittable {};
+    ///
+    ///for (model,validation_set) in dataset.iter_fold(5,&params, |a,v|a.fit(&v)){
+    ///     // Here you can use `model` and `validation_set` to
+    ///     // assert the performance of the chosen algorithm
+    /// }
+    /// ```
+    pub fn iter_fold<
+        'a,
+        R: Records<Elem = F>,
+        A: Fit<'a, R, ArrayView1<'a, E>, Object = O>,
+        O: 'a,
+        C: 'a + Fn(&A, DatasetView<F, E>) -> O,
+    >(
+        &'a mut self,
+        k: usize,
+        params: &'a A,
+        fit_closure: C,
+    ) -> impl Iterator<Item = (O, DatasetView<F, E>)> + 'a {
+        assert!(k > 0);
+        assert!(k <= self.targets.len());
+        let samples_count = self.targets().len();
+        let fold_size = samples_count / k;
+
+        let features = self.records.dim().1;
+
+        let mut records_sl = self.records.as_slice_mut().unwrap();
+        let mut targets_sl = self.targets.as_slice_mut().unwrap();
+
+        let mut objs: Vec<O> = Vec::new();
+
+        for i in 0..k {
+            assist_swap_array2(&mut records_sl, i, fold_size, features);
+            assist_swap_array1(&mut targets_sl, i, fold_size);
+
+            let train = DatasetView::new(
+                ArrayView2::from_shape(
+                    (samples_count - fold_size, features),
+                    records_sl.split_at(fold_size * features).1,
+                )
+                .unwrap(),
+                ArrayView1::from_shape(samples_count - fold_size, targets_sl.split_at(fold_size).1)
+                    .unwrap(),
+            );
+
+            let obj = fit_closure(params, train);
+            objs.push(obj);
+
+            assist_swap_array2(&mut records_sl, i, fold_size, features);
+            assist_swap_array1(&mut targets_sl, i, fold_size);
+        }
+        objs.into_iter()
+            .zip(self.axis_chunks_iter(Axis(0), fold_size))
+    }
+}
+
+fn assist_swap_array1<E>(slice: &mut [E], index: usize, fold_size: usize) {
+    if index == 0 {
+        return;
+    }
+    let start = fold_size * index;
+    let (first_s, second_s) = slice.split_at_mut(start);
+    let (mut fold, _) = second_s.split_at_mut(fold_size);
+    first_s[..fold_size].swap_with_slice(&mut fold);
+}
+
+fn assist_swap_array2<F>(slice: &mut [F], index: usize, fold_size: usize, features: usize) {
+    if index == 0 {
+        return;
+    }
+    let adj_fold_size = fold_size * features;
+    let start = adj_fold_size * index;
+    let (first_s, second_s) = slice.split_at_mut(start);
+    let (mut fold, _) = second_s.split_at_mut(adj_fold_size);
+    first_s[..fold_size * features].swap_with_slice(&mut fold);
 }
 
 impl<'a, F: Float, E: Copy> DatasetView<'a, F, E> {
@@ -421,5 +562,9 @@ impl<'a, F: Float, E: Copy> DatasetView<'a, F, E> {
             }
         }
         res
+    }
+
+    pub fn to_owned(&self) -> Dataset<F, E> {
+        (self.records().to_owned(), self.targets.to_owned()).into()
     }
 }

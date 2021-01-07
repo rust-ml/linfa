@@ -6,22 +6,22 @@ use std::marker::PhantomData;
 
 /// Parameters of the solver routine
 #[derive(Clone)]
-pub struct SolverParams<A: Float> {
+pub struct SolverParams<F: Float> {
     /// Stopping condition
-    pub eps: A,
+    pub eps: F,
     /// Should we shrink, e.g. ignore bounded alphas
     pub shrinking: bool,
 }
 
 /// Status of alpha variables of the solver
 #[derive(Debug)]
-struct Alpha<A: Float> {
-    value: A,
-    upper_bound: A,
+struct Alpha<F: Float> {
+    value: F,
+    upper_bound: F,
 }
 
-impl<A: Float> Alpha<A> {
-    pub fn from(value: A, upper_bound: A) -> Alpha<A> {
+impl<F: Float> Alpha<F> {
+    pub fn from(value: F, upper_bound: F) -> Alpha<F> {
         Alpha { value, upper_bound }
     }
 
@@ -30,14 +30,14 @@ impl<A: Float> Alpha<A> {
     }
 
     pub fn free_floating(&self) -> bool {
-        self.value < self.upper_bound && self.value > A::zero()
+        self.value < self.upper_bound && self.value > F::zero()
     }
 
     pub fn reached_lower(&self) -> bool {
-        self.value == A::zero()
+        self.value == F::zero()
     }
 
-    pub fn val(&self) -> A {
+    pub fn val(&self) -> F {
         self.value
     }
 }
@@ -47,50 +47,50 @@ impl<A: Float> Alpha<A> {
 /// We are solving the dual problem with linear constraints
 /// min_a f(a), s.t. y^Ta = d, 0 <= a_t < C, t = 1, ..., l
 /// where f(a) = a^T Q a / 2 + p^T a
-pub struct SolverState<'a, A: Float, K: Permutable<'a, A>> {
+pub struct SolverState<'a, F: Float, K: Permutable<F>> {
     /// Gradient of each variable
-    gradient: Vec<A>,
+    gradient: Vec<F>,
     /// Cached gradient because most of the variables are constant
-    gradient_fixed: Vec<A>,
+    gradient_fixed: Vec<F>,
     /// Current value of each variable and in respect to bounds
-    alpha: Vec<Alpha<A>>,
+    alpha: Vec<Alpha<F>>,
     /// Active set of variables
     active_set: Vec<usize>,
     /// Number of active variables
     nactive: usize,
     unshrink: bool,
     nu_constraint: bool,
-    r: A,
+    r: F,
 
     /// Quadratic term of the problem
     kernel: K,
     /// Linear term of the problem
-    p: Vec<A>,
+    p: Vec<F>,
     /// Targets we want to predict
     targets: Vec<bool>,
     /// Bounds per alpha
-    bounds: Vec<A>,
+    bounds: Vec<F>,
 
     /// Parameters, e.g. stopping condition etc.
-    params: SolverParams<A>,
+    params: SolverParams<F>,
 
     phantom: PhantomData<&'a K>,
 }
 
 #[allow(clippy::needless_range_loop)]
-impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
+impl<'a, F: Float, K: 'a + Permutable<F>> SolverState<'a, F, K> {
     /// Initialize a solver state
     ///
     /// This is bounded by the lifetime of the kernel matrix, because it can quite large
     pub fn new(
-        alpha: Vec<A>,
-        p: Vec<A>,
+        alpha: Vec<F>,
+        p: Vec<F>,
         targets: Vec<bool>,
         kernel: K,
-        bounds: Vec<A>,
-        params: SolverParams<A>,
+        bounds: Vec<F>,
+        params: SolverParams<F>,
         nu_constraint: bool,
-    ) -> SolverState<'a, A, K> {
+    ) -> SolverState<'a, F, K> {
         // initialize alpha status according to bound
         let alpha = alpha
             .into_iter()
@@ -103,10 +103,10 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
 
         // initialize gradient
         let mut gradient = p.clone();
-        let mut gradient_fixed = vec![A::zero(); alpha.len()];
+        let mut gradient_fixed = vec![F::zero(); alpha.len()];
 
         for i in 0..alpha.len() {
-            // when we have reached alpha = A::zero(), then d(a) = p
+            // when we have reached alpha = F::zero(), then d(a) = p
             if !alpha[i].reached_lower() {
                 let dist_i = kernel.distances(i, alpha.len());
                 let alpha_i = alpha[i].val();
@@ -138,7 +138,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
             bounds,
             params,
             nu_constraint,
-            r: A::zero(),
+            r: F::zero(),
             phantom: PhantomData,
         }
     }
@@ -154,16 +154,16 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
     }
 
     /// Return target as positive/negative indicator
-    pub fn target(&self, idx: usize) -> A {
+    pub fn target(&self, idx: usize) -> F {
         if self.targets[idx] {
-            A::one()
+            F::one()
         } else {
-            -A::one()
+            -F::one()
         }
     }
 
     /// Return the k-th bound
-    pub fn bound(&self, idx: usize) -> A {
+    pub fn bound(&self, idx: usize) -> F {
         self.bounds[idx]
     }
 
@@ -234,9 +234,9 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
         if self.targets[i] != self.targets[j] {
             let mut quad_coef = self.kernel.self_distance(i)
                 + self.kernel.self_distance(j)
-                + (A::one() + A::one()) * dist_i[j];
-            if quad_coef <= A::zero() {
-                quad_coef = A::from(1e-10).unwrap();
+                + (F::one() + F::one()) * dist_i[j];
+            if quad_coef <= F::zero() {
+                quad_coef = F::from(1e-10).unwrap();
             }
 
             let delta = -(self.gradient[i] + self.gradient[j]) / quad_coef;
@@ -247,13 +247,13 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
             self.alpha[j].value += delta;
 
             // bound to feasible solution
-            if diff > A::zero() {
-                if self.alpha[j].val() < A::zero() {
-                    self.alpha[j].value = A::zero();
+            if diff > F::zero() {
+                if self.alpha[j].val() < F::zero() {
+                    self.alpha[j].value = F::zero();
                     self.alpha[i].value = diff;
                 }
-            } else if self.alpha[i].val() < A::zero() {
-                self.alpha[i].value = A::zero();
+            } else if self.alpha[i].val() < F::zero() {
+                self.alpha[i].value = F::zero();
                 self.alpha[j].value = -diff;
             }
 
@@ -267,11 +267,11 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
                 self.alpha[i].value = bound_j + diff;
             }
         } else {
-            //dbg!(self.kernel.self_distance(i), self.kernel.self_distance(j), A::from(2.0).unwrap() * dist_i[j]);
+            //dbg!(self.kernel.self_distance(i), self.kernel.self_distance(j), F::from(2.0).unwrap() * dist_i[j]);
             let mut quad_coef = self.kernel.self_distance(i) + self.kernel.self_distance(j)
-                - A::from(2.0).unwrap() * dist_i[j];
-            if quad_coef <= A::zero() {
-                quad_coef = A::from(1e-10).unwrap();
+                - F::from(2.0).unwrap() * dist_i[j];
+            if quad_coef <= F::zero() {
+                quad_coef = F::from(1e-10).unwrap();
             }
 
             let delta = (self.gradient[i] - self.gradient[j]) / quad_coef;
@@ -287,8 +287,8 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
                     self.alpha[i].value = bound_i;
                     self.alpha[j].value = sum - bound_i;
                 }
-            } else if self.alpha[j].val() < A::zero() {
-                self.alpha[j].value = A::zero();
+            } else if self.alpha[j].val() < F::zero() {
+                self.alpha[j].value = F::zero();
                 self.alpha[i].value = sum;
             }
             if sum > bound_j {
@@ -296,20 +296,20 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
                     self.alpha[j].value = bound_j;
                     self.alpha[i].value = sum - bound_j;
                 }
-            } else if self.alpha[i].val() < A::zero() {
-                self.alpha[i].value = A::zero();
+            } else if self.alpha[i].val() < F::zero() {
+                self.alpha[i].value = F::zero();
                 self.alpha[j].value = sum;
             }
             /*if self.alpha[i].val() > bound_i {
                 self.alpha[i].value = bound_i;
-            } else if self.alpha[i].val() < A::zero() {
-                self.alpha[i].value = A::zero();
+            } else if self.alpha[i].val() < F::zero() {
+                self.alpha[i].value = F::zero();
             }
 
             if self.alpha[j].val() > bound_j {
                 self.alpha[j].value = bound_j;
-            } else if self.alpha[j].val() < A::zero() {
-                self.alpha[j].value = A::zero();
+            } else if self.alpha[j].val() < F::zero() {
+                self.alpha[j].value = F::zero();
             }*/
         }
 
@@ -360,11 +360,11 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
     }
 
     /// Return max and min gradients of free variables
-    pub fn max_violating_pair(&self) -> ((A, isize), (A, isize)) {
+    pub fn max_violating_pair(&self) -> ((F, isize), (F, isize)) {
         // max { -y_i * grad(f)_i \i in I_up(\alpha) }
-        let mut gmax1 = (-A::infinity(), -1);
+        let mut gmax1 = (-F::infinity(), -1);
         // max { y_i * grad(f)_i \i in U_low(\alpha) }
-        let mut gmax2 = (-A::infinity(), -1);
+        let mut gmax2 = (-F::infinity(), -1);
 
         for i in 0..self.nactive() {
             if self.targets[i] {
@@ -388,11 +388,11 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
     }
 
     #[allow(clippy::type_complexity)]
-    pub fn max_violating_pair_nu(&self) -> ((A, isize), (A, isize), (A, isize), (A, isize)) {
-        let mut gmax1 = (-A::infinity(), -1);
-        let mut gmax2 = (-A::infinity(), -1);
-        let mut gmax3 = (-A::infinity(), -1);
-        let mut gmax4 = (-A::infinity(), -1);
+    pub fn max_violating_pair_nu(&self) -> ((F, isize), (F, isize), (F, isize), (F, isize)) {
+        let mut gmax1 = (-F::infinity(), -1);
+        let mut gmax2 = (-F::infinity(), -1);
+        let mut gmax3 = (-F::infinity(), -1);
+        let mut gmax4 = (-F::infinity(), -1);
 
         for i in 0..self.nactive() {
             if self.targets[i] {
@@ -428,7 +428,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
 
         let (gmax, gmax2) = self.max_violating_pair();
 
-        let mut obj_diff_min = (A::infinity(), -1);
+        let mut obj_diff_min = (F::infinity(), -1);
 
         if gmax.1 != -1 {
             let dist_i = self.kernel.distances(gmax.1 as usize, self.ntotal());
@@ -437,18 +437,18 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
                 if self.targets[j] {
                     if !self.alpha[j].reached_lower() {
                         let grad_diff = gmax.0 + self.gradient[j];
-                        if grad_diff > A::zero() {
+                        if grad_diff > F::zero() {
                             // this is possible, because op_i is some
                             let i = gmax.1 as usize;
 
                             let quad_coef = self.kernel.self_distance(i)
                                 + self.kernel.self_distance(j)
-                                - A::from(2.0).unwrap() * self.target(i) * dist_ij;
+                                - F::from(2.0).unwrap() * self.target(i) * dist_ij;
 
-                            let obj_diff = if quad_coef > A::zero() {
+                            let obj_diff = if quad_coef > F::zero() {
                                 -(grad_diff * grad_diff) / quad_coef
                             } else {
-                                -(grad_diff * grad_diff) / A::from(1e-10).unwrap()
+                                -(grad_diff * grad_diff) / F::from(1e-10).unwrap()
                             };
 
                             if obj_diff <= obj_diff_min.0 {
@@ -458,18 +458,18 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
                     }
                 } else if !self.alpha[j].reached_upper() {
                     let grad_diff = gmax.0 - self.gradient[j];
-                    if grad_diff > A::zero() {
+                    if grad_diff > F::zero() {
                         // this is possible, because op_i is `Some`
                         let i = gmax.1 as usize;
 
                         let quad_coef = self.kernel.self_distance(i)
                             + self.kernel.self_distance(j)
-                            + A::from(2.0).unwrap() * self.target(i) * dist_ij;
+                            + F::from(2.0).unwrap() * self.target(i) * dist_ij;
 
-                        let obj_diff = if quad_coef > A::zero() {
+                        let obj_diff = if quad_coef > F::zero() {
                             -(grad_diff * grad_diff) / quad_coef
                         } else {
-                            -(grad_diff * grad_diff) / A::from(1e-10).unwrap()
+                            -(grad_diff * grad_diff) / F::from(1e-10).unwrap()
                         };
                         if obj_diff <= obj_diff_min.0 {
                             obj_diff_min = (obj_diff, j as isize);
@@ -495,7 +495,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
     pub fn select_working_set_nu(&self) -> (usize, usize, bool) {
         let (gmaxp1, gmaxn1, gmaxp2, gmaxn2) = self.max_violating_pair_nu();
 
-        let mut obj_diff_min = (A::infinity(), -1);
+        let mut obj_diff_min = (F::infinity(), -1);
 
         let dist_i_p = if gmaxp1.1 != -1 {
             Some(self.kernel.distances(gmaxp1.1 as usize, self.ntotal()))
@@ -513,7 +513,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
             if self.targets[j] {
                 if !self.alpha[j].reached_lower() {
                     let grad_diff = gmaxp1.0 + self.gradient[j];
-                    if grad_diff > A::zero() {
+                    if grad_diff > F::zero() {
                         let dist_i_p = match dist_i_p {
                             Some(ref x) => x,
                             None => continue,
@@ -523,12 +523,12 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
                         let i = gmaxp1.1 as usize;
 
                         let quad_coef = self.kernel.self_distance(i) + self.kernel.self_distance(j)
-                            - A::from(2.0).unwrap() * dist_i_p[j];
+                            - F::from(2.0).unwrap() * dist_i_p[j];
 
-                        let obj_diff = if quad_coef > A::zero() {
+                        let obj_diff = if quad_coef > F::zero() {
                             -(grad_diff * grad_diff) / quad_coef
                         } else {
-                            -(grad_diff * grad_diff) / A::from(1e-10).unwrap()
+                            -(grad_diff * grad_diff) / F::from(1e-10).unwrap()
                         };
 
                         if obj_diff <= obj_diff_min.0 {
@@ -538,7 +538,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
                 }
             } else if !self.alpha[j].reached_upper() {
                 let grad_diff = gmaxn1.0 - self.gradient[j];
-                if grad_diff > A::zero() {
+                if grad_diff > F::zero() {
                     let dist_i_n = match dist_i_n {
                         Some(ref x) => x,
                         None => continue,
@@ -548,12 +548,12 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
                     let i = gmaxn1.1 as usize;
 
                     let quad_coef = self.kernel.self_distance(i) + self.kernel.self_distance(j)
-                        - A::from(2.0).unwrap() * dist_i_n[j];
+                        - F::from(2.0).unwrap() * dist_i_n[j];
 
-                    let obj_diff = if quad_coef > A::zero() {
+                    let obj_diff = if quad_coef > F::zero() {
                         -(grad_diff * grad_diff) / quad_coef
                     } else {
-                        -(grad_diff * grad_diff) / A::from(1e-10).unwrap()
+                        -(grad_diff * grad_diff) / F::from(1e-10).unwrap()
                     };
                     if obj_diff <= obj_diff_min.0 {
                         obj_diff_min = (obj_diff, j as isize);
@@ -562,7 +562,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
             }
         }
 
-        if A::max(gmaxp1.0 + gmaxp2.0, gmaxn1.0 + gmaxn2.0) < self.params.eps
+        if F::max(gmaxp1.0 + gmaxp2.0, gmaxn1.0 + gmaxn2.0) < self.params.eps
             || obj_diff_min.1 == -1
         {
             (0, 0, true)
@@ -578,7 +578,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
         }
     }
 
-    pub fn should_shrunk(&self, i: usize, gmax1: A, gmax2: A) -> bool {
+    pub fn should_shrunk(&self, i: usize, gmax1: F, gmax2: F) -> bool {
         if self.alpha[i].reached_upper() {
             if self.targets[i] {
                 -self.gradient[i] > gmax1
@@ -596,7 +596,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
         }
     }
 
-    pub fn should_shrunk_nu(&self, i: usize, gmax1: A, gmax2: A, gmax3: A, gmax4: A) -> bool {
+    pub fn should_shrunk_nu(&self, i: usize, gmax1: F, gmax2: F, gmax3: F, gmax4: F) -> bool {
         if self.alpha[i].reached_upper() {
             if self.targets[i] {
                 -self.gradient[i] > gmax1
@@ -624,7 +624,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
         let (gmax1, gmax2) = (gmax1.0, gmax2.0);
 
         // work on all variables when 10*eps is reached
-        if !self.unshrink && gmax1 + gmax2 <= self.params.eps * A::from(10.0).unwrap() {
+        if !self.unshrink && gmax1 + gmax2 <= self.params.eps * F::from(10.0).unwrap() {
             self.unshrink = true;
             self.reconstruct_gradient();
             self.nactive = self.ntotal();
@@ -652,7 +652,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
 
         // work on all variables when 10*eps is reached
         if !self.unshrink
-            && A::max(gmax1 + gmax2, gmax3 + gmax4) <= self.params.eps * A::from(10.0).unwrap()
+            && F::max(gmax1 + gmax2, gmax3 + gmax4) <= self.params.eps * F::from(10.0).unwrap()
         {
             self.unshrink = true;
             self.reconstruct_gradient();
@@ -675,31 +675,31 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
         }
     }
 
-    pub fn calculate_rho(&mut self) -> A {
+    pub fn calculate_rho(&mut self) -> F {
         // with additional constraint call the other function
         if self.nu_constraint {
             return self.calculate_rho_nu();
         }
 
         let mut nfree = 0;
-        let mut sum_free = A::zero();
-        let mut ub = A::infinity();
-        let mut lb = -A::infinity();
+        let mut sum_free = F::zero();
+        let mut ub = F::infinity();
+        let mut lb = -F::infinity();
 
         for i in 0..self.nactive() {
             let yg = self.target(i) * self.gradient[i];
 
             if self.alpha[i].reached_upper() {
                 if self.targets[i] {
-                    lb = A::max(lb, yg);
+                    lb = F::max(lb, yg);
                 } else {
-                    ub = A::min(ub, yg);
+                    ub = F::min(ub, yg);
                 }
             } else if self.alpha[i].reached_lower() {
                 if self.targets[i] {
-                    ub = A::min(ub, yg);
+                    ub = F::min(ub, yg);
                 } else {
-                    lb = A::max(lb, yg);
+                    lb = F::max(lb, yg);
                 }
             } else {
                 nfree += 1;
@@ -708,24 +708,24 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
         }
 
         if nfree > 0 {
-            sum_free / A::from(nfree).unwrap()
+            sum_free / F::from(nfree).unwrap()
         } else {
-            (ub + lb) / A::from(2.0).unwrap()
+            (ub + lb) / F::from(2.0).unwrap()
         }
     }
 
-    pub fn calculate_rho_nu(&mut self) -> A {
+    pub fn calculate_rho_nu(&mut self) -> F {
         let (mut nfree1, mut nfree2) = (0, 0);
-        let (mut sum_free1, mut sum_free2) = (A::zero(), A::zero());
-        let (mut ub1, mut ub2) = (A::infinity(), A::infinity());
-        let (mut lb1, mut lb2) = (-A::infinity(), -A::infinity());
+        let (mut sum_free1, mut sum_free2) = (F::zero(), F::zero());
+        let (mut ub1, mut ub2) = (F::infinity(), F::infinity());
+        let (mut lb1, mut lb2) = (-F::infinity(), -F::infinity());
 
         for i in 0..self.nactive() {
             if self.targets[i] {
                 if self.alpha[i].reached_upper() {
-                    lb1 = A::max(lb1, self.gradient[i]);
+                    lb1 = F::max(lb1, self.gradient[i]);
                 } else if self.alpha[i].reached_lower() {
-                    ub1 = A::max(ub1, self.gradient[i]);
+                    ub1 = F::max(ub1, self.gradient[i]);
                 } else {
                     nfree1 += 1;
                     sum_free1 += self.gradient[i];
@@ -734,9 +734,9 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
 
             if !self.targets[i] {
                 if self.alpha[i].reached_upper() {
-                    lb2 = A::max(lb2, self.gradient[i]);
+                    lb2 = F::max(lb2, self.gradient[i]);
                 } else if self.alpha[i].reached_lower() {
-                    ub2 = A::max(ub2, self.gradient[i]);
+                    ub2 = F::max(ub2, self.gradient[i]);
                 } else {
                     nfree2 += 1;
                     sum_free2 += self.gradient[i];
@@ -745,22 +745,22 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
         }
 
         let r1 = if nfree1 > 0 {
-            sum_free1 / A::from(nfree1).unwrap()
+            sum_free1 / F::from(nfree1).unwrap()
         } else {
-            (ub1 + lb1) / A::from(2.0).unwrap()
+            (ub1 + lb1) / F::from(2.0).unwrap()
         };
         let r2 = if nfree2 > 0 {
-            sum_free2 / A::from(nfree2).unwrap()
+            sum_free2 / F::from(nfree2).unwrap()
         } else {
-            (ub2 + lb2) / A::from(2.0).unwrap()
+            (ub2 + lb2) / F::from(2.0).unwrap()
         };
 
-        self.r = (r1 + r2) / A::from(2.0).unwrap();
+        self.r = (r1 + r2) / F::from(2.0).unwrap();
 
-        (r1 - r2) / A::from(2.0).unwrap()
+        (r1 - r2) / F::from(2.0).unwrap()
     }
 
-    pub fn solve(mut self) -> Svm<'a, A, A> {
+    pub fn solve(mut self) -> Svm<F, F> {
         let mut iter = 0;
         let max_iter = if self.targets.len() > std::usize::MAX / 100 {
             std::usize::MAX
@@ -812,11 +812,11 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
         };
 
         // calculate object function
-        let mut v = A::zero();
+        let mut v = F::zero();
         for i in 0..self.targets.len() {
             v += self.alpha[i].val() * (self.gradient[i] + self.p[i]);
         }
-        let obj = v / A::from(2.0).unwrap();
+        let obj = v / F::from(2.0).unwrap();
 
         let exit_reason = if max_iter == iter {
             ExitReason::ReachedIterations
@@ -825,7 +825,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
         };
 
         // put back the solution
-        let alpha: Vec<A> = (0..self.ntotal())
+        let alpha: Vec<F> = (0..self.ntotal())
             .map(|i| self.alpha[self.active_set[i]].val())
             .collect();
 
@@ -848,7 +848,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
             exit_reason,
             obj,
             iterations: iter,
-            kernel: self.kernel.inner(),
+            kernel: self.kernel.to_inner(),
             linear_decision,
             phantom: PhantomData,
         }
@@ -859,7 +859,7 @@ impl<'a, A: Float, K: 'a + Permutable<'a, A>> SolverState<'a, A, K> {
 #[cfg(test)]
 mod tests {
     use crate::permutable_kernel::PermutableKernel;
-    use super::{SolverState, SolverParams, Svm};
+    use super::{SolverState, SolverParams, SvmBase};
     use ndarray::array;
     use linfa_kernel::{Kernel, KernelInner};
 
@@ -883,7 +883,7 @@ mod tests {
 
         let solver = SolverState::new(vec![1.0, 1.0], p, targets, kernel, vec![1000.0; 2], &params, false);
 
-        let res: Svm<f64> = solver.solve();
+        let res: SvmBase<f64> = solver.solve();
 
         println!("{:?}", res.alpha);
         println!("{}", res);
