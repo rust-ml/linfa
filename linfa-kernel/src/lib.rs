@@ -142,13 +142,13 @@ impl<'a, F: Float> Kernel<ArrayView2<'a, F>> {
         match &self.inner {
             KernelInner::Dense(mat) => mat
                 .indexed_iter()
-                .filter(|((row, col), _)| col >= row)
+                .filter(|((row, col), _)| col > row)
                 .map(|(_, val)| *val)
                 .collect(),
             KernelInner::Sparse(mat) => {
                 let mat = mat.to_dense();
                 mat.indexed_iter()
-                    .filter(|((row, col), _)| col >= row)
+                    .filter(|((row, col), _)| col > row)
                     .map(|(_, val)| *val)
                     .collect()
             }
@@ -711,8 +711,12 @@ mod tests {
 
     #[test]
     fn test_kernel_upper_triangle() {
-        let input_vec: Vec<f64> = (0..100).map(|v| v as f64 * 0.1).collect();
-        let input_arr = Array2::from_shape_vec((10, 10), input_vec).unwrap();
+        // symmetric vec, kernel matrix is a "cross" of ones
+        let input_vec: Vec<f64> = (0..50).map(|v| v as f64 * 0.1).collect();
+        let input_arr_1 = Array2::from_shape_vec((5, 10), input_vec.clone()).unwrap();
+        let mut input_arr_2 = Array2::from_shape_vec((5, 10), input_vec).unwrap();
+        input_arr_2.invert_axis(Axis(0));
+        let input_arr = ndarray::stack(Axis(0), &[input_arr_1.view(), input_arr_2.view()]).unwrap();
 
         for kind in vec![KernelType::Dense, KernelType::Sparse(1)] {
             let kernel = Kernel::params()
@@ -722,11 +726,12 @@ mod tests {
                 .method(KernelMethod::Gaussian(1e-5))
                 .transform(&input_arr);
             let mut kernel_upper_triang = kernel.to_upper_triangle();
-            assert_eq!(kernel_upper_triang.len(), 55);
-
-            for i in 0..10 {
-                for j in 0..=i {
-                    if j == i {
+            assert_eq!(kernel_upper_triang.len(), 45);
+            //so that i can use pop()
+            kernel_upper_triang.reverse();
+            for i in 0..9 {
+                for j in (i + 1)..10 {
+                    if j == (9 - i) {
                         assert_eq!(kernel_upper_triang.pop().unwrap() as usize, 1);
                     } else {
                         assert_eq!(kernel_upper_triang.pop().unwrap() as usize, 0);
