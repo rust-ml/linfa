@@ -16,7 +16,6 @@ impl<F: Float> MetricPoint for Euclidean<'_, F> {
             .map(|(&a, &b)| (a - b) * (a - b))
             .sum::<F>()
             .sqrt();
-
         space::f32_metric(val.to_f32().unwrap())
     }
 }
@@ -91,4 +90,164 @@ pub fn adjacency_matrix<F: Float, D: Data<Elem = F>>(
     mat.map_inplace(|_| val);
 
     mat
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+    use ndarray::{Array2, ArrayView1};
+
+    #[test]
+    fn euclidean_distance_test() {
+        let p1 = Euclidean {
+            0: ArrayView1::from_shape(2, &[0., 0.]).unwrap(),
+        };
+        let p2 = Euclidean {
+            0: ArrayView1::from_shape(2, &[1., 1.]).unwrap(),
+        };
+
+        assert_eq!(p1.distance(&p2), 2_f32.sqrt().to_bits());
+
+        let p2 = Euclidean {
+            0: ArrayView1::from_shape(2, &[4., 3.]).unwrap(),
+        };
+
+        assert_eq!(p1.distance(&p2), 5_f32.to_bits());
+
+        let p2 = Euclidean {
+            0: ArrayView1::from_shape(2, &[0., 0.]).unwrap(),
+        };
+
+        assert_eq!(p1.distance(&p2), 0);
+    }
+
+    #[test]
+    #[allow(clippy::if_same_then_else)]
+    fn adjacency_matrix_test() {
+        // pts 0 & 1    pts 2 & 3    pts 4 & 5     pts 6 & 7
+        // |0.| |0.1| _ |1.| |1.1| _ |2.| |2.1| _  |3.| |3.1|
+        // |0.| |0.1|   |1.| |1.1|   |2.| |2.1|    |3.| |3.1|
+        let input_mat = vec![
+            0., 0., 0.1, 0.1, 1., 1., 1.1, 1.1, 2., 2., 2.1, 2.1, 3., 3., 3.1, 3.1,
+        ];
+        let input_arr = Array2::from_shape_vec((8, 2), input_mat).unwrap();
+        // Elements in the input come in pairs of 2 nearby elements with consecutive indices
+        // I expect a matrix with 16 non-zero elements placed in the diagonal and connecting
+        // consecutive elements in pairs of two
+        let adj_mat = adjacency_matrix(&input_arr, 1);
+        assert_eq!(adj_mat.nnz(), 16);
+
+        for i in 0..8 {
+            for j in 0..8 {
+                // 8 diagonal elements
+                if i == j {
+                    assert_eq!(*adj_mat.get(i, j).unwrap() as usize, 1);
+                // (0,1), (2,3), (4,5), (6,7) -> 4 elements
+                } else if i % 2 == 0 && j == i + 1 {
+                    assert_eq!(*adj_mat.get(i, j).unwrap() as usize, 1);
+                // (1,0), (3,2), (5,4), (7,6) -> 4 elements
+                } else if j % 2 == 0 && i == j + 1 {
+                    assert_eq!(*adj_mat.get(i, j).unwrap() as usize, 1);
+                // all other 48 elements
+                } else {
+                    // Since this is the first test we check that all these elements
+                    // are `None`, even if it follows from `adj_mat.nnz() = 16`
+                    assert_eq!(adj_mat.get(i, j), None);
+                }
+            }
+        }
+
+        // Elements in the input come in triples of 3 nearby elements with consecutive indices
+        // I expect a matrix with 26 non-zero elements placed in the diagonal and connecting
+        // consecutive elements in triples
+        let adj_mat = adjacency_matrix(&input_arr, 2);
+        assert_eq!(adj_mat.nnz(), 26);
+
+        // diagonal -> 8 non-zeros
+        for i in 0..8 {
+            assert_eq!(*adj_mat.get(i, i).unwrap() as usize, 1);
+        }
+
+        // central input elements have neighbours in the previous and next input elements
+        // -> 12 non zeros
+        for i in 1..7 {
+            assert_eq!(*adj_mat.get(i, i + 1).unwrap() as usize, 1);
+            assert_eq!(*adj_mat.get(i, i - 1).unwrap() as usize, 1);
+        }
+
+        // first and last elements have neighbours respectively in
+        // the next and previous two elements
+        // -> 4 non-zeros
+        assert_eq!(*adj_mat.get(0, 1).unwrap() as usize, 1);
+        assert_eq!(*adj_mat.get(0, 2).unwrap() as usize, 1);
+        assert_eq!(*adj_mat.get(7, 6).unwrap() as usize, 1);
+        assert_eq!(*adj_mat.get(7, 5).unwrap() as usize, 1);
+
+        // it follows then that the third and third-to-last elements
+        // have also neighbours respectively in the first and last elements
+        // -> 2 non-zeros -> 26 total
+        assert_eq!(*adj_mat.get(0, 2).unwrap() as usize, 1);
+        assert_eq!(*adj_mat.get(7, 5).unwrap() as usize, 1);
+
+        // it follows then that all other elements are `None`
+    }
+
+    #[test]
+    fn adjacency_matrix_test_2() {
+        // pts 0 & 1    pts 2 & 3    pts 4 & 5     pts 6 & 7
+        // |0.| |3.1| _ |1.| |2.1| _ |2.| |1.1| _  |3.| |0.1|
+        // |0.| |3.1|   |1.| |2.1|   |2.| |1.1|    |3.| |0.1|
+        let input_mat = vec![
+            0., 0., 3.1, 3.1, 1., 1., 2.1, 1.1, 2., 2., 1.1, 1.1, 3., 3., 0.1, 0.1,
+        ];
+
+        let input_arr = Array2::from_shape_vec((8, 2), input_mat).unwrap();
+        let adj_mat = adjacency_matrix(&input_arr, 1);
+        assert_eq!(adj_mat.nnz(), 16);
+
+        // I expext non-zeros in the diagonal and then:
+        // - point 0 to be neighbour of point 7 & vice versa
+        // - point 1 to be neighbour of point 6 & vice versa
+        // - point 2 to be neighbour of point 5 & vice versa
+        // - point 3 to be neighbour of point 4 & vice versa
+
+        for i in 0..8 {
+            assert_eq!(*adj_mat.get(i, i).unwrap() as usize, 1);
+            if i <= 3 {
+                assert_eq!(*adj_mat.get(i, 7 - i).unwrap() as usize, 1);
+                assert_eq!(*adj_mat.get(7 - i, i).unwrap() as usize, 1);
+            }
+        }
+    }
+
+    #[test]
+    #[should_panic]
+    fn sparse_panics_on_0_neighbours() {
+        let input_mat = [
+            [[0., 0.], [0.1, 0.1]],
+            [[1., 1.], [1.1, 1.1]],
+            [[2., 2.], [2.1, 2.1]],
+            [[3., 3.], [3.1, 3.1]],
+        ]
+        .concat()
+        .concat();
+        let input_arr = Array2::from_shape_vec((8, 2), input_mat).unwrap();
+        let _ = adjacency_matrix(&input_arr, 0);
+    }
+
+    #[test]
+    #[should_panic]
+    fn sparse_panics_on_n_neighbours() {
+        let input_mat = [
+            [[0., 0.], [0.1, 0.1]],
+            [[1., 1.], [1.1, 1.1]],
+            [[2., 2.], [2.1, 2.1]],
+            [[3., 3.], [3.1, 3.1]],
+        ]
+        .concat()
+        .concat();
+        let input_arr = Array2::from_shape_vec((8, 2), input_mat).unwrap();
+        let _ = adjacency_matrix(&input_arr, 8);
+    }
 }
