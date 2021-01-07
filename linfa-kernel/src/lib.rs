@@ -61,7 +61,6 @@ where
     )]
     pub method: KernelMethod<R::Elem>,
     pub dataset: R,
-    pub linear: bool,
 }
 
 impl<'a, F: Float> Kernel<ArrayView2<'a, F>> {
@@ -69,7 +68,6 @@ impl<'a, F: Float> Kernel<ArrayView2<'a, F>> {
         dataset: ArrayView2<'a, F>,
         method: KernelMethod<F>,
         kind: KernelType,
-        linear: bool,
     ) -> Kernel<ArrayView2<'a, F>> {
         let inner = match kind {
             KernelType::Dense => KernelInner::Dense(dense_from_fn(&dataset, &method)),
@@ -80,11 +78,10 @@ impl<'a, F: Float> Kernel<ArrayView2<'a, F>> {
             inner,
             method,
             dataset,
-            linear,
         }
     }
 
-    /// Performs the element-wise product between the kernel matrix
+    /// Performs the matrix product between the kernel matrix
     /// and the input
     ///
     /// ## Parameters
@@ -93,7 +90,7 @@ impl<'a, F: Float> Kernel<ArrayView2<'a, F>> {
     ///
     /// ## Returns
     ///
-    /// A new matrix containing the element-wise product between the kernel
+    /// A new matrix containing the matrix product between the kernel
     /// and `rhs`
     ///
     /// ## Panics
@@ -101,7 +98,7 @@ impl<'a, F: Float> Kernel<ArrayView2<'a, F>> {
     /// If the shapes of kernel and `rhs` are not compatible for multiplication
     pub fn dot(&self, rhs: &ArrayView2<F>) -> Array2<F> {
         match &self.inner {
-            KernelInner::Dense(mat) => mat.mul(rhs),
+            KernelInner::Dense(mat) => mat.dot(rhs),
             KernelInner::Sparse(mat) => mat.mul(rhs),
         }
     }
@@ -145,13 +142,13 @@ impl<'a, F: Float> Kernel<ArrayView2<'a, F>> {
         match &self.inner {
             KernelInner::Dense(mat) => mat
                 .indexed_iter()
-                .filter(|((row, col), _)| col > row)
+                .filter(|((row, col), _)| col >= row)
                 .map(|(_, val)| *val)
                 .collect(),
             KernelInner::Sparse(mat) => {
                 let mat = mat.to_dense();
                 mat.indexed_iter()
-                    .filter(|((row, col), _)| col > row)
+                    .filter(|((row, col), _)| col >= row)
                     .map(|(_, val)| *val)
                     .collect()
             }
@@ -197,17 +194,18 @@ impl<'a, F: Float> Kernel<ArrayView2<'a, F>> {
         }
     }
 
-    /// Sums the inner product of `sample` and every row of the kernel, weighted
-    /// according to `weights`
+    /// Sums the inner product of `sample` and every one of the samples
+    /// used to generate the kernel
     ///
     /// ## Parameters
     ///
-    /// * `weights`: the weight of each row of the kernel matrix
-    /// * `sample`: the sample to multiply by each row
+    /// * `weights`: the weight of each inner product
+    /// * `sample`: the input sample
     ///
     /// ## Returns
     ///
-    /// The weighted sum of all inner products of `smple` and the row of the kernel matrix
+    /// The weighted sum of all inner products of `sample` and every one of the samples
+    /// used to generate the kernel
     ///
     /// ## Panics
     ///
@@ -228,7 +226,7 @@ impl<'a, F: Float> Kernel<ArrayView2<'a, F>> {
     /// - `true`: if the kernel is linear
     /// - `false`: otherwise
     pub fn is_linear(&self) -> bool {
-        self.linear
+        self.method.is_linear()
     }
 
     /// Generates the default set of parameters for building a kernel.
@@ -398,9 +396,7 @@ impl<'a, F: Float> Transformer<&'a Array2<F>, Kernel<ArrayView2<'a, F>>> for Ker
     /// If the kernel type is `Sparse` and the number of neighbors specified is
     /// not between 1 and ##records-1
     fn transform(&self, x: &'a Array2<F>) -> Kernel<ArrayView2<'a, F>> {
-        let is_linear = self.method.is_linear();
-
-        Kernel::new(x.view(), self.method.clone(), self.kind.clone(), is_linear)
+        Kernel::new(x.view(), self.method.clone(), self.kind.clone())
     }
 }
 
@@ -422,9 +418,7 @@ impl<'a, F: Float> Transformer<ArrayView2<'a, F>, Kernel<ArrayView2<'a, F>>> for
     /// If the kernel type is `Sparse` and the number of neighbors specified is
     /// not between 1 and ##records-1
     fn transform(&self, x: ArrayView2<'a, F>) -> Kernel<ArrayView2<'a, F>> {
-        let is_linear = self.method.is_linear();
-
-        Kernel::new(x, self.method.clone(), self.kind.clone(), is_linear)
+        Kernel::new(x, self.method.clone(), self.kind.clone())
     }
 }
 
@@ -456,14 +450,7 @@ impl<'a, F: Float, T: Targets>
         &self,
         x: &'a DatasetBase<Array2<F>, T>,
     ) -> DatasetBase<Kernel<ArrayView2<'a, F>>, &'a T> {
-        let is_linear = self.method.is_linear();
-
-        let kernel = Kernel::new(
-            x.records.view(),
-            self.method.clone(),
-            self.kind.clone(),
-            is_linear,
-        );
+        let kernel = Kernel::new(x.records.view(), self.method.clone(), self.kind.clone());
 
         DatasetBase::new(kernel, &x.targets)
     }
@@ -499,9 +486,7 @@ impl<'a, F: Float, T: Targets>
         &self,
         x: &'a DatasetBase<ArrayView2<'a, F>, T>,
     ) -> DatasetBase<Kernel<ArrayView2<'a, F>>, &'a [T::Elem]> {
-        let is_linear = self.method.is_linear();
-
-        let kernel = Kernel::new(x.records, self.method.clone(), self.kind.clone(), is_linear);
+        let kernel = Kernel::new(x.records, self.method.clone(), self.kind.clone());
 
         DatasetBase::new(kernel, x.targets.as_slice())
     }
@@ -706,7 +691,7 @@ mod tests {
         let to_multiply = Array2::from_shape_vec((10, 10), vec_to_multiply).unwrap();
 
         // dense kernel dot
-        let mul_mat = dense_from_fn(&input_arr, &KernelMethod::Linear).mul(to_multiply.view());
+        let mul_mat = dense_from_fn(&input_arr, &KernelMethod::Linear).dot(&to_multiply);
         let kernel = Kernel::params()
             .kind(KernelType::Dense)
             .method(KernelMethod::Linear)
@@ -722,6 +707,57 @@ mod tests {
             .transform(&input_arr);
         let mul_ker = kernel.dot(&to_multiply.view());
         assert!(kernels_almost_equal(mul_mat.view(), mul_ker.view()));
+    }
+
+    #[test]
+    fn test_kernel_upper_triangle() {
+        let input_vec: Vec<f64> = (0..100).map(|v| v as f64 * 0.1).collect();
+        let input_arr = Array2::from_shape_vec((10, 10), input_vec).unwrap();
+
+        for kind in vec![KernelType::Dense, KernelType::Sparse(1)] {
+            let kernel = Kernel::params()
+                .kind(kind)
+                // Such a value for eps brings to zero the inner product
+                // between any two points that are not equal
+                .method(KernelMethod::Gaussian(1e-5))
+                .transform(&input_arr);
+            let mut kernel_upper_triang = kernel.to_upper_triangle();
+            assert_eq!(kernel_upper_triang.len(), 55);
+
+            for i in 0..10 {
+                for j in 0..=i {
+                    if j == i {
+                        assert_eq!(kernel_upper_triang.pop().unwrap() as usize, 1);
+                    } else {
+                        assert_eq!(kernel_upper_triang.pop().unwrap() as usize, 0);
+                    }
+                }
+            }
+            assert!(kernel_upper_triang.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_kernel_weighted_sum() {
+        let input_vec: Vec<f64> = (0..100).map(|v| v as f64 * 0.1).collect();
+        let input_arr = Array2::from_shape_vec((10, 10), input_vec).unwrap();
+        let weights = [1., 2., 3., 4., 5., 6., 7., 8., 9., 10.];
+        for kind in vec![KernelType::Dense, KernelType::Sparse(1)] {
+            let kernel = Kernel::params()
+                .kind(kind)
+                // Such a value for eps brings to zero the inner product
+                // between any two points that are not equal
+                .method(KernelMethod::Gaussian(1e-5))
+                .transform(&input_arr);
+            for (sample, w) in input_arr.outer_iter().zip(&weights) {
+                // with that kernel, only the input samples have non
+                // zero inner product with the samples used to generate the matrix.
+                // In particular, they have inner product equal to one only for the
+                // column corresponding to themselves
+                let w_sum = kernel.weighted_sum(&weights, sample);
+                assert!(values_almost_equal(&w_sum, w));
+            }
+        }
     }
 
     #[test]
@@ -831,8 +867,7 @@ mod tests {
             KernelMethod::Polynomial(1., 2.),
         ];
         for method in methods {
-            let kernel_ref =
-                Kernel::new(input.records().view(), method.clone(), k_type.clone(), true);
+            let kernel_ref = Kernel::new(input.records().view(), method.clone(), k_type.clone());
             let kernel_tr = Kernel::params()
                 .kind(k_type.clone())
                 .method(method.clone())
@@ -854,7 +889,7 @@ mod tests {
             KernelMethod::Polynomial(1., 2.),
         ];
         for method in methods {
-            let kernel_ref = Kernel::new(*input.records(), method.clone(), k_type.clone(), true);
+            let kernel_ref = Kernel::new(*input.records(), method.clone(), k_type.clone());
             let kernel_tr = Kernel::params()
                 .kind(k_type.clone())
                 .method(method.clone())
@@ -873,7 +908,7 @@ mod tests {
             KernelMethod::Polynomial(1., 2.),
         ];
         for method in methods {
-            let kernel_ref = Kernel::new(input.view(), method.clone(), k_type.clone(), true);
+            let kernel_ref = Kernel::new(input.view(), method.clone(), k_type.clone());
             let kernel_tr = Kernel::params()
                 .kind(k_type.clone())
                 .method(method.clone())
@@ -889,7 +924,7 @@ mod tests {
             KernelMethod::Polynomial(1., 2.),
         ];
         for method in methods {
-            let kernel_ref = Kernel::new(input, method.clone(), k_type.clone(), true);
+            let kernel_ref = Kernel::new(input, method.clone(), k_type.clone());
             let kernel_tr = Kernel::params()
                 .kind(k_type.clone())
                 .method(method.clone())
@@ -903,11 +938,8 @@ mod tests {
             .axis_iter(Axis(0))
             .zip(transformed.axis_iter(Axis(0)))
         {
-            for (ref_item, tr_item) in ref_row.iter().zip(tr_row.iter()) {
-                let abs_diff = (ref_item - tr_item).abs();
-                if abs_diff > f64::EPSILON {
-                    return false;
-                }
+            if !arrays_almost_equal(ref_row, tr_row) {
+                return false;
             }
         }
         true
@@ -915,11 +947,14 @@ mod tests {
 
     fn arrays_almost_equal(reference: ArrayView1<f64>, transformed: ArrayView1<f64>) -> bool {
         for (ref_item, tr_item) in reference.iter().zip(transformed.iter()) {
-            let abs_diff = (ref_item - tr_item).abs();
-            if abs_diff > f64::EPSILON {
+            if !values_almost_equal(ref_item, tr_item) {
                 return false;
             }
         }
         true
+    }
+
+    fn values_almost_equal(v1: &f64, v2: &f64) -> bool {
+        (v1 - v2).abs() <= f64::EPSILON
     }
 }
