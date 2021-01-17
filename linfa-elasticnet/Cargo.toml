@@ -5,7 +5,6 @@ authors = [
     "Paul Körbitz / Google <koerbitz@google.com>",
     "Lorenz Schmidt <bytesnake@mailbox.org>"
 ]
-edition = "2018"
 
 description = "A Machine Learning framework for Rust"
 edition = "2018"
