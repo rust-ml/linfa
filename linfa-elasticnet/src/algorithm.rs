@@ -175,16 +175,16 @@ fn duality_gap<'a, F: Float>(
 mod tests {
     use super::{coordinate_descent, ElasticNet};
     use approx::assert_abs_diff_eq;
-    use ndarray::{array, Array1, Array2, Array, s};
+    use ndarray::{array, s, Array, Array1, Array2};
+    use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::Uniform;
     use ndarray_rand::RandomExt;
-    use ndarray_rand::rand::SeedableRng;
     use rand_isaac::Isaac64Rng;
 
     use linfa::{
+        metrics::Regression,
         traits::{Fit, Predict},
         Dataset,
-        metrics::Regression,
     };
 
     fn elastic_net_objective(
@@ -493,7 +493,11 @@ mod tests {
         dbg!(&model.duality_gap());
 
         // check that we set the last 40 parameters to zero
-        let num_zeros = model.parameters().into_iter().filter(|x| **x < 1e-5).count();
+        let num_zeros = model
+            .parameters()
+            .into_iter()
+            .filter(|x| **x < 1e-5)
+            .count();
         assert_eq!(num_zeros, 40);
 
         // predict a small testing dataset
