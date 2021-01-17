@@ -175,11 +175,16 @@ fn duality_gap<'a, F: Float>(
 mod tests {
     use super::{coordinate_descent, ElasticNet};
     use approx::assert_abs_diff_eq;
-    use ndarray::{array, Array1, Array2};
+    use ndarray::{array, Array1, Array2, Array, s};
+    use ndarray_rand::rand_distr::Uniform;
+    use ndarray_rand::RandomExt;
+    use ndarray_rand::rand::SeedableRng;
+    use rand_isaac::Isaac64Rng;
 
     use linfa::{
         traits::{Fit, Predict},
         Dataset,
+        metrics::Regression,
     };
 
     fn elastic_net_objective(
@@ -461,5 +466,42 @@ mod tests {
         );
         assert_abs_diff_eq!(model.intercept(), 126.279, epsilon = 1e-1);
         assert_abs_diff_eq!(model.duality_gap(), 0.00011079, epsilon = 1e-4);
+    }
+
+    #[test]
+    fn select_subset() {
+        let mut rng = Isaac64Rng::seed_from_u64(42);
+
+        // check that we are selecting the subsect of informative features
+        let mut w = Array::random_using(50, Uniform::new(1., 2.), &mut rng);
+        w.slice_mut(s![10..]).fill(0.0);
+        dbg!(&w);
+
+        let x = Array::random_using((100, 50), Uniform::new(-1., 1.), &mut rng);
+        let y = x.dot(&w);
+        let train = Dataset::new(x, y);
+
+        let model = ElasticNet::lasso()
+            .penalty(0.1)
+            .max_iterations(1000)
+            .tolerance(1e-10)
+            .fit(&train)
+            .unwrap();
+
+        dbg!(&model.parameters());
+        dbg!(&model.intercept());
+        dbg!(&model.duality_gap());
+
+        // check that we set the last 40 parameters to zero
+        let num_zeros = model.parameters().into_iter().filter(|x| **x < 1e-5).count();
+        assert_eq!(num_zeros, 40);
+
+        // predict a small testing dataset
+        let x = Array::random_using((100, 50), Uniform::new(-1., 1.), &mut rng);
+        let y = x.dot(&w);
+
+        let predicted = model.predict(&x);
+        let rms = y.mean_squared_error(&predicted);
+        assert!(rms < 0.67);
     }
 }

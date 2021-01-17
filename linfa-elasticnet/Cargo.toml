@@ -17,3 +17,5 @@ linfa = { version = "0.2.1", path = ".." }
 
 [dev-dependencies]
 linfa-datasets = { version = "0.2.1", path = "../datasets", features = ["diabetes"] }
+ndarray-rand = "0.11"
+rand_isaac = "0.2"
