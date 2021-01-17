@@ -3,7 +3,7 @@
 //! This module implements the dataset struct and various helper traits to extend its
 //! functionality.
 use ndarray::{ArrayBase, ArrayView, Ix1, Ix2, NdFloat, OwnedRepr};
-use num_traits::{FromPrimitive, Signed};
+use num_traits::{FromPrimitive, NumAssignOps, Signed};
 use std::cmp::{Ordering, PartialOrd};
 use std::hash::Hash;
 use std::iter::Sum;
@@ -16,7 +16,7 @@ mod impl_targets;
 mod iter;
 
 /// Floating numbers
-pub trait Float: NdFloat + FromPrimitive + Signed + Default + Sum {}
+pub trait Float: NdFloat + FromPrimitive + Signed + Default + Sum + NumAssignOps {}
 impl Float for f32 {}
 impl Float for f64 {}
 

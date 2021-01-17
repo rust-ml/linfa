@@ -1,0 +1,19 @@
+[package]
+name = "linfa-elasticnet"
+version = "0.1.0"
+authors = [
+    "Paul Körbitz / Google <koerbitz@google.com>",
+    "Lorenz Schmidt <bytesnake@mailbox.org>"
+]
+edition = "2018"
+
+[dependencies]
+ndarray = {version = "0.13", features = ["blas", "approx"]}
+num-traits = "0.2"
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+approx = "0.3.2"
+
+linfa = { version = "0.2.1", path = ".." }
+
+[dev-dependencies]
+linfa-datasets = { version = "0.2.1", path = "../datasets", features = ["diabetes"] }
