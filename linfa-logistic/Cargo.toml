@@ -1,6 +1,6 @@
 [package]
 name = "linfa-logistic"
-version = "0.2.1"
+version = "0.3.0"
 authors = ["Paul Körbitz / Google <koerbitz@google.com>"]
 
 description = "A Machine Learning framework for Rust"
@@ -20,7 +20,7 @@ num-traits = "0.2"
 argmin = {version="0.3.1", features=["ndarrayl"]}
 serde = "1.0"
 
-linfa = { version = "0.2.1", path = ".." }
+linfa = { version = "0.3.0", path = ".." }
 
 [dev-dependencies]
 approx = "0.3.2"

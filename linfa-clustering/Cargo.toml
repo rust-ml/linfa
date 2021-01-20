@@ -1,6 +1,6 @@
 [package]
 name = "linfa-clustering"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2018"
 authors = [
     "Luca Palmieri <rust@lpalmieri.com>",
@@ -36,7 +36,7 @@ sprs = "0.7"
 num-traits = "0.1.32"
 rand_isaac = "0.2.0"
 
-linfa = { version = "0.2.1", path = ".." }
+linfa = { version = "0.3.0", path = ".." }
 partitions = "0.2.4"
 
 [dev-dependencies]

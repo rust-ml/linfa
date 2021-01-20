@@ -1,6 +1,6 @@
 [package]
 name = "linfa-reduction"
-version = "0.2.1"
+version = "0.3.0"
 authors = ["Lorenz Schmidt <bytesnake@mailbox.org>"]
 description = "A collection of dimensionality reduction techniques"
 edition = "2018"
@@ -31,8 +31,8 @@ ndarray-rand = "0.11"
 ndarray-stats = "0.3"
 num-traits = "0.2"
 
-linfa = { version = "0.2.1", path = ".." }
-linfa-kernel = { version = "0.2.1", path = "../linfa-kernel" }
+linfa = { version = "0.3.0", path = ".." }
+linfa-kernel = { version = "0.3.0", path = "../linfa-kernel" }
 
 [dev-dependencies]
 rand_isaac = "0.2.0"
