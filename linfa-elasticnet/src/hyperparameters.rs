@@ -1,8 +1,16 @@
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
+
 use linfa::Float;
 use ndarray::{ArrayView1, CowArray, Ix1};
 
 use super::{Error, Result};
 
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 /// Linear regression with both L1 and L2 regularization
 ///
 /// Configures and minimizes the following objective function:

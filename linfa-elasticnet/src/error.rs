@@ -1,7 +1,14 @@
 use std::fmt;
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Debug, Clone)]
 pub enum Error {
     /// Indicate mis-configured hyper parameters

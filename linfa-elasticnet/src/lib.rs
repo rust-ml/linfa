@@ -40,6 +40,9 @@
 use linfa::Float;
 use ndarray::Array1;
 
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
+
 mod algorithm;
 mod error;
 mod hyperparameters;
@@ -47,6 +50,11 @@ mod hyperparameters;
 pub use error::{Error, Result};
 pub use hyperparameters::ElasticNetParams;
 
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 /// Elastic Net model
 ///
 /// This struct contains the parameters of a fitted elastic net model. This includes the seperating

@@ -16,12 +16,22 @@ readme = "README.md"
 keywords = ["machine-learning", "linfa", "ai", "ml", "linear"]
 categories = ["algorithms", "mathematics", "science"]
 
+[features]
+default = []
+serde = ["serde_crate", "ndarray/serde"]
+
+[dependencies.serde_crate]
+package = "serde"
+optional = true
+version = "1.0"
+default-features = false
+features = ["std", "derive"]
+
 [dependencies]
 ndarray = {version = "0.13", features = ["blas", "approx"]}
 ndarray-linalg = "0.12"
 
 num-traits = "0.2"
-serde = { version = "1.0", default-features = false, features = ["derive"] }
 approx = "0.3.2"
 
 linfa = { version = "0.2.1", path = ".." }
