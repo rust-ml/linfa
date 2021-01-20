@@ -1,6 +1,6 @@
-use std::fmt;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
+use std::fmt;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
