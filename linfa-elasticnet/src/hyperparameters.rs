@@ -1,6 +1,8 @@
 use linfa::Float;
 use ndarray::{ArrayView1, CowArray, Ix1};
 
+use super::{Error, Result};
+
 /// Linear regression with both L1 and L2 regularization
 ///
 /// Configures and minimizes the following objective function:
@@ -19,7 +21,7 @@ pub struct ElasticNetParams<F> {
 ///AbsDiffEq + Float + FromPrimitive + ScalarOperand + NumAssignOps>
 /// Configure and fit a Elastic Net model
 impl<F: Float> ElasticNetParams<F> {
-    /// Create a default elastic net model
+    /// Create default elastic net hyper parameters
     ///
     /// By default, an intercept will be fitted. To disable fitting an
     /// intercept, call `.with_intercept(false)` before calling `.fit()`.
@@ -94,6 +96,30 @@ impl<F: Float> ElasticNetParams<F> {
             (y_mean, y_centered.into())
         } else {
             (F::zero(), y.into())
+        }
+    }
+
+    /// Validate the hyper parameters
+    ///
+    /// This function is called in `Self::fit` and validates all hyper parameters
+    pub fn validate_params(&self) -> Result<()> {
+        match self {
+            ElasticNetParams { penalty, .. } if penalty.is_negative() => Err(Error::InvalidParams(
+                format!("Penalty should be positive, but is {}", penalty),
+            )),
+            ElasticNetParams { tolerance, .. } if tolerance.is_negative() => {
+                Err(Error::InvalidParams(format!(
+                    "Tolerance should be positive, but is {}",
+                    tolerance
+                )))
+            }
+            ElasticNetParams { l1_ratio, .. } if l1_ratio.is_negative() || l1_ratio > &F::one() => {
+                Err(Error::InvalidParams(format!(
+                    "L1 ratio should be in range [0, 1], but is {}",
+                    l1_ratio
+                )))
+            }
+            _ => Ok(()),
         }
     }
 }

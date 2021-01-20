@@ -1,17 +1,15 @@
 use approx::{abs_diff_eq, abs_diff_ne, AbsDiffEq};
 use ndarray::{s, Array1, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix1, Ix2};
-//use num_traits::{Float, FromPrimitive, NumAssignOps};
 
 use linfa::traits::{Fit, Predict};
 use linfa::{DatasetBase, Float};
 
-use super::ElasticNet;
-use super::ElasticNetParams;
+use super::{ElasticNet, ElasticNetParams, Result};
 
 impl<'a, F: Float + AbsDiffEq, D: Data<Elem = F>, D2: Data<Elem = F>>
     Fit<'a, ArrayBase<D, Ix2>, ArrayBase<D2, Ix1>> for ElasticNetParams<F>
 {
-    type Object = Result<ElasticNet<F>, String>;
+    type Object = Result<ElasticNet<F>>;
 
     /// Fit an elastic net model given a feature matrix `x` and a target
     /// variable `y`.
@@ -26,7 +24,9 @@ impl<'a, F: Float + AbsDiffEq, D: Data<Elem = F>, D2: Data<Elem = F>>
     fn fit(
         &self,
         dataset: &'a DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D2, Ix1>>,
-    ) -> Result<ElasticNet<F>, String> {
+    ) -> Result<ElasticNet<F>> {
+        self.validate_params()?;
+
         let (intercept, y) = self.compute_intercept(dataset.targets().view());
         let (parameters, duality_gap, n_steps) = coordinate_descent(
             dataset.records().view(),
@@ -475,7 +475,6 @@ mod tests {
         // check that we are selecting the subsect of informative features
         let mut w = Array::random_using(50, Uniform::new(1., 2.), &mut rng);
         w.slice_mut(s![10..]).fill(0.0);
-        dbg!(&w);
 
         let x = Array::random_using((100, 50), Uniform::new(-1., 1.), &mut rng);
         let y = x.dot(&w);
@@ -488,16 +487,13 @@ mod tests {
             .fit(&train)
             .unwrap();
 
-        dbg!(&model.parameters());
-        dbg!(&model.intercept());
-        dbg!(&model.duality_gap());
-
         // check that we set the last 40 parameters to zero
         let num_zeros = model
             .parameters()
             .into_iter()
             .filter(|x| **x < 1e-5)
             .count();
+
         assert_eq!(num_zeros, 40);
 
         // predict a small testing dataset
