@@ -18,6 +18,8 @@ categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
 ndarray = {version = "0.13", features = ["blas", "approx"]}
+ndarray-linalg = "0.12"
+
 num-traits = "0.2"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 approx = "0.3.2"

@@ -96,6 +96,7 @@ pub trait Records: Sized {
     type Elem;
 
     fn observations(&self) -> usize;
+    fn nfeatures(&self) -> usize;
 }
 
 /// Targets

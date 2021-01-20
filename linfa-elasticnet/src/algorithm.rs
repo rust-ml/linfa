@@ -1,12 +1,13 @@
 use approx::{abs_diff_eq, abs_diff_ne, AbsDiffEq};
 use ndarray::{s, Array1, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix1, Ix2};
+use ndarray_linalg::{Inverse, Lapack};
 
 use linfa::traits::{Fit, Predict};
-use linfa::{DatasetBase, Float};
+use linfa::{dataset::Records, DatasetBase, DatasetView, Float};
 
-use super::{ElasticNet, ElasticNetParams, Result};
+use super::{ElasticNet, ElasticNetParams, Error, Result};
 
-impl<'a, F: Float + AbsDiffEq, D: Data<Elem = F>, D2: Data<Elem = F>>
+impl<'a, F: Float + AbsDiffEq + Lapack, D: Data<Elem = F>, D2: Data<Elem = F>>
     Fit<'a, ArrayBase<D, Ix2>, ArrayBase<D2, Ix1>> for ElasticNetParams<F>
 {
     type Object = Result<ElasticNet<F>>;
@@ -36,11 +37,18 @@ impl<'a, F: Float + AbsDiffEq, D: Data<Elem = F>, D2: Data<Elem = F>>
             self.l1_ratio,
             self.penalty,
         );
+
+        let y_est = dataset.records().dot(&parameters) + intercept;
+
+        // try to calculate the variance
+        let variance = variance_params(dataset.view(), y_est);
+
         Ok(ElasticNet {
             intercept,
             parameters,
             duality_gap,
             n_steps,
+            variance,
         })
     }
 }
@@ -81,6 +89,37 @@ impl<F: Float> ElasticNet<F> {
     /// Get the duality gap at the end of the optimization algorithm
     pub fn duality_gap(&self) -> F {
         self.duality_gap
+    }
+
+    /// Calculate the Z score
+    pub fn z_score(&self) -> Result<Array1<F>> {
+        self.variance
+            .as_ref()
+            .map(|variance| {
+                self.parameters
+                    .iter()
+                    .zip(variance.iter())
+                    .map(|(a, b)| *a / b.sqrt())
+                    .collect()
+            })
+            .map_err(|err| err.clone())
+    }
+
+    /// Calculate the confidence level
+    pub fn confidence_95th(&self) -> Result<Array1<(F, F)>> {
+        // the 95th percentile of our confidence level
+        let p = F::from(1.645).unwrap();
+
+        self.variance
+            .as_ref()
+            .map(|variance| {
+                self.parameters
+                    .iter()
+                    .zip(variance.iter())
+                    .map(|(a, b)| (*a - p * b.sqrt(), *a + p * b.sqrt()))
+                    .collect()
+            })
+            .map_err(|err| err.clone())
     }
 }
 
@@ -169,6 +208,29 @@ fn duality_gap<'a, F: Float>(
     gap += l1_reg * l1_norm - const_ * r.dot(&y)
         + half * l2_reg * (F::one() + const_ * const_) * w_norm2;
     gap
+}
+
+fn variance_params<'a, F: Float + Lapack>(
+    ds: DatasetView<'a, F, F>,
+    y_est: Array1<F>,
+) -> Result<Array1<F>> {
+    let nfeatures = ds.nfeatures();
+    let nsamples = ds.observations();
+
+    // check that we have enough samples
+    if nsamples < nfeatures + 1 {
+        return Err(Error::NotEnoughSamples);
+    }
+
+    let var_target =
+        (ds.targets() - &y_est).mapv(|x| x * x).sum() / F::from(nsamples - nfeatures - 1).unwrap();
+
+    let inv_cov = ds.records().t().dot(ds.records()).inv();
+
+    match inv_cov {
+        Ok(inv_cov) => Ok(inv_cov.diag().mapv(|x| var_target * x)),
+        Err(_) => Err(Error::IllConditioned),
+    }
 }
 
 #[cfg(test)]
@@ -503,5 +565,21 @@ mod tests {
         let predicted = model.predict(&x);
         let rms = y.mean_squared_error(&predicted);
         assert!(rms < 0.67);
+    }
+
+    #[test]
+    fn diabetes_z_score() {
+        let dataset = linfa_datasets::diabetes();
+        let model = ElasticNet::params().penalty(0.0).fit(&dataset).unwrap();
+
+        // BMI and BP (blood pressure) should be relevant
+        let z_score = model.z_score().unwrap();
+        assert!(z_score[2] > 2.0);
+        assert!(z_score[3] > 2.0);
+
+        // confidence level
+        let confidence_level = model.confidence_95th().unwrap();
+        assert!(confidence_level[2].0 < 416.);
+        assert!(confidence_level[3].0 < 220.);
     }
 }

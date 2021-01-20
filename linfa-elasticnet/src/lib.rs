@@ -57,6 +57,7 @@ pub struct ElasticNet<F> {
     intercept: F,
     duality_gap: F,
     n_steps: u32,
+    variance: Result<Array1<F>>,
 }
 
 impl<F: Float> ElasticNet<F> {
