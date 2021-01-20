@@ -1,0 +1,42 @@
+[package]
+name = "linfa-elasticnet"
+version = "0.1.0"
+authors = [
+    "Paul Körbitz / Google <koerbitz@google.com>",
+    "Lorenz Schmidt <bytesnake@mailbox.org>"
+]
+
+description = "A Machine Learning framework for Rust"
+edition = "2018"
+license = "MIT/Apache-2.0"
+
+repository = "https://github.com/rust-ml/linfa"
+readme = "README.md"
+
+keywords = ["machine-learning", "linfa", "ai", "ml", "linear"]
+categories = ["algorithms", "mathematics", "science"]
+
+[features]
+default = []
+serde = ["serde_crate", "ndarray/serde"]
+
+[dependencies.serde_crate]
+package = "serde"
+optional = true
+version = "1.0"
+default-features = false
+features = ["std", "derive"]
+
+[dependencies]
+ndarray = {version = "0.13", features = ["blas", "approx"]}
+ndarray-linalg = "0.12"
+
+num-traits = "0.2"
+approx = "0.3.2"
+
+linfa = { version = "0.2.1", path = ".." }
+
+[dev-dependencies]
+linfa-datasets = { version = "0.2.1", path = "../datasets", features = ["diabetes"] }
+ndarray-rand = "0.11"
+rand_isaac = "0.2"

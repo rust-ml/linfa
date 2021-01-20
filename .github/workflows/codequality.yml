@@ -55,7 +55,6 @@ jobs:
           profile: minimal
           toolchain: nightly
           override: true
-          components: rustfmt, clippy
 
       - name: Get rustc version
         id: rustc-version

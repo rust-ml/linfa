@@ -261,6 +261,10 @@ impl<'a, F: Float> Records for Kernel<ArrayView2<'a, F>> {
     fn observations(&self) -> usize {
         self.size()
     }
+
+    fn nfeatures(&self) -> usize {
+        self.size()
+    }
 }
 
 /// The inner product definition used by a kernel.
