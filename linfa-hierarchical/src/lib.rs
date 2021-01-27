@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use kodama::linkage;
 pub use kodama::Method;
-use ndarray::ArrayView2;
 
 use linfa::dataset::{DatasetBase, Targets};
 use linfa::traits::Transformer;

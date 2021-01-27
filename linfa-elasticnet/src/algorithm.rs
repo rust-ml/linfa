@@ -24,7 +24,7 @@ impl<'a, F: Float + AbsDiffEq + Lapack, D: Data<Elem = F>, D2: Data<Elem = F>>
     /// for new feature values.
     fn fit(
         &self,
-        dataset: &'a DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D2, Ix1>>,
+        dataset: &DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D2, Ix1>>,
     ) -> Result<ElasticNet<F>> {
         self.validate_params()?;
 
