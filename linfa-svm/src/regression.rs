@@ -116,6 +116,9 @@ pub fn fit_nu<'a, A: Float>(
     res.with_phantom()
 }
 
+/// Regress obserations
+///
+/// Take a number of observations and project them to optimal continuous targets.
 impl<'a, F: Float> Fit<'a, Kernel<'a, F>, &Array1<F>> for SvmParams<F, F> {
     type Object = Svm<'a, F, F>;
 
@@ -164,7 +167,6 @@ impl<'a, F: Float> Fit<'a, Kernel<'a, F>, ArrayView1<'a, F>> for SvmParams<F, F>
     }
 }
 
-/// Predict a probability with a set of observations
 impl<'a, D: Data<Elem = f64>> Predict<ArrayBase<D, Ix2>, Vec<f64>> for Svm<'a, f64, f64> {
     fn predict(&self, data: ArrayBase<D, Ix2>) -> Vec<f64> {
         data.outer_iter()

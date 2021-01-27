@@ -170,6 +170,11 @@ pub fn fit_one_class<'a, A: Float + num_traits::ToPrimitive>(
     res.with_phantom()
 }
 
+/// Fit binary classification problem
+///
+/// For a given dataset with kernel matrix as records and two class problem as targets this fits
+/// a optimal hyperplane to the problem and returns the solution as a model. The model predicts
+/// probabilities for whether a sample belongs to the first or second class.
 impl<'a, F: Float> Fit<'a, Kernel<'a, F>, &Array1<bool>> for SvmParams<F, Pr> {
     type Object = Svm<'a, F, Pr>;
 
@@ -238,6 +243,11 @@ impl<'a, F: Float> Fit<'a, Kernel<'a, F>, &[bool]> for SvmParams<F, Pr> {
         }
     }
 }
+
+/// Fit one-class problem
+///
+/// This fits a SVM model to a dataset with only positive samples and uses the one-class
+/// implementation of SVM.
 impl<'a, F: Float> Fit<'a, Kernel<'a, F>, &()> for SvmParams<F, Pr> {
     type Object = Svm<'a, F, Pr>;
 
@@ -262,7 +272,10 @@ impl<'a, F: Float> Predict<Array1<F>, Pr> for Svm<'a, F, Pr> {
     }
 }
 
-/// Predict a probability with a set of observations
+/// Classify observations
+///
+/// This function takes a number of features and predicts target probabilities that they belong to
+/// the positive class.
 impl<'a, F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Array1<Pr>> for Svm<'a, F, Pr> {
     fn predict(&self, data: ArrayBase<D, Ix2>) -> Array1<Pr> {
         data.outer_iter()

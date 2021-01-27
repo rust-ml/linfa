@@ -10,7 +10,7 @@ fn main() {
 
     // transform with RBF kernel
     let train_kernel = Kernel::params()
-        .method(KernelMethod::Gaussian(80.0))
+        .method(KernelMethod::Gaussian(30.0))
         .transform(&train);
 
     println!(
@@ -19,7 +19,9 @@ fn main() {
     );
 
     // fit a SVM with C value 7 and 0.6 for positive and negative classes
-    let model = Svm::params().pos_neg_weights(7., 0.6).fit(&train_kernel);
+    let model = Svm::params()
+        .pos_neg_weights(50000., 5000.)
+        .fit(&train_kernel);
 
     println!("{}", model);
     // A positive prediction indicates a good wine, a negative, a bad one
@@ -29,7 +31,7 @@ fn main() {
         } else {
             "bad".into()
         }
-    };
+    }
 
     // map targets for validation dataset
     let valid = valid.map_targets(tag_classes);

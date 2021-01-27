@@ -5,24 +5,16 @@ use linfa::traits::{Fit, Predict};
 use linfa_bayes::GaussianNbParams;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    // Wine with rating greater than 6 is considered good
-    fn tag_classes(x: &usize) -> usize {
-        if *x > 6 {
-            1
-        } else {
-            0
-        }
-    };
-
     // Read in the dataset and convert continuous target into categorical
-    let data = linfa_datasets::winequality().map_targets(tag_classes);
-
-    let (train, valid) = data.split_with_ratio_view(0.9);
+    let (train, valid) = linfa_datasets::winequality()
+        .map_targets(|x| if *x > 6 { 1 } else { 0 })
+        .split_with_ratio(0.9);
 
     // Train the model
-    let model = GaussianNbParams::params().fit(&train)?;
+    let model = GaussianNbParams::params().fit(&train.view())?;
 
-    let pred = model.predict(valid.records);
+    // Predict the validation dataset
+    let pred = model.predict(valid.records.view());
 
     // Construct confusion matrix
     let cm = pred.confusion_matrix(&valid);
