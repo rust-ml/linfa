@@ -211,11 +211,11 @@ pub struct Svm<F: Float, T> {
 }
 
 /// Create hyper parameter set
-    ///
-    /// This creates a `SvmParams` and sets it to the default values:
-    ///  * C values of (1, 1)
-    ///  * Eps of 1e-7
-    ///  * No shrinking
+///
+/// This creates a `SvmParams` and sets it to the default values:
+///  * C values of (1, 1)
+///  * Eps of 1e-7
+///  * No shrinking
 impl<F: Float, T> Svm<F, T> {
     pub fn params() -> SvmParams<F, T> {
         SvmParams {
