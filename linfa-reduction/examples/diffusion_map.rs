@@ -23,7 +23,7 @@ fn main() {
         .kind(KernelType::Sparse(15))
         .method(KernelMethod::Gaussian(2.0))
         //.kind(KernelType::Dense)
-        .transform(&dataset);
+        .transform(dataset.view());
 
     let embedding = DiffusionMap::<f64>::params(2)
         .steps(1)

@@ -7,11 +7,12 @@ fn main() {
     let (train, valid) = linfa_datasets::winequality()
         .map_targets(|x| *x > 6)
         .split_with_ratio(0.9);
+    let train_view = train.view();
 
     // transform with RBF kernel
     let train_kernel = Kernel::params()
-        .method(KernelMethod::Gaussian(30.0))
-        .transform(&train);
+        .method(KernelMethod::Gaussian(80.0))
+        .transform(&train_view);
 
     println!(
         "Fit SVM classifier with #{} training points",

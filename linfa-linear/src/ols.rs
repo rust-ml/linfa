@@ -143,7 +143,7 @@ impl<'a, F: Float, D: Data<Elem = F>, D2: Data<Elem = F>>
     /// for new feature values.
     fn fit(
         &self,
-        dataset: &'a DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D2, Ix1>>,
+        dataset: &DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D2, Ix1>>,
     ) -> Result<FittedLinearRegression<F>, String> {
         let X = dataset.records();
         let y = dataset.targets();

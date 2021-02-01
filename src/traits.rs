@@ -23,7 +23,7 @@ pub trait Transformer<R: Records, T> {
 pub trait Fit<'a, R: Records, T: Targets> {
     type Object: 'a;
 
-    fn fit(&self, dataset: &'a DatasetBase<R, T>) -> Self::Object;
+    fn fit(&self, dataset: &DatasetBase<R, T>) -> Self::Object;
 }
 
 /// Incremental algorithms

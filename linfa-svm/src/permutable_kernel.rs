@@ -1,29 +1,28 @@
 use crate::Float;
-use linfa_kernel::Kernel as LinfaKernel;
-use ndarray::{Array1, ArrayView2};
+use linfa_kernel::KernelOwned;
+use ndarray::Array1;
 
-pub type Kernel<'a, A> = LinfaKernel<ArrayView2<'a, A>>;
-
-pub trait Permutable<'a, A: Float> {
+pub trait Permutable<F: Float> {
     fn swap_indices(&mut self, i: usize, j: usize);
-    fn distances(&self, idx: usize, length: usize) -> Vec<A>;
-    fn self_distance(&self, idx: usize) -> A;
-    fn inner(&self) -> &'a Kernel<'a, A>;
+    fn distances(&self, idx: usize, length: usize) -> Vec<F>;
+    fn self_distance(&self, idx: usize) -> F;
+    fn inner(&self) -> &KernelOwned<F>;
+    fn to_inner(self) -> KernelOwned<F>;
 }
 
-/// Kernel matrix with permutable columns
+/// KernelView matrix with permutable columns
 ///
 /// This struct wraps a kernel matrix with access indices. The working set can shrink during the
 /// optimization and it is therefore necessary to reorder entries.
-pub struct PermutableKernel<'a, A: Float> {
-    kernel: &'a Kernel<'a, A>,
-    kernel_diag: Array1<A>,
+pub struct PermutableKernel<F: Float> {
+    kernel: KernelOwned<F>,
+    kernel_diag: Array1<F>,
     kernel_indices: Vec<usize>,
     targets: Vec<bool>,
 }
 
-impl<'a, A: Float> PermutableKernel<'a, A> {
-    pub fn new(kernel: &'a Kernel<'a, A>, targets: Vec<bool>) -> PermutableKernel<'a, A> {
+impl<F: Float> PermutableKernel<F> {
+    pub fn new(kernel: KernelOwned<F>, targets: Vec<bool>) -> PermutableKernel<F> {
         let kernel_diag = kernel.diagonal();
         let kernel_indices = (0..kernel.size()).collect::<Vec<_>>();
 
@@ -36,14 +35,14 @@ impl<'a, A: Float> PermutableKernel<'a, A> {
     }
 }
 
-impl<'a, A: Float> Permutable<'a, A> for PermutableKernel<'a, A> {
+impl<F: Float> Permutable<F> for PermutableKernel<F> {
     /// Swap two indices
     fn swap_indices(&mut self, i: usize, j: usize) {
         self.kernel_indices.swap(i, j);
     }
 
     /// Return distances from node `idx` to all other nodes
-    fn distances(&self, idx: usize, length: usize) -> Vec<A> {
+    fn distances(&self, idx: usize, length: usize) -> Vec<F> {
         let idx = self.kernel_indices[idx];
 
         let kernel = self.kernel.column(idx);
@@ -65,26 +64,31 @@ impl<'a, A: Float> Permutable<'a, A> for PermutableKernel<'a, A> {
     }
 
     /// Return internal kernel
-    fn inner(&self) -> &'a Kernel<'a, A> {
+    fn inner(&self) -> &KernelOwned<F> {
+        &self.kernel
+    }
+
+    /// Return internal kernel
+    fn to_inner(self) -> KernelOwned<F> {
         self.kernel
     }
 
     /// Return distance to itself
-    fn self_distance(&self, idx: usize) -> A {
+    fn self_distance(&self, idx: usize) -> F {
         let idx = self.kernel_indices[idx];
 
         self.kernel_diag[idx]
     }
 }
 
-pub struct PermutableKernelOneClass<'a, A: Float> {
-    kernel: &'a Kernel<'a, A>,
-    kernel_diag: Array1<A>,
+pub struct PermutableKernelOneClass<F: Float> {
+    kernel: KernelOwned<F>,
+    kernel_diag: Array1<F>,
     kernel_indices: Vec<usize>,
 }
 
-impl<'a, A: Float> PermutableKernelOneClass<'a, A> {
-    pub fn new(kernel: &'a Kernel<'a, A>) -> PermutableKernelOneClass<'a, A> {
+impl<F: Float> PermutableKernelOneClass<F> {
+    pub fn new(kernel: KernelOwned<F>) -> PermutableKernelOneClass<F> {
         let kernel_diag = kernel.diagonal();
         let kernel_indices = (0..kernel.size()).collect::<Vec<_>>();
 
@@ -96,14 +100,14 @@ impl<'a, A: Float> PermutableKernelOneClass<'a, A> {
     }
 }
 
-impl<'a, A: Float> Permutable<'a, A> for PermutableKernelOneClass<'a, A> {
+impl<F: Float> Permutable<F> for PermutableKernelOneClass<F> {
     /// Swap two indices
     fn swap_indices(&mut self, i: usize, j: usize) {
         self.kernel_indices.swap(i, j);
     }
 
     /// Return distances from node `idx` to all other nodes
-    fn distances(&self, idx: usize, length: usize) -> Vec<A> {
+    fn distances(&self, idx: usize, length: usize) -> Vec<F> {
         let idx = self.kernel_indices[idx];
 
         let kernel = self.kernel.column(idx);
@@ -115,27 +119,32 @@ impl<'a, A: Float> Permutable<'a, A> for PermutableKernelOneClass<'a, A> {
     }
 
     /// Return internal kernel
-    fn inner(&self) -> &'a Kernel<'a, A> {
+    fn inner(&self) -> &KernelOwned<F> {
+        &self.kernel
+    }
+
+    /// Return internal kernel
+    fn to_inner(self) -> KernelOwned<F> {
         self.kernel
     }
 
     /// Return distance to itself
-    fn self_distance(&self, idx: usize) -> A {
+    fn self_distance(&self, idx: usize) -> F {
         let idx = self.kernel_indices[idx];
 
         self.kernel_diag[idx]
     }
 }
 
-pub struct PermutableKernelRegression<'a, A: Float> {
-    kernel: &'a Kernel<'a, A>,
-    kernel_diag: Array1<A>,
+pub struct PermutableKernelRegression<F: Float> {
+    kernel: KernelOwned<F>,
+    kernel_diag: Array1<F>,
     kernel_indices: Vec<usize>,
     signs: Vec<bool>,
 }
 
-impl<'a, A: Float> PermutableKernelRegression<'a, A> {
-    pub fn new(kernel: &'a Kernel<'a, A>) -> PermutableKernelRegression<'a, A> {
+impl<'a, F: Float> PermutableKernelRegression<F> {
+    pub fn new(kernel: KernelOwned<F>) -> PermutableKernelRegression<F> {
         let kernel_diag = kernel.diagonal();
         let kernel_indices = (0..2 * kernel.size())
             .map(|x| {
@@ -159,7 +168,7 @@ impl<'a, A: Float> PermutableKernelRegression<'a, A> {
     }
 }
 
-impl<'a, A: Float> Permutable<'a, A> for PermutableKernelRegression<'a, A> {
+impl<'a, F: Float> Permutable<F> for PermutableKernelRegression<F> {
     /// Swap two indices
     fn swap_indices(&mut self, i: usize, j: usize) {
         self.kernel_indices.swap(i, j);
@@ -167,7 +176,7 @@ impl<'a, A: Float> Permutable<'a, A> for PermutableKernelRegression<'a, A> {
     }
 
     /// Return distances from node `idx` to all other nodes
-    fn distances(&self, idx: usize, length: usize) -> Vec<A> {
+    fn distances(&self, idx: usize, length: usize) -> Vec<F> {
         let kernel = self.kernel.column(self.kernel_indices[idx]);
 
         // reorder entries
@@ -187,12 +196,17 @@ impl<'a, A: Float> Permutable<'a, A> for PermutableKernelRegression<'a, A> {
     }
 
     /// Return internal kernel
-    fn inner(&self) -> &'a Kernel<'a, A> {
+    fn inner(&self) -> &KernelOwned<F> {
+        &self.kernel
+    }
+
+    /// Return internal kernel
+    fn to_inner(self) -> KernelOwned<F> {
         self.kernel
     }
 
     /// Return distance to itself
-    fn self_distance(&self, idx: usize) -> A {
+    fn self_distance(&self, idx: usize) -> F {
         let idx = self.kernel_indices[idx];
 
         self.kernel_diag[idx]
@@ -202,20 +216,20 @@ impl<'a, A: Float> Permutable<'a, A> for PermutableKernelRegression<'a, A> {
 #[cfg(test)]
 mod tests {
     use super::{Permutable, PermutableKernel};
-    use linfa_kernel::{Kernel, KernelInner, KernelMethod};
+    use linfa_kernel::{KernelInner, KernelMethod, KernelOwned};
     use ndarray::array;
 
     #[test]
     fn test_permutable_kernel() {
         let dist = array![[1.0, 0.3, 0.1], [0.3, 1.0, 0.5], [0.1, 0.5, 1.0]];
         let targets = vec![true, true, true];
-        let dist = Kernel {
+        let dist = KernelOwned {
             inner: KernelInner::Dense(dist.clone()),
             method: KernelMethod::Linear,
-            dataset: dist.view(),
+            dataset: dist,
         };
 
-        let mut kernel = PermutableKernel::new(&dist, targets);
+        let mut kernel = PermutableKernel::new(dist, targets);
 
         assert_eq!(kernel.distances(0, 3), &[1.0, 0.3, 0.1]);
         assert_eq!(kernel.distances(1, 3), &[0.3, 1.0, 0.5]);

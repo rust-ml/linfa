@@ -81,7 +81,7 @@ mod permutable_kernel;
 mod regression;
 pub mod solver_smo;
 
-use permutable_kernel::Kernel;
+use linfa_kernel::KernelOwned;
 pub use solver_smo::SolverParams;
 
 /// SVM Hyperparameters
@@ -191,38 +191,38 @@ pub enum ExitReason {
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-pub struct Svm<'a, A: Float, T> {
-    pub alpha: Vec<A>,
-    pub rho: A,
-    r: Option<A>,
+pub struct Svm<F: Float, T> {
+    pub alpha: Vec<F>,
+    pub rho: F,
+    r: Option<F>,
     exit_reason: ExitReason,
     iterations: usize,
-    obj: A,
+    obj: F,
     #[cfg_attr(
         feature = "serde",
         serde(bound(
-            serialize = "&'a Kernel<'a, A>: Serialize",
-            deserialize = "&'a Kernel<'a, A>: Deserialize<'de>"
+            serialize = "&'a Kernel<'a, F>: Serialize",
+            deserialize = "&'a Kernel<'a, F>: Deserialize<'de>"
         ))
     )]
-    kernel: &'a Kernel<'a, A>,
-    linear_decision: Option<Array1<A>>,
+    kernel: KernelOwned<F>,
+    linear_decision: Option<Array1<F>>,
     phantom: PhantomData<T>,
 }
 
-impl<'a, A: Float, T> Svm<'a, A, T> {
-    /// Create hyper parameter set
-    ///
-    /// This creates a `SvmParams` and sets it to the default values:
-    ///  * C values of (1, 1)
-    ///  * Eps of 1e-7
-    ///  * No shrinking
-    pub fn params() -> SvmParams<A, T> {
+/// Create hyper parameter set
+///
+/// This creates a `SvmParams` and sets it to the default values:
+///  * C values of (1, 1)
+///  * Eps of 1e-7
+///  * No shrinking
+impl<F: Float, T> Svm<F, T> {
+    pub fn params() -> SvmParams<F, T> {
         SvmParams {
-            c: Some((A::one(), A::one())),
+            c: Some((F::one(), F::one())),
             nu: None,
             solver_params: SolverParams {
-                eps: A::from(1e-7).unwrap(),
+                eps: F::from(1e-7).unwrap(),
                 shrinking: false,
             },
             phantom: PhantomData,
@@ -236,10 +236,10 @@ impl<'a, A: Float, T> Svm<'a, A, T> {
     pub fn nsupport(&self) -> usize {
         self.alpha
             .iter()
-            .filter(|x| x.abs() > A::from(1e-5).unwrap())
+            .filter(|x| x.abs() > F::from(1e-5).unwrap())
             .count()
     }
-    pub(crate) fn with_phantom<S>(self) -> Svm<'a, A, S> {
+    pub(crate) fn with_phantom<S>(self) -> Svm<F, S> {
         Svm {
             alpha: self.alpha,
             rho: self.rho,
@@ -258,7 +258,7 @@ impl<'a, A: Float, T> Svm<'a, A, T> {
 ///
 /// In order to understand the solution of the SMO solver the objective, number of iterations and
 /// required support vectors are printed here.
-impl<'a, A: Float, T> fmt::Display for Svm<'a, A, T> {
+impl<'a, F: Float, T> fmt::Display for Svm<F, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.exit_reason {
             ExitReason::ReachedThreshold => write!(
@@ -276,5 +276,54 @@ impl<'a, A: Float, T> fmt::Display for Svm<'a, A, T> {
                 self.nsupport()
             ),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Svm;
+    use linfa::dataset::Dataset;
+    use linfa::prelude::*;
+    use linfa_kernel::{Kernel, KernelMethod};
+    use ndarray::Array1;
+    #[test]
+    fn test_iter_folding_for_classification() {
+        let mut dataset = linfa_datasets::winequality().map_targets(|x| *x > 6);
+        let params = Svm::params().pos_neg_weights(7., 0.6);
+
+        let avg_acc = dataset
+            .iter_fold(4, |training_set| {
+                let train_kernel = Kernel::params()
+                    .method(KernelMethod::Gaussian(80.0))
+                    .transform(&training_set);
+                params.fit(&train_kernel)
+            })
+            .map(|(model, valid)| {
+                model
+                    .predict(&valid)
+                    .map_targets(|x| **x > 0.0)
+                    .confusion_matrix(&valid)
+                    .accuracy()
+            })
+            .sum::<f32>()
+            / 4_f32;
+        assert!(avg_acc >= 0.5)
+    }
+
+    #[test]
+    fn test_iter_folding_for_regression() {
+        let mut dataset: Dataset<f64, f64> = linfa_datasets::diabetes();
+        let params = Svm::params().c_eps(10., 0.01);
+
+        let _avg_acc = dataset
+            .iter_fold(4, |training_set| {
+                let train_kernel = Kernel::params()
+                    .method(KernelMethod::Linear)
+                    .transform(&training_set);
+                params.fit(&train_kernel)
+            })
+            .map(|(model, valid)| Array1::from(model.predict(valid.records())).r2(valid.targets()))
+            .sum::<f64>()
+            / 4_f64;
     }
 }

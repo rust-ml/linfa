@@ -10,7 +10,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let kernel = Kernel::params()
         .method(KernelMethod::Gaussian(1.0))
-        .transform(dataset.records());
+        .transform(dataset.records().view());
 
     let kernel = HierarchicalCluster::default()
         .num_clusters(3)
