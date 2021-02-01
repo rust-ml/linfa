@@ -292,11 +292,11 @@ mod tests {
         let params = Svm::params().pos_neg_weights(7., 0.6);
 
         let avg_acc = dataset
-            .iter_fold::<Kernel<_>, _, _, _>(4, &params, |svm_params, training_set| {
+            .iter_fold(4, |training_set| {
                 let train_kernel = Kernel::params()
                     .method(KernelMethod::Gaussian(80.0))
                     .transform(&training_set);
-                svm_params.fit(&train_kernel)
+                params.fit(&train_kernel)
             })
             .map(|(model, valid)| {
                 model
@@ -316,11 +316,11 @@ mod tests {
         let params = Svm::params().c_eps(10., 0.01);
 
         let _avg_acc = dataset
-            .iter_fold::<Kernel<_>, _, _, _>(4, &params, |svm_params, training_set| {
+            .iter_fold(4, |training_set| {
                 let train_kernel = Kernel::params()
                     .method(KernelMethod::Linear)
                     .transform(&training_set);
-                svm_params.fit(&train_kernel)
+                params.fit(&train_kernel)
             })
             .map(|(model, valid)| Array1::from(model.predict(valid.records())).r2(valid.targets()))
             .sum::<f64>()

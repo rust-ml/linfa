@@ -8,8 +8,6 @@ use super::{
     iter::Iter, Dataset, DatasetBase, DatasetView, Float, Label, Labels, Records, Targets,
 };
 
-use crate::traits::Fit;
-
 impl<F: Float, L: Label> DatasetBase<Array2<F>, Vec<L>> {
     pub fn iter(&self) -> Iter<'_, Array2<F>, Vec<L>> {
         Iter::new(&self.records, &self.targets)
@@ -375,21 +373,21 @@ impl<F: Float, E: Copy> Dataset<F, E> {
     /// let mut dataset: Dataset<f64, f64> = (records, targets).into();
     /// let params = MockFittable {};
     ///
-    ///for (model,validation_set) in dataset.iter_fold(5,&params, |a,v|a.fit(&v)){
+    ///for (model,validation_set) in dataset.iter_fold(5, |v| params.fit(&v)){
     ///     // Here you can use `model` and `validation_set` to
     ///     // assert the performance of the chosen algorithm
     /// }
     /// ```
     pub fn iter_fold<
         'a,
-        R: Records<Elem = F>,
-        A: Fit<'a, R, ArrayView1<'a, E>, Object = O>,
+        //R: Records<Elem = F>,
+        //A: Fit<'a, R, ArrayView1<'a, E>, Object = O>,
         O: 'a,
-        C: 'a + Fn(&A, DatasetView<F, E>) -> O,
+        C: 'a + Fn(/*&A,*/ DatasetView<F, E>) -> O,
     >(
         &'a mut self,
         k: usize,
-        params: &'a A,
+        //params: &'a A,
         fit_closure: C,
     ) -> impl Iterator<Item = (O, DatasetView<F, E>)> + 'a {
         assert!(k > 0);
@@ -418,7 +416,7 @@ impl<F: Float, E: Copy> Dataset<F, E> {
                     .unwrap(),
             );
 
-            let obj = fit_closure(params, train);
+            let obj = fit_closure(/*params,*/ train);
             objs.push(obj);
 
             assist_swap_array2(&mut records_sl, i, fold_size, features);
