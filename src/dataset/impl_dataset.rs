@@ -378,16 +378,9 @@ impl<F: Float, E: Copy> Dataset<F, E> {
     ///     // assert the performance of the chosen algorithm
     /// }
     /// ```
-    pub fn iter_fold<
-        'a,
-        //R: Records<Elem = F>,
-        //A: Fit<'a, R, ArrayView1<'a, E>, Object = O>,
-        O: 'a,
-        C: 'a + Fn(/*&A,*/ DatasetView<F, E>) -> O,
-    >(
+    pub fn iter_fold<'a, O: 'a, C: 'a + Fn(DatasetView<F, E>) -> O>(
         &'a mut self,
         k: usize,
-        //params: &'a A,
         fit_closure: C,
     ) -> impl Iterator<Item = (O, DatasetView<F, E>)> + 'a {
         assert!(k > 0);
@@ -416,7 +409,7 @@ impl<F: Float, E: Copy> Dataset<F, E> {
                     .unwrap(),
             );
 
-            let obj = fit_closure(/*params,*/ train);
+            let obj = fit_closure(train);
             objs.push(obj);
 
             assist_swap_array2(&mut records_sl, i, fold_size, features);
