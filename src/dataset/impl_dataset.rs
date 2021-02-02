@@ -22,8 +22,8 @@ use super::{
 ///     println!("{} => {}", x, y);
 /// }
 /// ```
-impl<F: Float, L: Label> DatasetBase<Array2<F>, Vec<L>> {
-    pub fn iter(&self) -> Iter<'_, Array2<F>, Vec<L>> {
+impl<F: Float, L: Label> DatasetBase<Array2<F>, Array1<L>> {
+    pub fn iter(&self) -> Iter<'_, Array2<F>, Array1<L>> {
         Iter::new(&self.records, &self.targets)
     }
 }
@@ -33,7 +33,7 @@ impl<R: Records, S: Targets> DatasetBase<R, S> {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```ignore
     /// let dataset = Dataset::new(records, targets);
     /// ```
     pub fn new(records: R, targets: S) -> DatasetBase<R, S> {
@@ -152,10 +152,7 @@ impl<R: Records, S: Targets> DatasetBase<R, S> {
 /// A modified dataset with new target type.
 ///
 impl<F: Float, R: Records<Elem = F>, T: Targets> DatasetBase<R, T> {
-    pub fn map_targets<S, G: FnMut(&T::Elem) -> S>(
-        self,
-        fnc: G,
-    ) -> DatasetBase<R, Array1<S>> {
+    pub fn map_targets<S, G: FnMut(&T::Elem) -> S>(self, fnc: G) -> DatasetBase<R, Array1<S>> {
         let DatasetBase {
             records,
             targets,
@@ -326,7 +323,7 @@ impl<F: Float, E: Copy> Dataset<F, E> {
     /// Split dataset into two disjoint chunks
     ///
     /// This function splits the observations in a dataset into two disjoint chunks. The splitting
-    /// threshold is calculated with the `ratio`. If the input Dataset contains `n` samples then the 
+    /// threshold is calculated with the `ratio`. If the input Dataset contains `n` samples then the
     /// two new Datasets will have respectively `n * ratio` and `n - (n*ratio)` samples.
     /// For example a ratio of `0.9` allocates 90% to the
     /// first chunks and 10% to the second. This is often used in training, validation splitting

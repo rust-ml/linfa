@@ -1,5 +1,5 @@
 use super::{Float, Label, Records, Targets};
-use ndarray::{s, Array2, ArrayView1};
+use ndarray::{s, Array1, Array2, ArrayView1};
 
 pub struct Iter<'a, R: Records, T: Targets> {
     records: &'a R,
@@ -17,7 +17,7 @@ impl<'a, R: Records, T: Targets> Iter<'a, R, T> {
     }
 }
 
-impl<'a, F: Float, L: Label> Iterator for Iter<'a, Array2<F>, Vec<L>> {
+impl<'a, F: Float, L: Label> Iterator for Iter<'a, Array2<F>, Array1<L>> {
     type Item = (ArrayView1<'a, F>, &'a L);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -27,7 +27,7 @@ impl<'a, F: Float, L: Label> Iterator for Iter<'a, Array2<F>, Vec<L>> {
 
         Some((
             self.records.slice(s![self.idx, ..]),
-            &self.targets[self.idx],
+            self.targets.get(self.idx).unwrap(),
         ))
     }
 }

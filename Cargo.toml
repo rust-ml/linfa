@@ -60,6 +60,8 @@ ndarray-rand = "0.12"
 rand_isaac = "0.2"
 approx = "0.3"
 
+linfa-datasets = { version = "0.3.0", path = "datasets", features = ["winequality", "iris"] }
+
 [workspace]
 members = [
     "linfa-clustering",
