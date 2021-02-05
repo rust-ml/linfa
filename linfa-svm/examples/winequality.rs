@@ -7,12 +7,9 @@ fn main() {
     let (train, valid) = linfa_datasets::winequality()
         .map_targets(|x| *x > 6)
         .split_with_ratio(0.9);
-    let train_view = train.view();
 
     // transform with RBF kernel
-    let train_kernel = Kernel::params()
-        .method(KernelMethod::Gaussian(80.0))
-        .transform(&train_view);
+    let kernel = Kernel::params().method(KernelMethod::Gaussian(80.0));
 
     println!(
         "Fit SVM classifier with #{} training points",
@@ -22,7 +19,8 @@ fn main() {
     // fit a SVM with C value 7 and 0.6 for positive and negative classes
     let model = Svm::params()
         .pos_neg_weights(50000., 5000.)
-        .fit(&train_kernel);
+        .kernel(kernel)
+        .fit(&train);
 
     println!("{}", model);
     // A positive prediction indicates a good wine, a negative, a bad one

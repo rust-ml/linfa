@@ -81,7 +81,7 @@ mod permutable_kernel;
 mod regression;
 pub mod solver_smo;
 
-use linfa_kernel::KernelOwned;
+use linfa_kernel::{Kernel, KernelMethod, KernelOwned, KernelParams};
 pub use solver_smo::SolverParams;
 
 /// SVM Hyperparameters
@@ -105,6 +105,7 @@ pub struct SvmParams<F: Float, T> {
     nu: Option<(F, F)>,
     solver_params: SolverParams<F>,
     phantom: PhantomData<T>,
+    kernel: KernelParams<F>,
 }
 
 impl<F: Float, T> SvmParams<F, T> {
@@ -123,6 +124,19 @@ impl<F: Float, T> SvmParams<F, T> {
     /// up the optimization process, but may degredade the solution performance.
     pub fn shrinking(mut self, shrinking: bool) -> Self {
         self.solver_params.shrinking = shrinking;
+
+        self
+    }
+
+    /// Set the kernel to use for training
+    ///
+    /// This parameter specifies a mapping of input records to a new feature space by means
+    /// of the distance function between any couple of points mapped to such new space.
+    /// The SVM then applies a linear separation in the new feature space that may result in
+    /// a non linear partitioning of the original input space, thus increasing the expressiveness of
+    /// this model. To use the "base" SVM model it suffices to choose a `Linear` kernel.
+    pub fn kernel(mut self, kernel: KernelParams<F>) -> Self {
+        self.kernel = kernel;
 
         self
     }
@@ -216,6 +230,7 @@ pub struct Svm<F: Float, T> {
 ///  * C values of (1, 1)
 ///  * Eps of 1e-7
 ///  * No shrinking
+///  * Linear kernel
 impl<F: Float, T> Svm<F, T> {
     pub fn params() -> SvmParams<F, T> {
         SvmParams {
@@ -226,6 +241,7 @@ impl<F: Float, T> Svm<F, T> {
                 shrinking: false,
             },
             phantom: PhantomData,
+            kernel: Kernel::params().method(KernelMethod::Linear),
         }
     }
 
@@ -289,15 +305,11 @@ mod tests {
     #[test]
     fn test_iter_folding_for_classification() {
         let mut dataset = linfa_datasets::winequality().map_targets(|x| *x > 6);
-        let params = Svm::params().pos_neg_weights(7., 0.6);
+        let kernel = Kernel::params().method(KernelMethod::Gaussian(80.0));
+        let params = Svm::params().pos_neg_weights(7., 0.6).kernel(kernel);
 
         let avg_acc = dataset
-            .iter_fold(4, |training_set| {
-                let train_kernel = Kernel::params()
-                    .method(KernelMethod::Gaussian(80.0))
-                    .transform(&training_set);
-                params.fit(&train_kernel)
-            })
+            .iter_fold(4, |training_set| params.fit(&training_set))
             .map(|(model, valid)| {
                 model
                     .predict(&valid)
@@ -313,15 +325,11 @@ mod tests {
     #[test]
     fn test_iter_folding_for_regression() {
         let mut dataset: Dataset<f64, f64> = linfa_datasets::diabetes();
-        let params = Svm::params().c_eps(10., 0.01);
+        let kernel = Kernel::params().method(KernelMethod::Linear);
+        let params = Svm::params().kernel(kernel).c_eps(10., 0.01);
 
         let _avg_acc = dataset
-            .iter_fold(4, |training_set| {
-                let train_kernel = Kernel::params()
-                    .method(KernelMethod::Linear)
-                    .transform(&training_set);
-                params.fit(&train_kernel)
-            })
+            .iter_fold(4, |training_set| params.fit(&training_set))
             .map(|(model, valid)| Array1::from(model.predict(valid.records())).r2(valid.targets()))
             .sum::<f64>()
             / 4_f64;

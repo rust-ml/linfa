@@ -1,7 +1,7 @@
 //! Support Vector Regression
-use linfa::{dataset::DatasetBase, traits::Fit, traits::Predict};
-use linfa_kernel::{Kernel, KernelOwned, KernelView};
-use ndarray::{Array1, ArrayBase, ArrayView1, Data, Ix2};
+use linfa::{dataset::DatasetBase, traits::Fit, traits::Predict, traits::Transformer};
+use linfa_kernel::KernelOwned;
+use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix2};
 use std::ops::Mul;
 
 use super::permutable_kernel::PermutableKernelRegression;
@@ -120,21 +120,22 @@ pub fn fit_nu<F: Float>(
 /// Regress obserations
 ///
 /// Take a number of observations and project them to optimal continuous targets.
-impl<'a, F: Float> Fit<'a, KernelOwned<F>, &Array1<F>> for SvmParams<F, F> {
+impl<'a, F: Float> Fit<'a, Array2<F>, &Array1<F>> for SvmParams<F, F> {
     type Object = Svm<F, F>;
 
-    fn fit(&self, dataset: &DatasetBase<KernelOwned<F>, &Array1<F>>) -> Self::Object {
+    fn fit(&self, dataset: &DatasetBase<Array2<F>, &Array1<F>>) -> Self::Object {
+        let kernel = self.kernel.transform(dataset.records().clone());
         match (self.c, self.nu) {
             (Some((c, eps)), _) => fit_epsilon(
                 self.solver_params.clone(),
-                dataset.records.clone(),
+                kernel,
                 dataset.targets().as_slice().unwrap(),
                 c,
                 eps,
             ),
             (None, Some((nu, eps))) => fit_nu(
                 self.solver_params.clone(),
-                dataset.records.clone(),
+                kernel,
                 dataset.targets().as_slice().unwrap(),
                 nu,
                 eps,
@@ -144,21 +145,22 @@ impl<'a, F: Float> Fit<'a, KernelOwned<F>, &Array1<F>> for SvmParams<F, F> {
     }
 }
 
-impl<'a, F: Float> Fit<'a, Kernel<'a, F>, ArrayView1<'a, F>> for SvmParams<F, F> {
+impl<'a, F: Float> Fit<'a, ArrayView2<'a, F>, ArrayView1<'a, F>> for SvmParams<F, F> {
     type Object = Svm<F, F>;
 
-    fn fit(&self, dataset: &DatasetBase<Kernel<'a, F>, ArrayView1<'a, F>>) -> Self::Object {
+    fn fit(&self, dataset: &DatasetBase<ArrayView2<'a, F>, ArrayView1<'a, F>>) -> Self::Object {
+        let kernel = self.kernel.transform(dataset.records().to_owned());
         match (self.c, self.nu) {
             (Some((c, eps)), _) => fit_epsilon(
                 self.solver_params.clone(),
-                dataset.records.to_owned(),
+                kernel,
                 dataset.targets().as_slice().unwrap(),
                 c,
                 eps,
             ),
             (None, Some((nu, eps))) => fit_nu(
                 self.solver_params.clone(),
-                dataset.records.to_owned(),
+                kernel,
                 dataset.targets().as_slice().unwrap(),
                 nu,
                 eps,
@@ -168,46 +170,23 @@ impl<'a, F: Float> Fit<'a, Kernel<'a, F>, ArrayView1<'a, F>> for SvmParams<F, F>
     }
 }
 
-impl<'a, F: Float> Fit<'a, Kernel<'a, F>, &'a [F]> for SvmParams<F, F> {
+impl<'a, F: Float> Fit<'a, ArrayView2<'a, F>, &'a [F]> for SvmParams<F, F> {
     type Object = Svm<F, F>;
 
-    fn fit(&self, dataset: &DatasetBase<Kernel<'a, F>, &'a [F]>) -> Self::Object {
+    fn fit(&self, dataset: &DatasetBase<ArrayView2<'a, F>, &'a [F]>) -> Self::Object {
+        let kernel = self.kernel.transform(dataset.records().to_owned());
         match (self.c, self.nu) {
             (Some((c, eps)), _) => fit_epsilon(
                 self.solver_params.clone(),
-                dataset.records.to_owned(),
+                kernel,
                 dataset.targets(),
                 c,
                 eps,
             ),
             (None, Some((nu, eps))) => fit_nu(
                 self.solver_params.clone(),
-                dataset.records.to_owned(),
+                kernel,
                 dataset.targets(),
-                nu,
-                eps,
-            ),
-            _ => panic!("Set either C value or Nu value"),
-        }
-    }
-}
-
-impl<'a, F: Float> Fit<'a, KernelView<'a, F>, ArrayView1<'a, F>> for SvmParams<F, F> {
-    type Object = Svm<F, F>;
-
-    fn fit(&self, dataset: &DatasetBase<KernelView<'a, F>, ArrayView1<'a, F>>) -> Self::Object {
-        match (self.c, self.nu) {
-            (Some((c, eps)), _) => fit_epsilon(
-                self.solver_params.clone(),
-                dataset.records.to_owned(),
-                dataset.targets().as_slice().unwrap(),
-                c,
-                eps,
-            ),
-            (None, Some((nu, eps))) => fit_nu(
-                self.solver_params.clone(),
-                dataset.records.to_owned(),
-                dataset.targets().as_slice().unwrap(),
                 nu,
                 eps,
             ),
@@ -256,7 +235,7 @@ pub mod tests {
 
     use linfa::dataset::DatasetBase;
     use linfa::metrics::Regression;
-    use linfa::traits::{Fit, Predict, Transformer};
+    use linfa::traits::{Fit, Predict};
     use linfa_kernel::{Kernel, KernelMethod};
     use ndarray::{Array, Array1};
 
@@ -268,17 +247,15 @@ pub mod tests {
             sin_curve[(i, 0)] = *val;
         }
 
-        let kernel = Kernel::params()
-            .method(KernelMethod::Gaussian(50.))
-            .transform(sin_curve.view());
+        let kernel = Kernel::params().method(KernelMethod::Gaussian(50.));
 
-        let dataset = DatasetBase::new(kernel, target.view());
+        let dataset = DatasetBase::new(sin_curve.view(), target.view());
 
-        let model = Svm::params().nu_eps(2., 0.01).fit(&dataset);
+        let model = Svm::params().nu_eps(2., 0.01).kernel(kernel).fit(&dataset);
 
         println!("{}", model);
 
-        let predicted = Array1::from(model.predict(sin_curve.clone()));
+        let predicted = Array1::from(model.predict(sin_curve));
         assert!(predicted.mean_squared_error(&target.view()) < 1e-2);
     }
 
@@ -290,17 +267,15 @@ pub mod tests {
             sin_curve[(i, 0)] = *val;
         }
 
-        let kernel = Kernel::params()
-            .method(KernelMethod::Gaussian(50.))
-            .transform(sin_curve.view());
+        let kernel = Kernel::params().method(KernelMethod::Gaussian(50.));
 
-        let dataset = DatasetBase::new(kernel, target.view());
+        let dataset = DatasetBase::new(sin_curve.view(), target.view());
 
-        let model = Svm::params().nu_eps(2., 0.01).fit(&dataset);
+        let model = Svm::params().nu_eps(2., 0.01).kernel(kernel).fit(&dataset);
 
         println!("{}", model);
 
-        let predicted = Array1::from(model.predict(sin_curve.clone()));
+        let predicted = Array1::from(model.predict(sin_curve));
         assert!(predicted.mean_squared_error(&target.view()) < 1e-2);
     }
 }
