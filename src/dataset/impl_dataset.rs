@@ -77,11 +77,12 @@ impl<R: Records, S: Targets> DatasetBase<R, S> {
     /// A feature name gives a human-readable string describing the purpose of a single feature.
     /// This allow the reader to understand its purpose while analysing results, for example
     /// correlation analysis or feature importance.
-    pub fn feature_names(&self) -> Option<&[String]> {
+    pub fn feature_names(&self) -> Vec<String> {
         if !self.feature_names.is_empty() {
-            Some(&self.feature_names)
+            self.feature_names.clone()
         } else {
-            None
+            (0..self.records.nfeatures()).map(|idx| format!("feature-{}", idx))
+                .collect()
         }
     }
 

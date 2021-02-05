@@ -40,8 +40,22 @@ pub fn diabetes() -> Dataset<f64, f64> {
 
     let targets = include_bytes!("../data/diabetes_target.csv.gz");
     let targets = array_from_buf(&targets[..]).column(0).to_owned();
+    
+    let feature_names = vec![
+        "age",
+        "sex",
+        "body mass index",
+        "blood pressure",
+        "t-cells",
+        "low-density lipoproteins",
+        "high-density lipoproteins",
+        "thyroid stimulating hormone",
+        "lamotrigine",
+        "blood sugar level"
+    ];
 
     Dataset::new(data, targets)
+        .with_feature_names(feature_names)
 }
 
 #[cfg(feature = "winequality")]
