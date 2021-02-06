@@ -830,9 +830,25 @@ impl<'a, F: Float, K: 'a + Permutable<F>> SolverState<'a, F, K> {
         };
 
         // put back the solution
-        let alpha: Vec<F> = (0..self.ntotal())
+        // mutable for succesive regression alpha values calculations
+        let mut alpha: Vec<F> = (0..self.ntotal())
             .map(|i| self.alpha[self.active_set[i]].val())
             .collect();
+
+        if self.ntotal() > self.dataset.len_of(Axis(0)) {
+            for i in 0..self.dataset.len_of(Axis(0)) {
+                let tmp = alpha[i + self.dataset.len_of(Axis(0))];
+                alpha[i] -= tmp;
+            }
+            alpha.truncate(self.dataset.len_of(Axis(0)));
+        }
+
+        // Make unmutable
+        let alpha = alpha;
+
+        // This needs to be after the alpha calculation for regression
+        // otherwise it will precompute the dot product with the wrong
+        // values of alpha in the linear kernel case
 
         // if the kernel is linear, then we can pre-calculate the dot product
         let linear_decision = if self.kernel.inner().is_linear() {
@@ -847,20 +863,8 @@ impl<'a, F: Float, K: 'a + Permutable<F>> SolverState<'a, F, K> {
             None
         };
 
-        // Make mutable for regression alpha handling
-        let mut alpha = alpha;
-
-        if self.ntotal() > self.dataset.len_of(Axis(0)) {
-            for i in 0..self.dataset.len_of(Axis(0)) {
-                let tmp = alpha[i + self.dataset.len_of(Axis(0))];
-                alpha[i] -= tmp;
-            }
-            alpha.truncate(self.dataset.len_of(Axis(0)));
-        }
-
-        // Make unmutable again
-        let alpha = alpha;
-
+        // Select only vectors that have non-zero influence on the outcome
+        // of future predictions
         let support_vectors = self.dataset.select(
             Axis(0),
             &alpha

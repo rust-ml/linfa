@@ -109,13 +109,40 @@ pub fn fit_nu<F: Float>(
     res.with_phantom()
 }
 
-/// Regress obserations
+/// Regress observations
 ///
 /// Take a number of observations and project them to optimal continuous targets.
 impl<'a, F: Float> Fit<'a, Array2<F>, &Array1<F>> for SvmParams<F, F> {
     type Object = Svm<F, F>;
 
     fn fit(&self, dataset: &DatasetBase<Array2<F>, &Array1<F>>) -> Self::Object {
+        let kernel = self.kernel.transform(dataset.records());
+        match (self.c, self.nu) {
+            (Some((c, eps)), _) => fit_epsilon(
+                self.solver_params.clone(),
+                dataset.records().view(),
+                kernel,
+                dataset.targets().as_slice().unwrap(),
+                c,
+                eps,
+            ),
+            (None, Some((nu, eps))) => fit_nu(
+                self.solver_params.clone(),
+                dataset.records().view(),
+                kernel,
+                dataset.targets().as_slice().unwrap(),
+                nu,
+                eps,
+            ),
+            _ => panic!("Set either C value or Nu value"),
+        }
+    }
+}
+
+impl<'a, F: Float> Fit<'a, Array2<F>, Array1<F>> for SvmParams<F, F> {
+    type Object = Svm<F, F>;
+
+    fn fit(&self, dataset: &DatasetBase<Array2<F>, Array1<F>>) -> Self::Object {
         let kernel = self.kernel.transform(dataset.records());
         match (self.c, self.nu) {
             (Some((c, eps)), _) => fit_epsilon(
@@ -276,5 +303,22 @@ pub mod tests {
 
         let predicted = Array1::from(model.predict(sin_curve));
         assert!(predicted.mean_squared_error(&target.view()) < 1e-2);
+    }
+
+    #[test]
+    fn test_regression_linear_kernel() {
+        // simple 2d straight line
+        let targets = Array::linspace(0f64, 10., 100);
+        let records = targets.clone().into_shape((100, 1)).unwrap();
+
+        let dataset = (records, targets).into();
+
+        // Test the precomputed dot product in the linear kernel case
+        let model = Svm::params().nu_eps(2., 0.01).with_linear().fit(&dataset);
+
+        println!("{}", model);
+
+        let predicted = Array1::from(model.predict(dataset.records()));
+        assert!(predicted.mean_squared_error(&dataset.targets().view()) < 1e-2);
     }
 }

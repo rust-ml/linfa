@@ -68,7 +68,7 @@
 //! accuracy 0.8867925, MCC 0.40720797
 //! ```
 use linfa::{dataset::Pr, Float};
-use ndarray::{Array1, Array2, ArrayView1};
+use ndarray::{Array1, Array2, ArrayView1, Axis};
 
 use std::fmt;
 use std::marker::PhantomData;
@@ -249,14 +249,14 @@ pub struct Svm<F: Float, T> {
     phantom: PhantomData<T>,
 }
 
-/// Create hyper parameter set
-///
-/// This creates a `SvmParams` and sets it to the default values:
-///  * C values of (1, 1)
-///  * Eps of 1e-7
-///  * No shrinking
-///  * Linear kernel
 impl<F: Float, T> Svm<F, T> {
+    /// Create hyper parameter set
+    ///
+    /// This creates a `SvmParams` and sets it to the default values:
+    ///  * C values of (1, 1)
+    ///  * Eps of 1e-7
+    ///  * No shrinking
+    ///  * Linear kernel
     pub fn params() -> SvmParams<F, T> {
         SvmParams {
             c: Some((F::one(), F::one())),
@@ -275,10 +275,7 @@ impl<F: Float, T> Svm<F, T> {
     /// This function returns the number of support vectors which have an influence on the decision
     /// outcome greater than zero.
     pub fn nsupport(&self) -> usize {
-        self.alpha
-            .iter()
-            .filter(|x| x.abs() > F::from(1e-5).unwrap())
-            .count()
+        self.support_vectors.len_of(Axis(0))
     }
     pub(crate) fn with_phantom<S>(self) -> Svm<F, S> {
         Svm {
@@ -295,11 +292,10 @@ impl<F: Float, T> Svm<F, T> {
         }
     }
 
-    /// Sums the inner product of `sample` and every one of the training samples.
+    /// Sums the inner product of `sample` and every one of the support vectors.
     ///
     /// ## Parameters
     ///
-    /// * `weights`: the weight of each inner product
     /// * `sample`: the input sample
     ///
     /// ## Returns
@@ -308,8 +304,8 @@ impl<F: Float, T> Svm<F, T> {
     ///
     /// ## Panics
     ///
-    /// If the shapes of `weights` or `sample` are not compatible with the
-    /// shape of the kernel matrix
+    /// If the shape of `sample` is not compatible with the
+    /// shape of the support vectors
     pub fn weighted_sum(&self, sample: ArrayView1<F>) -> F {
         self.support_vectors
             .outer_iter()
@@ -371,9 +367,9 @@ mod tests {
     #[test]
     fn test_iter_folding_for_regression() {
         let mut dataset: Dataset<f64, f64> = linfa_datasets::diabetes();
-        let params = Svm::params().with_linear().c_eps(10., 0.01);
+        let params = Svm::params().with_linear().c_eps(100., 1.);
 
-        let _avg_acc = dataset
+        let _avg_r2 = dataset
             .iter_fold(4, |training_set| params.fit(&training_set))
             .map(|(model, valid)| Array1::from(model.predict(valid.records())).r2(valid.targets()))
             .sum::<f64>()
