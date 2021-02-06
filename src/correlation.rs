@@ -267,7 +267,7 @@ impl<F: Float> fmt::Display for PearsonCorrelation<F> {
             }
 
             for _ in (i + 1)..n {
-                if self.p_values.len() > 0 {
+                if !self.p_values.is_empty() {
                     write!(
                         f,
                         "{:+.2} ({:.2}) ",
@@ -289,13 +289,13 @@ impl<F: Float> fmt::Display for PearsonCorrelation<F> {
 
 #[cfg(test)]
 mod tests {
-    use super::DatasetBase;
-    use ndarray::Array;
+    use crate::DatasetBase;
+    use ndarray::{stack, Array, Axis};
     use ndarray_rand::rand_distr::Uniform;
     use ndarray_rand::RandomExt;
 
     #[test]
-    fn correlation_random() {
+    fn uniform_random() {
         let data = Array::random((1000, 4), Uniform::new(-1., 1.));
 
         let pcc = DatasetBase::from(data).pearson_correlation();
@@ -304,12 +304,17 @@ mod tests {
     }
 
     #[test]
-    fn correlation_diabetes() {
-        let d = linfa_datasets::diabetes();
-        let corr = DatasetBase::new(d.records().to_owned(), ())
-            .with_feature_names(d.feature_names())
-            .pearson_correlation_with_p_value(3000);
+    fn perfectly_correlated() {
+        let v = Array::random((4, 1), Uniform::new(0., 1.));
 
-        println!("{}", corr);
+        // project feature with matrix
+        let data = Array::random((1000, 1), Uniform::new(-1., 1.));
+        let data_proj = data.dot(&v.t());
+
+        let corr = DatasetBase::from(stack![Axis(1), data, data_proj])
+            .pearson_correlation_with_p_value(100);
+
+        assert!(corr.get_coeffs().mapv(|x| 1. - x).sum() < 1e-2);
+        assert!(corr.get_p_values().unwrap().sum() < 1e-2);
     }
 }
