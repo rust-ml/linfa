@@ -38,7 +38,7 @@ Where does `linfa` stand right now? [Are we learning yet?](http://www.arewelearn
 | [svm](linfa-svm/) | Support Vector Machines | Tested  | Supervised learning | Classification or regression analysis of labeled datasets | 
 | [hierarchical](linfa-hierarchical/) | Agglomerative hierarchical clustering | Tested | Unsupervised learning | Cluster and build hierarchy of clusters |
 | [bayes](linfa-bayes/) | Naive Bayes | Tested | Supervised learning | Contains Gaussian Naive Bayes |
-| [ica](linfa-ica/) | Independent component analysis | Tested | Supervised learning | Contains FastICA implementation |
+| [ica](linfa-ica/) | Independent component analysis | Tested | Unsupervised learning | Contains FastICA implementation |
 
 We believe that only a significant community effort can nurture, build, and sustain a machine learning ecosystem in Rust - there is no other way forward.
 
