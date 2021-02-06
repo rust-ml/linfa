@@ -279,9 +279,9 @@ impl<F: Float> fmt::Display for PearsonCorrelation<F> {
 
                 k += 1;
             }
-            write!(f, "\n")?;
+            writeln!(f,)?;
         }
-        write!(f, "{}\n", self.feature_names[n - 1])?;
+        writeln!(f, "{}", self.feature_names[n - 1])?;
 
         Ok(())
     }
