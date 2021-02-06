@@ -81,7 +81,8 @@ impl<R: Records, S: Targets> DatasetBase<R, S> {
         if !self.feature_names.is_empty() {
             self.feature_names.clone()
         } else {
-            (0..self.records.nfeatures()).map(|idx| format!("feature-{}", idx))
+            (0..self.records.nfeatures())
+                .map(|idx| format!("feature-{}", idx))
                 .collect()
         }
     }
