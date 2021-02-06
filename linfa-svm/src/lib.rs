@@ -243,7 +243,10 @@ pub struct Svm<F: Float, T> {
             deserialize = "&'a Kernel<'a, F>: Deserialize<'de>"
         ))
     )]
-    kernel: Kernel<F>,
+    // the only thing I need the kernel for after the training is to
+    // compute the distances, but for that I only need the kernel method
+    // and not the whole inner matrix
+    kernel_method: KernelMethod<F>,
     support_vectors: Array2<F>,
     linear_decision: Option<Array1<F>>,
     phantom: PhantomData<T>,
@@ -286,7 +289,7 @@ impl<F: Float, T> Svm<F, T> {
             obj: self.obj,
             iterations: self.iterations,
             support_vectors: self.support_vectors,
-            kernel: self.kernel,
+            kernel_method: self.kernel_method,
             linear_decision: self.linear_decision,
             phantom: PhantomData,
         }
@@ -310,7 +313,7 @@ impl<F: Float, T> Svm<F, T> {
         self.support_vectors
             .outer_iter()
             .zip(self.alpha.iter().filter(|a| !a.is_zero()))
-            .map(|(x, a)| self.kernel.method.distance(x, sample) * *a)
+            .map(|(x, a)| self.kernel_method.distance(x, sample) * *a)
             .sum()
     }
 }
