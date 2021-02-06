@@ -249,7 +249,7 @@ impl<F: Float, D: Data<Elem = F>, T: Targets> DatasetBase<ArrayBase<D, Ix2>, T> 
 /// Display the Pearson's Correlation Coefficients as upper triangular matrix
 ///
 /// This function prints the feature names for each row, the corresponding PCCs and optionally the
-/// p-values in brackets behind the PCC.
+/// p-values in brackets after the PCCs.
 impl<F: Float> fmt::Display for PearsonCorrelation<F> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let n = self.feature_names.len();
@@ -291,24 +291,27 @@ impl<F: Float> fmt::Display for PearsonCorrelation<F> {
 mod tests {
     use crate::DatasetBase;
     use ndarray::{stack, Array, Axis};
-    use ndarray_rand::rand_distr::Uniform;
-    use ndarray_rand::RandomExt;
+    use ndarray_rand::{rand_distr::Uniform, RandomExt};
+    use rand::{rngs::SmallRng, SeedableRng};
 
     #[test]
     fn uniform_random() {
-        let data = Array::random((1000, 4), Uniform::new(-1., 1.));
+        // create random number generator and random matrix with uniform distribution
+        let mut rng = SmallRng::seed_from_u64(42);
+        let data = Array::random_using((1000, 4), Uniform::new(-1., 1.), &mut rng);
 
+        // calculate PCCs and test that they are indeed near zero
         let pcc = DatasetBase::from(data).pearson_correlation();
-
         assert!(pcc.get_coeffs().mapv(|x: f32| x.abs()).sum() < 5e-2 * 6.0);
     }
 
     #[test]
     fn perfectly_correlated() {
-        let v = Array::random((4, 1), Uniform::new(0., 1.));
+        let mut rng = SmallRng::seed_from_u64(42);
+        let v = Array::random_using((4, 1), Uniform::new(0., 1.), &mut rng);
 
         // project feature with matrix
-        let data = Array::random((1000, 1), Uniform::new(-1., 1.));
+        let data = Array::random_using((1000, 1), Uniform::new(-1., 1.), &mut rng);
         let data_proj = data.dot(&v.t());
 
         let corr = DatasetBase::from(stack![Axis(1), data, data_proj])
