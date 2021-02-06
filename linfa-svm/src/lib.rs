@@ -303,7 +303,7 @@ impl<F: Float, T> Svm<F, T> {
     ///
     /// ## Returns
     ///
-    /// The weighted sum of all inner products of `sample` and every one of the training samples.
+    /// The sum of all inner products of `sample` and every one of the support vectors, scaled by their weight.
     ///
     /// ## Panics
     ///

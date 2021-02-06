@@ -57,13 +57,13 @@ impl<F: Float> HierarchicalCluster<F> {
     }
 }
 
-impl<'b: 'a, 'a, F: Float> Transformer<Kernel<'a, F>, DatasetBase<Kernel<'a, F>, Vec<usize>>>
+impl<'b: 'a, 'a, F: Float> Transformer<Kernel<F>, DatasetBase<Kernel<F>, Vec<usize>>>
     for HierarchicalCluster<F>
 {
     /// Perform hierarchical clustering of a similarity matrix
     ///
     /// Returns the class id for each data point
-    fn transform(&self, kernel: Kernel<'a, F>) -> DatasetBase<Kernel<'a, F>, Vec<usize>> {
+    fn transform(&self, kernel: Kernel<F>) -> DatasetBase<Kernel<F>, Vec<usize>> {
         // ignore all similarities below this value
         let threshold = F::from(1e-6).unwrap();
 
@@ -130,16 +130,13 @@ impl<'b: 'a, 'a, F: Float> Transformer<Kernel<'a, F>, DatasetBase<Kernel<'a, F>,
 }
 
 impl<'a, F: Float, T: Targets>
-    Transformer<DatasetBase<Kernel<'a, F>, T>, DatasetBase<Kernel<'a, F>, Vec<usize>>>
+    Transformer<DatasetBase<Kernel<F>, T>, DatasetBase<Kernel<F>, Vec<usize>>>
     for HierarchicalCluster<F>
 {
     /// Perform hierarchical clustering of a similarity matrix
     ///
     /// Returns the class id for each data point
-    fn transform(
-        &self,
-        dataset: DatasetBase<Kernel<'a, F>, T>,
-    ) -> DatasetBase<Kernel<'a, F>, Vec<usize>> {
+    fn transform(&self, dataset: DatasetBase<Kernel<F>, T>) -> DatasetBase<Kernel<F>, Vec<usize>> {
         //let Dataset { records, .. } = dataset;
         self.transform(dataset.records)
     }

@@ -16,10 +16,10 @@ pub struct DiffusionMap<F> {
     eigvals: Array1<F>,
 }
 
-impl<'a, F: Float + Lapack> Transformer<&'a Kernel<'a, F>, DiffusionMap<F>>
+impl<'a, F: Float + Lapack> Transformer<&'a Kernel<F>, DiffusionMap<F>>
     for DiffusionMapHyperParams
 {
-    fn transform(&self, kernel: &'a Kernel<'a, F>) -> DiffusionMap<F> {
+    fn transform(&self, kernel: &'a Kernel<F>) -> DiffusionMap<F> {
         // compute spectral embedding with diffusion map
         let (embedding, eigvals) =
             compute_diffusion_map(kernel, self.steps(), 0.0, self.embedding_size(), None);
@@ -49,7 +49,7 @@ impl<F: Float + Lapack> DiffusionMap<F> {
 }
 
 fn compute_diffusion_map<'b, F: Float + Lapack>(
-    kernel: &'b Kernel<'b, F>,
+    kernel: &'b Kernel<F>,
     steps: usize,
     alpha: f32,
     embedding_size: usize,
