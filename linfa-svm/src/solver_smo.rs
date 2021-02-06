@@ -1,7 +1,7 @@
 use super::permutable_kernel::Permutable;
 use super::{ExitReason, Float, Svm};
 
-use ndarray::{Array1, Axis};
+use ndarray::{Array1, ArrayView2, Axis};
 use std::marker::PhantomData;
 
 /// Parameters of the solver routine
@@ -62,6 +62,9 @@ pub struct SolverState<'a, F: Float, K: Permutable<F>> {
     nu_constraint: bool,
     r: F,
 
+    /// Training data
+    dataset: ArrayView2<'a, F>,
+
     /// Quadratic term of the problem
     kernel: K,
     /// Linear term of the problem
@@ -86,6 +89,7 @@ impl<'a, F: Float, K: 'a + Permutable<F>> SolverState<'a, F, K> {
         alpha: Vec<F>,
         p: Vec<F>,
         targets: Vec<bool>,
+        dataset: ArrayView2<'a, F>,
         kernel: K,
         bounds: Vec<F>,
         params: SolverParams<F>,
@@ -133,6 +137,7 @@ impl<'a, F: Float, K: 'a + Permutable<F>> SolverState<'a, F, K> {
             nactive: active_set.len(),
             unshrink: false,
             active_set,
+            dataset,
             kernel,
             targets,
             bounds,
@@ -831,8 +836,8 @@ impl<'a, F: Float, K: 'a + Permutable<F>> SolverState<'a, F, K> {
 
         // if the kernel is linear, then we can pre-calculate the dot product
         let linear_decision = if self.kernel.inner().is_linear() {
-            let mut tmp = Array1::zeros(self.kernel.inner().dataset.len_of(Axis(1)));
-            for (i, elm) in self.kernel.inner().dataset.outer_iter().enumerate() {
+            let mut tmp = Array1::zeros(self.dataset.len_of(Axis(1)));
+            for (i, elm) in self.dataset.outer_iter().enumerate() {
                 tmp.scaled_add(self.target(i) * alpha[i], &elm);
             }
 
@@ -848,6 +853,9 @@ impl<'a, F: Float, K: 'a + Permutable<F>> SolverState<'a, F, K> {
             exit_reason,
             obj,
             iterations: iter,
+            /// Here is where the cloning of the data happens.
+            /// TODO::change this to take only the support vectors
+            dataset: self.dataset.to_owned(),
             kernel: self.kernel.to_inner(),
             linear_decision,
             phantom: PhantomData,

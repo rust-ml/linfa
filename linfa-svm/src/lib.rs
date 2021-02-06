@@ -68,7 +68,7 @@
 //! accuracy 0.8867925, MCC 0.40720797
 //! ```
 use linfa::{dataset::Pr, Float};
-use ndarray::Array1;
+use ndarray::{Array1, Array2, ArrayView1};
 
 use std::fmt;
 use std::marker::PhantomData;
@@ -81,7 +81,7 @@ mod permutable_kernel;
 mod regression;
 pub mod solver_smo;
 
-use linfa_kernel::{Kernel, KernelMethod, KernelOwned, KernelParams};
+use linfa_kernel::{Kernel, KernelMethod, KernelParams};
 pub use solver_smo::SolverParams;
 
 /// SVM Hyperparameters
@@ -135,8 +135,32 @@ impl<F: Float, T> SvmParams<F, T> {
     /// The SVM then applies a linear separation in the new feature space that may result in
     /// a non linear partitioning of the original input space, thus increasing the expressiveness of
     /// this model. To use the "base" SVM model it suffices to choose a `Linear` kernel.
-    pub fn kernel(mut self, kernel: KernelParams<F>) -> Self {
+    pub fn with_kernel_params(mut self, kernel: KernelParams<F>) -> Self {
         self.kernel = kernel;
+
+        self
+    }
+
+    /// Sets the model to use the Gaussian kernel. For this kernel the
+    /// distance between two points is computed as: `d(x, x') = exp(-norm(x - x')/eps)`
+    pub fn with_gaussian(mut self, eps: F) -> Self {
+        self.kernel = Kernel::params().method(KernelMethod::Gaussian(eps));
+
+        self
+    }
+
+    /// Sets the model to use the Polynomial kernel. For this kernel the
+    /// distance between two points is computed as: `d(x, x') = (<x, x'> + costant)^(degree)`
+    pub fn with_polynomial(mut self, constant: F, degree: F) -> Self {
+        self.kernel = Kernel::params().method(KernelMethod::Polynomial(constant, degree));
+
+        self
+    }
+
+    /// Sets the model to use the Linear kernel. For this kernel the
+    /// distance between two points is computed as : `d(x, x') = <x, x'>`
+    pub fn with_linear(mut self) -> Self {
+        self.kernel = Kernel::params().method(KernelMethod::Linear);
 
         self
     }
@@ -219,7 +243,8 @@ pub struct Svm<F: Float, T> {
             deserialize = "&'a Kernel<'a, F>: Deserialize<'de>"
         ))
     )]
-    kernel: KernelOwned<F>,
+    kernel: Kernel<F>,
+    dataset: Array2<F>,
     linear_decision: Option<Array1<F>>,
     phantom: PhantomData<T>,
 }
@@ -263,10 +288,34 @@ impl<F: Float, T> Svm<F, T> {
             exit_reason: self.exit_reason,
             obj: self.obj,
             iterations: self.iterations,
+            dataset: self.dataset,
             kernel: self.kernel,
             linear_decision: self.linear_decision,
             phantom: PhantomData,
         }
+    }
+
+    /// Sums the inner product of `sample` and every one of the training samples.
+    ///
+    /// ## Parameters
+    ///
+    /// * `weights`: the weight of each inner product
+    /// * `sample`: the input sample
+    ///
+    /// ## Returns
+    ///
+    /// The weighted sum of all inner products of `sample` and every one of the training samples.
+    ///
+    /// ## Panics
+    ///
+    /// If the shapes of `weights` or `sample` are not compatible with the
+    /// shape of the kernel matrix
+    pub fn weighted_sum(&self, weights: &[F], sample: ArrayView1<F>) -> F {
+        self.dataset
+            .outer_iter()
+            .zip(weights.iter())
+            .map(|(x, a)| self.kernel.method.distance(x, sample) * *a)
+            .sum()
     }
 }
 
@@ -300,14 +349,11 @@ mod tests {
     use crate::Svm;
     use linfa::dataset::Dataset;
     use linfa::prelude::*;
-    use linfa_kernel::{Kernel, KernelMethod};
     use ndarray::Array1;
     #[test]
     fn test_iter_folding_for_classification() {
         let mut dataset = linfa_datasets::winequality().map_targets(|x| *x > 6);
-        let kernel = Kernel::params().method(KernelMethod::Gaussian(80.0));
-        let params = Svm::params().pos_neg_weights(7., 0.6).kernel(kernel);
-
+        let params = Svm::params().pos_neg_weights(7., 0.6).with_gaussian(80.0);
         let avg_acc = dataset
             .iter_fold(4, |training_set| params.fit(&training_set))
             .map(|(model, valid)| {
@@ -325,8 +371,7 @@ mod tests {
     #[test]
     fn test_iter_folding_for_regression() {
         let mut dataset: Dataset<f64, f64> = linfa_datasets::diabetes();
-        let kernel = Kernel::params().method(KernelMethod::Linear);
-        let params = Svm::params().kernel(kernel).c_eps(10., 0.01);
+        let params = Svm::params().with_linear().c_eps(10., 0.01);
 
         let _avg_acc = dataset
             .iter_fold(4, |training_set| params.fit(&training_set))

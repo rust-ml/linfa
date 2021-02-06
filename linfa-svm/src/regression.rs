@@ -1,6 +1,6 @@
 //! Support Vector Regression
 use linfa::{dataset::DatasetBase, traits::Fit, traits::Predict, traits::Transformer};
-use linfa_kernel::KernelOwned;
+use linfa_kernel::Kernel;
 use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix2};
 use std::ops::Mul;
 
@@ -22,7 +22,8 @@ use super::{Float, Svm, SvmParams};
 /// * `p` - epsilon value for all targets
 pub fn fit_epsilon<F: Float>(
     params: SolverParams<F>,
-    kernel: KernelOwned<F>,
+    dataset: ArrayView2<F>,
+    kernel: Kernel<F>,
     target: &[F],
     c: F,
     p: F,
@@ -43,6 +44,7 @@ pub fn fit_epsilon<F: Float>(
         vec![F::zero(); 2 * target.len()],
         linear_term,
         targets.to_vec(),
+        dataset,
         kernel,
         vec![c; 2 * target.len()],
         params,
@@ -73,7 +75,8 @@ pub fn fit_epsilon<F: Float>(
 /// * `nu` - nu value for all targets
 pub fn fit_nu<F: Float>(
     params: SolverParams<F>,
-    kernel: KernelOwned<F>,
+    dataset: ArrayView2<F>,
+    kernel: Kernel<F>,
     target: &[F],
     c: F,
     nu: F,
@@ -100,6 +103,7 @@ pub fn fit_nu<F: Float>(
         alpha,
         linear_term,
         targets.to_vec(),
+        dataset,
         kernel,
         vec![c; 2 * target.len()],
         params,
@@ -124,10 +128,11 @@ impl<'a, F: Float> Fit<'a, Array2<F>, &Array1<F>> for SvmParams<F, F> {
     type Object = Svm<F, F>;
 
     fn fit(&self, dataset: &DatasetBase<Array2<F>, &Array1<F>>) -> Self::Object {
-        let kernel = self.kernel.transform(dataset.records().clone());
+        let kernel = self.kernel.transform(dataset.records());
         match (self.c, self.nu) {
             (Some((c, eps)), _) => fit_epsilon(
                 self.solver_params.clone(),
+                dataset.records().view(),
                 kernel,
                 dataset.targets().as_slice().unwrap(),
                 c,
@@ -135,6 +140,7 @@ impl<'a, F: Float> Fit<'a, Array2<F>, &Array1<F>> for SvmParams<F, F> {
             ),
             (None, Some((nu, eps))) => fit_nu(
                 self.solver_params.clone(),
+                dataset.records().view(),
                 kernel,
                 dataset.targets().as_slice().unwrap(),
                 nu,
@@ -149,10 +155,11 @@ impl<'a, F: Float> Fit<'a, ArrayView2<'a, F>, ArrayView1<'a, F>> for SvmParams<F
     type Object = Svm<F, F>;
 
     fn fit(&self, dataset: &DatasetBase<ArrayView2<'a, F>, ArrayView1<'a, F>>) -> Self::Object {
-        let kernel = self.kernel.transform(dataset.records().to_owned());
+        let kernel = self.kernel.transform(dataset.records());
         match (self.c, self.nu) {
             (Some((c, eps)), _) => fit_epsilon(
                 self.solver_params.clone(),
+                *dataset.records(),
                 kernel,
                 dataset.targets().as_slice().unwrap(),
                 c,
@@ -160,6 +167,7 @@ impl<'a, F: Float> Fit<'a, ArrayView2<'a, F>, ArrayView1<'a, F>> for SvmParams<F
             ),
             (None, Some((nu, eps))) => fit_nu(
                 self.solver_params.clone(),
+                *dataset.records(),
                 kernel,
                 dataset.targets().as_slice().unwrap(),
                 nu,
@@ -174,10 +182,11 @@ impl<'a, F: Float> Fit<'a, ArrayView2<'a, F>, &'a [F]> for SvmParams<F, F> {
     type Object = Svm<F, F>;
 
     fn fit(&self, dataset: &DatasetBase<ArrayView2<'a, F>, &'a [F]>) -> Self::Object {
-        let kernel = self.kernel.transform(dataset.records().to_owned());
+        let kernel = self.kernel.transform(dataset.records());
         match (self.c, self.nu) {
             (Some((c, eps)), _) => fit_epsilon(
                 self.solver_params.clone(),
+                *dataset.records(),
                 kernel,
                 dataset.targets(),
                 c,
@@ -185,6 +194,7 @@ impl<'a, F: Float> Fit<'a, ArrayView2<'a, F>, &'a [F]> for SvmParams<F, F> {
             ),
             (None, Some((nu, eps))) => fit_nu(
                 self.solver_params.clone(),
+                *dataset.records(),
                 kernel,
                 dataset.targets(),
                 nu,
@@ -202,7 +212,7 @@ impl<D: Data<Elem = f64>> Predict<ArrayBase<D, Ix2>, Vec<f64>> for Svm<f64, f64>
             .map(|data| {
                 let val = match self.linear_decision {
                     Some(ref x) => x.mul(&data).sum() - self.rho,
-                    None => self.kernel.weighted_sum(&self.alpha, data.view()) - self.rho,
+                    None => self.weighted_sum(&self.alpha, data.view()) - self.rho,
                 };
 
                 // this is safe because `F` is only implemented for `f32` and `f64`
@@ -219,7 +229,7 @@ impl<D: Data<Elem = f64>> Predict<&ArrayBase<D, Ix2>, Vec<f64>> for Svm<f64, f64
             .map(|data| {
                 let val = match self.linear_decision {
                     Some(ref x) => x.mul(&data).sum() - self.rho,
-                    None => self.kernel.weighted_sum(&self.alpha, data.view()) - self.rho,
+                    None => self.weighted_sum(&self.alpha, data.view()) - self.rho,
                 };
 
                 // this is safe because `F` is only implemented for `f32` and `f64`
@@ -236,7 +246,6 @@ pub mod tests {
     use linfa::dataset::DatasetBase;
     use linfa::metrics::Regression;
     use linfa::traits::{Fit, Predict};
-    use linfa_kernel::{Kernel, KernelMethod};
     use ndarray::{Array, Array1};
 
     #[test]
@@ -247,11 +256,12 @@ pub mod tests {
             sin_curve[(i, 0)] = *val;
         }
 
-        let kernel = Kernel::params().method(KernelMethod::Gaussian(50.));
-
         let dataset = DatasetBase::new(sin_curve.view(), target.view());
 
-        let model = Svm::params().nu_eps(2., 0.01).kernel(kernel).fit(&dataset);
+        let model = Svm::params()
+            .nu_eps(2., 0.01)
+            .with_gaussian(50.)
+            .fit(&dataset);
 
         println!("{}", model);
 
@@ -267,11 +277,12 @@ pub mod tests {
             sin_curve[(i, 0)] = *val;
         }
 
-        let kernel = Kernel::params().method(KernelMethod::Gaussian(50.));
-
         let dataset = DatasetBase::new(sin_curve.view(), target.view());
 
-        let model = Svm::params().nu_eps(2., 0.01).kernel(kernel).fit(&dataset);
+        let model = Svm::params()
+            .nu_eps(2., 0.01)
+            .with_gaussian(50.)
+            .fit(&dataset);
 
         println!("{}", model);
 
