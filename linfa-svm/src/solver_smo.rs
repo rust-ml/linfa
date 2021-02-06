@@ -837,6 +837,7 @@ impl<'a, F: Float, K: 'a + Permutable<F>> SolverState<'a, F, K> {
         // if the kernel is linear, then we can pre-calculate the dot product
         let linear_decision = if self.kernel.inner().is_linear() {
             let mut tmp = Array1::zeros(self.dataset.len_of(Axis(1)));
+
             for (i, elm) in self.dataset.outer_iter().enumerate() {
                 tmp.scaled_add(self.target(i) * alpha[i], &elm);
             }
@@ -846,6 +847,30 @@ impl<'a, F: Float, K: 'a + Permutable<F>> SolverState<'a, F, K> {
             None
         };
 
+        // Make mutable for regression alpha handling
+        let mut alpha = alpha;
+
+        if self.ntotal() > self.dataset.len_of(Axis(0)) {
+            for i in 0..self.dataset.len_of(Axis(0)) {
+                let tmp = alpha[i + self.dataset.len_of(Axis(0))];
+                alpha[i] -= tmp;
+            }
+            alpha.truncate(self.dataset.len_of(Axis(0)));
+        }
+
+        // Make unmutable again
+        let alpha = alpha;
+
+        let support_vectors = self.dataset.select(
+            Axis(0),
+            &alpha
+                .iter()
+                .enumerate()
+                .filter(|(_, a)| !a.is_zero())
+                .map(|(i, _)| i)
+                .collect::<Vec<_>>(),
+        );
+
         Svm {
             alpha,
             rho,
@@ -853,9 +878,7 @@ impl<'a, F: Float, K: 'a + Permutable<F>> SolverState<'a, F, K> {
             exit_reason,
             obj,
             iterations: iter,
-            /// Here is where the cloning of the data happens.
-            /// TODO::change this to take only the support vectors
-            dataset: self.dataset.to_owned(),
+            support_vectors: support_vectors,
             kernel: self.kernel.to_inner(),
             linear_decision,
             phantom: PhantomData,

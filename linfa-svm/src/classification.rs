@@ -372,7 +372,7 @@ impl<'a, F: Float> Predict<Array1<F>, Pr> for Svm<F, Pr> {
     fn predict(&self, data: Array1<F>) -> Pr {
         let val = match self.linear_decision {
             Some(ref x) => x.mul(&data).sum() - self.rho,
-            None => self.weighted_sum(&self.alpha, data.view()) - self.rho,
+            None => self.weighted_sum(data.view()) - self.rho,
         };
 
         // this is safe because `F` is only implemented for `f32` and `f64`
@@ -385,7 +385,7 @@ impl<'a, F: Float> Predict<ArrayView1<'a, F>, Pr> for Svm<F, Pr> {
     fn predict(&self, data: ArrayView1<'a, F>) -> Pr {
         let val = match self.linear_decision {
             Some(ref x) => x.mul(&data).sum() - self.rho,
-            None => self.weighted_sum(&self.alpha, data) - self.rho,
+            None => self.weighted_sum(data) - self.rho,
         };
 
         // this is safe because `F` is only implemented for `f32` and `f64`
@@ -403,7 +403,7 @@ impl<'a, F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Array1<Pr>> for
             .map(|data| {
                 let val = match self.linear_decision {
                     Some(ref x) => x.mul(&data).sum() - self.rho,
-                    None => self.weighted_sum(&self.alpha, data.view()) - self.rho,
+                    None => self.weighted_sum(data.view()) - self.rho,
                 };
 
                 // this is safe because `F` is only implemented for `f32` and `f64`

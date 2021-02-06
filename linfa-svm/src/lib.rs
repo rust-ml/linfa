@@ -244,7 +244,7 @@ pub struct Svm<F: Float, T> {
         ))
     )]
     kernel: Kernel<F>,
-    dataset: Array2<F>,
+    support_vectors: Array2<F>,
     linear_decision: Option<Array1<F>>,
     phantom: PhantomData<T>,
 }
@@ -288,7 +288,7 @@ impl<F: Float, T> Svm<F, T> {
             exit_reason: self.exit_reason,
             obj: self.obj,
             iterations: self.iterations,
-            dataset: self.dataset,
+            support_vectors: self.support_vectors,
             kernel: self.kernel,
             linear_decision: self.linear_decision,
             phantom: PhantomData,
@@ -310,10 +310,10 @@ impl<F: Float, T> Svm<F, T> {
     ///
     /// If the shapes of `weights` or `sample` are not compatible with the
     /// shape of the kernel matrix
-    pub fn weighted_sum(&self, weights: &[F], sample: ArrayView1<F>) -> F {
-        self.dataset
+    pub fn weighted_sum(&self, sample: ArrayView1<F>) -> F {
+        self.support_vectors
             .outer_iter()
-            .zip(weights.iter())
+            .zip(self.alpha.iter().filter(|a| !a.is_zero()))
             .map(|(x, a)| self.kernel.method.distance(x, sample) * *a)
             .sum()
     }

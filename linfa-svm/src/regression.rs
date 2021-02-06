@@ -51,13 +51,7 @@ pub fn fit_epsilon<F: Float>(
         false,
     );
 
-    let mut res = solver.solve();
-
-    for i in 0..target.len() {
-        let tmp = res.alpha[i + target.len()];
-        res.alpha[i] -= tmp;
-    }
-    res.alpha.truncate(target.len());
+    let res = solver.solve();
 
     res.with_phantom()
 }
@@ -110,13 +104,7 @@ pub fn fit_nu<F: Float>(
         false,
     );
 
-    let mut res = solver.solve();
-
-    for i in 0..target.len() {
-        let tmp = res.alpha[i + target.len()];
-        res.alpha[i] -= tmp;
-    }
-    res.alpha.truncate(target.len());
+    let res = solver.solve();
 
     res.with_phantom()
 }
@@ -212,7 +200,7 @@ impl<D: Data<Elem = f64>> Predict<ArrayBase<D, Ix2>, Vec<f64>> for Svm<f64, f64>
             .map(|data| {
                 let val = match self.linear_decision {
                     Some(ref x) => x.mul(&data).sum() - self.rho,
-                    None => self.weighted_sum(&self.alpha, data.view()) - self.rho,
+                    None => self.weighted_sum(data.view()) - self.rho,
                 };
 
                 // this is safe because `F` is only implemented for `f32` and `f64`
@@ -229,7 +217,7 @@ impl<D: Data<Elem = f64>> Predict<&ArrayBase<D, Ix2>, Vec<f64>> for Svm<f64, f64
             .map(|data| {
                 let val = match self.linear_decision {
                     Some(ref x) => x.mul(&data).sum() - self.rho,
-                    None => self.weighted_sum(&self.alpha, data.view()) - self.rho,
+                    None => self.weighted_sum(data.view()) - self.rho,
                 };
 
                 // this is safe because `F` is only implemented for `f32` and `f64`
