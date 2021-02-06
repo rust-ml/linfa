@@ -28,6 +28,7 @@
 //! and get involved!
 //!
 
+pub mod correlation;
 pub mod dataset;
 pub mod error;
 mod metrics_classification;

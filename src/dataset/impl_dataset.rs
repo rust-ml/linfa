@@ -8,29 +8,54 @@ use super::{
     iter::Iter, Dataset, DatasetBase, DatasetView, Float, Label, Labels, Records, Targets,
 };
 
-impl<F: Float, L: Label> DatasetBase<Array2<F>, Vec<L>> {
-    pub fn iter(&self) -> Iter<'_, Array2<F>, Vec<L>> {
+/// Iterate over observations
+///
+/// This function creates an iterator which produces tuples of data points and target value. The
+/// iterator runs once for each data point and, while doing so, holds an reference to the owned
+/// dataset.
+///
+/// # Example
+/// ```
+/// let dataset = linfa_datasets::iris();
+///
+/// for (x, y) in dataset.iter() {
+///     println!("{} => {}", x, y);
+/// }
+/// ```
+impl<F: Float, L: Label> DatasetBase<Array2<F>, Array1<L>> {
+    pub fn iter(&self) -> Iter<'_, Array2<F>, Array1<L>> {
         Iter::new(&self.records, &self.targets)
     }
 }
 
 impl<R: Records, S: Targets> DatasetBase<R, S> {
+    /// Create a new dataset from records and targets
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let dataset = Dataset::new(records, targets);
+    /// ```
     pub fn new(records: R, targets: S) -> DatasetBase<R, S> {
         DatasetBase {
             records,
             targets,
             weights: Vec::new(),
+            feature_names: Vec::new(),
         }
     }
 
+    /// Returns reference to targets
     pub fn targets(&self) -> &S {
         &self.targets
     }
 
+    /// Return a single target at position `idx`
     pub fn target(&self, idx: usize) -> &S::Elem {
         &self.targets.as_slice()[idx]
     }
 
+    /// Returns optionally weights
     pub fn weights(&self) -> Option<&[f32]> {
         if !self.weights.is_empty() {
             Some(&self.weights)
@@ -39,46 +64,102 @@ impl<R: Records, S: Targets> DatasetBase<R, S> {
         }
     }
 
+    /// Return a single weight
+    ///
+    /// The weight of the `idx`th observation is returned. If no weight is specified, then all
+    /// observations are unweighted with default value `1.0`.
     pub fn weight_for(&self, idx: usize) -> f32 {
         self.weights.get(idx).copied().unwrap_or(1.0)
     }
 
+    /// Returns feature names
+    ///
+    /// A feature name gives a human-readable string describing the purpose of a single feature.
+    /// This allow the reader to understand its purpose while analysing results, for example
+    /// correlation analysis or feature importance.
+    pub fn feature_names(&self) -> Vec<String> {
+        if !self.feature_names.is_empty() {
+            self.feature_names.clone()
+        } else {
+            (0..self.records.nfeatures())
+                .map(|idx| format!("feature-{}", idx))
+                .collect()
+        }
+    }
+
+    /// Return records of a dataset
+    ///
+    /// The records are data points from which predictions are made. This functions returns a
+    /// reference to the record field.
     pub fn records(&self) -> &R {
         &self.records
     }
 
+    /// Updates the records of a dataset
+    ///
+    /// This function overwrites the records in a dataset. It also invalidates the weights and
+    /// feature names.
     pub fn with_records<T: Records>(self, records: T) -> DatasetBase<T, S> {
         DatasetBase {
             records,
             targets: self.targets,
             weights: Vec::new(),
+            feature_names: Vec::new(),
         }
     }
 
+    /// Updates the targets of a dataset
+    ///
+    /// This function overwrites the targets in a dataset.
     pub fn with_targets<T: Targets>(self, targets: T) -> DatasetBase<R, T> {
         DatasetBase {
             records: self.records,
             targets,
             weights: self.weights,
+            feature_names: self.feature_names,
         }
     }
 
+    /// Updates the weights of a dataset
     pub fn with_weights(mut self, weights: Vec<f32>) -> DatasetBase<R, S> {
         self.weights = weights;
 
         self
     }
+
+    /// Updates the feature names of a dataset
+    pub fn with_feature_names<I: Into<String>>(mut self, names: Vec<I>) -> DatasetBase<R, S> {
+        let feature_names = names.into_iter().map(|x| x.into()).collect();
+
+        self.feature_names = feature_names;
+
+        self
+    }
 }
 
-impl<F: Float, D: Data<Elem = F>, T: Targets> DatasetBase<ArrayBase<D, Ix2>, T> {
-    pub fn map_targets<S, G: FnMut(&T::Elem) -> S>(
-        self,
-        fnc: G,
-    ) -> DatasetBase<ArrayBase<D, Ix2>, Array1<S>> {
+/// Map targets with a function
+///
+/// # Example
+///
+/// ```
+/// let dataset = linfa_datasets::winequality()
+///     .map_targets(|x| *x > 6);
+///
+/// // dataset has now boolean targets
+/// println!("{:?}", dataset.targets());
+/// ```
+///
+/// # Returns
+///
+/// A modified dataset with new target type.
+///
+impl<F: Float, R: Records<Elem = F>, T: Targets> DatasetBase<R, T> {
+    pub fn map_targets<S, G: FnMut(&T::Elem) -> S>(self, fnc: G) -> DatasetBase<R, Array1<S>> {
         let DatasetBase {
             records,
             targets,
             weights,
+            feature_names,
             ..
         } = self;
 
@@ -89,12 +170,19 @@ impl<F: Float, D: Data<Elem = F>, T: Targets> DatasetBase<ArrayBase<D, Ix2>, T> 
             records,
             targets: new_targets,
             weights,
+            feature_names,
         }
     }
 }
 
 #[allow(clippy::type_complexity)]
 impl<F: Float, T: Targets, D: Data<Elem = F>> DatasetBase<ArrayBase<D, Ix2>, T> {
+    /// Split dataset into two disjoint chunks
+    ///
+    /// This function splits the observations in a dataset into two disjoint chunks. The splitting
+    /// threshold is calculated with the `ratio`. For example a ratio of `0.9` allocates 90% to the
+    /// first chunks and 10% to the second. This is often used in training, validation splitting
+    /// procedures.
     pub fn split_with_ratio_view(
         &self,
         ratio: f32,
@@ -111,6 +199,7 @@ impl<F: Float, T: Targets, D: Data<Elem = F>> DatasetBase<ArrayBase<D, Ix2>, T> 
         (dataset1, dataset2)
     }
 
+    /// Creates a view of a dataset
     pub fn view(&self) -> DatasetView<F, T::Elem> {
         let records = self.records().view();
         let targets = ArrayView1::from(self.targets.as_slice());
@@ -119,6 +208,10 @@ impl<F: Float, T: Targets, D: Data<Elem = F>> DatasetBase<ArrayBase<D, Ix2>, T> 
 }
 
 impl<F: Float, L: Label, T: Labels<Elem = L>, D: Data<Elem = F>> DatasetBase<ArrayBase<D, Ix2>, T> {
+    /// Produce N boolean targets from multi-class targets
+    ///
+    /// Some algorithms (like SVM) don't support multi-class targets. This function splits a
+    /// dataset into multiple binary target view of the same dataset.
     pub fn one_vs_all(&self) -> Vec<DatasetBase<ArrayView2<'_, F>, Vec<bool>>> {
         self.labels()
             .into_iter()
@@ -176,6 +269,7 @@ impl<F: Float, D: Data<Elem = F>, I: Dimension> From<ArrayBase<D, I>>
             records,
             targets: (),
             weights: Vec::new(),
+            feature_names: Vec::new(),
         }
     }
 }
@@ -188,6 +282,7 @@ impl<F: Float, T: Targets, D: Data<Elem = F>, I: Dimension> From<(ArrayBase<D, I
             records: rec_tar.0,
             targets: rec_tar.1,
             weights: Vec::new(),
+            feature_names: Vec::new(),
         }
     }
 }
@@ -227,9 +322,14 @@ impl<F: Float, E: Copy> Dataset<F, E> {
         self.view().shuffle(rng)
     }
 
-    /// Splits the current Dataset into two new ones according to the ratio given in input.
-    /// If the input Dataset contains `n` samples then the two new Datasets will have respectively
-    /// `n * ratio` and `n - (n*ratio)` samples.
+    /// Split dataset into two disjoint chunks
+    ///
+    /// This function splits the observations in a dataset into two disjoint chunks. The splitting
+    /// threshold is calculated with the `ratio`. If the input Dataset contains `n` samples then the
+    /// two new Datasets will have respectively `n * ratio` and `n - (n*ratio)` samples.
+    /// For example a ratio of `0.9` allocates 90% to the
+    /// first chunks and 10% to the second. This is often used in training, validation splitting
+    /// procedures.
     ///
     /// ### Parameters
     ///

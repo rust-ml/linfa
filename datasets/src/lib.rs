@@ -30,7 +30,11 @@ pub fn iris() -> Dataset<f64, usize> {
         array.column(4).to_owned(),
     );
 
-    Dataset::new(data, targets).map_targets(|x| *x as usize)
+    let feature_names = vec!["sepal length", "sepal width", "petal length", "petal width"];
+
+    Dataset::new(data, targets)
+        .map_targets(|x| *x as usize)
+        .with_feature_names(feature_names)
 }
 
 #[cfg(feature = "diabetes")]
@@ -41,7 +45,20 @@ pub fn diabetes() -> Dataset<f64, f64> {
     let targets = include_bytes!("../data/diabetes_target.csv.gz");
     let targets = array_from_buf(&targets[..]).column(0).to_owned();
 
-    Dataset::new(data, targets)
+    let feature_names = vec![
+        "age",
+        "sex",
+        "body mass index",
+        "blood pressure",
+        "t-cells",
+        "low-density lipoproteins",
+        "high-density lipoproteins",
+        "thyroid stimulating hormone",
+        "lamotrigine",
+        "blood sugar level",
+    ];
+
+    Dataset::new(data, targets).with_feature_names(feature_names)
 }
 
 #[cfg(feature = "winequality")]
@@ -54,5 +71,21 @@ pub fn winequality() -> Dataset<f64, usize> {
         array.column(11).to_owned(),
     );
 
-    Dataset::new(data, targets).map_targets(|x| *x as usize)
+    let feature_names = vec![
+        "fixed acidity",
+        "volatile acidity",
+        "citric acid",
+        "residual sugar",
+        "chlorides",
+        "free sulfur dioxide",
+        "total sulfur dioxide",
+        "density",
+        "pH",
+        "sulphates",
+        "alcohol",
+    ];
+
+    Dataset::new(data, targets)
+        .map_targets(|x| *x as usize)
+        .with_feature_names(feature_names)
 }

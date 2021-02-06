@@ -116,6 +116,7 @@ impl<R: Records, L: Label, T: Labels<Elem = L>> DatasetBase<R, T> {
             records: self.records,
             weights: self.weights,
             targets,
+            feature_names: self.feature_names,
         }
     }
 }

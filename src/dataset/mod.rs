@@ -68,6 +68,7 @@ where
     pub targets: T,
 
     weights: Vec<f32>,
+    feature_names: Vec<String>,
 }
 
 /// Dataset

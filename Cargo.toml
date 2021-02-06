@@ -56,9 +56,11 @@ default-features = false
 features = ["cblas"]
 
 [dev-dependencies]
-ndarray-rand = "0.12"
+ndarray-rand = "0.11"
 rand_isaac = "0.2"
 approx = "0.3"
+
+linfa-datasets = { version = "0.3.0", path = "datasets", features = ["winequality", "iris", "diabetes"] }
 
 [workspace]
 members = [
