@@ -1,3 +1,32 @@
+//! `linfa-datasets` provides a collection of commonly used datasets ready to be used in tests and examples.
+//!
+//! ## The Big Picture
+//!
+//! `linfa-datasets` is a crate in the [`linfa`](https://crates.io/crates/linfa) ecosystem, an effort to create a toolkit for classical Machine Learning implemented in pure Rust, akin to Python's `scikit-learn`.
+//!
+//! ## Current State
+//!
+//! Currently the following datasets are provided:
+//!
+//! * `["iris"]` : iris flower dataset
+//! * `["winequality"]` : wine quality dataset
+//! * `["diabetes"]` : diabetes dataset
+//!
+//! along with methods to easily load them. Loaded datasets are returned as a [`linfa::Dataset`](https://docs.rs/linfa/0.3.0/linfa/dataset/type.Dataset.html) structure whith named features.
+//!
+//! ## Using a dataset
+//!
+//! To use one of the provided datasets in your project add the crate to your Cargo.toml with the corresponding feature enabled:
+//! ```ignore
+//! linfa-datasets = { version = "0.3.0", features = ["winequality"] }
+//! ```
+//! and then use it in your example or tests as
+//! ```ignore
+//! let (train, valid) = linfa_datasets::winequality()
+//! .split_with_ratio(0.8);
+//!  /// ...
+//! ```
+
 use csv::ReaderBuilder;
 use flate2::read::GzDecoder;
 use linfa::Dataset;
@@ -19,8 +48,8 @@ fn array_from_buf(buf: &[u8]) -> Array2<f64> {
 }
 
 #[cfg(feature = "iris")]
-/// Read in the iris-flower dataset from dataset path
-/// The `.csv` data is two dimensional: Axis(0) denotes y-axis (rows), Axis(1) denotes x-axis (columns)
+/// Read in the iris-flower dataset from dataset path.
+// The `.csv` data is two dimensional: Axis(0) denotes y-axis (rows), Axis(1) denotes x-axis (columns)
 pub fn iris() -> Dataset<f64, usize> {
     let data = include_bytes!("../data/iris.csv.gz");
     let array = array_from_buf(&data[..]);
@@ -38,6 +67,7 @@ pub fn iris() -> Dataset<f64, usize> {
 }
 
 #[cfg(feature = "diabetes")]
+/// Read in the diabetes dataset from dataset path
 pub fn diabetes() -> Dataset<f64, f64> {
     let data = include_bytes!("../data/diabetes_data.csv.gz");
     let data = array_from_buf(&data[..]);
@@ -62,6 +92,7 @@ pub fn diabetes() -> Dataset<f64, f64> {
 }
 
 #[cfg(feature = "winequality")]
+/// Read in the winequality dataset from dataset path
 pub fn winequality() -> Dataset<f64, usize> {
     let data = include_bytes!("../data/winequality-red.csv.gz");
     let array = array_from_buf(&data[..]);

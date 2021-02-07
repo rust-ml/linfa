@@ -12,10 +12,15 @@
 //!
 //! ## Current state
 //!
-//! Right now `linfa-clustering` only provides a single algorithm, `K-Means`, with
-//! a couple of helper functions.
+//! Right now `linfa-clustering` provides the following clustering algorithms:
+//! * [K-Means](struct.KMeans.html)
+//! * [DBSCAN](struct.Dbscan.html)
+//! * [Approximated DBSCAN](struct.AppxDbscan.html)
+//! * [Gaussian-Mixture-Model](struct.GaussianMixtureModel.html)
 //!
-//! Implementation choices, algorithmic details and a tutorial can be found [here](struct.KMeans.html).
+//! Implementation choices, algorithmic details and tutorials can be found in the page dedicated to the specific algorithms.
+//!
+//! Additionally, this crate provides the [`generate_blobs`](fn.generate_blobs.html) utility to quickly generate test datasets for clustering.
 //!
 //! Check [here](https://github.com/LukeMathWalker/clustering-benchmarks) for extensive benchmarks against `scikit-learn`'s K-means implementation.
 mod appx_dbscan;

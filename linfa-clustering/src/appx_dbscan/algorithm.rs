@@ -26,12 +26,12 @@ use serde_crate::{Deserialize, Serialize};
 /// This is an implementation of the approximated version of DBSCAN with
 /// complexity O(N). Additional information can be found in
 /// [this paper](https://www.cse.cuhk.edu.hk/~taoyf/paper/tods17-dbscan.pdf).
-/// Beware of the hidden constant O((1/slack)^dimensionality)` of the complexity
+/// Beware of the hidden constant `O((1/slack)^dimensionality)` of the complexity
 /// for very small values of `slack` and high dimensionalities.
 /// The approximated version of the DBSCAN converges to the exact DBSCAN result
 /// for a `slack` that goes to zero. Since only the `tranform` method is provided and
 /// border points are not assigned deterministically, it may happen that the two
-/// results still differ (in terms of border and noise points) for very small values
+/// results still differ (in terms of border points) for very small values
 /// of `slack`.
 ///
 /// ## The algorithm
