@@ -1,7 +1,7 @@
 use super::permutable_kernel::Permutable;
 use super::{ExitReason, Float, Svm};
 
-use ndarray::{Array1, ArrayView2, Axis};
+use ndarray::{Array1, Array2, ArrayView2, Axis};
 use std::marker::PhantomData;
 
 /// Parameters of the solver routine
@@ -40,6 +40,11 @@ impl<F: Float> Alpha<F> {
     pub fn val(&self) -> F {
         self.value
     }
+}
+
+pub enum SeparatingHyperplane<F: Float> {
+    Linear(Array1<F>),
+    WeightedCombination(Array2<F>),
 }
 
 /// Current state of the SMO solver
@@ -830,11 +835,18 @@ impl<'a, F: Float, K: 'a + Permutable<F>> SolverState<'a, F, K> {
         };
 
         // put back the solution
-        // mutable for succesive regression alpha values calculations
         let mut alpha: Vec<F> = (0..self.ntotal())
             .map(|i| self.alpha[self.active_set[i]].val())
             .collect();
 
+        // If we are solving a regresssion problem the number of alpha values
+        // computed by the solver are 2*(#samples). The final weights of each sample
+        // is then computed as alpha[i] - alpha[#samples + i].
+        // If instead the problem being solved is a calssification problem then
+        // the alpha values are already in the same number as the samples and
+        // they already represent their respective weights
+
+        // Computing the final alpha vaues for regression
         if self.ntotal() > self.dataset.len_of(Axis(0)) {
             for i in 0..self.dataset.len_of(Axis(0)) {
                 let tmp = alpha[i + self.dataset.len_of(Axis(0))];
@@ -846,34 +858,31 @@ impl<'a, F: Float, K: 'a + Permutable<F>> SolverState<'a, F, K> {
         // Make unmutable
         let alpha = alpha;
 
-        // This needs to be after the alpha calculation for regression
-        // otherwise it will precompute the dot product with the wrong
-        // values of alpha in the linear kernel case
-
-        // if the kernel is linear, then we can pre-calculate the dot product
-        let linear_decision = if self.kernel.inner().is_linear() {
+        // Now that the alpha values are set correctly we can proceed to calculate the
+        // support vectors. If the kernel used is linear then they can be pre-combined
+        // and we only need to store the vector given by their combination. If the kernel
+        // is non linear then we need to store all support vectors so that we are able to
+        // compute distances between them and new samples when making predictions.
+        let sep_hyperplane = if self.kernel.inner().is_linear() {
             let mut tmp = Array1::zeros(self.dataset.len_of(Axis(1)));
 
             for (i, elm) in self.dataset.outer_iter().enumerate() {
                 tmp.scaled_add(self.target(i) * alpha[i], &elm);
             }
 
-            Some(tmp)
+            SeparatingHyperplane::Linear(tmp)
         } else {
-            None
+            let support_vectors = self.dataset.select(
+                Axis(0),
+                &alpha
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, a)| a.abs() > F::from(100.).unwrap() * F::epsilon())
+                    .map(|(i, _)| i)
+                    .collect::<Vec<_>>(),
+            );
+            SeparatingHyperplane::WeightedCombination(support_vectors)
         };
-
-        // Select only vectors that have non-zero influence on the outcome
-        // of future predictions
-        let support_vectors = self.dataset.select(
-            Axis(0),
-            &alpha
-                .iter()
-                .enumerate()
-                .filter(|(_, a)| !a.is_zero())
-                .map(|(i, _)| i)
-                .collect::<Vec<_>>(),
-        );
 
         Svm {
             alpha,
@@ -882,9 +891,8 @@ impl<'a, F: Float, K: 'a + Permutable<F>> SolverState<'a, F, K> {
             exit_reason,
             obj,
             iterations: iter,
-            support_vectors: support_vectors,
+            sep_hyperplane: sep_hyperplane,
             kernel_method: self.kernel.to_inner().method,
-            linear_decision,
             phantom: PhantomData,
         }
     }

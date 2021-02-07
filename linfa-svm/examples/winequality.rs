@@ -15,7 +15,7 @@ fn main() {
     // fit a SVM with C value 7 and 0.6 for positive and negative classes
     let model = Svm::params()
         .pos_neg_weights(50000., 5000.)
-        .with_gaussian(80.0)
+        .gaussian_kernel(80.0)
         .fit(&train);
 
     println!("{}", model);

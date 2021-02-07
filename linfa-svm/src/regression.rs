@@ -2,7 +2,6 @@
 use linfa::{dataset::DatasetBase, traits::Fit, traits::Predict, traits::Transformer};
 use linfa_kernel::Kernel;
 use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix2};
-use std::ops::Mul;
 
 use super::permutable_kernel::PermutableKernelRegression;
 use super::solver_smo::SolverState;
@@ -225,11 +224,7 @@ impl<D: Data<Elem = f64>> Predict<ArrayBase<D, Ix2>, Vec<f64>> for Svm<f64, f64>
     fn predict(&self, data: ArrayBase<D, Ix2>) -> Vec<f64> {
         data.outer_iter()
             .map(|data| {
-                let val = match self.linear_decision {
-                    Some(ref x) => x.mul(&data).sum() - self.rho,
-                    None => self.weighted_sum(data.view()) - self.rho,
-                };
-
+                let val = self.weighted_sum(&data) - self.rho;
                 // this is safe because `F` is only implemented for `f32` and `f64`
                 val
             })
@@ -242,10 +237,7 @@ impl<D: Data<Elem = f64>> Predict<&ArrayBase<D, Ix2>, Vec<f64>> for Svm<f64, f64
     fn predict(&self, data: &ArrayBase<D, Ix2>) -> Vec<f64> {
         data.outer_iter()
             .map(|data| {
-                let val = match self.linear_decision {
-                    Some(ref x) => x.mul(&data).sum() - self.rho,
-                    None => self.weighted_sum(data.view()) - self.rho,
-                };
+                let val = self.weighted_sum(&data) - self.rho;
 
                 // this is safe because `F` is only implemented for `f32` and `f64`
                 val
@@ -275,7 +267,7 @@ pub mod tests {
 
         let model = Svm::params()
             .nu_eps(2., 0.01)
-            .with_gaussian(50.)
+            .gaussian_kernel(50.)
             .fit(&dataset);
 
         println!("{}", model);
@@ -296,7 +288,7 @@ pub mod tests {
 
         let model = Svm::params()
             .nu_eps(2., 0.01)
-            .with_gaussian(50.)
+            .gaussian_kernel(50.)
             .fit(&dataset);
 
         println!("{}", model);
@@ -314,7 +306,7 @@ pub mod tests {
         let dataset = (records, targets).into();
 
         // Test the precomputed dot product in the linear kernel case
-        let model = Svm::params().nu_eps(2., 0.01).with_linear().fit(&dataset);
+        let model = Svm::params().nu_eps(2., 0.01).linear_kernel().fit(&dataset);
 
         println!("{}", model);
 

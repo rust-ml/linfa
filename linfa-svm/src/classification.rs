@@ -2,7 +2,6 @@ use linfa::prelude::Transformer;
 use linfa::{dataset::DatasetBase, dataset::Pr, dataset::Targets, traits::Fit, traits::Predict};
 use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix2};
 use std::cmp::Ordering;
-use std::ops::Mul;
 
 use super::permutable_kernel::{PermutableKernel, PermutableKernelOneClass};
 use super::solver_smo::SolverState;
@@ -370,11 +369,7 @@ impl<'a, F: Float> Fit<'a, ArrayView2<'a, F>, &[()]> for SvmParams<F, Pr> {
 /// Predict a probability with a feature vector
 impl<'a, F: Float> Predict<Array1<F>, Pr> for Svm<F, Pr> {
     fn predict(&self, data: Array1<F>) -> Pr {
-        let val = match self.linear_decision {
-            Some(ref x) => x.mul(&data).sum() - self.rho,
-            None => self.weighted_sum(data.view()) - self.rho,
-        };
-
+        let val = self.weighted_sum(&data) - self.rho;
         // this is safe because `F` is only implemented for `f32` and `f64`
         Pr(val.to_f32().unwrap())
     }
@@ -383,11 +378,7 @@ impl<'a, F: Float> Predict<Array1<F>, Pr> for Svm<F, Pr> {
 /// Predict a probability with a feature vector
 impl<'a, F: Float> Predict<ArrayView1<'a, F>, Pr> for Svm<F, Pr> {
     fn predict(&self, data: ArrayView1<'a, F>) -> Pr {
-        let val = match self.linear_decision {
-            Some(ref x) => x.mul(&data).sum() - self.rho,
-            None => self.weighted_sum(data) - self.rho,
-        };
-
+        let val = self.weighted_sum(&data) - self.rho;
         // this is safe because `F` is only implemented for `f32` and `f64`
         Pr(val.to_f32().unwrap())
     }
@@ -401,11 +392,7 @@ impl<'a, F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Array1<Pr>> for
     fn predict(&self, data: ArrayBase<D, Ix2>) -> Array1<Pr> {
         data.outer_iter()
             .map(|data| {
-                let val = match self.linear_decision {
-                    Some(ref x) => x.mul(&data).sum() - self.rho,
-                    None => self.weighted_sum(data.view()) - self.rho,
-                };
-
+                let val = self.weighted_sum(&data) - self.rho;
                 // this is safe because `F` is only implemented for `f32` and `f64`
                 Pr(val.to_f32().unwrap())
             })
@@ -490,7 +477,7 @@ mod tests {
         // train model with positive and negative weight
         let model = Svm::params()
             .pos_neg_weights(1.0, 1.0)
-            .with_linear()
+            .linear_kernel()
             .fit(&dataset);
 
         let valid = model
@@ -501,7 +488,7 @@ mod tests {
         assert_eq!(cm.accuracy(), 1.0);
 
         // train model with Nu parameter
-        let model = Svm::params().nu_weight(0.05).with_linear().fit(&dataset);
+        let model = Svm::params().nu_weight(0.05).linear_kernel().fit(&dataset);
 
         let valid = model.predict(&valid).map_targets(|x| **x > 0.0);
 
@@ -520,7 +507,7 @@ mod tests {
         // train model with positive and negative weight
         let model = Svm::params()
             .pos_neg_weights(1.0, 1.0)
-            .with_polynomial(0.0, 2.0)
+            .polynomial_kernel(0.0, 2.0)
             .fit(&dataset);
 
         //println!("{:?}", model.predict(DatasetBase::from(records.clone())).targets());
@@ -542,7 +529,7 @@ mod tests {
         // train model with positive and negative weight
         let model = Svm::params()
             .pos_neg_weights(1.0, 1.0)
-            .with_gaussian(50.0)
+            .gaussian_kernel(50.0)
             .fit(&dataset);
 
         let valid = model
@@ -555,7 +542,7 @@ mod tests {
         // train model with Nu parameter
         let model = Svm::params()
             .nu_weight(0.01)
-            .with_gaussian(50.0)
+            .gaussian_kernel(50.0)
             .fit(&dataset);
 
         let valid = model.predict(&valid).map_targets(|x| **x > 0.0);
@@ -573,7 +560,7 @@ mod tests {
         // train model with positive and negative weight
         let model = Svm::params()
             .nu_weight(1.0)
-            .with_gaussian(100.0)
+            .gaussian_kernel(100.0)
             .fit(&dataset);
 
         let valid = DatasetBase::from(Array::random((100, 2), Uniform::new(-10., 10f32)));

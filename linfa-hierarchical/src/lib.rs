@@ -57,7 +57,7 @@ impl<F: Float> HierarchicalCluster<F> {
     }
 }
 
-impl<'b: 'a, 'a, F: Float> Transformer<Kernel<F>, DatasetBase<Kernel<F>, Vec<usize>>>
+impl<F: Float> Transformer<Kernel<F>, DatasetBase<Kernel<F>, Vec<usize>>>
     for HierarchicalCluster<F>
 {
     /// Perform hierarchical clustering of a similarity matrix
@@ -129,7 +129,7 @@ impl<'b: 'a, 'a, F: Float> Transformer<Kernel<F>, DatasetBase<Kernel<F>, Vec<usi
     }
 }
 
-impl<'a, F: Float, T: Targets>
+impl<F: Float, T: Targets>
     Transformer<DatasetBase<Kernel<F>, T>, DatasetBase<Kernel<F>, Vec<usize>>>
     for HierarchicalCluster<F>
 {
