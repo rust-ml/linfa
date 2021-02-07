@@ -1,7 +1,7 @@
 use super::permutable_kernel::Permutable;
 use super::{ExitReason, Float, Svm};
 
-use ndarray::{Array1, Axis};
+use ndarray::{Array1, Array2, ArrayView2, Axis};
 use std::marker::PhantomData;
 
 /// Parameters of the solver routine
@@ -42,6 +42,11 @@ impl<F: Float> Alpha<F> {
     }
 }
 
+pub enum SeparatingHyperplane<F: Float> {
+    Linear(Array1<F>),
+    WeightedCombination(Array2<F>),
+}
+
 /// Current state of the SMO solver
 ///
 /// We are solving the dual problem with linear constraints
@@ -61,6 +66,9 @@ pub struct SolverState<'a, F: Float, K: Permutable<F>> {
     unshrink: bool,
     nu_constraint: bool,
     r: F,
+
+    /// Training data
+    dataset: ArrayView2<'a, F>,
 
     /// Quadratic term of the problem
     kernel: K,
@@ -86,6 +94,7 @@ impl<'a, F: Float, K: 'a + Permutable<F>> SolverState<'a, F, K> {
         alpha: Vec<F>,
         p: Vec<F>,
         targets: Vec<bool>,
+        dataset: ArrayView2<'a, F>,
         kernel: K,
         bounds: Vec<F>,
         params: SolverParams<F>,
@@ -133,6 +142,7 @@ impl<'a, F: Float, K: 'a + Permutable<F>> SolverState<'a, F, K> {
             nactive: active_set.len(),
             unshrink: false,
             active_set,
+            dataset,
             kernel,
             targets,
             bounds,
@@ -825,20 +835,53 @@ impl<'a, F: Float, K: 'a + Permutable<F>> SolverState<'a, F, K> {
         };
 
         // put back the solution
-        let alpha: Vec<F> = (0..self.ntotal())
+        let mut alpha: Vec<F> = (0..self.ntotal())
             .map(|i| self.alpha[self.active_set[i]].val())
             .collect();
 
-        // if the kernel is linear, then we can pre-calculate the dot product
-        let linear_decision = if self.kernel.inner().is_linear() {
-            let mut tmp = Array1::zeros(self.kernel.inner().dataset.len_of(Axis(1)));
-            for (i, elm) in self.kernel.inner().dataset.outer_iter().enumerate() {
+        // If we are solving a regresssion problem the number of alpha values
+        // computed by the solver are 2*(#samples). The final weights of each sample
+        // is then computed as alpha[i] - alpha[#samples + i].
+        // If instead the problem being solved is a calssification problem then
+        // the alpha values are already in the same number as the samples and
+        // they already represent their respective weights
+
+        // Computing the final alpha vaues for regression
+        if self.ntotal() > self.dataset.len_of(Axis(0)) {
+            for i in 0..self.dataset.len_of(Axis(0)) {
+                let tmp = alpha[i + self.dataset.len_of(Axis(0))];
+                alpha[i] -= tmp;
+            }
+            alpha.truncate(self.dataset.len_of(Axis(0)));
+        }
+
+        // Make unmutable
+        let alpha = alpha;
+
+        // Now that the alpha values are set correctly we can proceed to calculate the
+        // support vectors. If the kernel used is linear then they can be pre-combined
+        // and we only need to store the vector given by their combination. If the kernel
+        // is non linear then we need to store all support vectors so that we are able to
+        // compute distances between them and new samples when making predictions.
+        let sep_hyperplane = if self.kernel.inner().is_linear() {
+            let mut tmp = Array1::zeros(self.dataset.len_of(Axis(1)));
+
+            for (i, elm) in self.dataset.outer_iter().enumerate() {
                 tmp.scaled_add(self.target(i) * alpha[i], &elm);
             }
 
-            Some(tmp)
+            SeparatingHyperplane::Linear(tmp)
         } else {
-            None
+            let support_vectors = self.dataset.select(
+                Axis(0),
+                &alpha
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, a)| a.abs() > F::from(100.).unwrap() * F::epsilon())
+                    .map(|(i, _)| i)
+                    .collect::<Vec<_>>(),
+            );
+            SeparatingHyperplane::WeightedCombination(support_vectors)
         };
 
         Svm {
@@ -848,8 +891,8 @@ impl<'a, F: Float, K: 'a + Permutable<F>> SolverState<'a, F, K> {
             exit_reason,
             obj,
             iterations: iter,
-            kernel: self.kernel.to_inner(),
-            linear_decision,
+            sep_hyperplane: sep_hyperplane,
+            kernel_method: self.kernel.to_inner().method,
             phantom: PhantomData,
         }
     }

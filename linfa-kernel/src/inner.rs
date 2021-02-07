@@ -6,6 +6,8 @@ use serde_crate::{Deserialize, Serialize};
 use sprs::{CsMat, CsMatView};
 use std::ops::Mul;
 
+/// Specifies the methods an inner matrix of a kernel must
+/// be able to provide
 pub trait Inner {
     type Elem: Float;
 
@@ -18,6 +20,8 @@ pub trait Inner {
     fn diagonal(&self) -> Array1<Self::Elem>;
 }
 
+/// Allows a kernel to have either a dense or a sparse inner
+/// matrix in a way that is transparent to the user
 pub enum KernelInner<K1: Inner, K2: Inner> {
     Dense(K1),
     Sparse(K2),

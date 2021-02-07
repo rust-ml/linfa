@@ -1,13 +1,13 @@
 use crate::Float;
-use linfa_kernel::KernelOwned;
+use linfa_kernel::Kernel;
 use ndarray::Array1;
 
 pub trait Permutable<F: Float> {
     fn swap_indices(&mut self, i: usize, j: usize);
     fn distances(&self, idx: usize, length: usize) -> Vec<F>;
     fn self_distance(&self, idx: usize) -> F;
-    fn inner(&self) -> &KernelOwned<F>;
-    fn to_inner(self) -> KernelOwned<F>;
+    fn inner(&self) -> &Kernel<F>;
+    fn to_inner(self) -> Kernel<F>;
 }
 
 /// KernelView matrix with permutable columns
@@ -15,14 +15,14 @@ pub trait Permutable<F: Float> {
 /// This struct wraps a kernel matrix with access indices. The working set can shrink during the
 /// optimization and it is therefore necessary to reorder entries.
 pub struct PermutableKernel<F: Float> {
-    kernel: KernelOwned<F>,
+    kernel: Kernel<F>,
     kernel_diag: Array1<F>,
     kernel_indices: Vec<usize>,
     targets: Vec<bool>,
 }
 
 impl<F: Float> PermutableKernel<F> {
-    pub fn new(kernel: KernelOwned<F>, targets: Vec<bool>) -> PermutableKernel<F> {
+    pub fn new(kernel: Kernel<F>, targets: Vec<bool>) -> PermutableKernel<F> {
         let kernel_diag = kernel.diagonal();
         let kernel_indices = (0..kernel.size()).collect::<Vec<_>>();
 
@@ -64,12 +64,12 @@ impl<F: Float> Permutable<F> for PermutableKernel<F> {
     }
 
     /// Return internal kernel
-    fn inner(&self) -> &KernelOwned<F> {
+    fn inner(&self) -> &Kernel<F> {
         &self.kernel
     }
 
     /// Return internal kernel
-    fn to_inner(self) -> KernelOwned<F> {
+    fn to_inner(self) -> Kernel<F> {
         self.kernel
     }
 
@@ -82,13 +82,13 @@ impl<F: Float> Permutable<F> for PermutableKernel<F> {
 }
 
 pub struct PermutableKernelOneClass<F: Float> {
-    kernel: KernelOwned<F>,
+    kernel: Kernel<F>,
     kernel_diag: Array1<F>,
     kernel_indices: Vec<usize>,
 }
 
 impl<F: Float> PermutableKernelOneClass<F> {
-    pub fn new(kernel: KernelOwned<F>) -> PermutableKernelOneClass<F> {
+    pub fn new(kernel: Kernel<F>) -> PermutableKernelOneClass<F> {
         let kernel_diag = kernel.diagonal();
         let kernel_indices = (0..kernel.size()).collect::<Vec<_>>();
 
@@ -119,12 +119,12 @@ impl<F: Float> Permutable<F> for PermutableKernelOneClass<F> {
     }
 
     /// Return internal kernel
-    fn inner(&self) -> &KernelOwned<F> {
+    fn inner(&self) -> &Kernel<F> {
         &self.kernel
     }
 
     /// Return internal kernel
-    fn to_inner(self) -> KernelOwned<F> {
+    fn to_inner(self) -> Kernel<F> {
         self.kernel
     }
 
@@ -137,14 +137,14 @@ impl<F: Float> Permutable<F> for PermutableKernelOneClass<F> {
 }
 
 pub struct PermutableKernelRegression<F: Float> {
-    kernel: KernelOwned<F>,
+    kernel: Kernel<F>,
     kernel_diag: Array1<F>,
     kernel_indices: Vec<usize>,
     signs: Vec<bool>,
 }
 
 impl<'a, F: Float> PermutableKernelRegression<F> {
-    pub fn new(kernel: KernelOwned<F>) -> PermutableKernelRegression<F> {
+    pub fn new(kernel: Kernel<F>) -> PermutableKernelRegression<F> {
         let kernel_diag = kernel.diagonal();
         let kernel_indices = (0..2 * kernel.size())
             .map(|x| {
@@ -196,12 +196,12 @@ impl<'a, F: Float> Permutable<F> for PermutableKernelRegression<F> {
     }
 
     /// Return internal kernel
-    fn inner(&self) -> &KernelOwned<F> {
+    fn inner(&self) -> &Kernel<F> {
         &self.kernel
     }
 
     /// Return internal kernel
-    fn to_inner(self) -> KernelOwned<F> {
+    fn to_inner(self) -> Kernel<F> {
         self.kernel
     }
 
@@ -216,17 +216,16 @@ impl<'a, F: Float> Permutable<F> for PermutableKernelRegression<F> {
 #[cfg(test)]
 mod tests {
     use super::{Permutable, PermutableKernel};
-    use linfa_kernel::{KernelInner, KernelMethod, KernelOwned};
+    use linfa_kernel::{Kernel, KernelInner, KernelMethod};
     use ndarray::array;
 
     #[test]
     fn test_permutable_kernel() {
         let dist = array![[1.0, 0.3, 0.1], [0.3, 1.0, 0.5], [0.1, 0.5, 1.0]];
         let targets = vec![true, true, true];
-        let dist = KernelOwned {
-            inner: KernelInner::Dense(dist.clone()),
+        let dist = Kernel {
+            inner: KernelInner::Dense(dist),
             method: KernelMethod::Linear,
-            dataset: dist,
         };
 
         let mut kernel = PermutableKernel::new(dist, targets);
