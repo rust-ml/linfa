@@ -4,7 +4,12 @@ use linfa::Dataset;
 use ndarray::prelude::*;
 use ndarray_csv::Array2Reader;
 
-#[cfg(any(feature = "iris", feature = "diabetes", feature = "winequality"))]
+#[cfg(any(
+    feature = "iris",
+    feature = "diabetes",
+    feature = "winequality",
+    feature = "linnerud"
+))]
 fn array_from_buf(buf: &[u8]) -> Array2<f64> {
     // unzip file
     let file = GzDecoder::new(buf);
@@ -55,4 +60,15 @@ pub fn winequality() -> Dataset<f64, usize> {
     );
 
     Dataset::new(data, targets).map_targets(|x| *x as usize)
+}
+
+#[cfg(feature = "linnerud")]
+pub fn diabetes() -> Dataset<f64, f64> {
+    let data = include_bytes!("../data/linnerud_exercise.csv.gz");
+    let data = array_from_buf(&data[..]);
+
+    let targets = include_bytes!("../data/linnerud_physiological.csv.gz");
+    let targets = array_from_buf(&targets[..]).column(0).to_owned();
+
+    Dataset::new(data, targets)
 }
