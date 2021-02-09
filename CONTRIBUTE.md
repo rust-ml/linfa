@@ -6,22 +6,22 @@ This document should be used as a reference when contributing to Linfa. It descr
 
 An important part of the Linfa ecosystem is how to organize data for the training and estimation process. A [Dataset](src/dataset/mod.rs) serves this purpose. It is a small wrapper of data and targets types and should be used as argument for the [Fit](src/traits.rs) trait. Its parametrization is generic, with [Records](src/dataset/mod.rs) representing input data (atm only implemented for `ndarray::ArrayBase`) and [Targets](src/dataset/mod.rs) for targets.
 
-You can find traits for different classes of algorithms [here](src/traits.rs). For example, to implement a fittable algorithm, which takes a `Kernel` as input data and boolean array as targets:
+You can find traits for different classes of algorithms [here](src/traits.rs). For example, to implement a fittable algorithm, which takes an `Array2` as input data and boolean array as targets:
 ```rust
-impl<'a, F: Float> Fit<'a, Kernel<'a, F>, Vec<bool>> for SvmParams<F, Pr> {
-    type Object = Svm<'a, F, Pr>;
+impl<'a, F: Float> Fit<'a, Array2<F>, Array1<bool>> for SvmParams<F, Pr> {
+    type Object = Svm<F, Pr>;
 
-    fn fit(&self, dataset: &'a Dataset<Kernel<'a, F>, Vec<bool>>) -> Self::Object {
+    fn fit(&self, dataset: &Dataset<Array2<F>, Array1<bool>>) -> Self::Object {
         ...
     }
 }
 ```
-the type of the dataset is `&'a Dataset<Kernel<'a, F>, Vec<bool>>`, ensuring that the kernel lives long enough during the training. It produces a fitted state, called `Svm<'a, F, Pr>` with probability type `Pr`.
+the type of the dataset is `&Dataset<Kernel<F>, Arrat1<bool>>`, and lifetime `'a` is the required lifetime for the fitted state. It produces a fitted state, called `Svm<F, Pr>` with probability type `Pr`.
 
 The [Predict](src/traits.rs) should be implemented with dataset arguments, as well as arrays. If a dataset is provided, then predict takes its ownership and returns a new dataset with predicted targets. For an array, predict takes a reference and returns predicted targets. In the same context, SVM implemented predict like this:
 ```rust
-impl<'a, F: Float, T: Targets> Predict<Dataset<Array2<F>, T>, Dataset<Array2<F>, Vec<Pr>>>
-    for Svm<'a, F, Pr>
+impl<F: Float, T: Targets> Predict<Dataset<Array2<F>, T>, Dataset<Array2<F>, Vec<Pr>>>
+    for Svm<F, Pr>
 {
     fn predict(&self, data: Dataset<Array2<F>, T>) -> Dataset<Array2<F>, Vec<Pr>> {
         ...
@@ -30,7 +30,7 @@ impl<'a, F: Float, T: Targets> Predict<Dataset<Array2<F>, T>, Dataset<Array2<F>,
 ```
 and
 ```rust
-impl<'a, F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Vec<Pr>> for Svm<'a, F, Pr> {
+impl<F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Vec<Pr>> for Svm<F, Pr> {
     fn predict(&self, data: ArrayBase<D, Ix2>) -> Vec<Pr> {
         ...
     }
@@ -114,10 +114,10 @@ For the last step you can look at similar implementations, for example the Iris 
 
 After adding it to the `linfa-datasets` crate you can include with the corresponding feature to your `Cargo.toml` file
 ```
-linfa-datasets = { version = "0.2.1", path = "../datasets", features = ["winequality"] }
+linfa-datasets = { version = "0.3.0", path = "../datasets", features = ["winequality"] }
 ```
 and then use it in your example or tests as
-```
+```rust
 fn main() {
     let (train, valid) = linfa_datasets::winequality()
         .split_with_ratio(0.8);

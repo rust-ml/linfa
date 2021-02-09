@@ -23,7 +23,7 @@ pub struct AppxDbscanHyperParams<F: Float> {
     appx_tolerance: F,
 }
 
-/// Helper struct used to construct a set of hyperparameters for
+/// Helper struct used to construct a set of hyperparameters for the approximated DBSCAN algorithm
 pub struct AppxDbscanHyperParamsBuilder<F: Float> {
     tolerance: F,
     min_points: usize,
@@ -93,6 +93,7 @@ impl<F: Float> AppxDbscanHyperParams<F> {
         self.slack
     }
 
+    /// Maximum approximated radius, equal to `tolerance * (1 + slack)`
     pub fn appx_tolerance(&self) -> F {
         self.appx_tolerance
     }
