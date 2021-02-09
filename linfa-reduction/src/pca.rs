@@ -1,7 +1,22 @@
 //! Principal Component Analysis
 //!
-//! Reduce dimensionality with a linear projection using Singular Value Decomposition. The data is
-//! centered before applying the SVD. This uses TruncatedSvd from ndarray-linalg package.
+//! Principal Component Analysis is a common technique for data and dimensionality reduction. It
+//! tries to reduce the dimensionality while retaining most of the variance in the data. This is
+//! done by projecting the data to a lower dimensional space with SVD and eigenvalue analysis. This
+//! implementation uses the `TruncatedSvd` routine in `ndarray-linalg`.
+//!
+//! # Example
+//!
+//! ```
+//! use linfa::traits::Fit;
+//! use linfa_reduction::Pca;
+//!
+//! let dataset = linfa_datasets::iris();
+//!
+//! // apply PCA projection along a line which maximizes the spread of the data
+//! let embedding = Pca::params(1)
+//!     .fit(&dataset);
+//! ```
 //!
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2};
 use ndarray_linalg::{TruncatedOrder, TruncatedSvd};
@@ -9,24 +24,25 @@ use ndarray_linalg::{TruncatedOrder, TruncatedSvd};
 use serde_crate::{Deserialize, Serialize};
 
 use linfa::{
+    dataset::Targets,
     traits::{Fit, Predict},
     DatasetBase, Float,
 };
 
-/// Pincipal Component Analysis
+/// Pincipal Component Analysis parameters
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-pub struct PrincipalComponentAnalysisParams {
+pub struct PcaParams {
     embedding_size: usize,
 }
 
-impl<'a> Fit<'a, Array2<f64>, ()> for PrincipalComponentAnalysisParams {
+impl<'a, T: Targets> Fit<'a, Array2<f64>, T> for PcaParams {
     type Object = Pca<f64>;
 
-    fn fit(&self, dataset: &DatasetBase<Array2<f64>, ()>) -> Pca<f64> {
+    fn fit(&self, dataset: &DatasetBase<Array2<f64>, T>) -> Pca<f64> {
         let mut x = dataset.records().to_owned();
         // calculate mean of data and subtract it
         let mean = x.mean_axis(Axis(0)).unwrap();
@@ -49,6 +65,7 @@ impl<'a> Fit<'a, Array2<f64>, ()> for PrincipalComponentAnalysisParams {
     }
 }
 
+/// Fitted PCA model
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -62,10 +79,13 @@ pub struct Pca<F> {
 }
 
 impl Pca<f64> {
-    pub fn params(size: usize) -> PrincipalComponentAnalysisParams {
-        PrincipalComponentAnalysisParams {
-            embedding_size: size,
-        }
+    /// Create parameter set
+    ///
+    /// # Parameters
+    ///
+    ///  * `embedding_size`: the target dimensionality
+    pub fn params(embedding_size: usize) -> PcaParams {
+        PcaParams { embedding_size }
     }
 
     /// Return the amount of explained variance per element

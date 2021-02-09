@@ -1,3 +1,4 @@
+use linfa::error::Result;
 use linfa::traits::Transformer;
 use linfa_kernel::{Kernel, KernelMethod, KernelType};
 use linfa_reduction::utils::generate_convoluted_rings2d;
@@ -6,7 +7,7 @@ use ndarray_npy::write_npy;
 use ndarray_rand::rand::SeedableRng;
 use rand_isaac::Isaac64Rng;
 
-fn main() {
+fn main() -> Result<()> {
     // Our random number generator, seeded for reproducibility
     let mut rng = Isaac64Rng::seed_from_u64(42);
 
@@ -25,10 +26,7 @@ fn main() {
         //.kind(KernelType::Dense)
         .transform(dataset.view());
 
-    let embedding = DiffusionMap::<f64>::params(2)
-        .steps(1)
-        .build()
-        .transform(&kernel);
+    let embedding = DiffusionMap::<f64>::params(2).steps(1).transform(&kernel)?;
 
     // get embedding
     let embedding = embedding.embedding();
@@ -36,5 +34,8 @@ fn main() {
     // Save to disk our dataset (and the cluster label assigned to each observation)
     // We use the `npy` format for compatibility with NumPy
     write_npy("diffusion_map_dataset.npy", dataset).expect("Failed to write .npy file");
-    write_npy("diffusion_map_embedding.npy", embedding).expect("Failed to write .npy file");
+    write_npy("diffusion_map_embedding.npy", embedding.to_owned())
+        .expect("Failed to write .npy file");
+
+    Ok(())
 }
