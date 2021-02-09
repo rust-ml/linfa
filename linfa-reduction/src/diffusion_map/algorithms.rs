@@ -1,3 +1,32 @@
+//! Diffusion Map
+//!
+//! The diffusion map computes an embedding of the data by applying PCA on the diffusion operator
+//! of the data. It transforms the data along the direction of the largest diffusion flow and is therefore 
+//! a non-linear dimensionality reduction technique. A normalized kernel describes the high dimensional
+//! diffusion graph with the (i, j) entry the probability that a diffusion happens from point i to
+//! j.
+//!
+//! # Example
+//!
+//! ```
+//! use linfa::traits::Transformer;
+//! use linfa_kernel::{Kernel, KernelType, KernelMethod};
+//! use linfa_reduction::DiffusionMap;
+//!
+//! let dataset = linfa_datasets::iris();
+//!
+//! // generate sparse gaussian kernel with eps = 2
+//! let kernel = Kernel::params()
+//!     .kind(KernelType::Sparse(15))
+//!     .method(KernelMethod::Gaussian(2.0))
+//!     .transform(dataset.records());
+//!
+//! let embedding = DiffusionMap::<f64>::params(2)
+//!     .steps(1)
+//!     .build()
+//!     .transform(&kernel);
+//! ```
+//!
 use ndarray::{Array1, Array2};
 use ndarray_linalg::{
     eigh::EighInto, lobpcg, lobpcg::LobpcgResult, Lapack, Scalar, TruncatedOrder, UPLO,
