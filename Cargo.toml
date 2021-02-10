@@ -36,7 +36,7 @@ blas = ["ndarray/blas"]
 num-traits = "0.2"
 rand = { version = "0.7", features = ["small_rng"] }
 ndarray = { version = "0.13", default-features = false }
-ndarray-linalg = { version = "0.12", optional = true }
+ndarray-linalg = { version = "0.12.1", optional = true }
 
 [dependencies.intel-mkl-src]
 version = "0.6.0"
