@@ -10,7 +10,7 @@ use std::fmt;
 use ndarray::prelude::*;
 use ndarray::Data;
 
-use crate::dataset::{DatasetBase, Label, Labels, Pr, Records, Targets};
+use crate::dataset::{DatasetBase, Label, Pr, Records, Targets};
 
 /// Return tuple of class index for each element of prediction and ground_truth
 fn map_prediction_to_idx<L: Label>(
@@ -265,8 +265,8 @@ impl<
         R: Records,
         R2: Records,
         L: Label,
-        T: Targets<Elem = L> + Labels<Elem = L>,
-        T2: Targets<Elem = L> + Labels<Elem = L>,
+        T: Targets<Elem = L>,
+        T2: Targets<Elem = L>,
     > ToConfusionMatrix<L, &DatasetBase<R, T>> for DatasetBase<R2, T2>
 {
     fn confusion_matrix(&self, ground_truth: &DatasetBase<R, T>) -> ConfusionMatrix<L> {
@@ -290,7 +290,7 @@ impl<
     }
 }
 
-impl<R: Records, L: Label, T: Targets<Elem = L> + Labels<Elem = L>>
+impl<R: Records, L: Label, T: Targets<Elem = L>>
     ToConfusionMatrix<L, &DatasetBase<R, T>> for Vec<L>
 {
     fn confusion_matrix(&self, ground_truth: &DatasetBase<R, T>) -> ConfusionMatrix<L> {
@@ -345,7 +345,7 @@ impl<L: Label, S: Data<Elem = L>, T: Data<Elem = L>> ToConfusionMatrix<L, ArrayB
     }
 }
 
-impl<L: Label, S: Data<Elem = L>, T: Targets<Elem = L> + Labels<Elem = L>, R: Records>
+impl<L: Label, S: Data<Elem = L>, T: Targets<Elem = L>, R: Records>
     ToConfusionMatrix<L, &DatasetBase<R, T>> for ArrayBase<S, Ix1>
 {
     fn confusion_matrix(&self, ground_truth: &DatasetBase<R, T>) -> ConfusionMatrix<L> {

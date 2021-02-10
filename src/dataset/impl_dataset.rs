@@ -1,11 +1,11 @@
 use ndarray::{
-    stack, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Dimension, Ix1, Ix2,
+    stack, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Dimension, Ix1, Ix2, RemoveAxis, OwnedRepr, s, ArrayView
 };
 use rand::{seq::SliceRandom, Rng};
 use std::collections::HashMap;
 
 use super::{
-    iter::Iter, Dataset, DatasetBase, DatasetView, Float, Label, Labels, Records, Targets,
+    iter::Iter, Dataset, DatasetBase, DatasetView, Float, Label, Records, Targets,
 };
 
 /// Iterate over observations
@@ -28,7 +28,7 @@ impl<F: Float, L: Label> DatasetBase<Array2<F>, Array1<L>> {
     }
 }
 
-impl<R: Records, S: Targets> DatasetBase<R, S> {
+impl<R: Records, S> DatasetBase<R, S> {
     /// Create a new dataset from records and targets
     ///
     /// # Example
@@ -50,10 +50,10 @@ impl<R: Records, S: Targets> DatasetBase<R, S> {
         &self.targets
     }
 
-    /// Return a single target at position `idx`
+    /*/// Return a single target at position `idx`
     pub fn target(&self, idx: usize) -> &S::Elem {
         &self.targets.as_slice()[idx]
-    }
+    }*/
 
     /// Returns optionally weights
     pub fn weights(&self) -> Option<&[f32]> {
@@ -207,18 +207,18 @@ impl<F: Float, T: Targets, D: Data<Elem = F>> DatasetBase<ArrayBase<D, Ix2>, T> 
     }
 }
 
-impl<F: Float, L: Label, T: Labels<Elem = L>, D: Data<Elem = F>> DatasetBase<ArrayBase<D, Ix2>, T> {
+impl<F: Float, L: Label, T: Targets<Elem = L>, D: Data<Elem = F>> DatasetBase<ArrayBase<D, Ix2>, T> {
     /// Produce N boolean targets from multi-class targets
     ///
     /// Some algorithms (like SVM) don't support multi-class targets. This function splits a
     /// dataset into multiple binary target view of the same dataset.
-    pub fn one_vs_all(&self) -> Vec<DatasetBase<ArrayView2<'_, F>, Vec<bool>>> {
+    pub fn one_vs_all(&self) -> Vec<DatasetBase<ArrayView2<'_, F>, Array1<bool>>> {
+        let targets = self.targets().try_single_target().unwrap();
+
         self.labels()
             .into_iter()
             .map(|label| {
-                let targets = self
-                    .targets()
-                    .as_slice()
+                let targets = targets
                     .iter()
                     .map(|x| x == &label)
                     .collect();
@@ -229,11 +229,7 @@ impl<F: Float, L: Label, T: Labels<Elem = L>, D: Data<Elem = F>> DatasetBase<Arr
     }
 }
 
-impl<L: Label, R: Records, S: Labels<Elem = L>> DatasetBase<R, S> {
-    pub fn labels(&self) -> Vec<L> {
-        self.targets.labels()
-    }
-
+impl<L: Label, R: Records, S: Targets<Elem = L>> DatasetBase<R, S> {
     /// Calculates label frequencies from a dataset while masking certain samples.
     ///
     /// ### Parameters
@@ -287,12 +283,12 @@ impl<F: Float, T: Targets, D: Data<Elem = F>, I: Dimension> From<(ArrayBase<D, I
     }
 }
 
-impl<F: Float, E: Copy> Dataset<F, E> {
+impl<'b, F: Float, E: Copy + 'b, D: Data<Elem = F>, S: Data<Elem = E>, I: Dimension + RemoveAxis> DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, I>> {
     pub fn bootstrap<'a, R: Rng>(
         &'a self,
         num_samples: usize,
         rng: &'a mut R,
-    ) -> impl Iterator<Item = Dataset<F, E>> + 'a {
+    ) -> impl Iterator<Item = DatasetBase<Array2<F>, ArrayBase<OwnedRepr<E>, I>>> + 'a {
         std::iter::repeat(()).map(move |_| {
             // sample with replacement
             let indices = (0..num_samples)
@@ -300,12 +296,9 @@ impl<F: Float, E: Copy> Dataset<F, E> {
                 .collect::<Vec<_>>();
 
             let records = self.records().select(Axis(0), &indices);
-            let targets = indices
-                .iter()
-                .map(|x| self.targets[*x])
-                .collect::<ArrayBase<_, Ix1>>();
+            let targets = self.targets().select(Axis(0), &indices);
 
-            Dataset::new(records, targets)
+            DatasetBase::new(records, targets)
         })
     }
 
@@ -318,11 +311,17 @@ impl<F: Float, E: Copy> Dataset<F, E> {
     /// ### Returns
     ///
     /// A new shuffled version of the current Dataset
-    pub fn shuffle<R: Rng>(self, rng: &mut R) -> Self {
-        self.view().shuffle(rng)
+    pub fn shuffle<R: Rng>(self, rng: &mut R) -> DatasetBase<Array2<F>, ArrayBase<OwnedRepr<E>, I>> {
+        let mut indices = (0..(&self).observations()).collect::<Vec<_>>();
+        indices.shuffle(&mut rng);
+
+        let records = (&self).records().select(Axis(0), &indices);
+        let targets = (&self).targets().select(Axis(0), &indices);
+
+        DatasetBase::new(records, targets)
     }
 
-    /// Split dataset into two disjoint chunks
+    /*/// Split dataset into two disjoint chunks
     ///
     /// This function splits the observations in a dataset into two disjoint chunks. The splitting
     /// threshold is calculated with the `ratio`. If the input Dataset contains `n` samples then the
@@ -343,7 +342,7 @@ impl<F: Float, E: Copy> Dataset<F, E> {
         let npoints = self.records.nrows();
         let n = (npoints as f32 * ratio).ceil() as usize;
 
-        // split records into two disjoint arrays
+        /*// split records into two disjoint arrays
         let mut array_buf = self.records.into_raw_vec();
         let second_array_buf = array_buf.split_off(n * nfeatures);
 
@@ -367,14 +366,17 @@ impl<F: Float, E: Copy> Dataset<F, E> {
         // create new datasets with attached weights
         let dataset1 = Dataset::new(first, first_targets).with_weights(self.weights);
         let dataset2 = Dataset::new(second, second_targets).with_weights(second_weights);
-        (dataset1, dataset2)
-    }
+        (dataset1, dataset2)*/
+
+        let (r1, r2) = self.records.multi_slice_move((s![..n], s![n..]));
+        let
+    }*/
 
     /// Performs K-folding on the dataset.
-    /// The dataset is divided into `k` "folds", each containing
+    /// The dataset is divided into `k` "fold", each containing
     /// `(dataset size)/k` samples, used to generate `k` training-validation
-    /// dataset pairs. Each pair contains a validation `Dataset` with `k` samples(
-    ///  the ones contained in the i-th fold), and a training `Dataset` composed by the
+    /// dataset pairs. Each pair contains a validation `Dataset` with `k` samples,
+    ///  the ones contained in the i-th fold, and a training `Dataset` composed by the
     /// union of all the samples in the remaining folds.
     ///
     /// ### Parameters
@@ -388,13 +390,13 @@ impl<F: Float, E: Copy> Dataset<F, E> {
     /// ### Example
     ///
     /// ```rust
-    /// use linfa::dataset::Dataset;
+    /// use linfa::dataset::DatasetView;
     /// use ndarray::{arr1, arr2};
     ///
     /// let records = arr2(&[[1.,1.], [2.,1.], [3.,2.], [4.,1.],[5., 3.], [6.,2.]]);
     /// let targets = arr1(&[1, 1, 0, 1, 0, 0]);
     ///
-    /// let dataset : Dataset<f64, usize> = Dataset::new(records, targets);
+    /// let dataset : DatasetView<f64, usize> = DatasetView::new(records.view(), targets.view());
     /// let accuracies = dataset.fold(3).into_iter().map(|(train, valid)| {
     ///     // Here you can train your model and perform validation
     ///     
@@ -403,23 +405,55 @@ impl<F: Float, E: Copy> Dataset<F, E> {
     ///     // predi.confusion_matrix(&valid).accuracy()  
     /// });
     /// ```
-    ///
-    pub fn fold(&self, k: usize) -> Vec<(Dataset<F, E>, Dataset<F, E>)> {
-        self.view().fold(k)
+    ///  
+    pub fn fold(&self, k: usize) -> Vec<(DatasetBase<Array2<F>, ArrayBase<OwnedRepr<E>, I>>, DatasetBase<Array2<F>, ArrayBase<OwnedRepr<E>, I>>)> {
+        let fold_size = self.targets().len() / k;
+        let mut res = Vec::new();
+
+        // Generates all k folds of records and targets
+        let mut records_chunks: Vec<_> =
+            self.records.axis_chunks_iter(Axis(0), fold_size).collect();
+        let mut targets_chunks: Vec<_> =
+            self.targets.axis_chunks_iter(Axis(0), fold_size).collect();
+
+        // For each iteration, take the first chunk for both records and targets as the validation set and
+        // stack all the other chunks to create the training set. In the end swap the first chunk with the
+        // one in the next index so that it is ready for the next iteration
+        for i in 0..k {
+            let remaining_records = stack(Axis(0), &records_chunks.as_slice()[1..]).unwrap();
+            let remaining_targets = stack(Axis(0), &targets_chunks.as_slice()[1..]).unwrap();
+
+            res.push((
+                // training
+                DatasetBase::new(remaining_records, remaining_targets),
+                // validation
+                DatasetBase::new(
+                    records_chunks[0].into_owned(),
+                    targets_chunks[0].into_owned(),
+                ),
+            ));
+
+            // swap
+            if i < k - 1 {
+                records_chunks.swap(0, i + 1);
+                targets_chunks.swap(0, i + 1);
+            }
+        }
+        res
     }
 
     pub fn axis_chunks_iter(
-        &self,
+        &'b self,
         axis: Axis,
         chunk_size: usize,
-    ) -> impl Iterator<Item = DatasetView<F, E>> {
+    ) -> impl Iterator<Item = DatasetBase<ArrayView2<F>, ArrayView<E, I>>> {
         self.records()
             .axis_chunks_iter(axis, chunk_size)
             .zip(self.targets().axis_chunks_iter(axis, chunk_size))
-            .map(|(rec, tar)| (rec, tar).into())
+            .map(|(rec, tar)| DatasetBase::new(rec, tar))
     }
 
-    /// Allows to perform k-folding cross validation on fittable algorithms.
+    /*/// Allows to perform k-folding cross validation on fittable algorithms.
     ///
     /// Given in input a dataset, a value of k and the desired params for the fittable
     /// algorithm, returns an iterator over the k trained models and the
@@ -517,7 +551,7 @@ impl<F: Float, E: Copy> Dataset<F, E> {
         }
         objs.into_iter()
             .zip(self.axis_chunks_iter(Axis(0), fold_size))
-    }
+    }*/
 }
 
 fn assist_swap_array1<E>(slice: &mut [E], index: usize, fold_size: usize) {
@@ -542,7 +576,7 @@ fn assist_swap_array2<F>(slice: &mut [F], index: usize, fold_size: usize, featur
 }
 
 impl<'a, F: Float, E: Copy> DatasetView<'a, F, E> {
-    pub fn bootstrap<R: Rng>(
+    /*pub fn bootstrap<R: Rng>(
         &'a self,
         num_samples: usize,
         rng: &'a mut R,
@@ -561,8 +595,9 @@ impl<'a, F: Float, E: Copy> DatasetView<'a, F, E> {
 
             Dataset::new(records, targets)
         })
-    }
+    }*/
 
+    /*
     /// Produces a shuffled version of the current Dataset.
     ///
     /// ### Parameters
@@ -583,77 +618,8 @@ impl<'a, F: Float, E: Copy> DatasetView<'a, F, E> {
             .collect::<Array1<_>>();
 
         DatasetBase::new(records, targets)
-    }
+    }*/
 
-    /// Performs K-folding on the dataset.
-    /// The dataset is divided into `k` "fold", each containing
-    /// `(dataset size)/k` samples, used to generate `k` training-validation
-    /// dataset pairs. Each pair contains a validation `Dataset` with `k` samples,
-    ///  the ones contained in the i-th fold, and a training `Dataset` composed by the
-    /// union of all the samples in the remaining folds.
-    ///
-    /// ### Parameters
-    ///
-    /// * `k`: the number of folds to apply
-    ///
-    /// ### Returns
-    ///
-    /// A vector of `k` training-validation Dataset pairs.
-    ///
-    /// ### Example
-    ///
-    /// ```rust
-    /// use linfa::dataset::DatasetView;
-    /// use ndarray::{arr1, arr2};
-    ///
-    /// let records = arr2(&[[1.,1.], [2.,1.], [3.,2.], [4.,1.],[5., 3.], [6.,2.]]);
-    /// let targets = arr1(&[1, 1, 0, 1, 0, 0]);
-    ///
-    /// let dataset : DatasetView<f64, usize> = DatasetView::new(records.view(), targets.view());
-    /// let accuracies = dataset.fold(3).into_iter().map(|(train, valid)| {
-    ///     // Here you can train your model and perform validation
-    ///     
-    ///     // let model = params.fit(&dataset);
-    ///     // let predi = model.predict(&valid);
-    ///     // predi.confusion_matrix(&valid).accuracy()  
-    /// });
-    /// ```
-    ///  
-    pub fn fold(&self, k: usize) -> Vec<(Dataset<F, E>, Dataset<F, E>)> {
-        let fold_size = self.targets().len() / k;
-        let mut res = Vec::new();
-
-        // Generates all k folds of records and targets
-        let mut records_chunks: Vec<_> =
-            self.records.axis_chunks_iter(Axis(0), fold_size).collect();
-        let mut targets_chunks: Vec<_> =
-            self.targets.axis_chunks_iter(Axis(0), fold_size).collect();
-
-        // For each iteration, take the first chunk for both records and targets as the validation set and
-        // stack all the other chunks to create the training set. In the end swap the first chunk with the
-        // one in the next index so that it is ready for the next iteration
-        for i in 0..k {
-            let remaining_records = stack(Axis(0), &records_chunks.as_slice()[1..]).unwrap();
-            let remaining_targets = stack(Axis(0), &targets_chunks.as_slice()[1..]).unwrap();
-
-            res.push((
-                // training
-                Dataset::new(remaining_records, remaining_targets),
-                // validation
-                Dataset::new(
-                    records_chunks[0].into_owned(),
-                    targets_chunks[0].into_owned(),
-                ),
-            ));
-
-            // swap
-            if i < k - 1 {
-                records_chunks.swap(0, i + 1);
-                targets_chunks.swap(0, i + 1);
-            }
-        }
-        res
-    }
 
     pub fn to_owned(&self) -> Dataset<F, E> {
         (self.records().to_owned(), self.targets.to_owned()).into()

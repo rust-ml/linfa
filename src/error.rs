@@ -14,6 +14,7 @@ pub enum Error {
     Priors(String),
     NotConverged(String),
     NdShape(ShapeError),
+    MultipleTargets
 }
 
 impl fmt::Display for Error {

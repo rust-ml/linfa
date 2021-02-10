@@ -2,12 +2,15 @@
 //!
 //! This module implements the dataset struct and various helper traits to extend its
 //! functionality.
-use ndarray::{ArrayBase, ArrayView, Ix1, Ix2, NdFloat, OwnedRepr};
+use ndarray::{ArrayBase, ArrayView, Ix1, Ix2, Ix3, NdFloat, OwnedRepr, ViewRepr, Dimension, CowArray};
 use num_traits::{FromPrimitive, NumAssignOps, Signed};
 use std::cmp::{Ordering, PartialOrd};
 use std::hash::Hash;
 use std::iter::Sum;
 use std::ops::Deref;
+use std::collections::HashSet;
+
+use crate::error::Result;
 
 mod impl_dataset;
 mod impl_records;
@@ -62,7 +65,6 @@ impl Deref for Pr {
 pub struct DatasetBase<R, T>
 where
     R: Records,
-    T: Targets,
 {
     pub records: R,
     pub targets: T,
@@ -71,24 +73,30 @@ where
     feature_names: Vec<String>,
 }
 
+/// Targets with precomputed labels
+pub struct TargetsWithLabels<L: Label, P: AsProbabilites> {
+    targets: P,
+    labels: HashSet<L>,
+}
+
 /// Dataset
 ///
 /// The most commonly used typed of dataset. It contains a number of records
-/// stored as an `Array2` and each record corresponds to a single target. Such
-/// targets are stored as an `Array1`.
-pub type Dataset<D, T> = DatasetBase<ArrayBase<OwnedRepr<D>, Ix2>, ArrayBase<OwnedRepr<T>, Ix1>>;
+/// stored as an `Array2` and each record may correspond to multiple targets. The
+/// targets are stored as an `Array2`. 
+pub type Dataset<D, T> = DatasetBase<ArrayBase<OwnedRepr<D>, Ix2>, ArrayBase<OwnedRepr<T>, Ix2>>;
 
 /// DatasetView
 ///
 /// A read only view of a Dataset
-pub type DatasetView<'a, D, T> = DatasetBase<ArrayView<'a, D, Ix2>, ArrayView<'a, T, Ix1>>;
+pub type DatasetView<'a, D, T> = DatasetBase<ArrayView<'a, D, Ix2>, ArrayView<'a, T, Ix2>>;
 
 /// DatasetPr
 ///
 /// Dataset with probabilities as targets. Useful for multiclass probabilities.
 /// It stores records as an `Array2` of elements of type `D`, and targets as an `Array1`
 /// of elements of type `Pr`
-pub type DatasetPr<D> = Dataset<D, Pr>;
+pub type DatasetPr<D, L> = DatasetBase<ArrayBase<OwnedRepr<D>, Ix2>, TargetsWithLabels<L, ArrayBase<OwnedRepr<Pr>, Ix3>>>;
 
 /// Records
 ///
@@ -100,22 +108,32 @@ pub trait Records: Sized {
     fn nfeatures(&self) -> usize;
 }
 
-/// Targets
+/// Convert to single or multiple target variables
+/// 
+/// The targets of a dataset may be a single, multiple or multiple probability variables. In order to design
+/// algorithms which support multi-target prediction this trait allows the converstion of all three cases
+/// to multi-targets. 
+///
+/// Further it allows single-target algorithms (e.g. SVM) to accept probabilities
+/// or multi-target fields. This simplifies the API a bit, because we can have a single `Dataset`
+/// type for both cases.
+///
 pub trait Targets {
     type Elem;
 
-    fn as_slice(&self) -> &[Self::Elem];
+    /// Convert to single target, fails if multiple targets are used
+    fn try_single_target<'a>(&'a self) -> Result<CowArray<'a, Self::Elem, Ix1>>;
+
+    /// Convert to multiple targets
+    fn multi_targets<'a>(&'a self) -> CowArray<'a, Self::Elem, Ix2>;
 }
 
-/// Labels
+/// Convert to probability matrix
 ///
-/// Same as targets, but with discrete elements. The labels trait can therefore return the set of
-/// labels of the targets
-pub trait Labels: Targets
-where
-    Self::Elem: Label,
-{
-    fn labels(&self) -> Vec<Self::Elem>;
+/// Some algorithms are working with probabilities. Targets which allow an implicit conversion into
+/// probabilities can implement this trait.
+pub trait AsProbabilites {
+    fn multi_target_probabilities<'a>(&'a self) -> CowArray<'a, Pr, Ix3>;
 }
 
 #[cfg(test)]
