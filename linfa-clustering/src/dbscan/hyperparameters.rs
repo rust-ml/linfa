@@ -18,7 +18,8 @@ pub struct DbscanHyperParams<F: Float> {
     min_points: usize,
 }
 
-/// Helper struct used to construct a set of hyperparameters for
+/// Helper struct used to construct a set of hyperparameters for 
+/// [DBSCAN algorithm](struct.Dbscan.html).
 pub struct DbscanHyperParamsBuilder<F: Float> {
     tolerance: F,
     min_points: usize,

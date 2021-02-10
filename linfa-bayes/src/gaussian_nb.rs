@@ -1,9 +1,3 @@
-//! Gaussian Naive Bayes (GaussianNB)
-//!
-//! Implements Gaussian Naive Bayes algorithm for classification. The likelihood
-//! of the feature P(x_i | y) is assumed to be Gaussian, the mean and variance will
-//! be estimated using maximum likelihood.
-
 use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
 use ndarray_stats::QuantileExt;
 use std::collections::HashMap;
@@ -13,7 +7,11 @@ use linfa::dataset::{DatasetBase, Labels};
 use linfa::traits::{Fit, IncrementalFit, Predict};
 use linfa::Float;
 
-/// Gaussian Naive Bayes (GaussianNB)
+/// Gaussian Naive Bayes (GaussianNB) hyperparameters
+/// 
+/// The Gaussian Naive Bayes is a classification algorithm where the likelihood
+/// of the feature P(x_i | y) is assumed to be Gaussian, and the mean and variance 
+/// are estimated using maximum likelihood.
 #[derive(Debug)]
 pub struct GaussianNbParams {
     // Required for calculation stability
@@ -34,8 +32,8 @@ impl GaussianNbParams {
         }
     }
 
-    // Specifies the portion of the largest variance of all the features that
-    // is added to the variance for calculation stability
+    /// Specifies the portion of the largest variance of all the features that
+    /// is added to the variance for calculation stability
     pub fn var_smoothing(mut self, var_smoothing: f64) -> Self {
         self.var_smoothing = var_smoothing;
         self

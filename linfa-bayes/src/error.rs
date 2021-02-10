@@ -4,6 +4,7 @@ use ndarray_stats::errors::MinMaxError;
 
 pub type Result<T> = std::result::Result<T, BayesError>;
 
+/// An error when using a GaussianNB classifier
 #[derive(Debug)]
 pub enum BayesError {
     /// Error when performing Max operation on data
