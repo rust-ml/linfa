@@ -11,8 +11,8 @@
 #[macro_use]
 extern crate ndarray;
 
-mod diffusion_map;
-mod pca;
+pub mod diffusion_map;
+pub mod pca;
 pub mod utils;
 
 pub use diffusion_map::DiffusionMap;

@@ -1,9 +1,9 @@
 //! Principal Component Analysis
 //!
 //! Principal Component Analysis is a common technique for data and dimensionality reduction. It
-//! tries to reduce the dimensionality while retaining most of the variance in the data. This is
+//! reduces the dimensionality of the datawhile retaining most of the variance. This is
 //! done by projecting the data to a lower dimensional space with SVD and eigenvalue analysis. This
-//! implementation uses the `TruncatedSvd` routine in `ndarray-linalg`.
+//! implementation uses the `TruncatedSvd` routine in `ndarray-linalg` which employs LOBPCG.
 //!
 //! # Example
 //!
@@ -39,6 +39,18 @@ pub struct PcaParams {
     embedding_size: usize,
 }
 
+/// Fit a PCA model given a dataset
+///
+/// The Principal Component Analysis takes the records of a dataset and tries to find the best
+/// fit in a lower dimensional space such that the maximal variance is retained.
+///
+/// # Parameters
+///
+/// * `dataset`: A dataset with records in N dimensions
+///
+/// # Returns
+///
+/// A dataset with records in M < N dimension reduced, such that most variance is retained
 impl<'a, T: Targets> Fit<'a, Array2<f64>, T> for PcaParams {
     type Object = Pca<f64>;
 
@@ -65,7 +77,22 @@ impl<'a, T: Targets> Fit<'a, Array2<f64>, T> for PcaParams {
     }
 }
 
-/// Fitted PCA model
+/// Fitted Principal Component Analysis model
+///
+/// The model contains the mean and hyperplane for the projection of data.
+///
+/// # Example
+///
+/// ```
+/// use linfa::traits::Fit;
+/// use linfa_reduction::Pca;
+///
+/// let dataset = linfa_datasets::iris();
+///
+/// // apply PCA projection along a line which maximizes the spread of the data
+/// let embedding = Pca::params(1)
+///     .fit(&dataset);
+/// ```
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -79,7 +106,7 @@ pub struct Pca<F> {
 }
 
 impl Pca<f64> {
-    /// Create parameter set
+    /// Create default parameter set
     ///
     /// # Parameters
     ///
@@ -99,8 +126,10 @@ impl Pca<f64> {
     }
 }
 
+/// Project a matrix to lower dimensional space
+///
+/// Thr projection first centers and then projects the data.
 impl<F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Array2<F>> for Pca<F> {
-    /// Given a new data points project with fitted model
     fn predict(&self, x: ArrayBase<D, Ix2>) -> Array2<F> {
         (&x - &self.mean).dot(&self.embedding.t())
     }
