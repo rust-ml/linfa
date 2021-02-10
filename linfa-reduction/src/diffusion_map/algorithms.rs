@@ -11,6 +11,7 @@ use ndarray_linalg::{
     eigh::EighInto, lobpcg, lobpcg::LobpcgResult, Lapack, Scalar, TruncatedOrder, UPLO,
 };
 use ndarray_rand::{rand_distr::Uniform, RandomExt};
+use num_traits::NumCast;
 
 use linfa::{error::Result, traits::Transformer, Float};
 use linfa_kernel::Kernel;
@@ -55,7 +56,7 @@ pub struct DiffusionMap<F> {
     eigvals: Array1<F>,
 }
 
-impl<'a, F: Float + Lapack + Scalar<Real = F>> Transformer<&'a Kernel<F>, Result<DiffusionMap<F>>>
+impl<'a, F: Float + Lapack> Transformer<&'a Kernel<F>, Result<DiffusionMap<F>>>
     for DiffusionMapParams
 {
     /// Project a kernel matrix to its embedding
@@ -111,7 +112,7 @@ impl<F: Float + Lapack> DiffusionMap<F> {
     }
 }
 
-fn compute_diffusion_map<'b, F: Float + Lapack + Scalar<Real = F>>(
+fn compute_diffusion_map<'b, F: Float + Lapack>(
     kernel: &'b Kernel<F>,
     steps: usize,
     alpha: f32,
@@ -188,7 +189,7 @@ fn compute_diffusion_map<'b, F: Float + Lapack + Scalar<Real = F>>(
         col *= *val;
     }
 
-    let steps = F::from(steps).unwrap();
+    let steps = NumCast::from(steps).unwrap();
     for (mut vec, val) in vecs.gencolumns_mut().into_iter().zip(vals.iter()) {
         vec *= val.powf(steps);
     }

@@ -1,15 +1,14 @@
-use linfa::error::Result;
-use linfa::traits::Transformer;
+use linfa::{error::Result, traits::Transformer};
 use linfa_kernel::{Kernel, KernelMethod, KernelType};
 use linfa_reduction::utils::generate_convoluted_rings2d;
 use linfa_reduction::DiffusionMap;
+
 use ndarray_npy::write_npy;
-use ndarray_rand::rand::SeedableRng;
-use rand_isaac::Isaac64Rng;
+use rand::{rngs::SmallRng, SeedableRng};
 
 fn main() -> Result<()> {
     // Our random number generator, seeded for reproducibility
-    let mut rng = Isaac64Rng::seed_from_u64(42);
+    let mut rng = SmallRng::seed_from_u64(42);
 
     // For each our expected centroids, generate `n` data points around it (a "blob")
     let n = 500;
