@@ -46,9 +46,13 @@ use super::hyperparameters::DiffusionMapParams;
 ///     .transform(dataset.records());
 ///
 /// // create embedding from kernel matrix using diffusion maps
-/// let embedding = DiffusionMap::<f64>::params(2)
+/// let mapped_kernel = DiffusionMap::<f64>::params(2)
 ///     .steps(1)
-///     .transform(&kernel);
+///     .transform(&kernel)
+///     .unwrap();
+///
+/// // get embedding from the transformed kernel matrix
+/// let embedding = mapped_kernel.embedding();
 /// ```
 ///
 pub struct DiffusionMap<F> {

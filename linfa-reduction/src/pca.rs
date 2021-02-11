@@ -247,9 +247,9 @@ mod tests {
     /// Eigenvalue structure in high dimensions
     ///
     /// This test checks that the eigenvalues are following the Marchensko-Pastur law. The data is
-    /// standard uniformly distributed (i.e. E(x) = 0, E^2(x) = 1) and we have twice more data than
-    /// features. The probability density of the eigenvalues should follow then a special
-    /// distribution, the Marchenko-Pastur law.
+    /// standard uniformly distributed (i.e. E(x) = 0, E^2(x) = 1) and we have twice the amount of
+    /// data when compared to features. The probability density of the eigenvalues should then follow 
+    /// a special densitiy function, described by the Marchenko-Pastur law.
     ///
     /// See also https://en.wikipedia.org/wiki/Marchenko%E2%80%93Pastur_distribution
     #[test]
