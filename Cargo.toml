@@ -35,7 +35,6 @@ blas = ["ndarray/blas"]
 [dependencies]
 num-traits = "0.2"
 rand = { version = "0.7", features = ["small_rng"] }
-approx = { version = "0.3", default-features = false, features = ["std"] }
 ndarray = { version = "0.13", default-features = false, features = ["approx"] }
 ndarray-linalg = { version = "0.12.1", optional = true }
 

@@ -173,7 +173,7 @@ impl<F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Array2<F>> for Pca<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use linfa::approx::assert_abs_diff_eq;
+    use approx::assert_abs_diff_eq;
     use ndarray::{array, Array2};
     use ndarray_rand::{
         rand_distr::{StandardNormal, Uniform},
