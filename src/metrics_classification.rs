@@ -520,8 +520,7 @@ mod tests {
     use super::{DatasetBase, Pr};
     use approx::{abs_diff_eq, AbsDiffEq};
     use ndarray::{array, Array1, ArrayBase, ArrayView1, Data, Dimension};
-    use rand::{distributions::Uniform, Rng, SeedableRng};
-    use rand_isaac::Isaac64Rng;
+    use rand::{distributions::Uniform, Rng, SeedableRng, rngs::SmallRng};
     use std::borrow::Borrow;
 
     fn assert_eq_slice<
@@ -637,7 +636,7 @@ mod tests {
 
     #[test]
     fn test_roc_auc() {
-        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let mut rng = SmallRng::seed_from_u64(42);
         let predicted = Array1::linspace(0.0, 1.0, 1000).mapv(Pr);
 
         let range = Uniform::new(0, 2);

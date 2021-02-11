@@ -121,13 +121,12 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rand::{SeedableRng, rngs::SmallRng};
     use ndarray::{array, Array1, Array2};
-    use ndarray_rand::rand::SeedableRng;
-    use rand_isaac::Isaac64Rng;
 
     #[test]
     fn dataset_implements_required_methods() {
-        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let mut rng = SmallRng::seed_from_u64(42);
 
         // ------ Targets ------
 
@@ -194,7 +193,7 @@ mod tests {
 
     #[test]
     fn dataset_view_implements_required_methods() {
-        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let mut rng = SmallRng::seed_from_u64(42);
         let observations = array![[1., 2.], [1., 2.]];
         let targets = array![0., 1.];
 
