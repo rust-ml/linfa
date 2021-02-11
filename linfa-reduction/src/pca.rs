@@ -1,14 +1,14 @@
 //! Principal Component Analysis
 //!
 //! Principal Component Analysis is a common technique for data and dimensionality reduction. It
-//! reduces the dimensionality of the datawhile retaining most of the variance. This is
+//! reduces the dimensionality of the data while retaining most of the variance. This is
 //! done by projecting the data to a lower dimensional space with SVD and eigenvalue analysis. This
 //! implementation uses the `TruncatedSvd` routine in `ndarray-linalg` which employs LOBPCG.
 //!
 //! # Example
 //!
 //! ```
-//! use linfa::traits::Fit;
+//! use linfa::traits::{Fit, Predict};
 //! use linfa_reduction::Pca;
 //!
 //! let dataset = linfa_datasets::iris();
@@ -16,6 +16,9 @@
 //! // apply PCA projection along a line which maximizes the spread of the data
 //! let embedding = Pca::params(1)
 //!     .fit(&dataset);
+//!
+//! // reduce dimensionality of the dataset
+//! let dataset = embedding.predict(dataset);
 //! ```
 //!
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2};
@@ -63,7 +66,7 @@ impl PcaParams {
 ///
 /// # Returns
 ///
-/// A dataset with records in M < N dimension reduced, such that most variance is retained
+/// A fitted PCA model with origin and hyperplane
 impl<'a, T: Targets> Fit<'a, Array2<f64>, T> for PcaParams {
     type Object = Pca<f64>;
 
@@ -163,10 +166,23 @@ impl Pca<f64> {
 
 /// Project a matrix to lower dimensional space
 ///
-/// Thr projection first centers and then projects the data.
+/// The projection first centers and then projects the data.
 impl<F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Array2<F>> for Pca<F> {
     fn predict(&self, x: ArrayBase<D, Ix2>) -> Array2<F> {
         (&x - &self.mean).dot(&self.embedding.t())
+    }
+}
+
+/// Project a matrix to lower dimensional space
+///
+/// The projection first centers and then projects the data.
+impl<F: Float, T: Targets, D: Data<Elem = F>>
+    Predict<DatasetBase<ArrayBase<D, Ix2>, T>, DatasetBase<Array2<F>, T>> for Pca<F>
+{
+    fn predict(&self, ds: DatasetBase<ArrayBase<D, Ix2>, T>) -> DatasetBase<Array2<F>, T> {
+        let new_records = (ds.records() - &self.mean).dot(&self.embedding.t());
+
+        ds.with_records(new_records)
     }
 }
 
