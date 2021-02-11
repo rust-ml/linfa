@@ -111,7 +111,7 @@ impl<'a, T: Targets> Fit<'a, Array2<f64>, T> for PcaParams {
 /// # Example
 ///
 /// ```
-/// use linfa::traits::Fit;
+/// use linfa::traits::{Fit, Predict};
 /// use linfa_reduction::Pca;
 ///
 /// let dataset = linfa_datasets::iris();
@@ -119,6 +119,9 @@ impl<'a, T: Targets> Fit<'a, Array2<f64>, T> for PcaParams {
 /// // apply PCA projection along a line which maximizes the spread of the data
 /// let embedding = Pca::params(1)
 ///     .fit(&dataset);
+///
+/// // reduce dimensionality of the dataset
+/// let dataset = embedding.predict(dataset);
 /// ```
 #[cfg_attr(
     feature = "serde",
