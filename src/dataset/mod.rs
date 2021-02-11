@@ -121,8 +121,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::{SeedableRng, rngs::SmallRng};
     use ndarray::{array, Array1, Array2};
+    use rand::{rngs::SmallRng, SeedableRng};
 
     #[test]
     fn dataset_implements_required_methods() {

@@ -520,7 +520,7 @@ mod tests {
     use super::{DatasetBase, Pr};
     use approx::{abs_diff_eq, AbsDiffEq};
     use ndarray::{array, Array1, ArrayBase, ArrayView1, Data, Dimension};
-    use rand::{distributions::Uniform, Rng, SeedableRng, rngs::SmallRng};
+    use rand::{distributions::Uniform, rngs::SmallRng, Rng, SeedableRng};
     use std::borrow::Borrow;
 
     fn assert_eq_slice<

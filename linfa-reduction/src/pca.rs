@@ -276,4 +276,50 @@ mod tests {
             assert_abs_diff_eq!(mp_law, empirical, epsilon = 0.05);
         }
     }
+
+    #[test]
+    fn test_explained_variance_cutoff() {
+        // create random number generator
+        let mut rng = SmallRng::seed_from_u64(42);
+
+        // generate high dimensional data with two orthogonal vectors
+        let n = 500;
+        let mut a = Array1::<f64>::random_using(n, StandardNormal, &mut rng);
+        a /= (a.t().dot(&a)).sqrt();
+
+        // perform a single step of the Gram-Schmidt process
+        let mut b = Array1::random_using(n, StandardNormal, &mut rng);
+        b -= &(b.t().dot(&a) * &a);
+        b /= (b.t().dot(&b)).sqrt();
+
+        // construct matrix with rank 2
+        let data =
+            Array2::from_shape_fn((500, 500), |dim| a[dim.0] * a[dim.1] + b[dim.0] * b[dim.1]);
+
+        let dataset = DatasetBase::from(data);
+
+        // fit PCA with 10 possible embeddings
+        let model = Pca::params(10).fit(&dataset);
+
+        // only two eigenvalues are relevant
+        assert_eq!(model.explained_variance_ratio().len(), 2);
+        // both of them explain approximately the same variance
+        assert_abs_diff_eq!(
+            model.explained_variance_ratio(),
+            array![1. / 2., 1. / 2.],
+            epsilon = 1e-2
+        );
+    }
+
+    #[test]
+    fn test_explained_variance_diag() {
+        let dataset = DatasetBase::from(Array2::from_diag(&array![1., 1., 1., 1.]));
+        let model = Pca::params(3).fit(&dataset);
+
+        assert_abs_diff_eq!(
+            model.explained_variance_ratio(),
+            array![1. / 3., 1. / 3., 1. / 3.],
+            epsilon = 1e-6
+        );
+    }
 }
