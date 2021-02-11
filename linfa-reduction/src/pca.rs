@@ -24,7 +24,7 @@ use ndarray_linalg::{TruncatedOrder, TruncatedSvd};
 use serde_crate::{Deserialize, Serialize};
 
 use linfa::{
-    dataset::Targets,
+    dataset::{Records, Targets},
     traits::{Fit, Predict},
     DatasetBase, Float,
 };
@@ -41,7 +41,11 @@ pub struct PcaParams {
 }
 
 impl PcaParams {
-    pub fn whitening(mut self, apply: bool) -> Self {
+    /// Apply whitening to the embedding vector
+    ///
+    /// Whitening will scale the eigenvalues of the transformation such that the covariance will be
+    /// unit diagonal for the original data.
+    pub fn whiten(mut self, apply: bool) -> Self {
         self.apply_whitening = apply;
 
         self
@@ -64,10 +68,10 @@ impl<'a, T: Targets> Fit<'a, Array2<f64>, T> for PcaParams {
     type Object = Pca<f64>;
 
     fn fit(&self, dataset: &DatasetBase<Array2<f64>, T>) -> Pca<f64> {
-        let mut x = dataset.records().to_owned();
+        let x = dataset.records();
         // calculate mean of data and subtract it
         let mean = x.mean_axis(Axis(0)).unwrap();
-        x -= &mean;
+        let x = x - &mean;
 
         // estimate Singular Value Decomposition
         let result = TruncatedSvd::new(x, TruncatedOrder::Largest)
@@ -75,16 +79,22 @@ impl<'a, T: Targets> Fit<'a, Array2<f64>, T> for PcaParams {
             .unwrap();
 
         // explained variance is the spectral distribution of the eigenvalues
-        let (mut u, sigma, _) = result.values_vectors();
+        let (_, sigma, mut v_t) = result.values_vectors();
 
+        // cut singular values to avoid numerical problems
+        let sigma = sigma.mapv(|x| x.max(1e-8));
+
+        // scale the embedding with the square root of the dimensionality and eigenvalue such that
+        // the product of the resulting matrix gives the unit covariance.
         if self.apply_whitening {
-            for (mut u, sigma) in u.axis_iter_mut(Axis(1)).zip(sigma.iter()) {
-                u /= *sigma;
+            let cov_scale = (dataset.observations() as f64 - 1.).sqrt();
+            for (mut v_t, sigma) in v_t.axis_iter_mut(Axis(0)).zip(sigma.iter()) {
+                v_t *= cov_scale / *sigma;
             }
         }
 
         Pca {
-            embedding: u,
+            embedding: v_t,
             sigma,
             mean,
         }
@@ -144,6 +154,11 @@ impl Pca<f64> {
 
         ex_var / sum_ex_var
     }
+
+    /// Return the singular values
+    pub fn singular_values(&self) -> &Array1<f64> {
+        &self.sigma
+    }
 }
 
 /// Project a matrix to lower dimensional space
@@ -151,20 +166,27 @@ impl Pca<f64> {
 /// Thr projection first centers and then projects the data.
 impl<F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Array2<F>> for Pca<F> {
     fn predict(&self, x: ArrayBase<D, Ix2>) -> Array2<F> {
-        dbg!(&self.embedding.shape());
-        self.embedding.t().dot(&(&x - &self.mean))
+        (&x - &self.mean).dot(&self.embedding.t())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use linfa::approx::assert_abs_diff_eq;
     use ndarray::{array, Array2};
-    use ndarray_rand::{rand_distr::Uniform, RandomExt};
+    use ndarray_rand::{
+        rand_distr::{StandardNormal, Uniform},
+        RandomExt,
+    };
     use rand::{rngs::SmallRng, SeedableRng};
 
+    /// Small whitening test
+    ///
+    /// This test rotates 2-dimensional data by 45° and checks whether the whitening transformation
+    /// creates a diagonal covariance matrix.
     #[test]
-    fn test_whitening() {
+    fn test_whitening_small() {
         // create random number generator
         let mut rng = SmallRng::seed_from_u64(42);
 
@@ -174,11 +196,84 @@ mod tests {
 
         let dataset = DatasetBase::from(tmp.dot(&q));
 
-        let model = Pca::params(2).whitening(true).fit(&dataset);
+        let model = Pca::params(2).whiten(true).fit(&dataset);
         let proj = model.predict(dataset.records().view());
 
         // check that the covariance is unit diagonal
         let cov = proj.t().dot(&proj);
-        assert!((cov - Array2::<f64>::eye(2)).mapv(|x| x * x).sum() < 1e-6);
+        assert_abs_diff_eq!(cov / (300. - 1.), Array2::eye(2), epsilon = 1e-5);
+    }
+
+    /// Random number whitening test
+    ///
+    /// This test creates a large number of uniformly distributed random numbers and asserts that
+    /// the whitening routine is able to diagonalize the covariance matrix.
+    #[test]
+    fn test_whitening_rand() {
+        // create random number generator
+        let mut rng = SmallRng::seed_from_u64(42);
+
+        // generate random data
+        let data = Array2::random_using((300, 50), Uniform::new(-1.0f64, 1.), &mut rng);
+        let dataset = DatasetBase::from(data);
+
+        let model = Pca::params(10).whiten(true).fit(&dataset);
+        let proj = model.predict(dataset.records().view());
+
+        // check that the covariance is unit diagonal
+        let cov = proj.t().dot(&proj);
+        assert_abs_diff_eq!(cov / (300. - 1.), Array2::eye(10), epsilon = 1e-5);
+    }
+
+    /// Eigenvalue structure in high dimensions
+    ///
+    /// This test checks that the eigenvalues are following the Marchensko-Pastur law. The data is
+    /// standard uniformly distributed (i.e. E(x) = 0, E^2(x) = 1) and we have twice more data than
+    /// features. The probability density of the eigenvalues should follow then a special
+    /// distribution, the Marchenko-Pastur law.
+    ///
+    /// See also https://en.wikipedia.org/wiki/Marchenko%E2%80%93Pastur_distribution
+    #[test]
+    fn test_marchenko_pastur() {
+        // create random number generator
+        let mut rng = SmallRng::seed_from_u64(3);
+
+        // generate normal distribution random data with N >> p
+        let data = Array2::random_using((1000, 500), StandardNormal, &mut rng);
+        let dataset = DatasetBase::from(data / 1000f64.sqrt());
+
+        let model = Pca::params(500).fit(&dataset);
+        let sv = model.singular_values().mapv(|x| x * x);
+
+        // we have created a random spectrum and can apply the Marchenko-Pastur law
+        // with variance 1 and p/n = 0.5
+        let (a, b) = (
+            1. * (1. - 0.5f64.sqrt()).powf(2.0),
+            1. * (1. + 0.5f64.sqrt()).powf(2.0),
+        );
+
+        // check that the spectrum has correct boundaries
+        assert_abs_diff_eq!(b, sv[0], epsilon = 0.1);
+        assert_abs_diff_eq!(a, sv[sv.len() - 1], epsilon = 0.1);
+
+        // estimate density empirical and compare with Marchenko-Pastur law
+        let mut i = 0;
+        'outer: for th in Array1::linspace(0.1, 2.8, 28).into_iter().rev() {
+            let mut count = 0;
+            while sv[i] >= *th {
+                count += 1;
+                i += 1;
+
+                if i == sv.len() {
+                    break 'outer;
+                }
+            }
+
+            let x = th + 0.05;
+            let mp_law = ((b - x) * (x - a)).sqrt() / std::f64::consts::PI / x;
+            let empirical = count as f64 / 500. / ((2.8 - 0.1) / 28.);
+
+            assert_abs_diff_eq!(mp_law, empirical, epsilon = 0.05);
+        }
     }
 }

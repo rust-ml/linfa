@@ -38,6 +38,8 @@ pub mod traits;
 
 pub use dataset::{Dataset, DatasetBase, DatasetPr, DatasetView, Float, Label};
 
+pub use approx;
+
 #[cfg(feature = "ndarray-linalg")]
 pub use ndarray_linalg as linalg;
 
