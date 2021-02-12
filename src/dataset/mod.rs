@@ -140,12 +140,11 @@ pub trait AsProbabilites {
 mod tests {
     use super::*;
     use ndarray::{array, Array1, Array2};
-    use ndarray_rand::rand::SeedableRng;
-    use rand_isaac::Isaac64Rng;
+    use rand::{rngs::SmallRng, SeedableRng};
 
     #[test]
     fn dataset_implements_required_methods() {
-        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let mut rng = SmallRng::seed_from_u64(42);
 
         // ------ Targets ------
 
@@ -212,7 +211,7 @@ mod tests {
 
     #[test]
     fn dataset_view_implements_required_methods() {
-        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let mut rng = SmallRng::seed_from_u64(42);
         let observations = array![[1., 2.], [1., 2.]];
         let targets = array![0., 1.];
 

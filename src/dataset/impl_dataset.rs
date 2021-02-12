@@ -284,6 +284,21 @@ impl<F: Float, T: Targets, D: Data<Elem = F>, I: Dimension> From<(ArrayBase<D, I
 }
 
 impl<'b, F: Float, E: Copy + 'b, D: Data<Elem = F>, S: Data<Elem = E>, I: Dimension + RemoveAxis> DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, I>> {
+    /// Apply bootstrapping by sampling with replacement
+    ///
+    /// Bootstrap aggregating is used for sub-sample generation and improves the accuracy and
+    /// stability of machine learning algorithms. It samples data uniformly with replacement and
+    /// generates datasets where observations may be shared.
+    ///
+    /// # Parameters
+    ///
+    ///  * `num_samples`: The number of samples per bootstrap
+    ///  * `rng`: The random number generator used in the sampling procedure
+    ///
+    ///  # Returns
+    ///
+    ///  An infinite Iterator yielding at each step a new bootstrapped dataset
+    ///
     pub fn bootstrap<'a, R: Rng>(
         &'a self,
         num_samples: usize,
@@ -577,6 +592,22 @@ fn assist_swap_array2<F>(slice: &mut [F], index: usize, fold_size: usize, featur
 
 impl<'a, F: Float, E: Copy> DatasetView<'a, F, E> {
     /*pub fn bootstrap<R: Rng>(
+    /// Apply bootstrapping by sampling with replacement
+    ///
+    /// Bootstrap aggregating is used for sub-sample generation and improves the accuracy and
+    /// stability of machine learning algorithms. It samples data uniformly with replacement and
+    /// generates datasets where observations may be shared.
+    ///
+    /// # Parameters
+    ///
+    ///  * `num_samples`: The number of samples per bootstrap
+    ///  * `rng`: The random number generator used in the sampling procedure
+    ///
+    ///  # Returns
+    ///
+    ///  An infinite Iterator yielding at each step a new bootstrapped dataset
+    ///
+    pub fn bootstrap<R: Rng>(
         &'a self,
         num_samples: usize,
         rng: &'a mut R,
