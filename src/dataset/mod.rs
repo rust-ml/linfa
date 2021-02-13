@@ -2,7 +2,7 @@
 //!
 //! This module implements the dataset struct and various helper traits to extend its
 //! functionality.
-use ndarray::{ArrayBase, ArrayView, Ix1, Ix2, Ix3, NdFloat, OwnedRepr, ViewRepr, Dimension, CowArray};
+use ndarray::{ArrayBase, ArrayView, Ix1, Ix2, Ix3, NdFloat, OwnedRepr, ViewRepr, Dimension, CowArray, ArrayView1, ArrayView2, Axis};
 use num_traits::{FromPrimitive, NumAssignOps, Signed};
 use std::cmp::{Ordering, PartialOrd};
 use std::hash::Hash;
@@ -10,7 +10,7 @@ use std::iter::Sum;
 use std::ops::Deref;
 use std::collections::HashSet;
 
-use crate::error::Result;
+use crate::error::{Result, Error};
 
 mod impl_dataset;
 mod impl_records;
@@ -74,7 +74,7 @@ where
 }
 
 /// Targets with precomputed labels
-pub struct TargetsWithLabels<L: Label, P: AsProbabilites> {
+pub struct TargetsWithLabels<L: Label, P> {
     targets: P,
     labels: HashSet<L>,
 }
@@ -104,36 +104,48 @@ pub type DatasetPr<D, L> = DatasetBase<ArrayBase<OwnedRepr<D>, Ix2>, TargetsWith
 pub trait Records: Sized {
     type Elem;
 
-    fn observations(&self) -> usize;
+    fn nsamples(&self) -> usize;
     fn nfeatures(&self) -> usize;
 }
 
 /// Convert to single or multiple target variables
-/// 
-/// The targets of a dataset may be a single, multiple or multiple probability variables. In order to design
-/// algorithms which support multi-target prediction this trait allows the converstion of all three cases
-/// to multi-targets. 
-///
-/// Further it allows single-target algorithms (e.g. SVM) to accept probabilities
-/// or multi-target fields. This simplifies the API a bit, because we can have a single `Dataset`
-/// type for both cases.
-///
-pub trait Targets {
+pub trait ToTargets {
     type Elem;
 
-    /// Convert to single target, fails if multiple targets are used
-    fn try_single_target<'a>(&'a self) -> Result<CowArray<'a, Self::Elem, Ix1>>;
-
     /// Convert to multiple targets
-    fn multi_targets<'a>(&'a self) -> CowArray<'a, Self::Elem, Ix2>;
+    fn to_multi_targets<'a>(&'a self) -> ArrayView2<'a, Self::Elem>;
+
+    /// Convert to single target, fails if multiple targets are used
+    fn try_single_target<'a>(&'a self) -> Result<ArrayView1<'a, Self::Elem>> {
+        let multi_targets = self.to_multi_targets();
+
+        if multi_targets.len_of(Axis(1)) > 1 {
+            return Err(Error::MultipleTargets);
+        }
+
+        Ok(multi_targets.index_axis_move(Axis(1), 0))
+    }
+
 }
 
 /// Convert to probability matrix
 ///
 /// Some algorithms are working with probabilities. Targets which allow an implicit conversion into
 /// probabilities can implement this trait.
-pub trait AsProbabilites {
-    fn multi_target_probabilities<'a>(&'a self) -> CowArray<'a, Pr, Ix3>;
+pub trait ToProbabilities {
+    fn to_multi_target_probabilities<'a>(&'a self) -> CowArray<'a, Pr, Ix3>;
+}
+
+/// Get the labels in all targets
+///
+pub trait Labels {
+    type Elem: Label;
+
+    fn label_set(&self) -> HashSet<Self::Elem>;
+    fn labels(&self) -> Vec<Self::Elem> {
+        self.label_set().into_iter().collect()
+    }
+
 }
 
 #[cfg(test)]

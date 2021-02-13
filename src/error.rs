@@ -24,6 +24,7 @@ impl fmt::Display for Error {
             Error::NdShape(msg) => write!(f, "NdArray shape: {}", msg),
             Error::Priors(msg) => write!(f, "Priors: {}", msg),
             Error::NotConverged(msg) => write!(f, "Not converged: {}", msg),
+            Error::MultipleTargets => write!(f, "Multiple targets not supported"),
         }
     }
 }

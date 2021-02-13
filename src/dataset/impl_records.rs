@@ -1,11 +1,11 @@
-use super::{DatasetBase, Float, Records, Targets};
+use super::{DatasetBase, Float, Records};
 use ndarray::{ArrayBase, Axis, Data, Dimension};
 
 /// Implement records for NdArrays
 impl<F: Float, S: Data<Elem = F>, I: Dimension> Records for ArrayBase<S, I> {
     type Elem = F;
 
-    fn observations(&self) -> usize {
+    fn nsamples(&self) -> usize {
         self.len_of(Axis(0))
     }
 
@@ -18,8 +18,8 @@ impl<F: Float, S: Data<Elem = F>, I: Dimension> Records for ArrayBase<S, I> {
 impl<F: Float, D: Records<Elem = F>, T> Records for DatasetBase<D, T> {
     type Elem = F;
 
-    fn observations(&self) -> usize {
-        self.records.observations()
+    fn nsamples(&self) -> usize {
+        self.records.nsamples()
     }
 
     fn nfeatures(&self) -> usize {
@@ -31,7 +31,7 @@ impl<F: Float, D: Records<Elem = F>, T> Records for DatasetBase<D, T> {
 impl Records for () {
     type Elem = ();
 
-    fn observations(&self) -> usize {
+    fn nsamples(&self) -> usize {
         0
     }
 
@@ -44,8 +44,8 @@ impl Records for () {
 impl<R: Records> Records for &R {
     type Elem = R::Elem;
 
-    fn observations(&self) -> usize {
-        (*self).observations()
+    fn nsamples(&self) -> usize {
+        (*self).nsamples()
     }
 
     fn nfeatures(&self) -> usize {

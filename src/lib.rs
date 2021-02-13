@@ -31,9 +31,9 @@
 pub mod correlation;
 pub mod dataset;
 pub mod error;
-mod metrics_classification;
+/*mod metrics_classification;
 mod metrics_regression;
-pub mod prelude;
+pub mod prelude;*/
 pub mod traits;
 
 pub use dataset::{Dataset, DatasetBase, DatasetPr, DatasetView, Float, Label};
@@ -50,10 +50,10 @@ extern crate openblas_src;
 #[cfg(any(feature = "netblas-system", feature = "netblas-static"))]
 extern crate netblas_src;
 
-/// Common metrics functions for classification and regression
+/*/// Common metrics functions for classification and regression
 pub mod metrics {
     pub use crate::metrics_classification::{
         BinaryClassification, ConfusionMatrix, ReceiverOperatingCharacteristic, ToConfusionMatrix,
     };
     pub use crate::metrics_regression::Regression;
-}
+}*/
