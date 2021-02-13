@@ -29,11 +29,11 @@ impl<'a, F: Float, L: Debug + Label> Tikz<'a, F, L> {
                 "{}[Val(${}$) $ \\geq {:.2}$ \\\\ Imp. ${:.2}$",
                 depth, idx, value, impurity_decrease
             );
-            for child in node.childs().into_iter().filter_map(|x| x.as_ref()) {
-                out.push_str("\n");
+            for child in node.children().into_iter().filter_map(|x| x.as_ref()) {
+                out.push('\n');
                 out.push_str(&self.format_node(child));
             }
-            out.push_str("]");
+            out.push(']');
 
             out
         }

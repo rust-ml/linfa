@@ -22,7 +22,7 @@ use serde_crate::{Deserialize, Serialize};
 ///
 /// The decision tree algorithm splits observations at a certain split value for a specific feature. The
 /// left and right children can then only use a certain number of observations. In order to track
-/// that the observations are masked with a boolean vector, hiding all observations which are not
+/// that, the observations are masked with a boolean vector, hiding all observations which are not
 /// applicable in a lower tree.
 struct RowMask {
     mask: Vec<bool>,
@@ -30,6 +30,12 @@ struct RowMask {
 }
 
 impl RowMask {
+    /// Generates a RowMask without hidden observations
+    ///
+    /// ### Parameters
+    ///
+    /// * `nsamples`: the total number of observations
+    ///
     fn all(nsamples: usize) -> Self {
         RowMask {
             mask: vec![true; nsamples as usize],
@@ -37,6 +43,11 @@ impl RowMask {
         }
     }
 
+    /// Generates a RowMask where all observations are hidden
+    ///
+    /// ### Parameters
+    ///
+    /// * `nsamples`: the total number of observations
     fn none(nsamples: usize) -> Self {
         RowMask {
             mask: vec![false; nsamples as usize],
@@ -44,6 +55,16 @@ impl RowMask {
         }
     }
 
+    /// Sets the observation at the specified index as visible
+    ///
+    /// ### Parameters
+    ///
+    /// * `idx`: the index of the observation to turn visible
+    ///
+    /// ### Panics
+    ///
+    /// If `idx` is out of bounds
+    ///
     fn mark(&mut self, idx: usize) {
         self.mask[idx] = true;
         self.nsamples += 1;
@@ -56,6 +77,17 @@ struct SortedIndex<F: Float> {
 }
 
 impl<F: Float> SortedIndex<F> {
+    /// Sorts the values of a given feature
+    ///
+    /// ### Parameters
+    ///
+    /// * `x`: the observations to sort
+    /// * `feature_idx`: the index of the feature on whch to sort the data
+    ///
+    /// ### Returns
+    ///
+    /// A sorted vector of (index, value) pairs obtained by sorting the observations by
+    /// the value of the specified feature.
     fn of_array_column(x: &ArrayBase<impl Data<Elem = F>, Ix2>, feature_idx: usize) -> Self {
         let sliced_column: Vec<F> = x.index_axis(Axis(1), feature_idx).to_vec();
         let mut pairs: Vec<(usize, F)> = sliced_column.into_iter().enumerate().collect();
@@ -127,14 +159,14 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
 
     pub fn prediction(&self) -> Option<L> {
         if self.is_leaf() {
-            return Some(self.prediction.clone());
+            Some(self.prediction.clone())
         } else {
             None
         }
     }
 
-    /// Return both childs
-    pub fn childs(&self) -> Vec<&Option<Box<TreeNode<F, L>>>> {
+    /// Return both children
+    pub fn children(&self) -> Vec<&Option<Box<TreeNode<F, L>>>> {
         vec![&self.left_child, &self.right_child]
     }
 
@@ -427,8 +459,8 @@ impl<F: Float, L: Label + std::fmt::Debug> DecisionTree<F, L> {
         }
     }
 
-    /// Create a node iterator
-    pub fn iter_nodes<'a>(&'a self) -> NodeIter<'a, F, L> {
+    /// Create a node iterator in level-order (BFT)
+    pub fn iter_nodes(&self) -> NodeIter<F, L> {
         // queue of nodes yet to explore
         let queue = vec![&self.root_node];
 
@@ -508,7 +540,7 @@ impl<F: Float, L: Label + std::fmt::Debug> DecisionTree<F, L> {
     }
 
     /// Export to tikz
-    pub fn export_to_tikz<'a>(&'a self) -> Tikz<'a, F, L> {
+    pub fn export_to_tikz(&self) -> Tikz<F, L> {
         Tikz::new(&self)
     }
 }
