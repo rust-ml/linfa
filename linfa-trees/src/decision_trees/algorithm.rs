@@ -72,29 +72,36 @@ impl RowMask {
 }
 
 /// Sorted values of observations with indices (always for a particular feature)
-struct SortedIndex<F: Float> {
+struct SortedIndex<'a, F: Float> {
+    feature_name: &'a str,
     sorted_values: Vec<(usize, F)>,
 }
 
-impl<F: Float> SortedIndex<F> {
+impl<'a, F: Float> SortedIndex<'a, F> {
     /// Sorts the values of a given feature in ascending order
     ///
     /// ### Parameters
     ///
     /// * `x`: the observations to sort
     /// * `feature_idx`: the index of the feature on whch to sort the data
+    /// * `feature_name`: the human readable name of the feature
     ///
     /// ### Returns
     ///
     /// A sorted vector of (index, value) pairs obtained by sorting the observations by
     /// the value of the specified feature.
-    fn of_array_column(x: &ArrayBase<impl Data<Elem = F>, Ix2>, feature_idx: usize) -> Self {
+    fn of_array_column(
+        x: &ArrayBase<impl Data<Elem = F>, Ix2>,
+        feature_idx: usize,
+        feature_name: &'a str,
+    ) -> Self {
         let sliced_column: Vec<F> = x.index_axis(Axis(1), feature_idx).to_vec();
         let mut pairs: Vec<(usize, F)> = sliced_column.into_iter().enumerate().collect();
         pairs.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Greater));
 
         SortedIndex {
             sorted_values: pairs,
+            feature_name,
         }
     }
 }
@@ -108,6 +115,7 @@ impl<F: Float> SortedIndex<F> {
 /// A node in the decision tree
 pub struct TreeNode<F, L> {
     feature_idx: usize,
+    feature_name: String,
     split_value: F,
     impurity_decrease: F,
     left_child: Option<Box<TreeNode<F, L>>>,
@@ -139,6 +147,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
     fn empty_leaf(prediction: L, depth: usize) -> Self {
         TreeNode {
             feature_idx: 0,
+            feature_name: "".to_string(),
             split_value: F::zero(),
             impurity_decrease: F::zero(),
             left_child: None,
@@ -176,6 +185,16 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
     /// Return the split (feature index, value) and its impurity decrease
     pub fn split(&self) -> (usize, F, F) {
         (self.feature_idx, self.split_value, self.impurity_decrease)
+    }
+
+    /// Returns the name of the feature used in the split if the node is internal,
+    /// `None` otherwise
+    pub fn feature_name(&self) -> Option<&String> {
+        if self.leaf_node {
+            None
+        } else {
+            Some(&self.feature_name)
+        }
     }
 
     /// Recursively fits the node
@@ -364,6 +383,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
 
         TreeNode {
             feature_idx: best_feature_idx,
+            feature_name: sorted_indices[best_feature_idx].feature_name.to_owned(),
             split_value: best_split_value,
             impurity_decrease,
             left_child,
@@ -514,9 +534,12 @@ impl<'a, F: Float, L: Label + 'a + std::fmt::Debug, D: Data<Elem = F>, T: Labels
         self.validate().unwrap();
 
         let x = dataset.records();
+        let feature_names = dataset.feature_names();
         let all_idxs = RowMask::all(x.nrows());
         let sorted_indices: Vec<_> = (0..(x.ncols()))
-            .map(|feature_idx| SortedIndex::of_array_column(&x, feature_idx))
+            .map(|feature_idx| {
+                SortedIndex::of_array_column(&x, feature_idx, &feature_names[feature_idx])
+            })
             .collect();
 
         let mut root_node = TreeNode::fit(&dataset, &all_idxs, &self, &sorted_indices, 0);

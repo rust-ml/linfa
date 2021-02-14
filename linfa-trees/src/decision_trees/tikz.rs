@@ -44,10 +44,19 @@ impl<'a, F: Float, L: Debug + Label> Tikz<'a, F, L> {
             format!("{}[Label: {:?}]", depth, prediction)
         } else {
             let (idx, value, impurity_decrease) = node.split();
-            let mut out = format!(
-                "{}[Val(${}$) $ \\geq {:.2}$ \\\\ Imp. ${:.2}$",
-                depth, idx, value, impurity_decrease
-            );
+            let mut out = match self.legend {
+                true => format!(
+                    "{}[${}$ $ \\leq {:.2}$ \\\\ Imp. ${:.2}$",
+                    depth,
+                    node.feature_name().unwrap().replace(" ", "\\_"),
+                    value,
+                    impurity_decrease
+                ),
+                false => format!(
+                    "{}[Val(${}$) $ \\leq {:.2}$ \\\\ Imp. ${:.2}$",
+                    depth, idx, value, impurity_decrease
+                ),
+            };
             for child in node.children().into_iter().filter_map(|x| x.as_ref()) {
                 out.push('\n');
                 out.push_str(&self.format_node(child));

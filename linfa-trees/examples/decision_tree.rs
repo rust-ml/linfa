@@ -10,9 +10,16 @@ use linfa_trees::{DecisionTree, SplitQuality};
 fn main() {
     // load Iris dataset
     let mut rng = Isaac64Rng::seed_from_u64(42);
+
+    let tttt = linfa_datasets::iris();
+
+    println!("{:?}", tttt.feature_names());
+
     let (train, test) = linfa_datasets::iris()
         .shuffle(&mut rng)
         .split_with_ratio(0.8);
+
+    println!("{:?}", train.feature_names());
 
     println!("Training model with Gini criterion ...");
     let gini_model = DecisionTree::params()
