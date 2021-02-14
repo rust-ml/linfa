@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 
-use ndarray::{ArrayBase, Axis, Data, Ix1, Ix2};
+use ndarray::{Array1, ArrayBase, Axis, Data, Ix1, Ix2};
 
 use super::hyperparameters::{DecisionTreeParams, SplitQuality};
 use super::NodeIter;
@@ -77,7 +77,7 @@ struct SortedIndex<F: Float> {
 }
 
 impl<F: Float> SortedIndex<F> {
-    /// Sorts the values of a given feature
+    /// Sorts the values of a given feature in ascending order
     ///
     /// ### Parameters
     ///
@@ -165,12 +165,12 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
         }
     }
 
-    /// Return both children
+    /// Returns both children, left to right
     pub fn children(&self) -> Vec<&Option<Box<TreeNode<F, L>>>> {
         vec![&self.left_child, &self.right_child]
     }
 
-    /// Return the split and its impurity decrease
+    /// Return the split (feature, value) and its impurity decrease
     pub fn split(&self) -> (usize, F, F) {
         (self.feature_idx, self.split_value, self.impurity_decrease)
     }
@@ -200,39 +200,51 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
         // Find best split for current level
         let mut best = None;
 
-        // Iterate over features
+        // Iterate over all features
         for (feature_idx, sorted_index) in sorted_indices.iter().enumerate() {
-            let mut left_class_freq = parent_class_freq.clone();
-            let mut right_class_freq = HashMap::new();
+            let mut right_class_freq = parent_class_freq.clone();
+            let mut left_class_freq = HashMap::new();
 
-            // We keep a running total of the aggregate weight in the left split
+            // We keep a running total of the aggregate weight in the right split
             // to avoid having to sum over the hash map
             let total_weight = parent_class_freq.values().sum::<f32>();
-            let mut weight_on_left_side = total_weight;
-            let mut weight_on_right_side = 0.0;
+            let mut weight_on_right_side = total_weight;
+            let mut weight_on_left_side = 0.0;
 
-            // Iterate over sorted values
+            // We start by putting all available observations in the right subtree
+            // and then move the (sorted by `feature_idx`) observations one by one to
+            // the left subtree and evaluate the quality of the resulting split. At each
+            // iteration, the obtained split is compared with `best`, in order
+            // to find the best possible split.
+            // The resulting split will then have the observations with a value of their `feature_idx`
+            // feature smaller than the split value in the left subtree and the others still in the right
+            // subtree
             for i in 0..mask.mask.len() - 1 {
+                // (index of the observation, value of its `feature_idx` feature)
                 let (presorted_index, mut split_value) = sorted_index.sorted_values[i];
 
+                // Skip if the observation is unavailable in this subtree
                 if !mask.mask[presorted_index] {
                     continue;
                 }
 
+                // Target and weight of the current observation
                 let sample_class = data.target(presorted_index);
                 let sample_weight = data.weight_for(presorted_index);
 
-                // Decrement the weight on the class for this sample on the left
+                // Move the observation from the right subtree to the left subtree
+
+                // Decrement the weight on the class for this sample on the right
                 // side by the weight of this sample
-                *left_class_freq.get_mut(sample_class).unwrap() -= sample_weight;
-                weight_on_left_side -= sample_weight;
+                *right_class_freq.get_mut(sample_class).unwrap() -= sample_weight;
+                weight_on_right_side -= sample_weight;
 
                 // Increment the weight on the class for this sample on the
-                // right side by the weight of this sample
-                *right_class_freq.entry(sample_class).or_insert(0.0) += sample_weight;
-                weight_on_right_side += sample_weight;
+                // left side by the weight of this sample
+                *left_class_freq.entry(sample_class).or_insert(0.0) += sample_weight;
+                weight_on_left_side += sample_weight;
 
-                // Continue if the next values is equal
+                // Continue if the next value is equal, so that equal values end up in the same subtree
                 if (sorted_index.sorted_values[i].1 - sorted_index.sorted_values[i + 1].1).abs()
                     < F::from(1e-5).unwrap()
                 {
@@ -241,8 +253,8 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
 
                 // If the split would result in too few samples in a leaf
                 // then skip computing the quality
-                if weight_on_left_side < hyperparameters.min_weight_leaf
-                    || weight_on_right_side < hyperparameters.min_weight_leaf
+                if weight_on_right_side < hyperparameters.min_weight_leaf
+                    || weight_on_left_side < hyperparameters.min_weight_leaf
                 {
                     continue;
                 }
@@ -250,16 +262,16 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
                 // Calculate the quality of each resulting subset of the dataset
                 let (left_score, right_score) = match hyperparameters.split_quality {
                     SplitQuality::Gini => (
-                        gini_impurity(&left_class_freq),
                         gini_impurity(&right_class_freq),
+                        gini_impurity(&left_class_freq),
                     ),
                     SplitQuality::Entropy => {
-                        (entropy(&left_class_freq), entropy(&right_class_freq))
+                        (entropy(&right_class_freq), entropy(&left_class_freq))
                     }
                 };
 
                 // Weight the qualities based on the number of samples in each subset
-                let w = weight_on_left_side / total_weight;
+                let w = weight_on_right_side / total_weight;
                 let score = w * left_score + (1.0 - w) * right_score;
 
                 // Take the midpoint from this value and the next one as split_value
@@ -276,6 +288,14 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
                 };
             }
         }
+
+        // At this point all possible splits for all possible features have been computed
+        // and the best one (if any) is stored in `best`. Now we can compute the
+        // impurity decrease as `impurity of the node before splitting - impurity of the split`.
+        // If the impurity decrease is above the treshold set in the parameters, then the split is
+        // applied and `fit` is recursively called in the two resulting subtrees. If there is no
+        // possible split, or if it doesn't bring enough impurity decrease, then the node is set as
+        // a leaf node that predicts the most common label in the available observations.
 
         let impurity_decrease = if let Some((_, _, best_score)) = best {
             let parent_score = match hyperparameters.split_quality {
@@ -381,7 +401,59 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
     }
 }
 
-/// A fitted decision tree model.
+/// A fitted decision tree model for classification.
+///
+/// ### Structure
+/// A decision tree structure is a binary tree where:
+/// * Each internal node specifies a decision, represented by a choice of a feature and a "split value" such that all observations for which
+/// `feature <= split_value` is true fall in the left subtree, while the others fall in the right subtree.
+///
+/// * leaf nodes make predictions, and their prediction is the most popular label in the node
+///
+/// ### Algorithm
+///
+/// Starting with a single root node, decision trees are trained recursively by applying the following rule to every
+/// node considered:
+///
+/// * Find the best split value for each feature of the observations belonging in the node;
+/// * Select the feature (and its best split value) that maximizes the quality of the split;
+/// * If the score of the split is sufficiently larger than the score of the unsplit node, then two child nodes are generated, the left one
+///   containing all observations with `feature <= split value` and the right one containing the rest.
+/// * If no suitable split is found, the node is marked as leaf and its prediction is set to be the most common label in the node;
+///
+/// The [quality score](enum.SplitQuality.html) used can be specified in the [parameters](struct.DecisionTreeParams.html).
+///
+/// ### Predictions
+///
+/// To predict the label of a sample, the tree is traversed from the root to a leaf, choosing between left and right children according to
+/// the values of the features of the sample. The final prediction for the sample is the prediction of the reached leaf.
+///
+/// ### Additional constraints
+///
+/// In order to avoid overfitting the training data, some additional constraints on the quality/quantity of splits can be added to the tree.
+/// A description of these additional rules is provided in the [parameters](struct.DecisionTreeParams.html) page.
+///
+/// ### Example
+///
+/// Here is an example on how to train a decision tree from its parameters:
+///
+/// ```rust
+///
+/// use linfa_trees::DecisionTree;
+/// use linfa::prelude::*;
+/// use linfa_datasets;
+///
+/// // Load the dataset
+/// let dataset = linfa_datasets::iris();
+/// // Fit the tree
+/// let tree = DecisionTree::params().fit(&dataset);
+/// // Get accuracy on training set
+/// let accuracy = tree.predict(dataset.records()).confusion_matrix(&dataset).accuracy();
+///
+/// assert!(accuracy > 0.9);
+///
+/// ```
+///
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -393,22 +465,36 @@ pub struct DecisionTree<F: Float, L: Label> {
     num_features: usize,
 }
 
-impl<F: Float, L: Label, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Vec<L>>
-    for DecisionTree<F, L>
-{
-    /// Make predictions for each row of a matrix of features `x`.
-    fn predict(&self, x: ArrayBase<D, Ix2>) -> Vec<L> {
-        x.genrows()
-            .into_iter()
-            .map(|row| make_prediction(&row, &self.root_node))
-            .collect()
+impl<F: Float, L: Label, D: Data<Elem = F>> Predict<ArrayBase<D, Ix1>, L> for DecisionTree<F, L> {
+    /// Make prediction for sample `x`.
+    fn predict(&self, x: ArrayBase<D, Ix1>) -> L {
+        self.predict(&x)
     }
 }
 
-impl<F: Float, L: Label, D: Data<Elem = F>> Predict<&ArrayBase<D, Ix2>, Vec<L>>
+impl<F: Float, L: Label, D: Data<Elem = F>> Predict<&ArrayBase<D, Ix1>, L> for DecisionTree<F, L> {
+    /// Make prediction for sample `x`.
+    fn predict(&self, x: &ArrayBase<D, Ix1>) -> L {
+        make_prediction(x, &self.root_node)
+    }
+}
+
+impl<F: Float, L: Label, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Array1<L>>
     for DecisionTree<F, L>
 {
-    fn predict(&self, x: &ArrayBase<D, Ix2>) -> Vec<L> {
+    /// Make predictions for each row of a matrix of features `x`.
+    fn predict(&self, x: ArrayBase<D, Ix2>) -> Array1<L> {
+        x.map_axis(Axis(1), |observation| {
+            make_prediction(&observation, &self.root_node)
+        })
+    }
+}
+
+impl<F: Float, L: Label, D: Data<Elem = F>> Predict<&ArrayBase<D, Ix2>, Array1<L>>
+    for DecisionTree<F, L>
+{
+    /// Make predictions for each row of a matrix of features `x`.
+    fn predict(&self, x: &ArrayBase<D, Ix2>) -> Array1<L> {
         self.predict(x.view())
     }
 }
@@ -720,10 +806,10 @@ mod tests {
         let data = array![[1., 2., 3.], [1., 2., 4.], [1., 3., 3.5]];
         let targets = array![0, 0, 1];
 
-        let dataset = DatasetBase::new(data.clone(), targets);
+        let dataset = DatasetBase::new(data, targets);
         let model = DecisionTree::params().max_depth(Some(1)).fit(&dataset);
 
-        assert_eq!(&model.predict(data.clone()), &[0, 0, 1]);
+        assert_eq!(model.predict(dataset.records()), array![0, 0, 1]);
     }
 
     #[test]
@@ -760,8 +846,8 @@ mod tests {
         let dataset = DatasetBase::new(data, targets);
         let model = DecisionTree::params().fit(&dataset);
         let prediction = model.predict(dataset.records());
-
         let cm = prediction.confusion_matrix(&dataset);
+
         assert!(cm.accuracy() > 0.95);
     }
 

@@ -4,7 +4,7 @@ use std::iter::Iterator;
 use super::TreeNode;
 use linfa::{Float, Label};
 
-/// Visits the nodes in a tree in level-order
+/// Level-order (BFT) iterator of nodes in a decision tree
 pub struct NodeIter<'a, F, L> {
     queue: Vec<&'a TreeNode<F, L>>,
 }
