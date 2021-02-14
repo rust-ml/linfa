@@ -149,14 +149,17 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
         }
     }
 
+    /// Returns true if the node has no children
     pub fn is_leaf(&self) -> bool {
         self.leaf_node
     }
 
+    /// Returns the depth of the node in the decision tree
     pub fn depth(&self) -> usize {
         self.depth
     }
 
+    /// Returns `Some(prediction)` for leaf nodes and `None` for internal nodes.
     pub fn prediction(&self) -> Option<L> {
         if self.is_leaf() {
             Some(self.prediction.clone())
@@ -165,16 +168,17 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
         }
     }
 
-    /// Returns both children, left to right
+    /// Returns both children, first left then right
     pub fn children(&self) -> Vec<&Option<Box<TreeNode<F, L>>>> {
         vec![&self.left_child, &self.right_child]
     }
 
-    /// Return the split (feature, value) and its impurity decrease
+    /// Return the split (feature index, value) and its impurity decrease
     pub fn split(&self) -> (usize, F, F) {
         (self.feature_idx, self.split_value, self.impurity_decrease)
     }
 
+    /// Recursively fits the node
     fn fit<D: Data<Elem = F>, T: Labels<Elem = L>>(
         data: &DatasetBase<ArrayBase<D, Ix2>, T>,
         mask: &RowMask,
@@ -625,7 +629,8 @@ impl<F: Float, L: Label + std::fmt::Debug> DecisionTree<F, L> {
         self.iter_nodes().filter(|node| node.is_leaf()).count()
     }
 
-    /// Export to tikz
+    /// Generates a [`Tikz`](struct.Tikz.html) structure to print the
+    /// fitted tree in LaTex using tikz and forest
     pub fn export_to_tikz(&self) -> Tikz<F, L> {
         Tikz::new(&self)
     }
@@ -766,14 +771,17 @@ mod tests {
 
         // we should only use feature index 8 here
         assert_eq!(&model.features(), &[8]);
-        assert_eq!(
-            &model.feature_importance(),
-            &[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0]
-        );
+
+        let ground_truth = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0];
+
+        for (imp, truth) in model.feature_importance().iter().zip(&ground_truth) {
+            assert_abs_diff_eq!(imp, truth);
+        }
 
         // check for perfect accuracy
         let cm = model.predict(dataset.records()).confusion_matrix(&dataset);
-        assert!(cm.accuracy() == 1.0);
+        // can't be more than one, but >= avoids clippy complaining about float exact comparison
+        assert!(cm.accuracy() >= 1.0);
     }
 
     #[test]
@@ -788,13 +796,13 @@ mod tests {
         let dataset = DatasetBase::new(data, targets);
 
         // check that the provided depth is actually used
-        for max_depth in vec![1, 5, 10, 20] {
+        for max_depth in &[1, 5, 10, 20] {
             let model = DecisionTree::params()
-                .max_depth(Some(max_depth))
+                .max_depth(Some(*max_depth))
                 .min_impurity_decrease(1e-10f64)
                 .min_weight_split(1e-10)
                 .fit(&dataset);
-            assert_eq!(model.max_depth(), max_depth);
+            assert_eq!(model.max_depth(), *max_depth);
         }
     }
 

@@ -2,6 +2,25 @@ use super::{DecisionTree, TreeNode};
 use linfa::{Float, Label};
 use std::fmt::Debug;
 
+/// Struct to print a fitted decision tree in LaTex using tikz and forest.
+///
+/// ### Usage
+///
+/// ```rust
+/// use linfa::prelude::*;
+/// use linfa_datasets;
+/// use linfa_trees::DecisionTree;
+///
+/// // Load dataset
+/// let dataset = linfa_datasets::iris();
+/// // Fit the tree
+/// let tree = DecisionTree::params().fit(&dataset);
+/// // Export to tikz
+/// let tikz = tree.export_to_tikz();
+/// let latex_tree = tikz.to_string();
+/// // Now you can write latex_tree to the preferred destination
+///
+/// ```
 pub struct Tikz<'a, F: Float, L: Label + Debug> {
     legend: bool,
     max_classes: usize,
@@ -19,7 +38,7 @@ impl<'a, F: Float, L: Debug + Label> Tikz<'a, F, L> {
         }
     }
 
-    pub fn format_node(&self, node: &'a TreeNode<F, L>) -> String {
+    fn format_node(&self, node: &'a TreeNode<F, L>) -> String {
         let depth = vec![""; node.depth() + 1].join("\t");
         if let Some(prediction) = node.prediction() {
             format!("{}[Label: {:?}]", depth, prediction)
@@ -59,8 +78,12 @@ impl<'a, F: Float, L: Debug + Label> Tikz<'a, F, L> {
 
         self
     }
+}
 
-    pub fn to_string(self) -> String {
+use std::fmt;
+
+impl<'a, F: Float, L: Debug + Label> fmt::Display for Tikz<'a, F, L> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut out = String::from(
             r#"
 \documentclass[margin=10pt]{standalone}
@@ -68,31 +91,31 @@ impl<'a, F: Float, L: Debug + Label> Tikz<'a, F, L> {
 \usetikzlibrary{arrows.meta}
 
 \forestset{
-  default preamble={
-    before typesetting nodes={
-      !r.replace by={[, coordinate, append]}
-    },  
-    where n children=0{
-      tier=word,
-    }{  
-      %diamond, aspect=2,
-    },  
-    where level=0{}{
-      if n=1{
-        edge label={node[pos=.2, above] {Y}},
-      }{  
-        edge label={node[pos=.2, above] {N}},
-      }   
-    },  
-    for tree={
-      edge+={thick, -Latex},
-      s sep'+=2cm,
-      draw,
-      thick,
-      edge path'={ (!u) -| (.parent)},
-      align=center,
-    }   
-  }
+default preamble={
+before typesetting nodes={
+  !r.replace by={[, coordinate, append]}
+},  
+where n children=0{
+  tier=word,
+}{  
+  %diamond, aspect=2,
+},  
+where level=0{}{
+  if n=1{
+    edge label={node[pos=.2, above] {Y}},
+  }{  
+    edge label={node[pos=.2, above] {N}},
+  }   
+},  
+for tree={
+  edge+={thick, -Latex},
+  s sep'+=2cm,
+  draw,
+  thick,
+  edge path'={ (!u) -| (.parent)},
+  align=center,
+}   
+}
 }
 
 \begin{document}
@@ -102,6 +125,6 @@ impl<'a, F: Float, L: Debug + Label> Tikz<'a, F, L> {
         out.push_str(&self.format_node(self.tree.root_node()));
         out.push_str("\n\t\\end{forest}\n\\end{document}");
 
-        out
+        write!(f, "{}", out)
     }
 }

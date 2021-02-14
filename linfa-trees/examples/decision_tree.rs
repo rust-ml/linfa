@@ -54,7 +54,7 @@ fn main() {
     println!("Features trained in this tree {:?}", feats);
 
     let mut tikz = File::create("decision_tree_example.tex").unwrap();
-    tikz.write(gini_model.export_to_tikz().to_string().as_bytes())
+    tikz.write_all(gini_model.export_to_tikz().to_string().as_bytes())
         .unwrap();
     println!(" => generate tree description with `latex decision_tree_example.tex`!");
 }
