@@ -194,10 +194,14 @@ impl<F: Float, T: Targets, D: Data<Elem = F>> DatasetBase<ArrayBase<D, Ix2>, T> 
             ArrayView1::from(&targets[..n]),
             ArrayView1::from(&targets[n..]),
         );
-        let dataset1 =
-            DatasetBase::new(first, first_targets).with_feature_names(self.feature_names());
-        let dataset2 =
-            DatasetBase::new(second, second_targets).with_feature_names(self.feature_names());
+        let (first_weights, second_weights) =
+            ((&self).weights[..n].to_vec(), (&self).weights[n..].to_vec());
+        let dataset1 = DatasetBase::new(first, first_targets)
+            .with_weights(first_weights)
+            .with_feature_names(self.feature_names());
+        let dataset2 = DatasetBase::new(second, second_targets)
+            .with_weights(second_weights)
+            .with_feature_names(self.feature_names());
         (dataset1, dataset2)
     }
 
@@ -205,7 +209,9 @@ impl<F: Float, T: Targets, D: Data<Elem = F>> DatasetBase<ArrayBase<D, Ix2>, T> 
     pub fn view(&self) -> DatasetView<F, T::Elem> {
         let records = self.records().view();
         let targets = ArrayView1::from(self.targets.as_slice());
-        DatasetBase::new(records, targets).with_feature_names(self.feature_names())
+        DatasetBase::new(records, targets)
+            .with_weights(self.weights.clone())
+            .with_feature_names(self.feature_names())
     }
 }
 
