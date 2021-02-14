@@ -194,8 +194,11 @@ impl<F: Float, T: Targets, D: Data<Elem = F>> DatasetBase<ArrayBase<D, Ix2>, T> 
             ArrayView1::from(&targets[..n]),
             ArrayView1::from(&targets[n..]),
         );
-        let (first_weights, second_weights) =
-            ((&self).weights[..n].to_vec(), (&self).weights[n..].to_vec());
+        let (first_weights, second_weights) = if self.weights.len() == self.observations() {
+            (self.weights[..n].to_vec(), self.weights[n..].to_vec())
+        } else {
+            (Vec::new(), Vec::new())
+        };
         let dataset1 = DatasetBase::new(first, first_targets)
             .with_weights(first_weights)
             .with_feature_names(self.feature_names());
