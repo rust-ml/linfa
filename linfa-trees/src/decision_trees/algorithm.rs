@@ -10,7 +10,7 @@ use super::hyperparameters::{DecisionTreeParams, SplitQuality};
 use super::NodeIter;
 use super::Tikz;
 use linfa::{
-    dataset::{Labels, Records},
+    dataset::{Labels, Records, Targets},
     traits::*,
     DatasetBase, Float, Label,
 };
@@ -472,7 +472,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
 /// // Fit the tree
 /// let tree = DecisionTree::params().fit(&dataset);
 /// // Get accuracy on training set
-/// let accuracy = tree.predict(dataset.records()).confusion_matrix(&dataset).accuracy();
+/// let accuracy = tree.predict(&dataset).confusion_matrix(&dataset).accuracy();
 ///
 /// assert!(accuracy > 0.9);
 ///
@@ -520,6 +520,15 @@ impl<F: Float, L: Label, D: Data<Elem = F>> Predict<&ArrayBase<D, Ix2>, Array1<L
     /// Make predictions for each row of a matrix of features `x`.
     fn predict(&self, x: &ArrayBase<D, Ix2>) -> Array1<L> {
         self.predict(x.view())
+    }
+}
+
+impl<F: Float, L: Label, D: Data<Elem = F>, T: Targets>
+    Predict<&DatasetBase<ArrayBase<D, Ix2>, T>, Array1<L>> for DecisionTree<F, L>
+{
+    /// Make predictions for each row of the matrix of features of dataset `x`.
+    fn predict(&self, x: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Array1<L> {
+        self.predict(x.records())
     }
 }
 
@@ -801,13 +810,12 @@ mod tests {
         let ground_truth = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0];
 
         for (imp, truth) in model.feature_importance().iter().zip(&ground_truth) {
-            assert_abs_diff_eq!(imp, truth);
+            assert_abs_diff_eq!(imp, truth, epsilon = 1e-15);
         }
 
         // check for perfect accuracy
         let cm = model.predict(dataset.records()).confusion_matrix(&dataset);
-        // can't be more than one, but >= avoids clippy complaining about float exact comparison
-        assert!(cm.accuracy() >= 1.0);
+        assert_abs_diff_eq!(cm.accuracy(), 1.0, epsilon = 1e-15);
     }
 
     #[test]

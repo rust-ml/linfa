@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 
-/// The metric used to decide the feature on which to split a node
+/// The metric used to determine the feature by which a node is split
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -47,7 +47,7 @@ pub enum SplitQuality {
 /// // Fit the decision tree on the training data
 /// let tree = params.fit(&train);
 /// // Predict on validation and check accuracy
-/// let val_accuracy = tree.predict(val.records()).confusion_matrix(&val).accuracy();
+/// let val_accuracy = tree.predict(&val).confusion_matrix(&val).accuracy();
 /// assert!(val_accuracy > 0.99);
 /// ```
 ///

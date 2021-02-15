@@ -23,7 +23,7 @@ fn main() {
         .min_weight_leaf(1.0)
         .fit(&train);
 
-    let gini_pred_y = gini_model.predict(test.records().view());
+    let gini_pred_y = gini_model.predict(&test);
     let cm = gini_pred_y.confusion_matrix(&test);
 
     println!("{:?}", cm);
@@ -44,7 +44,7 @@ fn main() {
         .min_weight_leaf(10.0)
         .fit(&train);
 
-    let entropy_pred_y = gini_model.predict(test.records().view());
+    let entropy_pred_y = gini_model.predict(&test);
     let cm = entropy_pred_y.confusion_matrix(&test);
 
     println!("{:?}", cm);
