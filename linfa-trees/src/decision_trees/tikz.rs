@@ -88,7 +88,8 @@ impl<'a, F: Float, L: Debug + Label> Tikz<'a, F, L> {
             let mut out = "\n".to_string()
                 + r#"\node [anchor=north west] at (current bounding box.north east) {%
                 \begin{tabular}{c c c}
-                  \multicolumn{3}{@{}l@{}}{Legend}\\"#;
+                  \multicolumn{3}{@{}l@{}}{Legend:}\\
+                  Imp.&:&Impurity decrease\\"#;
             for node in self.tree.iter_nodes() {
                 if !node.is_leaf() && !map.contains(&node.split().0) {
                     let var = format!(

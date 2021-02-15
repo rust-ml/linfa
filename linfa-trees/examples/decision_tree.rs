@@ -2,14 +2,14 @@ use std::fs::File;
 use std::io::Write;
 
 use ndarray_rand::rand::SeedableRng;
-use rand_isaac::Isaac64Rng;
+use rand::rngs::SmallRng;
 
 use linfa::prelude::*;
 use linfa_trees::{DecisionTree, SplitQuality};
 
 fn main() {
     // load Iris dataset
-    let mut rng = Isaac64Rng::seed_from_u64(42);
+    let mut rng = SmallRng::seed_from_u64(42);
 
     let (train, test) = linfa_datasets::iris()
         .shuffle(&mut rng)

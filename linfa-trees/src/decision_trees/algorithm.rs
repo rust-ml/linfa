@@ -733,7 +733,7 @@ mod tests {
     use approx::assert_abs_diff_eq;
     use linfa::metrics::ToConfusionMatrix;
     use ndarray::{array, s, stack, Array, Array1, Array2, Axis};
-    use rand_isaac::Isaac64Rng;
+    use rand::rngs::SmallRng;
 
     use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
 
@@ -813,7 +813,7 @@ mod tests {
     #[test]
     /// Check that for random data the max depth is used
     fn check_max_depth() {
-        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let mut rng = SmallRng::seed_from_u64(42);
 
         // create very sparse data
         let data = Array::random_using((50, 50), Uniform::new(-1., 1.), &mut rng);

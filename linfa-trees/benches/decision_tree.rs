@@ -5,9 +5,9 @@ use ndarray::{stack, Array, Array1, Array2, Axis};
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::{StandardNormal, Uniform};
 use ndarray_rand::RandomExt;
-use rand_isaac::Isaac64Rng;
+use rand::rngs::SmallRng;
 
-fn generate_blobs(means: &Array2<f64>, samples: usize, mut rng: &mut Isaac64Rng) -> Array2<f64> {
+fn generate_blobs(means: &Array2<f64>, samples: usize, mut rng: &mut SmallRng) -> Array2<f64> {
     let out = means
         .axis_iter(Axis(0))
         .map(|mean| Array::random_using((samples, 4), StandardNormal, &mut rng) + mean)
@@ -18,7 +18,7 @@ fn generate_blobs(means: &Array2<f64>, samples: usize, mut rng: &mut Isaac64Rng)
 }
 
 fn decision_tree_bench(c: &mut Criterion) {
-    let mut rng = Isaac64Rng::seed_from_u64(42);
+    let mut rng = SmallRng::seed_from_u64(42);
 
     // Controls how many samples for each class are generated
     let training_set_sizes = vec![100, 1000, 10000, 100000];
