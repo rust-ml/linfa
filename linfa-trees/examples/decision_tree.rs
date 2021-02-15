@@ -11,15 +11,9 @@ fn main() {
     // load Iris dataset
     let mut rng = Isaac64Rng::seed_from_u64(42);
 
-    let tttt = linfa_datasets::iris();
-
-    println!("{:?}", tttt.feature_names());
-
     let (train, test) = linfa_datasets::iris()
         .shuffle(&mut rng)
         .split_with_ratio(0.8);
-
-    println!("{:?}", train.feature_names());
 
     println!("Training model with Gini criterion ...");
     let gini_model = DecisionTree::params()
@@ -38,6 +32,9 @@ fn main() {
         "Test accuracy with Gini criterion: {:.2}%",
         100.0 * cm.accuracy()
     );
+
+    let feats = gini_model.features();
+    println!("Features trained in this tree {:?}", feats);
 
     println!("Training model with entropy criterion ...");
     let entropy_model = DecisionTree::params()
@@ -61,7 +58,13 @@ fn main() {
     println!("Features trained in this tree {:?}", feats);
 
     let mut tikz = File::create("decision_tree_example.tex").unwrap();
-    tikz.write_all(gini_model.export_to_tikz().to_string().as_bytes())
-        .unwrap();
-    println!(" => generate tree description with `latex decision_tree_example.tex`!");
+    tikz.write_all(
+        gini_model
+            .export_to_tikz()
+            .with_legend()
+            .to_string()
+            .as_bytes(),
+    )
+    .unwrap();
+    println!(" => generate Gini tree description with `latex decision_tree_example.tex`!");
 }

@@ -581,7 +581,6 @@ impl<F: Float, L: Label + std::fmt::Debug> DecisionTree<F, L> {
     }
 
     /// Return features_idx of this tree (BFT)
-    ///
     pub fn features(&self) -> Vec<usize> {
         // vector of feature indexes to return
         let mut fitted_features = HashSet::new();
@@ -653,7 +652,11 @@ impl<F: Float, L: Label + std::fmt::Debug> DecisionTree<F, L> {
     }
 
     /// Generates a [`Tikz`](struct.Tikz.html) structure to print the
-    /// fitted tree in LaTex using tikz and forest
+    /// fitted tree in Tex using tikz and forest, with the following default parameters:
+    ///
+    /// * `legend=false`
+    /// * `complete=true`
+    ///
     pub fn export_to_tikz(&self) -> Tikz<F, L> {
         Tikz::new(&self)
     }
