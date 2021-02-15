@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="expose">
+<h2>
+    A comprehensive toolkit to build Machine Learning applications with Rust.
+</h2>
+<div class="code-examples">
+    <select title="Choose a code example to display">
+        <option data-example="Elasticnet" selected="selected">
+        Elasticnet
+        </option>
+        <option data-example="Naive Bayes">
+        Naive Bayes
+        </option>
+    </select>
+
+        <div class="example visible" data-example="Elasticnet">
+            Blub
+        </div>
+        <div class="example" data-example="Naive Bayes">
+            Blub2
+        </div>
+</div>
+</div>
+<p>Click <a href="/blog/">here</a> to see my posts.</p>
+{% endblock content %}
