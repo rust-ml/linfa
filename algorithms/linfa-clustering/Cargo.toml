@@ -36,7 +36,7 @@ sprs = "0.7"
 num-traits = "0.1.32"
 rand_isaac = "0.2.0"
 
-linfa = { version = "0.3.0", path = ".." }
+linfa = { version = "0.3.0", path = "../.." }
 partitions = "0.2.4"
 
 [dev-dependencies]

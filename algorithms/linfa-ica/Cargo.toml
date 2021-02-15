@@ -31,7 +31,7 @@ ndarray-stats = "0.3"
 num-traits = "0.2"
 rand_isaac = "0.2.0"
 
-linfa = { version = "0.3.0", path = ".." }
+linfa = { version = "0.3.0", path = "../.." }
 
 [dev-dependencies]
 ndarray-npy = { version = "0.5", default-features = false }
