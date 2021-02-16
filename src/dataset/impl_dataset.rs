@@ -194,8 +194,17 @@ impl<F: Float, T: Targets, D: Data<Elem = F>> DatasetBase<ArrayBase<D, Ix2>, T> 
             ArrayView1::from(&targets[..n]),
             ArrayView1::from(&targets[n..]),
         );
-        let dataset1 = DatasetBase::new(first, first_targets);
-        let dataset2 = DatasetBase::new(second, second_targets);
+        let (first_weights, second_weights) = if self.weights.len() == self.observations() {
+            (self.weights[..n].to_vec(), self.weights[n..].to_vec())
+        } else {
+            (Vec::new(), Vec::new())
+        };
+        let dataset1 = DatasetBase::new(first, first_targets)
+            .with_weights(first_weights)
+            .with_feature_names(self.feature_names());
+        let dataset2 = DatasetBase::new(second, second_targets)
+            .with_weights(second_weights)
+            .with_feature_names(self.feature_names());
         (dataset1, dataset2)
     }
 
@@ -204,6 +213,8 @@ impl<F: Float, T: Targets, D: Data<Elem = F>> DatasetBase<ArrayBase<D, Ix2>, T> 
         let records = self.records().view();
         let targets = ArrayView1::from(self.targets.as_slice());
         DatasetBase::new(records, targets)
+            .with_weights(self.weights.clone())
+            .with_feature_names(self.feature_names())
     }
 }
 
@@ -379,9 +390,15 @@ impl<F: Float, E: Copy> Dataset<F, E> {
             vec![]
         };
 
+        let feature_names = self.feature_names;
+
         // create new datasets with attached weights
-        let dataset1 = Dataset::new(first, first_targets).with_weights(self.weights);
-        let dataset2 = Dataset::new(second, second_targets).with_weights(second_weights);
+        let dataset1 = Dataset::new(first, first_targets)
+            .with_weights(self.weights)
+            .with_feature_names(feature_names.clone());
+        let dataset2 = Dataset::new(second, second_targets)
+            .with_weights(second_weights)
+            .with_feature_names(feature_names);
         (dataset1, dataset2)
     }
 
@@ -612,7 +629,7 @@ impl<'a, F: Float, E: Copy> DatasetView<'a, F, E> {
             .map(|x| (self).targets[*x])
             .collect::<Array1<_>>();
 
-        DatasetBase::new(records, targets)
+        DatasetBase::new(records, targets).with_feature_names(self.feature_names())
     }
 
     /// Performs K-folding on the dataset.

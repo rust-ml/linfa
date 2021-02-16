@@ -8,7 +8,7 @@
 </font>
 <font id='cmsy10' horiz-adv-x='0'>
 <font-face font-family='cmsy10' units-per-em='1000' ascent='775' descent='960'/>
-<glyph unicode='≥' horiz-adv-x='777' vert-adv-y='777' glyph-name='greaterequal' d='M674 324C688 330 694 337 694 346C694 356 690 362 674 369L123 629C109 636 105 636 103 636C91 636 83 627 83 616C83 604 91 599 102 594L627 347L104 100C84 91 83 83 83 77C83 66 92 57 103 57C106 57 108 57 121 64L674 324ZM659-137C676-137 694-137 694-117S673-97 658-97H119C104-97 83-97 83-117S101-137 118-137H659Z'/>
+<glyph unicode='≤' horiz-adv-x='777' vert-adv-y='777' glyph-name='greaterequal' d='M674 324C688 330 694 337 694 346C694 356 690 362 674 369L123 629C109 636 105 636 103 636C91 636 83 627 83 616C83 604 91 599 102 594L627 347L104 100C84 91 83 83 83 77C83 66 92 57 103 57C106 57 108 57 121 64L674 324ZM659-137C676-137 694-137 694-117S673-97 658-97H119C104-97 83-97 83-117S101-137 118-137H659Z'/>
 </font>
 <font id='cmr10' horiz-adv-x='0'>
 <font-face font-family='cmr10' units-per-em='1000' ascent='750' descent='250'/>
@@ -39,86 +39,158 @@
 </defs>
 <style type='text/css'>
 <![CDATA[text.f0 {font-family:cmsy10;font-size:9.96264px}
+text.f0o {font-family:cmsy10;font-size:9.96264px;stroke:white;stroke-width: 0.9px}
 text.f1 {font-family:cmmi10;font-size:9.96264px}
+text.f1o {font-family:cmmi10;font-size:9.96264px;stroke:white;stroke-width: 0.9px}
 text.f2 {font-family:cmr10;font-size:9.96264px}
+text.f2o {font-family:cmr10;font-size:9.96264px;stroke:white;stroke-width: 0.9px}
 ]]>
 </style>
 <g id='page1'>
-<path d='M47.7812-15.1914H113.0898V-45.7422H47.7812Z' stroke='#000' fill='none' stroke-width='.79701' stroke-miterlimit='10'/>
+<path d='M47.7812-15.1914H113.0898V-45.7422H47.7812Z' stroke='#FFF' fill='none' stroke-width='.9999' stroke-miterlimit='10'/>
+<path d='M47.7812-15.1914H113.0898V-45.7422H47.7812Z' stroke='#000' fill='white' stroke-width='.49701' stroke-miterlimit='10'/>
+<text class='f2o' x='80.436203' y='-61.638865' transform='matrix(1 0 0 1 -29.3348 27.5847)'>V<tspan x='87.077972'>al(2)</tspan>
+</text>
 <text class='f2' x='80.436203' y='-61.638865' transform='matrix(1 0 0 1 -29.3348 27.5847)'>V<tspan x='87.077972'>al(2)</tspan>
 </text>
-<text class='f0' x='110.877681' y='-61.638865' transform='matrix(1 0 0 1 -29.3348 27.5847)'>≥</text>
+<text class='f0o' x='110.877681' y='-61.638865' transform='matrix(1 0 0 1 -29.3348 27.5847)'>≤</text>
+<text class='f0' x='110.877681' y='-61.638865' transform='matrix(1 0 0 1 -29.3348 27.5847)'>≤</text>
+<text class='f2o' x='121.393761' y='-61.638865' transform='matrix(1 0 0 1 -29.3348 27.5847)'>2</text>
 <text class='f2' x='121.393761' y='-61.638865' transform='matrix(1 0 0 1 -29.3348 27.5847)'>2</text>
+<text class='f1o' x='126.3751' y='-61.638865' transform='matrix(1 0 0 1 -29.3348 27.5847)'>.</text>
 <text class='f1' x='126.3751' y='-61.638865' transform='matrix(1 0 0 1 -29.3348 27.5847)'>.</text>
+<text class='f2o' x='129.142509' y='-61.638865' transform='matrix(1 0 0 1 -29.3348 27.5847)'>60<tspan x='88.600016' y='-49.683697'>Imp.</tspan>
+<tspan x='113.229931'>0</tspan>
+</text>
 <text class='f2' x='129.142509' y='-61.638865' transform='matrix(1 0 0 1 -29.3348 27.5847)'>60<tspan x='88.600016' y='-49.683697'>Imp.</tspan>
 <tspan x='113.229931'>0</tspan>
 </text>
+<text class='f1o' x='118.21127' y='-49.683697' transform='matrix(1 0 0 1 -29.3348 27.5847)'>.</text>
 <text class='f1' x='118.21127' y='-49.683697' transform='matrix(1 0 0 1 -29.3348 27.5847)'>.</text>
+<text class='f2o' x='120.978678' y='-49.683697' transform='matrix(1 0 0 1 -29.3348 27.5847)'>33</text>
 <text class='f2' x='120.978678' y='-49.683697' transform='matrix(1 0 0 1 -29.3348 27.5847)'>33</text>
-<path d='M-61.6406 101.96873H-18.6094V83.3711H-61.6406Z' stroke='#000' fill='none' stroke-width='.79701' stroke-miterlimit='10'/>
+<path d='M-61.6406 101.96873H-18.6094V83.3711H-61.6406Z' stroke='#FFF' fill='white' stroke-width='.9999' stroke-miterlimit='10'/>
+<path d='M-61.6406 101.96873H-18.6094V83.3711H-61.6406Z' stroke='#000' fill='white' stroke-width='.49701' stroke-miterlimit='10'/>
+<text class='f2o' x='80.436203' y='-61.638865' transform='matrix(1 0 0 1 -138.7563 156.6988)'>Lab<tspan x='97.455776'>el:</tspan>
+<tspan x='111.846283'>0</tspan>
+</text>
 <text class='f2' x='80.436203' y='-61.638865' transform='matrix(1 0 0 1 -138.7563 156.6988)'>Lab<tspan x='97.455776'>el:</tspan>
 <tspan x='111.846283'>0</tspan>
 </text>
-<path d='M168.3403 27.84763H233.6528V-2.70707H168.3403Z' stroke='#000' fill='none' stroke-width='.79701' stroke-miterlimit='10'/>
+<path d='M168.3403 27.84763H233.6528V-2.70707H168.3403Z' stroke='#FFF' fill='white' stroke-width='.9999' stroke-miterlimit='10'/>
+<path d='M168.3403 27.84763H233.6528V-2.70707H168.3403Z' stroke='#000' fill='white' stroke-width='.49701' stroke-miterlimit='10'/>
+<text class='f2o' x='80.436203' y='-61.638865' transform='matrix(1 0 0 1 91.2258 70.62273)'>V<tspan x='87.077972'>al(3)</tspan>
+</text>
 <text class='f2' x='80.436203' y='-61.638865' transform='matrix(1 0 0 1 91.2258 70.62273)'>V<tspan x='87.077972'>al(3)</tspan>
 </text>
-<text class='f0' x='110.877681' y='-61.638865' transform='matrix(1 0 0 1 91.2258 70.62273)'>≥</text>
+<text class='f0o' x='110.877681' y='-61.638865' transform='matrix(1 0 0 1 91.2258 70.62273)'>≤</text>
+<text class='f0' x='110.877681' y='-61.638865' transform='matrix(1 0 0 1 91.2258 70.62273)'>≤</text>
+<text class='f2o' x='121.393761' y='-61.638865' transform='matrix(1 0 0 1 91.2258 70.62273)'>1</text>
 <text class='f2' x='121.393761' y='-61.638865' transform='matrix(1 0 0 1 91.2258 70.62273)'>1</text>
+<text class='f1o' x='126.3751' y='-61.638865' transform='matrix(1 0 0 1 91.2258 70.62273)'>.</text>
 <text class='f1' x='126.3751' y='-61.638865' transform='matrix(1 0 0 1 91.2258 70.62273)'>.</text>
+<text class='f2o' x='129.142509' y='-61.638865' transform='matrix(1 0 0 1 91.2258 70.62273)'>75<tspan x='88.600016' y='-49.683697'>Imp.</tspan>
+<tspan x='113.229931'>0</tspan>
+</text>
 <text class='f2' x='129.142509' y='-61.638865' transform='matrix(1 0 0 1 91.2258 70.62273)'>75<tspan x='88.600016' y='-49.683697'>Imp.</tspan>
 <tspan x='113.229931'>0</tspan>
 </text>
+<text class='f1o' x='118.21127' y='-49.683697' transform='matrix(1 0 0 1 91.2258 70.62273)'>.</text>
 <text class='f1' x='118.21127' y='-49.683697' transform='matrix(1 0 0 1 91.2258 70.62273)'>.</text>
+<text class='f2o' x='120.978678' y='-49.683697' transform='matrix(1 0 0 1 91.2258 70.62273)'>41</text>
 <text class='f2' x='120.978678' y='-49.683697' transform='matrix(1 0 0 1 91.2258 70.62273)'>41</text>
-<path d='M87.9688 70.8828H153.2774V40.3321H87.9688Z' stroke='#000' fill='none' stroke-width='.79701' stroke-miterlimit='10'/>
+<path d='M87.9688 70.8828H153.2774V40.3321H87.9688Z' stroke='#FFF' fill='white' stroke-width='.9999' stroke-miterlimit='10'/>
+<path d='M87.9688 70.8828H153.2774V40.3321H87.9688Z' stroke='#000' fill='white' stroke-width='.49701' stroke-miterlimit='10'/>
+<text class='f2o' x='80.436203' y='-61.638865' transform='matrix(1 0 0 1 10.8519 113.6608)'>V<tspan x='87.077972'>al(2)</tspan>
+</text>
 <text class='f2' x='80.436203' y='-61.638865' transform='matrix(1 0 0 1 10.8519 113.6608)'>V<tspan x='87.077972'>al(2)</tspan>
 </text>
-<text class='f0' x='110.877681' y='-61.638865' transform='matrix(1 0 0 1 10.8519 113.6608)'>≥</text>
+<text class='f0o' x='110.877681' y='-61.638865' transform='matrix(1 0 0 1 10.8519 113.6608)'>≤</text>
+<text class='f0' x='110.877681' y='-61.638865' transform='matrix(1 0 0 1 10.8519 113.6608)'>≤</text>
+<text class='f2o' x='121.393761' y='-61.638865' transform='matrix(1 0 0 1 10.8519 113.6608)'>5</text>
 <text class='f2' x='121.393761' y='-61.638865' transform='matrix(1 0 0 1 10.8519 113.6608)'>5</text>
+<text class='f1o' x='126.3751' y='-61.638865' transform='matrix(1 0 0 1 10.8519 113.6608)'>.</text>
 <text class='f1' x='126.3751' y='-61.638865' transform='matrix(1 0 0 1 10.8519 113.6608)'>.</text>
+<text class='f2o' x='129.142509' y='-61.638865' transform='matrix(1 0 0 1 10.8519 113.6608)'>15<tspan x='88.600016' y='-49.683697'>Imp.</tspan>
+<tspan x='113.229931'>0</tspan>
+</text>
 <text class='f2' x='129.142509' y='-61.638865' transform='matrix(1 0 0 1 10.8519 113.6608)'>15<tspan x='88.600016' y='-49.683697'>Imp.</tspan>
 <tspan x='113.229931'>0</tspan>
 </text>
+<text class='f1o' x='118.21127' y='-49.683697' transform='matrix(1 0 0 1 10.8519 113.6608)'>.</text>
 <text class='f1' x='118.21127' y='-49.683697' transform='matrix(1 0 0 1 10.8519 113.6608)'>.</text>
+<text class='f2o' x='120.978678' y='-49.683697' transform='matrix(1 0 0 1 10.8519 113.6608)'>07</text>
 <text class='f2' x='120.978678' y='-49.683697' transform='matrix(1 0 0 1 10.8519 113.6608)'>07</text>
-<path d='M45.5234 101.96873H88.5586V83.3711H45.5234Z' stroke='#000' fill='none' stroke-width='.79701' stroke-miterlimit='10'/>
+<path d='M45.5234 101.96873H88.5586V83.3711H45.5234Z' stroke='#FFF' fill='white' stroke-width='.9999' stroke-miterlimit='10'/>
+<path d='M45.5234 101.96873H88.5586V83.3711H45.5234Z' stroke='#000' fill='white' stroke-width='.49701' stroke-miterlimit='10'/>
+<text class='f2o' x='80.436203' y='-61.638865' transform='matrix(1 0 0 1 -31.5915 156.6988)'>Lab<tspan x='97.455776'>el:</tspan>
+<tspan x='111.846283'>1</tspan>
+</text>
 <text class='f2' x='80.436203' y='-61.638865' transform='matrix(1 0 0 1 -31.5915 156.6988)'>Lab<tspan x='97.455776'>el:</tspan>
 <tspan x='111.846283'>1</tspan>
 </text>
-<path d='M152.6871 101.96873H195.7223V83.3711H152.6871Z' stroke='#000' fill='none' stroke-width='.79701' stroke-miterlimit='10'/>
+<path d='M152.6871 101.96873H195.7223V83.3711H152.6871Z' stroke='#FFF' fill='white' stroke-width='.9999' stroke-miterlimit='10'/>
+<path d='M152.6871 101.96873H195.7223V83.3711H152.6871Z' stroke='#000' fill='white' stroke-width='.49701' stroke-miterlimit='10'/>
+<text class='f2o' x='80.436203' y='-61.638865' transform='matrix(1 0 0 1 75.5728 156.6988)'>Lab<tspan x='97.455776'>el:</tspan>
+<tspan x='111.846283'>2</tspan>
+</text>
 <text class='f2' x='80.436203' y='-61.638865' transform='matrix(1 0 0 1 75.5728 156.6988)'>Lab<tspan x='97.455776'>el:</tspan>
 <tspan x='111.846283'>2</tspan>
 </text>
-<path d='M259.8553 101.96873H302.8866V83.3711H259.8553Z' stroke='#000' fill='none' stroke-width='.79701' stroke-miterlimit='10'/>
+<path d='M259.8553 101.96873H302.8866V83.3711H259.8553Z' stroke='#FFF' fill='white' stroke-width='.9999' stroke-miterlimit='10'/>
+<path d='M259.8553 101.96873H302.8866V83.3711H259.8553Z' stroke='#000' fill='white' stroke-width='.49701' stroke-miterlimit='10'/>
+<text class='f2o' x='80.436203' y='-61.638865' transform='matrix(1 0 0 1 182.7378 156.6988)'>Lab<tspan x='97.455776'>el:</tspan>
+<tspan x='111.846283'>2</tspan>
+</text>
 <text class='f2' x='80.436203' y='-61.638865' transform='matrix(1 0 0 1 182.7378 156.6988)'>Lab<tspan x='97.455776'>el:</tspan>
 <tspan x='111.846283'>2</tspan>
 </text>
-<path d='M80.437497-61.640624V-52.32031' stroke='#000' fill='none' stroke-width='.79701' stroke-miterlimit='10'/>
+<path d='M80.437497-61.640624V-52.32031' stroke='#FFF' fill='white' stroke-width='.9999' stroke-miterlimit='10'/>
+<path d='M80.437497-61.640624V-52.32031' stroke='#000' fill='white' stroke-width='.49701' stroke-miterlimit='10'/>
 <path d='M80.437497-47.78515C80.574216-48.34374 81.355466-50.78905 82.20703-52.320304H78.66406C79.515622-50.78905 80.296872-48.34374 80.437497-47.78515Z'/>
-<path d='M80.437497-47.78515C80.574216-48.34374 81.355466-50.78905 82.20703-52.320304H78.66406C79.515622-50.78905 80.296872-48.34374 80.437497-47.78515Z' stroke='#000' fill='none' stroke-width='.79701' stroke-miterlimit='10'/>
-<path d='M47.3828-30.4687H-40.1248V76.7971' stroke='#000' fill='none' stroke-width='.79701' stroke-miterlimit='10'/>
+<path d='M80.437497-47.78515C80.574216-48.34374 81.355466-50.78905 82.20703-52.320304H78.66406C79.515622-50.78905 80.296872-48.34374 80.437497-47.78515Z' stroke='#FFF' fill='white' stroke-width='.99701' stroke-miterlimit='10'/>
+<path d='M80.437497-47.78515C80.574216-48.34374 81.355466-50.78905 82.20703-52.320304H78.66406C79.515622-50.78905 80.296872-48.34374 80.437497-47.78515Z' stroke='#000' fill='white' stroke-width='.49701' stroke-miterlimit='10'/>
+<path d='M47.3828-30.4687H-40.1248V76.7971' stroke='#FFF' fill='none' stroke-width='.9999' stroke-miterlimit='10'/>
+<path d='M47.3828-30.4687H-40.1248V76.7971' stroke='#000' fill='none' stroke-width='.49701' stroke-miterlimit='10'/>
 <path d='M-40.125024 81.3281C-39.984399 80.77341-39.203149 78.32419-38.35159 76.796848H-41.89456C-41.042993 78.32419-40.261743 80.77341-40.125024 81.3281Z'/>
-<path d='M-40.125024 81.3281C-39.984399 80.77341-39.203149 78.32419-38.35159 76.796848H-41.89456C-41.042993 78.32419-40.261743 80.77341-40.125024 81.3281Z' stroke='#000' fill='none' stroke-width='.79701' stroke-miterlimit='10'/>
+<path d='M-40.125024 81.3281C-39.984399 80.77341-39.203149 78.32419-38.35159 76.796848H-41.89456C-41.042993 78.32419-40.261743 80.77341-40.125024 81.3281Z' stroke='#FFF' fill='white' stroke-width='.99701' stroke-miterlimit='10'/>
+<path d='M-40.125024 81.3281C-39.984399 80.77341-39.203149 78.32419-38.35159 76.796848H-41.89456C-41.042993 78.32419-40.261743 80.77341-40.125024 81.3281Z' stroke='#000' fill='white' stroke-width='.49701' stroke-miterlimit='10'/>
+<text class='f2o' x='80.436188' y='-61.638865' transform='matrix(1 0 0 1 -71.792 27.4522)'>Y</text>
 <text class='f2' x='80.436188' y='-61.638865' transform='matrix(1 0 0 1 -71.792 27.4522)'>Y</text>
-<path d='M113.4883-30.4687H200.9962V-9.2812' stroke='#000' fill='none' stroke-width='.79701' stroke-miterlimit='10'/>
+<path d='M113.4883-30.4687H200.9962V-9.2812' stroke='#FFF' fill='none' stroke-width='.9999' stroke-miterlimit='10'/>
+<path d='M113.4883-30.4687H200.9962V-9.2812' stroke='#000' fill='none' stroke-width='.49701' stroke-miterlimit='10'/>
 <path d='M200.996512-4.74609C201.13323-5.30469 201.918387-7.75 202.76995-9.281248H199.22698C200.074637-7.75 200.859793-5.30469 200.996512-4.74609Z'/>
-<path d='M200.996512-4.74609C201.13323-5.30469 201.918387-7.75 202.76995-9.281248H199.22698C200.074637-7.75 200.859793-5.30469 200.996512-4.74609Z' stroke='#000' fill='none' stroke-width='.79701' stroke-miterlimit='10'/>
+<path d='M200.996512-4.74609C201.13323-5.30469 201.918387-7.75 202.76995-9.281248H199.22698C200.074637-7.75 200.859793-5.30469 200.996512-4.74609Z' stroke='#FFF' fill='white' stroke-width='.99701' stroke-miterlimit='10'/>
+<path d='M200.996512-4.74609C201.13323-5.30469 201.918387-7.75 202.76995-9.281248H199.22698C200.074637-7.75 200.859793-5.30469 200.996512-4.74609Z' stroke='#000' fill='white' stroke-width='.49701' stroke-miterlimit='10'/>
+<text class='f2o' x='80.436188' y='-61.638865' transform='matrix(1 0 0 1 64.3198 27.4522)'>N</text>
 <text class='f2' x='80.436188' y='-61.638865' transform='matrix(1 0 0 1 64.3198 27.4522)'>N</text>
-<path d='M167.9414 12.5703H120.6211V33.7578' stroke='#000' fill='none' stroke-width='.79701' stroke-miterlimit='10'/>
+<path d='M167.9414 12.5703H120.6211V33.7578' stroke='#FFF' fill='none' stroke-width='.9999' stroke-miterlimit='10'/>
+<path d='M167.9414 12.5703H120.6211V33.7578' stroke='#000' fill='none' stroke-width='.49701' stroke-miterlimit='10'/>
 <path d='M120.621108 38.28908C120.761733 37.73439 121.542983 35.28517 122.39455 33.757826H118.85158C119.703139 35.28517 120.484389 37.73439 120.621108 38.28908Z'/>
-<path d='M120.621108 38.28908C120.761733 37.73439 121.542983 35.28517 122.39455 33.757826H118.85158C119.703139 35.28517 120.484389 37.73439 120.621108 38.28908Z' stroke='#000' fill='none' stroke-width='.79701' stroke-miterlimit='10'/>
+<path d='M120.621108 38.28908C120.761733 37.73439 121.542983 35.28517 122.39455 33.757826H118.85158C119.703139 35.28517 120.484389 37.73439 120.621108 38.28908Z' stroke='#FFF' fill='white' stroke-width='.99701' stroke-miterlimit='10'/>
+<path d='M120.621108 38.28908C120.761733 37.73439 121.542983 35.28517 122.39455 33.757826H118.85158C119.703139 35.28517 120.484389 37.73439 120.621108 38.28908Z' stroke='#000' fill='white' stroke-width='.49701' stroke-miterlimit='10'/>
+<text class='f2o' x='80.436188' y='-61.638865' transform='matrix(1 0 0 1 64.8428 70.4903)'>Y</text>
 <text class='f2' x='80.436188' y='-61.638865' transform='matrix(1 0 0 1 64.8428 70.4903)'>Y</text>
-<path d='M87.57031 55.6091H67.0391V76.7971' stroke='#000' fill='none' stroke-width='.79701' stroke-miterlimit='10'/>
+<path d='M87.57031 55.6091H67.0391V76.7971' stroke='#FFF' fill='none' stroke-width='.9999' stroke-miterlimit='10'/>
+<path d='M87.57031 55.6091H67.0391V76.7971' stroke='#000' fill='none' stroke-width='.49701' stroke-miterlimit='10'/>
 <path d='M67.039059 81.3281C67.179684 80.77341 67.960934 78.32419 68.8125 76.796848H65.26953C66.12109 78.32419 66.90234 80.77341 67.039059 81.3281Z'/>
-<path d='M67.039059 81.3281C67.179684 80.77341 67.960934 78.32419 68.8125 76.796848H65.26953C66.12109 78.32419 66.90234 80.77341 67.039059 81.3281Z' stroke='#000' fill='none' stroke-width='.79701' stroke-miterlimit='10'/>
+<path d='M67.039059 81.3281C67.179684 80.77341 67.960934 78.32419 68.8125 76.796848H65.26953C66.12109 78.32419 66.90234 80.77341 67.039059 81.3281Z' stroke='#FFF' fill='white' stroke-width='.99701' stroke-miterlimit='10'/>
+<path d='M67.039059 81.3281C67.179684 80.77341 67.960934 78.32419 68.8125 76.796848H65.26953C66.12109 78.32419 66.90234 80.77341 67.039059 81.3281Z' stroke='#000' fill='white' stroke-width='.49701' stroke-miterlimit='10'/>
+<text class='f2o' x='80.436188' y='-61.638865' transform='matrix(1 0 0 1 -4.8144 113.5283)'>Y</text>
 <text class='f2' x='80.436188' y='-61.638865' transform='matrix(1 0 0 1 -4.8144 113.5283)'>Y</text>
-<path d='M153.6758 55.6091H174.207V76.7971' stroke='#000' fill='none' stroke-width='.79701' stroke-miterlimit='10'/>
+<path d='M153.6758 55.6091H174.207V76.7971' stroke='#FFF' fill='none' stroke-width='.9999' stroke-miterlimit='10'/>
+<path d='M153.6758 55.6091H174.207V76.7971' stroke='#000' fill='none' stroke-width='.49701' stroke-miterlimit='10'/>
 <path d='M174.206648 81.3281C174.343367 80.77341 175.124617 78.32419 175.97618 76.796848H172.43321C173.284773 78.32419 174.066023 80.77341 174.206648 81.3281Z'/>
-<path d='M174.206648 81.3281C174.343367 80.77341 175.124617 78.32419 175.97618 76.796848H172.43321C173.284773 78.32419 174.066023 80.77341 174.206648 81.3281Z' stroke='#000' fill='none' stroke-width='.79701' stroke-miterlimit='10'/>
+<path d='M174.206648 81.3281C174.343367 80.77341 175.124617 78.32419 175.97618 76.796848H172.43321C173.284773 78.32419 174.066023 80.77341 174.206648 81.3281Z' stroke='#FFF' fill='white' stroke-width='.99701' stroke-miterlimit='10'/>
+<path d='M174.206648 81.3281C174.343367 80.77341 175.124617 78.32419 175.97618 76.796848H172.43321C173.284773 78.32419 174.066023 80.77341 174.206648 81.3281Z' stroke='#000' fill='white' stroke-width='.49701' stroke-miterlimit='10'/>
+<text class='f2o' x='80.436188' y='-61.638865' transform='matrix(1 0 0 1 77.7158 113.5283)'>N</text>
 <text class='f2' x='80.436188' y='-61.638865' transform='matrix(1 0 0 1 77.7158 113.5283)'>N</text>
-<path d='M234.0512 12.5703H281.3712V76.7971' stroke='#000' fill='none' stroke-width='.79701' stroke-miterlimit='10'/>
+<path d='M234.0512 12.5703H281.3712V76.7971' stroke='#FFF' fill='none' stroke-width='.9999' stroke-miterlimit='10'/>
+<path d='M234.0512 12.5703H281.3712V76.7971' stroke='#000' fill='none' stroke-width='.49701' stroke-miterlimit='10'/>
 <path d='M281.370946 81.3281C281.507665 80.77341 282.288915 78.32419 283.14048 76.796848H279.59751C280.449071 78.32419 281.230321 80.77341 281.370946 81.3281Z'/>
-<path d='M281.370946 81.3281C281.507665 80.77341 282.288915 78.32419 283.14048 76.796848H279.59751C280.449071 78.32419 281.230321 80.77341 281.370946 81.3281Z' stroke='#000' fill='none' stroke-width='.79701' stroke-miterlimit='10'/>
+<path d='M281.370946 81.3281C281.507665 80.77341 282.288915 78.32419 283.14048 76.796848H279.59751C280.449071 78.32419 281.230321 80.77341 281.370946 81.3281Z' stroke='#FFF' fill='white' stroke-width='.99701' stroke-miterlimit='10'/>
+<path d='M281.370946 81.3281C281.507665 80.77341 282.288915 78.32419 283.14048 76.796848H279.59751C280.449071 78.32419 281.230321 80.77341 281.370946 81.3281Z' stroke='#000' fill='white' stroke-width='.49701' stroke-miterlimit='10'/>
+<text class='f2o' x='80.436188' y='-61.638865' transform='matrix(1 0 0 1 168.8058 70.4903)'>N</text>
 <text class='f2' x='80.436188' y='-61.638865' transform='matrix(1 0 0 1 168.8058 70.4903)'>N</text>
 </g>
 </svg>
