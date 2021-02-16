@@ -56,7 +56,7 @@ pub fn iris() -> Dataset<f64, usize> {
 
     let (data, targets) = (
         array.slice(s![.., 0..4]).to_owned(),
-        array.column(4).to_owned(),
+        array.column(4).to_owned().insert_axis(Axis(1))
     );
 
     let feature_names = vec!["sepal length", "sepal width", "petal length", "petal width"];
@@ -73,7 +73,8 @@ pub fn diabetes() -> Dataset<f64, f64> {
     let data = array_from_buf(&data[..]);
 
     let targets = include_bytes!("../data/diabetes_target.csv.gz");
-    let targets = array_from_buf(&targets[..]).column(0).to_owned();
+    let targets = array_from_buf(&targets[..]).column(0).to_owned()
+        .insert_axis(Axis(1));
 
     let feature_names = vec![
         "age",
@@ -99,7 +100,7 @@ pub fn winequality() -> Dataset<f64, usize> {
 
     let (data, targets) = (
         array.slice(s![.., 0..11]).to_owned(),
-        array.column(11).to_owned(),
+        array.column(11).to_owned().insert_axis(Axis(1))
     );
 
     let feature_names = vec![

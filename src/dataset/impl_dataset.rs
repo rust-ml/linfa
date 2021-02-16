@@ -1,11 +1,11 @@
 use ndarray::{
-    stack, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Dimension, Ix1, Ix2, RemoveAxis, OwnedRepr, s, ArrayView, CowArray
+    stack, Array1, Array2, ArrayBase, ArrayView2, Axis, Data, Dimension, Ix2, ArrayViewMut2, DataMut
 };
 use rand::{seq::SliceRandom, Rng};
 use std::collections::{HashMap, HashSet};
 
 use super::{
-    iter::{ChunksIter, Iter}, Dataset, DatasetBase, DatasetView, Float, Label, Records, ToTargets, Result, Labels
+    iter::{ChunksIter, Iter}, Dataset, DatasetBase, DatasetView, Float, Label, Records, AsTargets, AsTargetsMut, Result, Labels
 };
 
 /// Iterate over observations
@@ -152,7 +152,7 @@ impl<R: Records, S> DatasetBase<R, S> {
 ///
 /// A modified dataset with new target type.
 ///
-impl<L, R: Records, T: ToTargets<Elem = L>> DatasetBase<R, T> {
+impl<L, R: Records, T: AsTargets<Elem = L>> DatasetBase<R, T> {
     pub fn map_targets<S, G: FnMut(&L) -> S>(self, fnc: G) -> DatasetBase<R, Array2<S>> {
         let DatasetBase {
             records,
@@ -162,7 +162,7 @@ impl<L, R: Records, T: ToTargets<Elem = L>> DatasetBase<R, T> {
             ..
         } = self;
 
-        let targets = targets.to_multi_targets();
+        let targets = targets.as_multi_targets();
 
         DatasetBase {
             records,
@@ -171,13 +171,25 @@ impl<L, R: Records, T: ToTargets<Elem = L>> DatasetBase<R, T> {
             feature_names,
         }
     }
+
+    pub fn ntargets(&self) -> usize {
+        self.targets.as_multi_targets().len_of(Axis(1))
+    }
 }
 
-impl<L, R: Records, T: ToTargets<Elem = L>> ToTargets for DatasetBase<R, T> {
+impl<L, R: Records, T: AsTargets<Elem = L>> AsTargets for DatasetBase<R, T> {
     type Elem = L;
 
-    fn to_multi_targets<'a>(&'a self) -> ArrayView2<'a, Self::Elem> {
-        self.targets().to_multi_targets()
+    fn as_multi_targets<'a>(&'a self) -> ArrayView2<'a, Self::Elem> {
+        self.targets.as_multi_targets()
+    }
+}
+
+impl<L, R: Records, T: AsTargetsMut<Elem = L>> AsTargetsMut for DatasetBase<R, T> {
+    type Elem = L;
+
+    fn as_multi_targets_mut<'a>(&'a mut self) -> ArrayViewMut2<'a, Self::Elem> {
+        self.targets.as_multi_targets_mut()
     }
 }
 
@@ -217,7 +229,7 @@ impl<L: Label, T: Labels<Elem = L>, R: Records> Labels for DatasetBase<R, T> {
 
 impl<F: Float, L: Label, T, D> DatasetBase<ArrayBase<D, Ix2>, T> where 
     D: Data<Elem = F>,
-    T: ToTargets<Elem = L> + Labels<Elem = L>,
+    T: AsTargets<Elem = L> + Labels<Elem = L>,
 {
     /// Produce N boolean targets from multi-class targets
     ///
@@ -240,7 +252,7 @@ impl<F: Float, L: Label, T, D> DatasetBase<ArrayBase<D, Ix2>, T> where
     }
 }
 
-impl<L: Label, R: Records, S: ToTargets<Elem = L>> DatasetBase<R, S> {
+impl<L: Label, R: Records, S: AsTargets<Elem = L>> DatasetBase<R, S> {
     /// Calculates label frequencies from a dataset while masking certain samples.
     ///
     /// ### Parameters
@@ -255,7 +267,7 @@ impl<L: Label, R: Records, S: ToTargets<Elem = L>> DatasetBase<R, S> {
 
         for (elms, val) in self
             .targets
-            .to_multi_targets()
+            .as_multi_targets()
             .axis_iter(Axis(0))
             .enumerate()
             .filter(|(i, _)| mask[*i])
@@ -273,7 +285,6 @@ impl<L: Label, R: Records, S: ToTargets<Elem = L>> DatasetBase<R, S> {
         freqs
     }
 }
-/*
 
 impl<F: Float, D: Data<Elem = F>, I: Dimension> From<ArrayBase<D, I>>
     for DatasetBase<ArrayBase<D, I>, ()>
@@ -288,7 +299,7 @@ impl<F: Float, D: Data<Elem = F>, I: Dimension> From<ArrayBase<D, I>>
     }
 }
 
-impl<F: Float, T: ToTargets, D: Data<Elem = F>, I: Dimension> From<(ArrayBase<D, I>, T)>
+impl<F: Float, T: AsTargets, D: Data<Elem = F>, I: Dimension> From<(ArrayBase<D, I>, T)>
     for DatasetBase<ArrayBase<D, I>, T>
 {
     fn from(rec_tar: (ArrayBase<D, I>, T)) -> Self {
@@ -300,11 +311,10 @@ impl<F: Float, T: ToTargets, D: Data<Elem = F>, I: Dimension> From<(ArrayBase<D,
         }
     }
 }
-*/
 
 impl<'b, F: Float, E: Copy + 'b, D, T> DatasetBase<ArrayBase<D, Ix2>, T> where
     D: Data<Elem = F>,
-    T: ToTargets<Elem = E>,
+    T: AsTargets<Elem = E>,
 {
     /// Apply bootstrapping by sampling with replacement
     ///
@@ -333,7 +343,7 @@ impl<'b, F: Float, E: Copy + 'b, D, T> DatasetBase<ArrayBase<D, Ix2>, T> where
                 .collect::<Vec<_>>();
 
             let records = self.records().select(Axis(0), &indices);
-            let targets = self.to_multi_targets().select(Axis(0), &indices);
+            let targets = self.as_multi_targets().select(Axis(0), &indices);
 
             DatasetBase::new(records, targets)
         })
@@ -353,7 +363,7 @@ impl<'b, F: Float, E: Copy + 'b, D, T> DatasetBase<ArrayBase<D, Ix2>, T> where
         indices.shuffle(rng);
 
         let records = (&self).records().select(Axis(0), &indices);
-        let targets = (&self).to_multi_targets().select(Axis(0), &indices);
+        let targets = (&self).as_multi_targets().select(Axis(0), &indices);
 
         DatasetBase::new(records, targets)
     }
@@ -393,7 +403,7 @@ impl<'b, F: Float, E: Copy + 'b, D, T> DatasetBase<ArrayBase<D, Ix2>, T> where
     /// ```
     ///  
     pub fn fold(&self, k: usize) -> Vec<(Dataset<F, E>, Dataset<F, E>)> {
-        let targets = self.to_multi_targets();
+        let targets = self.as_multi_targets();
         let fold_size = targets.len() / k;
         let mut res = Vec::new();
 
@@ -429,13 +439,23 @@ impl<'b, F: Float, E: Copy + 'b, D, T> DatasetBase<ArrayBase<D, Ix2>, T> where
         res
     }
 
-    pub fn axis_chunks_iter(
+    pub fn axis_chunks_iter<'a: 'b>(
         &'b self,
         axis: Axis,
         chunk_size: usize,
-    ) -> ChunksIter<'b, F, E> {
-        ChunksIter::new(self.records().view(), self.to_multi_targets(), chunk_size)
+    ) -> ChunksIter<'b, 'a, F, E> {
+        ChunksIter::new(self.records().view(), self.as_multi_targets(), chunk_size, axis)
     }
+
+    pub fn to_owned(&self) -> Dataset<F, E> {
+        (self.records().to_owned(), self.as_multi_targets().to_owned()).into()
+    }
+}
+
+impl<'b, F: Float, E: Copy + 'b, D, T> DatasetBase<ArrayBase<D, Ix2>, T> where
+    D: DataMut<Elem = F>,
+    T: AsTargets<Elem = E> + AsTargetsMut<Elem = E>,
+{
 
     /// Allows to perform k-folding cross validation on fittable algorithms.
     ///
@@ -496,26 +516,28 @@ impl<'b, F: Float, E: Copy + 'b, D, T> DatasetBase<ArrayBase<D, Ix2>, T> where
     ///     // assert the performance of the chosen algorithm
     /// }
     /// ```
-    pub fn iter_fold<'a, O: 'a, C: 'a + Fn(DatasetView<F, E>) -> O>(
-        &'a mut self,
+    pub fn iter_fold<'a, O: 'b, C: 'a + Fn(DatasetView<F, E>) -> O>(
+        &'b mut self,
         k: usize,
         fit_closure: C,
-    ) -> impl Iterator<Item = (O, DatasetView<F, E>)> + 'a {
+    ) -> impl Iterator<Item = (O, DatasetView<F, E>)> + 'b {
         assert!(k > 0);
         assert!(k <= self.nsamples());
         let samples_count = self.nsamples();
         let fold_size = samples_count / k;
 
-        let features = self.records.dim().1;
+        let features = self.nfeatures();
+        let targets = self.ntargets();
 
         let mut records_sl = self.records.as_slice_mut().unwrap();
-        let mut targets_sl = self.targets.as_slice_mut().unwrap();
+        let mut targets_sl = self.targets.as_multi_targets_mut();
+        let mut targets_sl = targets_sl.as_slice_mut().unwrap();
 
         let mut objs: Vec<O> = Vec::new();
 
         for i in 0..k {
             assist_swap_array2(&mut records_sl, i, fold_size, features);
-            assist_swap_array1(&mut targets_sl, i, fold_size);
+            assist_swap_array2(&mut targets_sl, i, fold_size, targets);
 
             let train = DatasetView::new(
                 ArrayView2::from_shape(
@@ -523,7 +545,7 @@ impl<'b, F: Float, E: Copy + 'b, D, T> DatasetBase<ArrayBase<D, Ix2>, T> where
                     records_sl.split_at(fold_size * features).1,
                 )
                 .unwrap(),
-                ArrayView1::from_shape(samples_count - fold_size, targets_sl.split_at(fold_size).1)
+                ArrayView2::from_shape((samples_count - fold_size, targets), targets_sl.split_at(fold_size).1)
                     .unwrap(),
             );
 
@@ -559,7 +581,6 @@ fn assist_swap_array2<F>(slice: &mut [F], index: usize, fold_size: usize, featur
     first_s[..fold_size * features].swap_with_slice(&mut fold);
 }
 
-/*
 impl <F: Float, E> Dataset<F, E> {
     /// Split dataset into two disjoint chunks
     ///
@@ -578,27 +599,31 @@ impl <F: Float, E> Dataset<F, E> {
     ///  
     /// The input Dataset split into two according to the input ratio.
     pub fn split_with_ratio(mut self, ratio: f32) -> (Self, Self) {
-        let nfeatures = self.records.ncols();
-        let npoints = self.records.nrows();
-        let n = (npoints as f32 * ratio).ceil() as usize;
+        let (nfeatures, ntargets) = (
+            self.nfeatures(),
+            self.ntargets()
+        );
+            
+        let n1 = (self.nsamples() as f32 * ratio).ceil() as usize;
+        let n2 = self.nsamples() - n1;
 
         // split records into two disjoint arrays
         let mut array_buf = self.records.into_raw_vec();
-        let second_array_buf = array_buf.split_off(n * nfeatures);
+        let second_array_buf = array_buf.split_off(n1 * nfeatures);
 
-        let first = Array2::from_shape_vec((n, nfeatures), array_buf).unwrap();
-        let second = Array2::from_shape_vec((npoints - n, nfeatures), second_array_buf).unwrap();
+        let first = Array2::from_shape_vec((n1, nfeatures), array_buf).unwrap();
+        let second = Array2::from_shape_vec((n2, nfeatures), second_array_buf).unwrap();
 
         // split targets into two disjoint Vec
         let mut array_buf = self.targets.into_raw_vec();
-        let second_array_buf = array_buf.split_off(n);
+        let second_array_buf = array_buf.split_off(n1 * ntargets);
 
-        let first_targets = Array1::from_shape_vec(n, array_buf).unwrap();
-        let second_targets = Array1::from_shape_vec(npoints - n, second_array_buf).unwrap();
+        let first_targets = Array2::from_shape_vec((n1, ntargets), array_buf).unwrap();
+        let second_targets = Array2::from_shape_vec((n2, ntargets), second_array_buf).unwrap();
 
         // split weights into two disjoint Vec
-        let second_weights = if self.weights.len() == npoints {
-            self.weights.split_off(n)
+        let second_weights = if self.weights.len() == n1+n2 {
+            self.weights.split_off(n1)
         } else {
             vec![]
         };
@@ -607,75 +632,6 @@ impl <F: Float, E> Dataset<F, E> {
         let dataset1 = Dataset::new(first, first_targets).with_weights(self.weights);
         let dataset2 = Dataset::new(second, second_targets).with_weights(second_weights);
         (dataset1, dataset2)
-
-        let (r1, r2) = self.records.multi_slice_move((s![..n], s![n..]));
-        let
     }
-
 }
 
-impl<'a, F: Float, E: Copy> DatasetView<'a, F, E> {
-    pub fn bootstrap<R: Rng>(
-    /// Apply bootstrapping by sampling with replacement
-    ///
-    /// Bootstrap aggregating is used for sub-sample generation and improves the accuracy and
-    /// stability of machine learning algorithms. It samples data uniformly with replacement and
-    /// generates datasets where observations may be shared.
-    ///
-    /// # Parameters
-    ///
-    ///  * `num_samples`: The number of samples per bootstrap
-    ///  * `rng`: The random number generator used in the sampling procedure
-    ///
-    ///  # Returns
-    ///
-    ///  An infinite Iterator yielding at each step a new bootstrapped dataset
-    ///
-    pub fn bootstrap<R: Rng>(
-        &'a self,
-        num_samples: usize,
-        rng: &'a mut R,
-    ) -> impl Iterator<Item = Dataset<F, E>> + 'a {
-        std::iter::repeat(()).map(move |_| {
-            // sample with replacement
-            let indices = (0..num_samples)
-                .map(|_| rng.gen_range(0, self.observations()))
-                .collect::<Vec<_>>();
-
-            let records = self.records().select(Axis(0), &indices);
-            let targets = indices
-                .iter()
-                .map(|x| self.targets[*x])
-                .collect::<ArrayBase<_, Ix1>>();
-
-            Dataset::new(records, targets)
-        })
-    }
-
-    /// Produces a shuffled version of the current Dataset.
-    ///
-    /// ### Parameters
-    ///
-    /// * `rng`: the random number generator that will be used to shuffle the samples
-    ///
-    /// ### Returns
-    ///
-    /// A new shuffled version of the current Dataset
-    pub fn shuffle<R: Rng>(&self, mut rng: &mut R) -> Dataset<F, E> {
-        let mut indices = (0..(&self).observations()).collect::<Vec<_>>();
-        indices.shuffle(&mut rng);
-
-        let records = (&self).records().select(Axis(0), &indices);
-        let targets = indices
-            .iter()
-            .map(|x| (self).targets[*x])
-            .collect::<Array1<_>>();
-
-        DatasetBase::new(records, targets)
-    }
-
-
-    pub fn to_owned(&self) -> Dataset<F, E> {
-        (self.records().to_owned(), self.targets.to_owned()).into()
-    }
-}*/

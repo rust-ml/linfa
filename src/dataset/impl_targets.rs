@@ -1,37 +1,69 @@
 use std::collections::HashSet;
 
-use super::{DatasetBase, Label, Records, ToTargets, Result, super::error::Error, TargetsWithLabels, ToProbabilities, Pr, Labels};
-use ndarray::{ArrayBase, Data, Dimension, Ix1, Ix2, Ix3, Array1, CowArray, Axis, ArrayView2};
+use super::{DatasetBase, Label, Records, AsTargets, AsTargetsMut, TargetsWithLabels, AsProbabilities, Pr, Labels};
+use ndarray::{ArrayBase, Data, Dimension, Ix1, Ix2, Ix3, CowArray, Axis, ArrayView2, ArrayViewMut2, DataMut};
 
-impl<L, S: Data<Elem = L>> ToTargets for ArrayBase<S, Ix1> {
+impl<L, S: Data<Elem = L>> AsTargets for ArrayBase<S, Ix1> {
     type Elem = L;
 
-    fn to_multi_targets(&self) -> ArrayView2<L> {
+    fn as_multi_targets(&self) -> ArrayView2<L> {
         self.view().insert_axis(Axis(1))
     }
 }
 
-impl<L, S: Data<Elem = L>> ToTargets for ArrayBase<S, Ix2> {
+impl<L, S: DataMut<Elem = L>> AsTargetsMut for ArrayBase<S, Ix1> {
     type Elem = L;
 
-    fn to_multi_targets(&self) -> ArrayView2<L> {
+    fn as_multi_targets_mut<'a>(&'a mut self) -> ArrayViewMut2<'a, Self::Elem> {
+        self.view_mut().insert_axis(Axis(1))
+    }
+}
+
+impl<L, S: Data<Elem = L>> AsTargets for ArrayBase<S, Ix2> {
+    type Elem = L;
+
+    fn as_multi_targets(&self) -> ArrayView2<L> {
         self.view()
     }
 }
 
-impl<L: Label, T: ToTargets<Elem = L> + ToProbabilities> ToTargets for TargetsWithLabels<L, T> {
+impl<L, S: DataMut<Elem = L>> AsTargetsMut for ArrayBase<S, Ix2> {
     type Elem = L;
 
-    fn to_multi_targets(&self) -> ArrayView2<L> {
-        self.targets.to_multi_targets()
+    fn as_multi_targets_mut<'a>(&'a mut self) -> ArrayViewMut2<'a, Self::Elem> {
+        self.view_mut()
+    }
+}
+
+impl<T: AsTargets> AsTargets for &T {
+    type Elem = T::Elem;
+
+    fn as_multi_targets(&self) -> ArrayView2<Self::Elem> {
+        (*self).as_multi_targets()
+    }
+}
+
+impl<L: Label, T: AsTargets<Elem = L> + AsProbabilities> AsTargets for TargetsWithLabels<L, T> {
+    type Elem = L;
+
+    fn as_multi_targets(&self) -> ArrayView2<L> {
+        self.targets.as_multi_targets()
+    }
+}
+
+impl<L: Label, T: AsTargetsMut<Elem = L>> AsTargetsMut for TargetsWithLabels<L, T> {
+    type Elem = L;
+
+    fn as_multi_targets_mut<'a>(&'a mut self) -> ArrayViewMut2<'a, Self::Elem> {
+        self.targets.as_multi_targets_mut()
     }
 }
 
 /*
-impl<L: Label, S: Data<Elem = Pr>> ToTargets for TargetsWithLabels<L, ArrayBase<S, Ix3>> {
+impl<L: Label, S: Data<Elem = Pr>> AsTargets for TargetsWithLabels<L, ArrayBase<S, Ix3>> {
     type Elem = L;
 
-    fn to_multi_targets(&self) -> CowArray<L, Ix2> {
+    fn as_multi_targets(&self) -> CowArray<L, Ix2> {
         /*let init_vals = (..self.labels.len()).map(|i| (i, f32::INFINITY)).collect();
         let res = self.targets.fold_axis(Axis(2), init_vals, |a, b| {
             if a.1 > b.1 {
@@ -47,14 +79,14 @@ impl<L: Label, S: Data<Elem = Pr>> ToTargets for TargetsWithLabels<L, ArrayBase<
     }
 }*/
 
-impl<S: Data<Elem = Pr>> ToProbabilities for ArrayBase<S, Ix3> {
-    fn to_multi_target_probabilities<'a>(&'a self) -> CowArray<'a, Pr, Ix3> {
+impl<S: Data<Elem = Pr>> AsProbabilities for ArrayBase<S, Ix3> {
+    fn as_multi_target_probabilities<'a>(&'a self) -> CowArray<'a, Pr, Ix3> {
         CowArray::from(self.view())
     }
 }
 
 /*
-impl ToTargets for () {
+impl AsTargets for () {
     type Elem = ();
 
     fn try_single_target(&self) -> Result<CowArray<(), Ix1>> {
@@ -79,7 +111,7 @@ impl<L: Label, R: Records, D: Data<Elem = L>, I: Dimension> Labels for DatasetBa
 }
 
 /// A NdArray with discrete labels can act as labels
-impl<L: Label, R: Records, T: ToTargets<Elem = L>> Labels for DatasetBase<R, TargetsWithLabels<L, T>> {
+impl<L: Label, R: Records, T: AsTargets<Elem = L>> Labels for DatasetBase<R, TargetsWithLabels<L, T>> {
     type Elem = L;
 
     fn label_set(&self) -> HashSet<L> {
@@ -87,7 +119,7 @@ impl<L: Label, R: Records, T: ToTargets<Elem = L>> Labels for DatasetBase<R, Tar
     }
 }
 
-impl<R: Records, L: Label, T: ToTargets<Elem = L> + ToProbabilities> DatasetBase<R, T> {
+impl<R: Records, L: Label, T: AsTargets<Elem = L> + AsProbabilities> DatasetBase<R, T> {
     pub fn with_labels(self, labels: &[L]) -> DatasetBase<R, TargetsWithLabels<L, T>> {
         let targets = TargetsWithLabels {
             targets: self.targets,

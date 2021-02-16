@@ -10,7 +10,8 @@ use std::fmt;
 use ndarray::prelude::*;
 use ndarray::Data;
 
-use crate::dataset::{DatasetBase, Label, Pr, Records, ToTargets};
+use crate::error::Result;
+use crate::dataset::{DatasetBase, Label, Pr, Records, AsTargets, Labels};
 
 /// Return tuple of class index for each element of prediction and ground_truth
 fn map_prediction_to_idx<L: Label>(
@@ -258,22 +259,22 @@ impl<A: fmt::Display> fmt::Debug for ConfusionMatrix<A> {
 ///
 /// Contains a routine to calculate the confusion matrix, all other scores are derived form it.
 pub trait ToConfusionMatrix<A, T> {
-    fn confusion_matrix(&self, ground_truth: T) -> ConfusionMatrix<A>;
+    fn confusion_matrix(&self, ground_truth: T) -> Result<ConfusionMatrix<A>>;
 }
 
 impl<
         R: Records,
         R2: Records,
         L: Label,
-        T: ToTargets<Elem = L>,
-        T2: ToTargets<Elem = L>,
+        T: AsTargets<Elem = L> + Labels<Elem = L>,
+        T2: AsTargets<Elem = L>,
     > ToConfusionMatrix<L, &DatasetBase<R, T>> for DatasetBase<R2, T2>
 {
-    fn confusion_matrix(&self, ground_truth: &DatasetBase<R, T>) -> ConfusionMatrix<L> {
+    fn confusion_matrix(&self, ground_truth: &DatasetBase<R, T>) -> Result<ConfusionMatrix<L>> {
         let classes: Vec<L> = ground_truth.labels();
         let indices = map_prediction_to_idx(
-            &self.targets.as_slice(),
-            &ground_truth.targets.as_slice(),
+            &self.targets.try_single_target()?.as_slice().unwrap(),
+            &ground_truth.targets.try_single_target()?.as_slice().unwrap(),
             &classes,
         );
 
@@ -283,19 +284,22 @@ impl<
             confusion_matrix[(i1, i2)] += ground_truth.weight_for(i1);
         }
 
-        ConfusionMatrix {
+        Ok(ConfusionMatrix {
             matrix: confusion_matrix,
             members: Array1::from(classes),
-        }
+        })
     }
 }
 
-impl<R: Records, L: Label, T: ToTargets<Elem = L>>
+impl<R: Records, L: Label, T: AsTargets<Elem = L> + Labels<Elem = L>>
     ToConfusionMatrix<L, &DatasetBase<R, T>> for Vec<L>
 {
-    fn confusion_matrix(&self, ground_truth: &DatasetBase<R, T>) -> ConfusionMatrix<L> {
+    fn confusion_matrix(&self, ground_truth: &DatasetBase<R, T>) -> Result<ConfusionMatrix<L>> {
         let classes: Vec<L> = ground_truth.labels();
-        let indices = map_prediction_to_idx(&self, &ground_truth.targets.as_slice(), &classes);
+        let targets = ground_truth.targets.try_single_target()?;
+        let targets = targets.as_slice().unwrap();
+
+        let indices = map_prediction_to_idx(&self, &targets, &classes);
 
         // count each index tuple in the confusion matrix
         let mut confusion_matrix = Array2::zeros((classes.len(), classes.len()));
@@ -303,15 +307,15 @@ impl<R: Records, L: Label, T: ToTargets<Elem = L>>
             confusion_matrix[(i1, i2)] += ground_truth.weight_for(i1);
         }
 
-        ConfusionMatrix {
+        Ok(ConfusionMatrix {
             matrix: confusion_matrix,
             members: Array1::from(classes),
-        }
+        })
     }
 }
 
 impl<L: Label> ToConfusionMatrix<L, &[L]> for &[L] {
-    fn confusion_matrix(&self, ground_truth: &[L]) -> ConfusionMatrix<L> {
+    fn confusion_matrix(&self, ground_truth: &[L]) -> Result<ConfusionMatrix<L>> {
         let classes = ground_truth
             .iter()
             .collect::<HashSet<_>>()
@@ -327,17 +331,17 @@ impl<L: Label> ToConfusionMatrix<L, &[L]> for &[L] {
             confusion_matrix[(i1, i2)] += 1.0;
         }
 
-        ConfusionMatrix {
+        Ok(ConfusionMatrix {
             matrix: confusion_matrix,
             members: Array1::from(classes),
-        }
+        })
     }
 }
 
 impl<L: Label, S: Data<Elem = L>, T: Data<Elem = L>> ToConfusionMatrix<L, ArrayBase<S, Ix1>>
     for ArrayBase<T, Ix1>
 {
-    fn confusion_matrix(&self, ground_truth: ArrayBase<S, Ix1>) -> ConfusionMatrix<L> {
+    fn confusion_matrix(&self, ground_truth: ArrayBase<S, Ix1>) -> Result<ConfusionMatrix<L>> {
         let s1 = self.as_slice().unwrap();
         let s2 = ground_truth.as_slice().unwrap();
 
@@ -345,10 +349,10 @@ impl<L: Label, S: Data<Elem = L>, T: Data<Elem = L>> ToConfusionMatrix<L, ArrayB
     }
 }
 
-impl<L: Label, S: Data<Elem = L>, T: ToTargets<Elem = L>, R: Records>
-    ToConfusionMatrix<L, &DatasetBase<R, T>> for ArrayBase<S, Ix1>
+impl<L: Label, S: Data<Elem = L>, T: AsTargets<Elem = L> + Labels<Elem = L>, R: Records>
+    ToConfusionMatrix<L, &DatasetBase<R, T>> for ArrayBase<S, Ix2>
 {
-    fn confusion_matrix(&self, ground_truth: &DatasetBase<R, T>) -> ConfusionMatrix<L> {
+    fn confusion_matrix(&self, ground_truth: &DatasetBase<R, T>) -> Result<ConfusionMatrix<L>> {
         DatasetBase::new((), self).confusion_matrix(ground_truth)
     }
 }
@@ -451,11 +455,11 @@ impl ReceiverOperatingCharacteristic {
 /// This contains Receiver-Operating-Characterstics curves as these only work for binary
 /// classification tasks.
 pub trait BinaryClassification<T> {
-    fn roc(&self, y: T) -> ReceiverOperatingCharacteristic;
+    fn roc(&self, y: T) -> Result<ReceiverOperatingCharacteristic>;
 }
 
 impl BinaryClassification<&[bool]> for &[Pr] {
-    fn roc(&self, y: &[bool]) -> ReceiverOperatingCharacteristic {
+    fn roc(&self, y: &[bool]) -> Result<ReceiverOperatingCharacteristic> {
         let mut tuples = self
             .iter()
             .zip(y.iter())
@@ -493,24 +497,29 @@ impl BinaryClassification<&[bool]> for &[Pr] {
             *fp /= max_fp;
         }
 
-        ReceiverOperatingCharacteristic {
+        Ok(ReceiverOperatingCharacteristic {
             curve: tps_fps,
             thresholds: thresholds.into_iter().map(|x| *x).collect(),
-        }
+        })
     }
 }
 
 impl<D: Data<Elem = Pr>> BinaryClassification<&[bool]> for ArrayBase<D, Ix1> {
-    fn roc(&self, y: &[bool]) -> ReceiverOperatingCharacteristic {
+    fn roc(&self, y: &[bool]) -> Result<ReceiverOperatingCharacteristic> {
         self.as_slice().unwrap().roc(y)
     }
 }
 
-impl<R: Records, R2: Records, T: ToTargets<Elem = bool>, T2: ToTargets<Elem = Pr>>
+impl<R: Records, R2: Records, T: AsTargets<Elem = bool>, T2: AsTargets<Elem = Pr>>
     BinaryClassification<&DatasetBase<R, T>> for DatasetBase<R2, T2>
 {
-    fn roc(&self, y: &DatasetBase<R, T>) -> ReceiverOperatingCharacteristic {
-        self.targets().as_slice().roc(y.targets().as_slice())
+    fn roc(&self, y: &DatasetBase<R, T>) -> Result<ReceiverOperatingCharacteristic> {
+        let targets = self.try_single_target()?;
+        let targets = targets.as_slice().unwrap();
+        let y_targets = y.try_single_target()?;
+        let y_targets = y_targets.as_slice().unwrap();
+
+        targets.roc(y_targets)
     }
 }
 

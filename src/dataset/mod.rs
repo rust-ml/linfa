@@ -2,7 +2,7 @@
 //!
 //! This module implements the dataset struct and various helper traits to extend its
 //! functionality.
-use ndarray::{ArrayBase, ArrayView, Ix1, Ix2, Ix3, NdFloat, OwnedRepr, ViewRepr, Dimension, CowArray, ArrayView1, ArrayView2, Axis};
+use ndarray::{ArrayBase, ArrayView, Ix2, Ix3, NdFloat, OwnedRepr, CowArray, ArrayView1, ArrayView2, Axis, ArrayViewMut2, ArrayViewMut1};
 use num_traits::{FromPrimitive, NumAssignOps, Signed};
 use std::cmp::{Ordering, PartialOrd};
 use std::hash::Hash;
@@ -109,15 +109,15 @@ pub trait Records: Sized {
 }
 
 /// Convert to single or multiple target variables
-pub trait ToTargets {
+pub trait AsTargets {
     type Elem;
 
-    /// Convert to multiple targets
-    fn to_multi_targets<'a>(&'a self) -> ArrayView2<'a, Self::Elem>;
+    /// Returns a view on targets as two-dimensional array
+    fn as_multi_targets<'a>(&'a self) -> ArrayView2<'a, Self::Elem>;
 
-    /// Convert to single target, fails if multiple targets are used
+    /// Convert to single target, fails for more than one target
     fn try_single_target<'a>(&'a self) -> Result<ArrayView1<'a, Self::Elem>> {
-        let multi_targets = self.to_multi_targets();
+        let multi_targets = self.as_multi_targets();
 
         if multi_targets.len_of(Axis(1)) > 1 {
             return Err(Error::MultipleTargets);
@@ -125,15 +125,32 @@ pub trait ToTargets {
 
         Ok(multi_targets.index_axis_move(Axis(1), 0))
     }
+}
 
+pub trait AsTargetsMut {
+    type Elem;
+
+    /// Returns a mutable view on targets as two-dimensional array
+    fn as_multi_targets_mut<'a>(&'a mut self) -> ArrayViewMut2<'a, Self::Elem>;
+
+    /// Convert to single target, fails for more than one target
+    fn try_single_target_mut<'a>(&'a mut self) -> Result<ArrayViewMut1<'a, Self::Elem>> {
+        let multi_targets = self.as_multi_targets_mut();
+
+        if multi_targets.len_of(Axis(1)) > 1 {
+            return Err(Error::MultipleTargets);
+        }
+
+        Ok(multi_targets.index_axis_move(Axis(1), 0))
+    }
 }
 
 /// Convert to probability matrix
 ///
 /// Some algorithms are working with probabilities. Targets which allow an implicit conversion into
 /// probabilities can implement this trait.
-pub trait ToProbabilities {
-    fn to_multi_target_probabilities<'a>(&'a self) -> CowArray<'a, Pr, Ix3>;
+pub trait AsProbabilities {
+    fn as_multi_target_probabilities<'a>(&'a self) -> CowArray<'a, Pr, Ix3>;
 }
 
 /// Get the labels in all targets
@@ -421,5 +438,11 @@ mod tests {
         let mut dataset: Dataset<f64, f64> = (records, targets).into();
         let params = MockFittable {};
         let _ = dataset.iter_fold(6, |v| params.fit(&v)).enumerate();
+
+        let model = models.into_iter()
+            .collect::<ProbabilityModel>();
+
+        let prediction = model.predict(&validation)
+            .into_argmax_class();
     }
 }
