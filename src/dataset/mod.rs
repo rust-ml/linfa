@@ -2,7 +2,7 @@
 //!
 //! This module implements the dataset struct and various helper traits to extend its
 //! functionality.
-use ndarray::{ArrayBase, ArrayView, Ix2, Ix3, NdFloat, OwnedRepr, CowArray, ArrayView1, ArrayView2, Axis, ArrayViewMut2, ArrayViewMut1};
+use ndarray::{ArrayBase, ArrayView, Ix2, Ix3, NdFloat, OwnedRepr, CowArray, ArrayView1, ArrayView2, Axis, ArrayViewMut2, ArrayViewMut1, RawData, Array2};
 use num_traits::{FromPrimitive, NumAssignOps, Signed};
 use std::cmp::{Ordering, PartialOrd};
 use std::hash::Hash;
@@ -125,6 +125,15 @@ pub trait AsTargets {
 
         Ok(multi_targets.index_axis_move(Axis(1), 0))
     }
+}
+
+pub trait FromTargetArray<'a, F> {
+    type Owned;
+    type View;
+
+    /// Create self object from new target array
+    fn new_targets(targets: Array2<F>) -> Self::Owned;
+    fn new_targets_view(targets: ArrayView2<'a, F>) -> Self::View;
 }
 
 pub trait AsTargetsMut {

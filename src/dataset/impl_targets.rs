@@ -1,15 +1,35 @@
 use std::collections::HashSet;
 
-use super::{DatasetBase, Label, Records, AsTargets, AsTargetsMut, TargetsWithLabels, AsProbabilities, Pr, Labels};
-use ndarray::{ArrayBase, Data, Dimension, Ix1, Ix2, Ix3, CowArray, Axis, ArrayView2, ArrayViewMut2, DataMut};
+use super::{DatasetBase, Label, Records, AsTargets, AsTargetsMut, TargetsWithLabels, AsProbabilities, Pr, Labels, FromTargetArray};
+use ndarray::{ArrayBase, Data, Dimension, Ix1, Ix2, Ix3, CowArray, Axis, ArrayView2, ArrayViewMut2, DataMut, Array2, Array1, ArrayView1, OwnedRepr, ViewRepr};
 
-impl<L, S: Data<Elem = L>> AsTargets for ArrayBase<S, Ix1> {
+impl<'a, L, S: Data<Elem = L>> AsTargets for ArrayBase<S, Ix1> {
     type Elem = L;
 
     fn as_multi_targets(&self) -> ArrayView2<L> {
         self.view().insert_axis(Axis(1))
     }
 }
+
+impl<'a, L: Clone + 'a, S: Data<Elem = L>> FromTargetArray<'a, L> for ArrayBase<S, Ix2> {
+    type Owned = ArrayBase<OwnedRepr<L>, Ix2>;
+    type View = ArrayBase<ViewRepr<&'a L>, Ix2>;
+
+    fn new_targets(targets: Array2<L>) -> Self::Owned {
+        targets
+    }
+
+    fn new_targets_view(targets: ArrayView2<'a, L>) -> Self::View {
+        targets
+    }
+}
+
+/*
+impl<'a, L: 'a, S: Data<Elem = L> , I: Dimension> FromTargetArray<&'a ArrayBase<S, I>, ArrayBase<ViewRepr<&'a L>, I>> for ArrayBase<S, I> {
+    fn from_array(array: &'a ArrayBase<S, I>) -> ArrayBase<ViewRepr<&'a L>, I> {
+        array.view()
+    }
+}*/
 
 impl<L, S: DataMut<Elem = L>> AsTargetsMut for ArrayBase<S, Ix1> {
     type Elem = L;
@@ -59,6 +79,33 @@ impl<L: Label, T: AsTargetsMut<Elem = L>> AsTargetsMut for TargetsWithLabels<L, 
     }
 }
 
+impl<'a, L: Label + 'a, T> FromTargetArray<'a, L> for TargetsWithLabels<L, T>
+where
+    T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
+    T::Owned: Labels<Elem = L>,
+    T::View: Labels<Elem = L>,
+{
+    type Owned = TargetsWithLabels<L, T::Owned>;
+    type View = TargetsWithLabels<L, T::View>;
+
+    fn new_targets(targets: Array2<L>) -> Self::Owned {
+        let targets = T::new_targets(targets);
+
+        TargetsWithLabels {
+            labels: targets.label_set(),
+            targets,
+        }
+    }
+
+    fn new_targets_view(targets: ArrayView2<'a, L>) -> Self::View {
+        let targets = T::new_targets_view(targets);
+
+        TargetsWithLabels {
+            labels: targets.label_set(),
+            targets,
+        }
+    }
+}
 /*
 impl<L: Label, S: Data<Elem = Pr>> AsTargets for TargetsWithLabels<L, ArrayBase<S, Ix3>> {
     type Elem = L;
