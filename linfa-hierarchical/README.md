@@ -1,6 +1,9 @@
-# Clustering
+# Hierarchical Clustering
 
-`linfa-hierarchical` provides an implementation of agglomerative hierarchical clustering.
+`linfa-hierarchical` provides an implementation of agglomerative hierarchical clustering. 
+In this clustering algorithm, each point is first considered as a separate cluster. During each
+step, two points are merged into new clusters, until a stopping criterion is reached. The distance
+between the points is computed as the negative-log transform of the similarity kernel.
 
 _Documentation_: [latest](https://docs.rs/linfa).
 
