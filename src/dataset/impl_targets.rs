@@ -1,7 +1,13 @@
 use std::collections::HashSet;
 
-use super::{DatasetBase, Label, Records, AsTargets, AsTargetsMut, TargetsWithLabels, AsProbabilities, Pr, Labels, FromTargetArray};
-use ndarray::{ArrayBase, Data, Dimension, Ix1, Ix2, Ix3, CowArray, Axis, ArrayView2, ArrayViewMut2, DataMut, Array2, Array1, ArrayView1, OwnedRepr, ViewRepr};
+use super::{
+    AsProbabilities, AsTargets, AsTargetsMut, DatasetBase, FromTargetArray, Label, Labels, Pr,
+    Records, TargetsWithLabels,
+};
+use ndarray::{
+    Array2, ArrayBase, ArrayView2, ArrayViewMut2, Axis, CowArray, Data, DataMut, Dimension, Ix1,
+    Ix2, Ix3, OwnedRepr, ViewRepr,
+};
 
 impl<'a, L, S: Data<Elem = L>> AsTargets for ArrayBase<S, Ix1> {
     type Elem = L;
@@ -147,18 +153,20 @@ impl AsTargets for () {
 }*/
 
 /// A NdArray with discrete labels can act as labels
-impl<L: Label, R: Records, D: Data<Elem = L>, I: Dimension> Labels for DatasetBase<R, ArrayBase<D, I>> {
+impl<L: Label, R: Records, D: Data<Elem = L>, I: Dimension> Labels
+    for DatasetBase<R, ArrayBase<D, I>>
+{
     type Elem = L;
 
     fn label_set(&self) -> HashSet<L> {
-        self.targets.iter()
-            .cloned()
-            .collect()
+        self.targets.iter().cloned().collect()
     }
 }
 
 /// A NdArray with discrete labels can act as labels
-impl<L: Label, R: Records, T: AsTargets<Elem = L>> Labels for DatasetBase<R, TargetsWithLabels<L, T>> {
+impl<L: Label, R: Records, T: AsTargets<Elem = L>> Labels
+    for DatasetBase<R, TargetsWithLabels<L, T>>
+{
     type Elem = L;
 
     fn label_set(&self) -> HashSet<L> {

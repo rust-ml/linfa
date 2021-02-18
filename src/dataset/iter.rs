@@ -1,6 +1,6 @@
-use std::marker::PhantomData;
-use super::{Float, Label, Records, AsTargets, FromTargetArray, DatasetBase};
+use super::{AsTargets, DatasetBase, Float, FromTargetArray, Label, Records};
 use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
+use std::marker::PhantomData;
 
 pub struct Iter<'a, R: Records, T: AsTargets> {
     records: &'a R,
@@ -39,25 +39,30 @@ pub struct ChunksIter<'a, 'b: 'a, F: Float, T> {
     size: usize,
     axis: Axis,
     idx: usize,
-    phantom: PhantomData<&'b ArrayView2<'a, F>>
+    phantom: PhantomData<&'b ArrayView2<'a, F>>,
 }
 
 impl<'a, 'b: 'a, F: Float, T> ChunksIter<'a, 'b, F, T> {
-    pub fn new(records: ArrayView2<'a, F>, targets: &'a T, size: usize, axis: Axis) -> ChunksIter<'a, 'b, F, T> {
+    pub fn new(
+        records: ArrayView2<'a, F>,
+        targets: &'a T,
+        size: usize,
+        axis: Axis,
+    ) -> ChunksIter<'a, 'b, F, T> {
         ChunksIter {
             records,
             targets,
             size,
             axis,
             idx: 0,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 }
 
-impl<'a, 'b: 'a, F: Float, E: 'b, T> Iterator for ChunksIter<'a, 'b, F, T> 
+impl<'a, 'b: 'a, F: Float, E: 'b, T> Iterator for ChunksIter<'a, 'b, F, T>
 where
-    T: AsTargets<Elem = E> + FromTargetArray<'b, E>
+    T: AsTargets<Elem = E> + FromTargetArray<'b, E>,
 {
     type Item = DatasetBase<ArrayView2<'a, F>, T::View>;
 
@@ -67,9 +72,18 @@ where
             return None;
         }
 
-        let (mut records, mut targets) = (self.records.reborrow(), self.targets.as_multi_targets().reborrow());
-        records.slice_axis_inplace(self.axis, (self.idx*self.size..(self.idx+1)*self.size).into());
-        targets.slice_axis_inplace(self.axis, (self.idx*self.size..(self.idx+1)*self.size).into());
+        let (mut records, mut targets) = (
+            self.records.reborrow(),
+            self.targets.as_multi_targets().reborrow(),
+        );
+        records.slice_axis_inplace(
+            self.axis,
+            (self.idx * self.size..(self.idx + 1) * self.size).into(),
+        );
+        targets.slice_axis_inplace(
+            self.axis,
+            (self.idx * self.size..(self.idx + 1) * self.size).into(),
+        );
 
         Some(DatasetBase::new(records, T::new_targets_view(targets)))
     }

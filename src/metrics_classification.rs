@@ -4,14 +4,13 @@
 //! common scoring functions like precision, accuracy, recall, f1-score, ROC and ROC
 //! Aread-Under-Curve.
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::fmt;
 
 use ndarray::prelude::*;
 use ndarray::Data;
 
+use crate::dataset::{AsTargets, DatasetBase, Label, Labels, Pr, Records};
 use crate::error::Result;
-use crate::dataset::{DatasetBase, Label, Pr, Records, AsTargets, Labels};
 
 /// Return tuple of class index for each element of prediction and ground_truth
 fn map_prediction_to_idx<L: Label>(
@@ -262,68 +261,19 @@ pub trait ToConfusionMatrix<A, T> {
     fn confusion_matrix(&self, ground_truth: T) -> Result<ConfusionMatrix<A>>;
 }
 
-impl<
-        R: Records,
-        R2: Records,
-        L: Label,
-        T: AsTargets<Elem = L> + Labels<Elem = L>,
-        T2: AsTargets<Elem = L>,
-    > ToConfusionMatrix<L, &DatasetBase<R, T>> for DatasetBase<R2, T2>
+impl<L: Label, S, T> ToConfusionMatrix<L, ArrayBase<S, Ix1>> for T
+where
+    S: Data<Elem = L>,
+    T: AsTargets<Elem = L> + Labels<Elem = L>,
 {
-    fn confusion_matrix(&self, ground_truth: &DatasetBase<R, T>) -> Result<ConfusionMatrix<L>> {
-        let classes: Vec<L> = ground_truth.labels();
+    fn confusion_matrix(&self, ground_truth: ArrayBase<S, Ix1>) -> Result<ConfusionMatrix<L>> {
+        let classes = self.labels();
+
         let indices = map_prediction_to_idx(
-            &self.targets.try_single_target()?.as_slice().unwrap(),
-            &ground_truth.targets.try_single_target()?.as_slice().unwrap(),
+            &self.try_single_target()?.as_slice().unwrap(),
+            &ground_truth.as_slice().unwrap(),
             &classes,
         );
-
-        // count each index tuple in the confusion matrix
-        let mut confusion_matrix = Array2::zeros((classes.len(), classes.len()));
-        for (i1, i2) in indices.into_iter().filter_map(|x| x) {
-            confusion_matrix[(i1, i2)] += ground_truth.weight_for(i1);
-        }
-
-        Ok(ConfusionMatrix {
-            matrix: confusion_matrix,
-            members: Array1::from(classes),
-        })
-    }
-}
-
-impl<R: Records, L: Label, T: AsTargets<Elem = L> + Labels<Elem = L>>
-    ToConfusionMatrix<L, &DatasetBase<R, T>> for Vec<L>
-{
-    fn confusion_matrix(&self, ground_truth: &DatasetBase<R, T>) -> Result<ConfusionMatrix<L>> {
-        let classes: Vec<L> = ground_truth.labels();
-        let targets = ground_truth.targets.try_single_target()?;
-        let targets = targets.as_slice().unwrap();
-
-        let indices = map_prediction_to_idx(&self, &targets, &classes);
-
-        // count each index tuple in the confusion matrix
-        let mut confusion_matrix = Array2::zeros((classes.len(), classes.len()));
-        for (i1, i2) in indices.into_iter().filter_map(|x| x) {
-            confusion_matrix[(i1, i2)] += ground_truth.weight_for(i1);
-        }
-
-        Ok(ConfusionMatrix {
-            matrix: confusion_matrix,
-            members: Array1::from(classes),
-        })
-    }
-}
-
-impl<L: Label> ToConfusionMatrix<L, &[L]> for &[L] {
-    fn confusion_matrix(&self, ground_truth: &[L]) -> Result<ConfusionMatrix<L>> {
-        let classes = ground_truth
-            .iter()
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .cloned()
-            .collect::<Vec<_>>();
-
-        let indices = map_prediction_to_idx(&self, &ground_truth, &classes);
 
         // count each index tuple in the confusion matrix
         let mut confusion_matrix = Array2::zeros((classes.len(), classes.len()));
@@ -338,22 +288,24 @@ impl<L: Label> ToConfusionMatrix<L, &[L]> for &[L] {
     }
 }
 
-impl<L: Label, S: Data<Elem = L>, T: Data<Elem = L>> ToConfusionMatrix<L, ArrayBase<S, Ix1>>
-    for ArrayBase<T, Ix1>
+impl<L: Label, R, R2, T, T2> ToConfusionMatrix<L, &DatasetBase<R, T>> for DatasetBase<R2, T2>
+where
+    R: Records,
+    R2: Records,
+    T: AsTargets<Elem = L>,
+    T2: AsTargets<Elem = L> + Labels<Elem = L>,
 {
-    fn confusion_matrix(&self, ground_truth: ArrayBase<S, Ix1>) -> Result<ConfusionMatrix<L>> {
-        let s1 = self.as_slice().unwrap();
-        let s2 = ground_truth.as_slice().unwrap();
-
-        s1.confusion_matrix(s2)
+    fn confusion_matrix(&self, ground_truth: &DatasetBase<R, T>) -> Result<ConfusionMatrix<L>> {
+        self.targets()
+            .confusion_matrix(ground_truth.try_single_target()?)
     }
 }
 
 impl<L: Label, S: Data<Elem = L>, T: AsTargets<Elem = L> + Labels<Elem = L>, R: Records>
-    ToConfusionMatrix<L, &DatasetBase<R, T>> for ArrayBase<S, Ix2>
+    ToConfusionMatrix<L, &DatasetBase<R, T>> for ArrayBase<S, Ix1>
 {
     fn confusion_matrix(&self, ground_truth: &DatasetBase<R, T>) -> Result<ConfusionMatrix<L>> {
-        DatasetBase::new((), self).confusion_matrix(ground_truth)
+        ground_truth.confusion_matrix(self.view())
     }
 }
 

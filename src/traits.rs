@@ -1,7 +1,7 @@
 //! Provide traits for different classes of algorithms
 //!
 
-use crate::dataset::{DatasetBase, Records, AsTargets};
+use crate::dataset::{AsTargets, DatasetBase, Records};
 
 /// Transformation algorithms
 ///

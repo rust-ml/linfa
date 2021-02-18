@@ -2,15 +2,18 @@
 //!
 //! This module implements the dataset struct and various helper traits to extend its
 //! functionality.
-use ndarray::{ArrayBase, ArrayView, Ix2, Ix3, NdFloat, OwnedRepr, CowArray, ArrayView1, ArrayView2, Axis, ArrayViewMut2, ArrayViewMut1, RawData, Array2};
+use ndarray::{
+    Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2, Axis,
+    CowArray, Ix2, Ix3, NdFloat, OwnedRepr,
+};
 use num_traits::{FromPrimitive, NumAssignOps, Signed};
 use std::cmp::{Ordering, PartialOrd};
+use std::collections::HashSet;
 use std::hash::Hash;
 use std::iter::Sum;
 use std::ops::Deref;
-use std::collections::HashSet;
 
-use crate::error::{Result, Error};
+use crate::error::{Error, Result};
 
 mod impl_dataset;
 mod impl_records;
@@ -83,7 +86,7 @@ pub struct TargetsWithLabels<L: Label, P> {
 ///
 /// The most commonly used typed of dataset. It contains a number of records
 /// stored as an `Array2` and each record may correspond to multiple targets. The
-/// targets are stored as an `Array2`. 
+/// targets are stored as an `Array2`.
 pub type Dataset<D, T> = DatasetBase<ArrayBase<OwnedRepr<D>, Ix2>, ArrayBase<OwnedRepr<T>, Ix2>>;
 
 /// DatasetView
@@ -96,7 +99,8 @@ pub type DatasetView<'a, D, T> = DatasetBase<ArrayView<'a, D, Ix2>, ArrayView<'a
 /// Dataset with probabilities as targets. Useful for multiclass probabilities.
 /// It stores records as an `Array2` of elements of type `D`, and targets as an `Array1`
 /// of elements of type `Pr`
-pub type DatasetPr<D, L> = DatasetBase<ArrayBase<OwnedRepr<D>, Ix2>, TargetsWithLabels<L, ArrayBase<OwnedRepr<Pr>, Ix3>>>;
+pub type DatasetPr<D, L> =
+    DatasetBase<ArrayBase<OwnedRepr<D>, Ix2>, TargetsWithLabels<L, ArrayBase<OwnedRepr<Pr>, Ix3>>>;
 
 /// Records
 ///
@@ -171,7 +175,6 @@ pub trait Labels {
     fn labels(&self) -> Vec<Self::Elem> {
         self.label_set().into_iter().collect()
     }
-
 }
 
 #[cfg(test)]
@@ -447,11 +450,5 @@ mod tests {
         let mut dataset: Dataset<f64, f64> = (records, targets).into();
         let params = MockFittable {};
         let _ = dataset.iter_fold(6, |v| params.fit(&v)).enumerate();
-
-        let model = models.into_iter()
-            .collect::<ProbabilityModel>();
-
-        let prediction = model.predict(&validation)
-            .into_argmax_class();
     }
 }
