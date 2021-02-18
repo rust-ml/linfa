@@ -8,9 +8,9 @@ use linfa::traits::{Fit, IncrementalFit, Predict};
 use linfa::Float;
 
 /// Gaussian Naive Bayes (GaussianNB) hyperparameters
-/// 
+///
 /// The Gaussian Naive Bayes is a classification algorithm where the likelihood
-/// of the feature P(x_i | y) is assumed to be Gaussian, and the mean and variance 
+/// of the feature P(x_i | y) is assumed to be Gaussian, and the mean and variance
 /// are estimated using maximum likelihood.
 #[derive(Debug)]
 pub struct GaussianNbParams {
