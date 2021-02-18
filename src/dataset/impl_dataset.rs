@@ -6,6 +6,7 @@ use rand::{seq::SliceRandom, Rng};
 use std::collections::{HashMap, HashSet};
 
 use super::{
+    super::traits::{Predict, PredictRef},
     iter::{ChunksIter, Iter},
     AsTargets, AsTargetsMut, Dataset, DatasetBase, Float, FromTargetArray, Label, Labels, Records,
     Result,
@@ -772,5 +773,46 @@ impl<F: Float, E> Dataset<F, E> {
         let dataset1 = Dataset::new(first, first_targets).with_weights(self.weights);
         let dataset2 = Dataset::new(second, second_targets).with_weights(second_weights);
         (dataset1, dataset2)
+    }
+}
+
+impl<F: Float, D, T, O> Predict<ArrayBase<D, Ix2>, DatasetBase<ArrayBase<D, Ix2>, T>> for O
+where
+    D: Data<Elem = F>,
+    O: PredictRef<ArrayBase<D, Ix2>, T>,
+{
+    fn predict(&self, records: ArrayBase<D, Ix2>) -> DatasetBase<ArrayBase<D, Ix2>, T> {
+        let new_targets = self.predict_ref(&records);
+        DatasetBase::new(records, new_targets)
+    }
+}
+
+impl<F: Float, R, T, S, O> Predict<DatasetBase<R, T>, DatasetBase<R, S>> for O
+where
+    R: Records<Elem = F>,
+    O: PredictRef<R, S>,
+{
+    fn predict(&self, ds: DatasetBase<R, T>) -> DatasetBase<R, S> {
+        let new_targets = self.predict_ref(&ds.records);
+        DatasetBase::new(ds.records, new_targets)
+    }
+}
+impl<'a, F: Float, R, T, S, O> Predict<&'a DatasetBase<R, T>, S> for O
+where
+    R: Records<Elem = F>,
+    O: PredictRef<R, S>,
+{
+    fn predict(&self, ds: &'a DatasetBase<R, T>) -> S {
+        self.predict_ref(&ds.records)
+    }
+}
+
+impl<'a, F: Float, D, T, O> Predict<&'a ArrayBase<D, Ix2>, T> for O
+where
+    D: Data<Elem = F>,
+    O: PredictRef<ArrayBase<D, Ix2>, T>,
+{
+    fn predict(&self, records: &'a ArrayBase<D, Ix2>) -> T {
+        self.predict_ref(records)
     }
 }

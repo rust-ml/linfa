@@ -42,3 +42,7 @@ pub trait IncrementalFit<'a, R: Records, T: AsTargets> {
 pub trait Predict<R: Records, T> {
     fn predict(&self, x: R) -> T;
 }
+
+pub trait PredictRef<R: Records, T> {
+    fn predict_ref<'a>(&'a self, x: &R) -> T;
+}
