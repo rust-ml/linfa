@@ -1,14 +1,17 @@
 use approx::{abs_diff_eq, abs_diff_ne, AbsDiffEq};
-use ndarray::{s, Array1, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix1, Ix2};
+use ndarray::{s, Array1, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
 use ndarray_linalg::{Inverse, Lapack};
 
-use linfa::traits::{Fit, Predict};
-use linfa::{dataset::Records, DatasetBase, DatasetView, Float};
+use linfa::traits::{Fit, PredictRef};
+use linfa::{dataset::{Records, AsTargets}, DatasetBase, Float};
 
 use super::{ElasticNet, ElasticNetParams, Error, Result};
 
-impl<'a, F: Float + AbsDiffEq + Lapack, D: Data<Elem = F>, D2: Data<Elem = F>>
-    Fit<'a, ArrayBase<D, Ix2>, ArrayBase<D2, Ix1>> for ElasticNetParams<F>
+impl<'a, F, D, T> Fit<'a, ArrayBase<D, Ix2>, T> for ElasticNetParams<F>
+where
+    F: Float + AbsDiffEq + Lapack,
+    D: Data<Elem = F>,
+    T: AsTargets<Elem = F>,
 {
     type Object = Result<ElasticNet<F>>;
 
@@ -24,11 +27,12 @@ impl<'a, F: Float + AbsDiffEq + Lapack, D: Data<Elem = F>, D2: Data<Elem = F>>
     /// for new feature values.
     fn fit(
         &self,
-        dataset: &DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D2, Ix1>>,
+        dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
     ) -> Result<ElasticNet<F>> {
         self.validate_params()?;
+        let target = dataset.try_single_target()?;
 
-        let (intercept, y) = self.compute_intercept(dataset.targets().view());
+        let (intercept, y) = self.compute_intercept(target);
         let (parameters, duality_gap, n_steps) = coordinate_descent(
             dataset.records().view(),
             y.view(),
@@ -41,7 +45,7 @@ impl<'a, F: Float + AbsDiffEq + Lapack, D: Data<Elem = F>, D2: Data<Elem = F>>
         let y_est = dataset.records().dot(&parameters) + intercept;
 
         // try to calculate the variance
-        let variance = variance_params(dataset.view(), y_est);
+        let variance = variance_params(&dataset, y_est);
 
         Ok(ElasticNet {
             intercept,
@@ -53,18 +57,12 @@ impl<'a, F: Float + AbsDiffEq + Lapack, D: Data<Elem = F>, D2: Data<Elem = F>>
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Array1<F>> for ElasticNet<F> {
+impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<F>> for ElasticNet<F> {
     /// Given an input matrix `X`, with shape `(n_samples, n_features)`,
     /// `predict` returns the target variable according to elastic net
     /// learned from the training data distribution.
-    fn predict(&self, x: ArrayBase<D, Ix2>) -> Array1<F> {
+    fn predict_ref<'a>(&'a self, x: &ArrayBase<D, Ix2>) -> Array1<F> {
         x.dot(&self.parameters) + self.intercept
-    }
-}
-
-impl<F: Float, D: Data<Elem = F>> Predict<&ArrayBase<D, Ix2>, Array1<F>> for ElasticNet<F> {
-    fn predict(&self, x: &ArrayBase<D, Ix2>) -> Array1<F> {
-        self.predict(x.view())
     }
 }
 
@@ -210,12 +208,15 @@ fn duality_gap<'a, F: Float>(
     gap
 }
 
-fn variance_params<'a, F: Float + Lapack>(
-    ds: DatasetView<'a, F, F>,
+fn variance_params<'a, F: Float + Lapack, T: AsTargets<Elem = F>, D: Data<Elem = F>>(
+    ds: &DatasetBase<ArrayBase<D, Ix2>, T>,
     y_est: Array1<F>,
 ) -> Result<Array1<F>> {
     let nfeatures = ds.nfeatures();
-    let nsamples = ds.observations();
+    let nsamples = ds.nsamples();
+
+    // try to convert targets into a single target
+    let target = ds.try_single_target()?;
 
     // check that we have enough samples
     if nsamples < nfeatures + 1 {
@@ -223,7 +224,7 @@ fn variance_params<'a, F: Float + Lapack>(
     }
 
     let var_target =
-        (ds.targets() - &y_est).mapv(|x| x * x).sum() / F::from(nsamples - nfeatures - 1).unwrap();
+        (&target - &y_est).mapv(|x| x * x).sum() / F::from(nsamples - nfeatures - 1).unwrap();
 
     let inv_cov = ds.records().t().dot(ds.records()).inv();
 
@@ -321,7 +322,7 @@ mod tests {
 
     #[test]
     fn lasso_zero_works() {
-        let dataset = Dataset::new(array![[0.], [0.], [0.]], array![0., 0., 0.]);
+        let dataset = Dataset::from((array![[0.], [0.], [0.]], array![0., 0., 0.]));
 
         let model = ElasticNet::params()
             .l1_ratio(1.0)

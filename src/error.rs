@@ -1,32 +1,21 @@
 //! Error types in Linfa
 //!
 
-use std::error::Error as StdError;
-use std::fmt;
+use thiserror::Error;
 
 use ndarray::ShapeError;
-
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum Error {
+    #[error("invalid parameter {0}")]
     Parameters(String),
+    #[error("invalid prior {0}")]
     Priors(String),
+    #[error("algorithm not converged {0}")]
     NotConverged(String),
-    NdShape(ShapeError),
+    #[error("invalid ndarray shape {0}")]
+    NdShape(#[from] ShapeError),
+    #[error("multiple targets not supported")]
     MultipleTargets,
 }
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Error::Parameters(msg) => write!(f, "Parameter: {}", msg),
-            Error::NdShape(msg) => write!(f, "NdArray shape: {}", msg),
-            Error::Priors(msg) => write!(f, "Priors: {}", msg),
-            Error::NotConverged(msg) => write!(f, "Not converged: {}", msg),
-            Error::MultipleTargets => write!(f, "Multiple targets not supported"),
-        }
-    }
-}
-
-impl StdError for Error {}

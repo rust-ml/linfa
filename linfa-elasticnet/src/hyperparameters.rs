@@ -4,7 +4,7 @@ use serde_crate::{Deserialize, Serialize};
 use linfa::Float;
 use ndarray::{ArrayView1, CowArray, Ix1};
 
-use super::{Error, Result};
+use super::Result;
 
 #[cfg_attr(
     feature = "serde",
@@ -111,23 +111,30 @@ impl<F: Float> ElasticNetParams<F> {
     ///
     /// This function is called in `Self::fit` and validates all hyper parameters
     pub fn validate_params(&self) -> Result<()> {
-        match self {
-            ElasticNetParams { penalty, .. } if penalty.is_negative() => Err(Error::InvalidParams(
+        if self.penalty.is_negative() {
+            let msg = format!("Penalty should be positive, but is {}", self.penalty);
+            return Err(linfa::Error::Parameters(msg))?;
+        }
+
+
+        Ok(())
+        /*match self {
+            ElasticNetParams { penalty, .. } if penalty.is_negative() => Err(linfa::Error::Parameters(
                 format!("Penalty should be positive, but is {}", penalty),
             )),
             ElasticNetParams { tolerance, .. } if tolerance.is_negative() => {
-                Err(Error::InvalidParams(format!(
+                Err(linfa::Error::Parameters(format!(
                     "Tolerance should be positive, but is {}",
                     tolerance
                 )))
             }
             ElasticNetParams { l1_ratio, .. } if l1_ratio.is_negative() || l1_ratio > &F::one() => {
-                Err(Error::InvalidParams(format!(
+                Err(linfa::Error::Parameters(format!(
                     "L1 ratio should be in range [0, 1], but is {}",
                     l1_ratio
                 )))
             }
             _ => Ok(()),
-        }
+        }*/
     }
 }

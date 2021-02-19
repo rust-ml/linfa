@@ -24,7 +24,9 @@ impl<R: Records, S> DatasetBase<R, S> {
     /// ```ignore
     /// let dataset = Dataset::new(records, targets);
     /// ```
-    pub fn new(records: R, targets: S) -> DatasetBase<R, S> {
+    pub fn new<T: IntoTargets<S>>(records: R, targets: T) -> DatasetBase<R, S> {
+        let targets = targets.into();
+
         DatasetBase {
             records,
             targets,
@@ -852,5 +854,21 @@ impl<L: Label, S: Labels<Elem = L>> TargetsWithLabels<L, S> {
         let labels = targets.label_set();
 
         TargetsWithLabels { targets, labels }
+    }
+}
+
+pub trait IntoTargets<T> {
+    fn into(self) -> T;
+}
+
+impl<F, D: Data<Elem = F>> IntoTargets<ArrayBase<D, Ix2>> for ArrayBase<D, Ix1> {
+    fn into(self) -> ArrayBase<D, Ix2> {
+        self.insert_axis(Axis(1))
+    }
+}
+
+impl<T> IntoTargets<T> for T {
+    fn into(self) -> T {
+        self
     }
 }
