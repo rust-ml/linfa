@@ -2,7 +2,7 @@ use crate::k_means::errors::{KMeansError, Result};
 use crate::k_means::helpers::IncrementalMean;
 use crate::k_means::hyperparameters::{KMeansHyperParams, KMeansHyperParamsBuilder};
 use linfa::{
-    dataset::{DatasetBase, Targets},
+    DatasetBase,
     traits::*,
     Float,
 };
@@ -75,7 +75,7 @@ use serde_crate::{Deserialize, Serialize};
 ///
 /// ```
 /// use linfa::DatasetBase;
-/// use linfa::traits::{Fit, Predict};
+/// use linfa::traits::{Fit, PredictRef};
 /// use linfa_clustering::{KMeansHyperParams, KMeans, generate_blobs};
 /// use ndarray::{Axis, array, s};
 /// use ndarray_rand::rand::SeedableRng;
@@ -149,7 +149,7 @@ impl<F: Float> KMeans<F> {
     }
 }
 
-impl<'a, F: Float, R: Rng + Clone, D: Data<Elem = F>, T: Targets> Fit<'a, ArrayBase<D, Ix2>, T>
+impl<'a, F: Float, R: Rng + Clone, D: Data<Elem = F>, T> Fit<'a, ArrayBase<D, Ix2>, T>
     for KMeansHyperParams<F, R>
 {
     type Object = Result<KMeans<F>>;
@@ -214,7 +214,7 @@ impl<'a, F: Float, R: Rng + Clone, D: Data<Elem = F>, T: Targets> Fit<'a, ArrayB
     }
 }
 
-impl<'a, F: Float, R: Rng + Clone, D: Data<Elem = F>, T: Targets> Fit<'a, ArrayBase<D, Ix2>, T>
+impl<'a, F: Float, R: Rng + Clone, D: Data<Elem = F>, T> Fit<'a, ArrayBase<D, Ix2>, T>
     for KMeansHyperParamsBuilder<F, R>
 {
     type Object = Result<KMeans<F>>;
@@ -224,27 +224,14 @@ impl<'a, F: Float, R: Rng + Clone, D: Data<Elem = F>, T: Targets> Fit<'a, ArrayB
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> Predict<&ArrayBase<D, Ix2>, Array1<usize>> for KMeans<F> {
+impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<usize>> for KMeans<F> {
     /// Given an input matrix `observations`, with shape `(n_observations, n_features)`,
     /// `predict` returns, for each observation, the index of the closest cluster/centroid.
     ///
     /// You can retrieve the centroid associated to an index using the
     /// [`centroids` method](#method.centroids).
-    fn predict(&self, observations: &ArrayBase<D, Ix2>) -> Array1<usize> {
+    fn predict_ref<'a>(&'a self, observations: &ArrayBase<D, Ix2>) -> Array1<usize> {
         compute_cluster_memberships(&self.centroids, observations)
-    }
-}
-
-impl<F: Float, D: Data<Elem = F>, T: Targets>
-    Predict<DatasetBase<ArrayBase<D, Ix2>, T>, DatasetBase<ArrayBase<D, Ix2>, Array1<usize>>>
-    for KMeans<F>
-{
-    fn predict(
-        &self,
-        dataset: DatasetBase<ArrayBase<D, Ix2>, T>,
-    ) -> DatasetBase<ArrayBase<D, Ix2>, Array1<usize>> {
-        let predicted = self.predict(dataset.records());
-        dataset.with_targets(predicted)
     }
 }
 
