@@ -1,6 +1,6 @@
 use crate::float::Float;
-use ndarray::{Array1, ArrayView1};
 use ndarray::Zip;
+use ndarray::{Array1, ArrayView1};
 
 use crate::error::Result;
 
@@ -68,9 +68,10 @@ impl TweedieDistribution {
                         / A::from((1. - self.power) * (2. - self.power)).unwrap()
                 });
 
-                let middle = &y * &ypred.mapv(|x| {
-                    x.powf(A::from(1. - self.power).unwrap()) / A::from(1. - power).unwrap()
-                });
+                let middle = &y
+                    * &ypred.mapv(|x| {
+                        x.powf(A::from(1. - self.power).unwrap()) / A::from(1. - power).unwrap()
+                    });
 
                 let right = ypred.mapv(|x| {
                     x.powf(A::from(2. - self.power).unwrap()) / A::from(2. - self.power).unwrap()
@@ -111,8 +112,10 @@ impl TweedieDistribution {
                         / A::from((1. - power) * (2. - power)).unwrap()
                 });
 
-                let middle = &y * &ypred
-                    .mapv(|x| x.powf(A::from(1. - power).unwrap()) / A::from(1. - power).unwrap());
+                let middle = &y
+                    * &ypred.mapv(|x| {
+                        x.powf(A::from(1. - power).unwrap()) / A::from(1. - power).unwrap()
+                    });
 
                 let right = ypred
                     .mapv(|x| x.powf(A::from(2. - power).unwrap()) / A::from(2. - power).unwrap());
@@ -122,7 +125,11 @@ impl TweedieDistribution {
         }
     }
 
-    fn unit_deviance_derivative<A: Float>(&self, y: ArrayView1<A>, ypred: ArrayView1<A>) -> Array1<A> {
+    fn unit_deviance_derivative<A: Float>(
+        &self,
+        y: ArrayView1<A>,
+        ypred: ArrayView1<A>,
+    ) -> Array1<A> {
         ((&y - &ypred) / &self.unit_variance(ypred)).mapv(|x| A::from(-2.).unwrap() * x)
     }
 
@@ -130,7 +137,11 @@ impl TweedieDistribution {
         Ok(self.unit_deviance(y, ypred)?.sum())
     }
 
-    pub fn deviance_derivative<A: Float>(&self, y: ArrayView1<A>, ypred: ArrayView1<A>) -> Array1<A> {
+    pub fn deviance_derivative<A: Float>(
+        &self,
+        y: ArrayView1<A>,
+        ypred: ArrayView1<A>,
+    ) -> Array1<A> {
         self.unit_deviance_derivative(y, ypred)
     }
 }

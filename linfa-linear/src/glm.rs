@@ -12,11 +12,11 @@ use argmin::core::{ArgminOp, Executor};
 use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::LBFGS;
 use ndarray::{array, s, stack};
-use ndarray::{Array, Array1, Axis, ArrayBase, Ix2, Data, ArrayView1, ArrayView2};
+use ndarray::{Array, Array1, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
 use serde::{Deserialize, Serialize};
 
-use linfa::{dataset::AsTargets, DatasetBase};
 use linfa::traits::*;
+use linfa::{dataset::AsTargets, DatasetBase};
 
 /// Generalized Linear Model (GLM) with a Tweedie distribution
 ///
@@ -104,7 +104,9 @@ impl TweedieRegressor {
     }
 }
 
-impl<A: Float, D: Data<Elem = A>, T: AsTargets<Elem = A>> Fit<'_, ArrayBase<D, Ix2>, T> for TweedieRegressor {
+impl<A: Float, D: Data<Elem = A>, T: AsTargets<Elem = A>> Fit<'_, ArrayBase<D, Ix2>, T>
+    for TweedieRegressor
+{
     type Object = Result<FittedTweedieRegressor<A>>;
 
     fn fit(&self, ds: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<FittedTweedieRegressor<A>> {
@@ -281,7 +283,9 @@ pub struct FittedTweedieRegressor<A> {
     link: Link,
 }
 
-impl<A: Float, D: Data<Elem = A>> PredictRef<ArrayBase<D, Ix2>, Array1<A>> for FittedTweedieRegressor<A> {
+impl<A: Float, D: Data<Elem = A>> PredictRef<ArrayBase<D, Ix2>, Array1<A>>
+    for FittedTweedieRegressor<A>
+{
     /// Predict the target
     fn predict_ref<'a>(&'a self, x: &ArrayBase<D, Ix2>) -> Array1<A> {
         let ypred = x.dot(&self.coef) + self.intercept;
@@ -293,8 +297,8 @@ impl<A: Float, D: Data<Elem = A>> PredictRef<ArrayBase<D, Ix2>, Array1<A>> for F
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::{array, Array2};
     use linfa::Dataset;
+    use ndarray::{array, Array2};
 
     macro_rules! test_tweedie {
         ($($name:ident: {power: $power:expr, intercept: $intercept:expr,},)*) => {

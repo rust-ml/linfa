@@ -4,12 +4,12 @@
 //! of the feature P(x_i | y) is assumed to be Gaussian, the mean and variance will
 //! be estimated using maximum likelihood.
 
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayBase, Axis, Ix2, ArrayView2, Data};
+use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
 use ndarray_stats::QuantileExt;
 use std::collections::HashMap;
 
 use crate::error::Result;
-use linfa::dataset::{DatasetBase, Labels, AsTargets};
+use linfa::dataset::{AsTargets, DatasetBase, Labels};
 use linfa::traits::{Fit, IncrementalFit, PredictRef};
 use linfa::Float;
 
@@ -300,7 +300,7 @@ struct ClassInfo<A> {
 
 impl<F: Float, D> PredictRef<ArrayBase<D, Ix2>, Array1<usize>> for GaussianNb<F>
 where
-    D: Data<Elem = F>
+    D: Data<Elem = F>,
 {
     /// Perform classification on incoming array
     ///
@@ -363,7 +363,7 @@ impl<A: Float> GaussianNb<A> {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use linfa::{DatasetView, traits::Predict};
+    use linfa::{traits::Predict, DatasetView};
     use ndarray::array;
 
     #[test]

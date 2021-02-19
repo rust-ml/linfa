@@ -1,5 +1,5 @@
 use linfa::prelude::Transformer;
-use linfa::{dataset::DatasetBase, dataset::Pr, dataset::Targets, traits::Fit, traits::Predict};
+use linfa::{dataset::DatasetBase, dataset::Pr, traits::Fit, traits::Predict};
 use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix2};
 use std::cmp::Ordering;
 
@@ -182,17 +182,17 @@ pub fn fit_one_class<F: Float + num_traits::ToPrimitive>(
 /// For a given dataset with kernel matrix as records and two class problem as targets this fits
 /// a optimal hyperplane to the problem and returns the solution as a model. The model predicts
 /// probabilities for whether a sample belongs to the first or second class.
-impl<'a, F: Float> Fit<'a, Array2<F>, &Array1<bool>> for SvmParams<F, Pr> {
+impl<'a, F: Float> Fit<'a, Array2<F>, &Array2<bool>> for SvmParams<F, Pr> {
     type Object = Svm<F, Pr>;
 
-    fn fit(&self, dataset: &DatasetBase<Array2<F>, &Array1<bool>>) -> Self::Object {
+    fn fit(&self, dataset: &DatasetBase<Array2<F>, &Array2<bool>>) -> Self::Object {
         let kernel = self.kernel.transform(dataset.records());
         match (self.c, self.nu) {
             (Some((c_p, c_n)), _) => fit_c(
                 self.solver_params.clone(),
                 dataset.records().view(),
                 kernel,
-                dataset.targets().as_slice(),
+                dataset.targets().as_slice().unwrap(),
                 c_p,
                 c_n,
             ),
@@ -200,7 +200,7 @@ impl<'a, F: Float> Fit<'a, Array2<F>, &Array1<bool>> for SvmParams<F, Pr> {
                 self.solver_params.clone(),
                 dataset.records().view(),
                 kernel,
-                dataset.targets().as_slice(),
+                dataset.targets().as_slice().unwrap(),
                 nu,
             ),
             _ => panic!("Set either C value or Nu value"),
@@ -208,10 +208,10 @@ impl<'a, F: Float> Fit<'a, Array2<F>, &Array1<bool>> for SvmParams<F, Pr> {
     }
 }
 
-impl<'a, F: Float> Fit<'a, Array2<F>, Array1<bool>> for SvmParams<F, Pr> {
+impl<'a, F: Float> Fit<'a, Array2<F>, Array2<bool>> for SvmParams<F, Pr> {
     type Object = Svm<F, Pr>;
 
-    fn fit(&self, dataset: &DatasetBase<Array2<F>, Array1<bool>>) -> Self::Object {
+    fn fit(&self, dataset: &DatasetBase<Array2<F>, Array2<bool>>) -> Self::Object {
         let kernel = self.kernel.transform(dataset.records());
         match (self.c, self.nu) {
             (Some((c_p, c_n)), _) => fit_c(
@@ -400,7 +400,7 @@ impl<'a, F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Array1<Pr>> for
     }
 }
 
-impl<'a, F: Float, D: Data<Elem = F>, T: Targets>
+impl<'a, F: Float, D: Data<Elem = F>, T>
     Predict<DatasetBase<ArrayBase<D, Ix2>, T>, DatasetBase<ArrayBase<D, Ix2>, Array1<Pr>>>
     for Svm<F, Pr>
 {
@@ -415,7 +415,7 @@ impl<'a, F: Float, D: Data<Elem = F>, T: Targets>
     }
 }
 
-impl<'a, F: Float, T: Targets, D: Data<Elem = F>>
+impl<'a, F: Float, T, D: Data<Elem = F>>
     Predict<&'a DatasetBase<ArrayBase<D, Ix2>, T>, DatasetBase<ArrayView2<'a, F>, Array1<Pr>>>
     for Svm<F, Pr>
 {

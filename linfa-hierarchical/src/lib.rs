@@ -129,8 +129,7 @@ impl<F: Float> Transformer<Kernel<F>, DatasetBase<Kernel<F>, Vec<usize>>>
     }
 }
 
-impl<F: Float, T>
-    Transformer<DatasetBase<Kernel<F>, T>, DatasetBase<Kernel<F>, Vec<usize>>>
+impl<F: Float, T> Transformer<DatasetBase<Kernel<F>, T>, DatasetBase<Kernel<F>, Vec<usize>>>
     for HierarchicalCluster<F>
 {
     /// Perform hierarchical clustering of a similarity matrix

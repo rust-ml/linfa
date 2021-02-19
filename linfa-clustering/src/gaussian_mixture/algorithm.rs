@@ -1,11 +1,7 @@
 use crate::gaussian_mixture::errors::{GmmError, Result};
 use crate::gaussian_mixture::hyperparameters::{GmmCovarType, GmmHyperParams, GmmInitMethod};
 use crate::k_means::KMeans;
-use linfa::{
-    DatasetBase,
-    traits::*,
-    Float,
-};
+use linfa::{traits::*, DatasetBase, Float};
 use ndarray::{s, Array, Array1, Array2, Array3, ArrayBase, Axis, Data, Ix2, Ix3, Zip};
 use ndarray_linalg::{cholesky::*, triangular::*, Lapack, Scalar};
 use ndarray_rand::rand::Rng;

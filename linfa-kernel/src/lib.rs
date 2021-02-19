@@ -11,7 +11,10 @@ use serde_crate::{Deserialize, Serialize};
 use sprs::{CsMat, CsMatView};
 use std::ops::Mul;
 
-use linfa::{dataset::DatasetBase, dataset::Records, dataset::AsTargets, dataset::FromTargetArray, traits::Transformer, Float};
+use linfa::{
+    dataset::AsTargets, dataset::DatasetBase, dataset::FromTargetArray, dataset::Records,
+    traits::Transformer, Float,
+};
 
 /// Kernel representation, can be either dense or sparse
 #[derive(Clone)]
@@ -455,7 +458,7 @@ impl<'a, F: Float, L: 'a, T: AsTargets<Elem = L> + FromTargetArray<'a, L>>
 
 // lifetime 'b allows the kernel to borrow the underlying data
 // for a possibly shorter time than 'a, useful in fold_fit
-impl<'a, 'b, F: Float, L: 'b, T: AsTargets<Elem = L> + FromTargetArray<'b, L>> 
+impl<'a, 'b, F: Float, L: 'b, T: AsTargets<Elem = L> + FromTargetArray<'b, L>>
     Transformer<&'b DatasetBase<ArrayView2<'a, F>, T>, DatasetBase<Kernel<F>, T::View>>
     for KernelParams<F>
 {
@@ -857,7 +860,11 @@ mod tests {
         check_kernel_from_dataset_view_type(&input.view(), KernelType::Sparse(3));
     }
 
-    fn check_kernel_from_dataset_type<'a, L: 'a, T: AsTargets<Elem = L> + FromTargetArray<'a, L>>(
+    fn check_kernel_from_dataset_type<
+        'a,
+        L: 'a,
+        T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
+    >(
         input: &'a DatasetBase<Array2<f64>, T>,
         k_type: KernelType,
     ) {
@@ -884,7 +891,11 @@ mod tests {
         }
     }
 
-    fn check_kernel_from_dataset_view_type<'a, L: 'a, T: AsTargets<Elem = L> + FromTargetArray<'a, L>>(
+    fn check_kernel_from_dataset_view_type<
+        'a,
+        L: 'a,
+        T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
+    >(
         input: &'a DatasetBase<ArrayView2<'a, f64>, T>,
         k_type: KernelType,
     ) {

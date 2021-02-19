@@ -1,11 +1,7 @@
 use crate::k_means::errors::{KMeansError, Result};
 use crate::k_means::helpers::IncrementalMean;
 use crate::k_means::hyperparameters::{KMeansHyperParams, KMeansHyperParamsBuilder};
-use linfa::{
-    DatasetBase,
-    traits::*,
-    Float,
-};
+use linfa::{traits::*, DatasetBase, Float};
 use ndarray::{s, Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
 use ndarray_rand::rand;
 use ndarray_rand::rand::Rng;

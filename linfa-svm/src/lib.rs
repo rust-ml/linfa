@@ -77,6 +77,7 @@ use std::marker::PhantomData;
 use serde_crate::{Deserialize, Serialize};
 
 mod classification;
+pub mod error;
 mod permutable_kernel;
 mod regression;
 pub mod solver_smo;

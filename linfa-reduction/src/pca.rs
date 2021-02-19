@@ -176,8 +176,8 @@ impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array2<F>> for P
 #[cfg(test)]
 mod tests {
     use super::*;
-    use linfa::{Dataset, traits::Predict};
     use approx::assert_abs_diff_eq;
+    use linfa::{traits::Predict, Dataset};
     use ndarray::{array, Array2};
     use ndarray_rand::{
         rand_distr::{StandardNormal, Uniform},

@@ -1,5 +1,5 @@
 use linfa::prelude::*;
-use linfa_linear::{TweedieRegressor, Result};
+use linfa_linear::{Result, TweedieRegressor};
 use ndarray::Axis;
 
 fn main() -> Result<()> {
@@ -24,7 +24,9 @@ fn main() -> Result<()> {
     //
     // Some(43.27739632065444)
     let ypred = model.predict(&dataset);
-    let loss = (dataset.targets() - &ypred.insert_axis(Axis(1))).mapv(|x| x.abs()).mean();
+    let loss = (dataset.targets() - &ypred.insert_axis(Axis(1)))
+        .mapv(|x| x.abs())
+        .mean();
 
     println!("{:?}", loss);
 

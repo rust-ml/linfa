@@ -116,7 +116,6 @@ impl<F: Float> ElasticNetParams<F> {
             return Err(linfa::Error::Parameters(msg))?;
         }
 
-
         Ok(())
         /*match self {
             ElasticNetParams { penalty, .. } if penalty.is_negative() => Err(linfa::Error::Parameters(

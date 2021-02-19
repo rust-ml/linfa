@@ -3,7 +3,10 @@ use ndarray::{s, Array1, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
 use ndarray_linalg::{Inverse, Lapack};
 
 use linfa::traits::{Fit, PredictRef};
-use linfa::{dataset::{Records, AsTargets}, DatasetBase, Float};
+use linfa::{
+    dataset::{AsTargets, Records},
+    DatasetBase, Float,
+};
 
 use super::{ElasticNet, ElasticNetParams, Error, Result};
 
@@ -25,10 +28,7 @@ where
     /// Returns a `FittedElasticNet` object which contains the fitted
     /// parameters and can be used to `predict` values of the target variable
     /// for new feature values.
-    fn fit(
-        &self,
-        dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
-    ) -> Result<ElasticNet<F>> {
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<ElasticNet<F>> {
         self.validate_params()?;
         let target = dataset.try_single_target()?;
 

@@ -29,7 +29,7 @@ use ndarray_linalg::{Lapack, Scalar, Solve};
 use ndarray_stats::SummaryStatisticsExt;
 use serde::{Deserialize, Serialize};
 
-use linfa::dataset::{DatasetBase, AsTargets};
+use linfa::dataset::{AsTargets, DatasetBase};
 use linfa::traits::{Fit, PredictRef};
 
 pub trait Float: linfa::Float + Lapack + Scalar {}
@@ -126,8 +126,8 @@ impl LinearRegression {
     }
 }
 
-impl<'a, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>>
-    Fit<'a, ArrayBase<D, Ix2>, T> for LinearRegression
+impl<'a, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> Fit<'a, ArrayBase<D, Ix2>, T>
+    for LinearRegression
 {
     type Object = Result<FittedLinearRegression<F>, String>;
 
@@ -249,8 +249,8 @@ impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<F>>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use linfa::{Dataset, traits::Predict};
     use approx::abs_diff_eq;
+    use linfa::{traits::Predict, Dataset};
     use ndarray::array;
 
     #[test]
