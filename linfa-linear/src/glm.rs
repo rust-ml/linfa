@@ -3,7 +3,7 @@
 mod distribution;
 pub mod link;
 
-use crate::error::{LinearError, Result};
+use crate::error::Result;
 use crate::float::{ArgminParam, Float};
 use distribution::TweedieDistribution;
 pub use link::Link;
@@ -12,8 +12,11 @@ use argmin::core::{ArgminOp, Executor};
 use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::LBFGS;
 use ndarray::{array, s, stack};
-use ndarray::{Array, Array1, Array2, Axis};
+use ndarray::{Array, Array1, Axis, ArrayBase, Ix2, Data, ArrayView1, ArrayView2};
 use serde::{Deserialize, Serialize};
+
+use linfa::{dataset::AsTargets, DatasetBase};
+use linfa::traits::*;
 
 /// Generalized Linear Model (GLM) with a Tweedie distribution
 ///
@@ -101,15 +104,19 @@ impl TweedieRegressor {
     }
 }
 
-impl TweedieRegressor {
-    pub fn fit<A: Float>(&self, x: &Array2<A>, y: &Array1<A>) -> Result<FittedTweedieRegressor<A>> {
+impl<A: Float, D: Data<Elem = A>, T: AsTargets<Elem = A>> Fit<'_, ArrayBase<D, Ix2>, T> for TweedieRegressor {
+    type Object = Result<FittedTweedieRegressor<A>>;
+
+    fn fit(&self, ds: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<FittedTweedieRegressor<A>> {
+        let (x, y) = (ds.records(), ds.try_single_target()?);
+
         let dist = TweedieDistribution::new(self.power)?;
 
         if self.alpha < 0. {
-            return Err(LinearError::InvalidValue(format!(
+            return Err(linfa::Error::Parameters(format!(
                 "Penalty term must be a non-negative number, got: {}",
                 self.alpha
-            )));
+            )))?;
         }
 
         // If link is not set we automatically select an appropriate
@@ -118,7 +125,7 @@ impl TweedieRegressor {
             Some(x) => Ok(x),
             None if self.power <= 0. => Ok(Link::Identity),
             None if self.power >= 1. => Ok(Link::Log),
-            None => Err(LinearError::InvalidValue(format!(
+            None => Err(linfa::Error::Parameters(format!(
                 "Power value cannot be between 0 and 1, got: {}",
                 self.power
             ))),
@@ -127,10 +134,10 @@ impl TweedieRegressor {
         if !dist.in_range(&y) {
             // An error is sent when y has values in the range not applicable
             // for the distribution
-            return Err(LinearError::InvalidValue(format!(
+            return Err(linfa::Error::Parameters(format!(
                 "Some value(s) of y are out of the valid range for power value {}",
                 self.power
-            )));
+            )))?;
         }
 
         // We initialize the coefficients and intercept
@@ -144,7 +151,7 @@ impl TweedieRegressor {
         // with functions implemented for the objective function and the parameter
         // gradient
         let problem = TweedieProblem {
-            x,
+            x: x.view(),
             y,
             fit_intercept: self.fit_intercept,
             link: &link,
@@ -181,8 +188,8 @@ impl TweedieRegressor {
 }
 
 struct TweedieProblem<'a, A: Float> {
-    x: &'a Array2<A>,
-    y: &'a Array1<A>,
+    x: ArrayView2<'a, A>,
+    y: ArrayView1<'a, A>,
     fit_intercept: bool,
     link: &'a Link,
     dist: TweedieDistribution,
@@ -227,7 +234,7 @@ impl<'a, A: Float> ArgminOp for TweedieProblem<'a, A> {
 
         let (ypred, _, offset) = self.ypred(&p);
 
-        let dev = self.dist.deviance(self.y, &ypred)?;
+        let dev = self.dist.deviance(self.y, ypred.view())?;
 
         let pscaled = p
             .slice(s![offset..])
@@ -245,11 +252,11 @@ impl<'a, A: Float> ArgminOp for TweedieProblem<'a, A> {
 
         let devp;
         let der = self.link.inverse_derviative(&lin_pred);
-        let temp = der * self.dist.deviance_derivative(self.y, &ypred);
+        let temp = der * self.dist.deviance_derivative(self.y, ypred.view());
         if self.fit_intercept {
-            devp = stack![Axis(0), array![temp.sum()], temp.dot(self.x)];
+            devp = stack![Axis(0), array![temp.sum()], temp.dot(&self.x)];
         } else {
-            devp = temp.dot(self.x);
+            devp = temp.dot(&self.x);
         }
 
         let pscaled = p
@@ -274,9 +281,9 @@ pub struct FittedTweedieRegressor<A> {
     link: Link,
 }
 
-impl<A: Float> FittedTweedieRegressor<A> {
+impl<A: Float, D: Data<Elem = A>> PredictRef<ArrayBase<D, Ix2>, Array1<A>> for FittedTweedieRegressor<A> {
     /// Predict the target
-    pub fn predict(&self, x: &Array2<A>) -> Array1<A> {
+    fn predict_ref<'a>(&'a self, x: &ArrayBase<D, Ix2>) -> Array1<A> {
         let ypred = x.dot(&self.coef) + self.intercept;
         self.link.inverse(&ypred)
     }
@@ -286,7 +293,8 @@ impl<A: Float> FittedTweedieRegressor<A> {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use ndarray::{array, Array2};
+    use linfa::Dataset;
 
     macro_rules! test_tweedie {
         ($($name:ident: {power: $power:expr, intercept: $intercept:expr,},)*) => {
@@ -306,12 +314,14 @@ mod tests {
 
                     if $intercept {
                         x = x.slice(s![.., 1..]).to_owned();
-                        let glm = glm.fit(&x, &y).unwrap();
+                        let dataset = Dataset::new(x, y);
+                        let glm = glm.fit(&dataset).unwrap();
 
                         assert_abs_diff_eq!(glm.intercept, coef.get(0).unwrap(), epsilon = 1e-3);
                         assert_abs_diff_eq!(glm.coef, coef.slice(s![1..]), epsilon = 1e-3);
                     } else {
-                        let glm = glm.fit(&x, &y).unwrap();
+                        let dataset = Dataset::new(x, y);
+                        let glm = glm.fit(&dataset).unwrap();
 
                         assert_abs_diff_eq!(glm.coef, coef, epsilon = 1e-3);
                     }

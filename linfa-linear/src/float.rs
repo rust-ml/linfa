@@ -16,6 +16,7 @@ pub trait Float:
     + Clone
     + FromPrimitive
     + ArgminMul<ArgminParam<Self>, ArgminParam<Self>>
+    + linfa::Float
 {
     const POSITIVE_LABEL: Self;
     const NEGATIVE_LABEL: Self;

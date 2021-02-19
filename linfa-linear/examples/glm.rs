@@ -1,19 +1,17 @@
-use linfa_linear::TweedieRegressor;
-use std::error::Error;
+use linfa::prelude::*;
+use linfa_linear::{TweedieRegressor, Result};
+use ndarray::Axis;
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<()> {
     // load the Diabetes dataset
     let dataset = linfa_datasets::diabetes();
-
-    let data = dataset.records();
-    let targets = dataset.targets();
 
     // Here the power and alpha is set to 0
     // Setting the power to 0 makes it a Normal Regressioon
     // Setting the alpha to 0 removes any regularization
     // In total this is the regular old Linear Regression
     let lin_reg = TweedieRegressor::new().power(0.).alpha(0.);
-    let model = lin_reg.fit(&data, &targets)?;
+    let model = lin_reg.fit(&dataset)?;
 
     // We print the learnt parameters
     //
@@ -25,8 +23,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     // We print the Mean Absolute Error (MAE) on the training data
     //
     // Some(43.27739632065444)
-    let ypred = model.predict(&data);
-    let loss = (targets - &ypred).mapv(|x| x.abs()).mean();
+    let ypred = model.predict(&dataset);
+    let loss = (dataset.targets() - &ypred.insert_axis(Axis(1))).mapv(|x| x.abs()).mean();
 
     println!("{:?}", loss);
 

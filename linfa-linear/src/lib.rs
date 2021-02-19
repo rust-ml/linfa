@@ -5,3 +5,4 @@ pub mod ols;
 
 pub use glm::TweedieRegressor;
 pub use ols::LinearRegression;
+pub use error::Result;

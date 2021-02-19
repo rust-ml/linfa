@@ -1,8 +1,8 @@
 use crate::float::Float;
-use ndarray::Array1;
+use ndarray::{Array1, ArrayView1};
 use ndarray::Zip;
 
-use crate::error::{LinearError, Result};
+use crate::error::Result;
 
 pub struct TweedieDistribution {
     power: f64,
@@ -20,10 +20,10 @@ impl TweedieDistribution {
                 inclusive: false,
             },
             power if power > 0. && power < 1. => {
-                return Err(LinearError::InvalidValue(format!(
+                return Err(linfa::Error::Parameters(format!(
                     "Power value cannot be between 0 and 1, got: {}",
                     power
-                )));
+                )))?;
             }
             power if (1.0..2.0).contains(&power) => Self {
                 power,
@@ -42,19 +42,19 @@ impl TweedieDistribution {
     }
 
     // Returns `true` if y is in the valid range
-    pub fn in_range<A: Float>(&self, y: &Array1<A>) -> bool {
+    pub fn in_range<A: Float>(&self, y: &ArrayView1<A>) -> bool {
         if self.inclusive {
             return y.iter().all(|&x| x >= A::from(self.lower_bound).unwrap());
         }
         y.iter().all(|&x| x > A::from(self.lower_bound).unwrap())
     }
 
-    fn unit_variance<A: Float>(&self, ypred: &Array1<A>) -> Array1<A> {
+    fn unit_variance<A: Float>(&self, ypred: ArrayView1<A>) -> Array1<A> {
         // ypred ^ power
         ypred.mapv(|x| x.powf(A::from(self.power).unwrap()))
     }
 
-    fn unit_deviance<A: Float>(&self, y: &Array1<A>, ypred: &Array1<A>) -> Result<Array1<A>> {
+    fn unit_deviance<A: Float>(&self, y: ArrayView1<A>, ypred: ArrayView1<A>) -> Result<Array1<A>> {
         match self.power {
             power if power < 0. => {
                 let mut left = y.mapv(|x| {
@@ -68,7 +68,7 @@ impl TweedieDistribution {
                         / A::from((1. - self.power) * (2. - self.power)).unwrap()
                 });
 
-                let middle = y * &ypred.mapv(|x| {
+                let middle = &y * &ypred.mapv(|x| {
                     x.powf(A::from(1. - self.power).unwrap()) / A::from(1. - power).unwrap()
                 });
 
@@ -80,15 +80,15 @@ impl TweedieDistribution {
             }
             // Normal distribution
             // (y - ypred)^2
-            power if power == 0. => Ok((y - ypred).mapv(|x| x.powi(2))),
-            power if power < 1. => Err(LinearError::InvalidValue(format!(
+            power if power == 0. => Ok((&y - &ypred).mapv(|x| x.powi(2))),
+            power if power < 1. => Err(linfa::Error::Parameters(format!(
                 "Power value cannot be between 0 and 1, got: {}",
                 power
-            ))),
+            )))?,
             // Poisson distribution
             // 2 * (y * log(y / ypred) - y + ypred)
             power if (power - 1.).abs() < 1e-6 => {
-                let mut div = y / ypred;
+                let mut div = &y / &ypred;
                 Zip::from(&mut div).and(y).apply(|y, &x| {
                     if x == A::from(0.).unwrap() {
                         *y = A::from(0.).unwrap();
@@ -101,7 +101,7 @@ impl TweedieDistribution {
             // Gamma distribution
             // 2 * (log(ypred / y) + (y / ypred) - 1)
             power if (power - 2.).abs() < 1e-6 => {
-                let mut temp = (ypred / y).mapv(|x| x.ln()) + (y / ypred);
+                let mut temp = (&ypred / &y).mapv(|x| x.ln()) + (&y / &ypred);
                 temp.mapv_inplace(|x| x - A::from(1.).unwrap());
                 Ok(temp.mapv(|x| A::from(2.).unwrap() * x))
             }
@@ -111,7 +111,7 @@ impl TweedieDistribution {
                         / A::from((1. - power) * (2. - power)).unwrap()
                 });
 
-                let middle = y * &ypred
+                let middle = &y * &ypred
                     .mapv(|x| x.powf(A::from(1. - power).unwrap()) / A::from(1. - power).unwrap());
 
                 let right = ypred
@@ -122,15 +122,15 @@ impl TweedieDistribution {
         }
     }
 
-    fn unit_deviance_derivative<A: Float>(&self, y: &Array1<A>, ypred: &Array1<A>) -> Array1<A> {
-        ((y - ypred) / &self.unit_variance(ypred)).mapv(|x| A::from(-2.).unwrap() * x)
+    fn unit_deviance_derivative<A: Float>(&self, y: ArrayView1<A>, ypred: ArrayView1<A>) -> Array1<A> {
+        ((&y - &ypred) / &self.unit_variance(ypred)).mapv(|x| A::from(-2.).unwrap() * x)
     }
 
-    pub fn deviance<A: Float>(&self, y: &Array1<A>, ypred: &Array1<A>) -> Result<A> {
+    pub fn deviance<A: Float>(&self, y: ArrayView1<A>, ypred: ArrayView1<A>) -> Result<A> {
         Ok(self.unit_deviance(y, ypred)?.sum())
     }
 
-    pub fn deviance_derivative<A: Float>(&self, y: &Array1<A>, ypred: &Array1<A>) -> Array1<A> {
+    pub fn deviance_derivative<A: Float>(&self, y: ArrayView1<A>, ypred: ArrayView1<A>) -> Array1<A> {
         self.unit_deviance_derivative(y, ypred)
     }
 }
@@ -152,7 +152,7 @@ mod tests {
             $(
                 #[test]
                 fn $name() {
-                    let output = $dist.in_range(&$input);
+                    let output = $dist.in_range(&$input.view());
                     assert_eq!(output, $expected);
                 }
             )*
@@ -177,7 +177,7 @@ mod tests {
             $(
                 #[test]
                 fn $name() {
-                    let output = $dist.deviance(&$input, &$input).unwrap();
+                    let output = $dist.deviance($input.view(), $input.view()).unwrap();
                     assert_abs_diff_eq!(output, 0.0, epsilon=1e-9);
                 }
             )*
@@ -201,7 +201,7 @@ mod tests {
             $(
                 #[test]
                 fn $name() {
-                    let output = $dist.deviance_derivative(&$y, &$ypred);
+                    let output = $dist.deviance_derivative($y.view(), $ypred.view());
                     println!("{:?}", $expected);
                     println!("{:?}", output);
                     assert_abs_diff_eq!(output, $expected, epsilon=1e-6);
