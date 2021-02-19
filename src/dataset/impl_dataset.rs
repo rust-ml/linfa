@@ -7,30 +7,10 @@ use std::collections::{HashMap, HashSet};
 
 use super::{
     super::traits::{Predict, PredictRef},
-    iter::{ChunksIter, Iter},
+    iter::{ChunksIter, DatasetIter, Iter},
     AsTargets, AsTargetsMut, Dataset, DatasetBase, Float, FromTargetArray, Label, Labels, Records,
-    Result,
+    Result, TargetsWithLabels,
 };
-
-/// Iterate over observations
-///
-/// This function creates an iterator which produces tuples of data points and target value. The
-/// iterator runs once for each data point and, while doing so, holds an reference to the owned
-/// dataset.
-///
-/// # Example
-/// ```
-/// let dataset = linfa_datasets::iris();
-///
-/// for (x, y) in dataset.iter() {
-///     println!("{} => {}", x, y);
-/// }
-/// ```
-impl<F: Float, L: Label> DatasetBase<Array2<F>, Array1<L>> {
-    pub fn iter(&self) -> Iter<'_, Array2<F>, Array1<L>> {
-        Iter::new(&self.records, &self.targets)
-    }
-}
 
 /// Implementation without constraints on records and targets
 ///
@@ -192,6 +172,42 @@ where
         let targets = T::new_targets_view(self.as_multi_targets());
         DatasetBase::new(records, targets)
     }
+
+    /// Iterate over observations
+    ///
+    /// This function creates an iterator which produces tuples of data points and target value. The
+    /// iterator runs once for each data point and, while doing so, holds an reference to the owned
+    /// dataset.
+    ///
+    /// # Example
+    /// ```
+    /// let dataset = linfa_datasets::iris();
+    ///
+    /// for (x, y) in dataset.iter() {
+    ///     println!("{} => {}", x, y);
+    /// }
+    /// ```
+    pub fn sample_iter(&'a self) -> Iter<'a, '_, F, T::Elem> {
+        Iter::new(self.records.view(), self.targets.as_multi_targets())
+    }
+
+    /// Iterate over features
+    ///
+    /// This iterator produces dataset views with only a single feature, while the set of targets remain
+    /// complete. It can be useful to compare each feature individual to all targets.
+    pub fn feature_iter(&'a self) -> DatasetIter<'a, '_, ArrayBase<D, Ix2>, T> {
+        DatasetIter::new(self, true)
+    }
+
+    /// Iterate over targets
+    ///
+    /// This functions creates an iterator which produces dataset views complete records, but only
+    /// a single target each. Useful to train multiple single target models for a multi-target
+    /// dataset.
+    ///
+    pub fn target_iter(&'a self) -> DatasetIter<'a, '_, ArrayBase<D, Ix2>, T> {
+        DatasetIter::new(self, false)
+    }
 }
 
 impl<L, R: Records, T: AsTargets<Elem = L>> AsTargets for DatasetBase<R, T> {
@@ -252,13 +268,15 @@ impl<L: Label, T: Labels<Elem = L>, R: Records> Labels for DatasetBase<R, T> {
 impl<'a, 'b: 'a, F: Float, L: Label, T, D> DatasetBase<ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
-    T: AsTargets<Elem = L> + Labels<Elem = L> + FromTargetArray<'a, bool>,
+    T: AsTargets<Elem = L> + Labels<Elem = L>,
 {
     /// Produce N boolean targets from multi-class targets
     ///
     /// Some algorithms (like SVM) don't support multi-class targets. This function splits a
     /// dataset into multiple binary target view of the same dataset.
-    pub fn one_vs_all(&self) -> Result<Vec<DatasetBase<ArrayView2<'_, F>, T::Owned>>> {
+    pub fn one_vs_all(
+        &self,
+    ) -> Result<Vec<DatasetBase<ArrayView2<'_, F>, TargetsWithLabels<bool, Array2<bool>>>>> {
         let targets = self.targets().try_single_target()?;
 
         Ok(self
@@ -271,7 +289,9 @@ where
                     .collect::<Array1<_>>()
                     .insert_axis(Axis(1));
 
-                DatasetBase::new(self.records().view(), T::new_targets(targets))
+                let targets = TargetsWithLabels::new(targets);
+
+                DatasetBase::new(self.records().view(), targets)
             })
             .collect())
     }
@@ -814,5 +834,13 @@ where
 {
     fn predict(&self, records: &'a ArrayBase<D, Ix2>) -> T {
         self.predict_ref(records)
+    }
+}
+
+impl<L: Label, S: Labels<Elem = L>> TargetsWithLabels<L, S> {
+    pub fn new(targets: S) -> Self {
+        let labels = targets.label_set();
+
+        TargetsWithLabels { targets, labels }
     }
 }

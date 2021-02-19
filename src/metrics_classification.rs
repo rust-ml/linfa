@@ -475,6 +475,7 @@ impl<R: Records, R2: Records, T: AsTargets<Elem = bool>, T2: AsTargets<Elem = Pr
     }
 }
 
+/*
 #[cfg(test)]
 mod tests {
     use super::{BinaryClassification, ToConfusionMatrix};
@@ -636,3 +637,4 @@ mod tests {
             .for_each(|(x, r)| assert_eq_slice(x.matrix, r))
     }
 }
+*/

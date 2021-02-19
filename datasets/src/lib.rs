@@ -223,8 +223,6 @@ mod tests {
             .into_iter()
             .all(|(key, val)| { freqs.get(&key).map(|x| *x == val).unwrap_or(false) }));
 
-        //&[10.0, 199.0, 18.0, 638.0, 681.0, 53.0]);
-
         // perform correlation analysis and assert that fixed acidity and citric acid are
         // correlated
         let pcc = ds.pearson_correlation_with_p_value(100);

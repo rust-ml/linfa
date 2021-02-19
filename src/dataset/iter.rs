@@ -1,35 +1,103 @@
-use super::{AsTargets, DatasetBase, Float, FromTargetArray, Label, Records};
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
+use super::{AsTargets, DatasetBase, DatasetView, Float, FromTargetArray, Records};
+use ndarray::{s, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
 use std::marker::PhantomData;
 
-pub struct Iter<'a, R: Records, T: AsTargets> {
-    records: &'a R,
-    targets: &'a T,
+pub struct Iter<'a, 'b: 'a, F: Float, L> {
+    records: ArrayView2<'b, F>,
+    targets: ArrayView2<'b, L>,
     idx: usize,
+    phantom: PhantomData<&'a ArrayView2<'b, F>>,
 }
 
-impl<'a, R: Records, T: AsTargets> Iter<'a, R, T> {
-    pub fn new(records: &'a R, targets: &'a T) -> Iter<'a, R, T> {
+impl<'a, 'b: 'a, F: Float, L> Iter<'a, 'b, F, L> {
+    pub fn new(records: ArrayView2<'b, F>, targets: ArrayView2<'b, L>) -> Iter<'a, 'b, F, L> {
         Iter {
             records,
             targets,
             idx: 0,
+            phantom: PhantomData,
         }
     }
 }
 
-impl<'a, F: Float, L: Label> Iterator for Iter<'a, Array2<F>, Array1<L>> {
-    type Item = (ArrayView1<'a, F>, &'a L);
+impl<'a, 'b: 'a, F: Float, L> Iterator for Iter<'a, 'b, F, L> {
+    type Item = (ArrayView1<'a, F>, ArrayView1<'a, L>);
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.records.nsamples() >= self.idx {
             return None;
         }
 
+        self.idx += 1;
+        let records = self.records.reborrow();
+        let targets = self.targets.reborrow();
+
         Some((
-            self.records.slice(s![self.idx, ..]),
-            self.targets.get(self.idx).unwrap(),
+            records.slice_move(s![self.idx, ..]),
+            targets.slice_move(s![self.idx, ..]),
         ))
+    }
+}
+
+pub struct DatasetIter<'a, 'b, R: Records, T> {
+    dataset: &'b DatasetBase<R, T>,
+    idx: usize,
+    target_or_feature: bool,
+    phantom: PhantomData<&'a ArrayView2<'a, R::Elem>>,
+}
+
+impl<'a, 'b: 'a, R: Records, T> DatasetIter<'a, 'b, R, T> {
+    pub fn new(
+        dataset: &'b DatasetBase<R, T>,
+        target_or_feature: bool,
+    ) -> DatasetIter<'a, 'b, R, T> {
+        DatasetIter {
+            dataset,
+            idx: 0,
+            target_or_feature,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<'a, 'b: 'a, F: Float, L: 'a, D, T> Iterator for DatasetIter<'a, 'b, ArrayBase<D, Ix2>, T>
+where
+    D: Data<Elem = F>,
+    T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
+{
+    type Item = DatasetView<'a, F, L>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.dataset.nsamples() >= self.idx {
+            return None;
+        }
+
+        self.idx += 1;
+        let mut records = self.dataset.records.view();
+        let mut targets = self.dataset.targets.as_multi_targets();
+        let feature_names;
+        let weights = self.dataset.weights.clone();
+
+        if !self.target_or_feature {
+            targets.slice_collapse(s![.., self.idx]);
+            feature_names = self.dataset.feature_names.clone();
+        } else {
+            records.slice_collapse(s![.., self.idx]);
+            if self.dataset.feature_names.len() == records.len_of(Axis(1)) {
+                feature_names = vec![self.dataset.feature_names[self.idx].clone()];
+            } else {
+                feature_names = Vec::new();
+            }
+        }
+
+        let dataset_view = DatasetBase {
+            records,
+            targets,
+            feature_names,
+            weights,
+        };
+
+        Some(dataset_view)
     }
 }
 

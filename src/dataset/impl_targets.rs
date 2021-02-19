@@ -138,28 +138,12 @@ impl<S: Data<Elem = Pr>> AsProbabilities for ArrayBase<S, Ix3> {
     }
 }
 
-/*
-impl AsTargets for () {
-    type Elem = ();
-
-    fn try_single_target(&self) -> Result<CowArray<(), Ix1>> {
-        Ok(CowArray::from(Array1::zeros(0)))
-    }
-
-    fn multi_targets(&self) -> CowArray<(), Ix2> {
-        CowArray::from(Array2::zeros(0))
-    }
-
-}*/
-
 /// A NdArray with discrete labels can act as labels
-impl<L: Label, R: Records, D: Data<Elem = L>, I: Dimension> Labels
-    for DatasetBase<R, ArrayBase<D, I>>
-{
+impl<L: Label, S: Data<Elem = L>, I: Dimension> Labels for ArrayBase<S, I> {
     type Elem = L;
 
     fn label_set(&self) -> HashSet<L> {
-        self.targets.iter().cloned().collect()
+        self.iter().cloned().collect()
     }
 }
 
