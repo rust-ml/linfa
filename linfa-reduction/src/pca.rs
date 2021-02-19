@@ -27,8 +27,8 @@ use ndarray_linalg::{TruncatedOrder, TruncatedSvd};
 use serde_crate::{Deserialize, Serialize};
 
 use linfa::{
-    dataset::{Records, Targets},
-    traits::{Fit, Predict},
+    dataset::Records,
+    traits::{Fit, PredictRef},
     DatasetBase, Float,
 };
 
@@ -67,7 +67,7 @@ impl PcaParams {
 /// # Returns
 ///
 /// A fitted PCA model with origin and hyperplane
-impl<'a, T: Targets> Fit<'a, Array2<f64>, T> for PcaParams {
+impl<'a, T> Fit<'a, Array2<f64>, T> for PcaParams {
     type Object = Pca<f64>;
 
     fn fit(&self, dataset: &DatasetBase<Array2<f64>, T>) -> Pca<f64> {
@@ -90,7 +90,7 @@ impl<'a, T: Targets> Fit<'a, Array2<f64>, T> for PcaParams {
         // scale the embedding with the square root of the dimensionality and eigenvalue such that
         // the product of the resulting matrix gives the unit covariance.
         if self.apply_whitening {
-            let cov_scale = (dataset.observations() as f64 - 1.).sqrt();
+            let cov_scale = (dataset.nsamples() as f64 - 1.).sqrt();
             for (mut v_t, sigma) in v_t.axis_iter_mut(Axis(0)).zip(sigma.iter()) {
                 v_t *= cov_scale / *sigma;
             }
@@ -167,6 +167,7 @@ impl Pca<f64> {
     }
 }
 
+/*
 /// Project a matrix to lower dimensional space
 ///
 /// The projection first centers and then projects the data.
@@ -179,7 +180,7 @@ impl<F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Array2<F>> for Pca<
 /// Project a matrix to lower dimensional space
 ///
 /// The projection first centers and then projects the data.
-impl<F: Float, T: Targets, D: Data<Elem = F>>
+impl<F: Float, T, D: Data<Elem = F>>
     Predict<DatasetBase<ArrayBase<D, Ix2>, T>, DatasetBase<Array2<F>, T>> for Pca<F>
 {
     fn predict(&self, ds: DatasetBase<ArrayBase<D, Ix2>, T>) -> DatasetBase<Array2<F>, T> {
@@ -187,11 +188,18 @@ impl<F: Float, T: Targets, D: Data<Elem = F>>
 
         ds.with_records(new_records)
     }
+}*/
+
+impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array2<F>> for Pca<F> {
+    fn predict_ref<'a>(&'a self, records: &ArrayBase<D, Ix2>) -> Array2<F> {
+        (records - &self.mean).dot(&self.embedding.t())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use linfa::traits::Predict;
     use approx::assert_abs_diff_eq;
     use ndarray::{array, Array2};
     use ndarray_rand::{
@@ -216,7 +224,7 @@ mod tests {
         let dataset = DatasetBase::from(tmp.dot(&q));
 
         let model = Pca::params(2).whiten(true).fit(&dataset);
-        let proj = model.predict(dataset.records().view());
+        let proj = model.predict(&dataset);
 
         // check that the covariance is unit diagonal
         let cov = proj.t().dot(&proj);
@@ -237,7 +245,7 @@ mod tests {
         let dataset = DatasetBase::from(data);
 
         let model = Pca::params(10).whiten(true).fit(&dataset);
-        let proj = model.predict(dataset.records().view());
+        let proj = model.predict(&dataset);
 
         // check that the covariance is unit diagonal
         let cov = proj.t().dot(&proj);

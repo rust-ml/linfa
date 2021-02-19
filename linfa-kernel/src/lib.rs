@@ -11,7 +11,7 @@ use serde_crate::{Deserialize, Serialize};
 use sprs::{CsMat, CsMatView};
 use std::ops::Mul;
 
-use linfa::{dataset::DatasetBase, dataset::Records, dataset::Targets, traits::Transformer, Float};
+use linfa::{dataset::DatasetBase, dataset::Records, dataset::AsTargets, dataset::FromTargetArray, traits::Transformer, Float};
 
 /// Kernel representation, can be either dense or sparse
 #[derive(Clone)]
@@ -219,7 +219,7 @@ impl<'a, F: Float> KernelView<'a, F> {
 impl<F: Float, K1: Inner<Elem = F>, K2: Inner<Elem = F>> Records for KernelBase<K1, K2> {
     type Elem = F;
 
-    fn observations(&self) -> usize {
+    fn nsamples(&self) -> usize {
         self.size()
     }
 
@@ -398,7 +398,7 @@ impl<'a, F: Float> Transformer<&ArrayView2<'a, F>, Kernel<F>> for KernelParams<F
     }
 }
 
-impl<'a, F: Float, T: Targets> Transformer<DatasetBase<Array2<F>, T>, DatasetBase<Kernel<F>, T>>
+impl<'a, F: Float, T: AsTargets> Transformer<DatasetBase<Array2<F>, T>, DatasetBase<Kernel<F>, T>>
     for KernelParams<F>
 {
     /// Builds a new Dataset with the kernel as the records and the same targets as the input one.
@@ -426,8 +426,8 @@ impl<'a, F: Float, T: Targets> Transformer<DatasetBase<Array2<F>, T>, DatasetBas
     }
 }
 
-impl<'a, F: Float, T: Targets>
-    Transformer<&'a DatasetBase<Array2<F>, T>, DatasetBase<Kernel<F>, &'a [T::Elem]>>
+impl<'a, F: Float, L: 'a, T: AsTargets<Elem = L> + FromTargetArray<'a, L>>
+    Transformer<&'a DatasetBase<Array2<F>, T>, DatasetBase<Kernel<F>, T::View>>
     for KernelParams<F>
 {
     /// Builds a new Dataset with the kernel as the records and the same targets as the input one.
@@ -447,16 +447,16 @@ impl<'a, F: Float, T: Targets>
     ///
     /// If the kernel type is `Sparse` and the number of neighbors specified is
     /// not between 1 and #records-1
-    fn transform(&self, x: &'a DatasetBase<Array2<F>, T>) -> DatasetBase<Kernel<F>, &'a [T::Elem]> {
+    fn transform(&self, x: &'a DatasetBase<Array2<F>, T>) -> DatasetBase<Kernel<F>, T::View> {
         let kernel = Kernel::new(x.records.view(), self.method.clone(), self.kind.clone());
-        DatasetBase::new(kernel, x.targets.as_slice())
+        DatasetBase::new(kernel, T::new_targets_view(x.as_multi_targets()))
     }
 }
 
 // lifetime 'b allows the kernel to borrow the underlying data
 // for a possibly shorter time than 'a, useful in fold_fit
-impl<'a, 'b, F: Float, T: Targets>
-    Transformer<&'b DatasetBase<ArrayView2<'a, F>, T>, DatasetBase<Kernel<F>, &'b [T::Elem]>>
+impl<'a, 'b, F: Float, L: 'b, T: AsTargets<Elem = L> + FromTargetArray<'b, L>> 
+    Transformer<&'b DatasetBase<ArrayView2<'a, F>, T>, DatasetBase<Kernel<F>, T::View>>
     for KernelParams<F>
 {
     /// Builds a new Dataset with the kernel as the records and the same targets as the input one.
@@ -479,10 +479,10 @@ impl<'a, 'b, F: Float, T: Targets>
     fn transform(
         &self,
         x: &'b DatasetBase<ArrayView2<'a, F>, T>,
-    ) -> DatasetBase<Kernel<F>, &'b [T::Elem]> {
+    ) -> DatasetBase<Kernel<F>, T::View> {
         let kernel = Kernel::new(x.records.view(), self.method.clone(), self.kind.clone());
 
-        DatasetBase::new(kernel, x.targets.as_slice())
+        DatasetBase::new(kernel, T::new_targets_view(x.as_multi_targets()))
     }
 }
 
@@ -534,6 +534,7 @@ fn sparse_from_fn<F: Float, D: Data<Elem = F>>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use linfa::Dataset;
     use ndarray::{Array1, Array2};
     use std::f64::consts;
 
@@ -844,7 +845,7 @@ mod tests {
     fn test_kernel_transform_from_dataset() {
         let input_vec: Vec<f64> = (0..100).map(|v| v as f64 * 0.1).collect();
         let input_arr = Array2::from_shape_vec((50, 2), input_vec).unwrap();
-        let input = DatasetBase::new(input_arr, ());
+        let input = Dataset::from(input_arr);
         // checks that the transform for dataset builds the right kernel
         // according to its input params.
         check_kernel_from_dataset_type(&input, KernelType::Dense);
@@ -856,8 +857,8 @@ mod tests {
         check_kernel_from_dataset_view_type(&input.view(), KernelType::Sparse(3));
     }
 
-    fn check_kernel_from_dataset_type<T: Targets>(
-        input: &DatasetBase<Array2<f64>, T>,
+    fn check_kernel_from_dataset_type<'a, L: 'a, T: AsTargets<Elem = L> + FromTargetArray<'a, L>>(
+        input: &'a DatasetBase<Array2<f64>, T>,
         k_type: KernelType,
     ) {
         let methods = vec![
@@ -883,7 +884,7 @@ mod tests {
         }
     }
 
-    fn check_kernel_from_dataset_view_type<'a, T: Targets>(
+    fn check_kernel_from_dataset_view_type<'a, L: 'a, T: AsTargets<Elem = L> + FromTargetArray<'a, L>>(
         input: &'a DatasetBase<ArrayView2<'a, f64>, T>,
         k_type: KernelType,
     ) {
