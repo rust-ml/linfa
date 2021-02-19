@@ -250,23 +250,22 @@ mod tests {
         assert_eq!(*freqs.get(&2).unwrap() as usize, 1);
     }
 
-    /*
     #[test]
-    fn dataset_view_implements_required_methods() {
+    fn dataset_view_implements_required_methods() -> Result<()> {
         let mut rng = SmallRng::seed_from_u64(42);
-        let observations = array![[1., 2.], [1., 2.]];
+        let records = array![[1., 2.], [1., 2.]];
         let targets = array![0., 1.];
 
         // ------ Targets ------
 
         // New
-        let dataset_view = DatasetView::new(observations.view(), targets.view());
+        let dataset_view = DatasetView::from((records.view(), targets.view()));
 
         // Shuffle
         let _shuffled_owned = dataset_view.shuffle(&mut rng);
 
         // Bootstrap
-        let mut iter = dataset_view.bootstrap(3, &mut rng);
+        let mut iter = dataset_view.bootstrap_samples(3, &mut rng);
         for _ in 1..5 {
             let b_dataset = iter.next().unwrap();
             assert_eq!(b_dataset.records().dim().0, 3);
@@ -275,46 +274,49 @@ mod tests {
         let linspace: Array1<f64> = Array1::linspace(0.0, 0.8, 100);
         let records = Array2::from_shape_vec((50, 2), linspace.to_vec()).unwrap();
         let targets: Array1<f64> = Array1::linspace(0.0, 0.8, 50);
-        let dataset = Dataset::new(records, targets);
+        let dataset = Dataset::from((records, targets));
 
         // view ,Split with ratio view
         let view: DatasetView<f64, f64> = dataset.view();
 
-        let (train, val) = view.split_with_ratio_view(0.5);
-        assert_eq!(train.targets().dim(), 25);
-        assert_eq!(val.targets().dim(), 25);
-        assert_eq!(train.records().dim().0, 25);
-        assert_eq!(val.records().dim().0, 25);
+        let (train, val) = view.split_with_ratio(0.5);
+        assert_eq!(train.targets().len(), 25);
+        assert_eq!(val.targets().len(), 25);
+        assert_eq!(train.nsamples(), 25);
+        assert_eq!(val.nsamples(), 25);
 
         // ------ Labels ------
         let dataset_multiclass =
-            Dataset::new(array![[1., 2.], [2., 1.], [0., 0.]], array![0, 1, 2]);
+            Dataset::from((array![[1., 2.], [2., 1.], [0., 0.]], array![0, 1, 2]));
         let view: DatasetView<f64, usize> = dataset_multiclass.view();
 
         // One Vs All
-        let datasets_one_vs_all = view.one_vs_all();
+        let datasets_one_vs_all = view.one_vs_all()?;
         assert_eq!(datasets_one_vs_all.len(), 3);
 
         for dataset in datasets_one_vs_all.iter() {
             assert_eq!(dataset.labels().iter().filter(|x| **x).count(), 1);
         }
 
-        let dataset_multiclass = Dataset::new(
+        let dataset_multiclass = Dataset::from((
             array![[1., 2.], [2., 1.], [0., 0.], [2., 2.]],
             array![0, 1, 2, 2],
-        );
+        ));
+
         let view: DatasetView<f64, usize> = dataset_multiclass.view();
 
         // Frequencies with mask
-        let freqs = view.frequencies_with_mask(&[true, true, true, true]);
+        let freqs = view.label_frequencies_with_mask(&[true, true, true, true]);
         assert_eq!(*freqs.get(&0).unwrap() as usize, 1);
         assert_eq!(*freqs.get(&1).unwrap() as usize, 1);
         assert_eq!(*freqs.get(&2).unwrap() as usize, 2);
 
-        let freqs = view.frequencies_with_mask(&[true, true, true, false]);
+        let freqs = view.label_frequencies_with_mask(&[true, true, true, false]);
         assert_eq!(*freqs.get(&0).unwrap() as usize, 1);
         assert_eq!(*freqs.get(&1).unwrap() as usize, 1);
         assert_eq!(*freqs.get(&2).unwrap() as usize, 1);
+
+        Ok(())
     }
 
     #[test]
@@ -322,33 +324,33 @@ mod tests {
         let linspace: Array1<f64> = Array1::linspace(0.0, 0.8, 100);
         let records = Array2::from_shape_vec((50, 2), linspace.to_vec()).unwrap();
         let targets: Array1<f64> = Array1::linspace(0.0, 0.8, 50);
-        for (train, val) in DatasetView::new(records.view(), targets.view())
+        for (train, val) in DatasetView::from((records.view(), targets.view()))
             .fold(2)
             .into_iter()
         {
             assert_eq!(train.records().dim(), (25, 2));
             assert_eq!(val.records().dim(), (25, 2));
-            assert_eq!(train.targets().dim(), 25);
-            assert_eq!(val.targets().dim(), 25);
+            assert_eq!(train.targets().dim(), (25, 1));
+            assert_eq!(val.targets().dim(), (25, 1));
         }
-        assert_eq!(Dataset::new(records, targets).fold(10).len(), 10);
+        assert_eq!(Dataset::from((records, targets)).fold(10).len(), 10);
 
         let records =
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        for (i, (train, val)) in Dataset::new(records, targets)
+        for (i, (train, val)) in Dataset::from((records, targets))
             .fold(5)
             .into_iter()
             .enumerate()
         {
             assert_eq!(val.records.row(0)[0] as usize, (i + 1));
             assert_eq!(val.records.row(0)[1] as usize, (i + 1));
-            assert_eq!(val.targets[0] as usize, (i + 1));
+            assert_eq!(val.targets.column(0)[0] as usize, (i + 1));
 
             for j in 0..4 {
                 assert!(train.records.row(j)[0] as usize != (i + 1));
                 assert!(train.records.row(j)[1] as usize != (i + 1));
-                assert!(train.targets[j] as usize != (i + 1));
+                assert!(train.targets.column(0)[j] as usize != (i + 1));
             }
         }
     }
@@ -360,14 +362,14 @@ mod tests {
     }
 
     use crate::traits::Fit;
-    use ndarray::{ArrayView1, ArrayView2};
+    use ndarray::ArrayView2;
 
-    impl<'a> Fit<'a, ArrayView2<'a, f64>, ArrayView1<'a, f64>> for MockFittable {
+    impl<'a> Fit<'a, ArrayView2<'a, f64>, ArrayView2<'a, f64>> for MockFittable {
         type Object = MockFittableResult;
 
         fn fit(&self, training_data: &DatasetView<f64, f64>) -> Self::Object {
             MockFittableResult {
-                mock_var: training_data.targets().dim(),
+                mock_var: training_data.nsamples(),
             }
         }
     }
@@ -384,9 +386,9 @@ mod tests {
             assert_eq!(model.mock_var, 4);
             assert_eq!(validation_set.records().row(0)[0] as usize, i + 1);
             assert_eq!(validation_set.records().row(0)[1] as usize, i + 1);
-            assert_eq!(validation_set.targets()[0] as usize, i + 1);
+            assert_eq!(validation_set.targets().column(0)[0] as usize, i + 1);
             assert_eq!(validation_set.records().dim(), (1, 2));
-            assert_eq!(validation_set.targets().dim(), 1);
+            assert_eq!(validation_set.targets().dim(), (1, 1));
         }
     }
 
@@ -405,9 +407,9 @@ mod tests {
             assert_eq!(model.mock_var, 4);
             assert_eq!(validation_set.records().row(0)[0] as usize, i + 1);
             assert_eq!(validation_set.records().row(0)[1] as usize, i + 1);
-            assert_eq!(validation_set.targets()[0] as usize, i + 1);
+            assert_eq!(validation_set.targets().column(0)[0] as usize, i + 1);
             assert_eq!(validation_set.records().dim(), (1, 2));
-            assert_eq!(validation_set.targets().dim(), 1);
+            assert_eq!(validation_set.targets().dim(), (1, 1));
             assert!(i < 3);
         }
 
@@ -416,9 +418,9 @@ mod tests {
             assert_eq!(model.mock_var, 4);
             assert_eq!(validation_set.records().row(0)[0] as usize, i + 1);
             assert_eq!(validation_set.records().row(0)[1] as usize, i + 1);
-            assert_eq!(validation_set.targets()[0] as usize, i + 1);
+            assert_eq!(validation_set.targets().column(0)[0] as usize, i + 1);
             assert_eq!(validation_set.records().dim(), (1, 2));
-            assert_eq!(validation_set.targets().dim(), 1);
+            assert_eq!(validation_set.targets().dim(), (1, 1));
             assert!(i < 4);
         }
 
@@ -426,7 +428,7 @@ mod tests {
         // used for trainig
         for (i, (model, validation_set)) in dataset.iter_fold(2, |v| params.fit(&v)).enumerate() {
             assert_eq!(model.mock_var, 3);
-            assert_eq!(validation_set.targets().dim(), 2);
+            assert_eq!(validation_set.targets().dim(), (2, 1));
             assert!(i < 2);
         }
     }
@@ -452,5 +454,4 @@ mod tests {
         let params = MockFittable {};
         let _ = dataset.iter_fold(6, |v| params.fit(&v)).enumerate();
     }
-    */
 }

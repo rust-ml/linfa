@@ -33,8 +33,8 @@ impl<'a, 'b: 'a, F: Float, L> Iterator for Iter<'a, 'b, F, L> {
         let targets = self.targets.reborrow();
 
         Some((
-            records.slice_move(s![self.idx, ..]),
-            targets.slice_move(s![self.idx, ..]),
+            records.slice_move(s![self.idx - 1, ..]),
+            targets.slice_move(s![self.idx - 1, ..]),
         ))
     }
 }
@@ -72,7 +72,6 @@ where
             return None;
         }
 
-        self.idx += 1;
         let mut records = self.dataset.records.view();
         let mut targets = self.dataset.targets.as_multi_targets();
         let feature_names;
@@ -89,6 +88,8 @@ where
                 feature_names = Vec::new();
             }
         }
+
+        self.idx += 1;
 
         let dataset_view = DatasetBase {
             records,
@@ -135,7 +136,6 @@ where
     type Item = DatasetBase<ArrayView2<'a, F>, T::View>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.idx += 1;
         if self.idx == self.records.len_of(self.axis) / self.size {
             return None;
         }
@@ -152,6 +152,8 @@ where
             self.axis,
             (self.idx * self.size..(self.idx + 1) * self.size).into(),
         );
+
+        self.idx += 1;
 
         Some(DatasetBase::new(records, T::new_targets_view(targets)))
     }

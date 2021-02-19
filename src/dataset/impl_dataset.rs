@@ -8,8 +8,8 @@ use std::collections::{HashMap, HashSet};
 use super::{
     super::traits::{Predict, PredictRef},
     iter::{ChunksIter, DatasetIter, Iter},
-    AsTargets, AsTargetsMut, Dataset, DatasetBase, Float, FromTargetArray, Label, Labels, Records,
-    Result, TargetsWithLabels,
+    AsTargets, AsTargetsMut, Dataset, DatasetBase, DatasetView, Float, FromTargetArray, Label,
+    Labels, Records, Result, TargetsWithLabels,
 };
 
 /// Implementation without constraints on records and targets
@@ -120,23 +120,23 @@ impl<R: Records, S> DatasetBase<R, S> {
     }
 }
 
-/// Map targets with a function `f`
-///
-/// # Example
-///
-/// ```
-/// let dataset = linfa_datasets::winequality()
-///     .map_targets(|x| *x > 6);
-///
-/// // dataset has now boolean targets
-/// println!("{:?}", dataset.targets());
-/// ```
-///
-/// # Returns
-///
-/// A modified dataset with new target type.
-///
 impl<L, R: Records, T: AsTargets<Elem = L>> DatasetBase<R, T> {
+    /// Map targets with a function `f`
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let dataset = linfa_datasets::winequality()
+    ///     .map_targets(|x| *x > 6);
+    ///
+    /// // dataset has now boolean targets
+    /// println!("{:?}", dataset.targets());
+    /// ```
+    ///
+    /// # Returns
+    ///
+    /// A modified dataset with new target type.
+    ///
     pub fn map_targets<S, G: FnMut(&L) -> S>(self, fnc: G) -> DatasetBase<R, Array2<S>> {
         let DatasetBase {
             records,
@@ -156,6 +156,16 @@ impl<L, R: Records, T: AsTargets<Elem = L>> DatasetBase<R, T> {
         }
     }
 
+    /// Return the number of targets in the dataset
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let dataset = linfa_datasets::winequality();
+    ///
+    /// println!("#targets {}", dataset.ntargets());
+    /// ```
+    ///
     pub fn ntargets(&self) -> usize {
         self.targets.as_multi_targets().len_of(Axis(1))
     }
@@ -183,7 +193,7 @@ where
     /// ```
     /// let dataset = linfa_datasets::iris();
     ///
-    /// for (x, y) in dataset.iter() {
+    /// for (x, y) in dataset.sample_iter() {
     ///     println!("{} => {}", x, y);
     /// }
     /// ```
@@ -522,7 +532,7 @@ where
     /// ### Returns
     ///
     /// A new shuffled version of the current Dataset
-    pub fn shuffle<R: Rng>(self, rng: &mut R) -> DatasetBase<Array2<F>, T::Owned> {
+    pub fn shuffle<R: Rng>(&self, rng: &mut R) -> DatasetBase<Array2<F>, T::Owned> {
         let mut indices = (0..self.nsamples()).collect::<Vec<_>>();
         indices.shuffle(rng);
 
@@ -552,12 +562,12 @@ where
     ///
     /// ```rust
     /// use linfa::dataset::DatasetView;
-    /// use ndarray::{arr1, arr2};
+    /// use ndarray::array;
     ///
-    /// let records = arr2(&[[1.,1.], [2.,1.], [3.,2.], [4.,1.],[5., 3.], [6.,2.]]);
-    /// let targets = arr1(&[1, 1, 0, 1, 0, 0]);
+    /// let records = array![[1.,1.], [2.,1.], [3.,2.], [4.,1.],[5., 3.], [6.,2.]];
+    /// let targets = array![1, 1, 0, 1, 0, 0];
     ///
-    /// let dataset : DatasetView<f64, usize> = DatasetView::new(records.view(), targets.view());
+    /// let dataset : DatasetView<f64, usize> = (records.view(), targets.view()).into();
     /// let accuracies = dataset.fold(3).into_iter().map(|(train, valid)| {
     ///     // Here you can train your model and perform validation
     ///     
@@ -667,11 +677,11 @@ where
     ///     mock_var: usize,
     /// }
     ///
-    /// impl<'a> Fit<'a, ArrayView2<'a, f64>, ArrayView1<'a, f64>> for MockFittable {
+    /// impl<'a> Fit<'a, ArrayView2<'a, f64>, ArrayView2<'a, f64>> for MockFittable {
     ///     type Object = MockFittableResult;
     ///
     ///     fn fit(&self, training_data: &DatasetView<f64, f64>) -> Self::Object {
-    ///         MockFittableResult { mock_var: training_data.targets().dim()}
+    ///         MockFittableResult { mock_var: training_data.ntargets()}
     ///     }
     /// }
     ///
@@ -685,11 +695,11 @@ where
     ///     // assert the performance of the chosen algorithm
     /// }
     /// ```
-    pub fn iter_fold<O: 'a, C: 'a + Fn(DatasetBase<ArrayView2<F>, ArrayView2<E>>) -> O>(
+    pub fn iter_fold<O, C: Fn(DatasetView<F, E>) -> O>(
         &'a mut self,
         k: usize,
         fit_closure: C,
-    ) -> impl Iterator<Item = (O, DatasetBase<ArrayView2<F>, ArrayView2<E>>)> + 'a {
+    ) -> impl Iterator<Item = (O, DatasetBase<ArrayView2<F>, ArrayView2<E>>)> {
         //)-> impl Iterator<Item = (O, ())> + 'a {
         assert!(k > 0);
         assert!(k <= self.nsamples());
