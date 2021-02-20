@@ -32,6 +32,7 @@ pub trait Label: PartialEq + Eq + Hash + Clone {}
 impl Label for bool {}
 impl Label for usize {}
 impl Label for String {}
+impl Label for () {}
 
 /// Probability types
 ///

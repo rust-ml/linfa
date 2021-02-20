@@ -69,7 +69,7 @@ impl<T: AsTargets> AsTargets for &T {
     }
 }
 
-impl<L: Label, T: AsTargets<Elem = L> + AsProbabilities> AsTargets for TargetsWithLabels<L, T> {
+impl<L: Label, T: AsTargets<Elem = L>> AsTargets for TargetsWithLabels<L, T> {
     type Elem = L;
 
     fn as_multi_targets(&self) -> ArrayView2<L> {

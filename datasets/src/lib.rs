@@ -226,6 +226,6 @@ mod tests {
         // perform correlation analysis and assert that fixed acidity and citric acid are
         // correlated
         let pcc = ds.pearson_correlation_with_p_value(100);
-        assert_abs_diff_eq!(pcc.get_p_values().unwrap()[1], 0.05, epsilon = 0.02);
+        assert_abs_diff_eq!(pcc.get_p_values().unwrap()[1], 0.05, epsilon = 0.05);
     }
 }

@@ -16,7 +16,7 @@ fn main() -> Result<()> {
     let model = Svm::params()
         .pos_neg_weights(50000., 5000.)
         .gaussian_kernel(80.0)
-        .fit(&train);
+        .fit(&train)?;
 
     println!("{}", model);
     // A positive prediction indicates a good wine, a negative, a bad one
@@ -34,8 +34,8 @@ fn main() -> Result<()> {
     // predict and map targets
     let pred = model
         .predict(&valid)
-        .map_targets(|x| **x > 0.0)
-        .map_targets(tag_classes);
+        .map(|x| **x > 0.0)
+        .map(tag_classes);
 
     // create a confusion matrix
     let cm = pred.confusion_matrix(&valid)?;
