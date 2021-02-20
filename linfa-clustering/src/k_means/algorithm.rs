@@ -71,7 +71,7 @@ use serde_crate::{Deserialize, Serialize};
 ///
 /// ```
 /// use linfa::DatasetBase;
-/// use linfa::traits::{Fit, PredictRef};
+/// use linfa::traits::{Fit, Predict};
 /// use linfa_clustering::{KMeansHyperParams, KMeans, generate_blobs};
 /// use ndarray::{Axis, array, s};
 /// use ndarray_rand::rand::SeedableRng;
