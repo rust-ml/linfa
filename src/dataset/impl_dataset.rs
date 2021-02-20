@@ -797,7 +797,6 @@ impl<F: Float, E> Dataset<F, E> {
         let first = Array2::from_shape_vec((n1, nfeatures), array_buf).unwrap();
         let second = Array2::from_shape_vec((n2, nfeatures), second_array_buf).unwrap();
 
-
         // split targets into two disjoint Vec
         let mut array_buf = self.targets.into_raw_vec();
         let second_array_buf = array_buf.split_off(n1 * ntargets);
@@ -813,8 +812,12 @@ impl<F: Float, E> Dataset<F, E> {
         };
 
         // create new datasets with attached weights
-        let dataset1 = Dataset::new(first, first_targets).with_weights(self.weights.clone()).with_feature_names(feature_names.clone());
-        let dataset2 = Dataset::new(second, second_targets).with_weights(second_weights).with_feature_names(feature_names);
+        let dataset1 = Dataset::new(first, first_targets)
+            .with_weights(self.weights.clone())
+            .with_feature_names(feature_names.clone());
+        let dataset2 = Dataset::new(second, second_targets)
+            .with_weights(second_weights)
+            .with_feature_names(feature_names);
 
         (dataset1, dataset2)
     }

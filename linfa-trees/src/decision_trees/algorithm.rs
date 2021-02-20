@@ -198,7 +198,6 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
         }
     }
 
-
     /// Recursively fits the node
     fn fit<D: Data<Elem = F>, T: AsTargets<Elem = L> + Labels<Elem = L>>(
         data: &DatasetBase<ArrayBase<D, Ix2>, T>,

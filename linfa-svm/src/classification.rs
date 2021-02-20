@@ -1,13 +1,17 @@
 use linfa::prelude::Transformer;
-use linfa::{dataset::{DatasetBase, Pr, AsTargets, TargetsWithLabels}, traits::Fit, traits::{Predict, PredictRef}};
+use linfa::{
+    dataset::{AsTargets, DatasetBase, Pr, TargetsWithLabels},
+    traits::Fit,
+    traits::{Predict, PredictRef},
+};
 use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix2};
 use std::cmp::Ordering;
 
+use super::error::Result;
 use super::permutable_kernel::{PermutableKernel, PermutableKernelOneClass};
 use super::solver_smo::SolverState;
 use super::SolverParams;
 use super::{Float, Svm, SvmParams};
-use super::error::Result;
 use linfa_kernel::Kernel;
 
 /// Support Vector Classification with C-penalizing parameter
@@ -184,9 +188,8 @@ pub fn fit_one_class<F: Float + num_traits::ToPrimitive>(
 /// a optimal hyperplane to the problem and returns the solution as a model. The model predicts
 /// probabilities for whether a sample belongs to the first or second class.
 macro_rules! impl_classification {
-    ($records:ty, $targets:ty)  => {
-        impl<'a, F: Float> Fit<'a, $records, $targets> for SvmParams<F, Pr>
-        {
+    ($records:ty, $targets:ty) => {
+        impl<'a, F: Float> Fit<'a, $records, $targets> for SvmParams<F, Pr> {
             type Object = Result<Svm<F, Pr>>;
 
             fn fit(&self, dataset: &DatasetBase<$records, $targets>) -> Self::Object {
@@ -216,7 +219,7 @@ macro_rules! impl_classification {
                 Ok(ret)
             }
         }
-    }
+    };
 }
 
 impl_classification!(Array2<F>, Array2<bool>);
@@ -229,9 +232,8 @@ impl_classification!(ArrayView2<'a, F>, TargetsWithLabels<bool, ArrayView2<'a, b
 /// This fits a SVM model to a dataset with only positive samples and uses the one-class
 /// implementation of SVM.
 macro_rules! impl_oneclass {
-    ($records:ty, $targets:ty)  => {
-        impl<'a, F: Float> Fit<'a, $records, $targets> for SvmParams<F, Pr>
-        {
+    ($records:ty, $targets:ty) => {
+        impl<'a, F: Float> Fit<'a, $records, $targets> for SvmParams<F, Pr> {
             type Object = Result<Svm<F, Pr>>;
 
             fn fit(&self, dataset: &DatasetBase<$records, $targets>) -> Self::Object {
@@ -239,16 +241,14 @@ macro_rules! impl_oneclass {
                 let records = dataset.records().view();
 
                 let ret = match self.nu {
-                    Some((nu, _)) => {
-                        fit_one_class(self.solver_params.clone(), records, kernel, nu)
-                    }
+                    Some((nu, _)) => fit_one_class(self.solver_params.clone(), records, kernel, nu),
                     None => panic!("One class needs Nu value"),
                 };
 
                 Ok(ret)
             }
         }
-    }
+    };
 }
 
 impl_oneclass!(Array2<F>, Array2<()>);
@@ -350,7 +350,10 @@ mod tests {
         assert_eq!(cm.accuracy(), 1.0);
 
         // train model with Nu parameter
-        let model = Svm::params().nu_weight(0.05).linear_kernel().fit(&dataset)?;
+        let model = Svm::params()
+            .nu_weight(0.05)
+            .linear_kernel()
+            .fit(&dataset)?;
 
         let valid = model.predict(valid).map_targets(|x| **x > 0.0);
 

@@ -1,13 +1,18 @@
 //! Support Vector Regression
-use linfa::{dataset::{DatasetBase, AsTargets}, traits::Fit, traits::{Predict, PredictRef}, traits::Transformer};
+use linfa::{
+    dataset::{AsTargets, DatasetBase},
+    traits::Fit,
+    traits::Transformer,
+    traits::{Predict, PredictRef},
+};
 use linfa_kernel::Kernel;
 use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix2};
 
+use super::error::Result;
 use super::permutable_kernel::PermutableKernelRegression;
 use super::solver_smo::SolverState;
 use super::SolverParams;
 use super::{Float, Svm, SvmParams};
-use super::error::Result;
 
 /// Support Vector Regression with epsilon tolerance
 ///
@@ -113,9 +118,8 @@ pub fn fit_nu<F: Float>(
 ///
 /// Take a number of observations and project them to optimal continuous targets.
 macro_rules! impl_regression {
-    ($records:ty, $targets:ty)  => {
-        impl<'a, F: Float> Fit<'a, $records, $targets> for SvmParams<F, F>
-        {
+    ($records:ty, $targets:ty) => {
+        impl<'a, F: Float> Fit<'a, $records, $targets> for SvmParams<F, F> {
             type Object = Result<Svm<F, F>>;
 
             fn fit(&self, dataset: &DatasetBase<$records, $targets>) -> Self::Object {
@@ -146,7 +150,7 @@ macro_rules! impl_regression {
                 Ok(ret)
             }
         }
-    }
+    };
 }
 
 impl_regression!(Array2<F>, Array2<F>);
@@ -169,7 +173,7 @@ macro_rules! impl_predict {
                 self.weighted_sum(&data) - self.rho
             }
         }
-        
+
         /// Classify observations
         ///
         /// This function takes a number of features and predicts target probabilities that they belong to
@@ -188,14 +192,14 @@ macro_rules! impl_predict {
     }
 }
 
-impl_predict!( f32, f64 );
-        
+impl_predict!(f32, f64);
+
 #[cfg(test)]
 pub mod tests {
     use super::Svm;
     use crate::error::Result;
 
-    use linfa::dataset::{Dataset, AsTargets};
+    use linfa::dataset::{AsTargets, Dataset};
     use linfa::metrics::Regression;
     use linfa::traits::{Fit, Predict};
     use ndarray::Array;
@@ -255,7 +259,10 @@ pub mod tests {
         let dataset = Dataset::new(records, targets);
 
         // Test the precomputed dot product in the linear kernel case
-        let model = Svm::params().nu_eps(2., 0.01).linear_kernel().fit(&dataset)?;
+        let model = Svm::params()
+            .nu_eps(2., 0.01)
+            .linear_kernel()
+            .fit(&dataset)?;
 
         println!("{}", model);
 

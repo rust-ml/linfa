@@ -32,10 +32,7 @@ fn main() -> Result<()> {
     let valid = valid.map_targets(tag_classes);
 
     // predict and map targets
-    let pred = model
-        .predict(&valid)
-        .map(|x| **x > 0.0)
-        .map(tag_classes);
+    let pred = model.predict(&valid).map(|x| **x > 0.0).map(tag_classes);
 
     // create a confusion matrix
     let cm = pred.confusion_matrix(&valid)?;
