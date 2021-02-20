@@ -2,14 +2,15 @@ use std::fs::File;
 use std::io::Write;
 
 use ndarray_rand::rand::SeedableRng;
-use rand_isaac::Isaac64Rng;
+use rand::rngs::SmallRng;
 
 use linfa::prelude::*;
 use linfa_trees::{DecisionTree, Result, SplitQuality};
 
 fn main() -> Result<()> {
     // load Iris dataset
-    let mut rng = Isaac64Rng::seed_from_u64(42);
+    let mut rng = SmallRng::seed_from_u64(42);
+
     let (train, test) = linfa_datasets::iris()
         .shuffle(&mut rng)
         .split_with_ratio(0.8);
@@ -31,6 +32,9 @@ fn main() -> Result<()> {
         "Test accuracy with Gini criterion: {:.2}%",
         100.0 * cm.accuracy()
     );
+
+    let feats = gini_model.features();
+    println!("Features trained in this tree {:?}", feats);
 
     println!("Training model with entropy criterion ...");
     let entropy_model = DecisionTree::params()
@@ -54,9 +58,15 @@ fn main() -> Result<()> {
     println!("Features trained in this tree {:?}", feats);
 
     let mut tikz = File::create("decision_tree_example.tex").unwrap();
-    tikz.write(gini_model.export_to_tikz().to_string().as_bytes())
-        .unwrap();
-    println!(" => generate tree description with `latex decision_tree_example.tex`!");
+    tikz.write_all(
+        gini_model
+            .export_to_tikz()
+            .with_legend()
+            .to_string()
+            .as_bytes(),
+    )
+    .unwrap();
+    println!(" => generate Gini tree description with `latex decision_tree_example.tex`!");
 
     Ok(())
 }
