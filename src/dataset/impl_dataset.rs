@@ -225,7 +225,7 @@ where
 impl<L, R: Records, T: AsTargets<Elem = L>> AsTargets for DatasetBase<R, T> {
     type Elem = L;
 
-    fn as_multi_targets<'a>(&'a self) -> ArrayView2<'a, Self::Elem> {
+    fn as_multi_targets(&self) -> ArrayView2<'_, Self::Elem> {
         self.targets.as_multi_targets()
     }
 }
@@ -233,11 +233,12 @@ impl<L, R: Records, T: AsTargets<Elem = L>> AsTargets for DatasetBase<R, T> {
 impl<L, R: Records, T: AsTargetsMut<Elem = L>> AsTargetsMut for DatasetBase<R, T> {
     type Elem = L;
 
-    fn as_multi_targets_mut<'a>(&'a mut self) -> ArrayViewMut2<'a, Self::Elem> {
+    fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<'_, Self::Elem> {
         self.targets.as_multi_targets_mut()
     }
 }
 
+#[allow(clippy::type_complexity)]
 impl<'a, L: 'a, F: Float, T> DatasetBase<ArrayView2<'a, F>, T>
 where
     T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
@@ -285,6 +286,7 @@ impl<L: Label, T: Labels<Elem = L>, R: Records> Labels for DatasetBase<R, T> {
     }
 }
 
+#[allow(clippy::type_complexity)]
 impl<'a, 'b: 'a, F: Float, L: Label, T, D> DatasetBase<ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
@@ -553,6 +555,7 @@ where
         DatasetBase::new(records, targets)
     }
 
+    #[allow(clippy::type_complexity)]
     /// Performs K-folding on the dataset.
     /// The dataset is divided into `k` "fold", each containing
     /// `(dataset size)/k` samples, used to generate `k` training-validation
@@ -788,7 +791,7 @@ impl<F: Float, E> Dataset<F, E> {
         let n1 = (self.nsamples() as f32 * ratio).ceil() as usize;
         let n2 = self.nsamples() - n1;
 
-        let feature_names = self.feature_names().clone();
+        let feature_names = self.feature_names();
 
         // split records into two disjoint arrays
         let mut array_buf = self.records.into_raw_vec();
@@ -813,7 +816,7 @@ impl<F: Float, E> Dataset<F, E> {
 
         // create new datasets with attached weights
         let dataset1 = Dataset::new(first, first_targets)
-            .with_weights(self.weights.clone())
+            .with_weights(self.weights)
             .with_feature_names(feature_names.clone());
         let dataset2 = Dataset::new(second, second_targets)
             .with_weights(second_weights)

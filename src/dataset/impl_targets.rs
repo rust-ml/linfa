@@ -40,7 +40,7 @@ impl<'a, L: 'a, S: Data<Elem = L> , I: Dimension> FromTargetArray<&'a ArrayBase<
 impl<L, S: DataMut<Elem = L>> AsTargetsMut for ArrayBase<S, Ix1> {
     type Elem = L;
 
-    fn as_multi_targets_mut<'a>(&'a mut self) -> ArrayViewMut2<'a, Self::Elem> {
+    fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<'_, Self::Elem> {
         self.view_mut().insert_axis(Axis(1))
     }
 }
@@ -56,7 +56,7 @@ impl<L, S: Data<Elem = L>> AsTargets for ArrayBase<S, Ix2> {
 impl<L, S: DataMut<Elem = L>> AsTargetsMut for ArrayBase<S, Ix2> {
     type Elem = L;
 
-    fn as_multi_targets_mut<'a>(&'a mut self) -> ArrayViewMut2<'a, Self::Elem> {
+    fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<'_, Self::Elem> {
         self.view_mut()
     }
 }
