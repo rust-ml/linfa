@@ -5,9 +5,9 @@ use ndarray_rand::rand::SeedableRng;
 use rand_isaac::Isaac64Rng;
 
 use linfa::prelude::*;
-use linfa_trees::{DecisionTree, SplitQuality};
+use linfa_trees::{DecisionTree, Result, SplitQuality};
 
-fn main() {
+fn main() -> Result<()> {
     // load Iris dataset
     let mut rng = Isaac64Rng::seed_from_u64(42);
     let (train, test) = linfa_datasets::iris()
@@ -20,10 +20,10 @@ fn main() {
         .max_depth(Some(100))
         .min_weight_split(1.0)
         .min_weight_leaf(1.0)
-        .fit(&train);
+        .fit(&train)?;
 
-    let gini_pred_y = gini_model.predict(test.records().view());
-    let cm = gini_pred_y.confusion_matrix(&test);
+    let gini_pred_y = gini_model.predict(&test);
+    let cm = gini_pred_y.confusion_matrix(&test)?;
 
     println!("{:?}", cm);
 
@@ -38,10 +38,10 @@ fn main() {
         .max_depth(Some(100))
         .min_weight_split(10.0)
         .min_weight_leaf(10.0)
-        .fit(&train);
+        .fit(&train)?;
 
-    let entropy_pred_y = gini_model.predict(test.records().view());
-    let cm = entropy_pred_y.confusion_matrix(&test);
+    let entropy_pred_y = gini_model.predict(&test);
+    let cm = entropy_pred_y.confusion_matrix(&test)?;
 
     println!("{:?}", cm);
 
@@ -57,4 +57,6 @@ fn main() {
     tikz.write(gini_model.export_to_tikz().to_string().as_bytes())
         .unwrap();
     println!(" => generate tree description with `latex decision_tree_example.tex`!");
+
+    Ok(())
 }
