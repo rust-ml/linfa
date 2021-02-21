@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
 use super::{
-    AsProbabilities, AsTargets, AsTargetsMut, DatasetBase, FromTargetArray, Label, Labels, Pr,
-    Records, CountedTargets, Float,
+    AsProbabilities, AsTargets, AsTargetsMut, CountedTargets, DatasetBase, Float, FromTargetArray,
+    Label, Labels, Pr, Records,
 };
 use ndarray::{
-    Array1, Array2, ArrayBase, ArrayView2, ArrayViewMut2, Axis, CowArray, Data, DataMut, Dimension, Ix1,
-    Ix2, Ix3, OwnedRepr, ViewRepr, stack
+    stack, Array1, Array2, ArrayBase, ArrayView2, ArrayViewMut2, Axis, CowArray, Data, DataMut,
+    Dimension, Ix1, Ix2, Ix3, OwnedRepr, ViewRepr,
 };
 
 impl<'a, L, S: Data<Elem = L>> AsTargets for ArrayBase<S, Ix1> {
@@ -143,22 +143,23 @@ impl<L: Label, S: Data<Elem = L>, I: Dimension> Labels for ArrayBase<S, I> {
     type Elem = L;
 
     fn label_count(&self) -> Vec<HashMap<L, usize>> {
-        self.gencolumns().into_iter().map(|x| {
-            let mut map = HashMap::new();
+        self.gencolumns()
+            .into_iter()
+            .map(|x| {
+                let mut map = HashMap::new();
 
-            for i in x {
-                *map.entry(i.clone()).or_insert(0) += 1;
-            }
+                for i in x {
+                    *map.entry(i.clone()).or_insert(0) += 1;
+                }
 
-            map
-        }).collect()
+                map
+            })
+            .collect()
     }
 }
 
 /// A NdArray with discrete labels can act as labels
-impl<L: Label, R: Records, T: AsTargets<Elem = L>> Labels
-    for DatasetBase<R, CountedTargets<L, T>>
-{
+impl<L: Label, R: Records, T: AsTargets<Elem = L>> Labels for DatasetBase<R, CountedTargets<L, T>> {
     type Elem = L;
 
     fn label_count(&self) -> Vec<HashMap<L, usize>> {
@@ -169,9 +170,12 @@ impl<L: Label, R: Records, T: AsTargets<Elem = L>> Labels
 impl<F: Float, L: Copy + Label, D, T> DatasetBase<ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
-    T: AsTargets<Elem = L>
+    T: AsTargets<Elem = L>,
 {
-    pub fn with_labels(&self, labels: &[&[L]]) -> DatasetBase<Array2<F>, CountedTargets<L, Array2<L>>> {
+    pub fn with_labels(
+        &self,
+        labels: &[&[L]],
+    ) -> DatasetBase<Array2<F>, CountedTargets<L, Array2<L>>> {
         let targets = self.targets.as_multi_targets();
         let old_weights = self.weights();
 
@@ -181,7 +185,13 @@ where
 
         let mut map = vec![HashMap::new(); targets.len_of(Axis(1))];
 
-        for (i, (r, t)) in self.records().genrows().into_iter().zip(targets.genrows().into_iter()).enumerate() {
+        for (i, (r, t)) in self
+            .records()
+            .genrows()
+            .into_iter()
+            .zip(targets.genrows().into_iter())
+            .enumerate()
+        {
             let any_exists = t.iter().zip(labels.iter()).any(|(a, b)| b.contains(&a));
 
             if any_exists {
@@ -203,7 +213,7 @@ where
 
         let targets = CountedTargets {
             targets,
-            labels: map
+            labels: map,
         };
 
         DatasetBase {

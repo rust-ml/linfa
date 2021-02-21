@@ -1,6 +1,6 @@
 use linfa::prelude::Transformer;
 use linfa::{
-    dataset::{AsTargets, DatasetBase, Pr, CountedTargets},
+    dataset::{AsTargets, CountedTargets, DatasetBase, Pr},
     traits::Fit,
     traits::{Predict, PredictRef},
 };

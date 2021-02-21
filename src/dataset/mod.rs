@@ -3,8 +3,8 @@
 //! This module implements the dataset struct and various helper traits to extend its
 //! functionality.
 use ndarray::{
-    Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2, Axis,
-    CowArray, Ix2, Ix3, NdFloat, OwnedRepr,
+    Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2,
+    Axis, CowArray, Ix2, Ix3, NdFloat, OwnedRepr,
 };
 use num_traits::{FromPrimitive, NumAssignOps, Signed};
 
@@ -33,7 +33,7 @@ impl Float for f64 {}
 
 /// Discrete labels
 ///
-/// Labels are countable, comparable and hashable. Currently null-type (no targets), 
+/// Labels are countable, comparable and hashable. Currently null-type (no targets),
 /// boolean (binary task) and usize, strings (multi-label tasks) are supported.
 pub trait Label: PartialEq + Eq + Hash + Clone {}
 
@@ -217,7 +217,8 @@ pub trait Labels {
     fn label_count(&self) -> Vec<HashMap<Self::Elem, usize>>;
 
     fn label_set(&self) -> Vec<HashSet<Self::Elem>> {
-        self.label_count().iter()
+        self.label_count()
+            .iter()
             .map(|x| x.keys().cloned().collect::<HashSet<_>>())
             .collect()
     }

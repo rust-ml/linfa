@@ -1,6 +1,6 @@
 use ndarray::{
-    stack, Array1, Array2, ArrayBase, ArrayView2, ArrayViewMut2, Axis, Data, DataMut, Dimension,
-    Ix1, Ix2, s
+    s, stack, Array1, Array2, ArrayBase, ArrayView2, ArrayViewMut2, Axis, Data, DataMut, Dimension,
+    Ix1, Ix2,
 };
 use rand::{seq::SliceRandom, Rng};
 use std::collections::HashMap;
@@ -8,8 +8,8 @@ use std::collections::HashMap;
 use super::{
     super::traits::{Predict, PredictRef},
     iter::{ChunksIter, DatasetIter, Iter},
-    AsTargets, AsTargetsMut, Dataset, DatasetBase, DatasetView, Float, FromTargetArray, Label,
-    Labels, Records, Result, CountedTargets,
+    AsTargets, AsTargetsMut, CountedTargets, Dataset, DatasetBase, DatasetView, Float,
+    FromTargetArray, Label, Labels, Records, Result,
 };
 
 /// Implementation without constraints on records and targets

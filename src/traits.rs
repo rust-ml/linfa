@@ -39,10 +39,20 @@ pub trait IncrementalFit<'a, R: Records, T> {
 }
 
 /// Predict with model
+///
+/// This trait assumes the `PredictRef` implementation and provides additional input/output
+/// combinations.
+///
+/// # Provided implementation
+///
+/// * Array2 -> Dataset
+/// * Dataset -> Dataset
+/// * &Dataset -> Array2
 pub trait Predict<R: Records, T> {
     fn predict(&self, x: R) -> T;
 }
 
+/// Predict with model for reference of dataset
 pub trait PredictRef<R: Records, T> {
     fn predict_ref<'a>(&'a self, x: &'a R) -> T;
 }
