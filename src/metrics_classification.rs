@@ -277,7 +277,7 @@ where
 
         // count each index tuple in the confusion matrix
         let mut confusion_matrix = Array2::zeros((classes.len(), classes.len()));
-        for (i1, i2) in indices.into_iter().filter_map(|x| x) {
+        for (i1, i2) in indices.into_iter().flatten() {
             confusion_matrix[(i1, i2)] += 1.0;
         }
 
