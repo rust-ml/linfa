@@ -118,10 +118,10 @@ pub trait AsTargets {
     type Elem;
 
     /// Returns a view on targets as two-dimensional array
-    fn as_multi_targets<'a>(&'a self) -> ArrayView2<'a, Self::Elem>;
+    fn as_multi_targets(&self) -> ArrayView2<Self::Elem>;
 
     /// Convert to single target, fails for more than one target
-    fn try_single_target<'a>(&'a self) -> Result<ArrayView1<'a, Self::Elem>> {
+    fn try_single_target(&self) -> Result<ArrayView1<Self::Elem>> {
         let multi_targets = self.as_multi_targets();
 
         if multi_targets.len_of(Axis(1)) > 1 {
@@ -145,10 +145,10 @@ pub trait AsTargetsMut {
     type Elem;
 
     /// Returns a mutable view on targets as two-dimensional array
-    fn as_multi_targets_mut<'a>(&'a mut self) -> ArrayViewMut2<'a, Self::Elem>;
+    fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<Self::Elem>;
 
     /// Convert to single target, fails for more than one target
-    fn try_single_target_mut<'a>(&'a mut self) -> Result<ArrayViewMut1<'a, Self::Elem>> {
+    fn try_single_target_mut(&mut self) -> Result<ArrayViewMut1<Self::Elem>> {
         let multi_targets = self.as_multi_targets_mut();
 
         if multi_targets.len_of(Axis(1)) > 1 {
@@ -164,7 +164,7 @@ pub trait AsTargetsMut {
 /// Some algorithms are working with probabilities. Targets which allow an implicit conversion into
 /// probabilities can implement this trait.
 pub trait AsProbabilities {
-    fn as_multi_target_probabilities<'a>(&'a self) -> CowArray<'a, Pr, Ix3>;
+    fn as_multi_target_probabilities(&self) -> CowArray<Pr, Ix3>;
 }
 
 /// Get the labels in all targets

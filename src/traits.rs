@@ -44,5 +44,5 @@ pub trait Predict<R: Records, T> {
 }
 
 pub trait PredictRef<R: Records, T> {
-    fn predict_ref<'a>(&'a self, x: &R) -> T;
+    fn predict_ref<'a>(&'a self, x: &'a R) -> T;
 }

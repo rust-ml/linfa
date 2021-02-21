@@ -80,7 +80,7 @@ impl<L: Label, T: AsTargets<Elem = L>> AsTargets for TargetsWithLabels<L, T> {
 impl<L: Label, T: AsTargetsMut<Elem = L>> AsTargetsMut for TargetsWithLabels<L, T> {
     type Elem = L;
 
-    fn as_multi_targets_mut<'a>(&'a mut self) -> ArrayViewMut2<'a, Self::Elem> {
+    fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<'_, Self::Elem> {
         self.targets.as_multi_targets_mut()
     }
 }
@@ -133,7 +133,7 @@ impl<L: Label, S: Data<Elem = Pr>> AsTargets for TargetsWithLabels<L, ArrayBase<
 }*/
 
 impl<S: Data<Elem = Pr>> AsProbabilities for ArrayBase<S, Ix3> {
-    fn as_multi_target_probabilities<'a>(&'a self) -> CowArray<'a, Pr, Ix3> {
+    fn as_multi_target_probabilities(&self) -> CowArray<'_, Pr, Ix3> {
         CowArray::from(self.view())
     }
 }
