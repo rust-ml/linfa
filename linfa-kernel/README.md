@@ -10,7 +10,7 @@ In machine learning, kernel methods are a class of algorithms for pattern analys
 
 ## Current State
 
- linfa-kernel currently provides an implementation of kernel methods for RBF and polynomial kernels, with sparse or dense representation. Further a k-neighbour approximation allows to reduce the kernel matrix size. 
+linfa-kernel currently provides an implementation of kernel methods for RBF and polynomial kernels, with sparse or dense representation. Further a k-neighbour approximation allows to reduce the kernel matrix size. 
 
 Low-rank kernel approximation are currently missing, but are on the roadmap. Examples for these are the [Nyström approximation](https://www.jmlr.org/papers/volume6/drineas05a/drineas05a.pdf) or [Quasi Random Fourier Features](http://www-personal.umich.edu/~aniketde/processed_md/Stats608_Aniketde.pdf).
 

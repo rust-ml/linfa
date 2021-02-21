@@ -1,3 +1,5 @@
+//! The methods the inner matrix of a kernel provides
+
 use linfa::Float;
 use ndarray::prelude::*;
 use ndarray::Data;

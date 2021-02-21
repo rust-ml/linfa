@@ -1,5 +1,19 @@
-//! Kernel methods
+//! ## Kernel methods
 //!
+//! Kernel methods are a class of algorithms for pattern analysis, whose best known member is the
+//! [support vector machine](https://en.wikipedia.org/wiki/Support_vector_machine). They owe their name to the kernel functions,
+//! which maps the features to some higher-dimensional target space. Common examples for kernel
+//! functions are the radial basis function (euclidean distance) or polynomial kernels.
+//!
+//! ## Current State
+//!
+//! linfa-kernel currently provides an implementation of kernel methods for RBF and polynomial kernels,
+//! with sparse or dense representation. Further a k-neighbour approximation allows to reduce the kernel
+//! matrix size.
+//!
+//! Low-rank kernel approximation are currently missing, but are on the roadmap. Examples for these are the
+//! [Nyström approximation](https://www.jmlr.org/papers/volume6/drineas05a/drineas05a.pdf) or [Quasi Random Fourier Features](http://www-personal.umich.edu/~aniketde/processed_md/Stats608_Aniketde.pdf).
+
 pub mod inner;
 mod sparse;
 
@@ -23,8 +37,6 @@ pub enum KernelType {
 }
 
 /// A generic kernel
-///
-///
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -43,6 +55,8 @@ where
         ))
     )]
     pub inner: KernelInner<K1, K2>,
+
+    /// The inner product that will be used by the kernel
     #[cfg_attr(
         feature = "serde",
         serde(bound(
@@ -53,7 +67,9 @@ where
     pub method: KernelMethod<K1::Elem>,
 }
 
+/// Type definition of Kernel using `Array2<Float>`
 pub type Kernel<F> = KernelBase<Array2<F>, CsMat<F>>;
+/// Type definition of Kernel using `ArrayView2<Float>`
 pub type KernelView<'a, F> = KernelBase<ArrayView2<'a, F>, CsMatView<'a, F>>;
 
 impl<F: Float, K1: Inner<Elem = F>, K2: Inner<Elem = F>> KernelBase<K1, K2> {
@@ -80,7 +96,7 @@ impl<F: Float, K1: Inner<Elem = F>, K2: Inner<Elem = F>> KernelBase<K1, K2> {
     ///
     /// let data = Array2::from_shape_vec((3,2), vec![1., 2., 3., 4., 5., 6.,]).unwrap();
     ///
-    /// // Build a kernel from `data` with the defaul parameters
+    /// // Build a kernel from `data` with the default parameters
     /// let params = Kernel::params();
     /// let kernel = params.transform(&data);
     ///
@@ -272,9 +288,9 @@ impl<F: Float> KernelMethod<F> {
     }
 }
 
-/// Defines the set of prameters needed to build a kernel
+/// Defines the set of parameters needed to build a kernel
 pub struct KernelParams<F> {
-    /// Wether to construct a dense or sparse kernel
+    /// Whether to construct a dense or sparse kernel
     kind: KernelType,
     /// The inner product used by the kernel
     method: KernelMethod<F>,
@@ -910,6 +926,7 @@ mod tests {
         }
     }
 
+    /// Test method for checking each KernelMethod can operate on `&Array2<f64>` using type and `view()`
     fn check_kernel_from_array2_type(input: &Array2<f64>, k_type: KernelType) {
         let methods = vec![
             KernelMethod::Linear,
@@ -934,6 +951,7 @@ mod tests {
         }
     }
 
+    /// Test method for checking each KernelMethod can operate on `ArrayView2<f64>` type
     fn check_kernel_from_array_view_2_type(input: ArrayView2<f64>, k_type: KernelType) {
         let methods = vec![
             KernelMethod::Linear,
@@ -958,6 +976,7 @@ mod tests {
         }
     }
 
+    /// Determines if two matrices:`ArrayView2<f64>` are equivalent within f64::EPSILON
     fn matrices_almost_equal(reference: ArrayView2<f64>, transformed: ArrayView2<f64>) -> bool {
         for (ref_row, tr_row) in reference
             .axis_iter(Axis(0))
@@ -970,6 +989,7 @@ mod tests {
         true
     }
 
+    /// Determines if two arrays:`ArrayView1<64>` are equivalent within f64::EPSILON
     fn arrays_almost_equal(reference: ArrayView1<f64>, transformed: ArrayView1<f64>) -> bool {
         for (ref_item, tr_item) in reference.iter().zip(transformed.iter()) {
             if !values_almost_equal(ref_item, tr_item) {
@@ -979,6 +999,7 @@ mod tests {
         true
     }
 
+    /// Determines if two kernels are equivalent for all matched elements are equivalent within f64::EPSILON
     fn kernels_almost_equal<K: Inner<Elem = f64>>(reference: &K, transformed: &K) -> bool {
         for i in 0..reference.size() {
             if !vecs_almost_equal(reference.column(i), transformed.column(i)) {
@@ -988,6 +1009,7 @@ mod tests {
         true
     }
 
+    /// Determines if all matched elements within a pair of vectors are equivalent within f64::EPSILON
     fn vecs_almost_equal(reference: Vec<f64>, transformed: Vec<f64>) -> bool {
         for (ref_item, tr_item) in reference.iter().zip(transformed.iter()) {
             if !values_almost_equal(ref_item, tr_item) {
@@ -997,6 +1019,7 @@ mod tests {
         true
     }
 
+    /// Determines if two values are equal within an absolute difference of f64::EPSILON
     fn values_almost_equal(v1: &f64, v2: &f64) -> bool {
         (v1 - v2).abs() <= f64::EPSILON
     }
