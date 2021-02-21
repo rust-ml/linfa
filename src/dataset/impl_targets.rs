@@ -196,7 +196,7 @@ where
 
             if any_exists {
                 for (map, val) in map.iter_mut().zip(t.iter()) {
-                    *map.entry(val.clone()).or_insert(0) += 1;
+                    *map.entry(*val).or_insert(0) += 1;
                 }
 
                 records_arr.push(r.insert_axis(Axis(1)));
