@@ -1,6 +1,6 @@
 use linfa::prelude::Transformer;
 use linfa::{
-    dataset::{AsTargets, DatasetBase, Pr, TargetsWithLabels},
+    dataset::{AsTargets, DatasetBase, Pr, CountedTargets},
     traits::Fit,
     traits::{Predict, PredictRef},
 };
@@ -224,8 +224,8 @@ macro_rules! impl_classification {
 
 impl_classification!(Array2<F>, Array2<bool>);
 impl_classification!(ArrayView2<'a, F>, ArrayView2<'a, bool>);
-impl_classification!(Array2<F>, TargetsWithLabels<bool, Array2<bool>>);
-impl_classification!(ArrayView2<'a, F>, TargetsWithLabels<bool, ArrayView2<'a, bool>>);
+impl_classification!(Array2<F>, CountedTargets<bool, Array2<bool>>);
+impl_classification!(ArrayView2<'a, F>, CountedTargets<bool, ArrayView2<'a, bool>>);
 
 /// Fit one-class problem
 ///
@@ -253,8 +253,8 @@ macro_rules! impl_oneclass {
 
 impl_oneclass!(Array2<F>, Array2<()>);
 impl_oneclass!(ArrayView2<'a, F>, ArrayView2<'a, ()>);
-impl_oneclass!(Array2<F>, TargetsWithLabels<(), Array2<()>>);
-impl_oneclass!(Array2<F>, TargetsWithLabels<(), ArrayView2<'a, ()>>);
+impl_oneclass!(Array2<F>, CountedTargets<(), Array2<()>>);
+impl_oneclass!(Array2<F>, CountedTargets<(), ArrayView2<'a, ()>>);
 
 /// Predict a probability with a feature vector
 impl<F: Float> Predict<Array1<F>, Pr> for Svm<F, Pr> {

@@ -1,12 +1,12 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 
 use super::{
     AsProbabilities, AsTargets, AsTargetsMut, DatasetBase, FromTargetArray, Label, Labels, Pr,
-    Records, TargetsWithLabels,
+    Records, CountedTargets, Float,
 };
 use ndarray::{
-    Array2, ArrayBase, ArrayView2, ArrayViewMut2, Axis, CowArray, Data, DataMut, Dimension, Ix1,
-    Ix2, Ix3, OwnedRepr, ViewRepr,
+    Array1, Array2, ArrayBase, ArrayView2, ArrayViewMut2, Axis, CowArray, Data, DataMut, Dimension, Ix1,
+    Ix2, Ix3, OwnedRepr, ViewRepr, stack
 };
 
 impl<'a, L, S: Data<Elem = L>> AsTargets for ArrayBase<S, Ix1> {
@@ -69,7 +69,7 @@ impl<T: AsTargets> AsTargets for &T {
     }
 }
 
-impl<L: Label, T: AsTargets<Elem = L>> AsTargets for TargetsWithLabels<L, T> {
+impl<L: Label, T: AsTargets<Elem = L>> AsTargets for CountedTargets<L, T> {
     type Elem = L;
 
     fn as_multi_targets(&self) -> ArrayView2<L> {
@@ -77,7 +77,7 @@ impl<L: Label, T: AsTargets<Elem = L>> AsTargets for TargetsWithLabels<L, T> {
     }
 }
 
-impl<L: Label, T: AsTargetsMut<Elem = L>> AsTargetsMut for TargetsWithLabels<L, T> {
+impl<L: Label, T: AsTargetsMut<Elem = L>> AsTargetsMut for CountedTargets<L, T> {
     type Elem = L;
 
     fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<'_, Self::Elem> {
@@ -85,20 +85,20 @@ impl<L: Label, T: AsTargetsMut<Elem = L>> AsTargetsMut for TargetsWithLabels<L, 
     }
 }
 
-impl<'a, L: Label + 'a, T> FromTargetArray<'a, L> for TargetsWithLabels<L, T>
+impl<'a, L: Label + 'a, T> FromTargetArray<'a, L> for CountedTargets<L, T>
 where
     T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
     T::Owned: Labels<Elem = L>,
     T::View: Labels<Elem = L>,
 {
-    type Owned = TargetsWithLabels<L, T::Owned>;
-    type View = TargetsWithLabels<L, T::View>;
+    type Owned = CountedTargets<L, T::Owned>;
+    type View = CountedTargets<L, T::View>;
 
     fn new_targets(targets: Array2<L>) -> Self::Owned {
         let targets = T::new_targets(targets);
 
-        TargetsWithLabels {
-            labels: targets.label_set(),
+        CountedTargets {
+            labels: targets.label_count(),
             targets,
         }
     }
@@ -106,8 +106,8 @@ where
     fn new_targets_view(targets: ArrayView2<'a, L>) -> Self::View {
         let targets = T::new_targets_view(targets);
 
-        TargetsWithLabels {
-            labels: targets.label_set(),
+        CountedTargets {
+            labels: targets.label_count(),
             targets,
         }
     }
@@ -142,96 +142,75 @@ impl<S: Data<Elem = Pr>> AsProbabilities for ArrayBase<S, Ix3> {
 impl<L: Label, S: Data<Elem = L>, I: Dimension> Labels for ArrayBase<S, I> {
     type Elem = L;
 
-    fn label_set(&self) -> HashSet<L> {
-        self.iter().cloned().collect()
+    fn label_count(&self) -> Vec<HashMap<L, usize>> {
+        self.gencolumns().into_iter().map(|x| {
+            let mut map = HashMap::new();
+
+            for i in x {
+                *map.entry(i.clone()).or_insert(0) += 1;
+            }
+
+            map
+        }).collect()
     }
 }
 
 /// A NdArray with discrete labels can act as labels
 impl<L: Label, R: Records, T: AsTargets<Elem = L>> Labels
-    for DatasetBase<R, TargetsWithLabels<L, T>>
+    for DatasetBase<R, CountedTargets<L, T>>
 {
     type Elem = L;
 
-    fn label_set(&self) -> HashSet<L> {
+    fn label_count(&self) -> Vec<HashMap<L, usize>> {
         self.targets.labels.clone()
     }
 }
 
-impl<R: Records, L: Label, T: AsTargets<Elem = L> + AsProbabilities> DatasetBase<R, T> {
-    pub fn with_labels(self, labels: &[L]) -> DatasetBase<R, TargetsWithLabels<L, T>> {
-        let targets = TargetsWithLabels {
-            targets: self.targets,
-            labels: labels.iter().cloned().collect(),
+impl<F: Float, L: Copy + Label, D, T> DatasetBase<ArrayBase<D, Ix2>, T>
+where
+    D: Data<Elem = F>,
+    T: AsTargets<Elem = L>
+{
+    pub fn with_labels(&self, labels: &[&[L]]) -> DatasetBase<Array2<F>, CountedTargets<L, Array2<L>>> {
+        let targets = self.targets.as_multi_targets();
+        let old_weights = self.weights();
+
+        let mut records_arr = Vec::new();
+        let mut targets_arr = Vec::new();
+        let mut weights = Vec::new();
+
+        let mut map = vec![HashMap::new(); targets.len_of(Axis(1))];
+
+        for (i, (r, t)) in self.records().genrows().into_iter().zip(targets.genrows().into_iter()).enumerate() {
+            let any_exists = t.iter().zip(labels.iter()).any(|(a, b)| b.contains(&a));
+
+            if any_exists {
+                for (map, val) in map.iter_mut().zip(t.iter()) {
+                    *map.entry(val.clone()).or_insert(0) += 1;
+                }
+
+                records_arr.push(r.insert_axis(Axis(1)));
+                targets_arr.push(t.insert_axis(Axis(1)));
+
+                if let Some(weight) = old_weights {
+                    weights.push(weight[i]);
+                }
+            }
+        }
+
+        let records: Array2<F> = stack(Axis(0), &records_arr).unwrap();
+        let targets = stack(Axis(0), &targets_arr).unwrap();
+
+        let targets = CountedTargets {
+            targets,
+            labels: map
         };
 
         DatasetBase {
-            records: self.records,
-            weights: self.weights,
+            records,
+            weights: Array1::from(weights),
             targets,
-            feature_names: self.feature_names,
+            feature_names: self.feature_names.clone(),
         }
     }
 }
-/*
-/// A NdArray can act as targets
-impl<L, S: Data<Elem = L>, D: Dimension> Targets for ArrayBase<S, D> {
-    type Elem = L;
-    type Dim = D;
-
-    fn view<'a>(&'a self) -> ArrayBase<ViewRepr<&'a L>, D> {
-        self.view()
-    }
-}
-
-/// A NdArray with discrete labels can act as labels
-impl<L: Label, R, S: Data<Elem = L>> DatasetBase<R, ArrayBase<S, Ix1>> {
-    pub fn labels(&self) -> Array1<L> {
-        self.iter()
-            .cloned()
-            .collect::<HashSet<L>>()
-            .into_iter()
-            .collect()
-    }
-}
-
-/// A NdArray with discrete labels can act as labels
-impl<L: Label, T: Targets<Elem = L, Dim = Ix2>> T {
-    pub fn labels(&self) -> Array1<L> {
-        self.iter()
-            .cloned()
-            .collect::<HashSet<L>>()
-            .into_iter()
-            .collect()
-    }
-}
-
-/// Empty targets for datasets with just observations
-impl Targets for () {
-    type Elem = ();
-    type Dim = Ix0;
-
-    fn view<'a>(&'a self) -> ArrayBase<ViewRepr<&'a ()>, Ix0> {
-        &[()]
-    }
-}
-
-impl<'a, T: Targets> Targets for &'a T {
-    type Elem = T::Elem;
-
-    fn view<'b: 'a>(&'b self) -> ArrayBase<ViewRepr<&'b T::Elem>, T::Dim> {
-        (*self).view()
-    }
-}
-
-
-impl<L: Label, T: Targets<Elem = L>> Targets for TargetsWithLabels<L, T> {
-    type Elem = T::Elem;
-    type Dim = T::Dim;
-
-    fn view<'a>(&'a self) -> ArrayBase<ViewRepr<&'a T::Elem>, T::Dim> {
-        self.targets.view()
-    }
-}
-
-*/

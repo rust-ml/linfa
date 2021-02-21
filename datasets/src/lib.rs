@@ -61,7 +61,7 @@ pub fn iris() -> Dataset<f64, usize> {
 
     let feature_names = vec!["sepal length", "sepal width", "petal length", "petal width"];
 
-    Dataset::from((data, targets))
+    Dataset::new(data, targets)
         .map_targets(|x| *x as usize)
         .with_feature_names(feature_names)
 }
@@ -88,7 +88,7 @@ pub fn diabetes() -> Dataset<f64, f64> {
         "blood sugar level",
     ];
 
-    Dataset::from((data, targets)).with_feature_names(feature_names)
+    Dataset::new(data, targets).with_feature_names(feature_names)
 }
 
 #[cfg(feature = "winequality")]
@@ -116,7 +116,7 @@ pub fn winequality() -> Dataset<f64, usize> {
         "alcohol",
     ];
 
-    Dataset::from((data, targets))
+    Dataset::new(data, targets)
         .map_targets(|x| *x as usize)
         .with_feature_names(feature_names)
 }
@@ -151,7 +151,7 @@ mod tests {
         );
 
         // perform correlation analysis and assert that petal length and width are correlated
-        let pcc = ds.pearson_correlation_with_p_value(1000);
+        let pcc = ds.pearson_correlation_with_p_value(100);
         assert_abs_diff_eq!(pcc.get_p_values().unwrap()[5], 0.04, epsilon = 0.02);
 
         // get the mean per feature

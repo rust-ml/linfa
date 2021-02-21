@@ -1,15 +1,15 @@
 use ndarray::{
     stack, Array1, Array2, ArrayBase, ArrayView2, ArrayViewMut2, Axis, Data, DataMut, Dimension,
-    Ix1, Ix2,
+    Ix1, Ix2, s
 };
 use rand::{seq::SliceRandom, Rng};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use super::{
     super::traits::{Predict, PredictRef},
     iter::{ChunksIter, DatasetIter, Iter},
     AsTargets, AsTargetsMut, Dataset, DatasetBase, DatasetView, Float, FromTargetArray, Label,
-    Labels, Records, Result, TargetsWithLabels,
+    Labels, Records, Result, CountedTargets,
 };
 
 /// Implementation without constraints on records and targets
@@ -30,7 +30,7 @@ impl<R: Records, S> DatasetBase<R, S> {
         DatasetBase {
             records,
             targets,
-            weights: Vec::new(),
+            weights: Array1::zeros(0),
             feature_names: Vec::new(),
         }
     }
@@ -43,7 +43,7 @@ impl<R: Records, S> DatasetBase<R, S> {
     /// Returns optionally weights
     pub fn weights(&self) -> Option<&[f32]> {
         if !self.weights.is_empty() {
-            Some(&self.weights)
+            Some(self.weights.as_slice().unwrap())
         } else {
             None
         }
@@ -88,7 +88,7 @@ impl<R: Records, S> DatasetBase<R, S> {
         DatasetBase {
             records,
             targets: self.targets,
-            weights: Vec::new(),
+            weights: Array1::zeros(0),
             feature_names: Vec::new(),
         }
     }
@@ -106,7 +106,7 @@ impl<R: Records, S> DatasetBase<R, S> {
     }
 
     /// Updates the weights of a dataset
-    pub fn with_weights(mut self, weights: Vec<f32>) -> DatasetBase<R, S> {
+    pub fn with_weights(mut self, weights: Array1<f32>) -> DatasetBase<R, S> {
         self.weights = weights;
 
         self
@@ -264,9 +264,12 @@ where
         let targets_second = T::new_targets_view(targets_second);
 
         let (first_weights, second_weights) = if self.weights.len() == self.nsamples() {
-            (self.weights[..n].to_vec(), self.weights[n..].to_vec())
+            let a = self.weights.slice(s![..n]).to_vec();
+            let b = self.weights.slice(s![n..]).to_vec();
+
+            (Array1::from(a), Array1::from(b))
         } else {
-            (Vec::new(), Vec::new())
+            (Array1::zeros(0), Array1::zeros(0))
         };
         let dataset1 = DatasetBase::new(records_first, targets_first)
             .with_weights(first_weights)
@@ -281,8 +284,8 @@ where
 impl<L: Label, T: Labels<Elem = L>, R: Records> Labels for DatasetBase<R, T> {
     type Elem = L;
 
-    fn label_set(&self) -> HashSet<L> {
-        self.targets().label_set()
+    fn label_count(&self) -> Vec<HashMap<L, usize>> {
+        self.targets().label_count()
     }
 }
 
@@ -298,7 +301,7 @@ where
     /// dataset into multiple binary target view of the same dataset.
     pub fn one_vs_all(
         &self,
-    ) -> Result<Vec<DatasetBase<ArrayView2<'_, F>, TargetsWithLabels<bool, Array2<bool>>>>> {
+    ) -> Result<Vec<DatasetBase<ArrayView2<'_, F>, CountedTargets<bool, Array2<bool>>>>> {
         let targets = self.targets().try_single_target()?;
 
         Ok(self
@@ -311,7 +314,7 @@ where
                     .collect::<Array1<_>>()
                     .insert_axis(Axis(1));
 
-                let targets = TargetsWithLabels::new(targets);
+                let targets = CountedTargets::new(targets);
 
                 DatasetBase::new(self.records().view(), targets)
             })
@@ -366,7 +369,7 @@ impl<F: Float, D: Data<Elem = F>, I: Dimension> From<ArrayBase<D, I>>
         DatasetBase {
             records,
             targets: empty_targets,
-            weights: Vec::new(),
+            weights: Array1::zeros(0),
             feature_names: Vec::new(),
         }
     }
@@ -396,7 +399,7 @@ where
         DatasetBase {
             records: rec_tar.0,
             targets: rec_tar.1,
-            weights: Vec::new(),
+            weights: Array1::zeros(0),
             feature_names: Vec::new(),
         }
     }
@@ -412,7 +415,7 @@ where
         DatasetBase {
             records: rec_tar.0,
             targets: rec_tar.1.insert_axis(Axis(1)),
-            weights: Vec::new(),
+            weights: Array1::zeros(0),
             feature_names: Vec::new(),
         }
     }
@@ -809,9 +812,14 @@ impl<F: Float, E> Dataset<F, E> {
 
         // split weights into two disjoint Vec
         let second_weights = if self.weights.len() == n1 + n2 {
-            self.weights.split_off(n1)
+            let mut weights = self.weights.into_raw_vec();
+
+            let weights2 = weights.split_off(n1);
+            self.weights = Array1::from(weights);
+
+            Array1::from(weights2)
         } else {
-            vec![]
+            Array1::zeros(0)
         };
 
         // create new datasets with attached weights
@@ -867,11 +875,11 @@ where
     }
 }
 
-impl<L: Label, S: Labels<Elem = L>> TargetsWithLabels<L, S> {
+impl<L: Label, S: Labels<Elem = L>> CountedTargets<L, S> {
     pub fn new(targets: S) -> Self {
-        let labels = targets.label_set();
+        let labels = targets.label_count();
 
-        TargetsWithLabels { targets, labels }
+        CountedTargets { targets, labels }
     }
 }
 

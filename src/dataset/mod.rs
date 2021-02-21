@@ -3,12 +3,13 @@
 //! This module implements the dataset struct and various helper traits to extend its
 //! functionality.
 use ndarray::{
-    Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2, Axis,
+    Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2, Axis,
     CowArray, Ix2, Ix3, NdFloat, OwnedRepr,
 };
 use num_traits::{FromPrimitive, NumAssignOps, Signed};
+
 use std::cmp::{Ordering, PartialOrd};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 use std::iter::Sum;
 use std::ops::Deref;
@@ -21,12 +22,19 @@ mod impl_targets;
 
 mod iter;
 
-/// Floating numbers
+/// Floating point numbers
+///
+/// This trait bound multiplexes to the most common assumption of floating point number and
+/// implement them for 32bit and 64bit floating points. They are used in records of a dataset and, for
+/// regression task, in the targets as well.
 pub trait Float: NdFloat + FromPrimitive + Signed + Default + Sum + NumAssignOps {}
 impl Float for f32 {}
 impl Float for f64 {}
 
 /// Discrete labels
+///
+/// Labels are countable, comparable and hashable. Currently null-type (no targets), 
+/// boolean (binary task) and usize, strings (multi-label tasks) are supported.
 pub trait Label: PartialEq + Eq + Hash + Clone {}
 
 impl Label for bool {}
@@ -38,7 +46,7 @@ impl Label for () {}
 ///
 /// This helper struct exists to distinguish probabilities from floating points. For example SVM
 /// selects regression or classification training, based on the target type, and could not
-/// distinguish them with floating points alone.
+/// distinguish them without a new-type definition.
 #[derive(Debug, Copy, Clone)]
 pub struct Pr(pub f32);
 
@@ -64,8 +72,25 @@ impl Deref for Pr {
 
 /// DatasetBase
 ///
-/// A dataset contains a number of records and targets. Each record corresponds to a single target
-/// and may be weighted with the `weights` field during the training process.
+/// This is the fundamental structure of a dataset. It contains a number of records about the data
+/// and may contain targets, weights and feature names. In order to keep the type complexity low
+/// the dataset base is only generic over the records and targets and introduces a trait bound on
+/// the records. `weights` and `feature_names`, on the other hand, are always assumed to be owned
+/// and copied when views are created.
+///
+/// # Fields
+///
+/// * `records`: a two-dimensional matrix with dimensionality (nsamples, nfeatures), in case of
+/// kernel methods a quadratic matrix with dimensionality (nsamples, nsamples), which may be sparse
+/// * `targets`: a two-/one-dimension matrix with dimensionality (nsamples, ntargets)
+/// * `weights`: optional weights for each sample with dimensionality (nsamples)
+/// * `feature_names`: optional descriptive feature names with dimensionality (nfeatures)
+///
+/// # Trait bounds
+///
+/// * `R: Records`: generic over feature matrices or kernel matrices
+/// * `T`: generic over any `ndarray` matrix which can be used as targets. The `AsTargets` trait
+/// bound is omitted here to avoid some repetition in implementation `src/dataset/impl_dataset.rs`
 pub struct DatasetBase<R, T>
 where
     R: Records,
@@ -73,14 +98,23 @@ where
     pub records: R,
     pub targets: T,
 
-    weights: Vec<f32>,
+    weights: Array1<f32>,
     feature_names: Vec<String>,
 }
 
-/// Targets with precomputed labels
-pub struct TargetsWithLabels<L: Label, P> {
+/// Targets with precomputed, counted labels
+///
+/// This extends plain targets with pre-counted labels. The label map is useful when, for example,
+/// a prior probability is estimated (e.g. in Naive Bayesian implementation) or the samples are
+/// weighted inverse to their occurence.
+///
+/// # Fields
+///
+/// * `targets`: wrapped target field
+/// * `labels`: counted labels with label-count association
+pub struct CountedTargets<L: Label, P> {
     targets: P,
-    labels: HashSet<L>,
+    labels: Vec<HashMap<L, usize>>,
 }
 
 /// Dataset
@@ -101,11 +135,9 @@ pub type DatasetView<'a, D, T> = DatasetBase<ArrayView<'a, D, Ix2>, ArrayView<'a
 /// It stores records as an `Array2` of elements of type `D`, and targets as an `Array1`
 /// of elements of type `Pr`
 pub type DatasetPr<D, L> =
-    DatasetBase<ArrayBase<OwnedRepr<D>, Ix2>, TargetsWithLabels<L, ArrayBase<OwnedRepr<Pr>, Ix3>>>;
+    DatasetBase<ArrayBase<OwnedRepr<D>, Ix2>, CountedTargets<L, ArrayBase<OwnedRepr<Pr>, Ix3>>>;
 
-/// Records
-///
-/// The records are input data in the training
+/// Record trait
 pub trait Records: Sized {
     type Elem;
 
@@ -113,7 +145,7 @@ pub trait Records: Sized {
     fn nfeatures(&self) -> usize;
 }
 
-/// Convert to single or multiple target variables
+/// Return a reference to single or multiple target variables
 pub trait AsTargets {
     type Elem;
 
@@ -121,6 +153,11 @@ pub trait AsTargets {
     fn as_multi_targets(&self) -> ArrayView2<Self::Elem>;
 
     /// Convert to single target, fails for more than one target
+    ///
+    /// # Returns
+    ///
+    /// May return a single target with the same label type, but returns an
+    /// `Error::MultipleTargets` in case that there are more than a single target.
     fn try_single_target(&self) -> Result<ArrayView1<Self::Elem>> {
         let multi_targets = self.as_multi_targets();
 
@@ -132,6 +169,11 @@ pub trait AsTargets {
     }
 }
 
+/// Helper trait to construct counted labels
+///
+/// This is implemented for objects which can act as targets and created from a target matrix. For
+/// targets represented as `ndarray` matrix this is identity, for counted labels, i.e.
+/// `TargetsWithLabels`, it creates the corresponding wrapper struct.
 pub trait FromTargetArray<'a, F> {
     type Owned;
     type View;
@@ -172,9 +214,16 @@ pub trait AsProbabilities {
 pub trait Labels {
     type Elem: Label;
 
-    fn label_set(&self) -> HashSet<Self::Elem>;
+    fn label_count(&self) -> Vec<HashMap<Self::Elem, usize>>;
+
+    fn label_set(&self) -> Vec<HashSet<Self::Elem>> {
+        self.label_count().iter()
+            .map(|x| x.keys().cloned().collect::<HashSet<_>>())
+            .collect()
+    }
+
     fn labels(&self) -> Vec<Self::Elem> {
-        self.label_set().into_iter().collect()
+        self.label_set().into_iter().flatten().collect()
     }
 }
 
