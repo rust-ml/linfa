@@ -22,6 +22,8 @@ mod impl_targets;
 
 mod iter;
 
+pub mod multi_target_model;
+
 /// Floating point numbers
 ///
 /// This trait bound multiplexes to the most common assumption of floating point number and

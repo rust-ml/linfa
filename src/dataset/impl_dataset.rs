@@ -182,7 +182,11 @@ where
     pub fn view(&'a self) -> DatasetBase<ArrayView2<'a, F>, T::View> {
         let records = self.records().view();
         let targets = T::new_targets_view(self.as_multi_targets());
+
         DatasetBase::new(records, targets)
+            .with_feature_names(self.feature_names.clone())
+            .with_weights(self.weights.clone())
+
     }
 
     /// Iterate over observations
@@ -273,10 +277,12 @@ where
         };
         let dataset1 = DatasetBase::new(records_first, targets_first)
             .with_weights(first_weights)
-            .with_feature_names(self.feature_names());
+            .with_feature_names(self.feature_names.clone());
+
         let dataset2 = DatasetBase::new(records_second, targets_second)
             .with_weights(second_weights)
-            .with_feature_names(self.feature_names());
+            .with_feature_names(self.feature_names.clone());
+
         (dataset1, dataset2)
     }
 }
@@ -317,6 +323,8 @@ where
                 let targets = CountedTargets::new(targets);
 
                 DatasetBase::new(self.records().view(), targets)
+                    .with_feature_names(self.feature_names.clone())
+                    .with_weights(self.weights.clone())
             })
             .collect())
     }
@@ -374,20 +382,6 @@ impl<F: Float, D: Data<Elem = F>, I: Dimension> From<ArrayBase<D, I>>
         }
     }
 }
-
-/*
-impl<F: Float, T: AsTargets, D: Data<Elem = F>> From<(ArrayBase<D, Ix2>, T)>
-    for DatasetBase<ArrayBase<D, Ix2>, T>
-{
-    fn from(rec_tar: (ArrayBase<D, Ix2>, T)) -> Self {
-        DatasetBase {
-            records: rec_tar.0,
-            targets: rec_tar.1,
-            weights: Vec::new(),
-            feature_names: Vec::new(),
-        }
-    }
-}*/
 
 impl<F: Float, E, D, S> From<(ArrayBase<D, Ix2>, ArrayBase<S, Ix2>)>
     for DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, Ix2>>

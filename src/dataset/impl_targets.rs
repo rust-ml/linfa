@@ -30,13 +30,6 @@ impl<'a, L: Clone + 'a, S: Data<Elem = L>> FromTargetArray<'a, L> for ArrayBase<
     }
 }
 
-/*
-impl<'a, L: 'a, S: Data<Elem = L> , I: Dimension> FromTargetArray<&'a ArrayBase<S, I>, ArrayBase<ViewRepr<&'a L>, I>> for ArrayBase<S, I> {
-    fn from_array(array: &'a ArrayBase<S, I>) -> ArrayBase<ViewRepr<&'a L>, I> {
-        array.view()
-    }
-}*/
-
 impl<L, S: DataMut<Elem = L>> AsTargetsMut for ArrayBase<S, Ix1> {
     type Elem = L;
 
