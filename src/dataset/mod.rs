@@ -243,16 +243,36 @@ mod tests {
         // ------ Targets ------
 
         // New
-        let mut dataset = Dataset::from((array![[1., 2.], [1., 2.]], array![0., 1.]));
+        let mut dataset = Dataset::new(array![[1., 2.], [1., 2.]], array![0., 1.]);
 
         // Shuffle
         dataset = dataset.shuffle(&mut rng);
 
-        // Bootstrap
-        let mut iter = dataset.bootstrap_samples(3, &mut rng);
-        for _ in 1..5 {
-            let b_dataset = iter.next().unwrap();
-            assert_eq!(b_dataset.records().dim().0, 3);
+        // Bootstrap samples
+        {
+            let mut iter = dataset.bootstrap_samples(3, &mut rng);
+            for _ in 1..5 {
+                let b_dataset = iter.next().unwrap();
+                assert_eq!(b_dataset.records().dim().0, 3);
+            }
+        }
+
+        // Bootstrap features
+        {
+            let mut iter = dataset.bootstrap_features(3, &mut rng);
+            for _ in 1..5 {
+                let dataset = iter.next().unwrap();
+                assert_eq!(dataset.records().dim(), (2, 3));
+            }
+        }
+
+        // Bootstrap both
+        {
+            let mut iter = dataset.bootstrap((10, 10), &mut rng);
+            for _ in 1..5 {
+                let dataset = iter.next().unwrap();
+                assert_eq!(dataset.records().dim(), (10, 10));
+            }
         }
 
         let linspace: Array1<f64> = Array1::linspace(0.0, 0.8, 100);
@@ -406,6 +426,50 @@ mod tests {
                 assert!(train.targets.column(0)[j] as usize != (i + 1));
             }
         }
+    }
+
+    #[test]
+    fn check_iteration() {
+        let dataset = Dataset::new(
+            array![[1., 2., 3., 4.], [5., 6., 7., 8.], [9., 10., 11., 12.]],
+            array![[1, 2], [3, 4], [5, 6]],
+        );
+
+        let res = dataset
+            .target_iter()
+            .map(|x| x.try_single_target().unwrap().to_owned())
+            .collect::<Vec<_>>();
+
+        assert_eq!(res, &[array![1, 3, 5], array![2, 4, 6]]);
+
+        let res = dataset
+            .feature_iter()
+            .map(|x| x.records)
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            res,
+            &[
+                array![[1.], [5.], [9.]],
+                array![[2.], [6.], [10.]],
+                array![[3.], [7.], [11.]],
+                array![[4.], [8.], [12.]],
+            ]
+        );
+
+        let res = dataset
+            .sample_iter()
+            .map(|(a, b)| (a.to_owned(), b.to_owned()))
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            res,
+            &[
+                (array![1., 2., 3., 4.], array![1, 2]),
+                (array![5., 6., 7., 8.], array![3, 4]),
+                (array![9., 10., 11., 12.], array![5, 6]),
+            ]
+        );
     }
 
     struct MockFittable {}

@@ -24,7 +24,7 @@ impl<'a, 'b: 'a, F: Float, L> Iterator for Iter<'a, 'b, F, L> {
     type Item = (ArrayView1<'a, F>, ArrayView1<'a, L>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.records.nsamples() >= self.idx {
+        if self.records.nsamples() <= self.idx {
             return None;
         }
 
@@ -68,7 +68,11 @@ where
     type Item = DatasetView<'a, F, L>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.dataset.nsamples() >= self.idx {
+        if !self.target_or_feature && self.dataset.ntargets() <= self.idx {
+            return None;
+        }
+
+        if self.target_or_feature && self.dataset.nfeatures() <= self.idx {
             return None;
         }
 
