@@ -186,7 +186,6 @@ where
         DatasetBase::new(records, targets)
             .with_feature_names(self.feature_names.clone())
             .with_weights(self.weights.clone())
-
     }
 
     /// Iterate over observations
