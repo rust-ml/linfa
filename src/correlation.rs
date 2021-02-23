@@ -8,7 +8,7 @@ use std::fmt;
 use ndarray::{Array1, ArrayBase, ArrayView2, Axis, Data, Ix2};
 use rand::{rngs::SmallRng, seq::SliceRandom, SeedableRng};
 
-use crate::dataset::{DatasetBase, Targets};
+use crate::dataset::DatasetBase;
 use crate::Float;
 
 /// Calculate the Pearson's Correlation Coefficient (or bivariate correlation)
@@ -152,7 +152,7 @@ impl<F: Float> PearsonCorrelation<F> {
     /// blood sugar level
     /// ```
 
-    pub fn from_dataset<D: Data<Elem = F>, T: Targets>(
+    pub fn from_dataset<D: Data<Elem = F>, T>(
         dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
         num_iter: Option<usize>,
     ) -> Self {
@@ -196,7 +196,7 @@ impl<F: Float> PearsonCorrelation<F> {
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T: Targets> DatasetBase<ArrayBase<D, Ix2>, T> {
+impl<F: Float, D: Data<Elem = F>, T> DatasetBase<ArrayBase<D, Ix2>, T> {
     /// Calculate the Pearson Correlation Coefficients from a dataset
     ///
     /// The PCC describes the linear correlation between two variables. It is the covariance divided by

@@ -21,7 +21,7 @@ use std::fmt::Debug;
 /// // Load dataset
 /// let dataset = linfa_datasets::iris();
 /// // Fit the tree
-/// let tree = DecisionTree::params().fit(&dataset);
+/// let tree = DecisionTree::params().fit(&dataset).unwrap();
 /// // Export to tikz
 /// let tikz = tree.export_to_tikz().with_legend();
 /// let latex_tree = tikz.to_string();

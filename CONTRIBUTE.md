@@ -75,6 +75,29 @@ fn div_capped<F: Float>(num: F) {
 }
 ```
 
+## Implement prediction traits
+
+There are two different traits for predictions, `Predict` and `PredictRef`. `PredictRef` takes a reference to the records and produces a new set of targets. This should be implemented by a new algorithms, for example:
+```rust
+impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<F>> for Svm<F, F> {
+    fn predict_ref<'a>(&'a self, data: &ArrayBase<D; Ix2>) -> Array1<F> {
+        data.outer_iter().map(|data| {
+            self.normal.dot(&data) - self.rho
+        })
+        .collect()
+    }
+}
+```
+
+This implementation is then used by `Predict` to provide the following `records` and `targets` combinations:
+
+ * `Dataset` -> `Dataset`
+ * `&Dataset` -> `Array1`
+ * `Array2` -> `Dataset`
+ * `&Array2` -> `Array1`
+
+and should be imported by the user.
+
 ## Make serde optionally
 
 If you want to implement `Serialize` and `Deserialize` for your parameters, please do that behind a feature flag. You can add to your cargo manifest

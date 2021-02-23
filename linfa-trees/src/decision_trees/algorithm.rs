@@ -10,7 +10,8 @@ use super::hyperparameters::{DecisionTreeParams, SplitQuality};
 use super::NodeIter;
 use super::Tikz;
 use linfa::{
-    dataset::{Labels, Records, Targets},
+    dataset::{AsTargets, Labels, Records},
+    error::Result,
     traits::*,
     DatasetBase, Float, Label,
 };
@@ -198,17 +199,19 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
     }
 
     /// Recursively fits the node
-    fn fit<D: Data<Elem = F>, T: Labels<Elem = L>>(
+    fn fit<D: Data<Elem = F>, T: AsTargets<Elem = L> + Labels<Elem = L>>(
         data: &DatasetBase<ArrayBase<D, Ix2>, T>,
         mask: &RowMask,
         hyperparameters: &DecisionTreeParams<F, L>,
         sorted_indices: &[SortedIndex<F>],
         depth: usize,
-    ) -> Self {
+    ) -> Result<Self> {
         // compute weighted frequencies for target classes
-        let parent_class_freq = data.frequencies_with_mask(&mask.mask);
+        let parent_class_freq = data.label_frequencies_with_mask(&mask.mask);
         // set our prediction for this subset to the modal class
         let prediction = find_modal_class(&parent_class_freq);
+        // get targets from dataset
+        let target = data.try_single_target()?;
 
         // return empty leaf when we don't have enough samples or the maximal depth is reached
         if (mask.nsamples as f32) < hyperparameters.min_weight_split
@@ -217,7 +220,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
                 .map(|max_depth| depth >= max_depth)
                 .unwrap_or(false)
         {
-            return Self::empty_leaf(prediction, depth);
+            return Ok(Self::empty_leaf(prediction, depth));
         }
 
         // Find best split for current level
@@ -252,7 +255,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
                 }
 
                 // Target and weight of the current observation
-                let sample_class = data.target(presorted_index);
+                let sample_class = &target[presorted_index];
                 let sample_weight = data.weight_for(presorted_index);
 
                 // Move the observation from the right subtree to the left subtree
@@ -263,8 +266,8 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
                 weight_on_right_side -= sample_weight;
 
                 // Increment the weight on the class for this sample on the
-                // left side by the weight of this sample
-                *left_class_freq.entry(sample_class).or_insert(0.0) += sample_weight;
+                // right side by the weight of this sample
+                *left_class_freq.entry(sample_class.clone()).or_insert(0.0) += sample_weight;
                 weight_on_left_side += sample_weight;
 
                 // Continue if the next value is equal, so that equal values end up in the same subtree
@@ -335,16 +338,16 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
         };
 
         if impurity_decrease < hyperparameters.min_impurity_decrease {
-            return Self::empty_leaf(prediction, depth);
+            return Ok(Self::empty_leaf(prediction, depth));
         }
 
         let (best_feature_idx, best_split_value, _) = best.unwrap();
 
         // determine new masks for the left and right subtrees
-        let mut left_mask = RowMask::none(data.observations());
-        let mut right_mask = RowMask::none(data.observations());
+        let mut left_mask = RowMask::none(data.nsamples());
+        let mut right_mask = RowMask::none(data.nsamples());
 
-        for i in 0..data.observations() {
+        for i in 0..data.nsamples() {
             if mask.mask[i] {
                 if data.records()[(i, best_feature_idx)] <= best_split_value {
                     left_mask.mark(i);
@@ -362,7 +365,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
                 &hyperparameters,
                 &sorted_indices,
                 depth + 1,
-            )))
+            )?))
         } else {
             None
         };
@@ -374,14 +377,14 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
                 &hyperparameters,
                 &sorted_indices,
                 depth + 1,
-            )))
+            )?))
         } else {
             None
         };
 
         let leaf_node = left_child.is_none() || right_child.is_none();
 
-        TreeNode {
+        Ok(TreeNode {
             feature_idx: best_feature_idx,
             feature_name: sorted_indices[best_feature_idx].feature_name.to_owned(),
             split_value: best_split_value,
@@ -391,7 +394,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
             leaf_node,
             prediction,
             depth,
-        }
+        })
     }
 
     /// Prune tree after fitting it
@@ -470,9 +473,9 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
 /// // Load the dataset
 /// let dataset = linfa_datasets::iris();
 /// // Fit the tree
-/// let tree = DecisionTree::params().fit(&dataset);
+/// let tree = DecisionTree::params().fit(&dataset).unwrap();
 /// // Get accuracy on training set
-/// let accuracy = tree.predict(&dataset).confusion_matrix(&dataset).accuracy();
+/// let accuracy = tree.predict(&dataset).confusion_matrix(&dataset).unwrap().accuracy();
 ///
 /// assert!(accuracy > 0.9);
 ///
@@ -489,53 +492,25 @@ pub struct DecisionTree<F: Float, L: Label> {
     num_features: usize,
 }
 
-impl<F: Float, L: Label, D: Data<Elem = F>> Predict<ArrayBase<D, Ix1>, L> for DecisionTree<F, L> {
-    /// Make prediction for sample `x`.
-    fn predict(&self, x: ArrayBase<D, Ix1>) -> L {
-        self.predict(&x)
-    }
-}
-
-impl<F: Float, L: Label, D: Data<Elem = F>> Predict<&ArrayBase<D, Ix1>, L> for DecisionTree<F, L> {
-    /// Make prediction for sample `x`.
-    fn predict(&self, x: &ArrayBase<D, Ix1>) -> L {
-        make_prediction(x, &self.root_node)
-    }
-}
-
-impl<F: Float, L: Label, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Array1<L>>
+impl<F: Float, L: Label, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<L>>
     for DecisionTree<F, L>
 {
     /// Make predictions for each row of a matrix of features `x`.
-    fn predict(&self, x: ArrayBase<D, Ix2>) -> Array1<L> {
-        x.map_axis(Axis(1), |observation| {
-            make_prediction(&observation, &self.root_node)
-        })
+    fn predict_ref<'a>(&'a self, x: &ArrayBase<D, Ix2>) -> Array1<L> {
+        x.genrows()
+            .into_iter()
+            .map(|row| make_prediction(&row, &self.root_node))
+            .collect()
     }
 }
 
-impl<F: Float, L: Label, D: Data<Elem = F>> Predict<&ArrayBase<D, Ix2>, Array1<L>>
-    for DecisionTree<F, L>
+impl<'a, F: Float, L: Label + 'a + std::fmt::Debug, D, T> Fit<'a, ArrayBase<D, Ix2>, T>
+    for DecisionTreeParams<F, L>
+where
+    D: Data<Elem = F>,
+    T: AsTargets<Elem = L> + Labels<Elem = L>,
 {
-    /// Make predictions for each row of a matrix of features `x`.
-    fn predict(&self, x: &ArrayBase<D, Ix2>) -> Array1<L> {
-        self.predict(x.view())
-    }
-}
-
-impl<F: Float, L: Label, D: Data<Elem = F>, T: Targets>
-    Predict<&DatasetBase<ArrayBase<D, Ix2>, T>, Array1<L>> for DecisionTree<F, L>
-{
-    /// Make predictions for each row of the matrix of features of dataset `x`.
-    fn predict(&self, x: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Array1<L> {
-        self.predict(x.records())
-    }
-}
-
-impl<'a, F: Float, L: Label + 'a + std::fmt::Debug, D: Data<Elem = F>, T: Labels<Elem = L>>
-    Fit<'a, ArrayBase<D, Ix2>, T> for DecisionTreeParams<F, L>
-{
-    type Object = DecisionTree<F, L>;
+    type Object = Result<DecisionTree<F, L>>;
 
     /// Fit a decision tree using `hyperparamters` on the dataset consisting of
     /// a matrix of features `x` and an array of labels `y`.
@@ -551,13 +526,13 @@ impl<'a, F: Float, L: Label + 'a + std::fmt::Debug, D: Data<Elem = F>, T: Labels
             })
             .collect();
 
-        let mut root_node = TreeNode::fit(&dataset, &all_idxs, &self, &sorted_indices, 0);
+        let mut root_node = TreeNode::fit(&dataset, &all_idxs, &self, &sorted_indices, 0)?;
         root_node.prune();
 
-        DecisionTree {
+        Ok(DecisionTree {
             root_node,
             num_features: dataset.records().ncols(),
-        }
+        })
     }
 }
 
@@ -688,7 +663,7 @@ fn make_prediction<F: Float, L: Label>(
 /// Finds the most frequent class for a hash map of frequencies. If two
 /// classes have the same weight then the first class found with that
 /// frequency is returned.
-fn find_modal_class<L: Label>(class_freq: &HashMap<&L, f32>) -> L {
+fn find_modal_class<L: Label>(class_freq: &HashMap<L, f32>) -> L {
     // TODO: Refactor this with fold_first
 
     let val = class_freq
@@ -710,7 +685,7 @@ fn find_modal_class<L: Label>(class_freq: &HashMap<&L, f32>) -> L {
 }
 
 /// Given the class frequencies calculates the gini impurity of the subset.
-fn gini_impurity<L: Label>(class_freq: &HashMap<&L, f32>) -> f32 {
+fn gini_impurity<L: Label>(class_freq: &HashMap<L, f32>) -> f32 {
     let n_samples = class_freq.values().sum::<f32>();
     assert!(n_samples > 0.0);
 
@@ -724,7 +699,7 @@ fn gini_impurity<L: Label>(class_freq: &HashMap<&L, f32>) -> f32 {
 }
 
 /// Given the class frequencies calculates the entropy of the subset.
-fn entropy<L: Label>(class_freq: &HashMap<&L, f32>) -> f32 {
+fn entropy<L: Label>(class_freq: &HashMap<L, f32>) -> f32 {
     let n_samples = class_freq.values().sum::<f32>();
     assert!(n_samples > 0.0);
 
@@ -740,7 +715,7 @@ mod tests {
     use super::*;
 
     use approx::assert_abs_diff_eq;
-    use linfa::metrics::ToConfusionMatrix;
+    use linfa::{error::Result, metrics::ToConfusionMatrix, Dataset};
     use ndarray::{array, s, stack, Array, Array1, Array2, Axis};
     use rand::rngs::SmallRng;
 
@@ -751,15 +726,15 @@ mod tests {
         let labels = Array::from(vec![0, 0, 0, 0, 0, 0, 1, 1]);
         let row_mask = RowMask::all(labels.len());
 
-        let dataset = DatasetBase::new((), labels);
-        let class_freq = dataset.frequencies_with_mask(&row_mask.mask);
+        let dataset: DatasetBase<(), Array1<usize>> = DatasetBase::new((), labels);
+        let class_freq = dataset.label_frequencies_with_mask(&row_mask.mask);
 
         assert_eq!(find_modal_class(&class_freq), 0);
     }
 
     #[test]
     fn gini_impurity_example() {
-        let class_freq = vec![(&0, 6.0), (&1, 2.0), (&2, 0.0)].into_iter().collect();
+        let class_freq = vec![(0, 6.0), (1, 2.0), (2, 0.0)].into_iter().collect();
 
         // Class 0 occurs 75% of the time
         // Class 1 occurs 25% of the time
@@ -770,7 +745,7 @@ mod tests {
 
     #[test]
     fn entropy_example() {
-        let class_freq = vec![(&0, 6.0), (&1, 2.0), (&2, 0.0)].into_iter().collect();
+        let class_freq = vec![(0, 6.0), (1, 2.0), (2, 0.0)].into_iter().collect();
 
         // Class 0 occurs 75% of the time
         // Class 1 occurs 25% of the time
@@ -779,7 +754,7 @@ mod tests {
         assert_abs_diff_eq!(entropy(&class_freq), 0.81127, epsilon = 1e-5);
 
         // If split is perfect then entropy is zero
-        let perfect_class_freq = vec![(&0, 8.0), (&1, 0.0), (&2, 0.0)].into_iter().collect();
+        let perfect_class_freq = vec![(0, 8.0), (1, 0.0), (2, 0.0)].into_iter().collect();
 
         assert_abs_diff_eq!(entropy(&perfect_class_freq), 0.0, epsilon = 1e-5);
     }
@@ -790,7 +765,7 @@ mod tests {
     /// Generate a dataset where a single feature perfectly correlates
     /// with the target while the remaining features are random gaussian
     /// noise and do not add any information.
-    fn single_feature_random_noise_binary() {
+    fn single_feature_random_noise_binary() -> Result<()> {
         // generate data with 9 white noise and a single correlated feature
         let mut data = Array::random((50, 10), Uniform::new(-4., 4.));
         data.slice_mut(s![.., 8]).assign(
@@ -799,10 +774,10 @@ mod tests {
                 .collect::<Array1<_>>(),
         );
 
-        let targets = (0..50).map(|x| x < 25).collect::<Vec<_>>();
-        let dataset = DatasetBase::new(data, targets);
+        let targets = (0..50).map(|x| x < 25).collect::<Array1<_>>();
+        let dataset = Dataset::new(data, targets);
 
-        let model = DecisionTree::params().max_depth(Some(2)).fit(&dataset);
+        let model = DecisionTree::params().max_depth(Some(2)).fit(&dataset)?;
 
         // we should only use feature index 8 here
         assert_eq!(&model.features(), &[8]);
@@ -814,20 +789,24 @@ mod tests {
         }
 
         // check for perfect accuracy
-        let cm = model.predict(dataset.records()).confusion_matrix(&dataset);
+        let cm = model
+            .predict(dataset.records())
+            .confusion_matrix(&dataset)?;
         assert_abs_diff_eq!(cm.accuracy(), 1.0, epsilon = 1e-15);
+
+        Ok(())
     }
 
     #[test]
     /// Check that for random data the max depth is used
-    fn check_max_depth() {
+    fn check_max_depth() -> Result<()> {
         let mut rng = SmallRng::seed_from_u64(42);
 
         // create very sparse data
         let data = Array::random_using((50, 50), Uniform::new(-1., 1.), &mut rng);
-        let targets = (0..50).collect::<Vec<_>>();
+        let targets = (0..50).collect::<Array1<usize>>();
 
-        let dataset = DatasetBase::new(data, targets);
+        let dataset = Dataset::new(data, targets);
 
         // check that the provided depth is actually used
         for max_depth in &[1, 5, 10, 20] {
@@ -835,28 +814,32 @@ mod tests {
                 .max_depth(Some(*max_depth))
                 .min_impurity_decrease(1e-10f64)
                 .min_weight_split(1e-10)
-                .fit(&dataset);
+                .fit(&dataset)?;
             assert_eq!(model.max_depth(), *max_depth);
         }
+
+        Ok(())
     }
 
     #[test]
     /// Small perfectly separable dataset test
     ///
     /// This dataset of three elements is perfectly using the second feature.
-    fn perfectly_separable_small() {
+    fn perfectly_separable_small() -> Result<()> {
         let data = array![[1., 2., 3.], [1., 2., 4.], [1., 3., 3.5]];
         let targets = array![0, 0, 1];
 
-        let dataset = DatasetBase::new(data, targets);
-        let model = DecisionTree::params().max_depth(Some(1)).fit(&dataset);
+        let dataset = Dataset::new(data.clone(), targets);
+        let model = DecisionTree::params().max_depth(Some(1)).fit(&dataset)?;
 
-        assert_eq!(model.predict(dataset.records()), array![0, 0, 1]);
+        assert_eq!(model.predict(&data), array![0, 0, 1]);
+
+        Ok(())
     }
 
     #[test]
     /// Small toy dataset from scikit-sklearn
-    fn toy_dataset() {
+    fn toy_dataset() -> Result<()> {
         let data = array![
             [0.0, 0.0, 4.0, 0.0, 0.0, 0.0, 1.0, -14.0, 0.0, -4.0, 0.0, 0.0, 0.0, 0.0,],
             [0.0, 0.0, 5.0, 3.0, 0.0, -4.0, 0.0, 0.0, 1.0, -5.0, 0.2, 0.0, 4.0, 1.0,],
@@ -885,17 +868,19 @@ mod tests {
 
         let targets = array![1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0];
 
-        let dataset = DatasetBase::new(data, targets);
-        let model = DecisionTree::params().fit(&dataset);
-        let prediction = model.predict(dataset.records());
-        let cm = prediction.confusion_matrix(&dataset);
+        let dataset = Dataset::new(data, targets);
+        let model = DecisionTree::params().fit(&dataset)?;
+        let prediction = model.predict(&dataset);
 
+        let cm = prediction.confusion_matrix(&dataset)?;
         assert!(cm.accuracy() > 0.95);
+
+        Ok(())
     }
 
     #[test]
     /// Multilabel classification
-    fn multilabel_four_uniform() {
+    fn multilabel_four_uniform() -> Result<()> {
         let mut data = stack(
             Axis(0),
             &[Array2::random((40, 2), Uniform::new(-1., 1.)).view()],
@@ -921,15 +906,17 @@ mod tests {
                 x if x < 30 => 2,
                 _ => 3,
             })
-            .collect::<Vec<_>>();
+            .collect::<Array1<_>>();
 
-        let dataset = DatasetBase::new(data.clone(), targets);
+        let dataset = Dataset::new(data.clone(), targets);
 
-        let model = DecisionTree::params().fit(&dataset);
+        let model = DecisionTree::params().fit(&dataset)?;
         let prediction = model.predict(data);
 
-        let cm = prediction.confusion_matrix(&dataset);
+        let cm = prediction.confusion_matrix(&dataset)?;
         assert!(cm.accuracy() > 0.99);
+
+        Ok(())
     }
 
     #[test]

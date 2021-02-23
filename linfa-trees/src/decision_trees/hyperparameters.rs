@@ -45,9 +45,9 @@ pub enum SplitQuality {
 /// // Load the data
 /// let (train, val) = linfa_datasets::iris().split_with_ratio(0.9);
 /// // Fit the decision tree on the training data
-/// let tree = params.fit(&train);
+/// let tree = params.fit(&train).unwrap();
 /// // Predict on validation and check accuracy
-/// let val_accuracy = tree.predict(&val).confusion_matrix(&val).accuracy();
+/// let val_accuracy = tree.predict(&val).confusion_matrix(&val).unwrap().accuracy();
 /// assert!(val_accuracy > 0.99);
 /// ```
 ///

@@ -33,6 +33,7 @@ ndarray-linalg = "0.12"
 
 num-traits = "0.2"
 approx = "0.3.2"
+thiserror = "1"
 
 linfa = { version = "0.3.0", path = ".." }
 

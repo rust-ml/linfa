@@ -1,27 +1,13 @@
-use std::fmt;
-
 use ndarray_stats::errors::MinMaxError;
+use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, BayesError>;
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum BayesError {
     /// Error when performing Max operation on data
-    Stats(MinMaxError),
+    #[error("invalid statistical operation {0}")]
+    Stats(#[from] MinMaxError),
+    #[error(transparent)]
+    BaseCrate(#[from] linfa::Error),
 }
-
-impl fmt::Display for BayesError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::Stats(error) => write!(f, "Ndarray Stats Error: {}", error),
-        }
-    }
-}
-
-impl From<MinMaxError> for BayesError {
-    fn from(error: MinMaxError) -> Self {
-        Self::Stats(error)
-    }
-}
-
-impl std::error::Error for BayesError {}

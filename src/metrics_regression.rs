@@ -8,6 +8,11 @@ use ndarray::{Data, NdFloat};
 use num_traits::FromPrimitive;
 use std::ops::Sub;
 
+use crate::{
+    dataset::{AsTargets, DatasetBase, Records},
+    Float,
+};
+
 /// Regression metrices trait
 pub trait Regression<
     'a,
@@ -100,6 +105,93 @@ impl<
         A::one()
             - (diff.mapv(|x| x * x).sum() - mean_error)
                 / (self.mapv(|x| (x - mean) * (x - mean)).sum() + A::from(1e-10).unwrap())
+    }
+}
+
+impl<F: Float, R: Records, T: AsTargets<Elem = F>> DatasetBase<R, T> {
+    /// Maximal error between two continuous variables
+    pub fn max_error(&self, compare_to: T) -> Array1<F> {
+        let t1 = self.as_multi_targets();
+        let t2 = compare_to.as_multi_targets();
+
+        t1.gencolumns()
+            .into_iter()
+            .zip(t2.gencolumns().into_iter())
+            .map(|(a, b)| a.max_error(b))
+            .collect()
+    }
+
+    /// Mean error between two continuous variables
+    pub fn mean_absolute_error(&self, compare_to: T) -> Array1<F> {
+        let t1 = self.as_multi_targets();
+        let t2 = compare_to.as_multi_targets();
+
+        t1.gencolumns()
+            .into_iter()
+            .zip(t2.gencolumns().into_iter())
+            .map(|(a, b)| a.mean_absolute_error(b))
+            .collect()
+    }
+
+    /// Mean squared error between two continuous variables
+    pub fn mean_squared_error(&self, compare_to: T) -> Array1<F> {
+        let t1 = self.as_multi_targets();
+        let t2 = compare_to.as_multi_targets();
+
+        t1.gencolumns()
+            .into_iter()
+            .zip(t2.gencolumns().into_iter())
+            .map(|(a, b)| a.mean_squared_error(b))
+            .collect()
+    }
+
+    /// Mean squared log error between two continuous variables
+    pub fn mean_squared_log_error(&self, compare_to: T) -> Array1<F> {
+        let t1 = self.as_multi_targets();
+        let t2 = compare_to.as_multi_targets();
+
+        t1.gencolumns()
+            .into_iter()
+            .zip(t2.gencolumns().into_iter())
+            .map(|(a, b)| a.mean_squared_log_error(b))
+            .collect()
+    }
+
+    /// Median absolute error between two continuous variables
+    pub fn median_absolute_error(&self, compare_to: T) -> Array1<F> {
+        let t1 = self.as_multi_targets();
+        let t2 = compare_to.as_multi_targets();
+
+        t1.gencolumns()
+            .into_iter()
+            .zip(t2.gencolumns().into_iter())
+            .map(|(a, b)| a.median_absolute_error(b))
+            .collect()
+    }
+
+    /// R squared coefficient, is the proprtion of the variance in the dependent variable that is
+    /// predictable from the independent variable
+    pub fn r2(&self, compare_to: T) -> Array1<F> {
+        let t1 = self.as_multi_targets();
+        let t2 = compare_to.as_multi_targets();
+
+        t1.gencolumns()
+            .into_iter()
+            .zip(t2.gencolumns().into_iter())
+            .map(|(a, b)| a.r2(b))
+            .collect()
+    }
+
+    /// Same as R-Squared but with biased variance
+    pub fn explained_variance(&self, compare_to: T) -> Array1<F> {
+        let t1 = self.as_multi_targets();
+        let t2 = compare_to.as_multi_targets();
+
+        t1.gencolumns()
+            .into_iter()
+            .zip(t2.gencolumns().into_iter())
+            .map(|(a, b)| a.explained_variance(b))
+            .collect()
     }
 }
 

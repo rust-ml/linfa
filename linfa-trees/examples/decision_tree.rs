@@ -5,9 +5,9 @@ use ndarray_rand::rand::SeedableRng;
 use rand::rngs::SmallRng;
 
 use linfa::prelude::*;
-use linfa_trees::{DecisionTree, SplitQuality};
+use linfa_trees::{DecisionTree, Result, SplitQuality};
 
-fn main() {
+fn main() -> Result<()> {
     // load Iris dataset
     let mut rng = SmallRng::seed_from_u64(42);
 
@@ -21,10 +21,10 @@ fn main() {
         .max_depth(Some(100))
         .min_weight_split(1.0)
         .min_weight_leaf(1.0)
-        .fit(&train);
+        .fit(&train)?;
 
     let gini_pred_y = gini_model.predict(&test);
-    let cm = gini_pred_y.confusion_matrix(&test);
+    let cm = gini_pred_y.confusion_matrix(&test)?;
 
     println!("{:?}", cm);
 
@@ -42,10 +42,10 @@ fn main() {
         .max_depth(Some(100))
         .min_weight_split(10.0)
         .min_weight_leaf(10.0)
-        .fit(&train);
+        .fit(&train)?;
 
     let entropy_pred_y = gini_model.predict(&test);
-    let cm = entropy_pred_y.confusion_matrix(&test);
+    let cm = entropy_pred_y.confusion_matrix(&test)?;
 
     println!("{:?}", cm);
 
@@ -67,4 +67,6 @@ fn main() {
     )
     .unwrap();
     println!(" => generate Gini tree description with `latex decision_tree_example.tex`!");
+
+    Ok(())
 }

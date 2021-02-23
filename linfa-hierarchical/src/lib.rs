@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use kodama::linkage;
 pub use kodama::Method;
 
-use linfa::dataset::{DatasetBase, Targets};
+use linfa::dataset::DatasetBase;
 use linfa::traits::Transformer;
 use linfa::Float;
 use linfa_kernel::Kernel;
@@ -129,8 +129,7 @@ impl<F: Float> Transformer<Kernel<F>, DatasetBase<Kernel<F>, Vec<usize>>>
     }
 }
 
-impl<F: Float, T: Targets>
-    Transformer<DatasetBase<Kernel<F>, T>, DatasetBase<Kernel<F>, Vec<usize>>>
+impl<F: Float, T> Transformer<DatasetBase<Kernel<F>, T>, DatasetBase<Kernel<F>, Vec<usize>>>
     for HierarchicalCluster<F>
 {
     /// Perform hierarchical clustering of a similarity matrix

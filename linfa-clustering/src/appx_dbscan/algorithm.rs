@@ -1,6 +1,5 @@
 use crate::appx_dbscan::clustering::AppxDbscanLabeler;
 use crate::appx_dbscan::hyperparameters::{AppxDbscanHyperParams, AppxDbscanHyperParamsBuilder};
-use linfa::dataset::Targets;
 use linfa::traits::Transformer;
 use linfa::{DatasetBase, Float};
 use ndarray::{Array1, ArrayBase, Data, Ix2};
@@ -106,7 +105,7 @@ impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T: Targets>
+impl<F: Float, D: Data<Elem = F>, T>
     Transformer<
         DatasetBase<ArrayBase<D, Ix2>, T>,
         DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>,
@@ -129,7 +128,7 @@ impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T: Targets>
+impl<F: Float, D: Data<Elem = F>, T>
     Transformer<
         DatasetBase<ArrayBase<D, Ix2>, T>,
         DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>,

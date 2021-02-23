@@ -4,13 +4,13 @@
 //! of the feature P(x_i | y) is assumed to be Gaussian, the mean and variance will
 //! be estimated using maximum likelihood.
 
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
+use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
 use ndarray_stats::QuantileExt;
 use std::collections::HashMap;
 
 use crate::error::Result;
-use linfa::dataset::{DatasetBase, Labels};
-use linfa::traits::{Fit, IncrementalFit, Predict};
+use linfa::dataset::{AsTargets, DatasetBase, Labels};
+use linfa::traits::{Fit, IncrementalFit, PredictRef};
 use linfa::Float;
 
 /// Gaussian Naive Bayes (GaussianNB)
@@ -42,12 +42,13 @@ impl GaussianNbParams {
     }
 }
 
-impl<'a, A, L> Fit<'a, ArrayView2<'_, A>, L> for GaussianNbParams
+impl<F, D, L> Fit<'_, ArrayBase<D, Ix2>, L> for GaussianNbParams
 where
-    A: Float,
-    L: Labels<Elem = usize>,
+    F: Float,
+    D: Data<Elem = F>,
+    L: AsTargets<Elem = usize> + Labels<Elem = usize>,
 {
-    type Object = Result<GaussianNb<A>>;
+    type Object = Result<GaussianNb<F>>;
 
     /// Fit the model
     ///
@@ -55,11 +56,11 @@ where
     ///
     /// ```no_run
     /// # use ndarray::array;
-    /// # use linfa::DatasetBase;
-    /// # use linfa_bayes::GaussianNbParams;
+    /// # use linfa::{Dataset, dataset::AsTargets};
+    /// # use linfa_bayes::{GaussianNbParams, Result};
     /// # use linfa::traits::{Fit, Predict};
-    /// # use std::error::Error;
-    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// # use approx::assert_abs_diff_eq;
+    /// # fn main() -> Result<()> {
     /// let x = array![
     ///     [-2., -1.],
     ///     [-1., -1.],
@@ -68,17 +69,17 @@ where
     ///     [1., 2.],
     ///     [2., 1.]
     /// ];
-    /// let y = vec![1, 1, 1, 2, 2, 2];
+    /// let y = array![1, 1, 1, 2, 2, 2];
     ///
-    /// let data = DatasetBase::new(x.view(), &y);
+    /// let data = Dataset::new(x, y);
     /// let model = GaussianNbParams::params().fit(&data)?;
-    /// let pred = model.predict(x.view());
+    /// let pred = model.predict(&data);
     ///
-    /// assert_eq!(pred.to_vec(), y);
+    /// assert_abs_diff_eq!(pred, data.try_single_target()?);
     /// # Ok(())
     /// # }
     /// ```
-    fn fit(&self, dataset: &DatasetBase<ArrayView2<A>, L>) -> Self::Object {
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, L>) -> Self::Object {
         // We extract the unique classes in sorted order
         let mut unique_classes = dataset.targets.labels();
         unique_classes.sort_unstable();
@@ -92,13 +93,14 @@ where
     }
 }
 
-impl<A, L> IncrementalFit<'_, ArrayView2<'_, A>, L> for GaussianNbParams
+impl<F, D, L> IncrementalFit<'_, ArrayBase<D, Ix2>, L> for GaussianNbParams
 where
-    A: Float,
-    L: Labels<Elem = usize>,
+    F: Float,
+    D: Data<Elem = F>,
+    L: AsTargets<Elem = usize> + Labels<Elem = usize>,
 {
-    type ObjectIn = Option<GaussianNb<A>>;
-    type ObjectOut = Result<Option<GaussianNb<A>>>;
+    type ObjectIn = Option<GaussianNb<F>>;
+    type ObjectOut = Result<Option<GaussianNb<F>>>;
 
     /// Incrementally fit on a batch of samples
     ///
@@ -106,11 +108,11 @@ where
     ///
     /// ```no_run
     /// # use ndarray::{array, Axis};
-    /// # use linfa::DatasetBase;
-    /// # use linfa_bayes::GaussianNbParams;
+    /// # use linfa::DatasetView;
+    /// # use linfa_bayes::{GaussianNbParams, Result};
     /// # use linfa::traits::{Predict, IncrementalFit};
-    /// # use std::error::Error;
-    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// # use approx::assert_abs_diff_eq;
+    /// # fn main() -> Result<()> {
     /// let x = array![
     ///     [-2., -1.],
     ///     [-1., -1.],
@@ -128,28 +130,28 @@ where
     ///     .axis_chunks_iter(Axis(0), 2)
     ///     .zip(y.axis_chunks_iter(Axis(0), 2))
     /// {
-    ///     model = clf.fit_with(model, &DatasetBase::new(x, y))?;
+    ///     model = clf.fit_with(model, &DatasetView::new(x, y))?;
     /// }
     ///
-    /// let pred = model.as_ref().unwrap().predict(x.view());
+    /// let pred = model.as_ref().unwrap().predict(&x);
     ///
-    /// assert_eq!(pred, y);
+    /// assert_abs_diff_eq!(pred, y);
     /// # Ok(())
     /// # }
     /// ```
     fn fit_with(
         &self,
         model_in: Self::ObjectIn,
-        dataset: &DatasetBase<ArrayView2<A>, L>,
+        dataset: &DatasetBase<ArrayBase<D, Ix2>, L>,
     ) -> Self::ObjectOut {
         let x = dataset.records();
-        let y = dataset.targets();
+        let y = dataset.try_single_target()?;
 
         // If the ratio of the variance between dimensions is too small, it will cause
         // numerical errors. We address this by artificially boosting the variance
         // by `epsilon` (a small fraction of the variance of the largest feature)
         let epsilon =
-            A::from(self.var_smoothing).unwrap() * *x.var_axis(Axis(0), A::zero()).max()?;
+            F::from(self.var_smoothing).unwrap() * *x.var_axis(Axis(0), F::zero()).max()?;
 
         let mut model = match model_in {
             Some(mut temp) => {
@@ -167,7 +169,7 @@ where
 
         for class in yunique.iter() {
             // We filter x for records that correspond to the current class
-            let xclass = Self::filter(&x, y.as_slice(), *class);
+            let xclass = Self::filter(&x.view(), y.as_slice().unwrap(), *class);
 
             // We count the number of occurances of the class
             let nclass = xclass.nrows();
@@ -203,7 +205,7 @@ where
             .values()
             .fold(0, |acc, x| acc + x.class_count);
         for info in model.class_info.values_mut() {
-            info.prior = A::from(info.class_count).unwrap() / A::from(class_count_sum).unwrap();
+            info.prior = F::from(info.class_count).unwrap() / F::from(class_count_sum).unwrap();
         }
 
         Ok(Some(model))
@@ -296,13 +298,16 @@ struct ClassInfo<A> {
     sigma: Array1<A>,
 }
 
-impl<A: Float> Predict<ArrayView2<'_, A>, Array1<usize>> for GaussianNb<A> {
+impl<F: Float, D> PredictRef<ArrayBase<D, Ix2>, Array1<usize>> for GaussianNb<F>
+where
+    D: Data<Elem = F>,
+{
     /// Perform classification on incoming array
     ///
     /// __Panics__ if the input is empty or if pairwise orderings are undefined
     /// (this occurs in presence of NaN values)
-    fn predict(&self, x: ArrayView2<'_, A>) -> Array1<usize> {
-        let joint_log_likelihood = self.joint_log_likelihood(x);
+    fn predict_ref<'a>(&'a self, x: &ArrayBase<D, Ix2>) -> Array1<usize> {
+        let joint_log_likelihood = self.joint_log_likelihood(x.view());
 
         // We store the classes and likelihood info in an vec and matrix
         // respectively for easier identification of the dominant class for
@@ -358,11 +363,11 @@ impl<A: Float> GaussianNb<A> {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use linfa::DatasetBase;
+    use linfa::{traits::Predict, DatasetView};
     use ndarray::array;
 
     #[test]
-    fn test_gaussian_nb() {
+    fn test_gaussian_nb() -> Result<()> {
         let x = array![
             [-2., -1.],
             [-1., -1.],
@@ -374,10 +379,11 @@ mod tests {
         let y = array![1, 1, 1, 2, 2, 2];
 
         let clf = GaussianNbParams::params();
-        let data = DatasetBase::new(x.view(), y.view());
-        let fitted_clf = clf.fit(&data).unwrap();
-        let pred = fitted_clf.predict(x.view());
-        assert_eq!(pred, y);
+        let data = DatasetView::new(x.view(), y.view());
+        let fitted_clf = clf.fit(&data)?;
+        let pred = fitted_clf.predict(&x);
+
+        assert_abs_diff_eq!(pred, y);
 
         let jll = fitted_clf.joint_log_likelihood(x.view());
         let mut expected = HashMap::new();
@@ -405,10 +411,12 @@ mod tests {
         );
 
         assert_eq!(jll, expected);
+
+        Ok(())
     }
 
     #[test]
-    fn test_gnb_fit_with() {
+    fn test_gnb_fit_with() -> Result<()> {
         let x = array![
             [-2., -1.],
             [-1., -1.],
@@ -424,13 +432,13 @@ mod tests {
         let model = x
             .axis_chunks_iter(Axis(0), 2)
             .zip(y.axis_chunks_iter(Axis(0), 2))
-            .map(|(a, b)| DatasetBase::new(a, b))
+            .map(|(a, b)| DatasetView::new(a, b))
             .fold(None, |current, d| clf.fit_with(current, &d).unwrap())
             .unwrap();
 
-        let pred = model.predict(x.view());
+        let pred = model.predict(&x);
 
-        assert_eq!(pred, y);
+        assert_abs_diff_eq!(pred, y);
 
         let jll = model.joint_log_likelihood(x.view());
 
@@ -461,5 +469,7 @@ mod tests {
         for (key, value) in jll.iter() {
             assert_abs_diff_eq!(value, expected.get(key).unwrap(), epsilon = 1e-6);
         }
+
+        Ok(())
     }
 }
