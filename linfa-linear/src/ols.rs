@@ -29,8 +29,8 @@ use ndarray_linalg::{Lapack, Scalar, Solve};
 use ndarray_stats::SummaryStatisticsExt;
 use serde::{Deserialize, Serialize};
 
-use linfa::dataset::DatasetBase;
-use linfa::traits::{Fit, Predict};
+use linfa::dataset::{AsTargets, DatasetBase};
+use linfa::traits::{Fit, PredictRef};
 
 pub trait Float: linfa::Float + Lapack + Scalar {}
 impl Float for f32 {}
@@ -126,8 +126,8 @@ impl LinearRegression {
     }
 }
 
-impl<'a, F: Float, D: Data<Elem = F>, D2: Data<Elem = F>>
-    Fit<'a, ArrayBase<D, Ix2>, ArrayBase<D2, Ix1>> for LinearRegression
+impl<'a, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> Fit<'a, ArrayBase<D, Ix2>, T>
+    for LinearRegression
 {
     type Object = Result<FittedLinearRegression<F>, String>;
 
@@ -143,10 +143,11 @@ impl<'a, F: Float, D: Data<Elem = F>, D2: Data<Elem = F>>
     /// for new feature values.
     fn fit(
         &self,
-        dataset: &'a DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D2, Ix1>>,
+        dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
     ) -> Result<FittedLinearRegression<F>, String> {
         let X = dataset.records();
-        let y = dataset.targets();
+        let y = dataset.try_single_target().unwrap();
+
         let (n_samples, _) = X.dim();
 
         // Check that our inputs have compatible shapes
@@ -164,7 +165,7 @@ impl<'a, F: Float, D: Data<Elem = F>, D2: Data<Elem = F>>
             let y_offset: F = y
                 .mean()
                 .ok_or_else(|| String::from("cannot compute mean of y"))?;
-            let y_centered: Array1<F> = y - y_offset;
+            let y_centered: Array1<F> = &y - y_offset;
             let params: Array1<F> =
                 compute_params(&X_centered, &y_centered, self.options.should_normalize())?;
             let intercept: F = y_offset - X_offset.dot(&params);
@@ -172,7 +173,7 @@ impl<'a, F: Float, D: Data<Elem = F>, D2: Data<Elem = F>>
         } else {
             Ok(FittedLinearRegression {
                 intercept: F::from(0).unwrap(),
-                params: solve_normal_equation(X, y)?,
+                params: solve_normal_equation(X, &y)?,
             })
         }
     }
@@ -234,22 +235,14 @@ impl<F: Float> FittedLinearRegression<F> {
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Array1<F>>
+impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<F>>
     for FittedLinearRegression<F>
 {
     /// Given an input matrix `X`, with shape `(n_samples, n_features)`,
     /// `predict` returns the target variable according to linear model
     /// learned from the training data distribution.
-    fn predict(&self, x: ArrayBase<D, Ix2>) -> Array1<F> {
+    fn predict_ref<'a>(&'a self, x: &ArrayBase<D, Ix2>) -> Array1<F> {
         x.dot(&self.params) + self.intercept
-    }
-}
-
-impl<F: Float, D: Data<Elem = F>> Predict<&ArrayBase<D, Ix2>, Array1<F>>
-    for FittedLinearRegression<F>
-{
-    fn predict(&self, x: &ArrayBase<D, Ix2>) -> Array1<F> {
-        self.predict(x.view())
     }
 }
 
@@ -257,12 +250,13 @@ impl<F: Float, D: Data<Elem = F>> Predict<&ArrayBase<D, Ix2>, Array1<F>>
 mod tests {
     use super::*;
     use approx::abs_diff_eq;
+    use linfa::{traits::Predict, Dataset};
     use ndarray::array;
 
     #[test]
     fn fits_a_line_through_two_dots() {
         let lin_reg = LinearRegression::new();
-        let dataset = DatasetBase::new(array![[0f64], [1.]], array![1., 2.]);
+        let dataset = Dataset::new(array![[0f64], [1.]], array![1., 2.]);
         let model = lin_reg.fit(&dataset).unwrap();
         let result = model.predict(dataset.records());
 
@@ -275,7 +269,7 @@ mod tests {
     #[test]
     fn without_intercept_fits_line_through_origin() {
         let lin_reg = LinearRegression::new().with_intercept(false);
-        let dataset = DatasetBase::new(array![[1.]], array![1.]);
+        let dataset = Dataset::new(array![[1.]], array![1.]);
         let model = lin_reg.fit(&dataset).unwrap();
         let result = model.predict(&array![[0.], [1.]]);
 
@@ -290,7 +284,7 @@ mod tests {
     #[test]
     fn fits_least_squares_line_through_two_dots() {
         let lin_reg = LinearRegression::new().with_intercept(false);
-        let dataset = DatasetBase::new(array![[-1.], [1.]], array![1., 1.]);
+        let dataset = Dataset::new(array![[-1.], [1.]], array![1., 1.]);
         let model = lin_reg.fit(&dataset).unwrap();
         let result = model.predict(dataset.records());
 
@@ -305,7 +299,7 @@ mod tests {
     #[test]
     fn fits_least_squares_line_through_three_dots() {
         let lin_reg = LinearRegression::new();
-        let dataset = DatasetBase::new(array![[0.], [1.], [2.]], array![0., 0., 2.]);
+        let dataset = Dataset::new(array![[0.], [1.], [2.]], array![0., 0., 2.]);
         let model = lin_reg.fit(&dataset).unwrap();
         let actual = model.predict(dataset.records());
 
@@ -318,7 +312,7 @@ mod tests {
     #[test]
     fn fits_three_parameters_through_three_dots() {
         let lin_reg = LinearRegression::new();
-        let dataset = DatasetBase::new(array![[0f64, 0.], [1., 1.], [2., 4.]], array![1., 4., 9.]);
+        let dataset = Dataset::new(array![[0f64, 0.], [1., 1.], [2., 4.]], array![1., 4., 9.]);
         let model = lin_reg.fit(&dataset).unwrap();
 
         abs_diff_eq!(model.params(), &array![2., 1.], epsilon = 1e-12);
@@ -331,7 +325,7 @@ mod tests {
     #[test]
     fn fits_four_parameters_through_four_dots() {
         let lin_reg = LinearRegression::new();
-        let dataset = DatasetBase::new(
+        let dataset = Dataset::new(
             array![[0f64, 0., 0.], [1., 1., 1.], [2., 4., 8.], [3., 9., 27.]],
             array![1., 8., 27., 64.],
         );
@@ -347,7 +341,7 @@ mod tests {
     #[test]
     fn fits_three_parameters_through_three_dots_f32() {
         let lin_reg = LinearRegression::new();
-        let dataset = DatasetBase::new(array![[0f64, 0.], [1., 1.], [2., 4.]], array![1., 4., 9.]);
+        let dataset = Dataset::new(array![[0f64, 0.], [1., 1.], [2., 4.]], array![1., 4., 9.]);
         let model = lin_reg.fit(&dataset).unwrap();
 
         abs_diff_eq!(model.params(), &array![2., 1.], epsilon = 1e-4);
@@ -361,7 +355,7 @@ mod tests {
     #[test]
     fn fits_four_parameters_through_four_dots_with_normalization() {
         let lin_reg = LinearRegression::new().with_intercept_and_normalize();
-        let dataset = DatasetBase::new(
+        let dataset = Dataset::new(
             array![[0f64, 0., 0.], [1., 1., 1.], [2., 4., 8.], [3., 9., 27.]],
             array![1., 8., 27., 64.],
         );
@@ -376,7 +370,7 @@ mod tests {
     #[test]
     fn works_with_viewed_and_owned_representations() {
         let lin_reg = LinearRegression::new().with_intercept_and_normalize();
-        let dataset = DatasetBase::new(
+        let dataset = Dataset::new(
             array![[0., 0., 0.], [1., 1., 1.], [2., 4., 8.], [3., 9., 27.]],
             array![1., 8., 27., 64.],
         );

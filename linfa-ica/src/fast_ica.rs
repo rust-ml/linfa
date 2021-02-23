@@ -6,11 +6,7 @@
 //!
 //! Input data is whitened (remove underlying correlation) before modeling.
 
-use linfa::{
-    dataset::{DatasetBase, Targets},
-    traits::*,
-    Float,
-};
+use linfa::{dataset::DatasetBase, traits::*, Float};
 use ndarray::{Array, Array1, Array2, ArrayBase, Axis, Data, Ix2};
 use ndarray_linalg::{eigh::Eigh, lapack::UPLO, svd::SVD, Lapack};
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
@@ -85,9 +81,7 @@ impl<F: Float> FastIca<F> {
     }
 }
 
-impl<'a, F: Float + Lapack, D: Data<Elem = F>, T: Targets> Fit<'a, ArrayBase<D, Ix2>, T>
-    for FastIca<F>
-{
+impl<'a, F: Float + Lapack, D: Data<Elem = F>, T> Fit<'a, ArrayBase<D, Ix2>, T> for FastIca<F> {
     type Object = Result<FittedFastIca<F>>;
 
     /// Fit the model
@@ -235,9 +229,9 @@ pub struct FittedFastIca<F> {
     components: Array2<F>,
 }
 
-impl<F: Float> Predict<&Array2<F>, Array2<F>> for FittedFastIca<F> {
+impl<F: Float> PredictRef<Array2<F>, Array2<F>> for FittedFastIca<F> {
     /// Recover the sources
-    fn predict(&self, x: &Array2<F>) -> Array2<F> {
+    fn predict_ref<'a>(&'a self, x: &Array2<F>) -> Array2<F> {
         let xcentered = x - &self.mean.view().insert_axis(Axis(0));
         xcentered.dot(&self.components.t())
     }

@@ -1,5 +1,4 @@
-use linfa::metrics::Regression;
-use linfa::traits::{Fit, Predict};
+use linfa::prelude::*;
 use linfa_elasticnet::{ElasticNet, Result};
 
 fn main() -> Result<()> {
@@ -18,8 +17,11 @@ fn main() -> Result<()> {
     println!("z score: {:?}", model.z_score());
 
     // validate
-    let y_est = model.predict(valid.records());
-    println!("predicted variance: {}", valid.targets().r2(&y_est));
+    let y_est = model.predict(&valid);
+    println!(
+        "predicted variance: {}",
+        valid.try_single_target()?.r2(&y_est)
+    );
 
     Ok(())
 }

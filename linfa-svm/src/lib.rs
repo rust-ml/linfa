@@ -68,7 +68,7 @@
 //! accuracy 0.8867925, MCC 0.40720797
 //! ```
 use linfa::{dataset::Pr, Float};
-use ndarray::Array1;
+use ndarray::{ArrayBase, Data, Ix1};
 
 use std::fmt;
 use std::marker::PhantomData;
@@ -77,12 +77,15 @@ use std::marker::PhantomData;
 use serde_crate::{Deserialize, Serialize};
 
 mod classification;
+pub mod error;
 mod permutable_kernel;
 mod regression;
 pub mod solver_smo;
 
-use permutable_kernel::Kernel;
-pub use solver_smo::SolverParams;
+use linfa_kernel::{Kernel, KernelMethod, KernelParams};
+pub use solver_smo::{SeparatingHyperplane, SolverParams};
+
+use std::ops::Mul;
 
 /// SVM Hyperparameters
 ///
@@ -105,6 +108,7 @@ pub struct SvmParams<F: Float, T> {
     nu: Option<(F, F)>,
     solver_params: SolverParams<F>,
     phantom: PhantomData<T>,
+    kernel: KernelParams<F>,
 }
 
 impl<F: Float, T> SvmParams<F, T> {
@@ -123,6 +127,43 @@ impl<F: Float, T> SvmParams<F, T> {
     /// up the optimization process, but may degredade the solution performance.
     pub fn shrinking(mut self, shrinking: bool) -> Self {
         self.solver_params.shrinking = shrinking;
+
+        self
+    }
+
+    /// Set the kernel to use for training
+    ///
+    /// This parameter specifies a mapping of input records to a new feature space by means
+    /// of the distance function between any couple of points mapped to such new space.
+    /// The SVM then applies a linear separation in the new feature space that may result in
+    /// a non linear partitioning of the original input space, thus increasing the expressiveness of
+    /// this model. To use the "base" SVM model it suffices to choose a `Linear` kernel.
+    pub fn with_kernel_params(mut self, kernel: KernelParams<F>) -> Self {
+        self.kernel = kernel;
+
+        self
+    }
+
+    /// Sets the model to use the Gaussian kernel. For this kernel the
+    /// distance between two points is computed as: `d(x, x') = exp(-norm(x - x')/eps)`
+    pub fn gaussian_kernel(mut self, eps: F) -> Self {
+        self.kernel = Kernel::params().method(KernelMethod::Gaussian(eps));
+
+        self
+    }
+
+    /// Sets the model to use the Polynomial kernel. For this kernel the
+    /// distance between two points is computed as: `d(x, x') = (<x, x'> + costant)^(degree)`
+    pub fn polynomial_kernel(mut self, constant: F, degree: F) -> Self {
+        self.kernel = Kernel::params().method(KernelMethod::Polynomial(constant, degree));
+
+        self
+    }
+
+    /// Sets the model to use the Linear kernel. For this kernel the
+    /// distance between two points is computed as : `d(x, x') = <x, x'>`
+    pub fn linear_kernel(mut self) -> Self {
+        self.kernel = Kernel::params().method(KernelMethod::Linear);
 
         self
     }
@@ -191,41 +232,47 @@ pub enum ExitReason {
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-pub struct Svm<'a, A: Float, T> {
-    pub alpha: Vec<A>,
-    pub rho: A,
-    r: Option<A>,
+
+pub struct Svm<F: Float, T> {
+    pub alpha: Vec<F>,
+    pub rho: F,
+    r: Option<F>,
     exit_reason: ExitReason,
     iterations: usize,
-    obj: A,
+    obj: F,
     #[cfg_attr(
         feature = "serde",
         serde(bound(
-            serialize = "&'a Kernel<'a, A>: Serialize",
-            deserialize = "&'a Kernel<'a, A>: Deserialize<'de>"
+            serialize = "&'a Kernel<'a, F>: Serialize",
+            deserialize = "&'a Kernel<'a, F>: Deserialize<'de>"
         ))
     )]
-    kernel: &'a Kernel<'a, A>,
-    linear_decision: Option<Array1<A>>,
+    // the only thing I need the kernel for after the training is to
+    // compute the distances, but for that I only need the kernel method
+    // and not the whole inner matrix
+    kernel_method: KernelMethod<F>,
+    sep_hyperplane: SeparatingHyperplane<F>,
     phantom: PhantomData<T>,
 }
 
-impl<'a, A: Float, T> Svm<'a, A, T> {
+impl<F: Float, T> Svm<F, T> {
     /// Create hyper parameter set
     ///
     /// This creates a `SvmParams` and sets it to the default values:
     ///  * C values of (1, 1)
     ///  * Eps of 1e-7
     ///  * No shrinking
-    pub fn params() -> SvmParams<A, T> {
+    ///  * Linear kernel
+    pub fn params() -> SvmParams<F, T> {
         SvmParams {
-            c: Some((A::one(), A::one())),
+            c: Some((F::one(), F::one())),
             nu: None,
             solver_params: SolverParams {
-                eps: A::from(1e-7).unwrap(),
+                eps: F::from(1e-7).unwrap(),
                 shrinking: false,
             },
             phantom: PhantomData,
+            kernel: Kernel::params().method(KernelMethod::Linear),
         }
     }
 
@@ -236,10 +283,11 @@ impl<'a, A: Float, T> Svm<'a, A, T> {
     pub fn nsupport(&self) -> usize {
         self.alpha
             .iter()
-            .filter(|x| x.abs() > A::from(1e-5).unwrap())
+            // around 1e-5 for f32 and 2e-14 for f64
+            .filter(|x| x.abs() > F::from(100.).unwrap() * F::epsilon())
             .count()
     }
-    pub(crate) fn with_phantom<S>(self) -> Svm<'a, A, S> {
+    pub(crate) fn with_phantom<S>(self) -> Svm<F, S> {
         Svm {
             alpha: self.alpha,
             rho: self.rho,
@@ -247,9 +295,38 @@ impl<'a, A: Float, T> Svm<'a, A, T> {
             exit_reason: self.exit_reason,
             obj: self.obj,
             iterations: self.iterations,
-            kernel: self.kernel,
-            linear_decision: self.linear_decision,
+            sep_hyperplane: self.sep_hyperplane,
+            kernel_method: self.kernel_method,
             phantom: PhantomData,
+        }
+    }
+
+    /// Sums the inner product of `sample` and every one of the support vectors.
+    ///
+    /// ## Parameters
+    ///
+    /// * `sample`: the input sample
+    ///
+    /// ## Returns
+    ///
+    /// The sum of all inner products of `sample` and every one of the support vectors, scaled by their weight.
+    ///
+    /// ## Panics
+    ///
+    /// If the shape of `sample` is not compatible with the
+    /// shape of the support vectors
+    pub fn weighted_sum<D: Data<Elem = F>>(&self, sample: &ArrayBase<D, Ix1>) -> F {
+        match self.sep_hyperplane {
+            SeparatingHyperplane::Linear(ref x) => x.mul(sample).sum(),
+            SeparatingHyperplane::WeightedCombination(ref supp_vecs) => supp_vecs
+                .outer_iter()
+                .zip(
+                    self.alpha
+                        .iter()
+                        .filter(|a| a.abs() > F::from(100.).unwrap() * F::epsilon()),
+                )
+                .map(|(x, a)| self.kernel_method.distance(x, sample.view()) * *a)
+                .sum(),
         }
     }
 }
@@ -258,7 +335,7 @@ impl<'a, A: Float, T> Svm<'a, A, T> {
 ///
 /// In order to understand the solution of the SMO solver the objective, number of iterations and
 /// required support vectors are printed here.
-impl<'a, A: Float, T> fmt::Display for Svm<'a, A, T> {
+impl<'a, F: Float, T> fmt::Display for Svm<F, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.exit_reason {
             ExitReason::ReachedThreshold => write!(
@@ -277,4 +354,42 @@ impl<'a, A: Float, T> fmt::Display for Svm<'a, A, T> {
             ),
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Svm;
+    use linfa::prelude::*;
+
+    #[test]
+    fn test_iter_folding_for_classification() {
+        let mut dataset = linfa_datasets::winequality().map_targets(|x| *x > 6);
+        let params = Svm::params().pos_neg_weights(7., 0.6).gaussian_kernel(80.0);
+
+        let avg_acc = dataset
+            .iter_fold(4, |training_set| params.fit(&training_set).unwrap())
+            .map(|(model, valid)| {
+                model
+                    .predict(valid.view())
+                    .map_targets(|x| **x > 0.0)
+                    .confusion_matrix(&valid)
+                    .unwrap()
+                    .accuracy()
+            })
+            .sum::<f32>()
+            / 4_f32;
+        assert!(avg_acc >= 0.5)
+    }
+
+    /*#[test]
+    fn test_iter_folding_for_regression() {
+        let mut dataset: Dataset<f64, f64> = linfa_datasets::diabetes();
+        let params = Svm::params().linear_kernel().c_eps(100., 1.);
+
+        let _avg_r2 = dataset
+            .iter_fold(4, |training_set| params.fit(&training_set).unwrap())
+            .map(|(model, valid)| Array1::from(model.predict(valid.view())).r2(valid.targets()))
+            .sum::<f64>()
+            / 4_f64;
+    }*/
 }

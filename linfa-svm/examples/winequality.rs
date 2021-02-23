@@ -1,27 +1,22 @@
 use linfa::prelude::*;
-use linfa_kernel::{Kernel, KernelMethod};
-use linfa_svm::Svm;
+use linfa_svm::{error::Result, Svm};
 
-fn main() {
+fn main() -> Result<()> {
     // everything above 6.5 is considered a good wine
     let (train, valid) = linfa_datasets::winequality()
         .map_targets(|x| *x > 6)
         .split_with_ratio(0.9);
 
-    // transform with RBF kernel
-    let train_kernel = Kernel::params()
-        .method(KernelMethod::Gaussian(30.0))
-        .transform(&train);
-
     println!(
         "Fit SVM classifier with #{} training points",
-        train.observations()
+        train.nsamples()
     );
 
     // fit a SVM with C value 7 and 0.6 for positive and negative classes
     let model = Svm::params()
         .pos_neg_weights(50000., 5000.)
-        .fit(&train_kernel);
+        .gaussian_kernel(80.0)
+        .fit(&train)?;
 
     println!("{}", model);
     // A positive prediction indicates a good wine, a negative, a bad one
@@ -37,13 +32,10 @@ fn main() {
     let valid = valid.map_targets(tag_classes);
 
     // predict and map targets
-    let pred = model
-        .predict(&valid)
-        .map_targets(|x| **x > 0.0)
-        .map_targets(tag_classes);
+    let pred = model.predict(&valid).map(|x| **x > 0.0).map(tag_classes);
 
     // create a confusion matrix
-    let cm = pred.confusion_matrix(&valid);
+    let cm = pred.confusion_matrix(&valid)?;
 
     // Print the confusion matrix, this will print a table with four entries. On the diagonal are
     // the number of true-positive and true-negative predictions, off the diagonal are
@@ -53,4 +45,6 @@ fn main() {
     // Calculate the accuracy and Matthew Correlation Coefficient (cross-correlation between
     // predicted and targets)
     println!("accuracy {}, MCC {}", cm.accuracy(), cm.mcc());
+
+    Ok(())
 }

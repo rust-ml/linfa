@@ -13,6 +13,8 @@ categories = ["algorithms", "mathematics", "science"]
 [dependencies]
 ndarray = { version = "0.13" , features = ["blas", "approx"]}
 ndarray-stats = "0.3"
+thiserror = "1"
+
 linfa = { version = "0.3.0", path = ".." }
 
 [dev-dependencies]

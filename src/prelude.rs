@@ -11,10 +11,13 @@ pub use crate::error::{Error, Result};
 pub use crate::traits::*;
 
 #[doc(no_inline)]
-pub use crate::dataset::{DatasetBase, Float, Labels, Records, Targets};
+pub use crate::dataset::{AsTargets, Dataset, DatasetBase, DatasetView, Float, Records};
 
 #[doc(no_inline)]
 pub use crate::metrics_classification::{BinaryClassification, ConfusionMatrix, ToConfusionMatrix};
 
 #[doc(no_inline)]
 pub use crate::metrics_regression::Regression;
+
+#[doc(no_inline)]
+pub use crate::correlation::PearsonCorrelation;

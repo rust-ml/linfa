@@ -1,6 +1,5 @@
 use crate::appx_dbscan::clustering::AppxDbscanLabeler;
 use crate::appx_dbscan::hyperparameters::{AppxDbscanHyperParams, AppxDbscanHyperParamsBuilder};
-use linfa::dataset::Targets;
 use linfa::traits::Transformer;
 use linfa::{DatasetBase, Float};
 use ndarray::{Array1, ArrayBase, Data, Ix2};
@@ -26,12 +25,12 @@ use serde_crate::{Deserialize, Serialize};
 /// This is an implementation of the approximated version of DBSCAN with
 /// complexity O(N). Additional information can be found in
 /// [this paper](https://www.cse.cuhk.edu.hk/~taoyf/paper/tods17-dbscan.pdf).
-/// Beware of the hidden constant O((1/slack)^dimensionality)` of the complexity
+/// Beware of the hidden constant `O((1/slack)^dimensionality)` of the complexity
 /// for very small values of `slack` and high dimensionalities.
 /// The approximated version of the DBSCAN converges to the exact DBSCAN result
 /// for a `slack` that goes to zero. Since only the `tranform` method is provided and
 /// border points are not assigned deterministically, it may happen that the two
-/// results still differ (in terms of border and noise points) for very small values
+/// results still differ (in terms of border points) for very small values
 /// of `slack`.
 ///
 /// ## The algorithm
@@ -106,7 +105,7 @@ impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T: Targets>
+impl<F: Float, D: Data<Elem = F>, T>
     Transformer<
         DatasetBase<ArrayBase<D, Ix2>, T>,
         DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>,
@@ -129,7 +128,7 @@ impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T: Targets>
+impl<F: Float, D: Data<Elem = F>, T>
     Transformer<
         DatasetBase<ArrayBase<D, Ix2>, T>,
         DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>,

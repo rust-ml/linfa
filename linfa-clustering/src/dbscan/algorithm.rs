@@ -2,7 +2,6 @@ use crate::dbscan::hyperparameters::{DbscanHyperParams, DbscanHyperParamsBuilder
 use ndarray::{Array1, ArrayBase, ArrayView, Axis, Data, Ix1, Ix2};
 use ndarray_stats::DeviationExt;
 
-use linfa::dataset::Targets;
 use linfa::traits::Transformer;
 use linfa::{DatasetBase, Float};
 
@@ -114,7 +113,7 @@ impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T: Targets>
+impl<F: Float, D: Data<Elem = F>, T>
     Transformer<
         DatasetBase<ArrayBase<D, Ix2>, T>,
         DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>,
@@ -137,7 +136,7 @@ impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T: Targets>
+impl<F: Float, D: Data<Elem = F>, T>
     Transformer<
         DatasetBase<ArrayBase<D, Ix2>, T>,
         DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>,

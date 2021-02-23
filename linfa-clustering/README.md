@@ -14,6 +14,8 @@ You can find a roadmap (and a selection of good first issues)
 `linfa-clustering` currently provides implementation of the following clustering algorithms, in addition to a couple of helper functions: 
 - K-Means
 - DBSCAN
+- Approximated DBSCAN
+- Gaussian Mixture Model
 
 
 Implementation choices, algorithmic details and a tutorial can be found 

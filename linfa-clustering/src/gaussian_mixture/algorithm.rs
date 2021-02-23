@@ -1,11 +1,7 @@
 use crate::gaussian_mixture::errors::{GmmError, Result};
 use crate::gaussian_mixture::hyperparameters::{GmmCovarType, GmmHyperParams, GmmInitMethod};
 use crate::k_means::KMeans;
-use linfa::{
-    dataset::{DatasetBase, Targets},
-    traits::*,
-    Float,
-};
+use linfa::{traits::*, DatasetBase, Float};
 use ndarray::{s, Array, Array1, Array2, Array3, ArrayBase, Axis, Data, Ix2, Ix3, Zip};
 use ndarray_linalg::{cholesky::*, triangular::*, Lapack, Scalar};
 use ndarray_rand::rand::Rng;
@@ -55,7 +51,7 @@ use serde_crate::{Deserialize, Serialize};
 ///
 /// ```rust, ignore
 /// use linfa::DatasetBase;
-/// use linfa::traits::{Fit, Predict};
+/// use linfa::traits::{Fit, PredictRef};
 /// use linfa_clustering::{GmmHyperParams, GaussianMixtureModel, generate_blobs};
 /// use ndarray::{Axis, array, s, Zip};
 /// use ndarray_rand::rand::SeedableRng;
@@ -147,7 +143,7 @@ impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
         self.means()
     }
 
-    fn new<D: Data<Elem = F>, R: Rng + Clone, T: Targets>(
+    fn new<D: Data<Elem = F>, R: Rng + Clone, T>(
         hyperparameters: &GmmHyperParams<F, R>,
         dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
         mut rng: R,
@@ -394,7 +390,7 @@ impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
     }
 }
 
-impl<'a, F: Float + Lapack + Scalar, R: Rng + Clone, D: Data<Elem = F>, T: Targets>
+impl<'a, F: Float + Lapack + Scalar, R: Rng + Clone, D: Data<Elem = F>, T>
     Fit<'a, ArrayBase<D, Ix2>, T> for GmmHyperParams<F, R>
 {
     type Object = Result<GaussianMixtureModel<F>>;
@@ -451,27 +447,14 @@ impl<'a, F: Float + Lapack + Scalar, R: Rng + Clone, D: Data<Elem = F>, T: Targe
     }
 }
 
-impl<F: Float + Lapack + Scalar, D: Data<Elem = F>> Predict<&ArrayBase<D, Ix2>, Array1<usize>>
+impl<F: Float + Lapack + Scalar, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<usize>>
     for GaussianMixtureModel<F>
 {
-    fn predict(&self, observations: &ArrayBase<D, Ix2>) -> Array1<usize> {
+    fn predict_ref<'a>(&'a self, observations: &ArrayBase<D, Ix2>) -> Array1<usize> {
         let (_, log_resp) = self.estimate_log_prob_resp(&observations);
         log_resp
             .mapv(|v| v.exp())
             .map_axis(Axis(1), |row| row.argmax().unwrap())
-    }
-}
-
-impl<F: Float + Lapack + Scalar, D: Data<Elem = F>, T: Targets>
-    Predict<DatasetBase<ArrayBase<D, Ix2>, T>, DatasetBase<ArrayBase<D, Ix2>, Array1<usize>>>
-    for GaussianMixtureModel<F>
-{
-    fn predict(
-        &self,
-        dataset: DatasetBase<ArrayBase<D, Ix2>, T>,
-    ) -> DatasetBase<ArrayBase<D, Ix2>, Array1<usize>> {
-        let predicted = self.predict(dataset.records());
-        dataset.with_targets(predicted)
     }
 }
 

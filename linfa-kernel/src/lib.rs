@@ -1,15 +1,20 @@
 //! Kernel methods
 //!
+pub mod inner;
 mod sparse;
 
+pub use inner::{Inner, KernelInner};
 use ndarray::prelude::*;
 use ndarray::Data;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
-use sprs::CsMat;
+use sprs::{CsMat, CsMatView};
 use std::ops::Mul;
 
-use linfa::{dataset::DatasetBase, dataset::Records, dataset::Targets, traits::Transformer, Float};
+use linfa::{
+    dataset::AsTargets, dataset::DatasetBase, dataset::FromTargetArray, dataset::Records,
+    traits::Transformer, Float,
+};
 
 /// Kernel representation, can be either dense or sparse
 #[derive(Clone)]
@@ -20,18 +25,6 @@ pub enum KernelType {
     Sparse(usize),
 }
 
-/// Storage for the kernel matrix
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
-#[derive(Debug)]
-pub enum KernelInner<F: Float> {
-    Dense(Array2<F>),
-    Sparse(CsMat<F>),
-}
-
 /// A generic kernel
 ///
 ///
@@ -40,18 +33,19 @@ pub enum KernelInner<F: Float> {
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-pub struct Kernel<R: Records>
+pub struct KernelBase<K1: Inner, K2: Inner>
 where
-    R::Elem: Float,
+    K1::Elem: Float,
+    K2::Elem: Float,
 {
     #[cfg_attr(
         feature = "serde",
         serde(bound(
-            serialize = "KernelInner<R::Elem>: Serialize",
-            deserialize = "KernelInner<R::Elem>: Deserialize<'de>"
+            serialize = "KernelInner<K1, K2>: Serialize",
+            deserialize = "KernelInner<K1, K2>: Deserialize<'de>"
         ))
     )]
-    pub inner: KernelInner<R::Elem>,
+    pub inner: KernelInner<K1, K2>,
     #[cfg_attr(
         feature = "serde",
         serde(bound(
@@ -59,166 +53,13 @@ where
             deserialize = "KernelMethod<R::Elem>: Deserialize<'de>"
         ))
     )]
-    pub method: KernelMethod<R::Elem>,
-    pub dataset: R,
+    pub method: KernelMethod<K1::Elem>,
 }
 
-impl<'a, F: Float> Kernel<ArrayView2<'a, F>> {
-    pub fn new(
-        dataset: ArrayView2<'a, F>,
-        method: KernelMethod<F>,
-        kind: KernelType,
-    ) -> Kernel<ArrayView2<'a, F>> {
-        let inner = match kind {
-            KernelType::Dense => KernelInner::Dense(dense_from_fn(&dataset, &method)),
-            KernelType::Sparse(k) => KernelInner::Sparse(sparse_from_fn(&dataset, k, &method)),
-        };
+pub type Kernel<F> = KernelBase<Array2<F>, CsMat<F>>;
+pub type KernelView<'a, F> = KernelBase<ArrayView2<'a, F>, CsMatView<'a, F>>;
 
-        Kernel {
-            inner,
-            method,
-            dataset,
-        }
-    }
-
-    /// Performs the matrix product between the kernel matrix
-    /// and the input
-    ///
-    /// ## Parameters
-    ///
-    /// - `rhs`: The matrix on the right-hand side of the multiplication
-    ///
-    /// ## Returns
-    ///
-    /// A new matrix containing the matrix product between the kernel
-    /// and `rhs`
-    ///
-    /// ## Panics
-    ///
-    /// If the shapes of kernel and `rhs` are not compatible for multiplication
-    pub fn dot(&self, rhs: &ArrayView2<F>) -> Array2<F> {
-        match &self.inner {
-            KernelInner::Dense(mat) => mat.dot(rhs),
-            KernelInner::Sparse(mat) => mat.mul(rhs),
-        }
-    }
-
-    /// Sums all elements in the same row of the kernel matrix
-    ///
-    /// ## Returns
-    ///
-    /// A new array with the sum of all the elements in each row
-    pub fn sum(&self) -> Array1<F> {
-        match &self.inner {
-            KernelInner::Dense(mat) => mat.sum_axis(Axis(1)),
-            KernelInner::Sparse(mat) => {
-                let mut sum = Array1::zeros(mat.cols());
-                for (val, i) in mat.iter() {
-                    let (_, col) = i;
-                    sum[col] += *val;
-                }
-
-                sum
-            }
-        }
-    }
-
-    /// Gives the size of the side of the square kernel matrix
-    pub fn size(&self) -> usize {
-        match &self.inner {
-            KernelInner::Dense(mat) => mat.ncols(),
-            KernelInner::Sparse(mat) => mat.cols(),
-        }
-    }
-
-    /// Getter for the data in the upper triangle of the kernel
-    /// matrix
-    ///
-    /// ## Returns
-    ///
-    /// A copy of all elements in the upper triangle of the kernel
-    /// matrix, stored in a `Vec`
-    pub fn to_upper_triangle(&self) -> Vec<F> {
-        match &self.inner {
-            KernelInner::Dense(mat) => mat
-                .indexed_iter()
-                .filter(|((row, col), _)| col > row)
-                .map(|(_, val)| *val)
-                .collect(),
-            KernelInner::Sparse(mat) => {
-                let mat = mat.to_dense();
-                mat.indexed_iter()
-                    .filter(|((row, col), _)| col > row)
-                    .map(|(_, val)| *val)
-                    .collect()
-            }
-        }
-    }
-
-    /// Getter for the elements in the diagonal of the kernel matrix
-    ///
-    /// ## Returns
-    ///
-    /// A new array containing the copy of all elements in the diagonal fo
-    /// the kernel matrix
-    pub fn diagonal(&self) -> Array1<F> {
-        match &self.inner {
-            KernelInner::Dense(mat) => mat.diag().to_owned(),
-            KernelInner::Sparse(_) => self
-                .dataset
-                .outer_iter()
-                .map(|x| self.method.distance(x.view(), x.view()))
-                .collect(),
-        }
-    }
-
-    /// Getter for a column of the kernel matrix
-    ///
-    /// ## Params
-    ///
-    /// - `i`: the index of the column
-    ///
-    /// ## Returns
-    ///
-    /// The i-th column of the kernel matrix, stored as a `Vec`
-    ///
-    /// ## Panics
-    ///
-    /// If `i` is out of bounds
-    pub fn column(&self, i: usize) -> Vec<F> {
-        match &self.inner {
-            KernelInner::Dense(mat) => mat.column(i).to_vec(),
-            KernelInner::Sparse(mat) => (0..self.size())
-                .map(|j| *mat.get(j, i).unwrap_or(&F::neg_zero()))
-                .collect::<Vec<_>>(),
-        }
-    }
-
-    /// Sums the inner product of `sample` and every one of the samples
-    /// used to generate the kernel
-    ///
-    /// ## Parameters
-    ///
-    /// * `weights`: the weight of each inner product
-    /// * `sample`: the input sample
-    ///
-    /// ## Returns
-    ///
-    /// The weighted sum of all inner products of `sample` and every one of the samples
-    /// used to generate the kernel
-    ///
-    /// ## Panics
-    ///
-    /// If the shapes of `weights` or `sample` are not compatible with the
-    /// shape of the kernel matrix
-    pub fn weighted_sum(&self, weights: &[F], sample: ArrayView1<F>) -> F {
-        self.dataset
-            .outer_iter()
-            .zip(weights.iter())
-            .map(|(x, a)| self.method.distance(x, sample) * *a)
-            .sum()
-    }
-
+impl<F: Float, K1: Inner<Elem = F>, K2: Inner<Elem = F>> KernelBase<K1, K2> {
     /// Wheter the kernel is a linear kernel
     ///
     /// ## Returns
@@ -253,12 +94,135 @@ impl<'a, F: Float> Kernel<ArrayView2<'a, F>> {
             method: KernelMethod::Gaussian(F::from(0.5).unwrap()),
         }
     }
+
+    /// Performs the matrix product between the kernel matrix
+    /// and the input
+    ///
+    /// ## Parameters
+    ///
+    /// - `rhs`: The matrix on the right-hand side of the multiplication
+    ///
+    /// ## Returns
+    ///
+    /// A new matrix containing the matrix product between the kernel
+    /// and `rhs`
+    ///
+    /// ## Panics
+    ///
+    /// If the shapes of kernel and `rhs` are not compatible for multiplication
+    pub fn dot(&self, rhs: &ArrayView2<F>) -> Array2<F> {
+        match &self.inner {
+            KernelInner::Dense(inn) => inn.dot(rhs),
+            KernelInner::Sparse(inn) => inn.dot(rhs),
+        }
+    }
+
+    /// Sums all elements in the same row of the kernel matrix
+    ///
+    /// ## Returns
+    ///
+    /// A new array with the sum of all the elements in each row
+    pub fn sum(&self) -> Array1<F> {
+        match &self.inner {
+            KernelInner::Dense(inn) => inn.sum(),
+            KernelInner::Sparse(inn) => inn.sum(),
+        }
+    }
+
+    /// Gives the size of the side of the square kernel matrix
+    pub fn size(&self) -> usize {
+        match &self.inner {
+            KernelInner::Dense(inn) => inn.size(),
+            KernelInner::Sparse(inn) => inn.size(),
+        }
+    }
+
+    /// Getter for a column of the kernel matrix
+    ///
+    /// ## Params
+    ///
+    /// - `i`: the index of the column
+    ///
+    /// ## Returns
+    ///
+    /// The i-th column of the kernel matrix, stored as a `Vec`
+    ///
+    /// ## Panics
+    ///
+    /// If `i` is out of bounds
+    pub fn column(&self, i: usize) -> Vec<F> {
+        match &self.inner {
+            KernelInner::Dense(inn) => inn.column(i),
+            KernelInner::Sparse(inn) => inn.column(i),
+        }
+    }
+
+    /// Getter for the data in the upper triangle of the kernel
+    /// matrix
+    ///
+    /// ## Returns
+    ///
+    /// A copy of all elements in the upper triangle of the kernel
+    /// matrix, stored in a `Vec`
+    pub fn to_upper_triangle(&self) -> Vec<F> {
+        match &self.inner {
+            KernelInner::Dense(inn) => inn.to_upper_triangle(),
+            KernelInner::Sparse(inn) => inn.to_upper_triangle(),
+        }
+    }
+
+    /// Getter for the elements in the diagonal of the kernel matrix
+    ///
+    /// ## Returns
+    ///
+    /// A new array containing the copy of all elements in the diagonal fo
+    /// the kernel matrix
+    pub fn diagonal(&self) -> Array1<F> {
+        match &self.inner {
+            KernelInner::Dense(inn) => inn.diagonal(),
+            KernelInner::Sparse(inn) => inn.diagonal(),
+        }
+    }
 }
 
-impl<'a, F: Float> Records for Kernel<ArrayView2<'a, F>> {
+impl<'a, F: Float> Kernel<F> {
+    pub fn new(dataset: ArrayView2<'a, F>, method: KernelMethod<F>, kind: KernelType) -> Kernel<F> {
+        let inner = match kind {
+            KernelType::Dense => KernelInner::Dense(dense_from_fn(&dataset, &method)),
+            KernelType::Sparse(k) => KernelInner::Sparse(sparse_from_fn(&dataset, k, &method)),
+        };
+
+        Kernel { inner, method }
+    }
+
+    /// Gives a KernelView which has a view on the original kernel's inner matrix
+    pub fn view(&'a self) -> KernelView<'a, F> {
+        KernelView {
+            inner: match &self.inner {
+                KernelInner::Dense(inn) => KernelInner::Dense(inn.view()),
+                KernelInner::Sparse(inn) => KernelInner::Sparse(inn.view()),
+            },
+            method: self.method.clone(),
+        }
+    }
+}
+
+impl<'a, F: Float> KernelView<'a, F> {
+    pub fn to_owned(&self) -> Kernel<F> {
+        Kernel {
+            inner: match &self.inner {
+                KernelInner::Dense(inn) => KernelInner::Dense(inn.to_owned()),
+                KernelInner::Sparse(inn) => KernelInner::Sparse(inn.to_owned()),
+            },
+            method: self.method.clone(),
+        }
+    }
+}
+
+impl<F: Float, K1: Inner<Elem = F>, K2: Inner<Elem = F>> Records for KernelBase<K1, K2> {
     type Elem = F;
 
-    fn observations(&self) -> usize {
+    fn nsamples(&self) -> usize {
         self.size()
     }
 
@@ -281,11 +245,11 @@ impl<'a, F: Float> Records for Kernel<ArrayView2<'a, F>> {
 )]
 #[derive(Debug, Clone)]
 pub enum KernelMethod<F> {
-    /// Gaussian(eps) inner product
+    /// Gaussian(eps): exp(-norm(x - x')/eps)
     Gaussian(F),
     /// Euclidean inner product
     Linear,
-    /// Plynomial(constant, degree) inner product
+    /// Polynomial(constant, degree):  ` (<x, x'> + costant)^(degree)`
     Polynomial(F, F),
 }
 
@@ -380,17 +344,12 @@ impl<F: Float> KernelParams<F> {
     }
 }
 
-impl<'a, F: Float> Transformer<&'a Array2<F>, Kernel<ArrayView2<'a, F>>> for KernelParams<F> {
-    /// Builds a kernel from the input data without copying it.
-    ///
-    /// A reference to the input data will be kept by the kernel
-    /// through an `ArrayView`
+impl<F: Float> Transformer<&Array2<F>, Kernel<F>> for KernelParams<F> {
+    /// Builds a kernel from a view of the input data.
     ///
     /// ## Parameters
     ///
-    /// - `x`: matrix of records (##records, ##features) in input
-    ///
-    /// ## Returns
+    /// - `x`: view of a matrix of records (#records, #features)
     ///
     /// A kernel build from `x` according to the parameters on which
     /// this method is called
@@ -398,21 +357,18 @@ impl<'a, F: Float> Transformer<&'a Array2<F>, Kernel<ArrayView2<'a, F>>> for Ker
     /// ## Panics
     ///
     /// If the kernel type is `Sparse` and the number of neighbors specified is
-    /// not between 1 and ##records-1
-    fn transform(&self, x: &'a Array2<F>) -> Kernel<ArrayView2<'a, F>> {
+    /// not between 1 and #records-1
+    fn transform(&self, x: &Array2<F>) -> Kernel<F> {
         Kernel::new(x.view(), self.method.clone(), self.kind.clone())
     }
 }
 
-impl<'a, F: Float> Transformer<ArrayView2<'a, F>, Kernel<ArrayView2<'a, F>>> for KernelParams<F> {
+impl<'a, F: Float> Transformer<ArrayView2<'a, F>, Kernel<F>> for KernelParams<F> {
     /// Builds a kernel from a view of the input data.
-    ///
-    /// A reference to the input data will be kept by the kernel
-    /// through an `ArrayView`
     ///
     /// ## Parameters
     ///
-    /// - `x`: view of a matrix of records (##records, ##features)
+    /// - `x`: view of a matrix of records (#records, #features)
     ///
     /// A kernel build from `x` according to the parameters on which
     /// this method is called
@@ -420,24 +376,41 @@ impl<'a, F: Float> Transformer<ArrayView2<'a, F>, Kernel<ArrayView2<'a, F>>> for
     /// ## Panics
     ///
     /// If the kernel type is `Sparse` and the number of neighbors specified is
-    /// not between 1 and ##records-1
-    fn transform(&self, x: ArrayView2<'a, F>) -> Kernel<ArrayView2<'a, F>> {
+    /// not between 1 and #records-1
+    fn transform(&self, x: ArrayView2<'a, F>) -> Kernel<F> {
         Kernel::new(x, self.method.clone(), self.kind.clone())
     }
 }
 
-impl<'a, F: Float, T: Targets>
-    Transformer<&'a DatasetBase<Array2<F>, T>, DatasetBase<Kernel<ArrayView2<'a, F>>, &'a T>>
+impl<'a, F: Float> Transformer<&ArrayView2<'a, F>, Kernel<F>> for KernelParams<F> {
+    /// Builds a kernel from a view of the input data.
+    ///
+    /// ## Parameters
+    ///
+    /// - `x`: view of a matrix of records (#records, #features)
+    ///
+    /// A kernel build from `x` according to the parameters on which
+    /// this method is called
+    ///
+    /// ## Panics
+    ///
+    /// If the kernel type is `Sparse` and the number of neighbors specified is
+    /// not between 1 and #records-1
+    fn transform(&self, x: &ArrayView2<'a, F>) -> Kernel<F> {
+        Kernel::new(*x, self.method.clone(), self.kind.clone())
+    }
+}
+
+impl<'a, F: Float, T: AsTargets> Transformer<DatasetBase<Array2<F>, T>, DatasetBase<Kernel<F>, T>>
     for KernelParams<F>
 {
     /// Builds a new Dataset with the kernel as the records and the same targets as the input one.
     ///
-    /// A reference to the input records will be kept by the kernel
-    /// through an `ArrayView`
+    /// It takes ownership of the original dataset.
     ///
     /// ## Parameters
     ///
-    /// - `x`: A dataset with a matrix of records (##records, ##features) and any targets
+    /// - `x`: A dataset with a matrix of records (#records, #features) and any targets
     ///
     /// ## Returns
     ///
@@ -449,27 +422,47 @@ impl<'a, F: Float, T: Targets>
     /// ## Panics
     ///
     /// If the kernel type is `Sparse` and the number of neighbors specified is
-    /// not between 1 and ##records-1
-    fn transform(
-        &self,
-        x: &'a DatasetBase<Array2<F>, T>,
-    ) -> DatasetBase<Kernel<ArrayView2<'a, F>>, &'a T> {
+    /// not between 1 and #records-1
+    fn transform(&self, x: DatasetBase<Array2<F>, T>) -> DatasetBase<Kernel<F>, T> {
         let kernel = Kernel::new(x.records.view(), self.method.clone(), self.kind.clone());
-
-        DatasetBase::new(kernel, &x.targets)
+        DatasetBase::new(kernel, x.targets)
     }
 }
 
-impl<'a, F: Float, T: Targets>
-    Transformer<
-        &'a DatasetBase<ArrayView2<'a, F>, T>,
-        DatasetBase<Kernel<ArrayView2<'a, F>>, &'a [T::Elem]>,
-    > for KernelParams<F>
+impl<'a, F: Float, L: 'a, T: AsTargets<Elem = L> + FromTargetArray<'a, L>>
+    Transformer<&'a DatasetBase<Array2<F>, T>, DatasetBase<Kernel<F>, T::View>>
+    for KernelParams<F>
 {
     /// Builds a new Dataset with the kernel as the records and the same targets as the input one.
     ///
-    /// A reference to the input records will be kept by the kernel
-    /// through an `ArrayView`
+    /// ## Parameters
+    ///
+    /// - `x`: A dataset with a matrix of records (#records, #features) and any targets
+    ///
+    /// ## Returns
+    ///
+    /// A new dataset with:
+    ///  - records: a kernel build from `x.records()` according to the parameters on which
+    /// this method is called
+    ///  - targets: same as `x.targets()`
+    ///
+    /// ## Panics
+    ///
+    /// If the kernel type is `Sparse` and the number of neighbors specified is
+    /// not between 1 and #records-1
+    fn transform(&self, x: &'a DatasetBase<Array2<F>, T>) -> DatasetBase<Kernel<F>, T::View> {
+        let kernel = Kernel::new(x.records.view(), self.method.clone(), self.kind.clone());
+        DatasetBase::new(kernel, T::new_targets_view(x.as_multi_targets()))
+    }
+}
+
+// lifetime 'b allows the kernel to borrow the underlying data
+// for a possibly shorter time than 'a, useful in fold_fit
+impl<'a, 'b, F: Float, L: 'b, T: AsTargets<Elem = L> + FromTargetArray<'b, L>>
+    Transformer<&'b DatasetBase<ArrayView2<'a, F>, T>, DatasetBase<Kernel<F>, T::View>>
+    for KernelParams<F>
+{
+    /// Builds a new Dataset with the kernel as the records and the same targets as the input one.
     ///
     /// ## Parameters
     ///
@@ -488,11 +481,11 @@ impl<'a, F: Float, T: Targets>
     /// not between 1 and ##records-1
     fn transform(
         &self,
-        x: &'a DatasetBase<ArrayView2<'a, F>, T>,
-    ) -> DatasetBase<Kernel<ArrayView2<'a, F>>, &'a [T::Elem]> {
-        let kernel = Kernel::new(x.records, self.method.clone(), self.kind.clone());
+        x: &'b DatasetBase<ArrayView2<'a, F>, T>,
+    ) -> DatasetBase<Kernel<F>, T::View> {
+        let kernel = Kernel::new(x.records.view(), self.method.clone(), self.kind.clone());
 
-        DatasetBase::new(kernel, x.targets.as_slice())
+        DatasetBase::new(kernel, T::new_targets_view(x.as_multi_targets()))
     }
 }
 
@@ -544,6 +537,7 @@ fn sparse_from_fn<F: Float, D: Data<Elem = F>>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use linfa::Dataset;
     use ndarray::{Array1, Array2};
     use std::f64::consts;
 
@@ -696,21 +690,21 @@ mod tests {
 
         // dense kernel dot
         let mul_mat = dense_from_fn(&input_arr, &KernelMethod::Linear).dot(&to_multiply);
-        let kernel = Kernel::params()
+        let kernel = KernelView::params()
             .kind(KernelType::Dense)
             .method(KernelMethod::Linear)
-            .transform(&input_arr);
+            .transform(input_arr.view());
         let mul_ker = kernel.dot(&to_multiply.view());
-        assert!(kernels_almost_equal(mul_mat.view(), mul_ker.view()));
+        assert!(matrices_almost_equal(mul_mat.view(), mul_ker.view()));
 
         // sparse kernel dot
         let mul_mat = sparse_from_fn(&input_arr, 3, &KernelMethod::Linear).mul(&to_multiply.view());
-        let kernel = Kernel::params()
+        let kernel = KernelView::params()
             .kind(KernelType::Sparse(3))
             .method(KernelMethod::Linear)
-            .transform(&input_arr);
+            .transform(input_arr.view());
         let mul_ker = kernel.dot(&to_multiply.view());
-        assert!(kernels_almost_equal(mul_mat.view(), mul_ker.view()));
+        assert!(matrices_almost_equal(mul_mat.view(), mul_ker.view()));
     }
 
     #[test]
@@ -723,12 +717,12 @@ mod tests {
         let input_arr = ndarray::stack(Axis(0), &[input_arr_1.view(), input_arr_2.view()]).unwrap();
 
         for kind in vec![KernelType::Dense, KernelType::Sparse(1)] {
-            let kernel = Kernel::params()
+            let kernel = KernelView::params()
                 .kind(kind)
                 // Such a value for eps brings to zero the inner product
                 // between any two points that are not equal
                 .method(KernelMethod::Gaussian(1e-5))
-                .transform(&input_arr);
+                .transform(input_arr.view());
             let mut kernel_upper_triang = kernel.to_upper_triangle();
             assert_eq!(kernel_upper_triang.len(), 45);
             //so that i can use pop()
@@ -746,28 +740,28 @@ mod tests {
         }
     }
 
-    #[test]
+    /* #[test]
     fn test_kernel_weighted_sum() {
         let input_vec: Vec<f64> = (0..100).map(|v| v as f64 * 0.1).collect();
         let input_arr = Array2::from_shape_vec((10, 10), input_vec).unwrap();
         let weights = [1., 2., 3., 4., 5., 6., 7., 8., 9., 10.];
         for kind in vec![KernelType::Dense, KernelType::Sparse(1)] {
-            let kernel = Kernel::params()
+            let kernel = KernelView::params()
                 .kind(kind)
                 // Such a value for eps brings to zero the inner product
                 // between any two points that are not equal
                 .method(KernelMethod::Gaussian(1e-5))
-                .transform(&input_arr);
+                .transform(input_arr.view());
             for (sample, w) in input_arr.outer_iter().zip(&weights) {
                 // with that kernel, only the input samples have non
                 // zero inner product with the samples used to generate the matrix.
                 // In particular, they have inner product equal to one only for the
                 // column corresponding to themselves
-                let w_sum = kernel.weighted_sum(&weights, sample);
-                assert!(values_almost_equal(&w_sum, w));
+                //let w_sum = kernel.weighted_sum(&weights, sample);
+                //assert!(values_almost_equal(&w_sum, w));
             }
         }
-    }
+    }*/
 
     #[test]
     fn test_kernel_sum() {
@@ -778,10 +772,10 @@ mod tests {
 
         // dense kernel sum
         let cols_sum = dense_from_fn(&input_arr, &method).sum_axis(Axis(1));
-        let kernel = Kernel::params()
+        let kernel = KernelView::params()
             .kind(KernelType::Dense)
             .method(method.clone())
-            .transform(&input_arr);
+            .transform(input_arr.view());
         let kers_sum = kernel.sum();
         assert!(arrays_almost_equal(cols_sum.view(), kers_sum.view()));
 
@@ -789,10 +783,10 @@ mod tests {
         let cols_sum = sparse_from_fn(&input_arr, 3, &method)
             .to_dense()
             .sum_axis(Axis(1));
-        let kernel = Kernel::params()
+        let kernel = KernelView::params()
             .kind(KernelType::Sparse(3))
             .method(method)
-            .transform(&input_arr);
+            .transform(input_arr.view());
         let kers_sum = kernel.sum();
         assert!(arrays_almost_equal(cols_sum.view(), kers_sum.view()));
     }
@@ -804,29 +798,29 @@ mod tests {
 
         let method = KernelMethod::Linear;
 
-        // dense kernel sum
+        // dense kernel diag
         let input_diagonal = dense_from_fn(&input_arr, &method).diag().into_owned();
-        let kernel = Kernel::params()
+        let kernel = KernelView::params()
             .kind(KernelType::Dense)
             .method(method.clone())
-            .transform(&input_arr);
+            .transform(input_arr.view());
         let kers_diagonal = kernel.diagonal();
         assert!(arrays_almost_equal(
             input_diagonal.view(),
             kers_diagonal.view()
         ));
 
-        // sparse kernel sum
+        // sparse kernel diag
         let input_diagonal: Vec<_> = sparse_from_fn(&input_arr, 3, &method)
             .outer_iterator()
             .enumerate()
             .map(|(i, row)| *row.get(i).unwrap())
             .collect();
         let input_diagonal = Array1::from_shape_vec(10, input_diagonal).unwrap();
-        let kernel = Kernel::params()
+        let kernel = KernelView::params()
             .kind(KernelType::Sparse(3))
             .method(method)
-            .transform(&input_arr);
+            .transform(input_arr.view());
         let kers_diagonal = kernel.diagonal();
         assert!(arrays_almost_equal(
             input_diagonal.view(),
@@ -854,7 +848,7 @@ mod tests {
     fn test_kernel_transform_from_dataset() {
         let input_vec: Vec<f64> = (0..100).map(|v| v as f64 * 0.1).collect();
         let input_arr = Array2::from_shape_vec((50, 2), input_vec).unwrap();
-        let input = DatasetBase::new(input_arr, ());
+        let input = Dataset::from(input_arr);
         // checks that the transform for dataset builds the right kernel
         // according to its input params.
         check_kernel_from_dataset_type(&input, KernelType::Dense);
@@ -866,8 +860,12 @@ mod tests {
         check_kernel_from_dataset_view_type(&input.view(), KernelType::Sparse(3));
     }
 
-    fn check_kernel_from_dataset_type<T: Targets>(
-        input: &DatasetBase<Array2<f64>, T>,
+    fn check_kernel_from_dataset_type<
+        'a,
+        L: 'a,
+        T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
+    >(
+        input: &'a DatasetBase<Array2<f64>, T>,
         k_type: KernelType,
     ) {
         let methods = vec![
@@ -881,14 +879,23 @@ mod tests {
                 .kind(k_type.clone())
                 .method(method.clone())
                 .transform(input);
-            assert!(kernels_almost_equal(
-                kernel_ref.dataset,
-                kernel_tr.records.dataset
-            ));
+            match (&kernel_ref.inner, &kernel_tr.records().inner) {
+                (KernelInner::Dense(m1), KernelInner::Dense(m2)) => {
+                    assert!(kernels_almost_equal(m1, m2))
+                }
+                (KernelInner::Sparse(m1), KernelInner::Sparse(m2)) => {
+                    assert!(kernels_almost_equal(m1, m2))
+                }
+                _ => panic!("Kernel inners must match!"),
+            };
         }
     }
 
-    fn check_kernel_from_dataset_view_type<'a, T: Targets>(
+    fn check_kernel_from_dataset_view_type<
+        'a,
+        L: 'a,
+        T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
+    >(
         input: &'a DatasetBase<ArrayView2<'a, f64>, T>,
         k_type: KernelType,
     ) {
@@ -903,10 +910,15 @@ mod tests {
                 .kind(k_type.clone())
                 .method(method.clone())
                 .transform(input);
-            assert!(kernels_almost_equal(
-                kernel_ref.dataset,
-                kernel_tr.records.dataset
-            ));
+            match (&kernel_ref.inner, &kernel_tr.records().inner) {
+                (KernelInner::Dense(m1), KernelInner::Dense(m2)) => {
+                    assert!(kernels_almost_equal(m1, m2))
+                }
+                (KernelInner::Sparse(m1), KernelInner::Sparse(m2)) => {
+                    assert!(kernels_almost_equal(m1, m2))
+                }
+                _ => panic!("Kernel inners must match!"),
+            };
         }
     }
 
@@ -921,8 +933,16 @@ mod tests {
             let kernel_tr = Kernel::params()
                 .kind(k_type.clone())
                 .method(method.clone())
-                .transform(input);
-            assert!(kernels_almost_equal(kernel_ref.dataset, kernel_tr.dataset));
+                .transform(input.view());
+            match (&kernel_ref.inner, &kernel_tr.inner) {
+                (KernelInner::Dense(m1), KernelInner::Dense(m2)) => {
+                    assert!(kernels_almost_equal(m1, m2))
+                }
+                (KernelInner::Sparse(m1), KernelInner::Sparse(m2)) => {
+                    assert!(kernels_almost_equal(m1, m2))
+                }
+                _ => panic!("Kernel inners must match!"),
+            };
         }
     }
 
@@ -938,11 +958,19 @@ mod tests {
                 .kind(k_type.clone())
                 .method(method.clone())
                 .transform(input);
-            assert!(kernels_almost_equal(kernel_ref.dataset, kernel_tr.dataset));
+            match (&kernel_ref.inner, &kernel_tr.inner) {
+                (KernelInner::Dense(m1), KernelInner::Dense(m2)) => {
+                    assert!(kernels_almost_equal(m1, m2))
+                }
+                (KernelInner::Sparse(m1), KernelInner::Sparse(m2)) => {
+                    assert!(kernels_almost_equal(m1, m2))
+                }
+                _ => panic!("Kernel inners must match!"),
+            };
         }
     }
 
-    fn kernels_almost_equal(reference: ArrayView2<f64>, transformed: ArrayView2<f64>) -> bool {
+    fn matrices_almost_equal(reference: ArrayView2<f64>, transformed: ArrayView2<f64>) -> bool {
         for (ref_row, tr_row) in reference
             .axis_iter(Axis(0))
             .zip(transformed.axis_iter(Axis(0)))
@@ -955,6 +983,24 @@ mod tests {
     }
 
     fn arrays_almost_equal(reference: ArrayView1<f64>, transformed: ArrayView1<f64>) -> bool {
+        for (ref_item, tr_item) in reference.iter().zip(transformed.iter()) {
+            if !values_almost_equal(ref_item, tr_item) {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn kernels_almost_equal<K: Inner<Elem = f64>>(reference: &K, transformed: &K) -> bool {
+        for i in 0..reference.size() {
+            if !vecs_almost_equal(reference.column(i), transformed.column(i)) {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn vecs_almost_equal(reference: Vec<f64>, transformed: Vec<f64>) -> bool {
         for (ref_item, tr_item) in reference.iter().zip(transformed.iter()) {
             if !values_almost_equal(ref_item, tr_item) {
                 return false;

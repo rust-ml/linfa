@@ -28,6 +28,7 @@
 //! and get involved!
 //!
 
+pub mod correlation;
 pub mod dataset;
 pub mod error;
 mod metrics_classification;
@@ -35,7 +36,11 @@ mod metrics_regression;
 pub mod prelude;
 pub mod traits;
 
-pub use dataset::{Dataset, DatasetBase, DatasetPr, DatasetView, Float, Label};
+pub use dataset::{
+    multi_target_model::MultiTargetModel, Dataset, DatasetBase, DatasetPr, DatasetView, Float,
+    Label,
+};
+pub use error::Error;
 
 #[cfg(feature = "ndarray-linalg")]
 pub use ndarray_linalg as linalg;
