@@ -1,10 +1,8 @@
-use std::error::Error;
-
 use linfa::metrics::ToConfusionMatrix;
 use linfa::traits::{Fit, Predict};
-use linfa_bayes::GaussianNbParams;
+use linfa_bayes::{GaussianNbParams, Result};
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<()> {
     // Read in the dataset and convert continuous target into categorical
     let (train, valid) = linfa_datasets::winequality()
         .map_targets(|x| if *x > 6 { 1 } else { 0 })
@@ -14,10 +12,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let model = GaussianNbParams::params().fit(&train.view())?;
 
     // Predict the validation dataset
-    let pred = model.predict(valid.records.view());
+    let pred = model.predict(&valid);
 
     // Construct confusion matrix
-    let cm = pred.confusion_matrix(&valid);
+    let cm = pred.confusion_matrix(&valid)?;
 
     // classes    | 1          | 0
     // 1          | 10         | 12

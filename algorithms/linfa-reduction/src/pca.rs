@@ -27,8 +27,8 @@ use ndarray_linalg::{TruncatedOrder, TruncatedSvd};
 use serde_crate::{Deserialize, Serialize};
 
 use linfa::{
-    dataset::{Records, Targets},
-    traits::{Fit, Predict},
+    dataset::Records,
+    traits::{Fit, PredictRef},
     DatasetBase, Float,
 };
 
@@ -67,10 +67,10 @@ impl PcaParams {
 /// # Returns
 ///
 /// A fitted PCA model with origin and hyperplane
-impl<'a, T: Targets> Fit<'a, Array2<f64>, T> for PcaParams {
+impl<'a, T, D: Data<Elem = f64>> Fit<'a, ArrayBase<D, Ix2>, T> for PcaParams {
     type Object = Pca<f64>;
 
-    fn fit(&self, dataset: &DatasetBase<Array2<f64>, T>) -> Pca<f64> {
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Pca<f64> {
         let x = dataset.records();
         // calculate mean of data and subtract it
         let mean = x.mean_axis(Axis(0)).unwrap();
@@ -90,7 +90,7 @@ impl<'a, T: Targets> Fit<'a, Array2<f64>, T> for PcaParams {
         // scale the embedding with the square root of the dimensionality and eigenvalue such that
         // the product of the resulting matrix gives the unit covariance.
         if self.apply_whitening {
-            let cov_scale = (dataset.observations() as f64 - 1.).sqrt();
+            let cov_scale = (dataset.nsamples() as f64 - 1.).sqrt();
             for (mut v_t, sigma) in v_t.axis_iter_mut(Axis(0)).zip(sigma.iter()) {
                 v_t *= cov_scale / *sigma;
             }
@@ -167,25 +167,9 @@ impl Pca<f64> {
     }
 }
 
-/// Project a matrix to lower dimensional space
-///
-/// The projection first centers and then projects the data.
-impl<F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Array2<F>> for Pca<F> {
-    fn predict(&self, x: ArrayBase<D, Ix2>) -> Array2<F> {
-        (&x - &self.mean).dot(&self.embedding.t())
-    }
-}
-
-/// Project a matrix to lower dimensional space
-///
-/// The projection first centers and then projects the data.
-impl<F: Float, T: Targets, D: Data<Elem = F>>
-    Predict<DatasetBase<ArrayBase<D, Ix2>, T>, DatasetBase<Array2<F>, T>> for Pca<F>
-{
-    fn predict(&self, ds: DatasetBase<ArrayBase<D, Ix2>, T>) -> DatasetBase<Array2<F>, T> {
-        let new_records = (ds.records() - &self.mean).dot(&self.embedding.t());
-
-        ds.with_records(new_records)
+impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array2<F>> for Pca<F> {
+    fn predict_ref<'a>(&'a self, records: &ArrayBase<D, Ix2>) -> Array2<F> {
+        (records - &self.mean).dot(&self.embedding.t())
     }
 }
 
@@ -193,6 +177,7 @@ impl<F: Float, T: Targets, D: Data<Elem = F>>
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
+    use linfa::{traits::Predict, Dataset};
     use ndarray::{array, Array2};
     use ndarray_rand::{
         rand_distr::{StandardNormal, Uniform},
@@ -213,10 +198,10 @@ mod tests {
         let tmp = Array2::random_using((300, 2), Uniform::new(-1.0f64, 1.), &mut rng);
         let q = array![[1., 1.], [-1., 1.]];
 
-        let dataset = DatasetBase::from(tmp.dot(&q));
+        let dataset = Dataset::from(tmp.dot(&q));
 
         let model = Pca::params(2).whiten(true).fit(&dataset);
-        let proj = model.predict(dataset.records().view());
+        let proj = model.predict(&dataset);
 
         // check that the covariance is unit diagonal
         let cov = proj.t().dot(&proj);
@@ -234,10 +219,10 @@ mod tests {
 
         // generate random data
         let data = Array2::random_using((300, 50), Uniform::new(-1.0f64, 1.), &mut rng);
-        let dataset = DatasetBase::from(data);
+        let dataset = Dataset::from(data);
 
         let model = Pca::params(10).whiten(true).fit(&dataset);
-        let proj = model.predict(dataset.records().view());
+        let proj = model.predict(&dataset);
 
         // check that the covariance is unit diagonal
         let cov = proj.t().dot(&proj);
@@ -259,7 +244,7 @@ mod tests {
 
         // generate normal distribution random data with N >> p
         let data = Array2::random_using((1000, 500), StandardNormal, &mut rng);
-        let dataset = DatasetBase::from(data / 1000f64.sqrt());
+        let dataset = Dataset::from(data / 1000f64.sqrt());
 
         let model = Pca::params(500).fit(&dataset);
         let sv = model.singular_values().mapv(|x| x * x);
@@ -315,7 +300,7 @@ mod tests {
         let data =
             Array2::from_shape_fn((500, 500), |dim| a[dim.0] * a[dim.1] + b[dim.0] * b[dim.1]);
 
-        let dataset = DatasetBase::from(data);
+        let dataset = Dataset::from(data);
 
         // fit PCA with 10 possible embeddings
         let model = Pca::params(10).fit(&dataset);
@@ -332,7 +317,7 @@ mod tests {
 
     #[test]
     fn test_explained_variance_diag() {
-        let dataset = DatasetBase::from(Array2::from_diag(&array![1., 1., 1., 1.]));
+        let dataset = Dataset::from(Array2::from_diag(&array![1., 1., 1., 1.]));
         let model = Pca::params(3).fit(&dataset);
 
         assert_abs_diff_eq!(

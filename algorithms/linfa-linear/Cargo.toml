@@ -23,6 +23,7 @@ ndarray-stats = "0.3"
 num-traits = "0.2"
 argmin = {version="0.3.1", features=["ndarrayl"]}
 serde = { version = "1.0", default-features = false, features = ["derive"] }
+thiserror = "1"
 
 linfa = { version = "0.3.0", path = "../.." }
 

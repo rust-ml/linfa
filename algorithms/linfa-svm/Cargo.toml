@@ -27,6 +27,7 @@ features = ["std", "derive"]
 ndarray = { version = "0.13", default-features=false }
 ndarray-rand = "0.11"
 num-traits = "0.1.32"
+thiserror = "1"
 
 linfa = { version = "0.3.0", path = "../.." }
 linfa-kernel = { version = "0.3.0", path = "../linfa-kernel" }

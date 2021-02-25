@@ -1,8 +1,14 @@
 //! Support Vector Regression
-use linfa::{dataset::DatasetBase, traits::Fit, traits::Predict, traits::Transformer};
+use linfa::{
+    dataset::{AsTargets, DatasetBase},
+    traits::Fit,
+    traits::Transformer,
+    traits::{Predict, PredictRef},
+};
 use linfa_kernel::Kernel;
 use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix2};
 
+use super::error::Result;
 use super::permutable_kernel::PermutableKernelRegression;
 use super::solver_smo::SolverState;
 use super::SolverParams;
@@ -111,206 +117,158 @@ pub fn fit_nu<F: Float>(
 /// Regress observations
 ///
 /// Take a number of observations and project them to optimal continuous targets.
-impl<'a, F: Float> Fit<'a, Array2<F>, &Array1<F>> for SvmParams<F, F> {
-    type Object = Svm<F, F>;
+macro_rules! impl_regression {
+    ($records:ty, $targets:ty) => {
+        impl<'a, F: Float> Fit<'a, $records, $targets> for SvmParams<F, F> {
+            type Object = Result<Svm<F, F>>;
 
-    fn fit(&self, dataset: &DatasetBase<Array2<F>, &Array1<F>>) -> Self::Object {
-        let kernel = self.kernel.transform(dataset.records());
-        match (self.c, self.nu) {
-            (Some((c, eps)), _) => fit_epsilon(
-                self.solver_params.clone(),
-                dataset.records().view(),
-                kernel,
-                dataset.targets().as_slice().unwrap(),
-                c,
-                eps,
-            ),
-            (None, Some((nu, eps))) => fit_nu(
-                self.solver_params.clone(),
-                dataset.records().view(),
-                kernel,
-                dataset.targets().as_slice().unwrap(),
-                nu,
-                eps,
-            ),
-            _ => panic!("Set either C value or Nu value"),
+            fn fit(&self, dataset: &DatasetBase<$records, $targets>) -> Self::Object {
+                let kernel = self.kernel.transform(dataset.records());
+                let target = dataset.try_single_target()?;
+                let target = target.as_slice().unwrap();
+
+                let ret = match (self.c, self.nu) {
+                    (Some((c, eps)), _) => fit_epsilon(
+                        self.solver_params.clone(),
+                        dataset.records().view(),
+                        kernel,
+                        target,
+                        c,
+                        eps,
+                    ),
+                    (None, Some((nu, eps))) => fit_nu(
+                        self.solver_params.clone(),
+                        dataset.records().view(),
+                        kernel,
+                        target,
+                        nu,
+                        eps,
+                    ),
+                    _ => panic!("Set either C value or Nu value"),
+                };
+
+                Ok(ret)
+            }
         }
-    }
+    };
 }
 
-impl<'a, F: Float> Fit<'a, Array2<F>, Array1<F>> for SvmParams<F, F> {
-    type Object = Svm<F, F>;
+impl_regression!(Array2<F>, Array2<F>);
+impl_regression!(ArrayView2<'a, F>, ArrayView2<'a, F>);
+impl_regression!(Array2<F>, Array1<F>);
+impl_regression!(ArrayView2<'a, F>, ArrayView1<'a, F>);
 
-    fn fit(&self, dataset: &DatasetBase<Array2<F>, Array1<F>>) -> Self::Object {
-        let kernel = self.kernel.transform(dataset.records());
-        match (self.c, self.nu) {
-            (Some((c, eps)), _) => fit_epsilon(
-                self.solver_params.clone(),
-                dataset.records().view(),
-                kernel,
-                dataset.targets().as_slice().unwrap(),
-                c,
-                eps,
-            ),
-            (None, Some((nu, eps))) => fit_nu(
-                self.solver_params.clone(),
-                dataset.records().view(),
-                kernel,
-                dataset.targets().as_slice().unwrap(),
-                nu,
-                eps,
-            ),
-            _ => panic!("Set either C value or Nu value"),
+macro_rules! impl_predict {
+    ( $($t:ty),* ) => {
+    $(
+        /// Predict a probability with a feature vector
+        impl Predict<Array1<$t>, $t> for Svm<$t, $t> {
+            fn predict(&self, data: Array1<$t>) -> $t {
+                self.weighted_sum(&data) - self.rho
+            }
         }
-    }
-}
-
-impl<'a, F: Float> Fit<'a, ArrayView2<'a, F>, ArrayView1<'a, F>> for SvmParams<F, F> {
-    type Object = Svm<F, F>;
-
-    fn fit(&self, dataset: &DatasetBase<ArrayView2<'a, F>, ArrayView1<'a, F>>) -> Self::Object {
-        let kernel = self.kernel.transform(dataset.records());
-        match (self.c, self.nu) {
-            (Some((c, eps)), _) => fit_epsilon(
-                self.solver_params.clone(),
-                *dataset.records(),
-                kernel,
-                dataset.targets().as_slice().unwrap(),
-                c,
-                eps,
-            ),
-            (None, Some((nu, eps))) => fit_nu(
-                self.solver_params.clone(),
-                *dataset.records(),
-                kernel,
-                dataset.targets().as_slice().unwrap(),
-                nu,
-                eps,
-            ),
-            _ => panic!("Set either C value or Nu value"),
+        /// Predict a probability with a feature vector
+        impl<'a> Predict<ArrayView1<'a, $t>, $t> for Svm<$t, $t> {
+            fn predict(&self, data: ArrayView1<'a, $t>) -> $t {
+                self.weighted_sum(&data) - self.rho
+            }
         }
-    }
-}
 
-impl<'a, F: Float> Fit<'a, ArrayView2<'a, F>, &'a [F]> for SvmParams<F, F> {
-    type Object = Svm<F, F>;
-
-    fn fit(&self, dataset: &DatasetBase<ArrayView2<'a, F>, &'a [F]>) -> Self::Object {
-        let kernel = self.kernel.transform(dataset.records());
-        match (self.c, self.nu) {
-            (Some((c, eps)), _) => fit_epsilon(
-                self.solver_params.clone(),
-                *dataset.records(),
-                kernel,
-                dataset.targets(),
-                c,
-                eps,
-            ),
-            (None, Some((nu, eps))) => fit_nu(
-                self.solver_params.clone(),
-                *dataset.records(),
-                kernel,
-                dataset.targets(),
-                nu,
-                eps,
-            ),
-            _ => panic!("Set either C value or Nu value"),
+        /// Classify observations
+        ///
+        /// This function takes a number of features and predicts target probabilities that they belong to
+        /// the positive class.
+        impl<D: Data<Elem = $t>> PredictRef<ArrayBase<D, Ix2>, Array1<$t>> for Svm<$t, $t> {
+            fn predict_ref<'a>(&'a self, data: &ArrayBase<D, Ix2>) -> Array1<$t> {
+                data.outer_iter()
+                    .map(|data| {
+                        self.weighted_sum(&data) - self.rho
+                    })
+                    .collect()
+            }
         }
+
+    ) *
     }
 }
 
-/// Predict a probability with a set of observations
-impl<D: Data<Elem = f64>> Predict<ArrayBase<D, Ix2>, Vec<f64>> for Svm<f64, f64> {
-    fn predict(&self, data: ArrayBase<D, Ix2>) -> Vec<f64> {
-        data.outer_iter()
-            .map(|data| {
-                let val = self.weighted_sum(&data) - self.rho;
-                // this is safe because `F` is only implemented for `f32` and `f64`
-                val
-            })
-            .collect()
-    }
-}
-
-/// Predict a probability with a set of observations
-impl<D: Data<Elem = f64>> Predict<&ArrayBase<D, Ix2>, Vec<f64>> for Svm<f64, f64> {
-    fn predict(&self, data: &ArrayBase<D, Ix2>) -> Vec<f64> {
-        data.outer_iter()
-            .map(|data| {
-                let val = self.weighted_sum(&data) - self.rho;
-
-                // this is safe because `F` is only implemented for `f32` and `f64`
-                val
-            })
-            .collect()
-    }
-}
+impl_predict!(f32, f64);
 
 #[cfg(test)]
 pub mod tests {
     use super::Svm;
+    use crate::error::Result;
 
-    use linfa::dataset::DatasetBase;
+    use linfa::dataset::{AsTargets, Dataset};
     use linfa::metrics::Regression;
     use linfa::traits::{Fit, Predict};
-    use ndarray::{Array, Array1};
+    use ndarray::Array;
 
     #[test]
-    fn test_linear_epsilon_regression() {
+    fn test_linear_epsilon_regression() -> Result<()> {
         let target = Array::linspace(0f64, 10., 100);
         let mut sin_curve = Array::zeros((100, 1));
         for (i, val) in target.iter().enumerate() {
             sin_curve[(i, 0)] = *val;
         }
 
-        let dataset = DatasetBase::new(sin_curve.view(), target.view());
+        let dataset = Dataset::new(sin_curve, target);
 
         let model = Svm::params()
             .nu_eps(2., 0.01)
             .gaussian_kernel(50.)
-            .fit(&dataset);
+            .fit(&dataset)?;
 
         println!("{}", model);
 
-        let predicted = Array1::from(model.predict(sin_curve));
-        assert!(predicted.mean_squared_error(&target.view()) < 1e-2);
+        let predicted = model.predict(dataset.records());
+        assert!(predicted.mean_squared_error(dataset.try_single_target()?) < 1e-2);
+
+        Ok(())
     }
 
     #[test]
-    fn test_linear_nu_regression() {
+    fn test_linear_nu_regression() -> Result<()> {
         let target = Array::linspace(0f64, 10., 100);
         let mut sin_curve = Array::zeros((100, 1));
         for (i, val) in target.iter().enumerate() {
             sin_curve[(i, 0)] = *val;
         }
 
-        let dataset = DatasetBase::new(sin_curve.view(), target.view());
+        let dataset = Dataset::new(sin_curve, target);
 
         let model = Svm::params()
             .nu_eps(2., 0.01)
             .gaussian_kernel(50.)
-            .fit(&dataset);
+            .fit(&dataset)?;
 
         println!("{}", model);
 
-        let predicted = Array1::from(model.predict(sin_curve));
-        assert!(predicted.mean_squared_error(&target.view()) < 1e-2);
+        let predicted = model.predict(&dataset);
+        assert!(predicted.mean_squared_error(dataset.try_single_target()?) < 1e-2);
+
+        Ok(())
     }
 
     #[test]
-    fn test_regression_linear_kernel() {
+    fn test_regression_linear_kernel() -> Result<()> {
         // simple 2d straight line
         let targets = Array::linspace(0f64, 10., 100);
         let records = targets.clone().into_shape((100, 1)).unwrap();
 
-        let dataset = (records, targets).into();
+        let dataset = Dataset::new(records, targets);
 
         // Test the precomputed dot product in the linear kernel case
-        let model = Svm::params().nu_eps(2., 0.01).linear_kernel().fit(&dataset);
+        let model = Svm::params()
+            .nu_eps(2., 0.01)
+            .linear_kernel()
+            .fit(&dataset)?;
 
         println!("{}", model);
 
-        let predicted = Array1::from(model.predict(dataset.records()));
-        assert!(predicted.mean_squared_error(&dataset.targets().view()) < 1e-2);
+        let predicted = model.predict(&dataset);
+        assert!(predicted.mean_squared_error(dataset.try_single_target()?) < 1e-2);
+
+        Ok(())
     }
 }

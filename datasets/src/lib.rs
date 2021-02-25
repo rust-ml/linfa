@@ -120,3 +120,112 @@ pub fn winequality() -> Dataset<f64, usize> {
         .map_targets(|x| *x as usize)
         .with_feature_names(feature_names)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use approx::assert_abs_diff_eq;
+    use linfa::prelude::*;
+
+    #[cfg(feature = "iris")]
+    #[test]
+    fn test_iris() {
+        let ds = iris();
+
+        // check that we have the right amount of data
+        assert_eq!((ds.nsamples(), ds.nfeatures(), ds.ntargets()), (150, 4, 1));
+
+        // check for feature names
+        assert_eq!(
+            ds.feature_names(),
+            &["sepal length", "sepal width", "petal length", "petal width"]
+        );
+
+        // check label frequency
+        assert_eq!(
+            ds.label_frequencies()
+                .into_iter()
+                .map(|b| b.1)
+                .collect::<Vec<_>>(),
+            &[50., 50., 50.]
+        );
+
+        // perform correlation analysis and assert that petal length and width are correlated
+        let pcc = ds.pearson_correlation_with_p_value(100);
+        assert_abs_diff_eq!(pcc.get_p_values().unwrap()[5], 0.04, epsilon = 0.04);
+
+        // get the mean per feature
+        let mean_features = ds.records().mean_axis(Axis(0)).unwrap();
+        assert_abs_diff_eq!(
+            mean_features,
+            array![5.84, 3.05, 3.75, 1.20],
+            epsilon = 0.01
+        );
+    }
+
+    #[cfg(feature = "diabetes")]
+    #[test]
+    fn test_diabetes() {
+        let ds = diabetes();
+
+        // check that we have the right amount of data
+        assert_eq!((ds.nsamples(), ds.nfeatures(), ds.ntargets()), (441, 10, 1));
+
+        // perform correlation analysis and assert that T-Cells and low-density lipoproteins are
+        // correlated
+        let pcc = ds.pearson_correlation_with_p_value(100);
+        assert_abs_diff_eq!(pcc.get_p_values().unwrap()[30], 0.02, epsilon = 0.02);
+
+        // get the mean per feature, the data should be normalized
+        let mean_features = ds.records().mean_axis(Axis(0)).unwrap();
+        assert_abs_diff_eq!(mean_features, Array1::zeros(10), epsilon = 0.005);
+    }
+
+    #[cfg(feature = "winequality")]
+    #[test]
+    fn test_winequality() {
+        let ds = winequality();
+
+        // check that we have the right amount of data
+        assert_eq!(
+            (ds.nsamples(), ds.nfeatures(), ds.ntargets()),
+            (1599, 11, 1)
+        );
+
+        // check for feature names
+        let feature_names = vec![
+            "fixed acidity",
+            "volatile acidity",
+            "citric acid",
+            "residual sugar",
+            "chlorides",
+            "free sulfur dioxide",
+            "total sulfur dioxide",
+            "density",
+            "pH",
+            "sulphates",
+            "alcohol",
+        ];
+        assert_eq!(ds.feature_names(), feature_names);
+
+        // check label frequency
+        let compare_to = vec![
+            (5, 681.0),
+            (7, 199.0),
+            (6, 638.0),
+            (8, 18.0),
+            (3, 10.0),
+            (4, 53.0),
+        ];
+
+        let freqs = ds.label_frequencies();
+        assert!(compare_to
+            .into_iter()
+            .all(|(key, val)| { freqs.get(&key).map(|x| *x == val).unwrap_or(false) }));
+
+        // perform correlation analysis and assert that fixed acidity and citric acid are
+        // correlated
+        let pcc = ds.pearson_correlation_with_p_value(100);
+        assert_abs_diff_eq!(pcc.get_p_values().unwrap()[1], 0.05, epsilon = 0.05);
+    }
+}
