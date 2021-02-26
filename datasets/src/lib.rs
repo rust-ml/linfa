@@ -11,7 +11,7 @@
 //! * `["iris"]` : iris flower dataset
 //! * `["winequality"]` : wine quality dataset
 //! * `["diabetes"]` : diabetes dataset
-//! * `["linnerud"]` : physical exercise dataset
+//! * [`linnerud`] : physical exercise dataset
 //!
 //! along with methods to easily load them. Loaded datasets are returned as a [`linfa::Dataset`](https://docs.rs/linfa/0.3.0/linfa/dataset/type.Dataset.html) structure whith named features.
 //!
@@ -128,7 +128,18 @@ pub fn winequality() -> Dataset<f64, usize> {
 }
 
 #[cfg(feature = "linnerud")]
-/// Read in the physical exercise dataset from dataset path
+/// Read in the physical exercise dataset from dataset path.
+///
+/// Linnerud dataset contains 20 samples collected from 20 middle-aged men in a fitness club.
+///
+/// ## Features:
+/// 3 exercises measurements: Chins, Situps, Jumps
+///
+/// ## Targets:
+/// 3 physiological measurements: Weight, Waist, Pulse
+///
+/// # Reference:
+/// Tenenhaus (1998). La regression PLS: theorie et pratique. Paris: Editions Technip. Table p 15.
 pub fn linnerud() -> Dataset<f64, usize> {
     let input_data = include_bytes!("../data/linnerud_exercise.csv.gz");
     let input_array = array_from_buf(&input_data[..]);
