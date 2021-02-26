@@ -4,6 +4,9 @@ on:
     branches:
       - master 
   pull_request:
+
+name: Build website with Zola and publish to GH pages
+
 jobs:
   build:
     runs-on: ubuntu-latest
