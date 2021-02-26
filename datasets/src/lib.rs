@@ -11,6 +11,7 @@
 //! * `["iris"]` : iris flower dataset
 //! * `["winequality"]` : wine quality dataset
 //! * `["diabetes"]` : diabetes dataset
+//! * `["linnerud"]` : physical exercise dataset
 //!
 //! along with methods to easily load them. Loaded datasets are returned as a [`linfa::Dataset`](https://docs.rs/linfa/0.3.0/linfa/dataset/type.Dataset.html) structure whith named features.
 //!
@@ -42,7 +43,7 @@ use ndarray_csv::Array2Reader;
 fn array_from_buf(buf: &[u8]) -> Array2<f64> {
     // unzip file
     let file = GzDecoder::new(buf);
-    // create a CSV reader with headers and `;` as delimiter
+    // create a CSV reader with headers and `,` as delimiter
     let mut reader = ReaderBuilder::new()
         .has_headers(true)
         .delimiter(b',')
@@ -122,6 +123,22 @@ pub fn winequality() -> Dataset<f64, usize> {
     ];
 
     Dataset::new(data, targets)
+        .map_targets(|x| *x as usize)
+        .with_feature_names(feature_names)
+}
+
+#[cfg(feature = "linnerud")]
+/// Read in the physical exercise dataset from dataset path
+pub fn linnerud() -> Dataset<f64, usize> {
+    let input_data = include_bytes!("../data/linnerud_exercise.csv.gz");
+    let input_array = array_from_buf(&input_data[..]);
+
+    let output_data = include_bytes!("../data/linnerud_physiological.csv.gz");
+    let output_array = array_from_buf(&output_data[..]);
+
+    let feature_names = vec!["Chins", "Situps", "Jumps"];
+
+    Dataset::new(input_array, output_array)
         .map_targets(|x| *x as usize)
         .with_feature_names(feature_names)
 }
@@ -233,15 +250,21 @@ mod tests {
         let pcc = ds.pearson_correlation_with_p_value(100);
         assert_abs_diff_eq!(pcc.get_p_values().unwrap()[1], 0.05, epsilon = 0.05);
     }
-}
 
-#[cfg(feature = "linnerud")]
-pub fn diabetes() -> Dataset<f64, f64> {
-    let data = include_bytes!("../data/linnerud_exercise.csv.gz");
-    let data = array_from_buf(&data[..]);
+    #[cfg(feature = "linnerud")]
+    #[test]
+    fn test_linnerud() {
+        let ds = linnerud();
 
-    let targets = include_bytes!("../data/linnerud_physiological.csv.gz");
-    let targets = array_from_buf(&targets[..]).column(0).to_owned();
+        // check that we have the right amount of data
+        assert_eq!((ds.nsamples(), ds.nfeatures(), ds.ntargets()), (20, 3, 3));
 
-    Dataset::new(data, targets)
+        // check for feature names
+        let feature_names = vec!["Chins", "Situps", "Jumps"];
+        assert_eq!(ds.feature_names(), feature_names);
+
+        // get the mean per target: Weight, Waist, Pulse
+        let mean_targets = ds.targets().mean_axis(Axis(0)).unwrap();
+        assert_abs_diff_eq!(mean_targets, array![178, 35, 56]);
+    }
 }

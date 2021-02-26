@@ -30,7 +30,7 @@ pub trait Regression<
     fn mean_squared_log_error(&self, compare_to: T) -> A;
     /// Median absolute error between two continuous variables
     fn median_absolute_error(&self, compare_to: T) -> A;
-    /// R squared coefficient, is the proprtion of the variance in the dependent variable that is
+    /// R squared coefficient, is the proportion of the variance in the dependent variable that is
     /// predictable from the independent variable
     fn r2(&self, compare_to: T) -> A;
     /// Same as R-Squared but with biased variance
