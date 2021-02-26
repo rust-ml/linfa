@@ -12,7 +12,7 @@ body {
     box-shadow: 0px 1px 2px 0px $shadow-color;
 }
 
-.center {
+.grid {
     max-width: 950px;
     margin: 0 auto;
 }
@@ -29,7 +29,7 @@ body {
 
 .header-main ul {
     display: flex;
-    justify-content: center;
+    justify-content: right;
 
     li {
         margin-left: 15px;
@@ -59,13 +59,14 @@ body {
 
     span {
         font-size: 30px;
-        font-family: Dejavu Sans;
     }
 }
 
 .bottom {
     border-top: 1px solid $shadow-color;
     display: flex;
+
+    margin: 10px 0;
 }
 
 .footer {
@@ -98,6 +99,7 @@ body {
     padding: 5px;
 
 }
+
 .visible {
     display: block;
 }

@@ -1,0 +1,29 @@
+.news li {
+    list-style-type: none;
+}
+
+.news a {
+    color: #ec7235;
+    text-decoration: none;
+    font-size: 25px;
+}
+
+.news a:hover {
+    text-decoration: underline;
+}
+
+.news span {
+    color: gray;
+    display: block;
+    font-size: 14px;
+}
+
+.news-page span {
+    color: gray;
+    display: block;
+    font-size: 14px;
+}
+
+.news-page h1 {
+    margin-bottom: 0;
+}

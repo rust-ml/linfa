@@ -1,11 +1,59 @@
-.expose {
+html {
+    line-height: 1.5;
+    font-family: sans-serif;
+}
+
+h2 {
+    margin-top: 0;
+}
+
+.expose .grid {
     grid-template-columns: 3fr 2fr;
     display: grid;
     grid-gap: 15px;
 
     padding: 20px 0;
 
-    h2 {
-        margin-top: 0;
+    .introduction {
+
+        p {
+            margin-bottom: 5px;
+        }
     }
+}
+
+.colored {
+    background-color: #36b0ec;
+    color: white;
+
+    a {
+        text-decoration: none;
+        color: black;
+    }
+
+    a:hover {
+        color: white;
+    }
+}
+
+.not-colored {
+    background-color: white;
+    color: black;
+
+    a {
+        text-decoration: none;
+        color: gray;
+    }
+
+    a:hover {
+        text-decoration: bold;
+    }
+}
+
+.highlights .grid {
+    grid-template-columns: 2fr 2fr 2fr;
+    display: grid;
+    grid-gap: 15px;
+
+    padding: 20px 5px;
 }

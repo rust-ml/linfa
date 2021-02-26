@@ -1,10 +1,16 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="expose">
-<h2>
-    A comprehensive toolkit to build Machine Learning applications with Rust.
-</h2>
+<div class="expose"><div class="grid">
+<div class="introduction">
+    <h2>A comprehensive toolkit for Statistical Learning in Rust.</h2>
+    <p>
+        Linfa is a comprehensive toolkit for learning providing algorithms for optimal model estimation. 
+    </p>
+    <p>
+        It provides many common algorithms for machine learning such as Elastic Net, Support Vector Machines and Naive Bayesian.
+   </p>
+</div>
 <div class="code-examples">
     <select title="Choose a code example to display">
         <option data-example="Elasticnet" selected="selected">
@@ -22,6 +28,57 @@
             Blub2
         </div>
 </div>
+</div></div>
+<div class="highlights">
+<div class="colored"><div class="grid">
+    <section>
+        <h2>Fast by default</h2>
+        <p>The Rust language allows us to implement everything in one place without the need to trade performance for readability.</p>
+        <p>No need to have a second language for performance reason</p>
+    </section>
+    <section>
+        <h2>Embedded in the Rust ecosystem</h2>
+        <p>Many existing tools in the ecosystem are helping us to improve the code quality.</p>
+        <p>We are using <a href="https://github.com/rust-lang/rustfmt">rustfmt</a>, <a href="https://github.com/rust-lang/rust-clippy">clippy</a>, <a href="https://github.com/xd009642/tarpaulin">Tarpaulin</a>, Github Actions and <a href="https://docs.rs/approx/0.4.0/approx/">approx</a> for testing and verification.</p>
+    </section>
+    <section>
+        <h2>Reason more clearly</h2>
+        <p>Benefit from a clear ownership  model and structure your code flow with functional programming.</p>
+        <p>Many composing algorithms can be expressed more clearly with features foreign to older imperative languages.</p>
+    </section>
+</div></div>
+<div class="not-colored"><div class="grid">
+    <section>
+        <h2>Published by <a href="https://github.com/rust-ml">rust-ml</a> group</h2>
+        <p>We are a group of ML/stats enthusiasts who are exploring the language space for better implementations</p>
+    </section>
+    <section>
+        <h2>Beginner friendly</h2>
+        <p>No need to be an experint in a domain or have years of programming experience.</p>
+        <p>If you show interest in an implementation or want to learn Rust for data processing reach out to use. We are happy to help on both sides.</p>
+    </section>
+    <section>
+        <h2>FOSS and accessible</h2>
+        <p>Everything is published under the MIT license and we are trying constantly to make the code as accessible as possible for humans and machines.</p>
+        <p>The development of Linfa happens in publis and every contribution is welcome.</p>
+    </section>
+    </div></div>
+<div class="colored"><div class="grid">
+    <section>
+        <h2>Clustering</h2>
+        <p>Typical implementations for clustering algorithms, such as K-Means, Gaussian Mixture and DBSCAN.</p>
+    </section>
+    <section>
+        <h2>Dimensionality reduction</h2>
+        <p>Variance preserving algorithms with linear, i.e. PCA, and non-linear, i.e. diffusion maps, operators.</p>
+        <p>The implementation uses LOBPCG and can handle high-dimensional data very efficiently.</p>
+    </section>
+    <section>
+        <h2>Target modeling</h2>
+        <p>Regression with shrinkage operators, such as LASSO and Ridge.</p>
+        <p>Classification of linear, as well as non-linear data with SVM and kernel-methods.</p>
+        <p>There are many more implementations, which you can find <a href="https://github.com/rust-ml/linfa#current-state">here</a>.</p>
+    </section>
+</div></div>
 </div>
-<p>Click <a href="/blog/">here</a> to see my posts.</p>
 {% endblock content %}

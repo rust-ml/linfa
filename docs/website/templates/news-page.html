@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="grid"><div class="news-page">
+<h1 class="title">
+  {{ page.title }}
+</h1>
+<span>Published on {{ page.date | date(format="%B %dth, %Y") }}</span>
+{{ page.content | safe }}
+</div></div>
+{% endblock content %}
