@@ -1,5 +1,5 @@
 # The URL the site will be built for
-base_url = "http://bytesnake.github.io/linfa/"
+base_url = "https://bytesnake.github.io/linfa/"
 
 # Whether to automatically compile all Sass files in the sass directory
 compile_sass = true
