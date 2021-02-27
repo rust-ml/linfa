@@ -9,12 +9,12 @@ A welcoming, friendly and safe environment is very important to use and we are s
 
 ## Providing knowledge
 
-In previous encounters we experienced two ways we could help people. One motivation of people is to implement expertise in Rust to try out the language. The other for those who want to get involved in statistical/machine learning and are looking for an interesting paper to start with.
+https://github.com/rust-ml/In the past we could help people in two different ways. If you have knowledge of an algorithm and would like to use Rust as a language, we can help you in the language details. On the other hand, we can also provide you with a paper as a starting point and help you on questions which may come up.
 
-If you happen to belong to the first group, then please reach out on [Zulip](https://rust-ml.zulip.org) or open a pull request if you wish for feedback. If you are looking for a topic you can either reach out on [Zulip](https://rust-ml.zulip.org) as well, ask the maintainer directly per [Mail](mailto:lorenz.schmidt@mailbox.org) or look into the [roadmap](https://github.com/rust-ml/linfa/issues/7).
+If you happen to belong to the first group, then please reach out on [Zulip](https://rust-ml.zulipchat.com) or open a pull request if you wish for feedback. If you are looking for a topic you can either reach out on [Zulip](https://rust-ml.zulipchat.com) as well, ask the maintainer directly per [mail](mailto:lorenz.schmidt@mailbox.org) or look into the [roadmap](https://github.com/rust-ml/linfa/issues/7).
 
 ## Platforms
 
 There are two ways you can reach us:
- * say hello on [Zulip](https://rust-ml.zulip.org)
+ * say hello on [Zulip](https://rust-ml.zulipchat.com)
  * or participate in our [Github issues](https://github.com/rust-ml/linfa/issues)

@@ -8,7 +8,7 @@ You can find the latests API documentation [here](https://docs.rs/linfa/).
 
 # Examples
 
-A good way to start is by looking at an example. You can find these for each algorithm in the *examples/* folder. To give an example, for Support Vector Machines take a look [here](https://github.com/rust-ml/linfa/tree/master/linfa-svm/examples).
+A good way to start is by looking at code examples. You can find them in the *examples/* folder of each sub-crate. To give an example, for Support Vector Machines take a look [here](https://github.com/rust-ml/linfa/tree/master/linfa-svm/examples).
 
 # How do contribute
 
