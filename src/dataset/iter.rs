@@ -98,8 +98,8 @@ where
         let dataset_view = DatasetBase {
             records,
             targets,
-            feature_names,
             weights,
+            feature_names,
         };
 
         Some(dataset_view)
