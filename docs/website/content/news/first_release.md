@@ -1,8 +1,9 @@
 +++
 title = "Release 0.2.0"
-date = "2020-02-14"
+date = "2020-11-26"
 +++
-Linfa 0.2.0 provides 9 new algorithms and improves working with them.
+This release of Linfa introduced 9 new implementations and a couple of changes to the APIs. Travis support for FOSS projects was dropped, so we were forced to switch to Github Actions and we introduced a couple of traits to represent different classes of algorithms in a better way.
+
 <!-- more -->
 
 New algorithms

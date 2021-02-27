@@ -103,3 +103,19 @@ body {
 .visible {
     display: block;
 }
+
+.news_grid {
+    grid-template-columns: 3fr 1fr;
+    display: grid;
+    grid-gap: 15px;
+}
+
+.news_grid .sitelinks a {
+    display: block;
+    text-decoration: none;
+    color: $primary-color;
+}
+
+.news_grid .sitelinks a:hover {
+    text-decoration: underline;
+}
