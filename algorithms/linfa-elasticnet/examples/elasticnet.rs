@@ -7,7 +7,7 @@ fn main() -> Result<()> {
 
     // train pure LASSO model with 0.1 penalty
     let model = ElasticNet::params()
-        .penalty(0.1)
+        .penalty(0.3)
         .l1_ratio(1.0)
         .fit(&train)?;
 
@@ -18,10 +18,7 @@ fn main() -> Result<()> {
 
     // validate
     let y_est = model.predict(&valid);
-    println!(
-        "predicted variance: {}",
-        valid.try_single_target()?.r2(&y_est)
-    );
+    println!("predicted variance: {}", valid.r2(&y_est));
 
     Ok(())
 }

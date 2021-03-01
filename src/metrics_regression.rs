@@ -171,7 +171,7 @@ impl<F: Float, R: Records, T: AsTargets<Elem = F>> DatasetBase<R, T> {
 
     /// R squared coefficient, is the proprtion of the variance in the dependent variable that is
     /// predictable from the independent variable
-    pub fn r2(&self, compare_to: T) -> Array1<F> {
+    pub fn r2<T2: AsTargets<Elem = F>>(&self, compare_to: T2) -> Array1<F> {
         let t1 = self.as_multi_targets();
         let t2 = compare_to.as_multi_targets();
 

@@ -13,20 +13,27 @@
 </div>
 <div class="code-examples">
     <select title="Choose a code example to display">
-        <option data-example="Elasticnet" selected="selected">
-        Elasticnet
-        </option>
-        <option data-example="Naive Bayes">
-        Naive Bayes
-        </option>
-    </select>
+        {% set examples = get_section(path="snippets/_index.md") %}
+        {% for page in examples.pages %}
+        {% if loop.first %}
+            <option data-example="{{ page.title }}" selected="selected">
+        {% else %}
+            <option data-example="{{ page.title }}">
+        {% endif %}
 
-        <div class="example visible" data-example="Elasticnet">
-            Blub
+            {{ page.title }}
+        </option>
+        {% endfor %}
+    </select>
+        {% for page in examples.pages %}
+        {% if loop.first %}
+            <div class="example visible" data-example="{{ page.title }}">
+        {% else %}
+            <div class="example" data-example="{{ page.title }}">
+        {% endif %}
+            {{ page.content | safe }}
         </div>
-        <div class="example" data-example="Naive Bayes">
-            Blub2
-        </div>
+        {% endfor %}
 </div>
 </div></div>
 <div class="highlights">
