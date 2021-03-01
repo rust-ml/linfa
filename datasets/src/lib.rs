@@ -29,10 +29,8 @@
 //!
 //! You can then use the dataset in your working code:
 //! ```rust
-//! fn main() {
-//!     let (train, valid) = linfa_datasets::winequality()
-//!         .split_with_ratio(0.8);
-//! }
+//! let (train, valid) = linfa_datasets::winequality()
+//!     .split_with_ratio(0.8);
 //! ```
 
 use csv::ReaderBuilder;
