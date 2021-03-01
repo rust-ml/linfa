@@ -23,15 +23,15 @@
 //! ## Using a dataset
 //!
 //! To use one of the provided datasets in your project add the `linfa-datasets` crate to your `Cargo.toml` and enable the corresponding feature:
-//! ```
+//! ```ignore
 //! linfa-datasets = { version = "0.3.0", features = ["winequality"] }
 //! ```
+//!
 //! You can then use the dataset in your working code:
 //! ```rust
 //! fn main() {
 //!     let (train, valid) = linfa_datasets::winequality()
 //!         .split_with_ratio(0.8);
-//!     /// ...
 //! }
 //! ```
 
