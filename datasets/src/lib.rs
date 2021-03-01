@@ -140,7 +140,7 @@ pub fn winequality() -> Dataset<f64, usize> {
 ///
 /// # Reference:
 /// Tenenhaus (1998). La regression PLS: theorie et pratique. Paris: Editions Technip. Table p 15.
-pub fn linnerud() -> Dataset<f64, usize> {
+pub fn linnerud() -> Dataset<f64, f64> {
     let input_data = include_bytes!("../data/linnerud_exercise.csv.gz");
     let input_array = array_from_buf(&input_data[..]);
 
@@ -149,9 +149,7 @@ pub fn linnerud() -> Dataset<f64, usize> {
 
     let feature_names = vec!["Chins", "Situps", "Jumps"];
 
-    Dataset::new(input_array, output_array)
-        .map_targets(|x| *x as usize)
-        .with_feature_names(feature_names)
+    Dataset::new(input_array, output_array).with_feature_names(feature_names)
 }
 
 #[cfg(test)]
@@ -276,6 +274,6 @@ mod tests {
 
         // get the mean per target: Weight, Waist, Pulse
         let mean_targets = ds.targets().mean_axis(Axis(0)).unwrap();
-        assert_abs_diff_eq!(mean_targets, array![178, 35, 56]);
+        assert_abs_diff_eq!(mean_targets, array![178.6, 35.4, 56.1]);
     }
 }
