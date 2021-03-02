@@ -40,7 +40,10 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: doc
-          args: --all --no-deps --target-dir docs/website/static/rustdocs/
+          args: --all --no-deps
+
+      - name: Copy Rust Documentation to Zola
+        run: cp "target/docs/*" "docs/website/static/rustdocs/"
 
       - name: 'Build and deploy'
         uses: shalzz/zola-deploy-action@master
