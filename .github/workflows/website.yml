@@ -43,7 +43,7 @@ jobs:
           args: --all --no-deps
 
       - name: Copy Rust Documentation to Zola
-        run: cp "target/docs/*" "docs/website/static/rustdocs/"
+        run: cp -R "target/doc/" "docs/website/static/rustdocs/"
 
       - name: 'Build and deploy'
         uses: shalzz/zola-deploy-action@master
