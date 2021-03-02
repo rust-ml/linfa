@@ -7,9 +7,6 @@ Linfa aims to provide a comprehensive toolkit to build Machine Learning applicat
 
 Kin in spirit to Python's `scikit-learn`, it focuses on common preprocessing tasks and classical ML algorithms for your everyday ML tasks.
 
-_Documentation_: [latest](https://docs.rs/linfa)
-_Community chat_: [Zulip](https://rust-ml.zulipchat.com/)
-
 ## Current state
 
 Where does `linfa` stand right now? [Are we learning yet?](http://www.arewelearningyet.com/)

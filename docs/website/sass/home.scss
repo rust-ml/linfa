@@ -15,7 +15,6 @@ h2 {
     padding: 20px 0;
 
     .introduction {
-
         p {
             margin-bottom: 5px;
         }
@@ -34,6 +33,10 @@ h2 {
     a:hover {
         color: white;
     }
+
+    p {
+        margin-bottom: 0;
+    }
 }
 
 .not-colored {
@@ -47,6 +50,10 @@ h2 {
 
     a:hover {
         text-decoration: bold;
+    }
+
+    p {
+        margin-bottom: 0;
     }
 }
 

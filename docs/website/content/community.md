@@ -9,9 +9,9 @@ A welcoming, friendly and safe environment is very important to use and we are s
 
 ## Providing knowledge
 
-https://github.com/rust-ml/In the past we could help people in two different ways. If you have knowledge of an algorithm and would like to use Rust as a language, we can help you in the language details. On the other hand, we can also provide you with a paper as a starting point and help you on questions which may come up.
+In the past we could help people in two different ways. If you have knowledge of an algorithm and would like to use Rust as a language, we can help you in the language details. On the other hand, we can also provide you with a paper as a starting point and help you on questions which may come up.
 
-If you happen to belong to the first group, then please reach out on [Zulip](https://rust-ml.zulipchat.com) or open a pull request if you wish for feedback. If you are looking for a topic you can either reach out on [Zulip](https://rust-ml.zulipchat.com) as well, ask the maintainer directly per [mail](mailto:lorenz.schmidt@mailbox.org) or look into the [roadmap](https://github.com/rust-ml/linfa/issues/7).
+If you happen to belong to the first group, then please reach out on [Zulip](https://rust-ml.zulipchat.com) or open a pull request if you wish for feedback. If you are looking for a topic you can either reach out on [Zulip](https://rust-ml.zulipchat.com) as well, or look into the [roadmap](https://github.com/rust-ml/linfa/issues/7).
 
 ## Platforms
 
