@@ -52,6 +52,12 @@ impl Label for () {}
 #[derive(Debug, Copy, Clone)]
 pub struct Pr(pub f32);
 
+impl Pr {
+    pub fn even() -> Pr {
+        Pr(0.5)
+    }
+}
+
 impl PartialEq for Pr {
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0

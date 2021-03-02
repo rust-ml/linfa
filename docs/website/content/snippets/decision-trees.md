@@ -1,5 +1,5 @@
 +++
-title = "DecisionTrees"
+title = "Linear Decision Trees"
 +++
 ```rust
 let (train, valid) = linfa_datasets::iris()

@@ -67,7 +67,7 @@
 //!
 //! accuracy 0.8867925, MCC 0.40720797
 //! ```
-use linfa::{dataset::Pr, Float};
+use linfa::Float;
 use ndarray::{ArrayBase, Data, Ix1};
 
 use std::fmt;
@@ -169,7 +169,7 @@ impl<F: Float, T> SvmParams<F, T> {
     }
 }
 
-impl<F: Float> SvmParams<F, Pr> {
+impl<F: Float, T> SvmParams<F, T> {
     /// Set the C value for positive and negative samples.
     pub fn pos_neg_weights(mut self, c_pos: F, c_neg: F) -> Self {
         self.c = Some((c_pos, c_neg));

@@ -283,8 +283,12 @@ impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<Pr>> for 
         data.outer_iter()
             .map(|data| {
                 let val = self.weighted_sum(&data) - self.rho;
-                // this is safe because `F` is only implemented for `f32` and `f64`
-                Pr(val.to_f32().unwrap())
+                // dummy for now
+                if val.is_positive() {
+                    Pr(1.0)
+                } else {
+                    Pr(0.0)
+                }
             })
             .collect()
     }
@@ -294,7 +298,7 @@ impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<Pr>> for 
 mod tests {
     use super::Svm;
     use crate::error::Result;
-    use linfa::dataset::{Dataset, DatasetBase};
+    use linfa::dataset::{Dataset, DatasetBase, Pr};
     use linfa::prelude::ToConfusionMatrix;
     use linfa::traits::{Fit, Predict};
 
@@ -342,11 +346,11 @@ mod tests {
             .linear_kernel()
             .fit(&dataset)?;
 
-        let valid = model
-            .predict(DatasetBase::from(entries))
-            .map_targets(|x| **x > 0.0);
+        let y_est = model
+            .predict(&dataset)
+            .mapv(|x| x > Pr::even());
 
-        let cm = valid.confusion_matrix(&dataset)?;
+        let cm = y_est.confusion_matrix(&dataset)?;
         assert_eq!(cm.accuracy(), 1.0);
 
         // train model with Nu parameter
@@ -355,7 +359,9 @@ mod tests {
             .linear_kernel()
             .fit(&dataset)?;
 
-        let valid = model.predict(valid).map_targets(|x| **x > 0.0);
+        let valid = model
+            .predict(&dataset)
+            .mapv(|x| x > Pr::even());
 
         let cm = valid.confusion_matrix(&dataset)?;
         assert_eq!(cm.accuracy(), 1.0);
@@ -380,8 +386,8 @@ mod tests {
         //println!("{:?}", model.predict(DatasetBase::from(records.clone())).targets());
 
         let valid = model
-            .predict(DatasetBase::from(records))
-            .map_targets(|x| **x > 0.0);
+            .predict(&dataset)
+            .mapv(|x| x > Pr::even());
 
         let cm = valid.confusion_matrix(&dataset)?;
         assert!(cm.accuracy() > 0.9);
@@ -401,11 +407,11 @@ mod tests {
             .gaussian_kernel(50.0)
             .fit(&dataset)?;
 
-        let valid = model
-            .predict(DatasetBase::from(records.view()))
-            .map_targets(|x| **x > 0.0);
+        let y_est = model
+            .predict(&dataset)
+            .mapv(|x| x > Pr::even());
 
-        let cm = valid.confusion_matrix(&dataset)?;
+        let cm = y_est.confusion_matrix(&dataset)?;
         assert!(cm.accuracy() > 0.9);
 
         // train model with Nu parameter
@@ -414,12 +420,41 @@ mod tests {
             .gaussian_kernel(50.0)
             .fit(&dataset)?;
 
-        let valid = model.predict(&valid).map(|x| **x > 0.0);
+        let y_est = model
+            .predict(&dataset)
+            .mapv(|x| x > Pr::even());
 
-        let cm = valid.confusion_matrix(&dataset)?;
+        let cm = y_est.confusion_matrix(&dataset)?;
         assert!(cm.accuracy() > 0.9);
 
         Ok(())
+    }
+
+    #[test]
+    fn test_iris_crossvalidation() {
+        let params = Svm::params()
+            .pos_neg_weights(50000., 5000.)
+            .gaussian_kernel(40.0);
+
+        // perform cross-validation with the MCC
+        let mcc_runs = linfa_datasets::winequality()
+            .map_targets(|x| *x > 6)
+            .iter_fold(8, |v| params.fit(&v).unwrap())
+            .map(|(model, valid)| {
+                let cm = model
+                    .predict(&valid)
+                    .mapv(|x| x > Pr::even())
+                    .confusion_matrix(&valid).unwrap();
+
+                cm.f1_score()
+            })
+            .collect::<Array1<_>>();
+
+        // calculate mean and standard deviation
+        println!("F1 score: {}±{}",
+            mcc_runs.mean().unwrap(),
+            mcc_runs.std_axis(Axis(0), 0.0),
+        );
     }
 
     #[test]
@@ -435,7 +470,8 @@ mod tests {
             .fit(&dataset)?;
 
         let valid = DatasetBase::from(Array::random((100, 2), Uniform::new(-10., 10f32)));
-        let valid = model.predict(valid).map_targets(|x| **x > 0.0);
+        let valid = model.predict(valid)
+            .map_targets(|x| *x > Pr::even());
 
         // count the number of correctly rejected samples
         let mut rejected = 0;

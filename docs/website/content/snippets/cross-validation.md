@@ -2,19 +2,22 @@
 title = "Cross Validation"
 +++
 ```rust
-// perform cross-validation with the MCC
-let mcc_runs = linfa_datasets::diabetes()
-    .iter_fold(6, |v| params.fit(&v).unwrap())
+// perform cross-validation with the F1 score
+let f1_runs = dataset
+    .iter_fold(8, |v| params.fit(&v).unwrap())
     .map(|(model, valid)| {
-        let y_est = model.predict(&valid)
-        valid.confusion_matrix(y_est)
-    })
-    .map(|x| x.mcc())
+        let cm = model
+            .predict(&valid)
+            .mapv(|x| x > Pr::even())
+            .confusion_matrix(&valid).unwrap();
+  
+          cm.f1_score()
+    })  
     .collect::<Array1<_>>();
-
+  
 // calculate mean and standard deviation
-println!("MCC: {}±{}",
-    mcc_runs.mean(),
-    mcc_runs.stddev()
-);
+println!("F1 score: {}±{}",
+    f1_runs.mean().unwrap(),
+    f1_runs.std_axis(Axis(0), 0.0),
+);  
 ```
