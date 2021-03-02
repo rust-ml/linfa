@@ -8,28 +8,6 @@ on:
 name: Build website with Zola and publish to GH pages
 
 jobs:
-  makedocs:
-    name: GitHub Pages
-    runs-on: ubuntu-latest
-
-    steps:
-        - name: Checkout Repository
-          uses: actions/checkout@v1
-
-        - name: Install Rust toolchain
-          uses: actions-rs/toolchain@v1
-          with:
-            toolchain: stable
-            profile: minimal
-            override: true
-            components: rustfmt, rust-src
-
-        - name: Build Documentation
-          uses: actions-rs/cargo@v1
-          with:
-            command: doc
-            args: --all --no-deps --target-dir docs/website/static/rustdocs/
-
   build:
     runs-on: ubuntu-latest
     if: github.ref != 'refs/heads/master' && github.repository == 'rust-ml/linfa'
@@ -49,6 +27,21 @@ jobs:
     steps:
       - name: 'Checkout'
         uses: actions/checkout@master
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+          components: rustfmt, rust-src
+
+      - name: Build Documentation
+        uses: actions-rs/cargo@v1
+        with:
+          command: doc
+          args: --all --no-deps --target-dir docs/website/static/rustdocs/
+
       - name: 'Build and deploy'
         uses: shalzz/zola-deploy-action@master
         env:
