@@ -1,1 +1,13 @@
-@import 'base', 'news', 'home'
+$primary-color: #ec7235;
+$secondary-color: #36b0ec;
+$tetradic-color: #B0EC36;
+$shadow-color: #ddd;
+
+@import 'base';
+
+@media (min-device-width: 850px) {
+    @import 'desktop/base', 'desktop/news', 'desktop/home'
+}
+@media (max-device-width: 850px) {
+    @import 'mobile/base', 'mobile/news', 'mobile/home'
+}
