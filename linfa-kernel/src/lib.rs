@@ -69,9 +69,9 @@ where
     pub method: KernelMethod<K1::Elem>,
 }
 
-/// Type definition of Kernel using `Array2<Float>`
+/// Type definition of Kernel that owns its inner matrix
 pub type Kernel<F> = KernelBase<Array2<F>, CsMat<F>>;
-/// Type definition of Kernel using `ArrayView2<Float>`
+/// Type definition of Kernel that borrows its inner matrix
 pub type KernelView<'a, F> = KernelBase<ArrayView2<'a, F>, CsMatView<'a, F>>;
 
 impl<F: Float, K1: Inner<Elem = F>, K2: Inner<Elem = F>> KernelBase<K1, K2> {

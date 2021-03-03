@@ -21,17 +21,17 @@
 //!
 //! | Name | Purpose | Status | Category |  Notes |
 //! | :--- | :--- | :---| :--- | :---|
-//! | [clustering](linfa-clustering/) | Data clustering | Tested / Benchmarked  | Unsupervised learning | Clustering of unlabeled data; contains K-Means, Gaussian-Mixture-Model and DBSCAN  |
-//! | [kernel](linfa-kernel/) | Kernel methods for data transformation  | Tested  | Pre-processing | Maps feature vector into higher-dimensional space|
-//! | [linear](linfa-linear/) | Linear regression | Tested  | Partial fit | Contains Ordinary Least Squares (OLS), Generalized Linear Models (GLM) |
-//! | [elasticnet](linfa-elasticnet/) | Elastic Net | Tested | Supervised learning | Linear regression with elastic net constraints |
-//! | [logistic](linfa-logistic/) | Logistic regression | Tested  | Partial fit | Builds two-class logistic regression models
-//! | [reduction](linfa-reduction/) | Dimensionality reduction | Tested  | Pre-processing | Diffusion mapping and Principal Component Analysis (PCA) |
-//! | [trees](linfa-trees/) | Decision trees | Experimental  | Supervised learning | Linear decision trees
-//! | [svm](linfa-svm/) | Support Vector Machines | Tested  | Supervised learning | Classification or regression analysis of labeled datasets |
-//! | [hierarchical](linfa-hierarchical/) | Agglomerative hierarchical clustering | Tested | Unsupervised learning | Cluster and build hierarchy of clusters |
-//! | [bayes](linfa-bayes/) | Naive Bayes | Tested | Supervised learning | Contains Gaussian Naive Bayes |
-//! | [ica](linfa-ica/) | Independent component analysis | Tested | Unsupervised learning | Contains FastICA implementation |
+//! | [clustering](https://docs.rs/linfa-clustering/) | Data clustering | Tested / Benchmarked  | Unsupervised learning | Clustering of unlabeled data; contains K-Means, Gaussian-Mixture-Model and DBSCAN  |
+//! | [kernel](https://docs.rs/linfa-kernel/) | Kernel methods for data transformation  | Tested  | Pre-processing | Maps feature vector into higher-dimensional space|
+//! | [linear](https://docs.rs/linfa-linear/) | Linear regression | Tested  | Partial fit | Contains Ordinary Least Squares (OLS), Generalized Linear Models (GLM) |
+//! | [elasticnet](https://docs.rs/linfa-elasticnet/) | Elastic Net | Tested | Supervised learning | Linear regression with elastic net constraints |
+//! | [logistic](https://docs.rs/linfa-logistic/) | Logistic regression | Tested  | Partial fit | Builds two-class logistic regression models
+//! | [reduction](https://docs.rs/linfa-reduction/) | Dimensionality reduction | Tested  | Pre-processing | Diffusion mapping and Principal Component Analysis (PCA) |
+//! | [trees](https://docs.rs/linfa-trees/) | Decision trees | Experimental  | Supervised learning | Linear decision trees
+//! | [svm](https://docs.rs/linfa-svm/) | Support Vector Machines | Tested  | Supervised learning | Classification or regression analysis of labeled datasets |
+//! | [hierarchical](https://docs.rs/linfa-hierarchical/) | Agglomerative hierarchical clustering | Tested | Unsupervised learning | Cluster and build hierarchy of clusters |
+//! | [bayes](https://docs.rs/linfa-bayes/) | Naive Bayes | Tested | Supervised learning | Contains Gaussian Naive Bayes |
+//! | [ica](https://docs.rs/linfa-ica/) | Independent component analysis | Tested | Unsupervised learning | Contains FastICA implementation |
 //!
 //! We believe that only a significant community effort can nurture, build, and sustain a machine learning ecosystem in Rust - there is no other way forward.
 //!
