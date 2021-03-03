@@ -1,28 +1,3 @@
-//! # Linear Models
-//!
-//! `linfa-linear` aims to provide pure Rust implementations of
-//! popular linear regression algorithms.
-//!
-//! ## The Big Picture
-//!
-//! `linfa-linear` is a crate in the [`linfa`](https://crates.io/crates/linfa)
-//! ecosystem, a wider effort to bootstrap a toolkit for classical
-//! Machine Learning implemented in pure Rust, kin in spirit to
-//! Python's `scikit-learn`.
-//!
-//! ## Current state
-//!
-//! Right now `linfa-linear` provides ordinary least squares regression.
-//!
-//! ## Examples
-//!
-//! There is an usage example in the `examples/diabetes.rs` file, to run it
-//! run
-//!
-//! ```bash
-//! $ cargo run --features openblas --examples diabetes
-//! ```
-
 #![allow(non_snake_case)]
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2};
 use ndarray_linalg::{Lapack, Scalar, Solve};
