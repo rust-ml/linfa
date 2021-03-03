@@ -21,11 +21,11 @@
 //! $ cargo run --example glm
 //! ```
 
-pub mod error;
+mod error;
 mod float;
-pub mod glm;
-pub mod ols;
+mod glm;
+mod ols;
 
-pub use error::Result;
-pub use glm::TweedieRegressor;
-pub use ols::LinearRegression;
+pub use error::*;
+pub use glm::*;
+pub use ols::*;

@@ -251,6 +251,23 @@ impl<'a, C: 'a + PartialOrd + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<E
     Fit<'a, ArrayBase<D, Ix2>, T> for LogisticRegression<F>
 {
     type Object = Result<FittedLogisticRegression<F, C>, String>;
+
+    /// Given a 2-dimensional feature matrix array `x` with shape
+    /// (n_samples, n_features) and an array of target classes to predict,
+    /// create a `FittedLinearRegression` object which allows making
+    /// predictions.
+    ///
+    /// The array of target classes `y` must have exactly two distinct
+    /// values, (e.g. 0.0 and 1.0, 0 and 1, "cat" and "dog", ...), which
+    /// represent the two different classes the model is supposed to predict.
+    ///
+    /// The array `y` must also have exactly `n_samples` items, i.e.
+    /// exactly as many items as there are rows in the feature matrix `x`.
+    ///
+    /// This method returns an error if any of the preconditions are violated,
+    /// i.e. any values are `Inf` or `NaN`, `y` doesn't have as many items as
+    /// `x` has rows, or if other parameters (gradient_tolerance, alpha) have
+    /// been set to inalid values.
     fn fit(
         &self,
         dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
@@ -449,7 +466,7 @@ impl<F: Float, C: PartialOrd + Clone> FittedLogisticRegression<F, C> {
     /// Given a feature matrix, predict the probabilities that a sample
     /// should be classified as the larger of the two classes learned when the
     /// model was fitted.
-    fn predict_probabilities<A: Data<Elem = F>>(&self, x: &ArrayBase<A, Ix2>) -> Array1<F> {
+    pub fn predict_probabilities<A: Data<Elem = F>>(&self, x: &ArrayBase<A, Ix2>) -> Array1<F> {
         let mut probs = x.dot(&self.params) + self.intercept;
         probs.mapv_inplace(logistic);
         probs
@@ -473,6 +490,8 @@ impl<F: Float, C: PartialOrd + Clone> FittedLogisticRegression<F, C> {
 impl<C: PartialOrd + Clone, F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<C>>
     for FittedLogisticRegression<F, C>
 {
+    /// Given a feature matrix, predict the classes learned when the model was
+    /// fitted.
     fn predict_ref<'a>(&'a self, x: &ArrayBase<D, Ix2>) -> Array1<C> {
         self.predict(x)
     }

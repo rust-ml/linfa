@@ -1,3 +1,4 @@
+//! Ordinary Least Squares
 #![allow(non_snake_case)]
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2};
 use ndarray_linalg::{Lapack, Scalar, Solve};

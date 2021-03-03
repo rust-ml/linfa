@@ -17,7 +17,8 @@ use crate::{
 pub trait Regression<
     'a,
     A: 'a,
-    T: IntoNdProducer<Item = &'a A, Dim = Ix1, Output = ArrayView1<'a, A>>,
+    D: ndarray::Dimension,
+    T: IntoNdProducer<Item = &'a A, Dim = D, Output = ArrayView<'a, A, D>>,
 >
 {
     /// Maximal error between two continuous variables
@@ -41,8 +42,8 @@ impl<
         'a,
         A: 'a + NdFloat + FromPrimitive,
         D: Data<Elem = A>,
-        T: IntoNdProducer<Item = &'a A, Dim = Ix1, Output = ArrayView1<'a, A>>,
-    > Regression<'a, A, T> for ArrayBase<D, Ix1>
+        T: IntoNdProducer<Item = &'a A, Dim = Ix1, Output = ArrayView<'a, A, Ix1>>,
+    > Regression<'a, A, Ix1, T> for ArrayBase<D, Ix1>
 {
     fn max_error(&self, compare_to: T) -> A {
         let compare_to: ArrayView1<'a, A> = compare_to.into_producer();
@@ -105,6 +106,92 @@ impl<
         A::one()
             - (diff.mapv(|x| x * x).sum() - mean_error)
                 / (self.mapv(|x| (x - mean) * (x - mean)).sum() + A::from(1e-10).unwrap())
+    }
+}
+
+impl<
+        'a,
+        A: 'a + NdFloat + FromPrimitive,
+        D: Data<Elem = A>,
+        T: IntoNdProducer<Item = &'a A, Dim = Ix2, Output = ArrayView<'a, A, Ix2>>,
+    > Regression<'a, A, Ix2, T> for ArrayBase<D, Ix1>
+{
+    fn max_error(&self, compare_to: T) -> A {
+        let compare_to: ArrayView2<'a, A> = compare_to.into_producer();
+        if compare_to.len_of(Axis(1)) > 1 {
+            panic!("Expected single targets array");
+        }
+
+        let compare_to = compare_to.index_axis_move(Axis(1), 0);
+        
+        self.max_error(compare_to)
+
+    }
+
+    fn mean_absolute_error(&self, compare_to: T) -> A {
+        let compare_to: ArrayView2<'a, A> = compare_to.into_producer();
+        if compare_to.len_of(Axis(1)) > 1 {
+            panic!("Expected single targets array");
+        }
+
+        let compare_to = compare_to.index_axis_move(Axis(1), 0);
+        
+        self.mean_absolute_error(compare_to)
+    }
+
+    fn mean_squared_error(&self, compare_to: T) -> A {
+        let compare_to: ArrayView2<'a, A> = compare_to.into_producer();
+        if compare_to.len_of(Axis(1)) > 1 {
+            panic!("Expected single targets array");
+        }
+
+        let compare_to = compare_to.index_axis_move(Axis(1), 0);
+        
+        self.mean_squared_error(compare_to)
+    }
+
+    fn mean_squared_log_error(&self, compare_to: T) -> A {
+        let compare_to: ArrayView2<'a, A> = compare_to.into_producer();
+        if compare_to.len_of(Axis(1)) > 1 {
+            panic!("Expected single targets array");
+        }
+
+        let compare_to = compare_to.index_axis_move(Axis(1), 0);
+        
+        self.mean_squared_log_error(compare_to)
+    }
+
+    fn median_absolute_error(&self, compare_to: T) -> A {
+        let compare_to: ArrayView2<'a, A> = compare_to.into_producer();
+        if compare_to.len_of(Axis(1)) > 1 {
+            panic!("Expected single targets array");
+        }
+
+        let compare_to = compare_to.index_axis_move(Axis(1), 0);
+        
+        self.median_absolute_error(compare_to)
+    }
+
+    fn r2(&self, compare_to: T) -> A {
+        let compare_to: ArrayView2<'a, A> = compare_to.into_producer();
+        if compare_to.len_of(Axis(1)) > 1 {
+            panic!("Expected single targets array");
+        }
+
+        let compare_to = compare_to.index_axis_move(Axis(1), 0);
+        
+        self.r2(compare_to)
+    }
+
+    fn explained_variance(&self, compare_to: T) -> A {
+        let compare_to: ArrayView2<'a, A> = compare_to.into_producer();
+        if compare_to.len_of(Axis(1)) > 1 {
+            panic!("Expected single targets array");
+        }
+
+        let compare_to = compare_to.index_axis_move(Axis(1), 0);
+        
+        self.explained_variance(compare_to)
     }
 }
 
@@ -171,7 +258,7 @@ impl<F: Float, R: Records, T: AsTargets<Elem = F>> DatasetBase<R, T> {
 
     /// R squared coefficient, is the proprtion of the variance in the dependent variable that is
     /// predictable from the independent variable
-    pub fn r2(&self, compare_to: T) -> Array1<F> {
+    pub fn r2<T2: AsTargets<Elem = F>>(&self, compare_to: T2) -> Array1<F> {
         let t1 = self.as_multi_targets();
         let t2 = compare_to.as_multi_targets();
 

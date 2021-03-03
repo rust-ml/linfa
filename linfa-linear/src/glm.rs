@@ -1,7 +1,7 @@
 //! Generalized Linear Models (GLM)
 
 mod distribution;
-pub mod link;
+mod link;
 
 use crate::error::Result;
 use crate::float::{ArgminParam, Float};
@@ -21,7 +21,7 @@ use linfa::{dataset::AsTargets, DatasetBase};
 /// Generalized Linear Model (GLM) with a Tweedie distribution
 ///
 /// The Regressor can be used to model different GLMs depending on
-/// [`power`](TweedieRegressor::power),
+/// [`power`](struct.TweedieRegressor.html#method.power),
 /// which determines the underlying distribution.
 ///
 /// | Power  | Distribution           |
@@ -35,6 +35,23 @@ use linfa::{dataset::AsTargets, DatasetBase};
 /// NOTE: No distribution exists between 0 and 1
 ///
 /// Learn more from sklearn's excellent [User Guide](https://scikit-learn.org/stable/modules/linear_model.html#generalized-linear-regression)
+/// 
+/// ## Examples
+/// 
+/// Here's an example on how to train a GLM on the `diabetes` dataset
+/// ```rust
+/// 
+/// use linfa::traits::{Fit, Predict};
+/// use linfa_linear::TweedieRegressor;
+/// use linfa::prelude::Regression;
+/// use linfa::dataset::AsTargets;
+/// 
+/// let dataset = linfa_datasets::diabetes();
+/// let model = TweedieRegressor::default().fit(&dataset).unwrap();
+/// let r2_error = model.predict(&dataset).r2(dataset.targets());
+/// println!("r2: {}", r2_error);
+/// 
+/// ```
 #[derive(Serialize, Deserialize)]
 pub struct TweedieRegressor {
     alpha: f64,
