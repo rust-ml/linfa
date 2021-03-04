@@ -35,25 +35,22 @@ use linfa::{dataset::AsTargets, DatasetBase};
 /// NOTE: No distribution exists between 0 and 1
 ///
 /// Learn more from sklearn's excellent [User Guide](https://scikit-learn.org/stable/modules/linear_model.html#generalized-linear-regression)
-/// 
+///
 /// ## Examples
-/// 
+///
 /// Here's an example on how to train a GLM on the `diabetes` dataset
 /// ```rust
-/// 
+///
 /// use linfa::traits::{Fit, Predict};
 /// use linfa_linear::TweedieRegressor;
 /// use linfa::prelude::Regression;
-/// use linfa::dataset::AsTargets;
-/// use linfa::prelude::DatasetBase;
-/// use ndarray::Array1;
-/// 
+///
 /// let dataset = linfa_datasets::diabetes();
 /// let model = TweedieRegressor::default().fit(&dataset).unwrap();
 /// let pred = model.predict(&dataset);
 /// let r2 = pred.r2(dataset.targets());
 /// println!("r2 from prediction: {}", r2);
-/// 
+///
 /// ```
 #[derive(Serialize, Deserialize)]
 pub struct TweedieRegressor {
@@ -312,7 +309,6 @@ impl<A: Float, D: Data<Elem = A>> PredictRef<ArrayBase<D, Ix2>, Array1<A>>
         self.link.inverse(&ypred)
     }
 }
-
 
 #[cfg(test)]
 mod tests {

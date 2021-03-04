@@ -1,10 +1,10 @@
 use linfa::prelude::*;
-use linfa_logistic::{LogisticRegression};
+use linfa_logistic::LogisticRegression;
 
 fn main() -> Result<()> {
     // everything above 6.5 is considered a good wine
     let (train, valid) = linfa_datasets::winequality()
-        .map_targets(|x| if *x > 6 {"good"} else {"bad"})
+        .map_targets(|x| if *x > 6 { "good" } else { "bad" })
         .split_with_ratio(0.9);
 
     println!(
@@ -13,8 +13,10 @@ fn main() -> Result<()> {
     );
 
     // fit a Logistic regression model with 150 max iterations
-    let model = LogisticRegression::default().max_iterations(150)
-        .fit(&train).unwrap();
+    let model = LogisticRegression::default()
+        .max_iterations(150)
+        .fit(&train)
+        .unwrap();
 
     // predict and map targets
     let pred = model.predict(&valid);
