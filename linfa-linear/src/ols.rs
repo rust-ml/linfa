@@ -225,7 +225,7 @@ impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<F>>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::abs_diff_eq;
+    use approx::assert_abs_diff_eq;
     use linfa::{traits::Predict, Dataset};
     use ndarray::array;
 
@@ -236,7 +236,7 @@ mod tests {
         let model = lin_reg.fit(&dataset).unwrap();
         let result = model.predict(dataset.records());
 
-        abs_diff_eq!(result, &array![1., 2.], epsilon = 1e-12);
+        assert_abs_diff_eq!(result, &array![1., 2.], epsilon = 1e-12);
     }
 
     /// When `with_intercept` is set to false, the
@@ -249,7 +249,7 @@ mod tests {
         let model = lin_reg.fit(&dataset).unwrap();
         let result = model.predict(&array![[0.], [1.]]);
 
-        abs_diff_eq!(result, &array![0., 1.], epsilon = 1e-12);
+        assert_abs_diff_eq!(result, &array![0., 1.], epsilon = 1e-12);
     }
 
     /// We can't fit a line through two points without fitting the
@@ -264,7 +264,7 @@ mod tests {
         let model = lin_reg.fit(&dataset).unwrap();
         let result = model.predict(dataset.records());
 
-        abs_diff_eq!(result, &array![0., 0.], epsilon = 1e-12);
+        assert_abs_diff_eq!(result, &array![0., 0.], epsilon = 1e-12);
     }
 
     /// We can't fit a line through three points in general
@@ -279,7 +279,7 @@ mod tests {
         let model = lin_reg.fit(&dataset).unwrap();
         let actual = model.predict(dataset.records());
 
-        abs_diff_eq!(actual, array![-1. / 3., 2. / 3., 5. / 3.], epsilon = 1e-12);
+        assert_abs_diff_eq!(actual, array![-1. / 3., 2. / 3., 5. / 3.], epsilon = 1e-12);
     }
 
     /// Check that the linear regression prefectly fits three datapoints for
@@ -291,8 +291,8 @@ mod tests {
         let dataset = Dataset::new(array![[0f64, 0.], [1., 1.], [2., 4.]], array![1., 4., 9.]);
         let model = lin_reg.fit(&dataset).unwrap();
 
-        abs_diff_eq!(model.params(), &array![2., 1.], epsilon = 1e-12);
-        abs_diff_eq!(model.intercept(), &1., epsilon = 1e-12);
+        assert_abs_diff_eq!(model.params(), &array![2., 1.], epsilon = 1e-12);
+        assert_abs_diff_eq!(model.intercept(), &1., epsilon = 1e-12);
     }
 
     /// Check that the linear regression prefectly fits four datapoints for
@@ -307,8 +307,8 @@ mod tests {
         );
         let model = lin_reg.fit(&dataset).unwrap();
 
-        abs_diff_eq!(model.params(), &array![3., 3., 1.], epsilon = 1e-12);
-        abs_diff_eq!(model.intercept(), &1., epsilon = 1e-12);
+        assert_abs_diff_eq!(model.params(), &array![3., 3., 1.], epsilon = 1e-12);
+        assert_abs_diff_eq!(model.intercept(), &1., epsilon = 1e-12);
     }
 
     /// Check that the linear regression prefectly fits three datapoints for
@@ -320,8 +320,8 @@ mod tests {
         let dataset = Dataset::new(array![[0f64, 0.], [1., 1.], [2., 4.]], array![1., 4., 9.]);
         let model = lin_reg.fit(&dataset).unwrap();
 
-        abs_diff_eq!(model.params(), &array![2., 1.], epsilon = 1e-4);
-        abs_diff_eq!(model.intercept(), &1., epsilon = 1e-6);
+        assert_abs_diff_eq!(model.params(), &array![2., 1.], epsilon = 1e-4);
+        assert_abs_diff_eq!(model.intercept(), &1., epsilon = 1e-6);
     }
 
     /// Check that the linear regression prefectly fits four datapoints for
@@ -337,8 +337,8 @@ mod tests {
         );
         let model = lin_reg.fit(&dataset).unwrap();
 
-        abs_diff_eq!(model.params(), &array![3., 3., 1.], epsilon = 1e-12);
-        abs_diff_eq!(model.intercept(), 1., epsilon = 1e-12);
+        assert_abs_diff_eq!(model.params(), &array![3., 3., 1.], epsilon = 1e-12);
+        assert_abs_diff_eq!(model.intercept(), 1., epsilon = 1e-12);
     }
 
     /// Check that the linear regression model works with both owned and view
@@ -358,6 +358,6 @@ mod tests {
             .expect("can't fit feature view with owned target");
 
         assert_eq!(model1.params(), model2.params());
-        abs_diff_eq!(model1.intercept(), model2.intercept());
+        assert_abs_diff_eq!(model1.intercept(), model2.intercept());
     }
 }

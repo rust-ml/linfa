@@ -43,6 +43,7 @@ impl Label for bool {}
 impl Label for usize {}
 impl Label for String {}
 impl Label for () {}
+impl Label for &str {}
 
 /// Probability types
 ///

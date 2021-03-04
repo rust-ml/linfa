@@ -4,7 +4,7 @@ use linfa_logistic::{LogisticRegression};
 fn main() -> Result<()> {
     // everything above 6.5 is considered a good wine
     let (train, valid) = linfa_datasets::winequality()
-        .map_targets(|x| if *x > 6 {/*"good"*/true} else {/*"bad"*/false})
+        .map_targets(|x| if *x > 6 {"good"} else {"bad"})
         .split_with_ratio(0.9);
 
     println!(
@@ -12,8 +12,8 @@ fn main() -> Result<()> {
         train.nsamples()
     );
 
-    // fit a SVM with C value 7 and 0.6 for positive and negative classes
-    let model = LogisticRegression::default()
+    // fit a Logistic regression model with 150 max iterations
+    let model = LogisticRegression::default().max_iterations(150)
         .fit(&train).unwrap();
 
     // predict and map targets
