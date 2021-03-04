@@ -386,7 +386,7 @@ mod tests {
         let prediction: DatasetBase<_, _> = (records.view(), prediction).into();
         let abs_err_from_ds = prediction.mean_squared_log_error(st_dataset.targets());
         assert_eq!(abs_err_from_ds.dim(), 1);
-        assert_abs_diff_eq!(abs_err_from_arr1, 0.019033, epsilon = 1e-5);
+        assert_abs_diff_eq!(abs_err_from_arr1, 0.019_033, epsilon = 1e-5);
         assert_abs_diff_eq!(abs_err_from_arr1, abs_err_from_ds[0]);
     }
 
