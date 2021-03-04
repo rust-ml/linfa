@@ -30,6 +30,22 @@ use argmin_param::ArgminParam;
 use float::Float;
 
 /// A two-class logistic regression model.
+/// 
+/// Logistic regression combines linear models with 
+/// the sigmoid function `sigm(x) = 1/(1+exp(-x))`
+/// to learn a family of functions that map the feature space to `[0,1]`.
+/// 
+/// Logistic regression is used in binary classification
+/// by interpreting the predicted value as the probability that the sample
+/// has label `1`. A threshold can be set in the [fitted model](struct.FittedLogisticRegression.html) to decide the minimum
+/// probability needed to classify a sample as `1`, which defaults to `0.5`.
+/// 
+/// In this implementation any binary set of labels can be used, not necessarily `0` and `1`.
+/// 
+/// l2 regularization is used by this algorithm and is weighted by parameter `alpha`. Setting `alpha`
+/// close to zero removes regularization and the problem solved minimizes only the 
+/// empirical risk. On the other hand, setting `alpha` to a high value increases
+/// the weight of the l2 norm of the linear model coefficients in the cost function.
 pub struct LogisticRegression<F: Float> {
     alpha: F,
     fit_intercept: bool,
