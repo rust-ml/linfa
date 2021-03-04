@@ -45,11 +45,14 @@ use linfa::{dataset::AsTargets, DatasetBase};
 /// use linfa_linear::TweedieRegressor;
 /// use linfa::prelude::Regression;
 /// use linfa::dataset::AsTargets;
+/// use linfa::prelude::DatasetBase;
+/// use ndarray::Array1;
 /// 
 /// let dataset = linfa_datasets::diabetes();
 /// let model = TweedieRegressor::default().fit(&dataset).unwrap();
-/// let r2_error = model.predict(&dataset).r2(dataset.targets());
-/// println!("r2: {}", r2_error);
+/// let pred = model.predict(&dataset);
+/// let r2 = pred.r2(dataset.targets());
+/// println!("r2 from prediction: {}", r2);
 /// 
 /// ```
 #[derive(Serialize, Deserialize)]
@@ -309,6 +312,7 @@ impl<A: Float, D: Data<Elem = A>> PredictRef<ArrayBase<D, Ix2>, Array1<A>>
         self.link.inverse(&ypred)
     }
 }
+
 
 #[cfg(test)]
 mod tests {
