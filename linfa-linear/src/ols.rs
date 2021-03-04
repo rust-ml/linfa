@@ -27,6 +27,21 @@ impl Float for f64 {}
 ///
 /// It currently uses the [Moore-Penrose pseudo-inverse]()
 /// to solve y - b = Ax.
+/// 
+/// /// ## Examples
+///
+/// Here's an example on how to train a linear regression model on the `diabetes` dataset
+/// ```rust
+/// use linfa::traits::{Fit, Predict};
+/// use linfa_linear::LinearRegression;
+/// use linfa::prelude::Regression;
+///
+/// let dataset = linfa_datasets::diabetes();
+/// let model = LinearRegression::default().fit(&dataset).unwrap();
+/// let pred = model.predict(&dataset);
+/// let r2 = pred.r2(dataset.targets());
+/// println!("r2 from prediction: {}", r2);
+/// ```
 pub struct LinearRegression {
     options: Options,
 }

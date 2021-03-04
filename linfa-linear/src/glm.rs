@@ -40,7 +40,6 @@ use linfa::{dataset::AsTargets, DatasetBase};
 ///
 /// Here's an example on how to train a GLM on the `diabetes` dataset
 /// ```rust
-///
 /// use linfa::traits::{Fit, Predict};
 /// use linfa_linear::TweedieRegressor;
 /// use linfa::prelude::Regression;
@@ -50,7 +49,6 @@ use linfa::{dataset::AsTargets, DatasetBase};
 /// let pred = model.predict(&dataset);
 /// let r2 = pred.r2(dataset.targets());
 /// println!("r2 from prediction: {}", r2);
-///
 /// ```
 #[derive(Serialize, Deserialize)]
 pub struct TweedieRegressor {
