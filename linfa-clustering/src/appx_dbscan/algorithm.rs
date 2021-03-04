@@ -2,7 +2,7 @@ use crate::appx_dbscan::clustering::AppxDbscanLabeler;
 use crate::appx_dbscan::hyperparameters::{AppxDbscanHyperParams, AppxDbscanHyperParamsBuilder};
 use linfa::traits::Transformer;
 use linfa::{DatasetBase, Float};
-use ndarray::{Array1, ArrayBase, Data, Ix2};
+use ndarray::{Array1, Array2,Axis, ArrayBase, Data, Ix2};
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 
@@ -108,14 +108,14 @@ impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<
 impl<F: Float, D: Data<Elem = F>, T>
     Transformer<
         DatasetBase<ArrayBase<D, Ix2>, T>,
-        DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>,
+        DatasetBase<ArrayBase<D, Ix2>, Array2<Option<usize>>>,
     > for AppxDbscanHyperParams<F>
 {
     fn transform(
         &self,
         dataset: DatasetBase<ArrayBase<D, Ix2>, T>,
-    ) -> DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>> {
-        let predicted = self.transform(dataset.records());
+    ) -> DatasetBase<ArrayBase<D, Ix2>, Array2<Option<usize>>> {
+        let predicted = self.transform(dataset.records()).insert_axis(Axis(1));
         dataset.with_targets(predicted)
     }
 }
@@ -131,13 +131,13 @@ impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<
 impl<F: Float, D: Data<Elem = F>, T>
     Transformer<
         DatasetBase<ArrayBase<D, Ix2>, T>,
-        DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>,
+        DatasetBase<ArrayBase<D, Ix2>, Array2<Option<usize>>>,
     > for AppxDbscanHyperParamsBuilder<F>
 {
     fn transform(
         &self,
         dataset: DatasetBase<ArrayBase<D, Ix2>, T>,
-    ) -> DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>> {
+    ) -> DatasetBase<ArrayBase<D, Ix2>, Array2<Option<usize>>> {
         self.build().transform(dataset)
     }
 }

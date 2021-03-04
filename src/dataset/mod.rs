@@ -44,6 +44,7 @@ impl Label for usize {}
 impl Label for String {}
 impl Label for () {}
 impl Label for &str {}
+impl Label for Option<usize> {}
 
 /// Probability types
 ///
