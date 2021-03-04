@@ -6,7 +6,7 @@ use thiserror::Error;
 use ndarray::ShapeError;
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Error, Debug, Clone)]
+#[derive(Error, Debug, Clone, PartialEq)]
 pub enum Error {
     #[error("invalid parameter {0}")]
     Parameters(String),
