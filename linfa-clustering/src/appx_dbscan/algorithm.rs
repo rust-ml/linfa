@@ -2,7 +2,7 @@ use crate::appx_dbscan::clustering::AppxDbscanLabeler;
 use crate::appx_dbscan::hyperparameters::{AppxDbscanHyperParams, AppxDbscanHyperParamsBuilder};
 use linfa::traits::Transformer;
 use linfa::{DatasetBase, Float};
-use ndarray::{Array1, Array2,Axis, ArrayBase, Data, Ix2};
+use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2};
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 

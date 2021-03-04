@@ -37,7 +37,7 @@ impl<F: Float> DistanceCount<F> {
     pub fn new(count: usize) -> DistanceCount<F> {
         DistanceCount {
             total_distance: F::zero(),
-            count: count,
+            count,
         }
     }
 

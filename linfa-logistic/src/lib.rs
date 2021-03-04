@@ -52,7 +52,7 @@ use float::Float;
 /// Here's an example on how to train a logistic regression model on the `winequality` dataset
 /// ```rust
 /// use linfa::traits::{Fit, Predict};
-/// use linfa_logistci::LogisticRegressor;
+/// use linfa_logistic::LogisticRegression;
 ///
 /// // Example on using binary labels different from 0 and 1
 /// let dataset = linfa_datasets::winequality().map_targets(|x| if *x > 6 { "good" } else { "bad" });

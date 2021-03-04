@@ -27,7 +27,7 @@ impl Float for f64 {}
 ///
 /// It currently uses the [Moore-Penrose pseudo-inverse]()
 /// to solve y - b = Ax.
-/// 
+///
 /// /// ## Examples
 ///
 /// Here's an example on how to train a linear regression model on the `diabetes` dataset
