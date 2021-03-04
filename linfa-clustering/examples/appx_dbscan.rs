@@ -22,16 +22,25 @@ fn main() {
     // Configure our training algorithm
     let min_points = 3;
 
-    println!("Clustering #{} data points centered around 4 centroids", dataset.records().nsamples());
+    println!("Clustering #{} data points grouped in 4 clusters of 1000 points each", dataset.records().nsamples());
 
     let cluster_memberships = AppxDbscan::params(min_points)
         .tolerance(1.)
         .slack(1e-2)
         .transform(dataset);
 
-    // -1 for noise points
-    let clusters = cluster_memberships.targets().labels().len() - 1;
-    println!("Obtained {} clusters", clusters);
+    // sigle target dataset
+    let label_count = cluster_memberships.targets().label_count().remove(0);
+
+    println!();
+    println!("Result: ");
+    for (label, count) in label_count {
+        match label {
+            None => println!(" - {} noise points", count),
+            Some(i) => println!(" - {} points in cluster {}", count, i),
+        }
+    }
+    println!();
 
     let silhouette_score = cluster_memberships.silhouette_score().unwrap();
 

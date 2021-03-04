@@ -13,7 +13,7 @@ fn main() {
 
     // For each our expected centroids, generate `n` data points around it (a "blob")
     let expected_centroids = array![[10., 10.], [1., 12.], [20., 30.], [-20., 30.],];
-    let n = 10000;
+    let n = 1000;
     let dataset = generate_blobs(n, &expected_centroids, &mut rng);
 
     // Configure our training algorithm
