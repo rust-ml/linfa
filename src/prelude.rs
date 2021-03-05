@@ -17,7 +17,10 @@ pub use crate::dataset::{AsTargets, Dataset, DatasetBase, DatasetView, Float, Re
 pub use crate::metrics_classification::{BinaryClassification, ConfusionMatrix, ToConfusionMatrix};
 
 #[doc(no_inline)]
-pub use crate::metrics_regression::Regression;
+pub use crate::metrics_regression::{MultiTargetRegression, SingleTargetRegression};
+
+#[doc(no_inline)]
+pub use crate::metrics_clustering::SilhouetteScore;
 
 #[doc(no_inline)]
 pub use crate::correlation::PearsonCorrelation;

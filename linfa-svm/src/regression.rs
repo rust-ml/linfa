@@ -199,8 +199,8 @@ pub mod tests {
     use super::Svm;
     use crate::error::Result;
 
-    use linfa::dataset::{AsTargets, Dataset};
-    use linfa::metrics::Regression;
+    use linfa::dataset::Dataset;
+    use linfa::metrics::SingleTargetRegression;
     use linfa::traits::{Fit, Predict};
     use ndarray::Array;
 
@@ -222,7 +222,7 @@ pub mod tests {
         println!("{}", model);
 
         let predicted = model.predict(dataset.records());
-        assert!(predicted.mean_squared_error(dataset.try_single_target()?) < 1e-2);
+        assert!(predicted.mean_squared_error(&dataset).unwrap() < 1e-2);
 
         Ok(())
     }
@@ -245,7 +245,7 @@ pub mod tests {
         println!("{}", model);
 
         let predicted = model.predict(&dataset);
-        assert!(predicted.mean_squared_error(dataset.try_single_target()?) < 1e-2);
+        assert!(predicted.mean_squared_error(&dataset).unwrap() < 1e-2);
 
         Ok(())
     }
@@ -267,7 +267,7 @@ pub mod tests {
         println!("{}", model);
 
         let predicted = model.predict(&dataset);
-        assert!(predicted.mean_squared_error(dataset.try_single_target()?) < 1e-2);
+        assert!(predicted.mean_squared_error(&dataset).unwrap() < 1e-2);
 
         Ok(())
     }

@@ -18,4 +18,6 @@ pub enum Error {
     NdShape(#[from] ShapeError),
     #[error("multiple targets not supported")]
     MultipleTargets,
+    #[error("Not enough samples to compute the mean")]
+    NotEnoughSamples,
 }

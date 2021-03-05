@@ -18,10 +18,7 @@ fn main() -> Result<()> {
 
     // validate
     let y_est = model.predict(&valid);
-    println!(
-        "predicted variance: {}",
-        valid.try_single_target()?.r2(&y_est)
-    );
+    println!("predicted variance: {}", valid.r2(&y_est).unwrap());
 
     Ok(())
 }

@@ -42,6 +42,7 @@ pub mod correlation;
 pub mod dataset;
 pub mod error;
 mod metrics_classification;
+mod metrics_clustering;
 mod metrics_regression;
 pub mod prelude;
 pub mod traits;
@@ -69,5 +70,6 @@ pub mod metrics {
     pub use crate::metrics_classification::{
         BinaryClassification, ConfusionMatrix, ReceiverOperatingCharacteristic, ToConfusionMatrix,
     };
-    pub use crate::metrics_regression::Regression;
+    pub use crate::metrics_clustering::SilhouetteScore;
+    pub use crate::metrics_regression::{MultiTargetRegression, SingleTargetRegression};
 }

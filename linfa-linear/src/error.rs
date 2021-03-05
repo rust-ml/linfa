@@ -1,3 +1,4 @@
+//! An error when modeling a Linear algorithm
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, LinearError>;
