@@ -245,7 +245,7 @@ mod tests {
     use rand_isaac::Isaac64Rng;
 
     use linfa::{
-        metrics::Regression,
+        metrics::SingleTargetRegression,
         traits::{Fit, Predict},
         Dataset,
     };
@@ -565,7 +565,7 @@ mod tests {
 
         let predicted = model.predict(&x);
         let rms = y.mean_squared_error(&predicted);
-        assert!(rms < 0.67);
+        assert!(rms.unwrap() < 0.67);
     }
 
     #[test]

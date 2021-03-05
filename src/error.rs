@@ -6,7 +6,7 @@ use thiserror::Error;
 use ndarray::ShapeError;
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Error, Debug, Clone, PartialEq)]
+#[derive(Error, Debug, Clone)]
 pub enum Error {
     #[error("invalid parameter {0}")]
     Parameters(String),
@@ -18,4 +18,6 @@ pub enum Error {
     NdShape(#[from] ShapeError),
     #[error("multiple targets not supported")]
     MultipleTargets,
+    #[error("Not enough samples to compute the mean")]
+    NotEnoughSamples,
 }

@@ -71,5 +71,5 @@ pub mod metrics {
         BinaryClassification, ConfusionMatrix, ReceiverOperatingCharacteristic, ToConfusionMatrix,
     };
     pub use crate::metrics_clustering::SilhouetteScore;
-    pub use crate::metrics_regression::Regression;
+    pub use crate::metrics_regression::{MultiTargetRegression, SingleTargetRegression};
 }

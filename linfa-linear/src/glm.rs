@@ -42,12 +42,12 @@ use linfa::{dataset::AsTargets, DatasetBase};
 /// ```rust
 /// use linfa::traits::{Fit, Predict};
 /// use linfa_linear::TweedieRegressor;
-/// use linfa::prelude::Regression;
+/// use linfa::prelude::SingleTargetRegression;
 ///
 /// let dataset = linfa_datasets::diabetes();
 /// let model = TweedieRegressor::default().fit(&dataset).unwrap();
 /// let pred = model.predict(&dataset);
-/// let r2 = pred.r2(dataset.targets());
+/// let r2 = pred.r2(&dataset).unwrap();
 /// println!("r2 from prediction: {}", r2);
 /// ```
 #[derive(Serialize, Deserialize)]

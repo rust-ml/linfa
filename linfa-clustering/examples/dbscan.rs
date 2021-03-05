@@ -23,7 +23,7 @@ fn main() {
 
     println!(
         "Clustering #{} data points grouped in 4 clusters of {} points each",
-        dataset.records().nsamples(),
+        dataset.nsamples(),
         n
     );
 
@@ -31,7 +31,7 @@ fn main() {
     let cluster_memberships = Dbscan::params(min_points).tolerance(1.).transform(dataset);
 
     // sigle target dataset
-    let label_count = cluster_memberships.targets().label_count().remove(0);
+    let label_count = cluster_memberships.label_count().remove(0);
 
     println!();
     println!("Result: ");

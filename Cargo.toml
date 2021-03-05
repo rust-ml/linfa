@@ -38,7 +38,6 @@ thiserror = "1"
 rand = { version = "0.7", features = ["small_rng"] }
 ndarray = { version = "0.13", default-features = false, features = ["approx"] }
 ndarray-linalg = { version = "0.12.1", optional = true }
-ndarray-stats = "0.3"
 
 [dependencies.intel-mkl-src]
 version = "0.6.0"

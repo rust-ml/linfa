@@ -173,21 +173,11 @@ impl<L, R: Records, T: AsTargets<Elem = L>> DatasetBase<R, T> {
     }
 }
 
-impl<'a, F: Float, L: 'a, D, T> DatasetBase<ArrayBase<D, Ix2>, T>
+impl<'a, F: Float, L, D, T> DatasetBase<ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
-    T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
+    T: AsTargets<Elem = L>,
 {
-    /// Creates a view of a dataset
-    pub fn view(&'a self) -> DatasetBase<ArrayView2<'a, F>, T::View> {
-        let records = self.records().view();
-        let targets = T::new_targets_view(self.as_multi_targets());
-
-        DatasetBase::new(records, targets)
-            .with_feature_names(self.feature_names.clone())
-            .with_weights(self.weights.clone())
-    }
-
     /// Iterate over observations
     ///
     /// This function creates an iterator which produces tuples of data points and target value. The
@@ -204,6 +194,22 @@ where
     /// ```
     pub fn sample_iter(&'a self) -> Iter<'a, '_, F, T::Elem> {
         Iter::new(self.records.view(), self.targets.as_multi_targets())
+    }
+}
+
+impl<'a, F: Float, L: 'a, D, T> DatasetBase<ArrayBase<D, Ix2>, T>
+where
+    D: Data<Elem = F>,
+    T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
+{
+    /// Creates a view of a dataset
+    pub fn view(&'a self) -> DatasetBase<ArrayView2<'a, F>, T::View> {
+        let records = self.records().view();
+        let targets = T::new_targets_view(self.as_multi_targets());
+
+        DatasetBase::new(records, targets)
+            .with_feature_names(self.feature_names.clone())
+            .with_weights(self.weights.clone())
     }
 
     /// Iterate over features

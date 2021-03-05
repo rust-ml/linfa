@@ -1,13 +1,13 @@
 //! Common metrics for clustering
-use crate::dataset::{AsTargets, DatasetBase, FromTargetArray, Label, Labels, Records};
-use crate::error::Result;
+use crate::dataset::{AsTargets, DatasetBase, Label, Labels, Records};
+use crate::error::{Error, Result};
 use crate::Float;
 use ndarray::{ArrayBase, ArrayView1, Data, Ix2};
-use ndarray_stats::DeviationExt;
 use std::collections::HashMap;
+use std::ops::Sub;
 
 /// Evaluates the quality of a clustering using euclidean distance.
-pub trait SilhouetteScore<'a, F> {
+pub trait SilhouetteScore<F> {
     /// Evaluates the quality of a clustering.
     ///
     /// Given a clustered dataset,
@@ -20,7 +20,7 @@ pub trait SilhouetteScore<'a, F> {
     ///
     /// Finally, the silhouette score for the clustering is evaluated as the mean
     /// silhouette score of each sample.
-    fn silhouette_score(&'a self) -> Result<F>;
+    fn silhouette_score(&self) -> Result<F>;
 }
 
 struct DistanceCount<F> {
@@ -58,27 +58,25 @@ impl<F: Float> DistanceCount<F> {
 
     /// adds the distance of `other_sample` from `eval_sample` to the total distance of `eval_sample` from the current cluster
     pub fn add_point(&mut self, eval_sample: ArrayView1<F>, other_sample: ArrayView1<F>) {
-        self.total_distance += F::from(eval_sample.l2_dist(&other_sample).unwrap()).unwrap();
+        self.total_distance += eval_sample.sub(&other_sample).mapv(|x| x * x).sum().sqrt();
     }
 }
 
-impl<
-        'a,
-        F: Float,
-        L: 'a + Label,
-        D: Data<Elem = F>,
-        T: AsTargets<Elem = L> + FromTargetArray<'a, L> + Labels<Elem = L>,
-    > SilhouetteScore<'a, F> for DatasetBase<ArrayBase<D, Ix2>, T>
+impl<'a, F: Float, L: 'a + Label, D: Data<Elem = F>, T: AsTargets<Elem = L> + Labels<Elem = L>>
+    SilhouetteScore<F> for DatasetBase<ArrayBase<D, Ix2>, T>
 {
-    fn silhouette_score(&'a self) -> Result<F> {
+    fn silhouette_score(&self) -> Result<F> {
+        if self.ntargets() > 1 {
+            return Err(Error::MultipleTargets);
+        }
         // By using try_single_target we ensure that the iterator returns an
         // array1 as target with just one element, that can be addressed by [0]
-        let mut labels: HashMap<L, DistanceCount<F>> =
-            self.targets().try_single_target()?.label_count()[0]
-                .to_owned()
-                .into_iter()
-                .map(|(label, count)| (label, DistanceCount::new(count)))
-                .collect();
+        let mut labels: HashMap<L, DistanceCount<F>> = self
+            .label_count()
+            .remove(0)
+            .into_iter()
+            .map(|(label, count)| (label, DistanceCount::new(count)))
+            .collect();
 
         // Single label dataset, all points are in the same cluster.
         if labels.len() == 1 {
@@ -216,6 +214,5 @@ mod tests {
         let dataset: DatasetBase<_, _> = (records, targets).into();
         let score_res = dataset.silhouette_score();
         assert!(score_res.is_err());
-        assert_eq!(score_res.unwrap_err(), crate::Error::MultipleTargets);
     }
 }
