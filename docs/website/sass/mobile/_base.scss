@@ -1,3 +1,65 @@
+.top {
+    padding: 0 10px;
+}
+
+.section {
+    padding: 0 10px;
+}
+
+.header {
+    //display: flex;
+    //flex-direction: flow;
+    //align-items: center;
+}
+
+.header-main ul {
+    padding-left: 0px;
+    display: none;
+
+    li {
+        list-style: none;
+        margin-bottom: 15px;
+
+        a {
+            color: black;
+            text-decoration: none;
+            font-size: 17px;
+        }
+
+        a:hover {
+            color: $primary-color;
+        }
+    }
+}
+
+.logo {
+    margin: 0px 0;
+
+    display: flex;
+    align-items: center;
+
+    img {
+        margin-right: 5px;
+    }
+
+    p {
+        font-size: 30px;
+        flex-grow: 1;
+        display: flex;
+        line-height: 0.5em;
+
+        span {
+            text-align: right;
+            color: $primary-color;
+            flex-grow: 1;
+        }
+
+        span:hover {
+            cursor: pointer;
+        }
+    }
+}
+
 .sitelinks {
     display: none;
 }

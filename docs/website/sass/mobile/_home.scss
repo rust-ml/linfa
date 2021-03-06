@@ -1,0 +1,23 @@
+.grid section {
+    padding-top: 20px;
+}
+
+.example {
+    display: none;
+
+    border: 1px solid #ddd;
+
+    padding: 5px;
+
+    pre {
+        margin: 0;
+    }
+}
+
+.visible {
+    display: block;
+}
+
+.expose {
+    margin-top: 10px;
+}
