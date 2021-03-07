@@ -20,6 +20,4 @@ pub enum Error {
     NotEnoughSamples,
     #[error("multiple targets not supported")]
     MultipleTargets,
-    #[error("Not enough samples to compute the mean")]
-    NotEnoughSamples,
 }
