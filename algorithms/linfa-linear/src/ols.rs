@@ -1,28 +1,4 @@
-//! # Linear Models
-//!
-//! `linfa-linear` aims to provide pure Rust implementations of
-//! popular linear regression algorithms.
-//!
-//! ## The Big Picture
-//!
-//! `linfa-linear` is a crate in the [`linfa`](https://crates.io/crates/linfa)
-//! ecosystem, a wider effort to bootstrap a toolkit for classical
-//! Machine Learning implemented in pure Rust, kin in spirit to
-//! Python's `scikit-learn`.
-//!
-//! ## Current state
-//!
-//! Right now `linfa-linear` provides ordinary least squares regression.
-//!
-//! ## Examples
-//!
-//! There is an usage example in the `examples/diabetes.rs` file, to run it
-//! run
-//!
-//! ```bash
-//! $ cargo run --features openblas --examples diabetes
-//! ```
-
+//! Ordinary Least Squares
 #![allow(non_snake_case)]
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2};
 use ndarray_linalg::{Lapack, Scalar, Solve};
@@ -51,6 +27,21 @@ impl Float for f64 {}
 ///
 /// It currently uses the [Moore-Penrose pseudo-inverse]()
 /// to solve y - b = Ax.
+///
+/// /// ## Examples
+///
+/// Here's an example on how to train a linear regression model on the `diabetes` dataset
+/// ```rust
+/// use linfa::traits::{Fit, Predict};
+/// use linfa_linear::LinearRegression;
+/// use linfa::prelude::SingleTargetRegression;
+///
+/// let dataset = linfa_datasets::diabetes();
+/// let model = LinearRegression::default().fit(&dataset).unwrap();
+/// let pred = model.predict(&dataset);
+/// let r2 = pred.r2(&dataset).unwrap();
+/// println!("r2 from prediction: {}", r2);
+/// ```
 pub struct LinearRegression {
     options: Options,
 }
@@ -249,7 +240,7 @@ impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<F>>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::abs_diff_eq;
+    use approx::assert_abs_diff_eq;
     use linfa::{traits::Predict, Dataset};
     use ndarray::array;
 
@@ -260,7 +251,7 @@ mod tests {
         let model = lin_reg.fit(&dataset).unwrap();
         let result = model.predict(dataset.records());
 
-        abs_diff_eq!(result, &array![1., 2.], epsilon = 1e-12);
+        assert_abs_diff_eq!(result, &array![1., 2.], epsilon = 1e-12);
     }
 
     /// When `with_intercept` is set to false, the
@@ -273,7 +264,7 @@ mod tests {
         let model = lin_reg.fit(&dataset).unwrap();
         let result = model.predict(&array![[0.], [1.]]);
 
-        abs_diff_eq!(result, &array![0., 1.], epsilon = 1e-12);
+        assert_abs_diff_eq!(result, &array![0., 1.], epsilon = 1e-12);
     }
 
     /// We can't fit a line through two points without fitting the
@@ -288,7 +279,7 @@ mod tests {
         let model = lin_reg.fit(&dataset).unwrap();
         let result = model.predict(dataset.records());
 
-        abs_diff_eq!(result, &array![0., 0.], epsilon = 1e-12);
+        assert_abs_diff_eq!(result, &array![0., 0.], epsilon = 1e-12);
     }
 
     /// We can't fit a line through three points in general
@@ -303,7 +294,7 @@ mod tests {
         let model = lin_reg.fit(&dataset).unwrap();
         let actual = model.predict(dataset.records());
 
-        abs_diff_eq!(actual, array![-1. / 3., 2. / 3., 5. / 3.], epsilon = 1e-12);
+        assert_abs_diff_eq!(actual, array![-1. / 3., 2. / 3., 5. / 3.], epsilon = 1e-12);
     }
 
     /// Check that the linear regression prefectly fits three datapoints for
@@ -315,8 +306,8 @@ mod tests {
         let dataset = Dataset::new(array![[0f64, 0.], [1., 1.], [2., 4.]], array![1., 4., 9.]);
         let model = lin_reg.fit(&dataset).unwrap();
 
-        abs_diff_eq!(model.params(), &array![2., 1.], epsilon = 1e-12);
-        abs_diff_eq!(model.intercept(), &1., epsilon = 1e-12);
+        assert_abs_diff_eq!(model.params(), &array![2., 1.], epsilon = 1e-12);
+        assert_abs_diff_eq!(model.intercept(), &1., epsilon = 1e-12);
     }
 
     /// Check that the linear regression prefectly fits four datapoints for
@@ -331,8 +322,8 @@ mod tests {
         );
         let model = lin_reg.fit(&dataset).unwrap();
 
-        abs_diff_eq!(model.params(), &array![3., 3., 1.], epsilon = 1e-12);
-        abs_diff_eq!(model.intercept(), &1., epsilon = 1e-12);
+        assert_abs_diff_eq!(model.params(), &array![3., 3., 1.], epsilon = 1e-12);
+        assert_abs_diff_eq!(model.intercept(), &1., epsilon = 1e-12);
     }
 
     /// Check that the linear regression prefectly fits three datapoints for
@@ -344,8 +335,8 @@ mod tests {
         let dataset = Dataset::new(array![[0f64, 0.], [1., 1.], [2., 4.]], array![1., 4., 9.]);
         let model = lin_reg.fit(&dataset).unwrap();
 
-        abs_diff_eq!(model.params(), &array![2., 1.], epsilon = 1e-4);
-        abs_diff_eq!(model.intercept(), &1., epsilon = 1e-6);
+        assert_abs_diff_eq!(model.params(), &array![2., 1.], epsilon = 1e-4);
+        assert_abs_diff_eq!(model.intercept(), &1., epsilon = 1e-6);
     }
 
     /// Check that the linear regression prefectly fits four datapoints for
@@ -361,8 +352,8 @@ mod tests {
         );
         let model = lin_reg.fit(&dataset).unwrap();
 
-        abs_diff_eq!(model.params(), &array![3., 3., 1.], epsilon = 1e-12);
-        abs_diff_eq!(model.intercept(), 1., epsilon = 1e-12);
+        assert_abs_diff_eq!(model.params(), &array![3., 3., 1.], epsilon = 1e-12);
+        assert_abs_diff_eq!(model.intercept(), 1., epsilon = 1e-12);
     }
 
     /// Check that the linear regression model works with both owned and view
@@ -382,6 +373,6 @@ mod tests {
             .expect("can't fit feature view with owned target");
 
         assert_eq!(model1.params(), model2.params());
-        abs_diff_eq!(model1.intercept(), model2.intercept());
+        assert_abs_diff_eq!(model1.intercept(), model2.intercept());
     }
 }

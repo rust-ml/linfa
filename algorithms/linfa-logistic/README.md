@@ -7,6 +7,13 @@
 ## Current state
 `linfa-logistic` provides a pure Rust implementation of a two class logistic regression model. 
 
+## Examples
+There is an usage example in the `examples/` directory. To run, use:
+
+```bash
+$ cargo run --example winequality
+```
+
 ## License
 Dual-licensed to be compatible with the Rust project.
 

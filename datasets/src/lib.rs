@@ -1,3 +1,5 @@
+//! # Datasets
+//!
 //! `linfa-datasets` provides a collection of commonly used datasets ready to be used in tests and examples.
 //!
 //! ## The Big Picture
@@ -8,23 +10,27 @@
 //!
 //! Currently the following datasets are provided:
 //!
-//! * `["iris"]` : iris flower dataset
-//! * `["winequality"]` : wine quality dataset
-//! * `["diabetes"]` : diabetes dataset
+//! | Name | Description | #samples, #features, #targets | Targets | Reference |
+//! | :--- | :--- | :---| :--- | :--- |
+//! | iris | The Iris dataset provides samples of flower properties, belonging to three different classes. Only two of them are linearly separable. It was introduced by Ronald Fisher in 1936 as an example for linear discriminant analysis. |  150, 4, 1 | Multi-class classification | [here](https://archive.ics.uci.edu/ml/datasets/iris) |
+//! | winequality | The winequality dataset measures different properties of wine, such as acidity, and gives a scoring from 3 to 8 in quality. It was collected in the north of Portugal. | 441, 10, 1 | Multi-class classification | [here](https://archive.ics.uci.edu/ml/datasets/wine+quality) |
+//! | diabetes | The diabetes dataset gives samples of human biological measures, such as BMI, age, blood measures, and tries to predict the progression of diabetes. | 1599, 11, 1 | Regression | [here](https://www4.stat.ncsu.edu/~boos/var.select/diabetes.html) |
+//! | linnerud | The linnerud dataset contains samples from 20 middle-aged men in a fitness club. Their physical capability, as well as biological measures are related. | 20, 3, 3 | Regression | [here](https://core.ac.uk/download/pdf/20641325.pdf) |
 //!
-//! along with methods to easily load them. Loaded datasets are returned as a [`linfa::Dataset`](https://docs.rs/linfa/0.3.0/linfa/dataset/type.Dataset.html) structure whith named features.
+//! The purpose of this crate is to faciliate dataset loading and make it as simple as possible. Loaded datasets are returned as a
+//! [`linfa::Dataset`](https://docs.rs/linfa/0.3.0/linfa/dataset/type.Dataset.html) structure with named features.
 //!
 //! ## Using a dataset
 //!
-//! To use one of the provided datasets in your project add the crate to your Cargo.toml with the corresponding feature enabled:
+//! To use one of the provided datasets in your project add the `linfa-datasets` crate to your `Cargo.toml` and enable the corresponding feature:
 //! ```ignore
 //! linfa-datasets = { version = "0.3.0", features = ["winequality"] }
 //! ```
-//! and then use it in your example or tests as
-//! ```ignore
+//!
+//! You can then use the dataset in your working code:
+//! ```rust
 //! let (train, valid) = linfa_datasets::winequality()
-//! .split_with_ratio(0.8);
-//!  /// ...
+//!     .split_with_ratio(0.8);
 //! ```
 
 use csv::ReaderBuilder;
@@ -33,11 +39,16 @@ use linfa::Dataset;
 use ndarray::prelude::*;
 use ndarray_csv::Array2Reader;
 
-#[cfg(any(feature = "iris", feature = "diabetes", feature = "winequality"))]
+#[cfg(any(
+    feature = "iris",
+    feature = "diabetes",
+    feature = "winequality",
+    feature = "linnerud"
+))]
 fn array_from_buf(buf: &[u8]) -> Array2<f64> {
     // unzip file
     let file = GzDecoder::new(buf);
-    // create a CSV reader with headers and `;` as delimiter
+    // create a CSV reader with headers and `,` as delimiter
     let mut reader = ReaderBuilder::new()
         .has_headers(true)
         .delimiter(b',')
@@ -121,6 +132,31 @@ pub fn winequality() -> Dataset<f64, usize> {
         .with_feature_names(feature_names)
 }
 
+#[cfg(feature = "linnerud")]
+/// Read in the physical exercise dataset from dataset path.
+///
+/// Linnerud dataset contains 20 samples collected from 20 middle-aged men in a fitness club.
+///
+/// ## Features:
+/// 3 exercises measurements: Chins, Situps, Jumps
+///
+/// ## Targets:
+/// 3 physiological measurements: Weight, Waist, Pulse
+///
+/// # Reference:
+/// Tenenhaus (1998). La regression PLS: theorie et pratique. Paris: Editions Technip. Table p 15.
+pub fn linnerud() -> Dataset<f64, f64> {
+    let input_data = include_bytes!("../data/linnerud_exercise.csv.gz");
+    let input_array = array_from_buf(&input_data[..]);
+
+    let output_data = include_bytes!("../data/linnerud_physiological.csv.gz");
+    let output_array = array_from_buf(&output_data[..]);
+
+    let feature_names = vec!["Chins", "Situps", "Jumps"];
+
+    Dataset::new(input_array, output_array).with_feature_names(feature_names)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -152,7 +188,8 @@ mod tests {
 
         // perform correlation analysis and assert that petal length and width are correlated
         let pcc = ds.pearson_correlation_with_p_value(100);
-        assert_abs_diff_eq!(pcc.get_p_values().unwrap()[5], 0.04, epsilon = 0.04);
+        // TODO: wait for pearson correlation to accept rng
+        // assert_abs_diff_eq!(pcc.get_p_values().unwrap()[5], 0.04, epsilon = 0.04);
 
         // get the mean per feature
         let mean_features = ds.records().mean_axis(Axis(0)).unwrap();
@@ -227,5 +264,22 @@ mod tests {
         // correlated
         let pcc = ds.pearson_correlation_with_p_value(100);
         assert_abs_diff_eq!(pcc.get_p_values().unwrap()[1], 0.05, epsilon = 0.05);
+    }
+
+    #[cfg(feature = "linnerud")]
+    #[test]
+    fn test_linnerud() {
+        let ds = linnerud();
+
+        // check that we have the right amount of data
+        assert_eq!((ds.nsamples(), ds.nfeatures(), ds.ntargets()), (20, 3, 3));
+
+        // check for feature names
+        let feature_names = vec!["Chins", "Situps", "Jumps"];
+        assert_eq!(ds.feature_names(), feature_names);
+
+        // get the mean per target: Weight, Waist, Pulse
+        let mean_targets = ds.targets().mean_axis(Axis(0)).unwrap();
+        assert_abs_diff_eq!(mean_targets, array![178.6, 35.4, 56.1]);
     }
 }

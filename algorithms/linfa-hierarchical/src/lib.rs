@@ -1,3 +1,23 @@
+//! # Hierarchical Clustering
+//!
+//! `linfa-hierarchical` provides an implementation of agglomerative hierarchical clustering.
+//! In this clustering algorithm, each point is first considered as a separate cluster. During each
+//! step, two points are merged into new clusters, until a stopping criterion is reached. The distance
+//! between the points is computed as the negative-log transform of the similarity kernel.
+//!
+//! _Documentation_: [latest](https://docs.rs/linfa-hierarchical).
+//!
+//! ## The big picture
+//!
+//! `linfa-hierarchical` is a crate in the [`linfa`](https://crates.io/crates/linfa) ecosystem,
+//! a wider effort to bootstrap a toolkit for classical Machine Learning implemented in pure Rust,
+//! akin in spirit to Python's `scikit-learn`.
+//!
+//! ## Current state
+//!
+//! `linfa-hierarchical` implements agglomerative hierarchical clustering with support of the
+//! [kodama](https://docs.rs/kodama/0.2.3/kodama/) crate.
+
 use std::collections::HashMap;
 
 use kodama::linkage;
@@ -20,9 +40,9 @@ enum Criterion<T> {
 
 /// Agglomerative hierarchical clustering
 ///
-/// In this clustering algorithm each point is first considered as a seperate cluster. In each step
-/// two points are merged into new clusters, until a stopping criterion is reached. The distance
-/// between the points is computed as the negative-log transformed of the similarity kernel.
+/// In this clustering algorithm, each point is first considered as a separate cluster. During each
+/// step, two points are merged into new clusters, until a stopping criterion is reached. The distance
+/// between the points is computed as the negative-log transform of the similarity kernel.
 pub struct HierarchicalCluster<T> {
     method: Method,
     stopping: Criterion<T>,

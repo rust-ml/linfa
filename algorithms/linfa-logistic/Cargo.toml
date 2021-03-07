@@ -24,3 +24,4 @@ linfa = { version = "0.3.0", path = "../.." }
 
 [dev-dependencies]
 approx = "0.3.2"
+linfa-datasets = { version = "0.3.0", path = "../datasets", features = ["winequality"] }
