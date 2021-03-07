@@ -4,6 +4,7 @@
 
 [![crates.io](https://img.shields.io/crates/v/linfa.svg)](https://crates.io/crates/linfa)
 [![Documentation](https://docs.rs/linfa/badge.svg)](https://docs.rs/linfa)
+[![DocumentationLatest](https://img.shields.io/badge/docs-latest-blue)](https://rust-ml.github.com/linfa/rustdocs/linfa/)
 [![Codequality](https://github.com/rust-ml/linfa/workflows/Codequality%20Lints/badge.svg)](https://github.com/rust-ml/linfa/actions?query=workflow%3A%22Codequality+Lints%22)
 [![Run Tests](https://github.com/rust-ml/linfa/workflows/Run%20Tests/badge.svg)](https://github.com/rust-ml/linfa/actions?query=workflow%3A%22Run+Tests%22)
 

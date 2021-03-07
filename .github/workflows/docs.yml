@@ -1,11 +1,11 @@
 # build and deploy on master push, otherwise just try to build the page
 on:
   push:
-    #branches:
-    #- master 
+    branches:
+    - master 
   pull_request:
 
-name: Build website with Zola and publish to GH pages
+name: Build website with Zola, build rust docs and publish to GH pages
 
 jobs:
   build:
