@@ -1,3 +1,8 @@
+.container > .grid {
+    padding: 0 10px;
+    margin-top: 20px;
+}
+
 .header {
     display: flex;
     flex-direction: flow;
@@ -46,10 +51,6 @@
         font-size: 30px;
         line-height: 0px;
     }
-}
-
-.title {
-    font-size: 30px;
 }
 
 .example {

@@ -5,9 +5,9 @@ $shadow-color: #ddd;
 
 @import 'base';
 
-@media (min-device-width: 850px) {
+@media only screen and (min-width: 700px) {
     @import 'desktop/base', 'desktop/news', 'desktop/home'
 }
-@media (max-device-width: 850px) {
+@media only screen and (max-width: 700px) {
     @import 'mobile/base', 'mobile/news', 'mobile/home'
 }
