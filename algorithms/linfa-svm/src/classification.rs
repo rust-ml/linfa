@@ -427,9 +427,9 @@ mod tests {
             .gaussian_kernel(40.0);
 
         // perform cross-validation with the MCC
-        let mcc_runs = linfa_datasets::winequality()
+        let acc_runs = linfa_datasets::winequality()
             .map_targets(|x| *x > 6)
-            .iter_fold(8, |v| params.fit(&v).unwrap())
+            .iter_fold(1, |v| params.fit(&v).unwrap())
             .map(|(model, valid)| {
                 let cm = model
                     .predict(&valid)
@@ -437,16 +437,11 @@ mod tests {
                     .confusion_matrix(&valid)
                     .unwrap();
 
-                cm.f1_score()
+                cm.accuracy()
             })
             .collect::<Array1<_>>();
 
-        // calculate mean and standard deviation
-        println!(
-            "F1 score: {}±{}",
-            mcc_runs.mean().unwrap(),
-            mcc_runs.std_axis(Axis(0), 0.0),
-        );
+        assert!(acc_runs[0] > 0.85);
     }
 
     #[test]
