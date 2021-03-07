@@ -38,8 +38,13 @@
         margin-right: 5px;
     }
 
-    span {
+    p {
+        span {
+            display: none;
+        }
+
         font-size: 30px;
+        line-height: 0px;
     }
 }
 
