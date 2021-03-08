@@ -1,0 +1,25 @@
+[package]
+name = "linfa-preprocessing"
+version = "0.3.0"
+authors = ["Sauro98 <ivadonadi98@gmail.com>"]
+
+description = "A Machine Learning framework for Rust"
+edition = "2018"
+license = "MIT/Apache-2.0"
+
+repository = "https://github.com/rust-ml/linfa"
+readme = "README.md"
+
+keywords = ["machine-learning", "linfa", "ai", "ml", "preprocessing"]
+categories = ["algorithms", "mathematics", "science"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+linfa = { version = "0.3.0", path = "../.." }
+ndarray = {version = "0.13", features = ["approx", "blas"]}
+ndarray-linalg = {version = "0.12"}
+thiserror = "1"
+
+[dev-dependencies]
+approx = { version = "0.3", default-features = false, features = ["std"] }
