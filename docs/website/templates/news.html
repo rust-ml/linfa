@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="grid"><div class="news">
+<h1 class="title">
+  {{ section.title }}
+</h1>
+<ul>
+  {% for page in section.pages %}
+  <li>
+      <a href="{{ page.permalink | safe }}">{{ page.title }}</a>
+      <span>Published on {{ page.date | date(format="%B %dth, %Y") }}</span>
+      <p>{{ page.summary | safe }}</p>
+  </li>
+  {% endfor %}
+</ul>
+</div></div>
+{% endblock content %}

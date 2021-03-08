@@ -64,17 +64,17 @@ linfa-datasets = { version = "0.3.0", path = "datasets", features = ["winequalit
 
 [workspace]
 members = [
-    "linfa-clustering",
-    "linfa-reduction",
-    "linfa-kernel",
-    "linfa-linear",
-    "linfa-logistic",
-    "linfa-trees",
-    "linfa-svm",
-    "linfa-hierarchical",
-    "linfa-ica",
-    "linfa-bayes",
-    "linfa-elasticnet",
+    "algorithms/linfa-clustering",
+    "algorithms/linfa-reduction",
+    "algorithms/linfa-kernel",
+    "algorithms/linfa-linear",
+    "algorithms/linfa-logistic",
+    "algorithms/linfa-trees",
+    "algorithms/linfa-svm",
+    "algorithms/linfa-hierarchical",
+    "algorithms/linfa-ica",
+    "algorithms/linfa-bayes",
+    "algorithms/linfa-elasticnet",
     "datasets",
 ]
 

@@ -32,3 +32,6 @@ poetry.lock
 *.ipynb
 
 *.json
+
+# Generated artifacts of website (with Zola)
+docs/website/public/*

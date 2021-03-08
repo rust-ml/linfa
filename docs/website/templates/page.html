@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="grid">
+    <div class="news_grid">
+        <span>
+            <h1 class="title">
+                {{ page.title }}
+            </h1>
+            {{ page.content | safe }}
+        </span>
+        <div class="sitelinks">
+            <h3>Latest news</h3>
+            {% set news_section = get_section(path="news/_index.md") %}
+            {% for page in news_section.pages %}
+            <a href="{{ page.permalink }}">{{ page.title }}</a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock content %}

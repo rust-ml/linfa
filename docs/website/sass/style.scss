@@ -1,0 +1,13 @@
+$primary-color: #ec7235;
+$secondary-color: #36b0ec;
+$tetradic-color: #B0EC36;
+$shadow-color: #ddd;
+
+@import 'base';
+
+@media only screen and (min-width: 700px) {
+    @import 'desktop/base', 'desktop/news', 'desktop/home'
+}
+@media only screen and (max-width: 700px) {
+    @import 'mobile/base', 'mobile/news', 'mobile/home'
+}

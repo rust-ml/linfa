@@ -16,8 +16,8 @@ pub enum Error {
     NotConverged(String),
     #[error("invalid ndarray shape {0}")]
     NdShape(#[from] ShapeError),
+    #[error("not enough samples")]
+    NotEnoughSamples,
     #[error("multiple targets not supported")]
     MultipleTargets,
-    #[error("Not enough samples to compute the mean")]
-    NotEnoughSamples,
 }

@@ -1,0 +1,41 @@
+[package]
+name = "linfa-trees"
+version = "0.3.0"
+edition = "2018"
+authors = ["Moss Ebeling <moss@banay.me>"]
+description = "A collection of tree-based algorithms"
+license = "MIT/Apache-2.0"
+
+repository = "https://github.com/rust-ml/linfa"
+readme = "README.md"
+
+keywords = ["machine-learning", "linfa", "trees", "supervised"]
+categories = ["algorithms", "mathematics", "science"]
+
+[features]
+default = []
+serde = ["serde_crate", "ndarray/serde"]
+
+[dependencies.serde_crate]
+package = "serde"
+optional = true
+version = "1.0"
+default-features = false
+features = ["std", "derive"]
+
+[dependencies]
+ndarray = { version = "0.13" , features = ["rayon", "approx"]}
+ndarray-rand = "0.11"
+
+linfa = { version = "0.3.0", path = "../.." }
+
+[dev-dependencies]
+rand = { version = "0.7", features = ["small_rng"] }
+criterion = "0.3"
+approx = "0.3"
+
+linfa-datasets = { version = "0.3.0", path = "../../datasets/", features = ["iris"] }
+
+[[bench]]
+name = "decision_tree"
+harness = false

@@ -1,0 +1,32 @@
+[package]
+name = "linfa-linear"
+version = "0.3.0"
+authors = [
+    "Paul Körbitz / Google <koerbitz@google.com>",
+    "VasanthakumarV <vasanth260m12@gmail.com>"
+]
+
+description = "A Machine Learning framework for Rust"
+edition = "2018"
+license = "MIT/Apache-2.0"
+
+repository = "https://github.com/rust-ml/linfa"
+readme = "README.md"
+
+keywords = ["machine-learning", "linfa", "ai", "ml", "linear"]
+categories = ["algorithms", "mathematics", "science"]
+
+[dependencies]
+ndarray = {version = "0.13", features = ["blas", "approx"]}
+ndarray-linalg = "0.12"
+ndarray-stats = "0.3"
+num-traits = "0.2"
+argmin = {version="0.3.1", features=["ndarrayl"]}
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+thiserror = "1"
+
+linfa = { version = "0.3.0", path = "../.." }
+
+[dev-dependencies]
+linfa-datasets = { version = "0.3.0", path = "../../datasets", features = ["diabetes"] }
+approx = "0.3.2"

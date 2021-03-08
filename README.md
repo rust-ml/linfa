@@ -4,8 +4,13 @@
 
 [![crates.io](https://img.shields.io/crates/v/linfa.svg)](https://crates.io/crates/linfa)
 [![Documentation](https://docs.rs/linfa/badge.svg)](https://docs.rs/linfa)
+[![DocumentationLatest](https://img.shields.io/badge/docs-latest-blue)](https://rust-ml.github.com/linfa/rustdocs/linfa/)
 [![Codequality](https://github.com/rust-ml/linfa/workflows/Codequality%20Lints/badge.svg)](https://github.com/rust-ml/linfa/actions?query=workflow%3A%22Codequality+Lints%22)
 [![Run Tests](https://github.com/rust-ml/linfa/workflows/Run%20Tests/badge.svg)](https://github.com/rust-ml/linfa/actions?query=workflow%3A%22Run+Tests%22)
+
+<strong>
+    <a href="https://rust-ml.github.io/linfa/">Website</a> | <a href="https://rust-ml.zulipchat.com">Community chat</a>
+</strong>
 
 > _**linfa**_ (Italian) / _**sap**_ (English):
 > 
@@ -15,9 +20,6 @@
 `linfa` aims to provide a comprehensive toolkit to build Machine Learning applications with Rust.
 
 Kin in spirit to Python's `scikit-learn`, it focuses on common preprocessing tasks and classical ML algorithms for your everyday ML tasks.
-
-_Documentation_: [latest](https://docs.rs/linfa)
-_Community chat_: [Zulip](https://rust-ml.zulipchat.com/)
 
 ## Current state
 
