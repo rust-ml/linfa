@@ -8,11 +8,9 @@
 [![Codequality](https://github.com/rust-ml/linfa/workflows/Codequality%20Lints/badge.svg)](https://github.com/rust-ml/linfa/actions?query=workflow%3A%22Codequality+Lints%22)
 [![Run Tests](https://github.com/rust-ml/linfa/workflows/Run%20Tests/badge.svg)](https://github.com/rust-ml/linfa/actions?query=workflow%3A%22Run+Tests%22)
 
-<p align = "center">
-    <strong>
-        <a href="https://rust-ml.github.io/linfa/">Website</a> | <a href="https://rust-ml.zulipchat.com">Community chat</a>
-    </strong>
-</p>
+<strong>
+    <a href="https://rust-ml.github.io/linfa/">Website</a> | <a href="https://rust-ml.zulipchat.com">Community chat</a>
+</strong>
 
 > _**linfa**_ (Italian) / _**sap**_ (English):
 > 
