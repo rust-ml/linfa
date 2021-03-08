@@ -15,5 +15,5 @@ println!("z score: {:?}", model.z_score());
 
 // validate
 let y_est = model.predict(&valid);
-println!("predicted variance: {}", valid.r2(&y_est));
+println!("predicted variance: {}", y_est.r2(&valid)?);
 ```

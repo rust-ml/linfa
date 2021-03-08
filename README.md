@@ -8,6 +8,12 @@
 [![Codequality](https://github.com/rust-ml/linfa/workflows/Codequality%20Lints/badge.svg)](https://github.com/rust-ml/linfa/actions?query=workflow%3A%22Codequality+Lints%22)
 [![Run Tests](https://github.com/rust-ml/linfa/workflows/Run%20Tests/badge.svg)](https://github.com/rust-ml/linfa/actions?query=workflow%3A%22Run+Tests%22)
 
+<p align = "center">
+    <strong>
+        <a href="https://rust-ml.github.io/linfa/">Website</a> | <a href="https://rust-ml.zulipchat.com">Community chat</a>
+    </strong>
+</p>
+
 > _**linfa**_ (Italian) / _**sap**_ (English):
 > 
 > The **vital** circulating fluid of a plant.
@@ -16,9 +22,6 @@
 `linfa` aims to provide a comprehensive toolkit to build Machine Learning applications with Rust.
 
 Kin in spirit to Python's `scikit-learn`, it focuses on common preprocessing tasks and classical ML algorithms for your everyday ML tasks.
-
-_Documentation_: [latest](https://docs.rs/linfa)
-_Community chat_: [Zulip](https://rust-ml.zulipchat.com/)
 
 ## Current state
 

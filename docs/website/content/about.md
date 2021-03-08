@@ -14,6 +14,8 @@ Where does `linfa` stand right now? [Are we learning yet?](http://www.arewelearn
 `linfa` currently provides sub-packages with the following algorithms: 
 
 
+<div class="outer-table">
+
 | Name | Purpose | Status | Category |  Notes | 
 | :--- | :--- | :---| :--- | :---| 
 | [clustering](https://github.com/rust-ml/linfa-clustering/) | Data clustering | Tested / Benchmarked  | Unsupervised learning | Clustering of unlabeled data; contains K-Means, Gaussian-Mixture-Model and DBSCAN  | 
@@ -27,6 +29,8 @@ Where does `linfa` stand right now? [Are we learning yet?](http://www.arewelearn
 | [hierarchical](https://github.com/rust-ml/linfa-hierarchical/) | Agglomerative hierarchical clustering | Tested | Unsupervised learning | Cluster and build hierarchy of clusters |
 | [bayes](https://github.com/rust-ml/linfa-bayes/) | Naive Bayes | Tested | Supervised learning | Contains Gaussian Naive Bayes |
 | [ica](https://github.com/rust-ml/linfa-ica/) | Independent component analysis | Tested | Unsupervised learning | Contains FastICA implementation |
+
+</div>
 
 We believe that only a significant community effort can nurture, build, and sustain a machine learning ecosystem in Rust - there is no other way forward.
 
