@@ -1,6 +1,6 @@
 [package]
 name = "linfa-svm"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2018"
 authors = ["Lorenz Schmidt <lorenz.schmidt@mailbox.org>"]
 description = "Support Vector Machines"
@@ -29,9 +29,9 @@ ndarray-rand = "0.11"
 num-traits = "0.1.32"
 thiserror = "1"
 
-linfa = { version = "0.3.0", path = "../.." }
-linfa-kernel = { version = "0.3.0", path = "../linfa-kernel" }
+linfa = { version = "0.3.1", path = "../.." }
+linfa-kernel = { version = "0.3.1", path = "../linfa-kernel" }
 
 [dev-dependencies]
-linfa-datasets = { version = "0.3.0", path = "../../datasets", features = ["winequality", "diabetes"] }
+linfa-datasets = { version = "0.3.1", path = "../../datasets", features = ["winequality", "diabetes"] }
 rand_isaac = "0.2"

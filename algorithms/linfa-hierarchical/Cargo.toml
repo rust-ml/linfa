@@ -1,6 +1,6 @@
 [package]
 name = "linfa-hierarchical"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Lorenz Schmidt <lorenz.schmidt@mailbox.org>"]
 edition = "2018"
 
@@ -17,10 +17,10 @@ categories = ["algorithms", "mathematics", "science"]
 ndarray = { version = "0.13", default-features = false }
 kodama = "0.2"
 
-linfa = { version = "0.3.0", path = "../.." }
-linfa-kernel = { version = "0.3.0", path = "../linfa-kernel" }
+linfa = { version = "0.3.1", path = "../.." }
+linfa-kernel = { version = "0.3.1", path = "../linfa-kernel" }
 
 [dev-dependencies]
 rand = "0.7"
 ndarray-rand = "0.11"
-linfa-datasets = { version = "0.3.0", path = "../../datasets", features = ["iris"] }
+linfa-datasets = { version = "0.3.1", path = "../../datasets", features = ["iris"] }

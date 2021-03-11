@@ -35,3 +35,4 @@ poetry.lock
 
 # Generated artifacts of website (with Zola)
 docs/website/public/*
+docs/website/static/rustdocs/

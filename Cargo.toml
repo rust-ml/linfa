@@ -1,6 +1,6 @@
 [package]
 name = "linfa"
-version = "0.3.0"
+version = "0.3.1"
 authors = [
     "Luca Palmieri <rust@lpalmieri.com>",
     "Lorenz Schmidt <bytesnake@mailbox.org>",
@@ -60,7 +60,7 @@ features = ["cblas"]
 ndarray-rand = "0.11"
 approx = { version = "0.3", default-features = false, features = ["std"] }
 
-linfa-datasets = { version = "0.3.0", path = "datasets", features = ["winequality", "iris", "diabetes", "linnerud"] }
+linfa-datasets = { path = "datasets", features = ["winequality", "iris", "diabetes"] }
 
 [workspace]
 members = [

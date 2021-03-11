@@ -18,13 +18,13 @@ Currently the following datasets are provided:
 | linnerud | The linnerud dataset contains samples from 20 middle-aged men in a fitness club. Their physical capability, as well as biological measures are related. | 20, 3, 3 | Regression | [here](https://core.ac.uk/download/pdf/20641325.pdf) |
 
 The purpose of this crate is to faciliate dataset loading and make it as simple as possible. Loaded datasets are returned as a 
-[`linfa::Dataset`](https://docs.rs/linfa/0.3.0/linfa/dataset/type.Dataset.html) structure with named features.
+[`linfa::Dataset`](https://docs.rs/linfa/latest/linfa/dataset/type.Dataset.html) structure with named features.
 
 ## Using a dataset
 
 To use one of the provided datasets in your project add the `linfa-datasets` crate to your `Cargo.toml` and enable the corresponding feature:
 ```
-linfa-datasets = { version = "0.3.0", features = ["winequality"] }
+linfa-datasets = { version = "0.3.1", features = ["winequality"] }
 ```
 You can then use the dataset in your working code:
 ```rust

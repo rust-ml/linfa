@@ -1,6 +1,6 @@
 [package]
 name = "linfa-kernel"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Lorenz Schmidt <bytesnake@mailbox.org>"]
 description = "Kernel methods for non-linear algorithms"
 edition = "2018"
@@ -29,4 +29,4 @@ sprs = { version = "0.9.3", default-features = false }
 hnsw = "0.6"
 space = "0.10"
 
-linfa = { version = "0.3.0", path = "../.." }
+linfa = { version = "0.3.1", path = "../.." }
