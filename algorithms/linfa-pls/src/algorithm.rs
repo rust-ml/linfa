@@ -33,8 +33,8 @@ impl<F: Float> Pls<F> {
         PlsParams::new(n_components)
     }
 
-    pub fn weights(&self) -> &Array2<F> {
-        &self.x_rotations
+    pub fn coeffs(&self) -> &Array2<F> {
+        &self.coeffs
     }
 }
 
