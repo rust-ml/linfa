@@ -29,8 +29,24 @@ pub struct Pls<F: Float> {
 }
 
 impl<F: Float> Pls<F> {
-    pub fn params(n_components: usize) -> PlsParams<F> {
+    pub fn regression(n_components: usize) -> PlsParams<F> {
         PlsParams::new(n_components)
+    }
+
+    pub fn weights(&self) -> (&Array2<F>, &Array2<F>) {
+        (&self.x_weights, &self.y_weights)
+    }
+
+    pub fn scores(&self) -> (&Array2<F>, &Array2<F>) {
+        (&self.x_scores, &self.y_scores)
+    }
+
+    pub fn loadings(&self) -> (&Array2<F>, &Array2<F>) {
+        (&self.x_loadings, &self.y_loadings)
+    }
+
+    pub fn rotations(&self) -> (&Array2<F>, &Array2<F>) {
+        (&self.x_rotations, &self.y_rotations)
     }
 
     pub fn coeffs(&self) -> &Array2<F> {
@@ -53,33 +69,16 @@ impl<F: Float> PlsParams<F> {
             tolerance: F::from(1e-6).unwrap(),
         }
     }
-}
 
-fn center_scale<F: Float>(
-    x: &ArrayBase<impl Data<Elem = F>, Ix2>,
-    y: &ArrayBase<impl Data<Elem = F>, Ix2>,
-) -> (
-    Array2<F>,
-    Array2<F>,
-    Array1<F>,
-    Array1<F>,
-    Array1<F>,
-    Array1<F>,
-) {
-    let (xnorm, x_mean, x_std) = normalize(&x);
-    let (ynorm, y_mean, y_std) = normalize(&y);
-    (xnorm, ynorm, x_mean, y_mean, x_std, y_std)
-}
+    pub fn max_iterations(mut self, max_iter: usize) -> Self {
+        self.max_iter = max_iter;
+        self
+    }
 
-fn outer<F: Float>(
-    a: &ArrayBase<impl Data<Elem = F>, Ix1>,
-    b: &ArrayBase<impl Data<Elem = F>, Ix1>,
-) -> Array2<F> {
-    let mut outer = Array2::zeros((a.len(), b.len()));
-    Zip::from(outer.genrows_mut()).and(a).apply(|mut out, ai| {
-        out.assign(&b.mapv(|v| *ai * v));
-    });
-    outer
+    pub fn tolerance(mut self, tolerance: F) -> Self {
+        self.tolerance = tolerance;
+        self
+    }
 }
 
 impl<'a, F: Float + Scalar + Lapack> Fit<'a, Array2<F>, Array2<F>> for PlsParams<F> {
@@ -246,6 +245,33 @@ impl<F: Float> PlsParams<F> {
     }
 }
 
+fn center_scale<F: Float>(
+    x: &ArrayBase<impl Data<Elem = F>, Ix2>,
+    y: &ArrayBase<impl Data<Elem = F>, Ix2>,
+) -> (
+    Array2<F>,
+    Array2<F>,
+    Array1<F>,
+    Array1<F>,
+    Array1<F>,
+    Array1<F>,
+) {
+    let (xnorm, x_mean, x_std) = normalize(&x);
+    let (ynorm, y_mean, y_std) = normalize(&y);
+    (xnorm, ynorm, x_mean, y_mean, x_std, y_std)
+}
+
+fn outer<F: Float>(
+    a: &ArrayBase<impl Data<Elem = F>, Ix1>,
+    b: &ArrayBase<impl Data<Elem = F>, Ix1>,
+) -> Array2<F> {
+    let mut outer = Array2::zeros((a.len(), b.len()));
+    Zip::from(outer.genrows_mut()).and(a).apply(|mut out, ai| {
+        out.assign(&b.mapv(|v| *ai * v));
+    });
+    outer
+}
+
 fn pinv2<F: Float + Scalar + Lapack>(x: &ArrayBase<impl Data<Elem = F>, Ix2>) -> Array2<F> {
     let (opt_u, s, opt_vh) = x.svd(true, true).unwrap();
     let u = opt_u.unwrap();
@@ -305,7 +331,9 @@ mod tests {
     #[test]
     fn test_pls_fit() {
         let dataset = linnerud();
-        let pls = Pls::params(3).fit(&dataset).expect("PLS fitting failed");
+        let pls = Pls::regression(3)
+            .fit(&dataset)
+            .expect("PLS fitting failed");
 
         // The results were checked against scikit-learn 0.24 PlsRegression
         let expected_x_weights = array![
@@ -342,7 +370,9 @@ mod tests {
         let mut dataset = linnerud();
         let nrows = dataset.targets.nrows();
         dataset.targets.column_mut(0).assign(&Array1::ones(nrows));
-        let pls = Pls::params(3).fit(&dataset).expect("PLS fitting failed");
+        let pls = Pls::regression(3)
+            .fit(&dataset)
+            .expect("PLS fitting failed");
 
         // The results were checked against scikit-learn 0.24 PlsRegression
         let expected_x_weights = array![

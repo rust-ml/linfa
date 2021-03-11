@@ -24,13 +24,13 @@ fn main() -> Result<()> {
     let y = x.dot(&b) + Array::random_using((n, q), StandardNormal, &mut rng).mapv(|v: f64| v + 5.);
 
     let ds = Dataset::new(x, y);
-    let pls2 = Pls::params(2).fit(&ds)?;
+    let pls = Pls::regression(3).fit(&ds)?;
 
     println!("True B (such that: Y = XB + noise)");
     println!("{:?}", b);
 
     // PLS regression coefficients is an estimation of B
     println!("Estimated B");
-    println!("{:1.1}", pls2.coeffs());
+    println!("{:1.1}", pls.coeffs());
     Ok(())
 }
