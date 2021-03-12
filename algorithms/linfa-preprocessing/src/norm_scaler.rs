@@ -1,4 +1,3 @@
-use crate::error::{Error, Result};
 use crate::Float;
 use linfa::dataset::{AsTargets, DatasetBase};
 use linfa::traits::Transformer;
@@ -62,7 +61,7 @@ mod tests {
     use approx::assert_abs_diff_eq;
     use linfa::dataset::DatasetBase;
     use linfa::traits::Transformer;
-    use ndarray::array;
+    use ndarray::{array, Array2};
 
     #[test]
     fn test_norm_l2() {
@@ -89,5 +88,17 @@ mod tests {
         let normalized_data = scaler.transform(dataset);
         let ground_truth = array![[0.5, -0.5, 1.], [1., 0., 0.], [0., 1., -1.]];
         assert_abs_diff_eq!(*normalized_data.records(), ground_truth, epsilon = 1e-2);
+    }
+
+    #[test]
+    fn test_no_input() {
+        let input: Array2<f64> = Array2::from_shape_vec((0, 0), vec![]).unwrap();
+        let ground_truth: Array2<f64> = Array2::from_shape_vec((0, 0), vec![]).unwrap();
+        let scaler = NormScaler::max();
+        assert_abs_diff_eq!(scaler.transform(input.clone()), ground_truth);
+        let scaler = NormScaler::l1();
+        assert_abs_diff_eq!(scaler.transform(input.clone()), ground_truth);
+        let scaler = NormScaler::l2();
+        assert_abs_diff_eq!(scaler.transform(input.clone()), ground_truth);
     }
 }
