@@ -11,4 +11,8 @@ pub enum Error {
     NotEnoughSamples,
     #[error("not a valid float")]
     InvalidFloat,
+    #[error("n_gram boundaries cannot be zero (min = {0}, max = {1})")]
+    InvalidNGramBoundaries(usize, usize),
+    #[error("n_gram min boundary cannot be greater than max boundary (min = {0}, max = {1})")]
+    FlippedNGramBoundaries(usize, usize),
 }
