@@ -8,6 +8,9 @@ use ndarray::{
 };
 use num_traits::{FromPrimitive, NumAssignOps, Signed};
 
+#[cfg(feature = "polars")]
+use polars_core::frame::DataFrame;
+
 use std::cmp::{Ordering, PartialOrd};
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
@@ -146,6 +149,10 @@ pub type DatasetView<'a, D, T> = DatasetBase<ArrayView<'a, D, Ix2>, ArrayView<'a
 /// of elements of type `Pr`
 pub type DatasetPr<D, L> =
     DatasetBase<ArrayBase<OwnedRepr<D>, Ix2>, CountedTargets<L, ArrayBase<OwnedRepr<Pr>, Ix3>>>;
+
+#[cfg(feature = "polars")]
+/// Dataframe
+pub type Dataframe<T> = DatasetBase<DataFrame, ArrayBase<OwnedRepr<T>, Ix2>>;
 
 /// Record trait
 pub trait Records: Sized {
