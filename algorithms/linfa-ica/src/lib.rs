@@ -25,6 +25,17 @@
 //! Here's an example of ICA unmixing the mixture of two signals
 //!
 //! ```
+//! use linfa::{
+//!     dataset::DatasetBase,
+//!     traits::{Fit, Predict},
+//! };
+//! use linfa_ica::fast_ica::{FastIca, GFunc};
+//! use ndarray::{array, stack};
+//! use ndarray::{Array, Array2, Axis};
+//! use ndarray_npy::write_npy;
+//! use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
+//! use rand_isaac::Isaac64Rng;
+//!
 //! let nsamples = 2000;
 //! // Creating a sine wave signal
 //! let source1 = Array::linspace(0., 8., nsamples).mapv(|x| (2f64 * x).sin());
@@ -61,7 +72,7 @@
 //! // `ncomponents` is not set, it will be automatically be assigned 2 from
 //! // the input
 //! let ica = FastIca::new().gfunc(GFunc::Logcosh(1.0));
-//! let ica = ica.fit(&DatasetBase::from(sources_mixed.view()))?;
+//! let ica = ica.fit(&DatasetBase::from(sources_mixed.view())).unwrap();
 //!
 //! // Here we unmix the data to recover back the original signals
 //! let sources_ica = ica.predict(&sources_mixed);
