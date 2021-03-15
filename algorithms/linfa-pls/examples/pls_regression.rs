@@ -6,6 +6,7 @@ use ndarray_rand::rand_distr::StandardNormal;
 use ndarray_rand::RandomExt;
 use rand_isaac::Isaac64Rng;
 
+#[allow(clippy::many_single_char_names)]
 fn main() -> Result<()> {
     let n = 1000;
     let q = 3;

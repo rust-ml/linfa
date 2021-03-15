@@ -1,4 +1,4 @@
-use linfa::Float;
+use linfa::{Dataset, DatasetBase, Float};
 use ndarray::{s, Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2, Zip};
 use ndarray_linalg::{svd::*, Lapack, Scalar};
 use ndarray_stats::QuantileExt;
@@ -14,8 +14,8 @@ pub fn outer<F: Float>(
     outer
 }
 
-pub fn pinv2<F: Float + Scalar + Lapack>(
-    x: &ArrayBase<impl Data<Elem = F>, Ix2>,
+pub fn pinv2<F: Float + Scalar + Lapack, D: Data<Elem = F>>(
+    x: &ArrayBase<D, Ix2>,
     cond: Option<F>,
 ) -> Array2<F> {
     let (opt_u, s, opt_vh) = x.svd(true, true).unwrap();
@@ -43,9 +43,9 @@ pub fn pinv2<F: Float + Scalar + Lapack>(
         .to_owned()
 }
 
-pub fn center_scale_xy<F: Float>(
-    x: &ArrayBase<impl Data<Elem = F>, Ix2>,
-    y: &ArrayBase<impl Data<Elem = F>, Ix2>,
+#[allow(clippy::type_complexity)]
+pub fn center_scale_dataset<F: Float, D: Data<Elem = F>>(
+    dataset: &DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>>,
     scale: bool,
 ) -> (
     Array2<F>,
@@ -55,8 +55,8 @@ pub fn center_scale_xy<F: Float>(
     Array1<F>,
     Array1<F>,
 ) {
-    let (xnorm, x_mean, x_std) = center_scale(&x, scale);
-    let (ynorm, y_mean, y_std) = center_scale(&y, scale);
+    let (xnorm, x_mean, x_std) = center_scale(&dataset.records(), scale);
+    let (ynorm, y_mean, y_std) = center_scale(&dataset.targets(), scale);
     (xnorm, ynorm, x_mean, y_mean, x_std, y_std)
 }
 
@@ -80,12 +80,7 @@ fn center_scale<F: Float>(
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use linfa_datasets::linnerud;
     use ndarray::array;
-    use ndarray_rand::rand::SeedableRng;
-    use ndarray_rand::rand_distr::StandardNormal;
-    use ndarray_rand::RandomExt;
-    use rand_isaac::Isaac64Rng;
 
     #[test]
     fn test_outer() {

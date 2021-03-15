@@ -1,7 +1,7 @@
 use crate::errors::{PlsError, Result};
 use crate::utils;
 use linfa::{traits::Fit, traits::Transformer, Dataset, DatasetBase, Float};
-use ndarray::{s, Array1, Array2, ArrayBase, Data, Ix2};
+use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
 use ndarray_linalg::{svd::*, Lapack, Scalar};
 use ndarray_stats::QuantileExt;
 
@@ -27,7 +27,6 @@ pub struct Pls<F: Float> {
     x_std: Array1<F>,
     y_mean: Array1<F>,
     y_std: Array1<F>,
-    norm_y_weights: bool,
     x_weights: Array2<F>,  // U
     y_weights: Array2<F>,  // V
     x_scores: Array2<F>,   // xi
@@ -58,9 +57,7 @@ impl<F: Float> Pls<F> {
     }
 
     pub fn canonical(n_components: usize) -> PlsParams<F> {
-        PlsParams::new(n_components)
-            .deflation_mode(DeflationMode::Canonical)
-            .mode(Mode::A)
+        PlsParams::new(n_components).deflation_mode(DeflationMode::Canonical)
     }
 
     pub fn cca(n_components: usize) -> PlsParams<F> {
@@ -173,12 +170,12 @@ impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, A
     type Object = Result<Pls<F>>;
 
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>>) -> Result<Pls<F>> {
-        let x = dataset.records();
-        let y = dataset.targets();
+        let records = dataset.records();
+        let targets = dataset.targets();
 
-        let n = x.nrows();
-        let p = x.ncols();
-        let q = y.ncols();
+        let n = records.nrows();
+        let p = records.ncols();
+        let q = targets.ncols();
 
         let n_components = self.n_components;
         let rank_upper_bound = match self.deflation_mode {
@@ -195,7 +192,7 @@ impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, A
         };
 
         if 1 > n_components || n_components > rank_upper_bound {
-            return Err(PlsError::new(format!(
+            return Err(PlsError::BadComponentNumberError(format!(
                 "n_components should be in [1, {}], got {}",
                 rank_upper_bound, n_components
             )));
@@ -203,7 +200,7 @@ impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, A
         let norm_y_weights = self.deflation_mode == DeflationMode::Canonical;
         // Scale (in place)
         let (mut xk, mut yk, x_mean, y_mean, x_std, y_std) =
-            utils::center_scale_xy(&x, &y, self.scale);
+            utils::center_scale_dataset(&dataset, self.scale);
 
         let mut x_weights = Array2::<F>::zeros((p, n_components)); // U
         let mut y_weights = Array2::<F>::zeros((q, n_components)); // V
@@ -231,11 +228,11 @@ impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, A
                     }
 
                     let (mut _x_weights, mut _y_weights, n_iter) =
-                        self.get_first_singular_vectors_power_method(&xk, &yk, norm_y_weights);
+                        self.get_first_singular_vectors_power_method(&xk, &yk, norm_y_weights)?;
                     n_iters[i] = n_iter;
                     (_x_weights, _y_weights)
                 }
-                Algorithm::Svd => self.get_first_singular_vectors_svd(&xk, &yk),
+                Algorithm::Svd => self.get_first_singular_vectors_svd(&xk, &yk)?,
             };
             // svd_flip_1d(x_weights, y_weights)
             let biggest_abs_val_idx = _x_weights.mapv(|v| v.abs()).argmax().unwrap();
@@ -295,7 +292,6 @@ impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, A
             x_std,
             y_mean,
             y_std,
-            norm_y_weights,
             x_weights,
             y_weights,
             x_scores,
@@ -318,7 +314,7 @@ impl<F: Float + Scalar + Lapack> PlsParams<F> {
         x: &ArrayBase<impl Data<Elem = F>, Ix2>,
         y: &ArrayBase<impl Data<Elem = F>, Ix2>,
         norm_y_weights: bool,
-    ) -> (Array1<F>, Array1<F>, usize) {
+    ) -> Result<(Array1<F>, Array1<F>, usize)> {
         let eps = F::epsilon();
 
         let mut y_score = Array1::ones(y.ncols());
@@ -342,6 +338,7 @@ impl<F: Float + Scalar + Lapack> PlsParams<F> {
         let mut n_iter = 1;
         let mut x_weights = Array1::<F>::ones(x.ncols());
         let mut y_weights = Array1::<F>::ones(y.ncols());
+        let mut converged = false;
         while n_iter < self.max_iter {
             x_weights = match self.mode {
                 Mode::A => x.t().dot(&y_score) / y_score.dot(&y_score),
@@ -365,20 +362,21 @@ impl<F: Float + Scalar + Lapack> PlsParams<F> {
 
             let x_weights_diff = &x_weights - &x_weights_old;
             if x_weights_diff.dot(&x_weights_diff) < self.tolerance || y.ncols() == 1 {
+                converged = true;
                 break;
             } else {
                 x_weights_old = x_weights.to_owned();
                 n_iter += 1;
             }
         }
-        if n_iter == self.max_iter {
-            println!(
-                "Warning: Singular vector computation power method: max iterations ({}) reached",
+        if n_iter == self.max_iter && !converged {
+            Err(PlsError::PowerMethodNotConvergedError(format!(
+                "Singular vector computation power method: max iterations ({}) reached",
                 self.max_iter
-            );
+            )))
+        } else {
+            Ok((x_weights, y_weights, n_iter))
         }
-
-        (x_weights, y_weights, n_iter)
     }
 }
 
@@ -387,12 +385,12 @@ impl<F: Float + Scalar + Lapack> PlsParams<F> {
         &self,
         x: &ArrayBase<impl Data<Elem = F>, Ix2>,
         y: &ArrayBase<impl Data<Elem = F>, Ix2>,
-    ) -> (Array1<F>, Array1<F>) {
+    ) -> Result<(Array1<F>, Array1<F>)> {
         let c = x.dot(y);
-        let (u, _, vt) = c.svd(true, true).unwrap();
+        let (u, _, vt) = c.svd(true, true)?;
         let u = u.unwrap().row(0).to_owned();
         let vt = vt.unwrap().row(0).to_owned();
-        (u, vt)
+        Ok((u, vt))
     }
 }
 
@@ -400,8 +398,13 @@ impl<F: Float + Scalar + Lapack> PlsParams<F> {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
+    use linfa::dataset::Records;
     use linfa_datasets::linnerud;
-    use ndarray::{array, Array};
+    use ndarray::{array, stack, Array, Axis};
+    use ndarray_rand::rand::SeedableRng;
+    use ndarray_rand::rand_distr::StandardNormal;
+    use ndarray_rand::RandomExt;
+    use rand_isaac::Isaac64Rng;
 
     fn assert_matrix_orthogonal(m: &Array2<f64>) {
         assert_abs_diff_eq!(&m.t().dot(m), &Array::eye(m.ncols()), epsilon = 1e-7);
@@ -416,10 +419,9 @@ mod tests {
     fn test_pls_canonical_basics() -> Result<()> {
         // Basic checks for PLSCanonical
         let dataset = linnerud();
-        let x = dataset.records();
-        let y = dataset.targets();
+        let records = dataset.records();
 
-        let pls = Pls::canonical(x.ncols()).fit(&dataset)?;
+        let pls = Pls::canonical(records.ncols()).fit(&dataset)?;
 
         let (x_weights, y_weights) = pls.weights();
         assert_matrix_orthogonal(x_weights);
@@ -435,7 +437,7 @@ mod tests {
         let u = y_scores;
 
         // Need to scale first
-        let (xc, yc, ..) = utils::center_scale_xy(&x, &y, true);
+        let (xc, yc, ..) = utils::center_scale_dataset(&dataset, true);
         assert_abs_diff_eq!(&xc, &t.dot(&p.t()), epsilon = 1e-7);
         assert_abs_diff_eq!(&yc, &u.dot(&q.t()), epsilon = 1e-7);
 
@@ -522,7 +524,7 @@ mod tests {
     fn test_sanity_check_pls_canonical() -> Result<()> {
         // Sanity check for PLSCanonical
         // The results were checked against the R-package plspm
-        let mut dataset = linnerud();
+        let dataset = linnerud();
         let pls = Pls::canonical(dataset.records().ncols()).fit(&dataset)?;
 
         let expected_x_weights = array![
@@ -586,5 +588,118 @@ mod tests {
         assert_matrix_diagonal(x_scores);
         assert_matrix_diagonal(y_scores);
         Ok(())
+    }
+
+    #[test]
+    fn test_sanity_check_pls_canonical_random() {
+        // Sanity check for PLSCanonical on random data
+        // The results were checked against the R-package plspm
+        let n = 500;
+        let p_noise = 10;
+        let q_noise = 5;
+
+        // 2 latents vars:
+        let mut rng = Isaac64Rng::seed_from_u64(100);
+        let l1: Array1<f64> = Array1::random_using(n, StandardNormal, &mut rng);
+        let l2: Array1<f64> = Array1::random_using(n, StandardNormal, &mut rng);
+        let mut latents = Array::zeros((4, n));
+        latents.row_mut(0).assign(&l1);
+        latents.row_mut(0).assign(&l1);
+        latents.row_mut(0).assign(&l2);
+        latents.row_mut(0).assign(&l2);
+        latents = latents.reversed_axes();
+
+        let mut x = &latents + &Array2::<f64>::random_using((n, 4), StandardNormal, &mut rng);
+        let mut y = latents + &Array2::<f64>::random_using((n, 4), StandardNormal, &mut rng);
+
+        x = stack(
+            Axis(1),
+            &[
+                x.view(),
+                Array2::random_using((n, p_noise), StandardNormal, &mut rng).view(),
+            ],
+        )
+        .unwrap();
+        y = stack(
+            Axis(1),
+            &[
+                y.view(),
+                Array2::random_using((n, q_noise), StandardNormal, &mut rng).view(),
+            ],
+        )
+        .unwrap();
+
+        let ds = Dataset::new(x, y);
+        let pls = Pls::canonical(3)
+            .fit(&ds)
+            .expect("PLS canonical fitting failed");
+
+        let (x_weights, y_weights) = pls.weights();
+        assert_matrix_orthogonal(x_weights);
+        assert_matrix_orthogonal(y_weights);
+
+        let (x_scores, y_scores) = pls.scores();
+        assert_matrix_diagonal(x_scores);
+        assert_matrix_diagonal(y_scores);
+    }
+
+    #[test]
+    fn test_scale_and_stability() -> Result<()> {
+        // scale=True is equivalent to scale=False on centered/scaled data
+        // This allows to check numerical stability over platforms as well
+
+        let ds = linnerud();
+        let (x_s, y_s, ..) = utils::center_scale_dataset(&ds, true);
+        let ds_s = Dataset::new(x_s, y_s);
+
+        let ds_score = Pls::regression(2)
+            .scale(true)
+            .fit(&ds)?
+            .transform(ds.to_owned());
+        let ds_s_score = Pls::regression(2)
+            .scale(false)
+            .fit(&ds_s)?
+            .transform(ds_s.to_owned());
+
+        assert_abs_diff_eq!(ds_s_score.records(), ds_score.records(), epsilon = 1e-4);
+        assert_abs_diff_eq!(ds_s_score.targets(), ds_score.targets(), epsilon = 1e-4);
+        Ok(())
+    }
+
+    #[test]
+    fn test_one_component_equivalence() -> Result<()> {
+        // PLSRegression and PLSCanonical should all be equivalent when n_components is 1
+        let ds = linnerud();
+        let ds2 = linnerud();
+        let regression = Pls::regression(1).fit(&ds)?.transform(ds);
+        let canonical = Pls::canonical(1).fit(&ds2)?.transform(ds2);
+
+        assert_abs_diff_eq!(regression.records(), canonical.records(), epsilon = 1e-7);
+        Ok(())
+    }
+
+    #[test]
+    fn test_convergence_fail() {
+        let ds = linnerud();
+        assert!(
+            Pls::canonical(ds.records().nfeatures())
+                .max_iterations(2)
+                .fit(&ds)
+                .is_err(),
+            "PLS power method should not converge, hence raise an error"
+        );
+    }
+
+    #[test]
+    fn test_bad_component_number() {
+        let ds = linnerud();
+        assert!(
+            Pls::cca(ds.records().nfeatures() + 1).fit(&ds).is_err(),
+            "n_components too large should raise an error"
+        );
+        assert!(
+            Pls::canonical(0).fit(&ds).is_err(),
+            "n_components=0 should raise an error"
+        );
     }
 }
