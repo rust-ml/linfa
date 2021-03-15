@@ -1,5 +1,4 @@
 use crate::k_means::errors::{KMeansError, Result};
-use crate::k_means::helpers::IncrementalMean;
 use crate::k_means::hyperparameters::{KMeansHyperParams, KMeansHyperParamsBuilder};
 use linfa::{traits::*, DatasetBase, Float};
 use ndarray::{s, Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
@@ -7,7 +6,6 @@ use ndarray_rand::rand;
 use ndarray_rand::rand::Rng;
 use ndarray_stats::DeviationExt;
 use rand_isaac::Isaac64Rng;
-use std::collections::HashMap;
 
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
@@ -242,7 +240,8 @@ fn compute_inertia<F: Float>(
     Zip::from(observations.genrows())
         .and(cluster_memberships)
         .and(&mut dists)
-        .par_apply(|observation, &cluster_membership, d| {
+        // TODO change back
+        .apply(|observation, &cluster_membership, d| {
             *d = centroids
                 .row(cluster_membership)
                 .sq_l2_dist(&observation)
@@ -261,51 +260,30 @@ fn compute_inertia<F: Float>(
 /// `compute_centroids` wraps our `compute_centroids_hashmap` to return a 2-dimensional array,
 /// where the i-th row corresponds to the i-th cluster.
 fn compute_centroids<F: Float>(
-    // The number of clusters could be inferred from `centroids_hashmap`,
-    // but it is indeed possible for a cluster to become empty during the
-    // multiple rounds of assignment-update optimisations
-    // This would lead to an underestimate of the number of clusters
-    // and several errors down the line due to shape mismatches
     n_clusters: usize,
     // (n_observations, n_features)
     observations: &ArrayBase<impl Data<Elem = F>, Ix2>,
     // (n_observations,)
     cluster_memberships: &ArrayBase<impl Data<Elem = usize>, Ix1>,
 ) -> Array2<F> {
-    let centroids_hashmap = compute_centroids_hashmap(&observations, &cluster_memberships);
     let (_, n_features) = observations.dim();
 
+    let mut counts: Array1<F> = Array1::zeros(n_clusters);
     let mut centroids: Array2<F> = Array2::zeros((n_clusters, n_features));
-    for (centroid_index, centroid) in centroids_hashmap.into_iter() {
-        centroids
-            .slice_mut(s![centroid_index, ..])
-            .assign(&centroid.current_mean);
-    }
-    centroids
-}
 
-/// Iterate over our observations and capture in a HashMap the new centroids.
-/// The HashMap is a (cluster_index => new centroid) mapping.
-fn compute_centroids_hashmap<F: Float>(
-    // (n_observations, n_features)
-    observations: &ArrayBase<impl Data<Elem = F>, Ix2>,
-    // (n_observations,)
-    cluster_memberships: &ArrayBase<impl Data<Elem = usize>, Ix1>,
-) -> HashMap<usize, IncrementalMean<F>> {
-    let mut new_centroids: HashMap<usize, IncrementalMean<F>> = HashMap::new();
     Zip::from(observations.genrows())
         .and(cluster_memberships)
         .apply(|observation, cluster_membership| {
-            if let Some(incremental_mean) = new_centroids.get_mut(cluster_membership) {
-                incremental_mean.update(&observation);
-            } else {
-                new_centroids.insert(
-                    *cluster_membership,
-                    IncrementalMean::new(observation.to_owned()),
-                );
-            }
+            let mut centroid = centroids.slice_mut(s![*cluster_membership, ..]);
+            centroid += &observation;
+            counts[*cluster_membership] += F::from(1.0).unwrap();
         });
-    new_centroids
+
+    centroids
+        .gencolumns_mut()
+        .into_iter()
+        .for_each(|mut col| col /= &counts);
+    centroids
 }
 
 /// Given a matrix of centroids with shape (n_centroids, n_features)
@@ -321,7 +299,8 @@ fn update_cluster_memberships<F: Float>(
 ) {
     Zip::from(observations.axis_iter(Axis(0)))
         .and(cluster_memberships)
-        .par_apply(|observation, cluster_membership| {
+        // TODO change back
+        .apply(|observation, cluster_membership| {
             *cluster_membership = closest_centroid(&centroids, &observation)
         });
 }
@@ -351,11 +330,9 @@ fn closest_centroid<F: Float>(
     // (n_features)
     observation: &ArrayBase<impl Data<Elem = F>, Ix1>,
 ) -> usize {
-    let mut iterator = centroids.genrows().into_iter().peekable();
+    let iterator = centroids.genrows().into_iter();
 
-    let first_centroid = iterator
-        .peek()
-        .expect("There has to be at least one centroid");
+    let first_centroid = centroids.row(0);
     let (mut closest_index, mut minimum_distance) = (
         0,
         first_centroid
