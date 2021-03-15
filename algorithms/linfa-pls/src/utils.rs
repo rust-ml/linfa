@@ -1,0 +1,104 @@
+use linfa::Float;
+use ndarray::{s, Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2, Zip};
+use ndarray_linalg::{svd::*, Lapack, Scalar};
+use ndarray_stats::QuantileExt;
+
+pub fn outer<F: Float>(
+    a: &ArrayBase<impl Data<Elem = F>, Ix1>,
+    b: &ArrayBase<impl Data<Elem = F>, Ix1>,
+) -> Array2<F> {
+    let mut outer = Array2::zeros((a.len(), b.len()));
+    Zip::from(outer.genrows_mut()).and(a).apply(|mut out, ai| {
+        out.assign(&b.mapv(|v| *ai * v));
+    });
+    outer
+}
+
+pub fn pinv2<F: Float + Scalar + Lapack>(
+    x: &ArrayBase<impl Data<Elem = F>, Ix2>,
+    cond: Option<F>,
+) -> Array2<F> {
+    let (opt_u, s, opt_vh) = x.svd(true, true).unwrap();
+    let u = opt_u.unwrap();
+    let vh = opt_vh.unwrap();
+
+    let cond = cond.unwrap_or(
+        F::from(*s.max().unwrap()).unwrap()
+            * F::from(x.nrows().max(x.ncols())).unwrap()
+            * F::epsilon(),
+    );
+
+    let rank = s.fold(0, |mut acc, v| {
+        if F::from(*v).unwrap() > cond {
+            acc += 1
+        };
+        acc
+    });
+
+    let mut ucut = u.slice(s![.., ..rank]).to_owned();
+    ucut /= &s.slice(s![..rank]).mapv(|v| F::from(v).unwrap());
+    ucut.dot(&vh.slice(s![..rank, ..]))
+        .mapv(|v| v.conj())
+        .t()
+        .to_owned()
+}
+
+pub fn center_scale_xy<F: Float>(
+    x: &ArrayBase<impl Data<Elem = F>, Ix2>,
+    y: &ArrayBase<impl Data<Elem = F>, Ix2>,
+    scale: bool,
+) -> (
+    Array2<F>,
+    Array2<F>,
+    Array1<F>,
+    Array1<F>,
+    Array1<F>,
+    Array1<F>,
+) {
+    let (xnorm, x_mean, x_std) = center_scale(&x, scale);
+    let (ynorm, y_mean, y_std) = center_scale(&y, scale);
+    (xnorm, ynorm, x_mean, y_mean, x_std, y_std)
+}
+
+fn center_scale<F: Float>(
+    x: &ArrayBase<impl Data<Elem = F>, Ix2>,
+    scale: bool,
+) -> (Array2<F>, Array1<F>, Array1<F>) {
+    let x_mean = x.mean_axis(Axis(0)).unwrap();
+    let (xnorm, x_std) = if scale {
+        let mut x_std = x.std_axis(Axis(0), F::one());
+        x_std.mapv_inplace(|v| if v == F::zero() { F::one() } else { v });
+        ((x - &x_mean) / &x_std, x_std)
+    } else {
+        ((x - &x_mean), Array1::ones(x.ncols()))
+    };
+
+    (xnorm, x_mean, x_std)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use approx::assert_abs_diff_eq;
+    use linfa_datasets::linnerud;
+    use ndarray::array;
+    use ndarray_rand::rand::SeedableRng;
+    use ndarray_rand::rand_distr::StandardNormal;
+    use ndarray_rand::RandomExt;
+    use rand_isaac::Isaac64Rng;
+
+    #[test]
+    fn test_outer() {
+        let a = array![1., 2., 3.];
+        let b = array![2., 3.];
+        let expected = array![[2., 3.], [4., 6.], [6., 9.]];
+        assert_abs_diff_eq!(expected, outer(&a, &b));
+    }
+
+    #[test]
+    fn test_pinv2() {
+        let a = array![[1., 2., 3.], [4., 5., 6.], [7., 8., 10.]];
+        let a_pinv2 = pinv2(&a, None);
+        assert_abs_diff_eq!(a.dot(&a_pinv2), Array2::eye(3), epsilon = 1e-6)
+    }
+}

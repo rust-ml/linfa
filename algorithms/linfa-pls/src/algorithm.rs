@@ -1,6 +1,7 @@
 use crate::errors::{PlsError, Result};
+use crate::utils;
 use linfa::{traits::Fit, traits::Transformer, Dataset, DatasetBase, Float};
-use ndarray::{s, Array, Array1, Array2, ArrayBase, ArrayView2, Axis, Data, Ix1, Ix2, Zip};
+use ndarray::{s, Array1, Array2, ArrayBase, Data, Ix2};
 use ndarray_linalg::{svd::*, Lapack, Scalar};
 use ndarray_stats::QuantileExt;
 
@@ -166,10 +167,12 @@ impl<F: Float> PlsParams<F> {
     }
 }
 
-impl<'a, F: Float + Scalar + Lapack> Fit<'a, Array2<F>, Array2<F>> for PlsParams<F> {
+impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, ArrayBase<D, Ix2>>
+    for PlsParams<F>
+{
     type Object = Result<Pls<F>>;
 
-    fn fit(&self, dataset: &DatasetBase<Array2<F>, Array2<F>>) -> Result<Pls<F>> {
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>>) -> Result<Pls<F>> {
         let x = dataset.records();
         let y = dataset.targets();
 
@@ -199,7 +202,8 @@ impl<'a, F: Float + Scalar + Lapack> Fit<'a, Array2<F>, Array2<F>> for PlsParams
         }
         let norm_y_weights = self.deflation_mode == DeflationMode::Canonical;
         // Scale (in place)
-        let (mut xk, mut yk, x_mean, y_mean, x_std, y_std) = center_scale_xy(&x, &y, self.scale);
+        let (mut xk, mut yk, x_mean, y_mean, x_std, y_std) =
+            utils::center_scale_xy(&x, &y, self.scale);
 
         let mut x_weights = Array2::<F>::zeros((p, n_components)); // U
         let mut y_weights = Array2::<F>::zeros((q, n_components)); // V
@@ -250,19 +254,19 @@ impl<'a, F: Float + Scalar + Lapack> Fit<'a, Array2<F>, Array2<F>> for PlsParams
 
             // Deflation: subtract rank-one approx to obtain xk+1 and yk+1
             let _x_loadings = _x_scores.dot(&xk) / _x_scores.dot(&_x_scores);
-            xk = xk - outer(&_x_scores, &_x_loadings); // outer product
+            xk = xk - utils::outer(&_x_scores, &_x_loadings); // outer product
 
             let _y_loadings = match self.deflation_mode {
                 DeflationMode::Canonical => {
                     // regress yk on y_score
                     let _y_loadings = _y_scores.dot(&yk) / _y_scores.dot(&_y_scores);
-                    yk = yk - outer(&_y_scores, &_y_loadings); // outer product
+                    yk = yk - utils::outer(&_y_scores, &_y_loadings); // outer product
                     _y_loadings
                 }
                 DeflationMode::Regression => {
                     // regress yk on x_score
                     let _y_loadings = _x_scores.dot(&yk) / _x_scores.dot(&_x_scores);
-                    yk = yk - outer(&_x_scores, &_y_loadings); // outer product
+                    yk = yk - utils::outer(&_x_scores, &_y_loadings); // outer product
                     _y_loadings
                 }
             };
@@ -280,8 +284,8 @@ impl<'a, F: Float + Scalar + Lapack> Fit<'a, Array2<F>, Array2<F>> for PlsParams
         // Similiarly, Y was approximated as Omega . Delta.T + Y_(R+1)
 
         // Compute transformation matrices (rotations_). See User Guide.
-        let x_rotations = x_weights.dot(&pinv2(&x_loadings.t().dot(&x_weights), None));
-        let y_rotations = y_weights.dot(&pinv2(&y_loadings.t().dot(&y_weights), None));
+        let x_rotations = x_weights.dot(&utils::pinv2(&x_loadings.t().dot(&x_weights), None));
+        let y_rotations = y_weights.dot(&utils::pinv2(&y_loadings.t().dot(&y_weights), None));
 
         let mut coeffs = x_rotations.dot(&y_loadings.t());
         coeffs = &coeffs * &y_std;
@@ -328,8 +332,8 @@ impl<F: Float + Scalar + Lapack> PlsParams<F> {
         let mut x_pinv = None;
         let mut y_pinv = None;
         if self.mode == Mode::B {
-            x_pinv = Some(pinv2(&x, Some(F::from(10.).unwrap() * eps)));
-            y_pinv = Some(pinv2(&y, Some(F::from(10.).unwrap() * eps)));
+            x_pinv = Some(utils::pinv2(&x, Some(F::from(10.).unwrap() * eps)));
+            y_pinv = Some(utils::pinv2(&y, Some(F::from(10.).unwrap() * eps)));
         }
 
         // init to big value for first convergence check
@@ -369,7 +373,7 @@ impl<F: Float + Scalar + Lapack> PlsParams<F> {
         }
         if n_iter == self.max_iter {
             println!(
-                "Singular vector computation power method: max iterations ({}) reached",
+                "Warning: Singular vector computation power method: max iterations ({}) reached",
                 self.max_iter
             );
         }
@@ -392,104 +396,12 @@ impl<F: Float + Scalar + Lapack> PlsParams<F> {
     }
 }
 
-fn outer<F: Float>(
-    a: &ArrayBase<impl Data<Elem = F>, Ix1>,
-    b: &ArrayBase<impl Data<Elem = F>, Ix1>,
-) -> Array2<F> {
-    let mut outer = Array2::zeros((a.len(), b.len()));
-    Zip::from(outer.genrows_mut()).and(a).apply(|mut out, ai| {
-        out.assign(&b.mapv(|v| *ai * v));
-    });
-    outer
-}
-
-fn pinv2<F: Float + Scalar + Lapack>(
-    x: &ArrayBase<impl Data<Elem = F>, Ix2>,
-    cond: Option<F>,
-) -> Array2<F> {
-    let (opt_u, s, opt_vh) = x.svd(true, true).unwrap();
-    let u = opt_u.unwrap();
-    let vh = opt_vh.unwrap();
-
-    let cond = cond.unwrap_or(
-        F::from(*s.max().unwrap()).unwrap()
-            * F::from(x.nrows().max(x.ncols())).unwrap()
-            * F::epsilon(),
-    );
-
-    let rank = s.fold(0, |mut acc, v| {
-        if F::from(*v).unwrap() > cond {
-            acc += 1
-        };
-        acc
-    });
-
-    let mut ucut = u.slice(s![.., ..rank]).to_owned();
-    ucut /= &s.slice(s![..rank]).mapv(|v| F::from(v).unwrap());
-    ucut.dot(&vh.slice(s![..rank, ..]))
-        .mapv(|v| v.conj())
-        .t()
-        .to_owned()
-}
-
-fn center_scale_xy<F: Float>(
-    x: &ArrayBase<impl Data<Elem = F>, Ix2>,
-    y: &ArrayBase<impl Data<Elem = F>, Ix2>,
-    scale: bool,
-) -> (
-    Array2<F>,
-    Array2<F>,
-    Array1<F>,
-    Array1<F>,
-    Array1<F>,
-    Array1<F>,
-) {
-    let (xnorm, x_mean, x_std) = center_scale(&x, scale);
-    let (ynorm, y_mean, y_std) = center_scale(&y, scale);
-    (xnorm, ynorm, x_mean, y_mean, x_std, y_std)
-}
-
-pub fn center_scale<F: Float>(
-    x: &ArrayBase<impl Data<Elem = F>, Ix2>,
-    scale: bool,
-) -> (Array2<F>, Array1<F>, Array1<F>) {
-    let x_mean = x.mean_axis(Axis(0)).unwrap();
-    let (xnorm, x_std) = if scale {
-        let mut x_std = x.std_axis(Axis(0), F::one());
-        x_std.mapv_inplace(|v| if v == F::zero() { F::one() } else { v });
-        ((x - &x_mean) / &x_std, x_std)
-    } else {
-        ((x - &x_mean), Array1::ones(x.ncols()))
-    };
-
-    (xnorm, x_mean, x_std)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
     use linfa_datasets::linnerud;
-    use ndarray::array;
-    use ndarray_rand::rand::SeedableRng;
-    use ndarray_rand::rand_distr::StandardNormal;
-    use ndarray_rand::RandomExt;
-    use rand_isaac::Isaac64Rng;
-
-    #[test]
-    fn test_outer() {
-        let a = array![1., 2., 3.];
-        let b = array![2., 3.];
-        let expected = array![[2., 3.], [4., 6.], [6., 9.]];
-        assert_abs_diff_eq!(expected, outer(&a, &b));
-    }
-
-    #[test]
-    fn test_pinv2() {
-        let a = array![[1., 2., 3.], [4., 5., 6.], [7., 8., 10.]];
-        let a_pinv2 = pinv2(&a, None);
-        assert_abs_diff_eq!(a.dot(&a_pinv2), Array2::eye(3), epsilon = 1e-6)
-    }
+    use ndarray::{array, Array};
 
     fn assert_matrix_orthogonal(m: &Array2<f64>) {
         assert_abs_diff_eq!(&m.t().dot(m), &Array::eye(m.ncols()), epsilon = 1e-7);
@@ -523,7 +435,7 @@ mod tests {
         let u = y_scores;
 
         // Need to scale first
-        let (xc, yc, ..) = center_scale_xy(&x, &y, true);
+        let (xc, yc, ..) = utils::center_scale_xy(&x, &y, true);
         assert_abs_diff_eq!(&xc, &t.dot(&p.t()), epsilon = 1e-7);
         assert_abs_diff_eq!(&yc, &u.dot(&q.t()), epsilon = 1e-7);
 
