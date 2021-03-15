@@ -240,8 +240,7 @@ fn compute_inertia<F: Float>(
     Zip::from(observations.genrows())
         .and(cluster_memberships)
         .and(&mut dists)
-        // TODO change back
-        .apply(|observation, &cluster_membership, d| {
+        .par_apply(|observation, &cluster_membership, d| {
             *d = centroids
                 .row(cluster_membership)
                 .sq_l2_dist(&observation)
@@ -299,8 +298,7 @@ fn update_cluster_memberships<F: Float>(
 ) {
     Zip::from(observations.axis_iter(Axis(0)))
         .and(cluster_memberships)
-        // TODO change back
-        .apply(|observation, cluster_membership| {
+        .par_apply(|observation, cluster_membership| {
             *cluster_membership = closest_centroid(&centroids, &observation)
         });
 }
