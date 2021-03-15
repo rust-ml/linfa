@@ -1,5 +1,5 @@
-use linfa::{Dataset, DatasetBase, Float};
-use ndarray::{s, Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2, Zip};
+use linfa::{DatasetBase, Float};
+use ndarray::{s, Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
 use ndarray_linalg::{svd::*, Lapack, Scalar};
 use ndarray_stats::QuantileExt;
 
@@ -74,6 +74,16 @@ fn center_scale<F: Float>(
     };
 
     (xnorm, x_mean, x_std)
+}
+
+pub fn svd_flip_1d<F: Float>(
+    x_weights: &mut ArrayBase<impl DataMut<Elem = F>, Ix1>,
+    y_weights: &mut ArrayBase<impl DataMut<Elem = F>, Ix1>,
+) {
+    let biggest_abs_val_idx = x_weights.mapv(|v| v.abs()).argmax().unwrap();
+    let sign: F = x_weights[biggest_abs_val_idx].signum();
+    x_weights.map_inplace(|v| *v *= sign);
+    y_weights.map_inplace(|v| *v *= sign);
 }
 
 #[cfg(test)]

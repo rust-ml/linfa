@@ -10,17 +10,6 @@ use ndarray_stats::QuantileExt;
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(PartialEq, Debug, Clone, Copy)]
-enum Algorithm {
-    Nipals,
-    Svd,
-}
-
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
 #[derive(Debug, Clone)]
 pub struct Pls<F: Float> {
     x_mean: Array1<F>,
@@ -37,6 +26,12 @@ pub struct Pls<F: Float> {
     y_rotations: Array2<F>,
     coeffs: Array2<F>,
     n_iters: Array1<usize>,
+}
+
+#[derive(PartialEq, Debug, Clone, Copy)]
+pub enum Algorithm {
+    Nipals,
+    Svd,
 }
 
 #[derive(PartialEq, Debug, Clone, Copy)]
@@ -153,6 +148,11 @@ impl<F: Float> PlsParams<F> {
         self
     }
 
+    pub fn algorithm(mut self, algorithm: Algorithm) -> Self {
+        self.algorithm = algorithm;
+        self
+    }
+
     fn deflation_mode(mut self, deflation_mode: DeflationMode) -> Self {
         self.deflation_mode = deflation_mode;
         self
@@ -198,7 +198,6 @@ impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, A
             )));
         }
         let norm_y_weights = self.deflation_mode == DeflationMode::Canonical;
-        // Scale (in place)
         let (mut xk, mut yk, x_mean, y_mean, x_std, y_std) =
             utils::center_scale_dataset(&dataset, self.scale);
 
@@ -234,11 +233,7 @@ impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, A
                 }
                 Algorithm::Svd => self.get_first_singular_vectors_svd(&xk, &yk)?,
             };
-            // svd_flip_1d(x_weights, y_weights)
-            let biggest_abs_val_idx = _x_weights.mapv(|v| v.abs()).argmax().unwrap();
-            let sign: F = _x_weights[biggest_abs_val_idx].signum();
-            _x_weights.map_inplace(|v| *v *= sign);
-            _y_weights.map_inplace(|v| *v *= sign);
+            utils::svd_flip_1d(&mut _x_weights, &mut _y_weights);
 
             // compute scores, i.e. the projections of x and Y
             let _x_scores = xk.dot(&_x_weights);
@@ -349,7 +344,7 @@ impl<F: Float + Scalar + Lapack> PlsParams<F> {
 
             y_weights = match self.mode {
                 Mode::A => y.t().dot(&x_score) / x_score.dot(&x_score),
-                Mode::B => y_pinv.to_owned().unwrap().dot(&y_score),
+                Mode::B => y_pinv.to_owned().unwrap().dot(&x_score),
             };
 
             if norm_y_weights {
@@ -386,9 +381,9 @@ impl<F: Float + Scalar + Lapack> PlsParams<F> {
         x: &ArrayBase<impl Data<Elem = F>, Ix2>,
         y: &ArrayBase<impl Data<Elem = F>, Ix2>,
     ) -> Result<(Array1<F>, Array1<F>)> {
-        let c = x.dot(y);
+        let c = x.t().dot(y);
         let (u, _, vt) = c.svd(true, true)?;
-        let u = u.unwrap().row(0).to_owned();
+        let u = u.unwrap().column(0).to_owned();
         let vt = vt.unwrap().row(0).to_owned();
         Ok((u, vt))
     }
@@ -701,5 +696,81 @@ mod tests {
             Pls::canonical(0).fit(&ds).is_err(),
             "n_components=0 should raise an error"
         );
+    }
+
+    #[test]
+    fn test_singular_value_helpers() -> Result<()> {
+        // Make sure SVD and power method give approximately the same results
+        let ds = linnerud();
+
+        let (mut u1, mut v1, _) = PlsParams::new(2).get_first_singular_vectors_power_method(
+            ds.records(),
+            ds.targets(),
+            true,
+        )?;
+        let (mut u2, mut v2) =
+            PlsParams::new(2).get_first_singular_vectors_svd(ds.records(), ds.targets())?;
+
+        utils::svd_flip_1d(&mut u1, &mut v1);
+        utils::svd_flip_1d(&mut u2, &mut v2);
+
+        let rtol = 1e-1;
+        assert_abs_diff_eq!(u1, u2, epsilon = rtol);
+        assert_abs_diff_eq!(v1, v2, epsilon = rtol);
+        Ok(())
+    }
+
+    macro_rules! test_pls_algo_nipals_svd {
+        ($($name:ident, )*) => {
+            paste::item! {
+                $(
+                    #[test]
+                    fn [<test_pls_$name>]() -> Result<()> {
+                        let ds = linnerud();
+                        let pls = Pls::[<$name>](3).fit(&ds)?;
+                        let ds1 = pls.transform(ds.to_owned());
+                        let ds2 = Pls::[<$name>](3).algorithm(Algorithm::Svd).fit(&ds)?.transform(ds);
+                        assert_abs_diff_eq!(ds1.records(), ds2.records(), epsilon=1e-2);
+                        Ok(())
+                    }
+                )*
+            }
+        };
+    }
+
+    test_pls_algo_nipals_svd! {
+        canonical, regression,
+    }
+
+    #[test]
+    fn test_cca() -> Result<()> {
+        // values checked against scikit-learn 0.24.1 CCA
+        let ds = linnerud();
+        let cca = Pls::cca(3).fit(&ds)?;
+        let ds = cca.transform(ds);
+        let expected_x = array![
+            [0.09597886, 0.13862931, -1.0311966],
+            [-0.7170194, 0.25195026, -0.83049671],
+            [-0.76492193, 0.37601463, 1.20714686],
+            [-0.03734329, -0.9746487, 0.79363542],
+            [0.42809962, -0.50053551, 0.40089685],
+            [-0.54141144, -0.29403268, -0.47221389],
+            [-0.29901672, -0.67023009, 0.17945745],
+            [-0.11425233, -0.43360723, -0.47235823],
+            [1.29212153, -0.9373391, 0.02572464],
+            [-0.17770025, 3.4785377, 0.8486413],
+            [0.39344638, -1.28718499, 1.43816035],
+            [0.52667844, 0.82080301, -0.02624471],
+            [0.74616393, 0.54578854, 0.01825073],
+            [-1.42623443, -0.00884605, -0.24019883],
+            [-0.72026991, -0.73588273, 0.2241694],
+            [0.4237932, 0.99977428, -0.1667137],
+            [-0.88437821, -0.73784626, -0.01073894],
+            [1.05159992, 0.26381077, -0.83138216],
+            [1.26196754, -0.18618728, -0.12863494],
+            [-0.53730151, -0.10896789, -0.92590428]
+        ];
+        assert_abs_diff_eq!(expected_x, ds.records(), epsilon = 1e-2);
+        Ok(())
     }
 }
