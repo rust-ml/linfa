@@ -1,6 +1,6 @@
 [package]
 name = "linfa-preprocessing"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Sauro98 <ivadonadi98@gmail.com>"]
 
 description = "A Machine Learning framework for Rust"
@@ -17,7 +17,7 @@ categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
 
-linfa = { version = "0.3.0", path = "../.." }
+linfa = { version = "0.3.1", path = "../.." }
 ndarray = {version = "0.13", features = ["approx", "blas"]}
 ndarray-linalg = {version = "0.12"}
 ndarray-stats = "0.3"

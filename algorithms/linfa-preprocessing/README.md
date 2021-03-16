@@ -6,16 +6,11 @@
 ## Current state
 `linfa-preprocessing` provides a pure Rust implementation of:
 * Standardization
-* Normalization
+* Normalization (l1, l2 and max norm)
 * Min-max normalization
 * Max Abs Scaling
+* Count vectorization
 
-## Examples
-There is an usage example in the `examples/` directory. To run, use:
-
-```bash
-$ cargo run --example winequality
-```
 
 ## License
 Dual-licensed to be compatible with the Rust project.
