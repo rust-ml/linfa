@@ -1,5 +1,5 @@
 use linfa::prelude::*;
-use linfa_pls::{errors::Result, Pls};
+use linfa_pls::{errors::Result, PlsRegression};
 use ndarray::{Array, Array1, Array2};
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::StandardNormal;
@@ -25,13 +25,16 @@ fn main() -> Result<()> {
     let y = x.dot(&b) + Array::random_using((n, q), StandardNormal, &mut rng).mapv(|v: f64| v + 5.);
 
     let ds = Dataset::new(x, y);
-    let pls = Pls::regression(3).fit(&ds)?;
+    let pls = PlsRegression::params(3)
+        .scale(true)
+        .max_iterations(200)
+        .fit(&ds)?;
 
     println!("True B (such that: Y = XB + noise)");
     println!("{:?}", b);
 
     // PLS regression coefficients is an estimation of B
     println!("Estimated B");
-    println!("{:1.1}", pls.coeffs());
+    println!("{:1.1}", pls.coefficients());
     Ok(())
 }

@@ -11,7 +11,7 @@ use ndarray_stats::QuantileExt;
     serde(crate = "serde_crate")
 )]
 #[derive(Debug, Clone)]
-pub struct Pls<F: Float> {
+pub(crate) struct Pls<F: Float> {
     x_mean: Array1<F>,
     x_std: Array1<F>,
     y_mean: Array1<F>,
@@ -24,7 +24,7 @@ pub struct Pls<F: Float> {
     y_loadings: Array2<F>, // Delta
     x_rotations: Array2<F>,
     y_rotations: Array2<F>,
-    coeffs: Array2<F>,
+    coefficients: Array2<F>,
     n_iters: Array1<usize>,
 }
 
@@ -35,13 +35,13 @@ pub enum Algorithm {
 }
 
 #[derive(PartialEq, Debug, Clone, Copy)]
-enum DeflationMode {
+pub(crate) enum DeflationMode {
     Regression,
     Canonical,
 }
 
 #[derive(PartialEq, Debug, Clone, Copy)]
-enum Mode {
+pub(crate) enum Mode {
     A,
     B,
 }
@@ -85,8 +85,8 @@ impl<F: Float> Pls<F> {
         (&self.x_rotations, &self.y_rotations)
     }
 
-    pub fn coeffs(&self) -> &Array2<F> {
-        &self.coeffs
+    pub fn coefficients(&self) -> &Array2<F> {
+        &self.coefficients
     }
 }
 
@@ -110,12 +110,12 @@ impl<F: Float, D: Data<Elem = F>>
 }
 
 #[derive(Debug, Clone)]
-pub struct PlsParams<F: Float> {
-    n_components: usize,
-    max_iter: usize,
-    tolerance: F,
-    scale: bool,
-    algorithm: Algorithm,
+pub(crate) struct PlsParams<F: Float> {
+    pub(crate) n_components: usize,
+    pub(crate) max_iter: usize,
+    pub(crate) tolerance: F,
+    pub(crate) scale: bool,
+    pub(crate) algorithm: Algorithm,
     deflation_mode: DeflationMode,
     mode: Mode,
 }
@@ -153,12 +153,12 @@ impl<F: Float> PlsParams<F> {
         self
     }
 
-    fn deflation_mode(mut self, deflation_mode: DeflationMode) -> Self {
+    pub(crate) fn deflation_mode(mut self, deflation_mode: DeflationMode) -> Self {
         self.deflation_mode = deflation_mode;
         self
     }
 
-    fn mode(mut self, mode: Mode) -> Self {
+    pub(crate) fn mode(mut self, mode: Mode) -> Self {
         self.mode = mode;
         self
     }
@@ -279,8 +279,8 @@ impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, A
         let x_rotations = x_weights.dot(&utils::pinv2(&x_loadings.t().dot(&x_weights), None));
         let y_rotations = y_weights.dot(&utils::pinv2(&y_loadings.t().dot(&y_weights), None));
 
-        let mut coeffs = x_rotations.dot(&y_loadings.t());
-        coeffs = &coeffs * &y_std;
+        let mut coefficients = x_rotations.dot(&y_loadings.t());
+        coefficients *= &y_std;
 
         Ok(Pls {
             x_mean,
@@ -295,7 +295,7 @@ impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, A
             y_loadings,
             x_rotations,
             y_rotations,
-            coeffs,
+            coefficients,
             n_iters,
         })
     }

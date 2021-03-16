@@ -30,6 +30,7 @@ ndarray-stats = "0.3"
 ndarray-rand = "0.11"
 rand_isaac = "0.2"
 num-traits = "0.2"
+paste = "1.0"
 
 linfa = { version = "0.3.1", path = "../.." }
 
@@ -37,4 +38,3 @@ linfa = { version = "0.3.1", path = "../.." }
 linfa-datasets = { version = "0.3.1", path = "../../datasets", features = ["linnerud"] }
 rand_isaac = "0.2"
 approx = "0.3"
-paste = "1.0"

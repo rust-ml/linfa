@@ -1,5 +1,6 @@
 mod algorithm;
 pub mod errors;
+mod pls_api;
 mod utils;
 
-pub use algorithm::*;
+pub use pls_api::*;
