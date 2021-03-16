@@ -1,5 +1,5 @@
 use linfa::{DatasetBase, Float};
-use ndarray::{s, Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, IxDyn, Zip};
+use ndarray::{s, Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
 use ndarray_linalg::{svd::*, Lapack, Scalar};
 use ndarray_stats::QuantileExt;
 
@@ -87,13 +87,19 @@ pub fn svd_flip_1d<F: Float>(
 }
 
 pub fn svd_flip<F: Float>(
-    x_weights: &mut ArrayBase<impl DataMut<Elem = F>, Ix2>,
-    y_weights: &mut ArrayBase<impl DataMut<Elem = F>, Ix2>,
-) {
-    let biggest_abs_val_idx = x_weights.mapv(|v| v.abs()).argmax().unwrap();
-    let sign: F = x_weights[biggest_abs_val_idx].signum();
-    x_weights.map_inplace(|v| *v *= sign);
-    y_weights.map_inplace(|v| *v *= sign);
+    u: &ArrayBase<impl Data<Elem = F>, Ix2>,
+    v: &ArrayBase<impl Data<Elem = F>, Ix2>,
+) -> (Array2<F>, Array2<F>) {
+    // columns of u, rows of v
+    let abs_u = u.mapv(|v| v.abs());
+    let max_abs_val_indices = abs_u.map_axis(Axis(0), |col| col.argmax().unwrap());
+    let mut signs = Array1::<F>::zeros(u.ncols());
+    let range: Vec<usize> = (0..u.ncols()).collect();
+    Zip::from(&mut signs)
+        .and(&max_abs_val_indices)
+        .and(&range)
+        .apply(|s, &i, &j| *s = u[[i, j]].signum());
+    (u * &signs, v * &signs.insert_axis(Axis(1)))
 }
 
 #[cfg(test)]

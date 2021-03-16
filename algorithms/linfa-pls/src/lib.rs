@@ -1,16 +1,16 @@
 pub mod errors;
 mod pls_generic;
-mod pls_svd;
+pub mod pls_svd;
 mod utils;
 
 use crate::pls_generic::*;
-use crate::pls_svd::*;
 
 use linfa::{traits::Fit, traits::Transformer, DatasetBase, Float};
 use ndarray::{Array2, ArrayBase, Data, Ix2};
 use ndarray_linalg::{Lapack, Scalar};
 
 pub use errors::*;
+pub use pls_svd::*;
 
 macro_rules! pls_algo { ($name:ident) => {
     paste::item! {
