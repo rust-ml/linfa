@@ -1,6 +1,6 @@
 use crate::errors::{PlsError, Result};
 use crate::utils;
-use linfa::{traits::Fit, traits::Transformer, Dataset, DatasetBase, Float};
+use linfa::{dataset::Records, traits::Fit, traits::Transformer, Dataset, DatasetBase, Float};
 use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
 use ndarray_linalg::{svd::*, Lapack, Scalar};
 use ndarray_stats::QuantileExt;
@@ -153,12 +153,12 @@ impl<F: Float> PlsParams<F> {
         self
     }
 
-    pub(crate) fn deflation_mode(mut self, deflation_mode: DeflationMode) -> Self {
+    pub fn deflation_mode(mut self, deflation_mode: DeflationMode) -> Self {
         self.deflation_mode = deflation_mode;
         self
     }
 
-    pub(crate) fn mode(mut self, mode: Mode) -> Self {
+    pub fn mode(mut self, mode: Mode) -> Self {
         self.mode = mode;
         self
     }
@@ -176,6 +176,13 @@ impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, A
         let n = records.nrows();
         let p = records.ncols();
         let q = targets.ncols();
+
+        if n < 2 {
+            return Err(PlsError::NotEnoughSamplesError(format!(
+                "should be greater than 1, got {}",
+                dataset.records().nsamples()
+            )));
+        }
 
         let n_components = self.n_components;
         let rank_upper_bound = match self.deflation_mode {
@@ -373,9 +380,7 @@ impl<F: Float + Scalar + Lapack> PlsParams<F> {
             Ok((x_weights, y_weights, n_iter))
         }
     }
-}
 
-impl<F: Float + Scalar + Lapack> PlsParams<F> {
     fn get_first_singular_vectors_svd(
         &self,
         x: &ArrayBase<impl Data<Elem = F>, Ix2>,

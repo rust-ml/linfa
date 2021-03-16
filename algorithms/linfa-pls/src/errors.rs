@@ -6,6 +6,7 @@ pub type Result<T> = std::result::Result<T, PlsError>;
 
 #[derive(Debug)]
 pub enum PlsError {
+    NotEnoughSamplesError(String),
     BadComponentNumberError(String),
     PowerMethodNotConvergedError(String),
     LinalgError(String),
@@ -14,6 +15,9 @@ pub enum PlsError {
 impl Display for PlsError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            Self::NotEnoughSamplesError(message) => {
+                write!(f, "Not enough samples: {}", message)
+            }
             Self::BadComponentNumberError(message) => {
                 write!(f, "Bad component number: {}", message)
             }
