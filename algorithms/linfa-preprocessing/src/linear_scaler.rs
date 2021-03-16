@@ -165,7 +165,7 @@ impl<F: Float> FittedLinearScaler<F> {
         });
         Ok(Self {
             offsets: mins,
-            scales: scales,
+            scales,
             method: ScalingMethod::MinMax(min, max),
         })
     }
@@ -186,7 +186,7 @@ impl<F: Float> FittedLinearScaler<F> {
         let offsets = Array1::zeros(records.dim().1);
         Ok(Self {
             offsets,
-            scales: scales,
+            scales,
             method: ScalingMethod::MaxAbs,
         })
     }
