@@ -1,6 +1,6 @@
 use crate::{generate_blobs, AppxDbscan, AppxDbscanHyperParams, Dbscan};
 use linfa::traits::Transformer;
-use ndarray::{s, Array1, Array2};
+use ndarray::{arr2, s, Array1, Array2};
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
@@ -141,6 +141,33 @@ fn appx_dbscan_test_500() {
         // of the current points
         let expected_appx_val = ex_appx_correspondence.entry(ex_value).or_insert(appx_value);
         assert_eq!(*expected_appx_val, appx_value);
+    }
+}
+
+#[test]
+fn test_border() {
+    let data: Array2<f64> = arr2(&[
+        // Outlier
+        [0.0, 2.0],
+        // Core point
+        [0.0, 0.0],
+        // Border points
+        [0.0, 1.0],
+        [0.0, -1.0],
+        [-1.0, 0.0],
+        [1.0, 0.0],
+    ]);
+
+    // Run the approximate dbscan with tolerance of 1.1, 5 min points for density and
+    // a negligible slack
+    let labels = AppxDbscan::params(5)
+        .tolerance(1.1)
+        .slack(1e-5)
+        .transform(&data);
+
+    assert_eq!(labels[0], None);
+    for id in labels.slice(s![1..]).iter() {
+        assert_eq!(id, &Some(0));
     }
 }
 
