@@ -102,8 +102,9 @@ impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<
                     self.tolerance(),
                     &cluster_memberships,
                 );
+                // Make the candidate a part of the cluster even if it's not a core point
+                cluster_memberships[candidate.0] = Some(current_cluster_id);
                 if neighbor_count >= self.minimum_points() {
-                    cluster_memberships[candidate.0] = Some(current_cluster_id);
                     search_queue.append(&mut neighbors);
                 }
             }
