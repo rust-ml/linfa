@@ -1,6 +1,9 @@
 use crate::errors::{PlsError, Result};
 use crate::utils;
-use linfa::{dataset::Records, traits::Fit, traits::Transformer, Dataset, DatasetBase, Float};
+use linfa::{
+    dataset::Records, traits::Fit, traits::PredictRef, traits::Transformer, Dataset, DatasetBase,
+    Float,
+};
 use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
 use ndarray_linalg::{svd::*, Lapack, Scalar};
 use ndarray_stats::QuantileExt;
@@ -46,15 +49,22 @@ pub(crate) enum Mode {
     B,
 }
 
+/// Generic PLS algorithm.
+/// Main ref: Wegelin, a survey of Partial Least Squares (PLS) methods,
+/// with emphasis on the two-block case
+/// https://www.stat.washington.edu/research/reports/2000/tr371.pdf
 impl<F: Float> Pls<F> {
+    // Constructor for PlsRegression method
     pub fn regression(n_components: usize) -> PlsParams<F> {
         PlsParams::new(n_components)
     }
 
+    // Constructor for PlsCanonical method
     pub fn canonical(n_components: usize) -> PlsParams<F> {
         PlsParams::new(n_components).deflation_mode(DeflationMode::Canonical)
     }
 
+    // Constructor for PlsCca method
     pub fn cca(n_components: usize) -> PlsParams<F> {
         PlsParams::new(n_components)
             .deflation_mode(DeflationMode::Canonical)
@@ -106,6 +116,14 @@ impl<F: Float, D: Data<Elem = F>>
         y /= &self.y_std;
         // Apply rotation
         Dataset::new(x.dot(&self.x_rotations), y.dot(&self.y_rotations))
+    }
+}
+
+impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array2<F>> for Pls<F> {
+    fn predict_ref(&self, x: &ArrayBase<D, Ix2>) -> Array2<F> {
+        let mut x = x - &self.x_mean;
+        x /= &self.x_std;
+        x.dot(&self.coefficients) + &self.y_mean
     }
 }
 

@@ -1,5 +1,5 @@
 use linfa::prelude::*;
-use linfa_pls::{errors::Result, PlsRegression};
+use linfa_pls::{PlsRegression, Result};
 use ndarray::{Array, Array1, Array2};
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::StandardNormal;
