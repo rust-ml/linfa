@@ -5,10 +5,10 @@
 
 ## Current state
 `linfa-preprocessing` provides a pure Rust implementation of:
-* Standardization
-* Normalization (l1, l2 and max norm)
-* Min-max normalization
+* Standard scaling 
+* Min-max scaling
 * Max Abs Scaling
+* Normalization (l1, l2 and max norm)
 * Count vectorization
 
 

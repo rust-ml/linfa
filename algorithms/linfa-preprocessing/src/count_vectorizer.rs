@@ -1,9 +1,14 @@
+//! Count vectorization methods
+
 use crate::error::{Error, Result};
 use ndarray::{Array2, ArrayBase, Data, Ix1};
 use std::collections::{HashMap, HashSet};
 use std::iter::IntoIterator;
 use unicode_normalization::UnicodeNormalization;
 
+/// Given a sequence of words, the queue can be iterated to obtain all the n-grams in the sequence,
+/// starting from n-grams of lenght `min` up to n_grams of length `max`. The name "queue" is left from
+/// a previous implementation but I left it because it sounded nice. Suggestions are welcome
 struct NGramQueue<T: ToString> {
     min: usize,
     max: usize,
@@ -56,6 +61,7 @@ impl<T: ToString> NGramQueue<T> {
         self.queue.len()
     }
 
+    /// Constructs all n-grams obtainable from the word sequence starting from the word at `index`
     pub fn ngram_items(&self, index: usize) -> Option<Vec<String>> {
         let mut items = Vec::new();
         let len = self.queue.len();
@@ -84,6 +90,7 @@ impl<T: ToString> NGramQueue<T> {
 }
 
 #[derive(Clone)]
+/// Struct that holds all vectorizer options so that they can be passed to the fitted vectorizer
 struct VectorizerProperties {
     remove_punctuation: bool,
     convert_to_lowercase: bool,
@@ -93,6 +100,24 @@ struct VectorizerProperties {
     document_frequency: (f32, f32),
 }
 
+/// Count vectorizer: learns a vocabulary from a sequence of texts and maps each 
+/// vocabulary entry to an integer value, producing a [FittedCountVectorizer](struct.FittedCountVectorizer.html) that can 
+/// be used to count the occurrences of each vocabulary entry in any sequence of texts. Alternatively a user-specified vocabulary can
+/// be used for fitting.
+/// 
+/// ### Attributes
+/// 
+/// If a user-defined vocabulary is used for fitting then the following attributes will not be considered during the fitting phase but
+/// but they will still be used by the [FittedCountVectorizer](struct.FittedCountVectorizer.html) to transform any text to be examined.
+/// 
+/// * `remove_punctuation`: if true, punctuation symbols will be substituted by a whitespace in all texts used for fitting. Defaults to `true`
+/// * `punctuation_symbols`: the list of punctuation sybols to be substituted by whitespace. The default list is: `['.', ',', ';', ':', '?', '!']`
+/// * `convert_to_lowercase`: if true, all texts used for fitting will be converted to lowercase. Defaults to `true`.
+/// * `n_gram_range`: if set to `(1,1)` single words will be candidate vocabulary entries, if `(2,2)` then adjacent words pairs will be considered, 
+///    if `(1,2)` then both single words and adjacent word pairs will be considered, and so on. The default value is `(1,1)`.
+/// * `normalize`: if true, all charachters in the texts used for fitting will be normalized according to unicode's NFKD normalization. Defaults to `true`.
+/// * `document_frequency`: specifies the minimum and maximum (relative) document frequencies that each vocabulary entry. Defaults to `(0., 1.)` (0% minimum and 100% maximum)
+/// 
 pub struct CountVectorizer {
     properties: VectorizerProperties,
 }
@@ -128,8 +153,8 @@ impl CountVectorizer {
         self
     }
 
-    pub fn n_gram_range(mut self, n_gram_range: (usize, usize)) -> Self {
-        self.properties.n_gram_range = n_gram_range;
+    pub fn n_gram_range(mut self, min_n: usize,max_n: usize) -> Self {
+        self.properties.n_gram_range = (min_n, max_n);
         self
     }
 
@@ -143,6 +168,13 @@ impl CountVectorizer {
         self
     }
 
+    /// Learns a vocabulary from the texts in `x`, according to the specified attributes and maps each 
+    /// vocabulary entry to an integer value, producing a [FittedCountVectorizer](struct.FittedCountVectorizer.html).
+    /// 
+    /// Returns an error if:
+    /// * one of the `n_gram` boundaries is set to zero or the minimum value is greater than the maximum value
+    /// * if the minimum document frequency is greater than one or than the maximum frequency, or if the maximum frequecy is  
+    ///   smaller than zero
     pub fn fit<T: ToString + Clone, D: Data<Elem = T>>(
         &self,
         x: &ArrayBase<D, Ix1>,
@@ -194,7 +226,11 @@ impl CountVectorizer {
         })
     }
 
+    /// Produces a [FittedCountVectorizer](struct.FittedCountVectorizer.html) with the input vocabulary.
+    /// All struct attributes are ignored in the fitting but will be used by the [FittedCountVectorizer](struct.FittedCountVectorizer.html) 
+    /// to transform any text to be examined. As such this will return an error in the same cases as the `fit` method.
     pub fn fit_vocabulary<T: ToString>(&self, words: &[T]) -> Result<FittedCountVectorizer> {
+        validate_properties(&self.properties)?;
         let mut vocabulary: HashMap<String, (usize, usize)> = HashMap::with_capacity(words.len());
         for item in words.iter().map(|w| w.to_string()) {
             let len = vocabulary.len();
@@ -210,6 +246,8 @@ impl CountVectorizer {
     }
 }
 
+/// Counts the occurrences of each vocabulary entry, learned during fitting, in a sequence of texts. Each vocabulary entry is mapped
+/// to an integer value that is used to index the count in the result.
 pub struct FittedCountVectorizer {
     vocabulary: HashMap<String, (usize, usize)>,
     vec_vocabulary: Vec<String>,
@@ -217,6 +255,9 @@ pub struct FittedCountVectorizer {
 }
 
 impl FittedCountVectorizer {
+    /// Given a sequence of `n` texts, produces an array of size `(n, vocabulary_entries)` where column `j` of row `i`
+    /// is the number of occurrences of vocabulary entry `j` in the text of index `i`. Vocabulary entry `j` is the string
+    /// at the `j`-th position in the vocabulary.
     pub fn transform<T: ToString, D: Data<Elem = T>>(
         &self,
         x: &ArrayBase<D, Ix1>,
@@ -239,6 +280,7 @@ impl FittedCountVectorizer {
         vectorized
     }
 
+    /// Constains all vocabulary entries, in the same order used by the `transform` method.
     pub fn vocabulary(&self) -> &Vec<String> {
         &self.vec_vocabulary
     }
@@ -323,7 +365,7 @@ mod tests {
         );
 
         let vectorizer = CountVectorizer::default()
-            .n_gram_range((2, 2))
+            .n_gram_range(2, 2)
             .fit(&texts)
             .unwrap();
         let vocabulary = vectorizer.vocabulary();
@@ -339,7 +381,7 @@ mod tests {
         );
 
         let vectorizer = CountVectorizer::default()
-            .n_gram_range((1, 2))
+            .n_gram_range(1, 2)
             .fit(&texts)
             .unwrap();
         let vocabulary = vectorizer.vocabulary();
@@ -527,11 +569,11 @@ mod tests {
     #[test]
     fn test_invalid_gram_boundaries() {
         let texts = array!["oNe two three four", "TWO three four", "three;four", "four"];
-        let vectorizer = CountVectorizer::default().n_gram_range((0, 1)).fit(&texts);
+        let vectorizer = CountVectorizer::default().n_gram_range(0, 1).fit(&texts);
         assert!(vectorizer.is_err());
-        let vectorizer = CountVectorizer::default().n_gram_range((1, 0)).fit(&texts);
+        let vectorizer = CountVectorizer::default().n_gram_range(1, 0).fit(&texts);
         assert!(vectorizer.is_err());
-        let vectorizer = CountVectorizer::default().n_gram_range((2, 1)).fit(&texts);
+        let vectorizer = CountVectorizer::default().n_gram_range(2, 1).fit(&texts);
         assert!(vectorizer.is_err());
         let vectorizer = CountVectorizer::default()
             .document_frequency(1.1, 1.)

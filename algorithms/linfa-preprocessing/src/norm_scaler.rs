@@ -1,3 +1,4 @@
+//! Sample normalization methods
 use crate::Float;
 use linfa::dataset::{AsTargets, DatasetBase};
 use linfa::traits::Transformer;
@@ -10,25 +11,47 @@ enum Norms {
     Max,
 }
 
+/// Norm scaler: scales all samples in a dataset to have unit norm, according to the specified norm
+/// measure
+/// 
+/// ### Example
+/// 
+/// ```rust
+/// use linfa::traits::Transformer;
+/// use linfa_preprocessing::norm_scaler::NormScaler;
+/// 
+/// // Load dataset
+/// let dataset = linfa_datasets::diabetes();
+/// // Initialize scaler
+/// let scaler = NormScaler::l2();
+/// // Scale dataset
+/// let dataset = scaler.transform(dataset);
+/// ```
 pub struct NormScaler {
     norm: Norms,
 }
 
 impl NormScaler {
+    /// Initializes a norm scaler that uses l2 norm
     pub fn l2() -> Self {
         Self { norm: Norms::L2 }
     }
 
+
+    /// Initializes a norm scaler that uses l1 norm
     pub fn l1() -> Self {
         Self { norm: Norms::L1 }
     }
 
+
+    /// Initializes a norm scaler that uses max norm
     pub fn max() -> Self {
         Self { norm: Norms::Max }
     }
 }
 
 impl<F: Float> Transformer<Array2<F>, Array2<F>> for NormScaler {
+    /// Scales all samples in the array of shape (nsamples, nfeatures) to have unit norm.
     fn transform(&self, x: Array2<F>) -> Array2<F> {
         let mut x = x;
         let norms = match &self.norm {
@@ -48,6 +71,7 @@ impl<F: Float> Transformer<Array2<F>, Array2<F>> for NormScaler {
 impl<F: Float, D: Data<Elem = F>, T: AsTargets>
     Transformer<DatasetBase<ArrayBase<D, Ix2>, T>, DatasetBase<Array2<F>, T>> for NormScaler
 {
+    /// Substitutes the records of the dataset with their scaled versions with unit norm.
     fn transform(&self, x: DatasetBase<ArrayBase<D, Ix2>, T>) -> DatasetBase<Array2<F>, T> {
         let transformed_records = self.transform(x.records.to_owned());
         x.with_records(transformed_records)
@@ -57,7 +81,7 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets>
 #[cfg(test)]
 mod tests {
 
-    use crate::NormScaler;
+    use crate::norm_scaler::NormScaler;
     use approx::assert_abs_diff_eq;
     use linfa::dataset::DatasetBase;
     use linfa::traits::Transformer;
