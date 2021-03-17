@@ -256,7 +256,7 @@ fn compute_inertia<F: Float>(
 /// If you check the `compute_cluster_memberships` function,
 /// you can see that it expects to receive centroids as a 2-dimensional array.
 ///
-/// `compute_centroids` wraps our `compute_centroids_hashmap` to return a 2-dimensional array,
+/// `compute_centroids` returns a 2-dimensional array,
 /// where the i-th row corresponds to the i-th cluster.
 fn compute_centroids<F: Float>(
     n_clusters: usize,
@@ -448,6 +448,15 @@ mod tests {
         );
 
         assert_eq!(centroids.len_of(Axis(0)), 2);
+    }
+
+    #[test]
+    fn test_compute_extra_centroids() {
+        let observations = array![[1.0, 2.0]];
+        let memberships = array![0];
+        // Should return an average of 0 for empty clusters
+        let centroids = compute_centroids(2, &observations, &memberships);
+        assert_abs_diff_eq!(centroids, array![[1.0, 2.0], [0.0, 0.0]]);
     }
 
     #[test]
