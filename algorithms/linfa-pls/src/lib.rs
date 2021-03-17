@@ -44,9 +44,7 @@ mod utils;
 
 use crate::pls_generic::*;
 
-use linfa::{
-    traits::Fit, traits::Predict, traits::PredictRef, traits::Transformer, DatasetBase, Float,
-};
+use linfa::{traits::Fit, traits::PredictRef, traits::Transformer, DatasetBase, Float};
 use ndarray::{Array2, ArrayBase, Data, Ix2};
 use ndarray_linalg::{Lapack, Scalar};
 
@@ -112,6 +110,17 @@ macro_rules! pls_algo { ($name:ident) => {
             /// The coefficients of the linear model such that Y is approximated as Y = X.coefficients
             pub fn coefficients(&self) -> &Array2<F> {
                 self.0.coefficients()
+            }
+
+            /// Transform the given dataset in the projected space back to the original space.
+            pub fn inverse_transform(
+                &self,
+                dataset: DatasetBase<
+                    ArrayBase<impl Data<Elem = F>, Ix2>,
+                    ArrayBase<impl Data<Elem = F>, Ix2>,
+                >,
+            ) -> DatasetBase<Array2<F>, Array2<F>> {
+                self.0.inverse_transform(dataset)
             }
         }
 

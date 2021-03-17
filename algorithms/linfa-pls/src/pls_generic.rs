@@ -98,6 +98,22 @@ impl<F: Float> Pls<F> {
     pub fn coefficients(&self) -> &Array2<F> {
         &self.coefficients
     }
+
+    pub fn inverse_transform(
+        &self,
+        dataset: DatasetBase<
+            ArrayBase<impl Data<Elem = F>, Ix2>,
+            ArrayBase<impl Data<Elem = F>, Ix2>,
+        >,
+    ) -> DatasetBase<Array2<F>, Array2<F>> {
+        let mut x_orig = dataset.records().dot(&self.x_loadings.t());
+        x_orig = &x_orig * &self.x_std;
+        x_orig = &x_orig + &self.x_mean;
+        let mut y_orig = dataset.targets().dot(&self.y_loadings.t());
+        y_orig = &y_orig * &self.y_std;
+        y_orig = &y_orig + &self.y_mean;
+        Dataset::new(x_orig, y_orig)
+    }
 }
 
 impl<F: Float, D: Data<Elem = F>>
@@ -110,12 +126,14 @@ impl<F: Float, D: Data<Elem = F>>
         &self,
         dataset: DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>>,
     ) -> DatasetBase<Array2<F>, Array2<F>> {
-        let mut x = dataset.records() - &self.x_mean;
-        x /= &self.x_std;
-        let mut y = dataset.targets() - &self.y_mean;
-        y /= &self.y_std;
-        // Apply rotation
-        Dataset::new(x.dot(&self.x_rotations), y.dot(&self.y_rotations))
+        let mut x_norm = dataset.records() - &self.x_mean;
+        x_norm /= &self.x_std;
+        let mut y_norm = dataset.targets() - &self.y_mean;
+        y_norm /= &self.y_std;
+        // Apply rotations
+        let x_proj = x_norm.dot(&self.x_rotations);
+        let y_proj = y_norm.dot(&self.y_rotations);
+        Dataset::new(x_proj, y_proj)
     }
 }
 
@@ -794,6 +812,19 @@ mod tests {
             [-0.53730151, -0.10896789, -0.92590428]
         ];
         assert_abs_diff_eq!(expected_x, ds.records(), epsilon = 1e-2);
+        Ok(())
+    }
+
+    #[test]
+    fn test_transform_and_inverse() -> Result<()> {
+        let ds = linnerud();
+        let pls = Pls::canonical(3).fit(&ds)?;
+        let ds_proj = pls.transform(ds);
+        let ds_orig = pls.inverse_transform(ds_proj);
+
+        let ds = linnerud();
+        assert_abs_diff_eq!(ds.records(), ds_orig.records(), epsilon = 1e-6);
+        assert_abs_diff_eq!(ds.targets(), ds_orig.targets(), epsilon = 1e-6);
         Ok(())
     }
 }
