@@ -13,13 +13,13 @@ enum Norms {
 
 /// Norm scaler: scales all samples in a dataset to have unit norm, according to the specified norm
 /// measure
-/// 
+///
 /// ### Example
-/// 
+///
 /// ```rust
 /// use linfa::traits::Transformer;
 /// use linfa_preprocessing::norm_scaler::NormScaler;
-/// 
+///
 /// // Load dataset
 /// let dataset = linfa_datasets::diabetes();
 /// // Initialize scaler
@@ -37,12 +37,10 @@ impl NormScaler {
         Self { norm: Norms::L2 }
     }
 
-
     /// Initializes a norm scaler that uses l1 norm
     pub fn l1() -> Self {
         Self { norm: Norms::L1 }
     }
-
 
     /// Initializes a norm scaler that uses max norm
     pub fn max() -> Self {

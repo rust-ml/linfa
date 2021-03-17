@@ -10,7 +10,7 @@ use ndarray_linalg::norm::Norm;
 
 #[derive(Clone, Debug)]
 /// Possible scaling methods for [LinearScaler](struct.LinearScaler.html)
-/// 
+///
 /// * Standard (with mean, with std): subtracts the mean to each feature and scales it by the inverse of its standard deviation
 /// * MinMax (min, max): scales each feature to fit in the range [min,max], default values are [0,1]
 /// * MaxAbs: scales each feature by the inverse of its maximum absolute value, so that it fits the range [-1,1]
@@ -38,14 +38,14 @@ impl<F: Float> std::fmt::Display for ScalingMethod<F> {
 
 /// Linear Scaler: learns scaling parameters, according to the specified [method](enum.ScalingMethod.html), from a dataset, producing a [fitted linear scaler](struct.FittedLinearScaler.html)
 /// that can be used to scale different datasets using the same parameters.
-/// 
-/// 
+///
+///
 /// ### Example
-/// 
+///
 /// ```rust
 /// use linfa::traits::{Fit, Transformer};
 /// use linfa_preprocessing::linear_scaler::LinearScaler;
-/// 
+///
 /// // Load dataset
 /// let dataset = linfa_datasets::diabetes();
 /// // Learn scaling parameters
@@ -98,8 +98,8 @@ impl<F: Float> LinearScaler<F> {
     }
 
     /// Initializes a MinMax scaler with the specified minimum and maximum values for the range.
-    /// 
-    /// If `min` is bigger than `max` then fitting will return an error on any input. 
+    ///
+    /// If `min` is bigger than `max` then fitting will return an error on any input.
     pub fn min_max_range(min: F, max: F) -> Self {
         Self {
             method: ScalingMethod::MinMax(min, max),
@@ -183,7 +183,7 @@ impl<F: Float> FittedLinearScaler<F> {
             return Err(Error::NotEnoughSamples);
         }
         if min > max {
-            return Err(Error::FlippedMinMaxRange)
+            return Err(Error::FlippedMinMaxRange);
         }
         let mins = records.fold_axis(
             Axis(0),
@@ -236,7 +236,6 @@ impl<F: Float> FittedLinearScaler<F> {
     pub fn offsets(&self) -> &Array1<F> {
         &self.offsets
     }
-
 
     /// Array of size `n_features` that contains the scale that will be applied to each feature
     pub fn scales(&self) -> &Array1<F> {

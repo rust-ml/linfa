@@ -100,24 +100,24 @@ struct VectorizerProperties {
     document_frequency: (f32, f32),
 }
 
-/// Count vectorizer: learns a vocabulary from a sequence of texts and maps each 
-/// vocabulary entry to an integer value, producing a [FittedCountVectorizer](struct.FittedCountVectorizer.html) that can 
+/// Count vectorizer: learns a vocabulary from a sequence of texts and maps each
+/// vocabulary entry to an integer value, producing a [FittedCountVectorizer](struct.FittedCountVectorizer.html) that can
 /// be used to count the occurrences of each vocabulary entry in any sequence of texts. Alternatively a user-specified vocabulary can
 /// be used for fitting.
-/// 
+///
 /// ### Attributes
-/// 
+///
 /// If a user-defined vocabulary is used for fitting then the following attributes will not be considered during the fitting phase but
 /// but they will still be used by the [FittedCountVectorizer](struct.FittedCountVectorizer.html) to transform any text to be examined.
-/// 
+///
 /// * `remove_punctuation`: if true, punctuation symbols will be substituted by a whitespace in all texts used for fitting. Defaults to `true`
 /// * `punctuation_symbols`: the list of punctuation sybols to be substituted by whitespace. The default list is: `['.', ',', ';', ':', '?', '!']`
 /// * `convert_to_lowercase`: if true, all texts used for fitting will be converted to lowercase. Defaults to `true`.
-/// * `n_gram_range`: if set to `(1,1)` single words will be candidate vocabulary entries, if `(2,2)` then adjacent words pairs will be considered, 
+/// * `n_gram_range`: if set to `(1,1)` single words will be candidate vocabulary entries, if `(2,2)` then adjacent words pairs will be considered,
 ///    if `(1,2)` then both single words and adjacent word pairs will be considered, and so on. The default value is `(1,1)`.
 /// * `normalize`: if true, all charachters in the texts used for fitting will be normalized according to unicode's NFKD normalization. Defaults to `true`.
 /// * `document_frequency`: specifies the minimum and maximum (relative) document frequencies that each vocabulary entry. Defaults to `(0., 1.)` (0% minimum and 100% maximum)
-/// 
+///
 pub struct CountVectorizer {
     properties: VectorizerProperties,
 }
@@ -153,7 +153,7 @@ impl CountVectorizer {
         self
     }
 
-    pub fn n_gram_range(mut self, min_n: usize,max_n: usize) -> Self {
+    pub fn n_gram_range(mut self, min_n: usize, max_n: usize) -> Self {
         self.properties.n_gram_range = (min_n, max_n);
         self
     }
@@ -168,9 +168,9 @@ impl CountVectorizer {
         self
     }
 
-    /// Learns a vocabulary from the texts in `x`, according to the specified attributes and maps each 
+    /// Learns a vocabulary from the texts in `x`, according to the specified attributes and maps each
     /// vocabulary entry to an integer value, producing a [FittedCountVectorizer](struct.FittedCountVectorizer.html).
-    /// 
+    ///
     /// Returns an error if:
     /// * one of the `n_gram` boundaries is set to zero or the minimum value is greater than the maximum value
     /// * if the minimum document frequency is greater than one or than the maximum frequency, or if the maximum frequecy is  
@@ -227,7 +227,7 @@ impl CountVectorizer {
     }
 
     /// Produces a [FittedCountVectorizer](struct.FittedCountVectorizer.html) with the input vocabulary.
-    /// All struct attributes are ignored in the fitting but will be used by the [FittedCountVectorizer](struct.FittedCountVectorizer.html) 
+    /// All struct attributes are ignored in the fitting but will be used by the [FittedCountVectorizer](struct.FittedCountVectorizer.html)
     /// to transform any text to be examined. As such this will return an error in the same cases as the `fit` method.
     pub fn fit_vocabulary<T: ToString>(&self, words: &[T]) -> Result<FittedCountVectorizer> {
         validate_properties(&self.properties)?;
