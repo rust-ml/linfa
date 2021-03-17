@@ -6,6 +6,7 @@ use ndarray_rand::rand;
 use ndarray_rand::rand::Rng;
 use ndarray_stats::DeviationExt;
 use rand_isaac::Isaac64Rng;
+use std::collections::HashMap;
 
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
@@ -268,8 +269,7 @@ fn compute_centroids<F: Float>(
     let (_, n_features) = observations.dim();
 
     let mut centroids: Array2<F> = Array2::zeros((n_clusters, n_features));
-    let mut averages: std::collections::HashMap<usize, (Array1<F>, F)> =
-        std::collections::HashMap::new();
+    let mut averages: HashMap<usize, (Array1<F>, F)> = HashMap::new();
 
     Zip::from(observations.genrows())
         .and(cluster_memberships)
