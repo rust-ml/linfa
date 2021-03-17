@@ -1,7 +1,7 @@
 use crate::k_means::errors::{KMeansError, Result};
 use crate::k_means::hyperparameters::{KMeansHyperParams, KMeansHyperParamsBuilder};
 use linfa::{traits::*, DatasetBase, Float};
-use ndarray::{s, Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
+use ndarray::{Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
 use ndarray_rand::rand;
 use ndarray_rand::rand::Rng;
 use ndarray_stats::DeviationExt;
@@ -272,10 +272,10 @@ fn compute_centroids<F: Float>(
 
     Zip::from(observations.genrows())
         .and(cluster_memberships)
-        .apply(|observation, cluster_membership| {
-            let mut centroid = centroids.slice_mut(s![*cluster_membership, ..]);
+        .apply(|observation, &cluster_membership| {
+            let mut centroid = centroids.row_mut(cluster_membership);
             centroid += &observation;
-            counts[*cluster_membership] += F::from(1.0).unwrap();
+            counts[cluster_membership] += F::from(1.0).unwrap();
         });
 
     centroids
