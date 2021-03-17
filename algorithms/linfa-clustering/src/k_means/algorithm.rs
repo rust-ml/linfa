@@ -6,7 +6,6 @@ use ndarray_rand::rand;
 use ndarray_rand::rand::Rng;
 use ndarray_stats::DeviationExt;
 use rand_isaac::Isaac64Rng;
-use std::collections::HashMap;
 
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
@@ -269,21 +268,18 @@ fn compute_centroids<F: Float>(
     let (_, n_features) = observations.dim();
 
     let mut centroids: Array2<F> = Array2::zeros((n_clusters, n_features));
-    let mut averages: HashMap<usize, (Array1<F>, F)> = HashMap::new();
+    let mut averages: Vec<(Array1<F>, F)> =
+        vec![(Array1::zeros(n_features), F::from(0.0).unwrap()); n_clusters];
 
     Zip::from(observations.genrows())
         .and(cluster_memberships)
         .apply(|observation, &cluster_membership| {
-            averages
-                .entry(cluster_membership)
-                .and_modify(|(avg, cnt)| {
-                    *avg += &observation;
-                    *cnt += F::from(1.0).unwrap();
-                })
-                .or_insert((observation.to_owned(), F::from(1.0).unwrap()));
+            let (avg, cnt) = &mut averages[cluster_membership];
+            *avg += &observation;
+            *cnt += F::from(1.0).unwrap();
         });
 
-    for (i, (mut avg, cnt)) in averages.into_iter() {
+    for (i, (mut avg, cnt)) in averages.into_iter().enumerate() {
         avg /= cnt;
         centroids.row_mut(i).assign(&avg);
     }
