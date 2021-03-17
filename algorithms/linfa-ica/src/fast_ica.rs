@@ -1,10 +1,4 @@
 //! Fast algorithm for Independent Component Analysis (ICA)
-//!
-//! ICA separates mutivariate signals into their additive, independent subcomponents.
-//! ICA is primarily used for separating superimposed signals and not for dimensionality
-//! reduction.
-//!
-//! Input data is whitened (remove underlying correlation) before modeling.
 
 use linfa::{dataset::DatasetBase, traits::*, Float};
 use ndarray::{Array, Array1, Array2, ArrayBase, Axis, Data, Ix2};

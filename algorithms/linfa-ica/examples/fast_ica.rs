@@ -12,8 +12,8 @@ use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Create sample dataset for the model
-    // `s_original` has the unmixed sources (we merely have it to save to disk)
-    // `s` is the mixed source that will be unmixed using ICA
+    // `sources_original` has the unmixed sources (we merely have it to save to disk)
+    // `sources_mixed` is the mixed source that will be unmixed using ICA
     // Shape of the data will be (2000 x 2)
     let (sources_original, sources_mixed) = create_data();
 
