@@ -15,18 +15,14 @@ pub enum PlsError {
 impl Display for PlsError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::NotEnoughSamplesError(message) => {
-                write!(f, "Not enough samples: {}", message)
-            }
+            Self::NotEnoughSamplesError(message) => write!(f, "Not enough samples: {}", message),
             Self::BadComponentNumberError(message) => {
                 write!(f, "Bad component number: {}", message)
             }
             Self::PowerMethodNotConvergedError(message) => {
                 write!(f, "Power method not converged: {}", message)
             }
-            Self::LinalgError(message) => {
-                write!(f, "Linear algebra error: {}", message)
-            }
+            Self::LinalgError(message) => write!(f, "Linear algebra error: {}", message),
         }
     }
 }
