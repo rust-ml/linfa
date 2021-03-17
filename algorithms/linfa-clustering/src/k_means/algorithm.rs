@@ -267,21 +267,22 @@ fn compute_centroids<F: Float>(
 ) -> Array2<F> {
     let (_, n_features) = observations.dim();
 
-    let mut counts: Array1<F> = Array1::zeros(n_clusters);
     let mut centroids: Array2<F> = Array2::zeros((n_clusters, n_features));
+    let mut averages: Vec<(Array1<F>, F)> =
+        vec![(Array1::zeros(n_features), F::from(0.0).unwrap()); n_clusters];
 
     Zip::from(observations.genrows())
         .and(cluster_memberships)
         .apply(|observation, &cluster_membership| {
-            let mut centroid = centroids.row_mut(cluster_membership);
-            centroid += &observation;
-            counts[cluster_membership] += F::from(1.0).unwrap();
+            let (avg, cnt) = &mut averages[cluster_membership];
+            *avg += &observation;
+            *cnt += F::from(1.0).unwrap();
         });
 
-    centroids
-        .gencolumns_mut()
-        .into_iter()
-        .for_each(|mut col| col /= &counts);
+    for (i, (mut avg, cnt)) in averages.into_iter().enumerate() {
+        avg /= cnt;
+        centroids.row_mut(i).assign(&avg);
+    }
     centroids
 }
 
