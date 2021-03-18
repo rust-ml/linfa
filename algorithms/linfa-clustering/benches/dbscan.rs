@@ -1,5 +1,5 @@
 use criterion::{
-    black_box, criterion_group, criterion_main, AxisScale, Criterion, ParameterizedBenchmark,
+    black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
     PlotConfiguration,
 };
 use linfa::traits::Transformer;
@@ -14,27 +14,31 @@ fn dbscan_bench(c: &mut Criterion) {
     let mut rng = Isaac64Rng::seed_from_u64(40);
     let cluster_sizes = vec![10, 100, 1000, 10000];
 
-    let benchmark = ParameterizedBenchmark::new(
-        "dbscan",
-        move |bencher, &cluster_size| {
-            let min_points = 4;
-            let n_features = 3;
-            let tolerance = 0.3;
-            let centroids =
-                Array2::random_using((min_points, n_features), Uniform::new(-30., 30.), &mut rng);
-            let dataset = generate_blobs(cluster_size, &centroids, &mut rng);
-            bencher.iter(|| {
-                black_box(
-                    Dbscan::params(min_points)
-                        .tolerance(tolerance)
-                        .transform(&dataset),
-                )
-            });
-        },
-        cluster_sizes,
-    )
-    .plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
-    c.bench("dbscan", benchmark);
+    let mut benchmark = c.benchmark_group("dbscan");
+    benchmark.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
+    for cluster_size in cluster_sizes {
+        let rng = &mut rng;
+        benchmark.bench_with_input(
+            BenchmarkId::new("dbscan", cluster_size),
+            &cluster_size,
+            move |bencher, &cluster_size| {
+                let min_points = 4;
+                let n_features = 3;
+                let tolerance = 0.3;
+                let centroids =
+                    Array2::random_using((min_points, n_features), Uniform::new(-30., 30.), rng);
+                let dataset = generate_blobs(cluster_size, &centroids, rng);
+                bencher.iter(|| {
+                    black_box(
+                        Dbscan::params(min_points)
+                            .tolerance(tolerance)
+                            .transform(&dataset),
+                    )
+                });
+            },
+        );
+    }
+    benchmark.finish()
 }
 
 criterion_group! {
