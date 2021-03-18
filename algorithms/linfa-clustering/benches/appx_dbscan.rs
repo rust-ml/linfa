@@ -1,5 +1,5 @@
 use criterion::{
-    black_box, criterion_group, criterion_main, AxisScale, Criterion, ParameterizedBenchmark,
+    black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
     PlotConfiguration,
 };
 use linfa::traits::Transformer;
@@ -19,28 +19,32 @@ fn appx_dbscan_bench(c: &mut Criterion) {
         /*(10000, 0.1),*/
     ];
 
-    let benchmark = ParameterizedBenchmark::new(
-        "appx_dbscan",
-        move |bencher, &cluster_size_and_slack| {
-            let min_points = 4;
-            let n_features = 3;
-            let tolerance = 0.3;
-            let centroids =
-                Array2::random_using((min_points, n_features), Uniform::new(-30., 30.), &mut rng);
-            let dataset = generate_blobs(cluster_size_and_slack.0, &centroids, &mut rng);
-            bencher.iter(|| {
-                black_box(
-                    AppxDbscan::params(min_points)
-                        .tolerance(tolerance)
-                        .slack(cluster_size_and_slack.1)
-                        .transform(&dataset),
-                )
-            });
-        },
-        cluster_sizes_and_slacks,
-    )
-    .plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
-    c.bench("appx_dbscan", benchmark);
+    let mut benchmark = c.benchmark_group("appx_dbscan");
+    benchmark.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
+    for cluster_size_and_slack in cluster_sizes_and_slacks {
+        let rng = &mut rng;
+        benchmark.bench_with_input(
+            BenchmarkId::new("appx_dbscan", cluster_size_and_slack.0),
+            &cluster_size_and_slack,
+            move |bencher, &cluster_size_and_slack| {
+                let min_points = 4;
+                let n_features = 3;
+                let tolerance = 0.3;
+                let centroids =
+                    Array2::random_using((min_points, n_features), Uniform::new(-30., 30.), rng);
+                let dataset = generate_blobs(cluster_size_and_slack.0, &centroids, rng);
+                bencher.iter(|| {
+                    black_box(
+                        AppxDbscan::params(min_points)
+                            .tolerance(tolerance)
+                            .slack(cluster_size_and_slack.1)
+                            .transform(&dataset),
+                    )
+                });
+            },
+        );
+    }
+    benchmark.finish();
 }
 
 criterion_group! {
