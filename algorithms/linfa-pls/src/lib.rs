@@ -203,6 +203,7 @@ mod test {
         };
     }
 
+    // Prediction values were checked against scikit-learn 0.24.1
     test_pls_algo!(
         Canonical,
         array![
