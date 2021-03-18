@@ -35,6 +35,7 @@ impl Default for PlsSvdParams {
     }
 }
 
+#[allow(clippy::many_single_char_names)]
 impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, ArrayBase<D, Ix2>>
     for PlsSvdParams
 {

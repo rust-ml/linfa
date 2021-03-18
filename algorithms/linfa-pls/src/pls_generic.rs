@@ -71,18 +71,11 @@ impl<F: Float> Pls<F> {
             .mode(Mode::B)
     }
 
-    pub fn means(&self) -> (&Array1<F>, &Array1<F>) {
-        (&self.x_mean, &self.y_mean)
-    }
-
-    pub fn stds(&self) -> (&Array1<F>, &Array1<F>) {
-        (&self.x_std, &self.y_std)
-    }
-
     pub fn weights(&self) -> (&Array2<F>, &Array2<F>) {
         (&self.x_weights, &self.y_weights)
     }
 
+    #[cfg(test)]
     pub fn scores(&self) -> (&Array2<F>, &Array2<F>) {
         (&self.x_scores, &self.y_scores)
     }
@@ -169,21 +162,25 @@ impl<F: Float> PlsParams<F> {
         }
     }
 
+    #[cfg(test)]
     pub fn max_iterations(mut self, max_iter: usize) -> Self {
         self.max_iter = max_iter;
         self
     }
 
+    #[cfg(test)]
     pub fn tolerance(mut self, tolerance: F) -> Self {
         self.tolerance = tolerance;
         self
     }
 
+    #[cfg(test)]
     pub fn scale(mut self, scale: bool) -> Self {
         self.scale = scale;
         self
     }
 
+    #[cfg(test)]
     pub fn algorithm(mut self, algorithm: Algorithm) -> Self {
         self.algorithm = algorithm;
         self
@@ -256,11 +253,11 @@ impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, A
         // review from Wegelin. See above for a notation mapping from code to
         // paper.
         let eps = F::epsilon();
-        for (i, k) in (0..n_components).enumerate() {
+        for k in 0..n_components {
             // Find first left and right singular vectors of the x.T.dot(Y)
             // cross-covariance matrix.
 
-            let (mut _x_weights, mut _y_weights) = match self.algorithm {
+            let (mut x_weights_k, mut y_weights_k) = match self.algorithm {
                 Algorithm::Nipals => {
                     // Replace columns that are all close to zero with zeros
                     for mut yj in yk.gencolumns_mut() {
@@ -269,49 +266,49 @@ impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, A
                         }
                     }
 
-                    let (mut _x_weights, mut _y_weights, n_iter) =
+                    let (x_weights_k, y_weights_k, n_iter) =
                         self.get_first_singular_vectors_power_method(&xk, &yk, norm_y_weights)?;
-                    n_iters[i] = n_iter;
-                    (_x_weights, _y_weights)
+                    n_iters[k] = n_iter;
+                    (x_weights_k, y_weights_k)
                 }
                 Algorithm::Svd => self.get_first_singular_vectors_svd(&xk, &yk)?,
             };
-            utils::svd_flip_1d(&mut _x_weights, &mut _y_weights);
+            utils::svd_flip_1d(&mut x_weights_k, &mut y_weights_k);
 
             // compute scores, i.e. the projections of x and Y
-            let _x_scores = xk.dot(&_x_weights);
+            let x_scores_k = xk.dot(&x_weights_k);
             let y_ss = if norm_y_weights {
                 F::from(1.).unwrap()
             } else {
-                _y_weights.dot(&_y_weights)
+                y_weights_k.dot(&y_weights_k)
             };
-            let _y_scores = yk.dot(&_y_weights) / y_ss;
+            let y_scores_k = yk.dot(&y_weights_k) / y_ss;
 
             // Deflation: subtract rank-one approx to obtain xk+1 and yk+1
-            let _x_loadings = _x_scores.dot(&xk) / _x_scores.dot(&_x_scores);
-            xk = xk - utils::outer(&_x_scores, &_x_loadings); // outer product
+            let x_loadings_k = x_scores_k.dot(&xk) / x_scores_k.dot(&x_scores_k);
+            xk = xk - utils::outer(&x_scores_k, &x_loadings_k); // outer product
 
-            let _y_loadings = match self.deflation_mode {
+            let y_loadings_k = match self.deflation_mode {
                 DeflationMode::Canonical => {
                     // regress yk on y_score
-                    let _y_loadings = _y_scores.dot(&yk) / _y_scores.dot(&_y_scores);
-                    yk = yk - utils::outer(&_y_scores, &_y_loadings); // outer product
-                    _y_loadings
+                    let y_loadings_k = y_scores_k.dot(&yk) / y_scores_k.dot(&y_scores_k);
+                    yk = yk - utils::outer(&y_scores_k, &y_loadings_k); // outer product
+                    y_loadings_k
                 }
                 DeflationMode::Regression => {
                     // regress yk on x_score
-                    let _y_loadings = _x_scores.dot(&yk) / _x_scores.dot(&_x_scores);
-                    yk = yk - utils::outer(&_x_scores, &_y_loadings); // outer product
-                    _y_loadings
+                    let y_loadings_k = x_scores_k.dot(&yk) / x_scores_k.dot(&x_scores_k);
+                    yk = yk - utils::outer(&x_scores_k, &y_loadings_k); // outer product
+                    y_loadings_k
                 }
             };
 
-            x_weights.column_mut(k).assign(&_x_weights);
-            y_weights.column_mut(k).assign(&_y_weights);
-            x_scores.column_mut(k).assign(&_x_scores);
-            y_scores.column_mut(k).assign(&_y_scores);
-            x_loadings.column_mut(k).assign(&_x_loadings);
-            y_loadings.column_mut(k).assign(&_y_loadings);
+            x_weights.column_mut(k).assign(&x_weights_k);
+            y_weights.column_mut(k).assign(&y_weights_k);
+            x_scores.column_mut(k).assign(&x_scores_k);
+            y_scores.column_mut(k).assign(&y_scores_k);
+            x_loadings.column_mut(k).assign(&x_loadings_k);
+            y_loadings.column_mut(k).assign(&y_loadings_k);
         }
         // x was approximated as xi . Gamma.T + x_(R+1) xi . Gamma.T is a sum
         // of n_components rank-1 matrices. x_(R+1) is whatever is left
@@ -435,6 +432,7 @@ mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
     use linfa::dataset::Records;
+    use linfa::traits::Predict;
     use linfa_datasets::linnerud;
     use ndarray::{array, stack, Array, Axis};
     use ndarray_rand::rand::SeedableRng;
@@ -442,13 +440,13 @@ mod tests {
     use ndarray_rand::RandomExt;
     use rand_isaac::Isaac64Rng;
 
-    fn assert_matrix_orthogonal(m: &Array2<f64>) {
+    fn assert_matrix_orthonormal(m: &Array2<f64>) {
         assert_abs_diff_eq!(&m.t().dot(m), &Array::eye(m.ncols()), epsilon = 1e-7);
     }
 
-    fn assert_matrix_diagonal(m: &Array2<f64>) {
+    fn assert_matrix_orthogonal(m: &Array2<f64>) {
         let k = m.t().dot(m);
-        assert_abs_diff_eq!(&k, &(&Array::eye(m.ncols()) * &k.diag()), epsilon = 1e-7);
+        assert_abs_diff_eq!(&k, &Array::from_diag(&k.diag()), epsilon = 1e-7);
     }
 
     #[test]
@@ -460,12 +458,12 @@ mod tests {
         let pls = Pls::canonical(records.ncols()).fit(&dataset)?;
 
         let (x_weights, y_weights) = pls.weights();
-        assert_matrix_orthogonal(x_weights);
-        assert_matrix_orthogonal(y_weights);
+        assert_matrix_orthonormal(x_weights);
+        assert_matrix_orthonormal(y_weights);
 
         let (x_scores, y_scores) = pls.scores();
-        assert_matrix_diagonal(x_scores);
-        assert_matrix_diagonal(y_scores);
+        assert_matrix_orthogonal(x_scores);
+        assert_matrix_orthogonal(y_scores);
 
         // Check X = TP' and Y = UQ'
         let (p, q) = pls.loadings();
@@ -617,12 +615,12 @@ mod tests {
         assert_abs_diff_eq!(x_rotations_sign_flip, x_weights_sign_flip);
         assert_abs_diff_eq!(y_rotations_sign_flip, y_weights_sign_flip);
 
-        assert_matrix_orthogonal(x_weights);
-        assert_matrix_orthogonal(y_weights);
+        assert_matrix_orthonormal(x_weights);
+        assert_matrix_orthonormal(y_weights);
 
         let (x_scores, y_scores) = pls.scores();
-        assert_matrix_diagonal(x_scores);
-        assert_matrix_diagonal(y_scores);
+        assert_matrix_orthogonal(x_scores);
+        assert_matrix_orthogonal(y_scores);
         Ok(())
     }
 
@@ -671,12 +669,12 @@ mod tests {
             .expect("PLS canonical fitting failed");
 
         let (x_weights, y_weights) = pls.weights();
-        assert_matrix_orthogonal(x_weights);
-        assert_matrix_orthogonal(y_weights);
+        assert_matrix_orthonormal(x_weights);
+        assert_matrix_orthonormal(y_weights);
 
         let (x_scores, y_scores) = pls.scores();
-        assert_matrix_diagonal(x_scores);
-        assert_matrix_diagonal(y_scores);
+        assert_matrix_orthogonal(x_scores);
+        assert_matrix_orthogonal(y_scores);
     }
 
     #[test]
@@ -690,10 +688,12 @@ mod tests {
 
         let ds_score = Pls::regression(2)
             .scale(true)
+            .tolerance(1e-3)
             .fit(&ds)?
             .transform(ds.to_owned());
         let ds_s_score = Pls::regression(2)
             .scale(false)
+            .tolerance(1e-3)
             .fit(&ds_s)?
             .transform(ds_s.to_owned());
 
@@ -704,7 +704,7 @@ mod tests {
 
     #[test]
     fn test_one_component_equivalence() -> Result<()> {
-        // PLSRegression and PLSCanonical should all be equivalent when n_components is 1
+        // PlsRegression, PlsSvd and PLSCanonical should all be equivalent when n_components is 1
         let ds = linnerud();
         let ds2 = linnerud();
         let regression = Pls::regression(1).fit(&ds)?.transform(ds);
@@ -772,6 +772,9 @@ mod tests {
                         let ds1 = pls.transform(ds.to_owned());
                         let ds2 = Pls::[<$name>](3).algorithm(Algorithm::Svd).fit(&ds)?.transform(ds);
                         assert_abs_diff_eq!(ds1.records(), ds2.records(), epsilon=1e-2);
+                        let exercices = array![[14., 146., 61.], [6., 80., 60.]];
+                        let physios = pls.predict(exercices);
+                        println!("Physiologicals = {:?}", physios.targets());
                         Ok(())
                     }
                 )*
@@ -819,6 +822,7 @@ mod tests {
     fn test_transform_and_inverse() -> Result<()> {
         let ds = linnerud();
         let pls = Pls::canonical(3).fit(&ds)?;
+
         let ds_proj = pls.transform(ds);
         let ds_orig = pls.inverse_transform(ds_proj);
 

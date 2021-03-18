@@ -1,9 +1,9 @@
 //! # Partial Least Squares
 //!
-//! `linfa-pls` provides an implementation of Partial Least Squares family methods.
+//! `linfa-pls` provides an implementation of methods in the PLS (Partial Least Squares) family.
 //! The PLS method is a statistical method that finds a linear relationship between
-//! input variables and output variables by projecting input variables onto a new
-//! subspace formed by newly chosen variables (aka latent variables), which are linear
+//! input variables and output variables by projecting them onto a new subspace formed
+//! by newly chosen variables (aka latent variables), which are linear
 //! combinations of the input variables. The subspace is choosen to maximize the
 //! covariance between responses and independant variables.
 //!
@@ -169,6 +169,7 @@ pls_algo!(Cca);
 #[cfg(test)]
 mod test {
     use super::*;
+    use approx::assert_abs_diff_eq;
     use linfa::{traits::Fit, traits::Predict, traits::Transformer};
     use linfa_datasets::linnerud;
     use ndarray::array;
@@ -186,24 +187,55 @@ mod test {
             }
         };
 
-        ($name:ident) => {
+        ($name:ident, $expected:expr) => {
             paste::item! {
                 #[test]
                 fn [<test_pls_$name:lower>]() -> Result<()> {
                     let ds = linnerud();
-                    let pls = [<Pls $name>]::<f64>::params(3).fit(&ds)?;
+                    let pls = [<Pls $name>]::<f64>::params(2).fit(&ds)?;
                     let _ds1 = pls.transform(ds);
                     let exercices = array![[14., 146., 61.], [6., 80., 60.]];
                     let physios = pls.predict(exercices);
-                    println!("Physiologicals = {:?}", physios.targets());
+                    assert_abs_diff_eq!($expected, physios.targets(), epsilon=1e-2);
                     Ok(())
                 }
             }
         };
     }
 
-    test_pls_algo!(Canonical);
-    test_pls_algo!(Regression);
-    test_pls_algo!(Cca);
+    test_pls_algo!(
+        Canonical,
+        array![
+            [180.56979423, 33.29543984, 56.90850758],
+            [190.854022, 38.91963398, 53.26914489]
+        ]
+    );
+    test_pls_algo!(
+        Regression,
+        array![
+            [172.39580643, 34.11919145, 57.15430526],
+            [192.11167813, 38.05058858, 53.99844922]
+        ]
+    );
+    test_pls_algo!(
+        Cca,
+        array![
+            [181.56238421, 34.42502589, 57.31447865],
+            [205.11767414, 40.23445194, 52.26494323]
+        ]
+    );
     test_pls_algo!(Svd);
+
+    #[test]
+    fn test_one_component_equivalence() -> Result<()> {
+        // PlsRegression, PlsSvd and PLSCanonical should all be equivalent when n_components is 1
+        let ds = linnerud();
+        let regression = PlsRegression::params(1).fit(&ds)?.transform(linnerud());
+        let canonical = PlsCanonical::params(1).fit(&ds)?.transform(linnerud());
+        let svd = PlsSvd::<f64>::params(1).fit(&ds)?.transform(linnerud());
+
+        assert_abs_diff_eq!(regression.records(), canonical.records(), epsilon = 1e-5);
+        assert_abs_diff_eq!(svd.records(), canonical.records(), epsilon = 1e-5);
+        Ok(())
+    }
 }
