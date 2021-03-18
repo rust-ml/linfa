@@ -81,6 +81,8 @@ impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<
     fn transform(&self, observations: &ArrayBase<D, Ix2>) -> Array1<Option<usize>> {
         let mut cluster_memberships = Array1::from_elem(observations.nrows(), None);
         let mut current_cluster_id = 0;
+        // Tracks whether a value is in the search queue to prevent duplicates
+        let mut search_found = vec![false; observations.nrows()];
         for i in 0..observations.nrows() {
             if cluster_memberships[i].is_some() {
                 continue;
@@ -90,8 +92,6 @@ impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<
             if neighbor_count < self.minimum_points() {
                 continue;
             }
-            // Tracks whether a value is in the search queue to prevent duplicates
-            let mut search_found = vec![false; observations.nrows()];
             search_queue.iter().for_each(|&n| search_found[n] = true);
 
             // Now go over the neighbours adding them to the cluster
