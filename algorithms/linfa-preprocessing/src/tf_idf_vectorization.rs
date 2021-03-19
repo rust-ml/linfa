@@ -1,4 +1,4 @@
-//! Count vectorization methods
+//! Term frequency - inverse document frequency vectorization methods
 
 use crate::count_vectorization::{CountVectorizer, FittedCountVectorizer};
 use crate::error::Result;
@@ -29,6 +29,12 @@ impl TfIdfMethod {
     }
 }
 
+/// Simlar to [`CountVectorizer`](studct.CountVectorizer.html) but instead of
+/// just counting the term frequency of each vocabulary entry in each given document,
+/// it computes the termfrequecy times the inverse document frequency, thus giving more importance 
+/// to entries that appear many times but only on some documents. The weight function can be adjusted 
+/// by setting he appropriate [method](enum.TfIdfMethod.html). This struct provides the same string  
+/// processing customizations described in [`CountVectorizer`](studct.CountVectorizer.html).
 pub struct TfIdfVectorizer {
     count_vectorizer: CountVectorizer,
     method: TfIdfMethod,
@@ -120,6 +126,9 @@ impl TfIdfVectorizer {
     }
 }
 
+/// Counts the occurrences of each vocabulary entry, learned during fitting, in a sequence of texts and scales them by the inverse document
+/// document frequency defined by the [method](enum.TfIdfMethod.html). Each vocabulary entry is mapped
+/// to an integer value that is used to index the count in the result.
 pub struct FittedTfIdfVectorizer {
     fitted_vectorizer: FittedCountVectorizer,
     method: TfIdfMethod,
@@ -131,10 +140,14 @@ impl FittedTfIdfVectorizer {
         self.fitted_vectorizer.vocabulary()
     }
 
+    /// Returns the inverse document frequency method used in the tansform method
     pub fn method(&self) -> &TfIdfMethod {
         &self.method
     }
 
+    /// Given a sequence of `n` documents, produces an array of size `(n, vocabulary_entries)` where column `j` of row `i`
+    /// is the number of occurrences of vocabulary entry `j` in the text of index `i`, scaled by the inverse document frequency.
+    ///  Vocabulary entry `j` is the string at the `j`-th position in the vocabulary.
     pub fn transform<T: ToString, D: Data<Elem = T>>(&self, x: &ArrayBase<D, Ix1>) -> Array2<f64> {
         let (term_freqs, doc_freqs) = self.fitted_vectorizer.get_term_and_document_frequencies(x);
         let mut term_freqs = term_freqs.mapv(|x| x as f64);
