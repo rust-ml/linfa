@@ -462,7 +462,7 @@ impl<F: Float + Lapack + Scalar, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>
 mod tests {
     use super::*;
     use crate::generate_blobs;
-    use approx::assert_abs_diff_eq;
+    use approx::{abs_diff_eq, assert_abs_diff_eq};
     use ndarray::{array, stack, ArrayView1, ArrayView2, Axis};
     use ndarray_linalg::error::LinalgError;
     use ndarray_linalg::error::Result as LAResult;
@@ -524,10 +524,18 @@ mod tests {
         // check weights
         let w = gmm.weights();
         assert_abs_diff_eq!(w, &weights, epsilon = 1e-1);
-        // check means
-        assert_abs_diff_eq!(gmm.means(), &means, epsilon = 1e-1);
+        // check means (since kmeans centroids are ordered randomly, we try matching both orderings)
+        let m = gmm.means();
+        assert!(
+            abs_diff_eq!(means, &m, epsilon = 1e-1)
+                || abs_diff_eq!(means, m.slice(s![..;-1, ..]), epsilon = 1e-1)
+        );
         // check covariances
-        assert_abs_diff_eq!(gmm.covariances(), &covars, epsilon = 1e-1);
+        let c = gmm.covariances();
+        assert!(
+            abs_diff_eq!(covars, &c, epsilon = 1e-1)
+                || abs_diff_eq!(covars, c.slice(s![..;-1, .., ..]), epsilon = 1e-1)
+        );
     }
 
     fn function_test_1d(x: &Array2<f64>) -> Array2<f64> {
