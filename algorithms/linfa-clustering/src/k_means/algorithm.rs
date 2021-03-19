@@ -266,7 +266,7 @@ fn compute_centroids<F: Float>(
 ) -> Array2<F> {
     let n_clusters = old_centroids.nrows();
     let mut counts: Array1<usize> = Array1::ones(n_clusters);
-    let mut centroids = old_centroids.clone();
+    let mut centroids = Array2::zeros((n_clusters, observations.ncols()));
 
     Zip::from(observations.genrows())
         .and(cluster_memberships)
@@ -275,6 +275,7 @@ fn compute_centroids<F: Float>(
             centroid += &observation;
             counts[cluster_membership] += 1;
         });
+    centroids += old_centroids;
 
     Zip::from(centroids.genrows_mut())
         .and(&counts)
