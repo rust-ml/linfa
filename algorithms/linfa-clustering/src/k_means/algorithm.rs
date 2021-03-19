@@ -24,11 +24,13 @@ use serde_crate::{Deserialize, Serialize};
 /// Given the set of centroids, you can assign an observation to a cluster
 /// choosing the nearest centroid.
 ///
-/// We provide an implementation of the _standard algorithm_, also known as
-/// Lloyd's algorithm or naive K-means.
+/// We provide a modified version of the _standard algorithm_ (also known as Lloyd's Algorithm),
+/// called m_k-means, which uses a slightly modified update step to avoid problems with empty
+/// clusters.
 ///
 /// More details on the algorithm can be found in the next section or
-/// [here](https://en.wikipedia.org/wiki/K-means_clustering).
+/// [here](https://en.wikipedia.org/wiki/K-means_clustering). Details on m_k-means can be found
+/// [here](https://www.researchgate.net/publication/228414762_A_Modified_k-means_Algorithm_to_Avoid_Empty_Clusters).
 ///
 /// ## The algorithm
 ///
@@ -275,6 +277,7 @@ fn compute_centroids<F: Float>(
             centroid += &observation;
             counts[cluster_membership] += 1;
         });
+    // m_k-means: Treat the old centroid like another point in the cluster
     centroids += old_centroids;
 
     Zip::from(centroids.genrows_mut())
