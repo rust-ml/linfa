@@ -30,6 +30,7 @@ fn k_means_bench(c: &mut Criterion) {
                     .max_n_iterations(black_box(1000))
                     .tolerance(black_box(1e-3))
                     .fit(&dataset)
+                    .unwrap()
             });
         });
     }
