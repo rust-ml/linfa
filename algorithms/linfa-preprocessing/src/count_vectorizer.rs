@@ -1,93 +1,11 @@
 //! Count vectorization methods
 
 use crate::error::{Error, Result};
-use ndarray::{Array2, ArrayBase, Data, Ix1};
+use crate::helpers::NGramQueue;
+use ndarray::{Array1, Array2, ArrayBase, Data, Ix1, Zip};
 use std::collections::{HashMap, HashSet};
 use std::iter::IntoIterator;
 use unicode_normalization::UnicodeNormalization;
-
-/// Given a sequence of words, the queue can be iterated to obtain all the n-grams in the sequence,
-/// starting from n-grams of lenght `min` up to n_grams of length `max`. The name "queue" is left from
-/// a previous implementation but I left it because it sounded nice. Suggestions are welcome
-struct NGramQueue<T: ToString> {
-    min: usize,
-    max: usize,
-    queue: Vec<T>,
-}
-
-struct NGramQueueIntoIterator<T: ToString> {
-    queue: NGramQueue<T>,
-    index: usize,
-}
-
-impl<T: ToString> Iterator for NGramQueueIntoIterator<T> {
-    type Item = Vec<String>;
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.index >= self.queue.len() {
-            return None;
-        }
-        let res = self.queue.ngram_items(self.index);
-        if res.is_some() {
-            self.index += 1;
-            res
-        } else {
-            None
-        }
-    }
-}
-
-impl<T: ToString> IntoIterator for NGramQueue<T> {
-    type Item = Vec<String>;
-    type IntoIter = NGramQueueIntoIterator<T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        NGramQueueIntoIterator {
-            queue: self,
-            index: 0,
-        }
-    }
-}
-
-impl<T: ToString> NGramQueue<T> {
-    pub fn new(vec: Vec<T>, range: (usize, usize)) -> Self {
-        Self {
-            min: range.0,
-            max: range.1,
-            queue: vec,
-        }
-    }
-
-    pub fn len(&self) -> usize {
-        self.queue.len()
-    }
-
-    /// Constructs all n-grams obtainable from the word sequence starting from the word at `index`
-    pub fn ngram_items(&self, index: usize) -> Option<Vec<String>> {
-        let mut items = Vec::new();
-        let len = self.queue.len();
-        let min_end = index + self.min;
-        if min_end > len {
-            return None;
-        }
-        let max_end = if (index + self.max) < len {
-            index + self.max
-        } else {
-            len
-        };
-        let mut item = self.queue[index].to_string();
-        for j in (index + 1)..min_end {
-            item.push_str(" ");
-            item.push_str(&self.queue[j].to_string());
-        }
-        items.push(item.clone());
-        for j in min_end..max_end {
-            item.push_str(" ");
-            item.push_str(&self.queue[j].to_string());
-            items.push(item.clone())
-        }
-        Some(items)
-    }
-}
 
 #[derive(Clone)]
 /// Struct that holds all vectorizer options so that they can be passed to the fitted vectorizer
@@ -262,7 +180,37 @@ impl FittedCountVectorizer {
         &self,
         x: &ArrayBase<D, Ix1>,
     ) -> Array2<usize> {
+        let (vectorized, _) = self.get_term_and_document_frequencies(x);
+        vectorized
+    }
+
+    pub fn transform_tf_idf<T: ToString, D: Data<Elem = T>>(
+        &self,
+        x: &ArrayBase<D, Ix1>,
+    ) -> Array2<f64> {
+        let (term_freqs, doc_freqs) = self.get_term_and_document_frequencies(x);
+        let mut term_freqs = term_freqs.mapv(|x| x as f64);
+        let inv_doc_freqs =
+            doc_freqs.mapv(|doc_freq| ((1. + x.len() as f64) / (1. + doc_freq as f64)).ln() + 1.);
+        for row in term_freqs.genrows_mut() {
+            Zip::from(row)
+                .and(&inv_doc_freqs)
+                .apply(|el, inv_doc_f| *el *= *inv_doc_f);
+        }
+        term_freqs
+    }
+
+    /// Constains all vocabulary entries, in the same order used by the `transform` method.
+    pub fn vocabulary(&self) -> &Vec<String> {
+        &self.vec_vocabulary
+    }
+
+    fn get_term_and_document_frequencies<T: ToString, D: Data<Elem = T>>(
+        &self,
+        x: &ArrayBase<D, Ix1>,
+    ) -> (Array2<usize>, Array1<usize>) {
         let mut vectorized = Array2::zeros((x.len(), self.vocabulary.len()));
+        let mut document_frequencies = Array1::zeros(self.vocabulary.len());
         for (string_index, string) in x.into_iter().map(|s| s.to_string()).enumerate() {
             let string = transform_string(string, &self.properties);
             let words = string.split_whitespace().collect();
@@ -270,19 +218,18 @@ impl FittedCountVectorizer {
             for ngram_items in queue {
                 for item in ngram_items {
                     if let Some((item_index, _)) = self.vocabulary.get(&item) {
-                        let value = vectorized.get_mut((string_index, *item_index)).unwrap();
-                        *value += 1;
+                        let term_freq = vectorized.get_mut((string_index, *item_index)).unwrap();
+                        *term_freq += 1;
                     }
                 }
             }
+            for (i, count) in vectorized.row(string_index).iter().enumerate() {
+                if *count > 0 {
+                    document_frequencies[i] += 1;
+                }
+            }
         }
-
-        vectorized
-    }
-
-    /// Constains all vocabulary entries, in the same order used by the `transform` method.
-    pub fn vocabulary(&self) -> &Vec<String> {
-        &self.vec_vocabulary
+        (vectorized, document_frequencies)
     }
 }
 
@@ -330,6 +277,7 @@ fn hashmap_to_vocabulary(map: &mut HashMap<String, (usize, usize)>) -> Vec<Strin
 mod tests {
 
     use super::*;
+    use approx::assert_abs_diff_eq;
     use ndarray::array;
 
     macro_rules! column_for_word {
@@ -343,6 +291,15 @@ mod tests {
         ($voc:expr, $transf:expr, $(($word:expr, $counts:expr)),*) => {
             $ (
                 assert_eq!(column_for_word!($voc, $transf, $word), $counts);
+            )*
+        }
+    }
+
+    macro_rules! assert_tf_idfs_for_word {
+
+        ($voc:expr, $transf:expr, $(($word:expr, $counts:expr)),*) => {
+            $ (
+                assert_abs_diff_eq!(column_for_word!($voc, $transf, $word), $counts, epsilon=1e-3);
             )*
         }
     }
@@ -529,41 +486,36 @@ mod tests {
     }
 
     #[test]
-    fn test_ngram_queue() {
-        let words = vec![
-            "oNe",
-            "oNe",
-            "two",
-            "three",
-            "four",
-            "TWO",
-            "three",
-            "four",
-            "three;four",
-            "four",
+    fn test_tf_idf() {
+        let texts = array![
+            "one and two and three",
+            "three and four and five",
+            "seven and eight",
+            "maybe ten and eleven",
+            "avoid singletons: one two four five seven eight ten eleven and an and"
         ];
-        let queue = NGramQueue::new(words.clone(), (1, 1));
-        for (i, items) in queue.into_iter().enumerate() {
-            assert_eq!(items.len(), 1);
-            assert_eq!(items[0], words[i].clone());
-        }
-
-        let queue = NGramQueue::new(words.clone(), (2, 2));
-        for (i, items) in queue.into_iter().enumerate() {
-            assert_eq!(items.len(), 1);
-            assert_eq!(items[0], words[i].to_string() + " " + words[i + 1]);
-        }
-        let queue = NGramQueue::new(words.clone(), (1, 2));
-        for (i, items) in queue.into_iter().enumerate() {
-            if i < words.len() - 1 {
-                assert_eq!(items.len(), 2);
-                assert_eq!(items[0], words[i]);
-                assert_eq!(items[1], words[i].to_string() + " " + words[i + 1]);
-            } else {
-                assert_eq!(items.len(), 1);
-                assert_eq!(items[0], words[i]);
-            }
-        }
+        let vectorizer = CountVectorizer::default().fit(&texts).unwrap();
+        let vocabulary = vectorizer.vocabulary();
+        let transformed = vectorizer.transform_tf_idf(&texts);
+        assert_eq!(transformed.dim(), (texts.len(), vocabulary.len()));
+        assert_tf_idfs_for_word!(
+            vocabulary,
+            transformed,
+            ("one", array![1.693, 0.0, 0.0, 0.0, 1.693]),
+            ("two", array![1.693, 0.0, 0.0, 0.0, 1.693]),
+            ("three", array![1.693, 1.693, 0.0, 0.0, 0.0]),
+            ("four", array![0.0, 1.693, 0.0, 0.0, 1.693]),
+            ("and", array![2.0, 2.0, 1.0, 1.0, 2.0]),
+            ("five", array![0.0, 1.693, 0.0, 0.0, 1.693]),
+            ("seven", array![0.0, 0.0, 1.693, 0.0, 1.693]),
+            ("eight", array![0.0, 0.0, 1.693, 0.0, 1.693]),
+            ("ten", array![0.0, 0.0, 0.0, 1.693, 1.693]),
+            ("eleven", array![0.0, 0.0, 0.0, 1.693, 1.693]),
+            ("an", array![0.0, 0.0, 0.0, 0.0, 2.098]),
+            ("avoid", array![0.0, 0.0, 0.0, 0.0, 2.098]),
+            ("singletons", array![0.0, 0.0, 0.0, 0.0, 2.098]),
+            ("maybe", array![0.0, 0.0, 0.0, 2.098, 0.0])
+        );
     }
 
     #[test]

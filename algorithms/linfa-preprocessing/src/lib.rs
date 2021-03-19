@@ -13,6 +13,7 @@
 
 pub mod count_vectorizer;
 pub mod error;
+mod helpers;
 pub mod linear_scaler;
 pub mod norm_scaler;
 
