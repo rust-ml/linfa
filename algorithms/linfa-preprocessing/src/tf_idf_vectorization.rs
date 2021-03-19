@@ -22,7 +22,7 @@ pub enum TfIdfMethod {
 impl TfIdfMethod {
     pub fn compute_idf(&self, n: usize, df: usize) -> f64 {
         match self {
-            TfIdfMethod::Smooth => (1. + n as f64) / (1. + df as f64).ln() + 1.,
+            TfIdfMethod::Smooth => ((1. + n as f64) / (1. + df as f64)).ln() + 1.,
             TfIdfMethod::NonSmooth => (n as f64 / df as f64).ln() + 1.,
             TfIdfMethod::Textbook => (n as f64 / (1. + df as f64)).ln(),
         }
@@ -38,7 +38,7 @@ impl std::default::Default for TfIdfVectorizer {
     fn default() -> Self {
         Self {
             count_vectorizer: CountVectorizer::default(),
-            method: TfIdfMethod::Textbook,
+            method: TfIdfMethod::Smooth,
         }
     }
 }
@@ -139,7 +139,7 @@ impl FittedTfIdfVectorizer {
         let (term_freqs, doc_freqs) = self.fitted_vectorizer.get_term_and_document_frequencies(x);
         let mut term_freqs = term_freqs.mapv(|x| x as f64);
         let inv_doc_freqs =
-            doc_freqs.mapv(|doc_freq| ((1. + x.len() as f64) / (1. + doc_freq as f64)).ln() + 1.);
+            doc_freqs.mapv(|doc_freq| self.method.compute_idf(x.len(), doc_freq));
         for row in term_freqs.genrows_mut() {
             Zip::from(row)
                 .and(&inv_doc_freqs)
