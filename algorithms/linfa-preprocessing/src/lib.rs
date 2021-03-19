@@ -10,12 +10,14 @@
 //! * Max Abs Scaling
 //! * Normalization (l1, l2 and max norm)
 //! * Count vectorization
+//! * Term frequency - inverse document frequency count vectorization
 
-pub mod count_vectorizer;
+pub mod count_vectorization;
 pub mod error;
 mod helpers;
-pub mod linear_scaler;
-pub mod norm_scaler;
+pub mod linear_scaling;
+pub mod norm_scaling;
+pub mod tf_idf_vectorization;
 
 pub trait Float: linfa::Float + ndarray_linalg::Lapack + approx::AbsDiffEq {}
 

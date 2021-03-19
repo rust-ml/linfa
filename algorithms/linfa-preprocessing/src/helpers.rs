@@ -81,6 +81,13 @@ impl<T: ToString> NGramQueue<T> {
     }
 }
 
+#[macro_export]
+macro_rules! column_for_word {
+    ($voc:expr, $transf:expr, $word: expr ) => {
+        $transf.column($voc.iter().position(|s| *s == $word.to_string()).unwrap())
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

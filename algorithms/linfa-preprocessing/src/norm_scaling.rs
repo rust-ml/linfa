@@ -18,7 +18,7 @@ enum Norms {
 ///
 /// ```rust
 /// use linfa::traits::Transformer;
-/// use linfa_preprocessing::norm_scaler::NormScaler;
+/// use linfa_preprocessing::norm_scaling::NormScaler;
 ///
 /// // Load dataset
 /// let dataset = linfa_datasets::diabetes();
@@ -79,7 +79,7 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets>
 #[cfg(test)]
 mod tests {
 
-    use crate::norm_scaler::NormScaler;
+    use crate::norm_scaling::NormScaler;
     use approx::assert_abs_diff_eq;
     use linfa::dataset::DatasetBase;
     use linfa::traits::Transformer;

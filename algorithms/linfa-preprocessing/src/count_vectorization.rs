@@ -2,14 +2,14 @@
 
 use crate::error::{Error, Result};
 use crate::helpers::NGramQueue;
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix1, Zip};
+use ndarray::{Array1, Array2, ArrayBase, Data, Ix1};
 use std::collections::{HashMap, HashSet};
 use std::iter::IntoIterator;
 use unicode_normalization::UnicodeNormalization;
 
 #[derive(Clone)]
 /// Struct that holds all vectorizer options so that they can be passed to the fitted vectorizer
-struct VectorizerProperties {
+pub(crate) struct VectorizerProperties {
     remove_punctuation: bool,
     convert_to_lowercase: bool,
     punctuation_symbols: Vec<char>,
@@ -167,9 +167,9 @@ impl CountVectorizer {
 /// Counts the occurrences of each vocabulary entry, learned during fitting, in a sequence of texts. Each vocabulary entry is mapped
 /// to an integer value that is used to index the count in the result.
 pub struct FittedCountVectorizer {
-    vocabulary: HashMap<String, (usize, usize)>,
-    vec_vocabulary: Vec<String>,
-    properties: VectorizerProperties,
+    pub(crate) vocabulary: HashMap<String, (usize, usize)>,
+    pub(crate) vec_vocabulary: Vec<String>,
+    pub(crate) properties: VectorizerProperties,
 }
 
 impl FittedCountVectorizer {
@@ -184,28 +184,12 @@ impl FittedCountVectorizer {
         vectorized
     }
 
-    pub fn transform_tf_idf<T: ToString, D: Data<Elem = T>>(
-        &self,
-        x: &ArrayBase<D, Ix1>,
-    ) -> Array2<f64> {
-        let (term_freqs, doc_freqs) = self.get_term_and_document_frequencies(x);
-        let mut term_freqs = term_freqs.mapv(|x| x as f64);
-        let inv_doc_freqs =
-            doc_freqs.mapv(|doc_freq| ((1. + x.len() as f64) / (1. + doc_freq as f64)).ln() + 1.);
-        for row in term_freqs.genrows_mut() {
-            Zip::from(row)
-                .and(&inv_doc_freqs)
-                .apply(|el, inv_doc_f| *el *= *inv_doc_f);
-        }
-        term_freqs
-    }
-
     /// Constains all vocabulary entries, in the same order used by the `transform` method.
     pub fn vocabulary(&self) -> &Vec<String> {
         &self.vec_vocabulary
     }
 
-    fn get_term_and_document_frequencies<T: ToString, D: Data<Elem = T>>(
+    pub(crate) fn get_term_and_document_frequencies<T: ToString, D: Data<Elem = T>>(
         &self,
         x: &ArrayBase<D, Ix1>,
     ) -> (Array2<usize>, Array1<usize>) {
@@ -277,29 +261,14 @@ fn hashmap_to_vocabulary(map: &mut HashMap<String, (usize, usize)>) -> Vec<Strin
 mod tests {
 
     use super::*;
-    use approx::assert_abs_diff_eq;
+    use crate::column_for_word;
     use ndarray::array;
-
-    macro_rules! column_for_word {
-        ($voc:expr, $transf:expr, $word: expr ) => {
-            $transf.column($voc.iter().position(|s| *s == $word.to_string()).unwrap())
-        };
-    }
 
     macro_rules! assert_counts_for_word {
 
         ($voc:expr, $transf:expr, $(($word:expr, $counts:expr)),*) => {
             $ (
                 assert_eq!(column_for_word!($voc, $transf, $word), $counts);
-            )*
-        }
-    }
-
-    macro_rules! assert_tf_idfs_for_word {
-
-        ($voc:expr, $transf:expr, $(($word:expr, $counts:expr)),*) => {
-            $ (
-                assert_abs_diff_eq!(column_for_word!($voc, $transf, $word), $counts, epsilon=1e-3);
             )*
         }
     }
@@ -483,39 +452,6 @@ mod tests {
             "one", "two", "three", "four", "five", "seven", "eight", "ten", "eleven",
         ];
         assert_vocabulary_eq(&true_vocabulary, &vocabulary);
-    }
-
-    #[test]
-    fn test_tf_idf() {
-        let texts = array![
-            "one and two and three",
-            "three and four and five",
-            "seven and eight",
-            "maybe ten and eleven",
-            "avoid singletons: one two four five seven eight ten eleven and an and"
-        ];
-        let vectorizer = CountVectorizer::default().fit(&texts).unwrap();
-        let vocabulary = vectorizer.vocabulary();
-        let transformed = vectorizer.transform_tf_idf(&texts);
-        assert_eq!(transformed.dim(), (texts.len(), vocabulary.len()));
-        assert_tf_idfs_for_word!(
-            vocabulary,
-            transformed,
-            ("one", array![1.693, 0.0, 0.0, 0.0, 1.693]),
-            ("two", array![1.693, 0.0, 0.0, 0.0, 1.693]),
-            ("three", array![1.693, 1.693, 0.0, 0.0, 0.0]),
-            ("four", array![0.0, 1.693, 0.0, 0.0, 1.693]),
-            ("and", array![2.0, 2.0, 1.0, 1.0, 2.0]),
-            ("five", array![0.0, 1.693, 0.0, 0.0, 1.693]),
-            ("seven", array![0.0, 0.0, 1.693, 0.0, 1.693]),
-            ("eight", array![0.0, 0.0, 1.693, 0.0, 1.693]),
-            ("ten", array![0.0, 0.0, 0.0, 1.693, 1.693]),
-            ("eleven", array![0.0, 0.0, 0.0, 1.693, 1.693]),
-            ("an", array![0.0, 0.0, 0.0, 0.0, 2.098]),
-            ("avoid", array![0.0, 0.0, 0.0, 0.0, 2.098]),
-            ("singletons", array![0.0, 0.0, 0.0, 0.0, 2.098]),
-            ("maybe", array![0.0, 0.0, 0.0, 2.098, 0.0])
-        );
     }
 
     #[test]

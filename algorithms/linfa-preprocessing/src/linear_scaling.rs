@@ -44,7 +44,7 @@ impl<F: Float> std::fmt::Display for ScalingMethod<F> {
 ///
 /// ```rust
 /// use linfa::traits::{Fit, Transformer};
-/// use linfa_preprocessing::linear_scaler::LinearScaler;
+/// use linfa_preprocessing::linear_scaling::LinearScaler;
 ///
 /// // Load dataset
 /// let dataset = linfa_datasets::diabetes();
@@ -284,7 +284,7 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets>
 #[cfg(test)]
 mod tests {
 
-    use crate::linear_scaler::LinearScaler;
+    use crate::linear_scaling::LinearScaler;
     use approx::assert_abs_diff_eq;
     use linfa::dataset::DatasetBase;
     use linfa::traits::{Fit, Transformer};
