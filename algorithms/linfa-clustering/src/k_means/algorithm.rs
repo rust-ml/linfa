@@ -299,7 +299,7 @@ fn update_cluster_memberships<F: Float>(
     Zip::from(observations.axis_iter(Axis(0)))
         .and(cluster_memberships)
         .par_apply(|observation, cluster_membership| {
-            *cluster_membership = closest_centroid(&centroids, &observation)
+            *cluster_membership = closest_centroid(&centroids, &observation).0
         });
 }
 
@@ -316,18 +316,18 @@ fn compute_cluster_memberships<F: Float>(
     observations: &ArrayBase<impl Data<Elem = F>, Ix2>,
 ) -> Array1<usize> {
     observations.map_axis(Axis(1), |observation| {
-        closest_centroid(&centroids, &observation)
+        closest_centroid(&centroids, &observation).0
     })
 }
 
 /// Given a matrix of centroids with shape (n_centroids, n_features) and an observation,
 /// return the index of the closest centroid (the index of the corresponding row in `centroids`).
-fn closest_centroid<F: Float>(
+pub(crate) fn closest_centroid<F: Float>(
     // (n_centroids, n_features)
     centroids: &ArrayBase<impl Data<Elem = F>, Ix2>,
     // (n_features)
     observation: &ArrayBase<impl Data<Elem = F>, Ix1>,
-) -> usize {
+) -> (usize, F) {
     let iterator = centroids.genrows().into_iter();
 
     let first_centroid = centroids.row(0);
@@ -347,7 +347,7 @@ fn closest_centroid<F: Float>(
             minimum_distance = distance;
         }
     }
-    closest_index
+    (closest_index, minimum_distance)
 }
 
 #[cfg(test)]
