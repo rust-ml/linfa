@@ -1,3 +1,4 @@
+use super::init::KMeansInit;
 use linfa::Float;
 use ndarray_rand::rand::{Rng, SeedableRng};
 use rand_isaac::Isaac64Rng;
@@ -25,6 +26,8 @@ pub struct KMeansHyperParams<F: Float, R: Rng> {
     max_n_iterations: u64,
     /// The number of clusters we will be looking for in the training dataset.
     n_clusters: usize,
+    /// The initialization strategy used to initialize the centroids.
+    init: KMeansInit,
     /// The random number generator
     rng: R,
 }
@@ -36,6 +39,7 @@ pub struct KMeansHyperParamsBuilder<F: Float, R: Rng> {
     tolerance: F,
     max_n_iterations: u64,
     n_clusters: usize,
+    init: KMeansInit,
     rng: R,
 }
 
@@ -79,6 +83,7 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParamsBuilder<F, R> {
             self.n_runs,
             self.tolerance,
             self.max_n_iterations,
+            self.init,
             self.rng.clone(),
         )
     }
@@ -116,6 +121,7 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParams<F, R> {
             tolerance: F::from(1e-4).unwrap(),
             max_n_iterations: 300,
             n_clusters,
+            init: KMeansInit::Random,
             rng,
         }
     }
@@ -144,12 +150,24 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParams<F, R> {
         self.n_clusters
     }
 
+    /// Cluster initialization strategy
+    pub fn init(&self) -> KMeansInit {
+        self.init
+    }
+
     /// Returns a clone of the random generator
     pub fn rng(&self) -> R {
         self.rng.clone()
     }
 
-    fn build(n_clusters: usize, n_runs: u64, tolerance: F, max_n_iterations: u64, rng: R) -> Self {
+    fn build(
+        n_clusters: usize,
+        n_runs: u64,
+        tolerance: F,
+        max_n_iterations: u64,
+        init: KMeansInit,
+        rng: R,
+    ) -> Self {
         if n_runs == 0 {
             panic!("`n_runs` cannot be 0!");
         }
@@ -167,6 +185,7 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParams<F, R> {
             tolerance,
             max_n_iterations,
             n_clusters,
+            init,
             rng,
         }
     }

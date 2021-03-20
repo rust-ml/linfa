@@ -2,7 +2,6 @@ use crate::k_means::errors::{KMeansError, Result};
 use crate::k_means::hyperparameters::{KMeansHyperParams, KMeansHyperParamsBuilder};
 use linfa::{traits::*, DatasetBase, Float};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
-use ndarray_rand::rand;
 use ndarray_rand::rand::Rng;
 use ndarray_stats::DeviationExt;
 use rand_isaac::Isaac64Rng;
@@ -168,7 +167,7 @@ impl<'a, F: Float, R: Rng + Clone, D: Data<Elem = F>, T> Fit<'a, ArrayBase<D, Ix
 
         for _ in 0..n_runs {
             let mut inertia = min_inertia;
-            let mut centroids = get_random_centroids(self.n_clusters(), &observations, &mut rng);
+            let mut centroids = self.init().run(self.n_clusters(), &observations, &mut rng);
             let mut converged_iter: Option<u64> = None;
             for n_iter in 0..self.max_n_iterations() {
                 update_cluster_memberships(&centroids, &observations, &mut memberships);
@@ -349,16 +348,6 @@ fn closest_centroid<F: Float>(
         }
     }
     closest_index
-}
-
-fn get_random_centroids<F: Float, D: Data<Elem = F>>(
-    n_clusters: usize,
-    observations: &ArrayBase<D, Ix2>,
-    rng: &mut impl Rng,
-) -> Array2<F> {
-    let (n_samples, _) = observations.dim();
-    let indices = rand::seq::index::sample(rng, n_samples, n_clusters).into_vec();
-    observations.select(Axis(0), &indices)
 }
 
 #[cfg(test)]
