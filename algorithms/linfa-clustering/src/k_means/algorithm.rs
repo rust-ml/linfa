@@ -394,7 +394,7 @@ mod tests {
         let data = stack(Axis(1), &[xt.view(), yt.view()]).unwrap();
 
         // First clustering with one iteration
-        for init in [KMeansInit::Random, KMeansInit::KMeansPP].iter() {
+        for init in [KMeansInit::Random, KMeansInit::KMeansPlusPlus].iter() {
             let dataset = DatasetBase::from(data.clone());
             let model = KMeans::params_with_rng(3, rng.clone())
                 .n_runs(1)

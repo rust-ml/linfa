@@ -14,7 +14,7 @@ pub type RngFunc<F> = fn() -> F;
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum KMeansInit<F: Float + SampleUniform + for<'a> AddAssign<&'a F>> {
     Random,
-    KMeansPP,
+    KMeansPlusPlus,
     KMeansPara(RngFunc<F>),
 }
 
@@ -27,7 +27,7 @@ impl<'a, F: Float + SampleUniform + for<'b> AddAssign<&'b F>> KMeansInit<F> {
     ) -> Array2<F> {
         match self {
             Self::Random => random_init(n_clusters, observations, rng),
-            Self::KMeansPP => k_means_pp(n_clusters, observations, rng),
+            Self::KMeansPlusPlus => k_means_plusplus(n_clusters, observations, rng),
             Self::KMeansPara(rng_func) => k_means_para(n_clusters, observations, rng, rng_func),
         }
     }
@@ -43,7 +43,7 @@ fn random_init<F: Float>(
     observations.select(Axis(0), &indices)
 }
 
-fn weighted_k_means_pp<F: Float + SampleUniform + for<'a> AddAssign<&'a F>>(
+fn weighted_k_means_plusplus<F: Float + SampleUniform + for<'a> AddAssign<&'a F>>(
     n_clusters: usize,
     observations: &ArrayView2<F>,
     weights: &ArrayView1<F>,
@@ -72,12 +72,12 @@ fn weighted_k_means_pp<F: Float + SampleUniform + for<'a> AddAssign<&'a F>>(
     centroids
 }
 
-fn k_means_pp<F: Float + SampleUniform + for<'a> AddAssign<&'a F>>(
+fn k_means_plusplus<F: Float + SampleUniform + for<'a> AddAssign<&'a F>>(
     n_clusters: usize,
     observations: &ArrayView2<F>,
     rng: &mut impl Rng,
 ) -> Array2<F> {
-    weighted_k_means_pp(
+    weighted_k_means_plusplus(
         n_clusters,
         observations,
         &Array1::ones(observations.nrows()).view(),
@@ -128,7 +128,7 @@ fn k_means_para<'a, F: Float + SampleUniform + for<'b> AddAssign<&'b F>>(
 
     let mut weights = Array1::zeros(n_candidates);
     memberships.iter().for_each(|&c| weights[c] += F::one());
-    weighted_k_means_pp(n_clusters, &final_candidates, &weights.view(), rng)
+    weighted_k_means_plusplus(n_clusters, &final_candidates, &weights.view(), rng)
 }
 
 fn sample_subsequent_candidates<'a, F: Float>(
@@ -187,13 +187,13 @@ mod tests {
     }
 
     #[test]
-    fn test_weighted_kmeans_pp() {
+    fn test_weighted_kmeans_plusplus() {
         let mut rng = Isaac64Rng::seed_from_u64(42);
         let obs = Array::random_using((1000, 2), Normal::new(0.0, 100.).unwrap(), &mut rng);
         let mut weights = Array1::zeros(1000);
         weights[0] = 1.0;
         weights[1] = 1.0;
-        let out = weighted_k_means_pp(2, &obs.view(), &weights.view(), &mut rng);
+        let out = weighted_k_means_plusplus(2, &obs.view(), &weights.view(), &mut rng);
         let mut expected_centroids = {
             let mut arr = Array2::zeros((2, 2));
             arr.row_mut(0).assign(&obs.row(0));
@@ -209,7 +209,7 @@ mod tests {
     }
 
     #[test]
-    fn test_kmeans_pp() {
+    fn test_k_means_plusplus() {
         let mut rng = Isaac64Rng::seed_from_u64(42);
         let centroids = [20.0, -1000.0, 1000.0];
         let clusters: Vec<Array2<_>> = centroids
@@ -220,7 +220,7 @@ mod tests {
             stack(Axis(0), &[a.view(), b.view()]).unwrap()
         });
 
-        let out = k_means_pp(3, &obs.view(), &mut rng.clone());
+        let out = k_means_plusplus(3, &obs.view(), &mut rng.clone());
         let mut cluster_ids = HashSet::new();
         for row in out.genrows() {
             // Centroid should not be 0
@@ -257,7 +257,7 @@ mod tests {
         });
 
         let out_rand = random_init(3, &obs.view(), &mut rng.clone());
-        let out_pp = k_means_pp(3, &obs.view(), &mut rng.clone());
+        let out_pp = k_means_plusplus(3, &obs.view(), &mut rng.clone());
         // Inertia of Kmeans++ should be better than using random_init
         assert!(calc_inertia(&out_pp, &obs) < calc_inertia(&out_rand, &obs));
     }
