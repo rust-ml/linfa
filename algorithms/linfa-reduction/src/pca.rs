@@ -28,7 +28,7 @@ use serde_crate::{Deserialize, Serialize};
 
 use linfa::{
     dataset::Records,
-    traits::{Fit, PredictRef},
+    traits::{Fit, PredictRef, Transformer},
     DatasetBase, Float,
 };
 
@@ -173,6 +173,22 @@ impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array2<F>> for P
     }
 }
 
+impl<F: Float, D: Data<Elem = F>, T>
+    Transformer<DatasetBase<ArrayBase<D, Ix2>, T>, DatasetBase<Array2<F>, T>> for Pca<F>
+{
+    fn transform(&self, ds: DatasetBase<ArrayBase<D, Ix2>, T>) -> DatasetBase<Array2<F>, T> {
+        let DatasetBase {
+            records,
+            targets,
+            weights,
+            ..
+        } = ds;
+
+        let new_records = self.predict_ref(&records);
+
+        DatasetBase::new(new_records, targets).with_weights(weights)
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;

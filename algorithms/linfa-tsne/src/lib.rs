@@ -1,5 +1,5 @@
+use linfa::{dataset::DatasetBase, traits::Transformer, Float};
 use ndarray::Array2;
-use linfa::{Float, dataset::DatasetBase, traits::Transformer};
 
 pub struct TSne<F: Float> {
     embedding_size: usize,
@@ -46,8 +46,7 @@ impl<F: Float> TSne<F> {
     }
 }
 
-impl<F: Float> Transformer<Array2<F>, Array2<F>> for TSne<F>
-{
+impl<F: Float> Transformer<Array2<F>, Array2<F>> for TSne<F> {
     fn transform(&self, mut data: Array2<F>) -> Array2<F> {
         let (nfeatures, nsamples) = (data.ncols(), data.nrows());
 
@@ -58,7 +57,7 @@ impl<F: Float> Transformer<Array2<F>, Array2<F>> for TSne<F>
         dbg!(&data);
 
         bhtsne::run(
-            &mut data, 
+            &mut data,
             nsamples,
             nfeatures,
             &mut y,
@@ -73,8 +72,7 @@ impl<F: Float> Transformer<Array2<F>, Array2<F>> for TSne<F>
 
         dbg!(&y);
 
-        Array2::from_shape_vec((nsamples, self.embedding_size), y)
-            .unwrap()
+        Array2::from_shape_vec((nsamples, self.embedding_size), y).unwrap()
     }
 }
 
@@ -83,42 +81,38 @@ impl<T, F: Float> Transformer<DatasetBase<Array2<F>, T>, DatasetBase<Array2<F>, 
         let DatasetBase {
             records,
             targets,
+            weights,
             ..
         } = ds;
 
         let new_records = self.transform(records);
 
-        DatasetBase::new(new_records, targets)
+        DatasetBase::new(new_records, targets).with_weights(weights)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
-    use ndarray::Axis;
+    use linfa::traits::Fit;
     use linfa_reduction::Pca;
-    use linfa::traits::{Fit, Predict};
+    use std::io::Write;
 
     #[test]
     fn iris_separate() {
-        let ds = linfa_datasets::winequality();
-        let records = Pca::params(8).whiten(true).fit(&ds).predict(&ds);
+        let ds = linfa_datasets::iris();
+        let ds = Pca::params(3).whiten(true).fit(&ds).transform(ds);
 
-        let DatasetBase { targets, .. } = ds;
-        let records = records.map(|x| *x as f32);
-        let targets = targets.map(|x| if *x > 6 { 2.0 } else { 1.0 });
-
-        let records = TSne::embedding_size(2)
+        let ds = TSne::embedding_size(2)
             .perplexity(20.0)
-            .theta(0.5)
-            .transform(records);
+            .theta(0.1)
+            .transform(ds);
 
-        dbg!(&targets);
         let mut f = std::fs::File::create("iris.dat").unwrap();
 
-        for (x, y) in records.axis_iter(Axis(0)).zip(targets.iter()) {
-            f.write(format!("{} {} {}\n", x[0], x[1], y).as_bytes()).unwrap();
+        for (x, y) in ds.sample_iter() {
+            f.write(format!("{} {} {}\n", x[0], x[1], y[0]).as_bytes())
+                .unwrap();
         }
     }
 }

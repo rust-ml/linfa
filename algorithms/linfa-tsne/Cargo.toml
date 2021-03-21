@@ -22,5 +22,5 @@ linfa = { version = "0.3.1", path = "../.." }
 [dev-dependencies]
 rand = "0.7"
 ndarray-rand = "0.11"
-linfa-datasets = { version = "0.3.1", path = "../../datasets", features = ["winequality"] }
+linfa-datasets = { version = "0.3.1", path = "../../datasets", features = ["iris"] }
 linfa-reduction = { version = "0.3.1", path = "../linfa-reduction" }
