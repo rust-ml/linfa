@@ -1,5 +1,6 @@
-use super::algorithm::closest_centroid;
+use super::algorithm::{closest_centroid, update_cluster_memberships};
 use linfa::Float;
+use ndarray::parallel::prelude::*;
 use ndarray::{
     s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, DataMut, Ix1, Ix2, Zip,
 };
@@ -80,15 +81,75 @@ fn k_means_pp<F: Float + SampleUniform + for<'a> AddAssign<&'a F>>(
     )
 }
 
-//fn k_means_para<F: Float>(
-//n_clusters: usize,
-//observations: &ArrayView2<F>,
-//rng: &mut impl Rng,
-//) -> Array<F> {
-//const N_ROUNDS: usize = 8;
-//let (n_samples, n_features) = observations.dim();
-//let mut centroids = Array2::zeros((n_clusters, n_features));
-//}
+fn k_means_para<'a, F: Float + SampleUniform + for<'b> AddAssign<&'b F>>(
+    n_clusters: usize,
+    observations: &'a ArrayView2<'a, F>,
+    rng: &mut impl Rng,
+    rng_func: fn() -> F,
+) -> Array2<F> {
+    let n_rounds = 8;
+    let candidates_per_round = n_clusters;
+
+    let (n_samples, n_features) = observations.dim();
+    let mut candidates = Array2::zeros((n_clusters * n_rounds, n_features));
+
+    let first_idx = rng.gen_range(0, n_samples);
+    candidates.row_mut(0).assign(&observations.row(first_idx));
+    let mut n_candidates = 1;
+
+    let mut dists = Array1::zeros(n_samples);
+    'outer: for _ in 0..n_rounds {
+        let current_candidates = candidates.slice(s![0..n_candidates, ..]);
+        update_min_dists(&current_candidates, &observations, &mut dists);
+        let next_candidates = sample_subsequent_candidates(
+            observations,
+            &dists,
+            F::from(candidates_per_round).unwrap(),
+            rng_func,
+        );
+
+        for candidate in next_candidates.into_iter() {
+            candidates.row_mut(n_candidates).assign(&candidate);
+            n_candidates += 1;
+            if n_candidates >= candidates.nrows() {
+                break 'outer;
+            }
+        }
+    }
+
+    assert!(n_candidates >= n_clusters);
+    let final_candidates = candidates.slice(s![0..n_candidates, ..]);
+    let mut memberships = Array1::zeros(n_samples);
+    update_cluster_memberships(&final_candidates, observations, &mut memberships);
+
+    let mut weights = Array1::zeros(n_candidates);
+    memberships.iter().for_each(|&c| weights[c] += F::one());
+    weighted_k_means_pp(n_clusters, &final_candidates, &weights.view(), rng)
+}
+
+fn sample_subsequent_candidates<'a, F: Float>(
+    observations: &'a ArrayView2<'a, F>,
+    dists: &Array1<F>,
+    candidates_per_round: F,
+    rng_func: fn() -> F,
+) -> Vec<ArrayView1<'a, F>> {
+    let cost = dists.sum();
+    dists
+        .axis_iter(Axis(0))
+        .into_par_iter()
+        .enumerate()
+        .filter_map(|(i, d)| {
+            let d = *d.into_scalar();
+            let rand = rng_func();
+            let prob = candidates_per_round * d / cost;
+            if rand < prob {
+                Some(observations.row(i))
+            } else {
+                None
+            }
+        })
+        .collect()
+}
 
 fn update_min_dists<F: Float>(
     centroids: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
