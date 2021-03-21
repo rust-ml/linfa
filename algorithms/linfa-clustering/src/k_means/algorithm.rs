@@ -243,7 +243,7 @@ impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<usize>> f
 
 /// We compute inertia defined as the sum of the squared distances
 /// of the closest centroid for all observations.
-fn compute_inertia<F: Float>(
+pub(crate) fn compute_inertia<F: Float>(
     centroids: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
     observations: &ArrayBase<impl Data<Elem = F>, Ix2>,
     cluster_memberships: &ArrayBase<impl Data<Elem = usize>, Ix1>,
@@ -303,7 +303,7 @@ fn compute_centroids<F: Float>(
 ///
 /// membership[i] == closest_centroid(&centroids, &observations.slice(s![i, ..])
 ///
-fn update_cluster_memberships<F: Float>(
+pub(crate) fn update_cluster_memberships<F: Float>(
     centroids: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
     observations: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
     cluster_memberships: &mut ArrayBase<impl DataMut<Elem = usize>, Ix1>,
