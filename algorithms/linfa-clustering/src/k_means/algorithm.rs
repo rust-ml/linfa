@@ -24,11 +24,13 @@ use serde_crate::{Deserialize, Serialize};
 /// Given the set of centroids, you can assign an observation to a cluster
 /// choosing the nearest centroid.
 ///
-/// We provide an implementation of the _standard algorithm_, also known as
-/// Lloyd's algorithm or naive K-means.
+/// We provide a modified version of the _standard algorithm_ (also known as Lloyd's Algorithm),
+/// called m_k-means, which uses a slightly modified update step to avoid problems with empty
+/// clusters.
 ///
 /// More details on the algorithm can be found in the next section or
-/// [here](https://en.wikipedia.org/wiki/K-means_clustering).
+/// [here](https://en.wikipedia.org/wiki/K-means_clustering). Details on m_k-means can be found
+/// [here](https://www.researchgate.net/publication/228414762_A_Modified_k-means_Algorithm_to_Avoid_Empty_Clusters).
 ///
 /// ## The algorithm
 ///
@@ -170,8 +172,7 @@ impl<'a, F: Float, R: Rng + Clone, D: Data<Elem = F>, T> Fit<'a, ArrayBase<D, Ix
             let mut converged_iter: Option<u64> = None;
             for n_iter in 0..self.max_n_iterations() {
                 update_cluster_memberships(&centroids, &observations, &mut memberships);
-                let new_centroids =
-                    compute_centroids(self.n_clusters(), &observations, &memberships);
+                let new_centroids = compute_centroids(&centroids, &observations, &memberships);
                 inertia = compute_inertia(&new_centroids, &observations, &memberships);
                 let distance = centroids
                     .sq_l2_dist(&new_centroids)
@@ -259,16 +260,15 @@ fn compute_inertia<F: Float>(
 /// `compute_centroids` returns a 2-dimensional array,
 /// where the i-th row corresponds to the i-th cluster.
 fn compute_centroids<F: Float>(
-    n_clusters: usize,
+    old_centroids: &Array2<F>,
     // (n_observations, n_features)
     observations: &ArrayBase<impl Data<Elem = F>, Ix2>,
     // (n_observations,)
     cluster_memberships: &ArrayBase<impl Data<Elem = usize>, Ix1>,
 ) -> Array2<F> {
-    let (_, n_features) = observations.dim();
-
-    let mut counts: Array1<usize> = Array1::zeros(n_clusters);
-    let mut centroids: Array2<F> = Array2::zeros((n_clusters, n_features));
+    let n_clusters = old_centroids.nrows();
+    let mut counts: Array1<usize> = Array1::ones(n_clusters);
+    let mut centroids = Array2::zeros((n_clusters, observations.ncols()));
 
     Zip::from(observations.genrows())
         .and(cluster_memberships)
@@ -277,14 +277,12 @@ fn compute_centroids<F: Float>(
             centroid += &observation;
             counts[cluster_membership] += 1;
         });
+    // m_k-means: Treat the old centroid like another point in the cluster
+    centroids += old_centroids;
 
     Zip::from(centroids.genrows_mut())
         .and(&counts)
-        .apply(|mut centroid, &cnt| {
-            if cnt != 0 {
-                centroid /= F::from(cnt).unwrap();
-            }
-        });
+        .apply(|mut centroid, &cnt| centroid /= F::from(cnt).unwrap());
     centroids
 }
 
@@ -423,19 +421,20 @@ mod tests {
         let cluster_1: Array2<f64> =
             Array::random((cluster_size, n_features), Uniform::new(-100., 100.));
         let memberships_1 = Array1::zeros(cluster_size);
-        let expected_centroid_1 = cluster_1.mean_axis(Axis(0)).unwrap();
+        let expected_centroid_1 = cluster_1.sum_axis(Axis(0)) / (cluster_size + 1) as f64;
 
         let cluster_2: Array2<f64> =
             Array::random((cluster_size, n_features), Uniform::new(-100., 100.));
         let memberships_2 = Array1::ones(cluster_size);
-        let expected_centroid_2 = cluster_2.mean_axis(Axis(0)).unwrap();
+        let expected_centroid_2 = cluster_2.sum_axis(Axis(0)) / (cluster_size + 1) as f64;
 
         // `stack` combines arrays along a given axis: https://docs.rs/ndarray/0.13.0/ndarray/fn.stack.html
         let observations = stack(Axis(0), &[cluster_1.view(), cluster_2.view()]).unwrap();
         let memberships = stack(Axis(0), &[memberships_1.view(), memberships_2.view()]).unwrap();
 
         // Does it work?
-        let centroids = compute_centroids(2, &observations, &memberships);
+        let old_centroids = Array2::zeros((2, n_features));
+        let centroids = compute_centroids(&old_centroids, &observations, &memberships);
         assert_abs_diff_eq!(
             centroids.index_axis(Axis(0), 0),
             expected_centroid_1,
@@ -455,8 +454,9 @@ mod tests {
         let observations = array![[1.0, 2.0]];
         let memberships = array![0];
         // Should return an average of 0 for empty clusters
-        let centroids = compute_centroids(2, &observations, &memberships);
-        assert_abs_diff_eq!(centroids, array![[1.0, 2.0], [0.0, 0.0]]);
+        let old_centroids = Array2::ones((2, 2));
+        let centroids = compute_centroids(&old_centroids, &observations, &memberships);
+        assert_abs_diff_eq!(centroids, array![[1.0, 1.5], [1.0, 1.0]]);
     }
 
     #[test]
