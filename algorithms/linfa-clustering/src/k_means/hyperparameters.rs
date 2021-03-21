@@ -96,7 +96,7 @@ impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>, R: Rng + Clone>
             self.n_runs,
             self.tolerance,
             self.max_n_iterations,
-            self.init,
+            self.init.clone(),
             self.rng.clone(),
         )
     }
@@ -164,8 +164,8 @@ impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>, R: Rng + Clone> KMeans
     }
 
     /// Cluster initialization strategy
-    pub fn init(&self) -> KMeansInit<F> {
-        self.init
+    pub fn init(&self) -> &KMeansInit<F> {
+        &self.init
     }
 
     /// Returns a clone of the random generator

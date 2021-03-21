@@ -398,7 +398,7 @@ mod tests {
             let dataset = DatasetBase::from(data.clone());
             let model = KMeans::params_with_rng(3, rng.clone())
                 .n_runs(1)
-                .init_method(*init)
+                .init_method(init.clone())
                 .fit(&dataset)
                 .expect("KMeans fitted");
             let clusters = model.predict(dataset);
@@ -407,7 +407,7 @@ mod tests {
             // Second clustering with 10 iterations (default)
             let dataset2 = DatasetBase::from(clusters.records().clone());
             let model2 = KMeans::params_with_rng(3, rng.clone())
-                .init_method(*init)
+                .init_method(init.clone())
                 .fit(&dataset2)
                 .expect("KMeans fitted");
             let clusters2 = model2.predict(dataset2);

@@ -11,7 +11,7 @@ use std::ops::AddAssign;
 
 pub type RngFunc<F> = fn() -> F;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum KMeansInit<F: Float + SampleUniform + for<'a> AddAssign<&'a F>> {
     Random,
     KMeansPlusPlus,
