@@ -4,6 +4,7 @@ use crate::k_means::KMeans;
 use linfa::{traits::*, DatasetBase, Float};
 use ndarray::{s, Array, Array1, Array2, Array3, ArrayBase, Axis, Data, Ix2, Ix3, Zip};
 use ndarray_linalg::{cholesky::*, triangular::*, Lapack, Scalar};
+use ndarray_rand::rand::distributions::uniform::SampleUniform;
 use ndarray_rand::rand::Rng;
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
@@ -11,6 +12,7 @@ use ndarray_stats::QuantileExt;
 use rand_isaac::Isaac64Rng;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
+use std::ops::AddAssign;
 
 #[cfg_attr(
     feature = "serde",
@@ -118,31 +120,9 @@ impl<F: Float> Clone for GaussianMixtureModel<F> {
     }
 }
 
-impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
-    pub fn params(n_clusters: usize) -> GmmHyperParams<F, Isaac64Rng> {
-        GmmHyperParams::new(n_clusters)
-    }
-
-    pub fn weights(&self) -> &Array1<F> {
-        &self.weights
-    }
-
-    pub fn means(&self) -> &Array2<F> {
-        &self.means
-    }
-
-    pub fn covariances(&self) -> &Array3<F> {
-        &self.covariances
-    }
-
-    pub fn precisions(&self) -> &Array3<F> {
-        &self.precisions
-    }
-
-    pub fn centroids(&self) -> &Array2<F> {
-        self.means()
-    }
-
+impl<F: Float + Lapack + Scalar + SampleUniform + for<'b> AddAssign<&'b F>>
+    GaussianMixtureModel<F>
+{
     fn new<D: Data<Elem = F>, R: Rng + Clone, T>(
         hyperparameters: &GmmHyperParams<F, R>,
         dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
@@ -199,6 +179,32 @@ impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
             precisions,
             precisions_chol,
         })
+    }
+}
+
+impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
+    pub fn params(n_clusters: usize) -> GmmHyperParams<F, Isaac64Rng> {
+        GmmHyperParams::new(n_clusters)
+    }
+
+    pub fn weights(&self) -> &Array1<F> {
+        &self.weights
+    }
+
+    pub fn means(&self) -> &Array2<F> {
+        &self.means
+    }
+
+    pub fn covariances(&self) -> &Array3<F> {
+        &self.covariances
+    }
+
+    pub fn precisions(&self) -> &Array3<F> {
+        &self.precisions
+    }
+
+    pub fn centroids(&self) -> &Array2<F> {
+        self.means()
     }
 
     fn estimate_gaussian_parameters<D: Data<Elem = F>>(
@@ -390,8 +396,13 @@ impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
     }
 }
 
-impl<'a, F: Float + Lapack + Scalar, R: Rng + Clone, D: Data<Elem = F>, T>
-    Fit<'a, ArrayBase<D, Ix2>, T> for GmmHyperParams<F, R>
+impl<
+        'a,
+        F: Float + Lapack + Scalar + SampleUniform + for<'b> AddAssign<&'b F>,
+        R: Rng + Clone,
+        D: Data<Elem = F>,
+        T,
+    > Fit<'a, ArrayBase<D, Ix2>, T> for GmmHyperParams<F, R>
 {
     type Object = Result<GaussianMixtureModel<F>>;
 

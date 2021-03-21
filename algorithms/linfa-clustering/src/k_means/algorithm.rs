@@ -2,9 +2,11 @@ use crate::k_means::errors::{KMeansError, Result};
 use crate::k_means::hyperparameters::{KMeansHyperParams, KMeansHyperParamsBuilder};
 use linfa::{traits::*, DatasetBase, Float};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
+use ndarray_rand::rand::distributions::uniform::SampleUniform;
 use ndarray_rand::rand::Rng;
 use ndarray_stats::DeviationExt;
 use rand_isaac::Isaac64Rng;
+use std::ops::AddAssign;
 
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
@@ -144,8 +146,13 @@ impl<F: Float> KMeans<F> {
     }
 }
 
-impl<'a, F: Float, R: Rng + Clone, D: Data<Elem = F>, T> Fit<'a, ArrayBase<D, Ix2>, T>
-    for KMeansHyperParams<F, R>
+impl<
+        'a,
+        F: Float + SampleUniform + for<'b> AddAssign<&'b F>,
+        R: Rng + Clone,
+        D: Data<Elem = F>,
+        T,
+    > Fit<'a, ArrayBase<D, Ix2>, T> for KMeansHyperParams<F, R>
 {
     type Object = Result<KMeans<F>>;
 
@@ -208,8 +215,13 @@ impl<'a, F: Float, R: Rng + Clone, D: Data<Elem = F>, T> Fit<'a, ArrayBase<D, Ix
     }
 }
 
-impl<'a, F: Float, R: Rng + Clone, D: Data<Elem = F>, T> Fit<'a, ArrayBase<D, Ix2>, T>
-    for KMeansHyperParamsBuilder<F, R>
+impl<
+        'a,
+        F: Float + SampleUniform + for<'b> AddAssign<&'b F>,
+        R: Rng + Clone,
+        D: Data<Elem = F>,
+        T,
+    > Fit<'a, ArrayBase<D, Ix2>, T> for KMeansHyperParamsBuilder<F, R>
 {
     type Object = Result<KMeans<F>>;
 
