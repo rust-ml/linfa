@@ -6,3 +6,4 @@ mod init;
 pub use algorithm::*;
 pub use errors::*;
 pub use hyperparameters::*;
+pub use init::*;
