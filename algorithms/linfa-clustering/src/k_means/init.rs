@@ -9,7 +9,7 @@ use ndarray_rand::rand::distributions::{uniform::SampleUniform, Distribution, We
 use ndarray_rand::rand::Rng;
 use std::ops::AddAssign;
 
-pub type RngFunc<F> = fn() -> F;
+pub type RngFunc<F> = fn(u64) -> F;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum KMeansInit<F: Float + SampleUniform + for<'a> AddAssign<&'a F>> {
@@ -109,6 +109,7 @@ fn k_means_para<'a, F: Float + SampleUniform + for<'b> AddAssign<&'b F>>(
             observations,
             &dists,
             F::from(candidates_per_round).unwrap(),
+            rng.gen_range(0, 100),
             rng_func,
         );
 
@@ -121,13 +122,8 @@ fn k_means_para<'a, F: Float + SampleUniform + for<'b> AddAssign<&'b F>>(
         }
     }
 
-    assert!(n_candidates >= n_clusters);
     let final_candidates = candidates.slice(s![0..n_candidates, ..]);
-    let mut memberships = Array1::zeros(n_samples);
-    update_cluster_memberships(&final_candidates, observations, &mut memberships);
-
-    let mut weights = Array1::zeros(n_candidates);
-    memberships.iter().for_each(|&c| weights[c] += F::one());
+    let weights = cluster_membership_counts(&final_candidates, &observations);
     weighted_k_means_plusplus(n_clusters, &final_candidates, &weights.view(), rng)
 }
 
@@ -135,6 +131,7 @@ fn sample_subsequent_candidates<'a, F: Float>(
     observations: &'a ArrayView2<'a, F>,
     dists: &Array1<F>,
     candidates_per_round: F,
+    seed: usize,
     rng_func: &RngFunc<F>,
 ) -> Vec<ArrayView1<'a, F>> {
     let cost = dists.sum();
@@ -144,7 +141,7 @@ fn sample_subsequent_candidates<'a, F: Float>(
         .enumerate()
         .filter_map(|(i, d)| {
             let d = *d.into_scalar();
-            let rand = rng_func();
+            let rand = rng_func(i as u64 * seed as u64);
             let prob = candidates_per_round * d / cost;
             if rand < prob {
                 Some(observations.row(i))
@@ -153,6 +150,19 @@ fn sample_subsequent_candidates<'a, F: Float>(
             }
         })
         .collect()
+}
+
+fn cluster_membership_counts<F: Float>(
+    centroids: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
+    observations: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
+) -> Array1<F> {
+    let n_samples = observations.nrows();
+    let n_clusters = centroids.nrows();
+    let mut memberships = Array1::zeros(n_samples);
+    update_cluster_memberships(&centroids, observations, &mut memberships);
+    let mut counts = Array1::zeros(n_clusters);
+    memberships.iter().for_each(|&c| counts[c] += F::one());
+    counts
 }
 
 fn update_min_dists<F: Float>(
@@ -187,6 +197,30 @@ mod tests {
     }
 
     #[test]
+    fn test_sample_subsequent_candidates() {
+        fn func(_: u64) -> f64 {
+            0.4
+        }
+
+        let observations = array![[3.0, 4.0], [1.0, 3.0], [25.0, 15.0]];
+        let obs_view = observations.view();
+        let dists = array![0.1, 0.4, 0.5];
+        let candidates =
+            sample_subsequent_candidates(&obs_view, &dists, 4.0, 0, &(func as RngFunc<f64>));
+        assert_eq!(candidates.len(), 2);
+        assert_abs_diff_eq!(candidates[0], observations.row(1));
+        assert_abs_diff_eq!(candidates[1], observations.row(2));
+    }
+
+    #[test]
+    fn test_cluster_membership_counts() {
+        let centroids = array![[0.0, 1.0], [40.0, 10.0]];
+        let observations = array![[3.0, 4.0], [1.0, 3.0], [25.0, 15.0]];
+        let counts = cluster_membership_counts(&centroids, &observations);
+        assert_abs_diff_eq!(counts, array![2.0, 1.0]);
+    }
+
+    #[test]
     fn test_weighted_kmeans_plusplus() {
         let mut rng = Isaac64Rng::seed_from_u64(42);
         let obs = Array::random_using((1000, 2), Normal::new(0.0, 100.).unwrap(), &mut rng);
@@ -210,6 +244,20 @@ mod tests {
 
     #[test]
     fn test_k_means_plusplus() {
+        verify_init(KMeansInit::KMeansPlusPlus);
+    }
+
+    #[test]
+    fn test_k_means_para() {
+        // Using Isaac here is quite slow but yields reproduceable results
+        fn isaac(seed: u64) -> f64 {
+            let mut rng = Isaac64Rng::seed_from_u64(seed);
+            rng.gen_range(0.0, 1.0)
+        }
+        verify_init(KMeansInit::KMeansPara(isaac as RngFunc<f64>));
+    }
+
+    fn verify_init(init: KMeansInit<f64>) {
         let mut rng = Isaac64Rng::seed_from_u64(42);
         let centroids = [20.0, -1000.0, 1000.0];
         let clusters: Vec<Array2<_>> = centroids
@@ -220,7 +268,7 @@ mod tests {
             stack(Axis(0), &[a.view(), b.view()]).unwrap()
         });
 
-        let out = k_means_plusplus(3, &obs.view(), &mut rng.clone());
+        let out = init.run(3, &obs.view(), &mut rng.clone());
         let mut cluster_ids = HashSet::new();
         for row in out.genrows() {
             // Centroid should not be 0
