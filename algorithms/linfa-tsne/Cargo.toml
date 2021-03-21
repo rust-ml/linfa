@@ -15,11 +15,12 @@ categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
 ndarray = { version = "0.13", default-features = false }
-bhtsne = "0.3.0"
+bhtsne = "0.4.0"
 
 linfa = { version = "0.3.1", path = "../.." }
 
 [dev-dependencies]
 rand = "0.7"
 ndarray-rand = "0.11"
-linfa-datasets = { version = "0.3.1", path = "../../datasets", features = ["iris"] }
+linfa-datasets = { version = "0.3.1", path = "../../datasets", features = ["winequality"] }
+linfa-reduction = { version = "0.3.1", path = "../linfa-reduction" }

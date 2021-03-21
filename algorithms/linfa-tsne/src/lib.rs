@@ -1,38 +1,38 @@
 use ndarray::Array2;
-use linfa::{dataset::DatasetBase, traits::Transformer};
+use linfa::{Float, dataset::DatasetBase, traits::Transformer};
 
-pub struct TSne {
+pub struct TSne<F: Float> {
     embedding_size: usize,
-    theta: f32,
-    perplexity: f32,
+    theta: F,
+    perplexity: F,
     max_iter: usize,
 }
 
-impl TSne {
+impl<F: Float> TSne<F> {
     /// Create a t-SNE param set with given embedding size
     ///
     /// # Defaults:
     ///  * `theta`: 0.5
     ///  * `perplexity`: 1.0
     ///  * `max_iter`: 2000
-    pub fn embedding_size(embedding_size: usize) -> TSne {
+    pub fn embedding_size(embedding_size: usize) -> TSne<F> {
         TSne {
             embedding_size,
-            theta: 0.5,
-            perplexity: 1.0,
+            theta: F::from(0.5).unwrap(),
+            perplexity: F::from(5.0).unwrap(),
             max_iter: 2000,
         }
     }
 
     /// Set the approximation value of the Barnes Hut algorith
-    pub fn theta(mut self, theta: f32) -> Self {
+    pub fn theta(mut self, theta: F) -> Self {
         self.theta = theta;
 
         self
     }
 
     /// Set the perplexity of the t-SNE algorithm
-    pub fn perplexity(mut self, perplexity: f32) -> Self {
+    pub fn perplexity(mut self, perplexity: F) -> Self {
         self.perplexity = perplexity;
 
         self
@@ -46,13 +46,13 @@ impl TSne {
     }
 }
 
-impl Transformer<Array2<f32>, Array2<f32>> for TSne
+impl<F: Float> Transformer<Array2<F>, Array2<F>> for TSne<F>
 {
-    fn transform(&self, mut data: Array2<f32>) -> Array2<f32> {
+    fn transform(&self, mut data: Array2<F>) -> Array2<F> {
         let (nfeatures, nsamples) = (data.ncols(), data.nrows());
 
         let mut data = data.as_slice_mut().unwrap();
-        let mut y = vec![0.0; nsamples * self.embedding_size];
+        let mut y = vec![F::zero(); nsamples * self.embedding_size];
 
         dbg!(&nfeatures, &nsamples);
         dbg!(&data);
@@ -78,8 +78,8 @@ impl Transformer<Array2<f32>, Array2<f32>> for TSne
     }
 }
 
-impl<T> Transformer<DatasetBase<Array2<f32>, T>, DatasetBase<Array2<f32>, T>> for TSne {
-    fn transform(&self, ds: DatasetBase<Array2<f32>, T>) -> DatasetBase<Array2<f32>, T> {
+impl<T, F: Float> Transformer<DatasetBase<Array2<F>, T>, DatasetBase<Array2<F>, T>> for TSne<F> {
+    fn transform(&self, ds: DatasetBase<Array2<F>, T>) -> DatasetBase<Array2<F>, T> {
         let DatasetBase {
             records,
             targets,
@@ -95,15 +95,30 @@ impl<T> Transformer<DatasetBase<Array2<f32>, T>, DatasetBase<Array2<f32>, T>> fo
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Write;
+    use ndarray::Axis;
+    use linfa_reduction::Pca;
+    use linfa::traits::{Fit, Predict};
 
     #[test]
     fn iris_separate() {
-        let dataset = linfa_datasets::iris();
-        let data = dataset.records.map(|x| *x as f32);
+        let ds = linfa_datasets::winequality();
+        let records = Pca::params(8).whiten(true).fit(&ds).predict(&ds);
 
-        let _embedded_data = TSne::embedding_size(2)
-            //.perplexity(15.0)
-            .theta(0.0)
-            .transform(data);
+        let DatasetBase { targets, .. } = ds;
+        let records = records.map(|x| *x as f32);
+        let targets = targets.map(|x| if *x > 6 { 2.0 } else { 1.0 });
+
+        let records = TSne::embedding_size(2)
+            .perplexity(20.0)
+            .theta(0.5)
+            .transform(records);
+
+        dbg!(&targets);
+        let mut f = std::fs::File::create("iris.dat").unwrap();
+
+        for (x, y) in records.axis_iter(Axis(0)).zip(targets.iter()) {
+            f.write(format!("{} {} {}\n", x[0], x[1], y).as_bytes()).unwrap();
+        }
     }
 }
