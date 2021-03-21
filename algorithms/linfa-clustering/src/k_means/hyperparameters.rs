@@ -73,8 +73,17 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParamsBuilder<F, R> {
         self
     }
 
+    /// Set the value of `init`.
+    ///
+    /// Before training, the centroids are initialized using the method specified by `init`.
+    /// Currently the choices for initialization are `Random` and `KMeansPP`.
+    pub fn init_method(mut self, init: KMeansInit) -> Self {
+        self.init = init;
+        self
+    }
+
     /// Return an instance of `KMeansHyperParams` after
-    /// having performed validation checks on all the specified hyperparamters.
+    /// having performed validation checks on all the specified hyperparameters.
     ///
     /// **Panics** if any of the validation checks fails.
     pub fn build(&self) -> KMeansHyperParams<F, R> {
