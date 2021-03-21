@@ -1,6 +1,8 @@
 use super::algorithm::closest_centroid;
 use linfa::Float;
-use ndarray::{s, Array1, Array2, ArrayBase, ArrayView2, Axis, Data, DataMut, Ix1, Ix2, Zip};
+use ndarray::{
+    s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, DataMut, Ix1, Ix2, Zip,
+};
 use ndarray_rand::rand;
 use ndarray_rand::rand::distributions::{uniform::SampleUniform, Distribution, WeightedIndex};
 use ndarray_rand::rand::Rng;
@@ -36,19 +38,25 @@ fn random_init<F: Float>(
     observations.select(Axis(0), &indices)
 }
 
-fn k_means_pp<F: Float + SampleUniform + for<'a> AddAssign<&'a F>>(
+fn weighted_k_means_pp<F: Float + SampleUniform + for<'a> AddAssign<&'a F>>(
     n_clusters: usize,
     observations: &ArrayView2<F>,
+    weights: &ArrayView1<F>,
     rng: &mut impl Rng,
 ) -> Array2<F> {
     let (n_samples, n_features) = observations.dim();
+    assert_eq!(n_samples, weights.len());
+
     let mut centroids = Array2::zeros((n_clusters, n_features));
-    let n = rng.gen_range(0, n_samples);
-    centroids.row_mut(0).assign(&observations.row(n));
+    let first_idx = WeightedIndex::new(weights.iter())
+        .expect("invalid weights")
+        .sample(rng);
+    centroids.row_mut(0).assign(&observations.row(first_idx));
 
     let mut dists = Array1::zeros(n_samples);
     for c_cnt in 1..n_clusters {
         update_min_dists(&centroids.slice(s![0..c_cnt, ..]), observations, &mut dists);
+        dists *= weights;
         let centroid_idx = WeightedIndex::new(dists.iter())
             .expect("invalid weights")
             .sample(rng);
@@ -58,6 +66,29 @@ fn k_means_pp<F: Float + SampleUniform + for<'a> AddAssign<&'a F>>(
     }
     centroids
 }
+
+fn k_means_pp<F: Float + SampleUniform + for<'a> AddAssign<&'a F>>(
+    n_clusters: usize,
+    observations: &ArrayView2<F>,
+    rng: &mut impl Rng,
+) -> Array2<F> {
+    weighted_k_means_pp(
+        n_clusters,
+        observations,
+        &Array1::ones(observations.nrows()).view(),
+        rng,
+    )
+}
+
+//fn k_means_para<F: Float>(
+//n_clusters: usize,
+//observations: &ArrayView2<F>,
+//rng: &mut impl Rng,
+//) -> Array<F> {
+//const N_ROUNDS: usize = 8;
+//let (n_samples, n_features) = observations.dim();
+//let mut centroids = Array2::zeros((n_clusters, n_features));
+//}
 
 fn update_min_dists<F: Float>(
     centroids: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
@@ -88,6 +119,28 @@ mod tests {
         let mut dists = Array1::zeros(observations.nrows());
         update_min_dists(&centroids, &observations, &mut dists);
         assert_abs_diff_eq!(dists, array![18.0, 5.0, 250.0]);
+    }
+
+    #[test]
+    fn test_weighted_kmeans_pp() {
+        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let obs = Array::random_using((1000, 2), Normal::new(0.0, 100.).unwrap(), &mut rng);
+        let mut weights = Array1::zeros(1000);
+        weights[0] = 1.0;
+        weights[1] = 1.0;
+        let out = weighted_k_means_pp(2, &obs.view(), &weights.view(), &mut rng);
+        let mut expected_centroids = {
+            let mut arr = Array2::zeros((2, 2));
+            arr.row_mut(0).assign(&obs.row(0));
+            arr.row_mut(1).assign(&obs.row(1));
+            arr
+        };
+        assert!(
+            abs_diff_eq!(out, expected_centroids) || {
+                expected_centroids.invert_axis(Axis(0));
+                abs_diff_eq!(out, expected_centroids)
+            }
+        );
     }
 
     #[test]
