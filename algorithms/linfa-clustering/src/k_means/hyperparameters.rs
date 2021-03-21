@@ -1,9 +1,11 @@
 use super::init::KMeansInit;
 use linfa::Float;
+use ndarray_rand::rand::distributions::uniform::SampleUniform;
 use ndarray_rand::rand::{Rng, SeedableRng};
 use rand_isaac::Isaac64Rng;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
+use std::ops::AddAssign;
 
 #[cfg_attr(
     feature = "serde",
@@ -13,7 +15,7 @@ use serde_crate::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq)]
 /// The set of hyperparameters that can be specified for the execution of
 /// the [K-means algorithm](struct.KMeans.html).
-pub struct KMeansHyperParams<F: Float, R: Rng> {
+pub struct KMeansHyperParams<F: Float + SampleUniform + for<'a> AddAssign<&'a F>, R: Rng> {
     /// Number of time the k-means algorithm will be run with different centroid seeds.
     n_runs: u64,
     /// The training is considered complete if the euclidean distance
@@ -27,23 +29,25 @@ pub struct KMeansHyperParams<F: Float, R: Rng> {
     /// The number of clusters we will be looking for in the training dataset.
     n_clusters: usize,
     /// The initialization strategy used to initialize the centroids.
-    init: KMeansInit,
+    init: KMeansInit<F>,
     /// The random number generator
     rng: R,
 }
 
 /// An helper struct used to construct a set of [valid hyperparameters](struct.KMeansHyperParams.html) for
 /// the [K-means algorithm](struct.KMeans.html) (using the builder pattern).
-pub struct KMeansHyperParamsBuilder<F: Float, R: Rng> {
+pub struct KMeansHyperParamsBuilder<F: Float + SampleUniform + for<'a> AddAssign<&'a F>, R: Rng> {
     n_runs: u64,
     tolerance: F,
     max_n_iterations: u64,
     n_clusters: usize,
-    init: KMeansInit,
+    init: KMeansInit<F>,
     rng: R,
 }
 
-impl<F: Float, R: Rng + Clone> KMeansHyperParamsBuilder<F, R> {
+impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>, R: Rng + Clone>
+    KMeansHyperParamsBuilder<F, R>
+{
     /// Set the value of `n_runs`.
     ///
     /// The final results will be the best output of n_runs consecutive runs in terms of inertia
@@ -77,7 +81,7 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParamsBuilder<F, R> {
     ///
     /// Before training, the centroids are initialized using the method specified by `init`.
     /// Currently the choices for initialization are `Random` and `KMeansPP`.
-    pub fn init_method(mut self, init: KMeansInit) -> Self {
+    pub fn init_method(mut self, init: KMeansInit<F>) -> Self {
         self.init = init;
         self
     }
@@ -98,13 +102,13 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParamsBuilder<F, R> {
     }
 }
 
-impl<F: Float> KMeansHyperParams<F, Isaac64Rng> {
+impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>> KMeansHyperParams<F, Isaac64Rng> {
     pub fn new(n_clusters: usize) -> KMeansHyperParamsBuilder<F, Isaac64Rng> {
         Self::new_with_rng(n_clusters, Isaac64Rng::seed_from_u64(42))
     }
 }
 
-impl<F: Float, R: Rng + Clone> KMeansHyperParams<F, R> {
+impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>, R: Rng + Clone> KMeansHyperParams<F, R> {
     /// `new` lets us configure our training algorithm parameters:
     /// * we will be looking for `n_clusters` in the training dataset;
     /// * the training is considered complete if the euclidean distance
@@ -160,7 +164,7 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParams<F, R> {
     }
 
     /// Cluster initialization strategy
-    pub fn init(&self) -> KMeansInit {
+    pub fn init(&self) -> KMeansInit<F> {
         self.init
     }
 
@@ -174,7 +178,7 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParams<F, R> {
         n_runs: u64,
         tolerance: F,
         max_n_iterations: u64,
-        init: KMeansInit,
+        init: KMeansInit<F>,
         rng: R,
     ) -> Self {
         if n_runs == 0 {

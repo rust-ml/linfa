@@ -9,22 +9,26 @@ use ndarray_rand::rand::distributions::{uniform::SampleUniform, Distribution, We
 use ndarray_rand::rand::Rng;
 use std::ops::AddAssign;
 
+pub type RngFunc<F> = fn() -> F;
+
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum KMeansInit {
+pub enum KMeansInit<F: Float + SampleUniform + for<'a> AddAssign<&'a F>> {
     Random,
     KMeansPP,
+    KMeansPara(RngFunc<F>),
 }
 
-impl KMeansInit {
-    pub(crate) fn run<F: Float + SampleUniform + for<'a> AddAssign<&'a F>>(
+impl<'a, F: Float + SampleUniform + for<'b> AddAssign<&'b F>> KMeansInit<F> {
+    pub(crate) fn run(
         &self,
         n_clusters: usize,
-        observations: &ArrayView2<F>,
+        observations: &'a ArrayView2<'a, F>,
         rng: &mut impl Rng,
     ) -> Array2<F> {
         match self {
             Self::Random => random_init(n_clusters, observations, rng),
             Self::KMeansPP => k_means_pp(n_clusters, observations, rng),
+            Self::KMeansPara(rng_func) => k_means_para(n_clusters, observations, rng, rng_func),
         }
     }
 }
@@ -85,7 +89,7 @@ fn k_means_para<'a, F: Float + SampleUniform + for<'b> AddAssign<&'b F>>(
     n_clusters: usize,
     observations: &'a ArrayView2<'a, F>,
     rng: &mut impl Rng,
-    rng_func: fn() -> F,
+    rng_func: &RngFunc<F>,
 ) -> Array2<F> {
     let n_rounds = 8;
     let candidates_per_round = n_clusters;
@@ -131,7 +135,7 @@ fn sample_subsequent_candidates<'a, F: Float>(
     observations: &'a ArrayView2<'a, F>,
     dists: &Array1<F>,
     candidates_per_round: F,
-    rng_func: fn() -> F,
+    rng_func: &RngFunc<F>,
 ) -> Vec<ArrayView1<'a, F>> {
     let cost = dists.sum();
     dists

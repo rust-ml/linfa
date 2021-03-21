@@ -127,7 +127,7 @@ pub struct KMeans<F: Float> {
     centroids: Array2<F>,
 }
 
-impl<F: Float> KMeans<F> {
+impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>> KMeans<F> {
     pub fn params(nclusters: usize) -> KMeansHyperParamsBuilder<F, Isaac64Rng> {
         KMeansHyperParams::new(nclusters)
     }
