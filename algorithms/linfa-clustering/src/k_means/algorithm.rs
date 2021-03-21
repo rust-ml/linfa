@@ -364,6 +364,7 @@ pub(crate) fn closest_centroid<F: Float>(
 
 #[cfg(test)]
 mod tests {
+    use super::super::KMeansInit;
     use super::*;
     use approx::assert_abs_diff_eq;
     use ndarray::{array, stack, Array, Array1, Array2, Axis};
@@ -393,24 +394,29 @@ mod tests {
         let data = stack(Axis(1), &[xt.view(), yt.view()]).unwrap();
 
         // First clustering with one iteration
-        let dataset = DatasetBase::from(data);
-        let model = KMeans::params_with_rng(3, rng.clone())
-            .n_runs(1)
-            .fit(&dataset)
-            .expect("KMeans fitted");
-        let clusters = model.predict(dataset);
-        let inertia = compute_inertia(model.centroids(), &clusters.records, &clusters.targets);
+        for init in [KMeansInit::Random, KMeansInit::KMeansPP].iter() {
+            let dataset = DatasetBase::from(data.clone());
+            let model = KMeans::params_with_rng(3, rng.clone())
+                .n_runs(1)
+                .init_method(*init)
+                .fit(&dataset)
+                .expect("KMeans fitted");
+            let clusters = model.predict(dataset);
+            let inertia = compute_inertia(model.centroids(), &clusters.records, &clusters.targets);
 
-        // Second clustering with 10 iterations (default)
-        let dataset2 = DatasetBase::from(clusters.records().clone());
-        let model2 = KMeans::params_with_rng(3, rng)
-            .fit(&dataset2)
-            .expect("KMeans fitted");
-        let clusters2 = model2.predict(dataset2);
-        let inertia2 = compute_inertia(model2.centroids(), &clusters2.records, &clusters2.targets);
+            // Second clustering with 10 iterations (default)
+            let dataset2 = DatasetBase::from(clusters.records().clone());
+            let model2 = KMeans::params_with_rng(3, rng.clone())
+                .init_method(*init)
+                .fit(&dataset2)
+                .expect("KMeans fitted");
+            let clusters2 = model2.predict(dataset2);
+            let inertia2 =
+                compute_inertia(model2.centroids(), &clusters2.records, &clusters2.targets);
 
-        // Check we improve inertia
-        assert!(inertia2 < inertia);
+            // Check we improve inertia
+            assert!(inertia2 < inertia);
+        }
     }
 
     #[test]
