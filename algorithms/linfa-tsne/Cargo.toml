@@ -14,13 +14,16 @@ keywords = ["tsne", "data visualization", "clustering", "machine-learning", "lin
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
+thiserror = "1"
 ndarray = { version = "0.13", default-features = false }
+ndarray-rand = "0.11"
 bhtsne = "0.4.0"
 
 linfa = { version = "0.3.1", path = "../.." }
 
 [dev-dependencies]
 rand = "0.7"
-ndarray-rand = "0.11"
+approx = "0.3"
+
 linfa-datasets = { version = "0.3.1", path = "../../datasets", features = ["iris"] }
 linfa-reduction = { version = "0.3.1", path = "../linfa-reduction" }
