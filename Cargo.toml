@@ -76,6 +76,7 @@ members = [
     "algorithms/linfa-bayes",
     "algorithms/linfa-elasticnet",
     "algorithms/linfa-pls",
+    "algorithms/linfa-tsne",
     "datasets",
 ]
 
