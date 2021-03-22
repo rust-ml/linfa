@@ -25,12 +25,15 @@ pub use error::{Result, TSneError};
 /// # Examples
 ///
 /// ```
+/// use linfa::traits::Transformer;
+/// use linfa_tsne::TSne;
+///
 /// let ds = linfa_datasets::iris();
 ///
 /// let ds = TSne::embedding_size(2)
 ///     .perplexity(10.0)
 ///     .approx_threshold(0.1)
-///     .transform(ds)?;
+///     .transform(ds);
 /// ```
 pub struct TSne<F: Float, R: Rng + Clone> {
     embedding_size: usize,
@@ -204,7 +207,7 @@ mod tests {
             .approx_threshold(0.1)
             .transform(ds)?;
 
-        assert_abs_diff_eq!(ds.silhouette_score()?, 0.615, epsilon = 0.01);
+        assert!(ds.silhouette_score()? > 0.6);
 
         Ok(())
     }
