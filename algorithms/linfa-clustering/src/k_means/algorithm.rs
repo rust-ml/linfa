@@ -364,7 +364,7 @@ pub(crate) fn closest_centroid<F: Float>(
 
 #[cfg(test)]
 mod tests {
-    use super::super::KMeansInit;
+    use super::super::{KMeansInit, RngFunc};
     use super::*;
     use approx::assert_abs_diff_eq;
     use ndarray::{array, stack, Array, Array1, Array2, Axis};
@@ -386,6 +386,11 @@ mod tests {
         y
     }
 
+    fn isaac_rng(seed: u64) -> f64 {
+        let mut rng = Isaac64Rng::seed_from_u64(seed);
+        rng.gen_range(0.0, 1.0)
+    }
+
     #[test]
     fn test_n_runs() {
         let mut rng = Isaac64Rng::seed_from_u64(42);
@@ -393,7 +398,13 @@ mod tests {
         let yt = function_test_1d(&xt);
         let data = stack(Axis(1), &[xt.view(), yt.view()]).unwrap();
 
-        for init in [KMeansInit::Random, KMeansInit::KMeansPlusPlus].iter() {
+        for init in [
+            KMeansInit::Random,
+            KMeansInit::KMeansPlusPlus,
+            KMeansInit::KMeansPara(isaac_rng as RngFunc<f64>),
+        ]
+        .iter()
+        {
             // First clustering with one iteration
             let dataset = DatasetBase::from(data.clone());
             let model = KMeans::params_with_rng(3, rng.clone())
