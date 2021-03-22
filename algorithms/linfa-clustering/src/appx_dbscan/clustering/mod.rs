@@ -104,7 +104,7 @@ impl AppxDbscanLabeler {
             for cp_index in cell
                 .points()
                 .iter()
-                .filter(|x| x.is_core())
+                .filter(|x| !x.is_core())
                 .map(|x| x.index())
             {
                 let curr_point = &observations.row(cp_index);

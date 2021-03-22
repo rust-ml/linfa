@@ -1,6 +1,7 @@
 use crate::dbscan::hyperparameters::{DbscanHyperParams, DbscanHyperParamsBuilder};
-use ndarray::{Array1, ArrayBase, ArrayView, Axis, Data, Ix1, Ix2};
+use ndarray::{Array1, ArrayBase, Axis, Data, Ix2};
 use ndarray_stats::DeviationExt;
+use std::collections::VecDeque;
 
 use linfa::traits::Transformer;
 use linfa::{DatasetBase, Float};
@@ -79,32 +80,45 @@ impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<
     for DbscanHyperParams<F>
 {
     fn transform(&self, observations: &ArrayBase<D, Ix2>) -> Array1<Option<usize>> {
-        let mut cluster_memberships = Array1::from_elem(observations.dim().0, None);
+        let mut cluster_memberships = Array1::from_elem(observations.nrows(), None);
         let mut current_cluster_id = 0;
-        for (i, obs) in observations.axis_iter(Axis(0)).enumerate() {
+        // Tracks whether a value is in the search queue to prevent duplicates
+        let mut search_found = vec![false; observations.nrows()];
+        let mut search_queue = VecDeque::with_capacity(observations.nrows());
+
+        for i in 0..observations.nrows() {
             if cluster_memberships[i].is_some() {
                 continue;
             }
-            let (neighbor_count, mut search_queue) =
-                find_neighbors(&obs, observations, self.tolerance(), &cluster_memberships);
+            let (neighbor_count, neighbors) =
+                self.find_neighbors(i, observations, self.tolerance(), &cluster_memberships);
             if neighbor_count < self.minimum_points() {
                 continue;
             }
+            neighbors.iter().for_each(|&n| search_found[n] = true);
+            search_queue.extend(neighbors.into_iter());
+
             // Now go over the neighbours adding them to the cluster
             cluster_memberships[i] = Some(current_cluster_id);
 
-            while !search_queue.is_empty() {
-                let candidate = search_queue.remove(0);
+            while let Some(candidate_idx) = search_queue.pop_front() {
+                search_found[candidate_idx] = false;
 
-                let (neighbor_count, mut neighbors) = find_neighbors(
-                    &candidate.1,
+                let (neighbor_count, neighbors) = self.find_neighbors(
+                    candidate_idx,
                     observations,
                     self.tolerance(),
                     &cluster_memberships,
                 );
+                // Make the candidate a part of the cluster even if it's not a core point
+                cluster_memberships[candidate_idx] = Some(current_cluster_id);
                 if neighbor_count >= self.minimum_points() {
-                    cluster_memberships[candidate.0] = Some(current_cluster_id);
-                    search_queue.append(&mut neighbors);
+                    for n in neighbors.into_iter() {
+                        if !search_found[n] {
+                            search_queue.push_back(n);
+                            search_found[n] = true;
+                        }
+                    }
                 }
             }
             current_cluster_id += 1;
@@ -150,35 +164,37 @@ impl<F: Float, D: Data<Elem = F>, T>
     }
 }
 
-type Neighbors<'a, F> = Vec<(usize, ArrayView<'a, F, Ix1>)>;
-
-fn find_neighbors<'a, F: Float>(
-    candidate: &ArrayBase<impl Data<Elem = F>, Ix1>,
-    observations: &'a ArrayBase<impl Data<Elem = F>, Ix2>,
-    eps: F,
-    clusters: &Array1<Option<usize>>,
-) -> (usize, Neighbors<'a, F>) {
-    let mut res = vec![];
-    let mut count = 0;
-    for (i, (obs, cluster)) in observations
-        .axis_iter(Axis(0))
-        .zip(clusters.iter())
-        .enumerate()
-    {
-        if F::from(candidate.l2_dist(&obs).unwrap()).unwrap() < eps {
-            count += 1;
-            if cluster.is_none() {
-                res.push((i, obs));
+impl<F: Float> DbscanHyperParams<F> {
+    fn find_neighbors(
+        &self,
+        idx: usize,
+        observations: &ArrayBase<impl Data<Elem = F>, Ix2>,
+        eps: F,
+        clusters: &Array1<Option<usize>>,
+    ) -> (usize, Vec<usize>) {
+        let candidate = observations.row(idx);
+        let mut res = Vec::with_capacity(self.minimum_points());
+        let mut count = 0;
+        for (i, (obs, cluster)) in observations
+            .axis_iter(Axis(0))
+            .zip(clusters.iter())
+            .enumerate()
+        {
+            if F::from(candidate.l2_dist(&obs).unwrap()).unwrap() < eps {
+                count += 1;
+                if cluster.is_none() && i != idx {
+                    res.push(i);
+                }
             }
         }
+        (count, res)
     }
-    (count, res)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{arr1, s, Array2};
+    use ndarray::{arr1, arr2, s, Array2};
 
     use linfa::traits::Transformer;
 
@@ -216,6 +232,29 @@ mod tests {
 
         let expected = arr1(&[None, Some(0), Some(0), Some(0), Some(0)]);
         assert_eq!(labels, expected);
+    }
+
+    #[test]
+    fn border_points() {
+        let data: Array2<f64> = arr2(&[
+            // Outlier
+            [0.0, 2.0],
+            // Core point
+            [0.0, 0.0],
+            // Border points
+            [0.0, 1.0],
+            [0.0, -1.0],
+            [-1.0, 0.0],
+            [1.0, 0.0],
+        ]);
+
+        // Run the approximate dbscan with tolerance of 1.1, 5 min points for density
+        let labels = Dbscan::params(5).tolerance(1.1).transform(&data);
+
+        assert_eq!(labels[0], None);
+        for id in labels.slice(s![1..]).iter() {
+            assert_eq!(id, &Some(0));
+        }
     }
 
     #[test]
