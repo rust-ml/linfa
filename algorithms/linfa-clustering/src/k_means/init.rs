@@ -9,12 +9,19 @@ use ndarray_rand::rand::distributions::{uniform::SampleUniform, Distribution, We
 use ndarray_rand::rand::Rng;
 use std::ops::AddAssign;
 
+/// Function that generates a random number between 0 and 1 given a `u64` seed. Since this is
+/// called many times, avoid using any RNGs with expensive setup and seeding.
 pub type RngFunc<F> = fn(u64) -> F;
 
 #[derive(Clone, Debug, PartialEq)]
+/// Specifies centroid initialization algorithm for KMeans.
 pub enum KMeansInit<F: Float + SampleUniform + for<'a> AddAssign<&'a F>> {
+    /// Pick random points as centroids.
     Random,
+    /// K-means++ algorithm.
     KMeansPlusPlus,
+    /// K-means|| algorithm, which is a more scalable version of K-means++ that yields similar
+    /// results. Details can be found [here](http://vldb.org/pvldb/vol5/p622_bahmanbahmani_vldb2012.pdf).
     KMeansPara(RngFunc<F>),
 }
 

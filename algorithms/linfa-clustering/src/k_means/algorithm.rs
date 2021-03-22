@@ -41,7 +41,7 @@ use serde_crate::{Deserialize, Serialize};
 /// (unfortunately it can get stuck in a local minimum, finding the optimal minimum if NP-hard!).
 ///
 /// There are three steps in the standard algorithm:
-/// - initialisation step: how do we choose our initial set of centroids?
+/// - initialisation step: select initial centroids using one of our provided algorithms.
 /// - assignment step: assign each observation to the nearest cluster
 ///                    (minimum distance between the observation and the cluster's centroid);
 /// - update step: recompute the centroid of each cluster.
@@ -393,8 +393,8 @@ mod tests {
         let yt = function_test_1d(&xt);
         let data = stack(Axis(1), &[xt.view(), yt.view()]).unwrap();
 
-        // First clustering with one iteration
         for init in [KMeansInit::Random, KMeansInit::KMeansPlusPlus].iter() {
+            // First clustering with one iteration
             let dataset = DatasetBase::from(data.clone());
             let model = KMeans::params_with_rng(3, rng.clone())
                 .n_runs(1)

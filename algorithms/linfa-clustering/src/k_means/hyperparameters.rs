@@ -79,8 +79,8 @@ impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>, R: Rng + Clone>
 
     /// Set the value of `init`.
     ///
-    /// Before training, the centroids are initialized using the method specified by `init`.
-    /// Currently the choices for initialization are `Random` and `KMeansPP`.
+    /// The initialization method is the function that determines the initial values of the cluster
+    /// centroids before the iterative training process. The default value is `Random`.
     pub fn init_method(mut self, init: KMeansInit<F>) -> Self {
         self.init = init;
         self
