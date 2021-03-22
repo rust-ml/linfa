@@ -26,7 +26,7 @@ pub use error::{Result, TSneError};
 ///
 /// ```
 /// let ds = linfa_datasets::iris();
-/// 
+///
 /// let ds = TSne::embedding_size(2)
 ///     .perplexity(10.0)
 ///     .approx_threshold(0.1)
