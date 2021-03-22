@@ -37,7 +37,7 @@ pub use error::{Result, TSneError};
 /// ```
 pub struct TSne<F: Float, R: Rng + Clone> {
     embedding_size: usize,
-    threshold: F,
+    approx_threshold: F,
     perplexity: F,
     max_iter: usize,
     preliminary_iter: Option<usize>,
@@ -48,8 +48,8 @@ impl<F: Float> TSne<F, SmallRng> {
     /// Create a t-SNE param set with given embedding size
     ///
     /// # Defaults to:
-    ///  * `theta`: 0.5
-    ///  * `perplexity`: 1.0
+    ///  * `approx_threshold`: 0.5
+    ///  * `perplexity`: 5.0
     ///  * `max_iter`: 2000
     ///  * `rng`: SmallRng with seed 42
     pub fn embedding_size(embedding_size: usize) -> TSne<F, SmallRng> {
@@ -61,14 +61,14 @@ impl<F: Float, R: Rng + Clone> TSne<F, R> {
     /// Create a t-SNE param set with given embedding size and random number generator
     ///
     /// # Defaults to:
-    ///  * `theta`: 0.5
-    ///  * `perplexity`: 1.0
+    ///  * `approx_threshold`: 0.5
+    ///  * `perplexity`: 5.0
     ///  * `max_iter`: 2000
     pub fn embedding_size_with_rng(embedding_size: usize, rng: R) -> TSne<F, R> {
         TSne {
             embedding_size,
             rng,
-            threshold: F::from(0.5).unwrap(),
+            approx_threshold: F::from(0.5).unwrap(),
             perplexity: F::from(5.0).unwrap(),
             max_iter: 2000,
             preliminary_iter: None,
@@ -82,7 +82,7 @@ impl<F: Float, R: Rng + Clone> TSne<F, R> {
     /// distance to a factor theta. This threshold lies in range (0, inf) where a value of 0
     /// disables approximation and a positive value approximates the gradient with the cell center.
     pub fn approx_threshold(mut self, threshold: F) -> Self {
-        self.threshold = threshold;
+        self.approx_threshold = threshold;
 
         self
     }
@@ -118,7 +118,7 @@ impl<F: Float, R: Rng + Clone> TSne<F, R> {
             return Err(TSneError::NegativePerplexity);
         }
 
-        if self.threshold < F::zero() {
+        if self.approx_threshold < F::zero() {
             return Err(TSneError::NegativeApproximationThreshold);
         }
 
@@ -161,7 +161,7 @@ impl<F: Float, R: Rng + Clone> Transformer<Array2<F>, Result<Array2<F>>> for TSn
             &mut embedding,
             self.embedding_size,
             self.perplexity,
-            self.threshold,
+            self.approx_threshold,
             true,
             self.max_iter as u64,
             preliminary_iter as u64,

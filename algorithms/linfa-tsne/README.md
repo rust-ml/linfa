@@ -1,4 +1,4 @@
-# Naive Bayes
+# t-SNE
 
 `linfa-tsne` provides a pure Rust implementation of exact and Barnes-Hut t-SNE.
 
@@ -17,13 +17,13 @@ It wraps the [bhtsne](https://github.com/frjnn/bhtsne) crate, all kudos to them.
 
 ## Examples
 
-There is an usage example in the `examples/` directory. To run, use:
+There is an usage example in the `examples/` directory. The example uses a BLAS backend, to run it and use the `intel-mkl` library do:
 
 ```bash
 $ cargo run --example tsne --features linfa/intel-mkl-system
 ```
 
-You have to install the `gnuplot` library for plotting.
+You have to install the `gnuplot` library for plotting. Also take a look at the [README](https://github.com/rust-ml/linfa#blaslapack-backend) to see what BLAS/LAPACK backends are possible.
 
 ## License
 Dual-licensed to be compatible with the Rust project.
