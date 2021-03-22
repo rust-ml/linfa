@@ -51,6 +51,7 @@ fn weighted_k_means_plusplus<F: Float + SampleUniform + for<'a> AddAssign<&'a F>
 ) -> Array2<F> {
     let (n_samples, n_features) = observations.dim();
     assert_eq!(n_samples, weights.len());
+    assert_ne!(weights.sum(), F::zero());
 
     let mut centroids = Array2::zeros((n_clusters, n_features));
     let first_idx = WeightedIndex::new(weights.iter())
@@ -62,9 +63,12 @@ fn weighted_k_means_plusplus<F: Float + SampleUniform + for<'a> AddAssign<&'a F>
     for c_cnt in 1..n_clusters {
         update_min_dists(&centroids.slice(s![0..c_cnt, ..]), observations, &mut dists);
         dists *= weights;
+
+        // This only errs if all of dists is 0, which means every point is assigned to a centroid,
+        // so extra centroids don't matter and can be any index.
         let centroid_idx = WeightedIndex::new(dists.iter())
-            .expect("invalid weights")
-            .sample(rng);
+            .map(|idx| idx.sample(rng))
+            .unwrap_or(0);
         centroids
             .row_mut(c_cnt)
             .assign(&observations.row(centroid_idx));
@@ -259,6 +263,10 @@ mod tests {
 
     fn verify_init(init: KMeansInit<f64>) {
         let mut rng = Isaac64Rng::seed_from_u64(42);
+        let degenerate_data = array![[1.0, 2.0]];
+        let out = init.run(2, &degenerate_data.view(), &mut rng);
+        assert_abs_diff_eq!(out, stack![Axis(0), degenerate_data, degenerate_data]);
+
         let centroids = [20.0, -1000.0, 1000.0];
         let clusters: Vec<Array2<_>> = centroids
             .iter()
@@ -268,7 +276,7 @@ mod tests {
             stack(Axis(0), &[a.view(), b.view()]).unwrap()
         });
 
-        let out = init.run(3, &obs.view(), &mut rng.clone());
+        let out = init.run(3, &obs.view(), &mut rng);
         let mut cluster_ids = HashSet::new();
         for row in out.genrows() {
             // Centroid should not be 0
