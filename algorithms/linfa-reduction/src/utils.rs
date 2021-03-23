@@ -44,9 +44,9 @@ pub fn generate_swissroll(
     let mut roll: Array2<f64> = Array2::zeros((n_points, 3));
 
     for i in 0..n_points {
-        let z = rng.gen_range(0.0, height);
-        let phi: f64 = rng.gen_range(0.0, 10.0);
-        //let offset: f64 = rng.gen_range(-0.5, 0.5);
+        let z = rng.gen_range(0.0..height);
+        let phi: f64 = rng.gen_range(0.0..10.0);
+        //let offset: f64 = rng.gen_range(-0.5..0.5);
         let offset = 0.0;
 
         let x = speed * phi * phi.cos() + offset;
@@ -70,9 +70,9 @@ pub fn generate_convoluted_rings(
     for (n, (start, end)) in rings.iter().enumerate() {
         // inner circle
         for i in 0..n_points {
-            let r: f64 = rng.gen_range(start, end);
-            let phi: f64 = rng.gen_range(0.0, f64::PI() * 2.0);
-            let theta: f64 = rng.gen_range(0.0, f64::PI() * 2.0);
+            let r: f64 = rng.gen_range(*start..*end);
+            let phi: f64 = rng.gen_range(0.0..(f64::PI() * 2.0));
+            let theta: f64 = rng.gen_range(0.0..(f64::PI() * 2.0));
 
             let x = theta.sin() * phi.cos() * r;
             let y = theta.sin() * phi.sin() * r;
@@ -98,8 +98,8 @@ pub fn generate_convoluted_rings2d(
     for (n, (start, end)) in rings.iter().enumerate() {
         // inner circle
         for i in 0..n_points {
-            let r: f64 = rng.gen_range(start, end);
-            let phi: f64 = rng.gen_range(0.0, f64::PI() * 2.0);
+            let r: f64 = rng.gen_range(*start..*end);
+            let phi: f64 = rng.gen_range(0.0..(f64::PI() * 2.0));
 
             let x = phi.cos() * r;
             let y = phi.sin() * r;

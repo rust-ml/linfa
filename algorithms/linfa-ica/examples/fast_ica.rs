@@ -3,7 +3,7 @@ use linfa::{
     traits::{Fit, Predict},
 };
 use linfa_ica::fast_ica::{FastIca, GFunc};
-use ndarray::{array, stack};
+use ndarray::{array, concatenate};
 use ndarray::{Array, Array2, Axis};
 use ndarray_npy::write_npy;
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
@@ -29,9 +29,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let sources_ica = ica.predict(&sources_mixed);
 
     // Saving to disk
-    write_npy("sources_original.npy", sources_original).expect("Failed to write .npy file");
-    write_npy("sources_mixed.npy", sources_mixed).expect("Failed to write .npy file");
-    write_npy("sources_ica.npy", sources_ica).expect("Failed to write .npy file");
+    write_npy("sources_original.npy", &sources_original).expect("Failed to write .npy file");
+    write_npy("sources_mixed.npy", &sources_mixed).expect("Failed to write .npy file");
+    write_npy("sources_ica.npy", &sources_ica).expect("Failed to write .npy file");
 
     Ok(())
 }
@@ -53,8 +53,8 @@ fn create_data() -> (Array2<f64>, Array2<f64>) {
         -1.
     });
 
-    // Column stacking both the signals
-    let mut sources_original = stack![
+    // Column concatenating both the signals
+    let mut sources_original = concatenate![
         Axis(1),
         source1.insert_axis(Axis(1)),
         source2.insert_axis(Axis(1))

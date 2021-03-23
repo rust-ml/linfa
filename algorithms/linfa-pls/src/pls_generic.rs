@@ -261,7 +261,9 @@ impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, A
                 Algorithm::Nipals => {
                     // Replace columns that are all close to zero with zeros
                     for mut yj in yk.gencolumns_mut() {
-                        if *(yj.mapv(|y| y.abs()).max().unwrap()) < F::from(10.).unwrap() * eps {
+                        if *(yj.mapv(|y| num_traits::float::Float::abs(y)).max().unwrap())
+                            < F::from(10.).unwrap() * eps
+                        {
                             yj.assign(&Array1::zeros(yj.len()));
                         }
                     }
@@ -354,7 +356,7 @@ impl<F: Float + Scalar + Lapack> PlsParams<F> {
 
         let mut y_score = Array1::ones(y.ncols());
         for col in y.t().genrows() {
-            if *col.mapv(|v| v.abs()).max().unwrap() > eps {
+            if *col.mapv(|v| num_traits::Float::abs(v)).max().unwrap() > eps {
                 y_score = col.to_owned();
                 break;
             }
@@ -379,7 +381,7 @@ impl<F: Float + Scalar + Lapack> PlsParams<F> {
                 Mode::A => x.t().dot(&y_score) / y_score.dot(&y_score),
                 Mode::B => x_pinv.to_owned().unwrap().dot(&y_score),
             };
-            x_weights /= (x_weights.dot(&x_weights)).sqrt() + eps;
+            x_weights /= num_traits::Float::sqrt(x_weights.dot(&x_weights)) + eps;
             let x_score = x.dot(&x_weights);
 
             y_weights = match self.mode {
@@ -388,7 +390,7 @@ impl<F: Float + Scalar + Lapack> PlsParams<F> {
             };
 
             if norm_y_weights {
-                y_weights /= (y_weights.dot(&y_weights)).sqrt() + eps
+                y_weights /= num_traits::Float::sqrt(y_weights.dot(&y_weights)) + eps
             }
 
             let ya = y.dot(&y_weights);
@@ -434,7 +436,7 @@ mod tests {
     use linfa::dataset::Records;
     use linfa::traits::Predict;
     use linfa_datasets::linnerud;
-    use ndarray::{array, stack, Array, Axis};
+    use ndarray::{array, concatenate, Array, Axis};
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::StandardNormal;
     use ndarray_rand::RandomExt;
@@ -646,7 +648,7 @@ mod tests {
         let mut x = &latents + &Array2::<f64>::random_using((n, 4), StandardNormal, &mut rng);
         let mut y = latents + &Array2::<f64>::random_using((n, 4), StandardNormal, &mut rng);
 
-        x = stack(
+        x = concatenate(
             Axis(1),
             &[
                 x.view(),
@@ -654,7 +656,7 @@ mod tests {
             ],
         )
         .unwrap();
-        y = stack(
+        y = concatenate(
             Axis(1),
             &[
                 y.view(),

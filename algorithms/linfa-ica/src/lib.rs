@@ -30,7 +30,7 @@
 //!     traits::{Fit, Predict},
 //! };
 //! use linfa_ica::fast_ica::{FastIca, GFunc};
-//! use ndarray::{array, stack};
+//! use ndarray::{array, concatenate};
 //! use ndarray::{Array, Array2, Axis};
 //! use ndarray_npy::write_npy;
 //! use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
@@ -48,8 +48,8 @@
 //!     -1.
 //! });
 //!
-//! // Column stacking both the signals
-//! let mut sources_original = stack![
+//! // Column concatenating both the signals
+//! let mut sources_original = concatenate![
 //!     Axis(1),
 //!     source1.insert_axis(Axis(1)),
 //!     source2.insert_axis(Axis(1))

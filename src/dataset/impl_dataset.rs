@@ -1,6 +1,6 @@
 use ndarray::{
-    s, stack, Array1, Array2, ArrayBase, ArrayView2, ArrayViewMut2, Axis, Data, DataMut, Dimension,
-    Ix1, Ix2,
+    concatenate, s, Array1, Array2, ArrayBase, ArrayView2, ArrayViewMut2, Axis, Data, DataMut,
+    Dimension, Ix1, Ix2,
 };
 use rand::{seq::SliceRandom, Rng};
 use std::collections::HashMap;
@@ -451,14 +451,14 @@ where
         std::iter::repeat(()).map(move |_| {
             // sample with replacement
             let indices = (0..sample_feature_size.0)
-                .map(|_| rng.gen_range(0, self.nsamples()))
+                .map(|_| rng.gen_range(0..self.nsamples()))
                 .collect::<Vec<_>>();
 
             let records = self.records().select(Axis(0), &indices);
             let targets = T::new_targets(self.as_multi_targets().select(Axis(0), &indices));
 
             let indices = (0..sample_feature_size.1)
-                .map(|_| rng.gen_range(0, self.nfeatures()))
+                .map(|_| rng.gen_range(0..self.nfeatures()))
                 .collect::<Vec<_>>();
 
             let records = records.select(Axis(1), &indices);
@@ -492,7 +492,7 @@ where
         std::iter::repeat(()).map(move |_| {
             // sample with replacement
             let indices = (0..num_samples)
-                .map(|_| rng.gen_range(0, self.nsamples()))
+                .map(|_| rng.gen_range(0..self.nsamples()))
                 .collect::<Vec<_>>();
 
             let records = self.records().select(Axis(0), &indices);
@@ -528,7 +528,7 @@ where
             let targets = T::new_targets(self.as_multi_targets().to_owned());
 
             let indices = (0..num_features)
-                .map(|_| rng.gen_range(0, self.nfeatures()))
+                .map(|_| rng.gen_range(0..self.nfeatures()))
                 .collect::<Vec<_>>();
 
             let records = self.records.select(Axis(1), &indices);
@@ -609,11 +609,11 @@ where
         let mut targets_chunks: Vec<_> = targets.axis_chunks_iter(Axis(0), fold_size).collect();
 
         // For each iteration, take the first chunk for both records and targets as the validation set and
-        // stack all the other chunks to create the training set. In the end swap the first chunk with the
+        // concatenate all the other chunks to create the training set. In the end swap the first chunk with the
         // one in the next index so that it is ready for the next iteration
         for i in 0..k {
-            let remaining_records = stack(Axis(0), &records_chunks.as_slice()[1..]).unwrap();
-            let remaining_targets = stack(Axis(0), &targets_chunks.as_slice()[1..]).unwrap();
+            let remaining_records = concatenate(Axis(0), &records_chunks.as_slice()[1..]).unwrap();
+            let remaining_targets = concatenate(Axis(0), &targets_chunks.as_slice()[1..]).unwrap();
 
             res.push((
                 // training
