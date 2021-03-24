@@ -141,7 +141,7 @@ fn k_means_para<'a, F: Float + SampleUniform + for<'b> AddAssign<&'b F>>(
             observations,
             &dists,
             F::from(candidates_per_round).unwrap(),
-            rng.gen_range(0, 100),
+            rng.gen_range(0, 100000),
             rng_func,
         );
 
@@ -171,7 +171,7 @@ fn sample_subsequent_candidates<'a, F: Float>(
     observations: &'a ArrayView2<'a, F>,
     dists: &Array1<F>,
     multiplier: F,
-    seed: usize,
+    seed: u64,
     // Must return a number between 0 and 1.
     // Easiest way to generate a random number in a Rayon thread, since cloning the actual RNG is
     // expensive.
@@ -190,7 +190,7 @@ fn sample_subsequent_candidates<'a, F: Float>(
             let d = *d.into_scalar();
             // Seed the RNG function with a value unique to the iteration of KMeans|| and the index
             // of the input point.
-            let rand = rng_func(i as u64 * seed as u64);
+            let rand = rng_func(i as u64 + seed * dists.len() as u64);
             let prob = multiplier * d / cost;
             if rand < prob {
                 Some(observations.row(i))
