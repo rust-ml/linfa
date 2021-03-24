@@ -4,7 +4,7 @@ use criterion::{
 };
 use linfa::traits::Fit;
 use linfa::DatasetBase;
-use linfa_clustering::{generate_blobs, KMeans};
+use linfa_clustering::{generate_blobs, KMeans, KMeansInit};
 use ndarray::Array2;
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::Uniform;
@@ -26,6 +26,7 @@ fn k_means_bench(c: &mut Criterion) {
         benchmark.bench_function(BenchmarkId::new("naive_k_means", cluster_size), |bencher| {
             bencher.iter(|| {
                 KMeans::params_with_rng(black_box(n_clusters), black_box(rng.clone()))
+                    .init_method(KMeansInit::KMeansPlusPlus)
                     .max_n_iterations(black_box(1000))
                     .tolerance(black_box(1e-3))
                     .fit(&dataset)
