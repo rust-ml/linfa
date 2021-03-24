@@ -176,7 +176,7 @@ impl<
         let mut best_iter = None;
         let mut memberships = Array1::zeros(observations.dim().0);
 
-        let n_runs = self.n_runs() as usize;
+        let n_runs = self.n_runs();
         let mut iter_count = Array1::zeros(n_runs);
 
         for r in 0..n_runs {

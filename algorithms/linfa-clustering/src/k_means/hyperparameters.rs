@@ -17,7 +17,7 @@ use std::ops::AddAssign;
 /// the [K-means algorithm](struct.KMeans.html).
 pub struct KMeansHyperParams<F: Float + SampleUniform + for<'a> AddAssign<&'a F>, R: Rng> {
     /// Number of time the k-means algorithm will be run with different centroid seeds.
-    n_runs: u64,
+    n_runs: usize,
     /// The training is considered complete if the euclidean distance
     /// between the old set of centroids and the new set of centroids
     /// after a training iteration is lower or equal than `tolerance`.
@@ -37,7 +37,7 @@ pub struct KMeansHyperParams<F: Float + SampleUniform + for<'a> AddAssign<&'a F>
 /// An helper struct used to construct a set of [valid hyperparameters](struct.KMeansHyperParams.html) for
 /// the [K-means algorithm](struct.KMeans.html) (using the builder pattern).
 pub struct KMeansHyperParamsBuilder<F: Float + SampleUniform + for<'a> AddAssign<&'a F>, R: Rng> {
-    n_runs: u64,
+    n_runs: usize,
     tolerance: F,
     max_n_iterations: u64,
     n_clusters: usize,
@@ -52,7 +52,7 @@ impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>, R: Rng + Clone>
     ///
     /// The final results will be the best output of n_runs consecutive runs in terms of inertia
     /// (sum of squared distances to the closest centroid for all observations in the training set)
-    pub fn n_runs(mut self, n_runs: u64) -> Self {
+    pub fn n_runs(mut self, n_runs: usize) -> Self {
         self.n_runs = n_runs;
         self
     }
@@ -140,7 +140,7 @@ impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>, R: Rng + Clone> KMeans
     }
 
     /// The final results will be the best output of n_runs consecutive runs in terms of inertia.
-    pub fn n_runs(&self) -> u64 {
+    pub fn n_runs(&self) -> usize {
         self.n_runs
     }
 
@@ -175,7 +175,7 @@ impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>, R: Rng + Clone> KMeans
 
     fn build(
         n_clusters: usize,
-        n_runs: u64,
+        n_runs: usize,
         tolerance: F,
         max_n_iterations: u64,
         init: KMeansInit<F>,
