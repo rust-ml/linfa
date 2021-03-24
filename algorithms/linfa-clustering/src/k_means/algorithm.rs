@@ -125,6 +125,7 @@ use serde_crate::{Deserialize, Serialize};
 */
 pub struct KMeans<F: Float> {
     centroids: Array2<F>,
+    iter_count: Array1<usize>,
 }
 
 impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>> KMeans<F> {
@@ -143,6 +144,11 @@ impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>> KMeans<F> {
     /// `(n_centroids, n_features)`.
     pub fn centroids(&self) -> &Array2<F> {
         &self.centroids
+    }
+
+    /// Return the number of iterations taken by each run as an array
+    pub fn iter_count(&self) -> &Array1<usize> {
+        &self.iter_count
     }
 }
 
@@ -170,13 +176,16 @@ impl<
         let mut best_iter = None;
         let mut memberships = Array1::zeros(observations.dim().0);
 
-        let n_runs = self.n_runs();
+        let n_runs = self.n_runs() as usize;
+        let mut iter_count = Array1::zeros(n_runs);
 
-        for _ in 0..n_runs {
+        for r in 0..n_runs {
             let mut inertia = min_inertia;
             let mut centroids = self.init().run(self.n_clusters(), &observations, &mut rng);
             let mut converged_iter: Option<u64> = None;
+            let mut iters = 0;
             for n_iter in 0..self.max_n_iterations() {
+                iters += 1;
                 update_cluster_memberships(&centroids, &observations, &mut memberships);
                 let new_centroids = compute_centroids(&centroids, &observations, &memberships);
                 inertia = compute_inertia(&new_centroids, &observations, &memberships);
@@ -189,6 +198,7 @@ impl<
                     break;
                 }
             }
+            iter_count[r] = iters;
 
             // We keep the centroids which minimize the inertia (defined as the sum of
             // the squared distances of the closest centroid for all observations)
@@ -201,7 +211,10 @@ impl<
         }
         match best_iter {
             Some(_n_iter) => match best_centroids {
-                Some(centroids) => Ok(KMeans { centroids }),
+                Some(centroids) => Ok(KMeans {
+                    centroids,
+                    iter_count,
+                }),
                 _ => Err(KMeansError::InertiaError(
                     "No inertia improvement (-inf)".to_string(),
                 )),
@@ -414,6 +427,7 @@ mod tests {
                 .expect("KMeans fitted");
             let clusters = model.predict(dataset);
             let inertia = compute_inertia(model.centroids(), &clusters.records, &clusters.targets);
+            assert_eq!(model.iter_count().len(), 1);
 
             // Second clustering with 10 iterations (default)
             let dataset2 = DatasetBase::from(clusters.records().clone());
@@ -424,6 +438,7 @@ mod tests {
             let clusters2 = model2.predict(dataset2);
             let inertia2 =
                 compute_inertia(model2.centroids(), &clusters2.records, &clusters2.targets);
+            assert_eq!(model2.iter_count().len(), 10);
 
             // Check we improve inertia
             assert!(inertia2 < inertia);
