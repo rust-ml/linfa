@@ -6,7 +6,7 @@ use ndarray::{
     Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2,
     Axis, CowArray, Ix2, Ix3, NdFloat, OwnedRepr,
 };
-use num_traits::{FromPrimitive, NumAssignOps, Signed};
+use num_traits::{AsPrimitive, FromPrimitive, NumAssignOps, Signed};
 
 use std::cmp::{Ordering, PartialOrd};
 use std::collections::{HashMap, HashSet};
@@ -29,7 +29,10 @@ pub mod multi_target_model;
 /// This trait bound multiplexes to the most common assumption of floating point number and
 /// implement them for 32bit and 64bit floating points. They are used in records of a dataset and, for
 /// regression task, in the targets as well.
-pub trait Float: NdFloat + FromPrimitive + Signed + Default + Sum + NumAssignOps {}
+pub trait Float:
+    NdFloat + FromPrimitive + Signed + Default + Sum + NumAssignOps + AsPrimitive<usize>
+{
+}
 impl Float for f32 {}
 impl Float for f64 {}
 
@@ -108,7 +111,7 @@ where
     pub records: R,
     pub targets: T,
 
-    weights: Array1<f32>,
+    pub weights: Array1<f32>,
     feature_names: Vec<String>,
 }
 

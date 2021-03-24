@@ -30,6 +30,8 @@ Where does `linfa` stand right now? [Are we learning yet?](http://www.arewelearn
 | [bayes](https://github.com/rust-ml/linfa/tree/master/algorithms/linfa-bayes) | Naive Bayes | Tested | Supervised learning | Contains Gaussian Naive Bayes |
 | [ica](https://github.com/rust-ml/linfa/tree/master/algorithms/linfa-ica) | Independent component analysis | Tested | Unsupervised learning | Contains FastICA implementation |
 | [pls](https://github.com/rust-ml/linfa/tree/master/algorithms/linfa-pls) | Partial Least Squares | Tested | Supervised learning | Contains PLS estimators for dimensionality reduction and regression |
+| [tsne](https://github.com/rust-ml/linfa/tree/master/algorithms/linfa-tsne) | Dimensionality reduction| Tested | Unsupervised learning | Contains exact solution and Barnes-Hut approximation t-SNE |
+
 
 </div>
 

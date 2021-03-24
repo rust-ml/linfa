@@ -13,13 +13,12 @@ use rand_isaac::Isaac64Rng;
 
 fn k_means_bench(c: &mut Criterion) {
     let mut rng = Isaac64Rng::seed_from_u64(40);
-    let cluster_sizes = vec![10, 100, 1000, 10000];
+    let cluster_sizes = vec![(100, 4), (400, 10), (3000, 10)];
 
     let mut benchmark = c.benchmark_group("naive_k_means");
     benchmark.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
-    for cluster_size in cluster_sizes {
+    for (cluster_size, n_clusters) in cluster_sizes {
         let rng = &mut rng;
-        let n_clusters = 4;
         let n_features = 3;
         let centroids =
             Array2::random_using((n_clusters, n_features), Uniform::new(-30., 30.), rng);

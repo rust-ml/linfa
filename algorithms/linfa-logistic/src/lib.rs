@@ -384,12 +384,12 @@ fn convert_params<F: Float>(n_features: usize, w: &Array1<F>) -> (Array1<F>, F) 
     } else if n_features + 1 == w.len() {
         (w.slice(s![..w.len() - 1]).to_owned(), w[w.len() - 1])
     } else {
-        panic!(format!(
+        panic!(
             "Unexpected length of parameter vector `w`, exected {} or {}, found {}",
             n_features,
             n_features + 1,
             w.len()
-        ));
+        );
     }
 }
 
