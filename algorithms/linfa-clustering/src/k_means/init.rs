@@ -25,12 +25,12 @@ pub enum KMeansInit<F: Float + SampleUniform + for<'a> AddAssign<&'a F>> {
     KMeansPara(RngFunc<F>),
 }
 
-impl<'a, F: Float + SampleUniform + for<'b> AddAssign<&'b F>> KMeansInit<F> {
+impl<F: Float + SampleUniform + for<'b> AddAssign<&'b F>> KMeansInit<F> {
     /// Runs the chosen initialization routine
     pub(crate) fn run(
         &self,
         n_clusters: usize,
-        observations: &'a ArrayView2<'a, F>,
+        observations: ArrayView2<F>,
         rng: &mut impl Rng,
     ) -> Array2<F> {
         match self {
@@ -44,7 +44,7 @@ impl<'a, F: Float + SampleUniform + for<'b> AddAssign<&'b F>> KMeansInit<F> {
 /// Pick random points from the input matrix as centroids
 fn random_init<F: Float>(
     n_clusters: usize,
-    observations: &ArrayView2<F>,
+    observations: ArrayView2<F>,
     rng: &mut impl Rng,
 ) -> Array2<F> {
     let (n_samples, _) = observations.dim();
@@ -57,8 +57,8 @@ fn random_init<F: Float>(
 /// the weight, the more likely the point will be selected as a centroid.
 fn weighted_k_means_plusplus<F: Float + SampleUniform + for<'a> AddAssign<&'a F>>(
     n_clusters: usize,
-    observations: &ArrayView2<F>,
-    weights: &ArrayView1<F>,
+    observations: ArrayView2<F>,
+    weights: ArrayView1<F>,
     rng: &mut impl Rng,
 ) -> Array2<F> {
     let (n_samples, n_features) = observations.dim();
@@ -74,11 +74,15 @@ fn weighted_k_means_plusplus<F: Float + SampleUniform + for<'a> AddAssign<&'a F>
 
     let mut dists = Array1::zeros(n_samples);
     for c_cnt in 1..n_clusters {
-        update_min_dists(&centroids.slice(s![0..c_cnt, ..]), observations, &mut dists);
-        dists *= weights;
+        update_min_dists(
+            &centroids.slice(s![0..c_cnt, ..]),
+            &observations,
+            &mut dists,
+        );
 
         // The probability of a point being selected as the next centroid is proportional to its
         // distance from its closest centroid multiplied by its weight.
+        dists *= &weights;
         let centroid_idx = WeightedIndex::new(dists.iter())
             .map(|idx| idx.sample(rng))
             // This only errs if all of dists is 0, which means every point is assigned to a
@@ -94,13 +98,13 @@ fn weighted_k_means_plusplus<F: Float + SampleUniform + for<'a> AddAssign<&'a F>
 /// KMeans++ initialization algorithm without biased weights
 fn k_means_plusplus<F: Float + SampleUniform + for<'a> AddAssign<&'a F>>(
     n_clusters: usize,
-    observations: &ArrayView2<F>,
+    observations: ArrayView2<F>,
     rng: &mut impl Rng,
 ) -> Array2<F> {
     weighted_k_means_plusplus(
         n_clusters,
         observations,
-        &Array1::ones(observations.nrows()).view(),
+        Array1::ones(observations.nrows()).view(),
         rng,
     )
 }
@@ -110,9 +114,9 @@ fn k_means_plusplus<F: Float + SampleUniform + for<'a> AddAssign<&'a F>>(
 /// input point in parallel. The probability of a point becoming a centroid is the same as with
 /// KMeans++. After multiple iterations, run KMeans++ on the candidates to produce the final set of
 /// centroids.
-fn k_means_para<'a, F: Float + SampleUniform + for<'b> AddAssign<&'b F>>(
+fn k_means_para<F: Float + SampleUniform + for<'b> AddAssign<&'b F>>(
     n_clusters: usize,
-    observations: &'a ArrayView2<'a, F>,
+    observations: ArrayView2<F>,
     rng: &mut impl Rng,
     rng_func: &RngFunc<F>,
 ) -> Array2<F> {
@@ -137,8 +141,7 @@ fn k_means_para<'a, F: Float + SampleUniform + for<'b> AddAssign<&'b F>>(
         // Generate the next set of candidates from the input points, using the same probability
         // formula as KMeans++. On average this generates candidates equal to
         // `candidates_per_round`.
-        let next_candidates = sample_subsequent_candidates(
-            observations,
+        let next_candidates_idx = sample_subsequent_candidates(
             &dists,
             F::from(candidates_per_round).unwrap(),
             rng.gen_range(0, 100000),
@@ -147,8 +150,10 @@ fn k_means_para<'a, F: Float + SampleUniform + for<'b> AddAssign<&'b F>>(
 
         // Append the newly generated candidates to the current cadidates, breaking out of the loop
         // if too many candidates have been found
-        for candidate in next_candidates.into_iter() {
-            candidates.row_mut(n_candidates).assign(&candidate);
+        for idx in next_candidates_idx.into_iter() {
+            candidates
+                .row_mut(n_candidates)
+                .assign(&observations.row(idx));
             n_candidates += 1;
             if n_candidates >= candidates.nrows() {
                 break 'outer;
@@ -162,21 +167,20 @@ fn k_means_para<'a, F: Float + SampleUniform + for<'b> AddAssign<&'b F>>(
 
     // The number of candidates is almost certainly higher than the number of centroids, so we
     // recluster the candidates into the right number of centroids using weighted KMeans++.
-    weighted_k_means_plusplus(n_clusters, &final_candidates, &weights.view(), rng)
+    weighted_k_means_plusplus(n_clusters, final_candidates, weights.view(), rng)
 }
 
 /// Generate candidate centroids by sampling each observation in parallel using a supplied random
 /// number generation function.
-fn sample_subsequent_candidates<'a, F: Float>(
-    observations: &'a ArrayView2<'a, F>,
+/// `rng_func` must return a number between 0 and 1.
+/// Using `rng_func` is the easiest way to generate a random number in a Rayon thread, since
+/// cloning the actual RNG is expensive.
+fn sample_subsequent_candidates<F: Float>(
     dists: &Array1<F>,
     multiplier: F,
     seed: u64,
-    // Must return a number between 0 and 1.
-    // Easiest way to generate a random number in a Rayon thread, since cloning the actual RNG is
-    // expensive.
     rng_func: &RngFunc<F>,
-) -> Vec<ArrayView1<'a, F>> {
+) -> Vec<usize> {
     // This sum can also be parallelized
     let cost = dists.sum();
 
@@ -186,14 +190,14 @@ fn sample_subsequent_candidates<'a, F: Float>(
         .axis_iter(Axis(0))
         .into_par_iter()
         .enumerate()
-        .filter_map(|(i, d)| {
+        .filter_map(move |(i, d)| {
             let d = *d.into_scalar();
             // Seed the RNG function with a value unique to the iteration of KMeans|| and the index
             // of the input point.
             let rand = rng_func(i as u64 + seed * dists.len() as u64);
             let prob = multiplier * d / cost;
             if rand < prob {
-                Some(observations.row(i))
+                Some(i)
             } else {
                 None
             }
@@ -254,13 +258,11 @@ mod tests {
         }
 
         let observations = array![[3.0, 4.0], [1.0, 3.0], [25.0, 15.0]];
-        let obs_view = observations.view();
         let dists = array![0.1, 0.4, 0.5];
-        let candidates =
-            sample_subsequent_candidates(&obs_view, &dists, 4.0, 0, &(func as RngFunc<f64>));
+        let candidates = sample_subsequent_candidates(&dists, 4.0, 0, &(func as RngFunc<f64>));
         assert_eq!(candidates.len(), 2);
-        assert_abs_diff_eq!(candidates[0], observations.row(1));
-        assert_abs_diff_eq!(candidates[1], observations.row(2));
+        assert_abs_diff_eq!(observations.row(candidates[0]), observations.row(1));
+        assert_abs_diff_eq!(observations.row(candidates[1]), observations.row(2));
     }
 
     #[test]
@@ -276,9 +278,9 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(42);
         let obs = Array::random_using((1000, 2), Normal::new(0.0, 100.).unwrap(), &mut rng);
         let mut weights = Array1::zeros(1000);
-        weights[0] = 1.0;
-        weights[1] = 1.0;
-        let out = weighted_k_means_plusplus(2, &obs.view(), &weights.view(), &mut rng);
+        weights[0] = 2.0;
+        weights[1] = 3.0;
+        let out = weighted_k_means_plusplus(2, obs.view(), weights.view(), &mut rng);
         let mut expected_centroids = {
             let mut arr = Array2::zeros((2, 2));
             arr.row_mut(0).assign(&obs.row(0));
@@ -314,7 +316,7 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(42);
         // Make sure we don't panic on degenerate data (n_clusters > n_samples)
         let degenerate_data = array![[1.0, 2.0]];
-        let out = init.run(2, &degenerate_data.view(), &mut rng);
+        let out = init.run(2, degenerate_data.view(), &mut rng);
         assert_abs_diff_eq!(out, stack![Axis(0), degenerate_data, degenerate_data]);
 
         // Build 3 separated clusters of points
@@ -328,7 +330,7 @@ mod tests {
         });
 
         // Look for the right number of centroids
-        let out = init.run(centroids.len(), &obs.view(), &mut rng);
+        let out = init.run(centroids.len(), obs.view(), &mut rng);
         let mut cluster_ids = HashSet::new();
         for row in out.genrows() {
             // Centroid should not be 0
@@ -364,11 +366,11 @@ mod tests {
             stack(Axis(0), &[a.view(), b.view()]).unwrap()
         });
 
-        let out_rand = random_init(3, &obs.view(), &mut rng.clone());
-        let out_pp = k_means_plusplus(3, &obs.view(), &mut rng.clone());
+        let out_rand = random_init(3, obs.view(), &mut rng.clone());
+        let out_pp = k_means_plusplus(3, obs.view(), &mut rng.clone());
         let out_para = k_means_para(
             3,
-            &obs.view(),
+            obs.view(),
             &mut rng.clone(),
             &(isaac_rng as RngFunc<f64>),
         );

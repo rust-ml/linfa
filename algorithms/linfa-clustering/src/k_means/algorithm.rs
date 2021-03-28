@@ -181,7 +181,7 @@ impl<
 
         for r in 0..n_runs {
             let mut inertia = min_inertia;
-            let mut centroids = self.init().run(self.n_clusters(), &observations, &mut rng);
+            let mut centroids = self.init().run(self.n_clusters(), observations, &mut rng);
             let mut converged_iter: Option<u64> = None;
             let mut iters = 0;
             for n_iter in 0..self.max_n_iterations() {
@@ -411,13 +411,11 @@ mod tests {
         let yt = function_test_1d(&xt);
         let data = stack(Axis(1), &[xt.view(), yt.view()]).unwrap();
 
-        for init in [
+        for init in &[
             KMeansInit::Random,
             KMeansInit::KMeansPlusPlus,
             KMeansInit::KMeansPara(isaac_rng as RngFunc<f64>),
-        ]
-        .iter()
-        {
+        ] {
             // First clustering with one iteration
             let dataset = DatasetBase::from(data.clone());
             let model = KMeans::params_with_rng(3, rng.clone())
