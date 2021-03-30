@@ -80,7 +80,7 @@ impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>, R: Rng + Clone>
     /// Set the value of `init`.
     ///
     /// The initialization method is the function that determines the initial values of the cluster
-    /// centroids before the iterative training process. The default value is `Random`.
+    /// centroids before the iterative training process. The default value is `KMeansPlusPlus`.
     pub fn init_method(mut self, init: KMeansInit) -> Self {
         self.init = init;
         self
@@ -134,7 +134,7 @@ impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>, R: Rng + Clone> KMeans
             tolerance: F::from(1e-4).unwrap(),
             max_n_iterations: 300,
             n_clusters,
-            init: KMeansInit::Random,
+            init: KMeansInit::KMeansPlusPlus,
             rng,
         }
     }
