@@ -22,4 +22,6 @@ pub enum Error {
     InvalidDocumentFrequencies(f32, f32),
     #[error("min document frequency cannot be greater than max document frequency (min = {0}, max = {1})")]
     FlippedDocumentFrequencies(f32, f32),
+    #[error(transparent)]
+    RegexError(#[from] regex::Error),
 }

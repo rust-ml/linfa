@@ -25,6 +25,12 @@ thiserror = "1"
 approx = { version = "0.3", default-features = false, features = ["std"] }
 ndarray-rand = {version = "0.11"}
 unicode-normalization = "0.1.8"
+regex = "1.4.5"
 
 [dev-dependencies]
 linfa-datasets = {version = "0.3.1", path = "../../datasets", features = ["diabetes"]}
+iai = "0.1"
+
+[[bench]]
+name = "count_vectorizer_bench"
+harness = false

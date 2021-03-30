@@ -31,8 +31,8 @@ impl TfIdfMethod {
 
 /// Simlar to [`CountVectorizer`](studct.CountVectorizer.html) but instead of
 /// just counting the term frequency of each vocabulary entry in each given document,
-/// it computes the termfrequecy times the inverse document frequency, thus giving more importance 
-/// to entries that appear many times but only on some documents. The weight function can be adjusted 
+/// it computes the termfrequecy times the inverse document frequency, thus giving more importance
+/// to entries that appear many times but only on some documents. The weight function can be adjusted
 /// by setting he appropriate [method](enum.TfIdfMethod.html). This struct provides the same string  
 /// processing customizations described in [`CountVectorizer`](studct.CountVectorizer.html).
 pub struct TfIdfVectorizer {
@@ -50,13 +50,6 @@ impl std::default::Default for TfIdfVectorizer {
 }
 
 impl TfIdfVectorizer {
-    pub fn remove_punctuation(self, remove_punctuation: bool) -> Self {
-        Self {
-            count_vectorizer: self.count_vectorizer.remove_punctuation(remove_punctuation),
-            method: self.method,
-        }
-    }
-
     pub fn convert_to_lowercase(self, convert_to_lowercase: bool) -> Self {
         Self {
             count_vectorizer: self
@@ -66,11 +59,9 @@ impl TfIdfVectorizer {
         }
     }
 
-    pub fn punctuation_symbols(self, punctuation_symbols: &[char]) -> Self {
+    pub fn split_regex(self, regex_str: &str) -> Self {
         Self {
-            count_vectorizer: self
-                .count_vectorizer
-                .punctuation_symbols(punctuation_symbols),
+            count_vectorizer: self.count_vectorizer.split_regex(regex_str),
             method: self.method,
         }
     }
@@ -151,8 +142,7 @@ impl FittedTfIdfVectorizer {
     pub fn transform<T: ToString, D: Data<Elem = T>>(&self, x: &ArrayBase<D, Ix1>) -> Array2<f64> {
         let (term_freqs, doc_freqs) = self.fitted_vectorizer.get_term_and_document_frequencies(x);
         let mut term_freqs = term_freqs.mapv(|x| x as f64);
-        let inv_doc_freqs =
-            doc_freqs.mapv(|doc_freq| self.method.compute_idf(x.len(), doc_freq));
+        let inv_doc_freqs = doc_freqs.mapv(|doc_freq| self.method.compute_idf(x.len(), doc_freq));
         for row in term_freqs.genrows_mut() {
             Zip::from(row)
                 .and(&inv_doc_freqs)

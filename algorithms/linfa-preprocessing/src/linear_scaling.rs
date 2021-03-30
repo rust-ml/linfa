@@ -83,7 +83,7 @@ impl<F: Float> LinearScaler<F> {
         }
     }
 
-    /// Initializes a Stadard scalre that does not scale the features by the inverse of the standard deviation
+    /// Initializes a Stadard scaler that does not scale the features by the inverse of the standard deviation
     pub fn standard_no_std() -> Self {
         Self {
             method: ScalingMethod::Standard(true, false),

@@ -3,6 +3,7 @@
 use crate::error::{Error, Result};
 use crate::helpers::NGramQueue;
 use ndarray::{Array1, Array2, ArrayBase, Data, Ix1};
+use regex::Regex;
 use std::collections::{HashMap, HashSet};
 use std::iter::IntoIterator;
 use unicode_normalization::UnicodeNormalization;
@@ -10,9 +11,8 @@ use unicode_normalization::UnicodeNormalization;
 #[derive(Clone)]
 /// Struct that holds all vectorizer options so that they can be passed to the fitted vectorizer
 pub(crate) struct VectorizerProperties {
-    remove_punctuation: bool,
     convert_to_lowercase: bool,
-    punctuation_symbols: Vec<char>,
+    split_regex: String,
     n_gram_range: (usize, usize),
     normalize: bool,
     document_frequency: (f32, f32),
@@ -26,15 +26,15 @@ pub(crate) struct VectorizerProperties {
 /// ### Attributes
 ///
 /// If a user-defined vocabulary is used for fitting then the following attributes will not be considered during the fitting phase but
-/// but they will still be used by the [FittedCountVectorizer](struct.FittedCountVectorizer.html) to transform any text to be examined.
+/// they will still be used by the [FittedCountVectorizer](struct.FittedCountVectorizer.html) to transform any text to be examined.
 ///
-/// * `remove_punctuation`: if true, punctuation symbols will be substituted by a whitespace in all texts used for fitting. Defaults to `true`
-/// * `punctuation_symbols`: the list of punctuation sybols to be substituted by whitespace. The default list is: `['.', ',', ';', ':', '?', '!']`
+/// * `regex_split`: the regex espression used to split decuments into tokens. Defaults to r"\\b\\w\\w+\\b", which selects "words", using whitespaces and
+/// punctuation symbols as separators.
 /// * `convert_to_lowercase`: if true, all texts used for fitting will be converted to lowercase. Defaults to `true`.
 /// * `n_gram_range`: if set to `(1,1)` single words will be candidate vocabulary entries, if `(2,2)` then adjacent words pairs will be considered,
 ///    if `(1,2)` then both single words and adjacent word pairs will be considered, and so on. The default value is `(1,1)`.
 /// * `normalize`: if true, all charachters in the texts used for fitting will be normalized according to unicode's NFKD normalization. Defaults to `true`.
-/// * `document_frequency`: specifies the minimum and maximum (relative) document frequencies that each vocabulary entry. Defaults to `(0., 1.)` (0% minimum and 100% maximum)
+/// * `document_frequency`: specifies the minimum and maximum (relative) document frequencies that each vocabulary entry must satisfy. Defaults to `(0., 1.)` (i.e. 0% minimum and 100% maximum)
 ///
 pub struct CountVectorizer {
     properties: VectorizerProperties,
@@ -44,9 +44,8 @@ impl std::default::Default for CountVectorizer {
     fn default() -> Self {
         Self {
             properties: VectorizerProperties {
-                remove_punctuation: true,
                 convert_to_lowercase: true,
-                punctuation_symbols: vec!['.', ',', ';', ':', '?', '!'],
+                split_regex: r"\b\w\w+\b".to_string(),
                 n_gram_range: (1, 1),
                 normalize: true,
                 document_frequency: (0., 1.),
@@ -56,18 +55,13 @@ impl std::default::Default for CountVectorizer {
 }
 
 impl CountVectorizer {
-    pub fn remove_punctuation(mut self, remove_punctuation: bool) -> Self {
-        self.properties.remove_punctuation = remove_punctuation;
-        self
-    }
-
     pub fn convert_to_lowercase(mut self, convert_to_lowercase: bool) -> Self {
         self.properties.convert_to_lowercase = convert_to_lowercase;
         self
     }
 
-    pub fn punctuation_symbols(mut self, punctuation_symbols: &[char]) -> Self {
-        self.properties.punctuation_symbols = punctuation_symbols.iter().copied().collect();
+    pub fn split_regex(mut self, regex_str: &str) -> Self {
+        self.properties.split_regex = regex_str.to_string();
         self
     }
 
@@ -93,11 +87,12 @@ impl CountVectorizer {
     /// * one of the `n_gram` boundaries is set to zero or the minimum value is greater than the maximum value
     /// * if the minimum document frequency is greater than one or than the maximum frequency, or if the maximum frequecy is  
     ///   smaller than zero
+    /// * if the regex expression for the split is invalid
     pub fn fit<T: ToString + Clone, D: Data<Elem = T>>(
         &self,
         x: &ArrayBase<D, Ix1>,
     ) -> Result<FittedCountVectorizer> {
-        validate_properties(&self.properties)?;
+        let regex = validate_properties(&self.properties)?;
 
         // word, (integer mapping for word, document frequency for word)
         let mut vocabulary: HashMap<String, (usize, usize)> = HashMap::new();
@@ -106,7 +101,7 @@ impl CountVectorizer {
             .map(|s| transform_string(s.to_string(), &self.properties))
         {
             let mut document_vocabulary: HashSet<String> = HashSet::new();
-            let words = string.split_whitespace().collect();
+            let words = regex.find_iter(&string).map(|mat| mat.as_str()).collect();
             let queue = NGramQueue::new(words, self.properties.n_gram_range);
             for ngram_items in queue {
                 for item in ngram_items {
@@ -137,6 +132,7 @@ impl CountVectorizer {
             .collect();
 
         let vec_vocabulary = hashmap_to_vocabulary(&mut vocabulary);
+
         Ok(FittedCountVectorizer {
             vocabulary,
             vec_vocabulary,
@@ -195,9 +191,10 @@ impl FittedCountVectorizer {
     ) -> (Array2<usize>, Array1<usize>) {
         let mut vectorized = Array2::zeros((x.len(), self.vocabulary.len()));
         let mut document_frequencies = Array1::zeros(self.vocabulary.len());
+        let regex = Regex::new(&self.properties.split_regex).unwrap();
         for (string_index, string) in x.into_iter().map(|s| s.to_string()).enumerate() {
             let string = transform_string(string, &self.properties);
-            let words = string.split_whitespace().collect();
+            let words = regex.find_iter(&string).map(|mat| mat.as_str()).collect();
             let queue = NGramQueue::new(words, self.properties.n_gram_range);
             for ngram_items in queue {
                 for item in ngram_items {
@@ -217,7 +214,7 @@ impl FittedCountVectorizer {
     }
 }
 
-fn validate_properties(properties: &VectorizerProperties) -> Result<()> {
+fn validate_properties(properties: &VectorizerProperties) -> Result<Regex> {
     let (n_gram_min, n_gram_max) = properties.n_gram_range;
     if n_gram_min == 0 || n_gram_max == 0 {
         return Err(Error::InvalidNGramBoundaries(n_gram_min, n_gram_max));
@@ -232,13 +229,10 @@ fn validate_properties(properties: &VectorizerProperties) -> Result<()> {
     if max_freq < min_freq {
         return Err(Error::FlippedDocumentFrequencies(min_freq, max_freq));
     }
-    Ok(())
+    Ok(Regex::new(&properties.split_regex)?)
 }
 
 fn transform_string(mut string: String, properties: &VectorizerProperties) -> String {
-    if properties.remove_punctuation {
-        string = string.replace(&properties.punctuation_symbols[..], " ")
-    }
     if properties.convert_to_lowercase {
         string = string.to_lowercase();
     }
@@ -365,11 +359,12 @@ mod tests {
     fn simple_count_no_punctuation_test() {
         let texts = array!["oNe two three four", "TWO three four", "three;four", "four"];
         let vectorizer = CountVectorizer::default()
-            .remove_punctuation(false)
+            .split_regex(r"\b[^ ][^ ]+\b")
             .fit(&texts)
             .unwrap();
         let vocabulary = vectorizer.vocabulary();
         let counts = vectorizer.transform(&texts);
+        println!("{:?}", vocabulary);
         let true_vocabulary = vec!["one", "two", "three", "four", "three;four"];
         assert_vocabulary_eq(&true_vocabulary, &vocabulary);
         assert_counts_for_word!(
@@ -415,7 +410,7 @@ mod tests {
         ];
         let vectorizer = CountVectorizer::default()
             .convert_to_lowercase(false)
-            .remove_punctuation(false)
+            .split_regex(r"\b[^ ][^ ]+\b")
             .fit(&texts)
             .unwrap();
         let vocabulary = vectorizer.vocabulary();
@@ -475,6 +470,13 @@ mod tests {
             .document_frequency(0.5, 0.2)
             .fit(&texts);
         assert!(vectorizer.is_err());
+    }
+
+    #[test]
+    fn test_invalid_regex() {
+        let texts = array!["oNe two three four", "TWO three four", "three;four", "four"];
+        let vectorizer = CountVectorizer::default().split_regex(r"[").fit(&texts);
+        assert!(vectorizer.is_err())
     }
 
     fn assert_vocabulary_eq<T: ToString>(true_voc: &[T], voc: &[String]) {
