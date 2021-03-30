@@ -29,7 +29,7 @@ pub struct KMeansHyperParams<F: Float + SampleUniform + for<'a> AddAssign<&'a F>
     /// The number of clusters we will be looking for in the training dataset.
     n_clusters: usize,
     /// The initialization strategy used to initialize the centroids.
-    init: KMeansInit<F>,
+    init: KMeansInit,
     /// The random number generator
     rng: R,
 }
@@ -41,7 +41,7 @@ pub struct KMeansHyperParamsBuilder<F: Float + SampleUniform + for<'a> AddAssign
     tolerance: F,
     max_n_iterations: u64,
     n_clusters: usize,
-    init: KMeansInit<F>,
+    init: KMeansInit,
     rng: R,
 }
 
@@ -81,7 +81,7 @@ impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>, R: Rng + Clone>
     ///
     /// The initialization method is the function that determines the initial values of the cluster
     /// centroids before the iterative training process. The default value is `Random`.
-    pub fn init_method(mut self, init: KMeansInit<F>) -> Self {
+    pub fn init_method(mut self, init: KMeansInit) -> Self {
         self.init = init;
         self
     }
@@ -164,7 +164,7 @@ impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>, R: Rng + Clone> KMeans
     }
 
     /// Cluster initialization strategy
-    pub fn init(&self) -> &KMeansInit<F> {
+    pub fn init(&self) -> &KMeansInit {
         &self.init
     }
 
@@ -178,7 +178,7 @@ impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>, R: Rng + Clone> KMeans
         n_runs: usize,
         tolerance: F,
         max_n_iterations: u64,
-        init: KMeansInit<F>,
+        init: KMeansInit,
         rng: R,
     ) -> Self {
         if n_runs == 0 {

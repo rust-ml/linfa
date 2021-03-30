@@ -2,39 +2,38 @@ use super::algorithm::{update_cluster_memberships, update_min_dists};
 use linfa::Float;
 use ndarray::parallel::prelude::*;
 use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
-use ndarray_rand::rand;
 use ndarray_rand::rand::distributions::{uniform::SampleUniform, Distribution, WeightedIndex};
 use ndarray_rand::rand::Rng;
-use std::ops::AddAssign;
-
-/// Function that generates a random number between 0 and 1 given a `u64` seed. Since this is
-/// called many times, avoid using any RNGs with expensive setup and seeding.
-pub type RngFunc<F> = fn(u64) -> F;
+use ndarray_rand::rand::{self, SeedableRng};
+use std::{
+    ops::AddAssign,
+    sync::atomic::{AtomicU64, Ordering::Relaxed},
+};
 
 #[derive(Clone, Debug, PartialEq)]
 /// Specifies centroid initialization algorithm for KMeans.
-pub enum KMeansInit<F: Float + SampleUniform + for<'a> AddAssign<&'a F>> {
+pub enum KMeansInit {
     /// Pick random points as centroids.
     Random,
     /// K-means++ algorithm.
     KMeansPlusPlus,
     /// K-means|| algorithm, which is a more scalable version of K-means++ that yields similar
     /// results. Details can be found [here](http://vldb.org/pvldb/vol5/p622_bahmanbahmani_vldb2012.pdf).
-    KMeansPara(RngFunc<F>),
+    KMeansPara,
 }
 
-impl<F: Float + SampleUniform + for<'b> AddAssign<&'b F>> KMeansInit<F> {
+impl KMeansInit {
     /// Runs the chosen initialization routine
-    pub(crate) fn run(
+    pub(crate) fn run<R: Rng + SeedableRng, F: Float + SampleUniform + for<'b> AddAssign<&'b F>>(
         &self,
         n_clusters: usize,
         observations: ArrayView2<F>,
-        rng: &mut impl Rng,
+        rng: &mut R,
     ) -> Array2<F> {
         match self {
             Self::Random => random_init(n_clusters, observations, rng),
             Self::KMeansPlusPlus => k_means_plusplus(n_clusters, observations, rng),
-            Self::KMeansPara(rng_func) => k_means_para(n_clusters, observations, rng, rng_func),
+            Self::KMeansPara => k_means_para(n_clusters, observations, rng),
         }
     }
 }
@@ -112,11 +111,10 @@ fn k_means_plusplus<F: Float + SampleUniform + for<'a> AddAssign<&'a F>>(
 /// input point in parallel. The probability of a point becoming a centroid is the same as with
 /// KMeans++. After multiple iterations, run KMeans++ on the candidates to produce the final set of
 /// centroids.
-fn k_means_para<F: Float + SampleUniform + for<'b> AddAssign<&'b F>>(
+fn k_means_para<R: Rng + SeedableRng, F: Float + SampleUniform + for<'b> AddAssign<&'b F>>(
     n_clusters: usize,
     observations: ArrayView2<F>,
-    rng: &mut impl Rng,
-    rng_func: &RngFunc<F>,
+    rng: &mut R,
 ) -> Array2<F> {
     // The product of these parameters must exceed n_clusters. The higher they are, the more
     // candidates are selected, which improves the quality of the centroids but increases running
@@ -139,11 +137,10 @@ fn k_means_para<F: Float + SampleUniform + for<'b> AddAssign<&'b F>>(
         // Generate the next set of candidates from the input points, using the same probability
         // formula as KMeans++. On average this generates candidates equal to
         // `candidates_per_round`.
-        let next_candidates_idx = sample_subsequent_candidates(
+        let next_candidates_idx = sample_subsequent_candidates::<R, _>(
             &dists,
             F::from(candidates_per_round).unwrap(),
             rng.gen_range(0, 100000),
-            rng_func,
         );
 
         // Append the newly generated candidates to the current cadidates, breaking out of the loop
@@ -173,33 +170,33 @@ fn k_means_para<F: Float + SampleUniform + for<'b> AddAssign<&'b F>>(
 /// `rng_func` must return a number between 0 and 1.
 /// Using `rng_func` is the easiest way to generate a random number in a Rayon thread, since
 /// cloning the actual RNG is expensive.
-fn sample_subsequent_candidates<F: Float>(
+fn sample_subsequent_candidates<R: Rng + SeedableRng, F: Float>(
     dists: &Array1<F>,
     multiplier: F,
     seed: u64,
-    rng_func: &RngFunc<F>,
 ) -> Vec<usize> {
     // This sum can also be parallelized
     let cost = dists.sum();
 
+    let seed = AtomicU64::new(seed);
     // The sequential alternative to this operation is to taking "multiplier" samples from a
     // weighted index of "dists". Doing so avoids using rng_func but may lead to slower code.
     dists
         .axis_iter(Axis(0))
         .into_par_iter()
         .enumerate()
-        .filter_map(move |(i, d)| {
-            let d = *d.into_scalar();
-            // Seed the RNG function with a value unique to the iteration of KMeans|| and the index
-            // of the input point.
-            let rand = rng_func(i as u64 + seed * dists.len() as u64);
-            let prob = multiplier * d / cost;
-            if rand < prob {
-                Some(i)
-            } else {
-                None
-            }
-        })
+        .map_init(
+            || R::seed_from_u64(seed.fetch_add(1, Relaxed)),
+            move |rng, (i, d)| {
+                let d = *d.into_scalar();
+                // Seed the RNG function with a value unique to the iteration of KMeans|| and the index
+                // of the input point.
+                let rand = F::from(rng.gen_range(0.0, 1.0)).unwrap();
+                let prob = multiplier * d / cost;
+                (i, rand, prob)
+            },
+        )
+        .filter_map(|(i, rand, prob)| if rand < prob { Some(i) } else { None })
         .collect()
 }
 
@@ -240,13 +237,9 @@ mod tests {
 
     #[test]
     fn test_sample_subsequent_candidates() {
-        fn func(_: u64) -> f64 {
-            0.4
-        }
-
         let observations = array![[3.0, 4.0], [1.0, 3.0], [25.0, 15.0]];
         let dists = array![0.1, 0.4, 0.5];
-        let candidates = sample_subsequent_candidates(&dists, 4.0, 0, &(func as RngFunc<f64>));
+        let candidates = sample_subsequent_candidates::<Isaac64Rng, _>(&dists, 4.0, 0);
         assert_eq!(candidates.len(), 2);
         assert_abs_diff_eq!(observations.row(candidates[0]), observations.row(1));
         assert_abs_diff_eq!(observations.row(candidates[1]), observations.row(2));
@@ -287,19 +280,13 @@ mod tests {
         verify_init(KMeansInit::KMeansPlusPlus);
     }
 
-    // Using Isaac here is quite slow but yields reproduceable results
-    fn isaac_rng(seed: u64) -> f64 {
-        let mut rng = Isaac64Rng::seed_from_u64(seed);
-        rng.gen_range(0.0, 1.0)
-    }
-
     #[test]
     fn test_k_means_para() {
-        verify_init(KMeansInit::KMeansPara(isaac_rng as RngFunc<f64>));
+        verify_init(KMeansInit::KMeansPara);
     }
 
     // Run general tests for a given init algorithm
-    fn verify_init(init: KMeansInit<f64>) {
+    fn verify_init(init: KMeansInit) {
         let mut rng = Isaac64Rng::seed_from_u64(42);
         // Make sure we don't panic on degenerate data (n_clusters > n_samples)
         let degenerate_data = array![[1.0, 2.0]];
@@ -355,12 +342,7 @@ mod tests {
 
         let out_rand = random_init(3, obs.view(), &mut rng.clone());
         let out_pp = k_means_plusplus(3, obs.view(), &mut rng.clone());
-        let out_para = k_means_para(
-            3,
-            obs.view(),
-            &mut rng.clone(),
-            &(isaac_rng as RngFunc<f64>),
-        );
+        let out_para = k_means_para(3, obs.view(), &mut rng.clone());
         // Loss of Kmeans++ should be better than using random_init
         assert!(calc_loss(&out_pp, &obs) < calc_loss(&out_rand, &obs));
         // Loss of Kmeans|| should be better than using Kmeans++

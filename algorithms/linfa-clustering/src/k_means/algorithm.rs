@@ -2,8 +2,8 @@ use crate::k_means::errors::{KMeansError, Result};
 use crate::k_means::hyperparameters::{KMeansHyperParams, KMeansHyperParamsBuilder};
 use linfa::{traits::*, DatasetBase, Float};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
-use ndarray_rand::rand::distributions::uniform::SampleUniform;
 use ndarray_rand::rand::Rng;
+use ndarray_rand::rand::{distributions::uniform::SampleUniform, SeedableRng};
 use ndarray_stats::DeviationExt;
 use rand_isaac::Isaac64Rng;
 use std::ops::AddAssign;
@@ -161,7 +161,7 @@ impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>> KMeans<F> {
 impl<
         'a,
         F: Float + SampleUniform + for<'b> AddAssign<&'b F>,
-        R: Rng + Clone,
+        R: Rng + Clone + SeedableRng,
         D: Data<Elem = F>,
         T,
     > Fit<'a, ArrayBase<D, Ix2>, T> for KMeansHyperParams<F, R>
@@ -238,7 +238,7 @@ impl<
 impl<
         'a,
         F: Float + SampleUniform + for<'b> AddAssign<&'b F>,
-        R: Rng + Clone,
+        R: Rng + SeedableRng + Clone,
         D: Data<Elem = F>,
         T,
     > Fit<'a, ArrayBase<D, Ix2>, T> for KMeansHyperParamsBuilder<F, R>
@@ -395,7 +395,7 @@ pub(crate) fn closest_centroid<F: Float>(
 
 #[cfg(test)]
 mod tests {
-    use super::super::{KMeansInit, RngFunc};
+    use super::super::KMeansInit;
     use super::*;
     use approx::assert_abs_diff_eq;
     use ndarray::{array, stack, Array, Array1, Array2, Axis};
@@ -417,11 +417,6 @@ mod tests {
         y
     }
 
-    fn isaac_rng(seed: u64) -> f64 {
-        let mut rng = Isaac64Rng::seed_from_u64(seed);
-        rng.gen_range(0.0, 1.0)
-    }
-
     #[test]
     fn test_n_runs() {
         let mut rng = Isaac64Rng::seed_from_u64(42);
@@ -432,7 +427,7 @@ mod tests {
         for init in &[
             KMeansInit::Random,
             KMeansInit::KMeansPlusPlus,
-            KMeansInit::KMeansPara(isaac_rng as RngFunc<f64>),
+            KMeansInit::KMeansPara,
         ] {
             // First clustering with one iteration
             let dataset = DatasetBase::from(data.clone());

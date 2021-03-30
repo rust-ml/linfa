@@ -4,8 +4,8 @@ use crate::k_means::KMeans;
 use linfa::{traits::*, DatasetBase, Float};
 use ndarray::{s, Array, Array1, Array2, Array3, ArrayBase, Axis, Data, Ix2, Ix3, Zip};
 use ndarray_linalg::{cholesky::*, triangular::*, Lapack, Scalar};
-use ndarray_rand::rand::distributions::uniform::SampleUniform;
 use ndarray_rand::rand::Rng;
+use ndarray_rand::rand::{distributions::uniform::SampleUniform, SeedableRng};
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
 use ndarray_stats::QuantileExt;
@@ -123,7 +123,7 @@ impl<F: Float> Clone for GaussianMixtureModel<F> {
 impl<F: Float + Lapack + Scalar + SampleUniform + for<'b> AddAssign<&'b F>>
     GaussianMixtureModel<F>
 {
-    fn new<D: Data<Elem = F>, R: Rng + Clone, T>(
+    fn new<D: Data<Elem = F>, R: Rng + SeedableRng + Clone, T>(
         hyperparameters: &GmmHyperParams<F, R>,
         dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
         mut rng: R,
@@ -399,7 +399,7 @@ impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
 impl<
         'a,
         F: Float + Lapack + Scalar + SampleUniform + for<'b> AddAssign<&'b F>,
-        R: Rng + Clone,
+        R: Rng + SeedableRng + Clone,
         D: Data<Elem = F>,
         T,
     > Fit<'a, ArrayBase<D, Ix2>, T> for GmmHyperParams<F, R>

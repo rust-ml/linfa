@@ -6,11 +6,8 @@ use linfa::traits::Fit;
 use linfa::DatasetBase;
 use linfa_clustering::{generate_blobs, KMeans, KMeansInit};
 use ndarray::Array2;
-use ndarray_rand::{rand::Rng, RandomExt};
-use ndarray_rand::{
-    rand::{rngs::SmallRng, SeedableRng},
-    rand_distr::Uniform,
-};
+use ndarray_rand::RandomExt;
+use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform};
 use rand_isaac::Isaac64Rng;
 
 fn k_means_bench(c: &mut Criterion) {
@@ -45,15 +42,8 @@ fn k_means_bench(c: &mut Criterion) {
 }
 
 fn k_means_init_bench(c: &mut Criterion) {
-    fn small_rng(seed: u64) -> f64 {
-        SmallRng::seed_from_u64(seed).gen_range(0.0, 1.0)
-    }
-
     let mut rng = Isaac64Rng::seed_from_u64(40);
-    let init_methods = [
-        KMeansInit::KMeansPlusPlus,
-        KMeansInit::KMeansPara(small_rng),
-    ];
+    let init_methods = [KMeansInit::KMeansPlusPlus, KMeansInit::KMeansPara];
     let cluster_sizes = [(100, 10), (3000, 10), (400, 30), (500, 100)];
     let n_features = 3;
 
