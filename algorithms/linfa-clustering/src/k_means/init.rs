@@ -16,10 +16,13 @@ use std::{
 pub enum KMeansInit {
     /// Pick random points as centroids.
     Random,
-    /// K-means++ algorithm.
+    /// K-means++ algorithm. Using this over random initialization causes K-means to converge
+    /// faster for almost all cases, since K-means++ produces better centroids.
     KMeansPlusPlus,
-    /// K-means|| algorithm, which is a more scalable version of K-means++ that yields similar
-    /// results. Details can be found [here](http://vldb.org/pvldb/vol5/p622_bahmanbahmani_vldb2012.pdf).
+    /// K-means|| algorithm, a parallelized version of K-means++. Performs much better than
+    /// K-means++ when the number of clusters is large (>100) while producing similar centroids, so
+    /// use this for larger datasets.  Details on the algorithm can be found
+    /// [here](http://vldb.org/pvldb/vol5/p622_bahmanbahmani_vldb2012.pdf).
     KMeansPara,
 }
 
@@ -110,8 +113,8 @@ fn k_means_plusplus<F: Float + SampleUniform + for<'a> AddAssign<&'a F>>(
 /// KMeans|| initialization algorithm
 /// In each iteration, pick some new "candidate centroids" by sampling the probabilities of each
 /// input point in parallel. The probability of a point becoming a centroid is the same as with
-/// KMeans++. After multiple iterations, run KMeans++ on the candidates to produce the final set of
-/// centroids.
+/// KMeans++. After multiple iterations, run weighted KMeans++ on the candidates to produce the
+/// final set of centroids.
 fn k_means_para<R: Rng + SeedableRng, F: Float + SampleUniform + for<'b> AddAssign<&'b F>>(
     n_clusters: usize,
     observations: ArrayView2<F>,
@@ -141,7 +144,7 @@ fn k_means_para<R: Rng + SeedableRng, F: Float + SampleUniform + for<'b> AddAssi
         let next_candidates_idx = sample_subsequent_candidates::<R, _>(
             &dists,
             F::from(candidates_per_round).unwrap(),
-            rng.gen_range(0, 100000),
+            rng.gen_range(0, n_samples as u64),
         );
 
         // Append the newly generated candidates to the current cadidates, breaking out of the loop
@@ -166,11 +169,8 @@ fn k_means_para<R: Rng + SeedableRng, F: Float + SampleUniform + for<'b> AddAssi
     weighted_k_means_plusplus(n_clusters, final_candidates, weights.view(), rng)
 }
 
-/// Generate candidate centroids by sampling each observation in parallel using a supplied random
-/// number generation function.
-/// `rng_func` must return a number between 0 and 1.
-/// Using `rng_func` is the easiest way to generate a random number in a Rayon thread, since
-/// cloning the actual RNG is expensive.
+/// Generate candidate centroids by sampling each observation in parallel using a seedable RNG in
+/// every thread. Average number of generated candidates should equal `multiplier`.
 fn sample_subsequent_candidates<R: Rng + SeedableRng, F: Float>(
     dists: &Array1<F>,
     multiplier: F,
@@ -178,10 +178,14 @@ fn sample_subsequent_candidates<R: Rng + SeedableRng, F: Float>(
 ) -> Vec<usize> {
     // This sum can also be parallelized
     let cost = dists.sum();
-
+    // Using an atomic allows the seed to be modified while seeding RNGs in parallel
     let seed = AtomicU64::new(seed);
-    // The sequential alternative to this operation is to taking "multiplier" samples from a
-    // weighted index of "dists". Doing so avoids using rng_func but may lead to slower code.
+
+    // Use `map_init` to generate an unique RNG for each Rayon thread, allowing both RNG creation
+    // and random number generation to be parallelized. Alternative approaches included generating
+    // an RNG for every observation and sequentially taking `multiplier` samples from a weighted
+    // index of `dists`. Generating for every observation was too slow, and the sequential approach
+    // yielded lower-quality centroids, so this approach was chosen. See PR #108 for more details.
     dists
         .axis_iter(Axis(0))
         .into_par_iter()
@@ -190,8 +194,6 @@ fn sample_subsequent_candidates<R: Rng + SeedableRng, F: Float>(
             || R::seed_from_u64(seed.fetch_add(1, Relaxed)),
             move |rng, (i, d)| {
                 let d = *d.into_scalar();
-                // Seed the RNG function with a value unique to the iteration of KMeans|| and the index
-                // of the input point.
                 let rand = F::from(rng.gen_range(0.0, 1.0)).unwrap();
                 let prob = multiplier * d / cost;
                 (i, rand, prob)
