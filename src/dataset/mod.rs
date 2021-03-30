@@ -23,6 +23,7 @@ mod impl_targets;
 mod iter;
 
 pub mod multi_target_model;
+pub mod multi_class_model;
 
 /// Floating point numbers
 ///
