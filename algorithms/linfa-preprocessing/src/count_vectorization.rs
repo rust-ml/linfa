@@ -100,6 +100,7 @@ impl CountVectorizer {
             .iter()
             .map(|s| transform_string(s.to_string(), &self.properties))
         {
+
             let mut document_vocabulary: HashSet<String> = HashSet::new();
             let words = regex.find_iter(&string).map(|mat| mat.as_str()).collect();
             let queue = NGramQueue::new(words, self.properties.n_gram_range);
@@ -112,8 +113,10 @@ impl CountVectorizer {
             }
             for word in document_vocabulary {
                 let len = vocabulary.len();
+                // If vocabulary item was already present then increase its document frequency
                 if let Some((_, freq)) = vocabulary.get_mut(&word) {
                     *freq += 1;
+                // otherwise set it to one
                 } else {
                     vocabulary.insert(word, (len, 1));
                 }
