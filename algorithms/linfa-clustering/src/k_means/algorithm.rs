@@ -420,7 +420,7 @@ mod tests {
     #[test]
     fn test_n_runs() {
         let mut rng = Isaac64Rng::seed_from_u64(42);
-        let xt = Array::random_using(50, Uniform::new(0., 1.), &mut rng).insert_axis(Axis(1));
+        let xt = Array::random_using(100, Uniform::new(0., 1.0), &mut rng).insert_axis(Axis(1));
         let yt = function_test_1d(&xt);
         let data = stack(Axis(1), &[xt.view(), yt.view()]).unwrap();
 
@@ -452,7 +452,7 @@ mod tests {
             assert_eq!(model2.iter_count().len(), 10);
 
             // Check we improve inertia
-            assert!(inertia2 < inertia);
+            assert!(inertia2 <= inertia);
         }
     }
 
