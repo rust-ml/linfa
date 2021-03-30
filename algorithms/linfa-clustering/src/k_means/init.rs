@@ -27,7 +27,7 @@ pub enum KMeansInit<F: Float + SampleUniform + for<'a> AddAssign<&'a F>> {
 
 impl<F: Float + SampleUniform + for<'b> AddAssign<&'b F>> KMeansInit<F> {
     /// Runs the chosen initialization routine
-    pub(crate) fn run(
+    pub fn run(
         &self,
         n_clusters: usize,
         observations: ArrayView2<F>,
