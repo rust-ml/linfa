@@ -126,6 +126,7 @@ use serde_crate::{Deserialize, Serialize};
 pub struct KMeans<F: Float> {
     centroids: Array2<F>,
     iter_count: Array1<usize>,
+    cost: F,
 }
 
 impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>> KMeans<F> {
@@ -149,6 +150,11 @@ impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>> KMeans<F> {
     /// Return the number of iterations taken by each run as an array
     pub fn iter_count(&self) -> &Array1<usize> {
         &self.iter_count
+    }
+
+    /// Return the sum of distances between each training point and its closest centroid
+    pub fn cost(&self) -> F {
+        self.cost
     }
 }
 
@@ -214,6 +220,7 @@ impl<
                 Some(centroids) => Ok(KMeans {
                     centroids,
                     iter_count,
+                    cost: min_inertia,
                 }),
                 _ => Err(KMeansError::InertiaError(
                     "No inertia improvement (-inf)".to_string(),
@@ -256,7 +263,7 @@ impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<usize>> f
 
 /// We compute inertia defined as the sum of the squared distances
 /// of the closest centroid for all observations.
-pub(crate) fn compute_inertia<F: Float>(
+pub fn compute_inertia<F: Float>(
     centroids: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
     observations: &ArrayBase<impl Data<Elem = F>, Ix2>,
     cluster_memberships: &ArrayBase<impl Data<Elem = usize>, Ix1>,
@@ -326,6 +333,17 @@ pub(crate) fn update_cluster_memberships<F: Float>(
         .par_apply(|observation, cluster_membership| {
             *cluster_membership = closest_centroid(&centroids, &observation).0
         });
+}
+
+/// Updates `dists` with the number of distance of each observation from its closest centroid.
+pub(crate) fn update_min_dists<F: Float>(
+    centroids: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
+    observations: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
+    dists: &mut ArrayBase<impl DataMut<Elem = F>, Ix1>,
+) {
+    Zip::from(observations.axis_iter(Axis(0)))
+        .and(dists)
+        .par_apply(|observation, dist| *dist = closest_centroid(&centroids, &observation).1);
 }
 
 /// Given a matrix of centroids with shape (n_centroids, n_features)

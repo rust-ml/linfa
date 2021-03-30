@@ -1,9 +1,7 @@
-use super::algorithm::{closest_centroid, update_cluster_memberships};
+use super::algorithm::{update_cluster_memberships, update_min_dists};
 use linfa::Float;
 use ndarray::parallel::prelude::*;
-use ndarray::{
-    s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, DataMut, Ix1, Ix2, Zip,
-};
+use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
 use ndarray_rand::rand;
 use ndarray_rand::rand::distributions::{uniform::SampleUniform, Distribution, WeightedIndex};
 use ndarray_rand::rand::Rng;
@@ -27,7 +25,7 @@ pub enum KMeansInit<F: Float + SampleUniform + for<'a> AddAssign<&'a F>> {
 
 impl<F: Float + SampleUniform + for<'b> AddAssign<&'b F>> KMeansInit<F> {
     /// Runs the chosen initialization routine
-    pub fn run(
+    pub(crate) fn run(
         &self,
         n_clusters: usize,
         observations: ArrayView2<F>,
@@ -217,17 +215,6 @@ fn cluster_membership_counts<F: Float>(
     let mut counts = Array1::zeros(n_clusters);
     memberships.iter().for_each(|&c| counts[c] += F::one());
     counts
-}
-
-/// Updates `dists` with the number of distance of each observation from its closest centroid.
-fn update_min_dists<F: Float>(
-    centroids: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
-    observations: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
-    dists: &mut ArrayBase<impl DataMut<Elem = F>, Ix1>,
-) {
-    Zip::from(observations.axis_iter(Axis(0)))
-        .and(dists)
-        .par_apply(|observation, dist| *dist = closest_centroid(&centroids, &observation).1);
 }
 
 #[cfg(test)]

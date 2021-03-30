@@ -64,7 +64,9 @@ fn k_means_init_bench(c: &mut Criterion) {
             let rng = &mut rng;
             let centroids =
                 Array2::random_using((n_clusters, n_features), Uniform::new(-30., 30.), rng);
-            let observations = generate_blobs(cluster_size, &centroids, rng);
+            let dataset = DatasetBase::from(generate_blobs(cluster_size, &centroids, rng));
+            let mut total_cost = 0.0;
+            let mut runs = 0;
 
             benchmark.bench_function(
                 BenchmarkId::new(
@@ -72,9 +74,23 @@ fn k_means_init_bench(c: &mut Criterion) {
                     format!("{:?}:{}x{}", init, n_clusters, cluster_size),
                 ),
                 |bencher| {
-                    bencher.iter(|| init.run(n_clusters, observations.view(), rng));
+                    bencher.iter(|| {
+                        // Do 1 run of KMeans with 1 iterations, so it's mostly just the init
+                        // algorithm
+                        let m = KMeans::params_with_rng(black_box(n_clusters), rng.clone())
+                            .init_method(init.clone())
+                            .max_n_iterations(1)
+                            .n_runs(1)
+                            .tolerance(1000.0) // Guaranteed convergence
+                            .fit(&dataset)
+                            .unwrap();
+                        total_cost += m.cost();
+                        runs += 1;
+                    });
                 },
             );
+
+            println!("Average cost = {}", total_cost / runs as f64);
         }
     }
 }
