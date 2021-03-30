@@ -1,14 +1,10 @@
 use super::algorithm::{update_cluster_memberships, update_min_dists};
 use linfa::Float;
-use ndarray::parallel::prelude::*;
 use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
 use ndarray_rand::rand::distributions::{uniform::SampleUniform, Distribution, WeightedIndex};
 use ndarray_rand::rand::Rng;
 use ndarray_rand::rand::{self, SeedableRng};
-use std::{
-    ops::AddAssign,
-    sync::atomic::{AtomicU64, Ordering::Relaxed},
-};
+use std::ops::AddAssign;
 
 #[derive(Clone, Debug, PartialEq)]
 /// Specifies centroid initialization algorithm for KMeans.
@@ -137,11 +133,8 @@ fn k_means_para<R: Rng + SeedableRng, F: Float + SampleUniform + for<'b> AddAssi
         // Generate the next set of candidates from the input points, using the same probability
         // formula as KMeans++. On average this generates candidates equal to
         // `candidates_per_round`.
-        let next_candidates_idx = sample_subsequent_candidates::<R, _>(
-            &dists,
-            F::from(candidates_per_round).unwrap(),
-            rng.gen_range(0, 100000),
-        );
+        let next_candidates_idx =
+            sample_subsequent_candidates::<R, _>(&dists, candidates_per_round, rng);
 
         // Append the newly generated candidates to the current cadidates, breaking out of the loop
         // if too many candidates have been found
@@ -170,34 +163,18 @@ fn k_means_para<R: Rng + SeedableRng, F: Float + SampleUniform + for<'b> AddAssi
 /// `rng_func` must return a number between 0 and 1.
 /// Using `rng_func` is the easiest way to generate a random number in a Rayon thread, since
 /// cloning the actual RNG is expensive.
-fn sample_subsequent_candidates<R: Rng + SeedableRng, F: Float>(
+fn sample_subsequent_candidates<
+    R: Rng + SeedableRng,
+    F: Float + SampleUniform + for<'b> AddAssign<&'b F>,
+>(
     dists: &Array1<F>,
-    multiplier: F,
-    seed: u64,
+    multiplier: usize,
+    rng: &mut R,
 ) -> Vec<usize> {
-    // This sum can also be parallelized
-    let cost = dists.sum();
-
-    let seed = AtomicU64::new(seed);
-    // The sequential alternative to this operation is to taking "multiplier" samples from a
-    // weighted index of "dists". Doing so avoids using rng_func but may lead to slower code.
-    dists
-        .axis_iter(Axis(0))
-        .into_par_iter()
-        .enumerate()
-        .map_init(
-            || R::seed_from_u64(seed.fetch_add(1, Relaxed)),
-            move |rng, (i, d)| {
-                let d = *d.into_scalar();
-                // Seed the RNG function with a value unique to the iteration of KMeans|| and the index
-                // of the input point.
-                let rand = F::from(rng.gen_range(0.0, 1.0)).unwrap();
-                let prob = multiplier * d / cost;
-                (i, rand, prob)
-            },
-        )
-        .filter_map(|(i, rand, prob)| if rand < prob { Some(i) } else { None })
-        .collect()
+    WeightedIndex::new(dists.iter()).map_or_else(
+        |_| vec![0; multiplier],
+        |weights| (0..multiplier).map(|_| weights.sample(rng)).collect(),
+    )
 }
 
 /// Returns the number of observation points that belong to each cluster.
@@ -238,11 +215,12 @@ mod tests {
     #[test]
     fn test_sample_subsequent_candidates() {
         let observations = array![[3.0, 4.0], [1.0, 3.0], [25.0, 15.0]];
-        let dists = array![0.1, 0.4, 0.5];
-        let candidates = sample_subsequent_candidates::<Isaac64Rng, _>(&dists, 4.0, 0);
+        let dists = array![1.0, 0.0, 0.0];
+        let mut rng = Isaac64Rng::seed_from_u64(40);
+        let candidates = sample_subsequent_candidates(&dists, 2, &mut rng);
         assert_eq!(candidates.len(), 2);
-        assert_abs_diff_eq!(observations.row(candidates[0]), observations.row(1));
-        assert_abs_diff_eq!(observations.row(candidates[1]), observations.row(2));
+        assert_abs_diff_eq!(observations.row(candidates[0]), observations.row(0));
+        assert_abs_diff_eq!(observations.row(candidates[1]), observations.row(0));
     }
 
     #[test]
