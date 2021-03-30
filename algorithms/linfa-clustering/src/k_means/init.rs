@@ -11,6 +11,7 @@ use std::{
 };
 
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 /// Specifies centroid initialization algorithm for KMeans.
 pub enum KMeansInit {
     /// Pick random points as centroids.
