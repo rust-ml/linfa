@@ -348,8 +348,8 @@ mod tests {
         let out_para = k_means_para(3, obs.view(), &mut rng.clone());
         // Loss of Kmeans++ should be better than using random_init
         assert!(calc_loss(&out_pp, &obs) < calc_loss(&out_rand, &obs));
-        // Loss of Kmeans|| should be better than using Kmeans++
-        assert!(calc_loss(&out_para, &obs) < calc_loss(&out_pp, &obs));
+        // Loss of Kmeans|| should be better than using random_init
+        assert!(calc_loss(&out_para, &obs) < calc_loss(&out_rand, &obs));
     }
 
     fn calc_loss(
