@@ -31,9 +31,9 @@ impl TfIdfMethod {
 
 /// Simlar to [`CountVectorizer`](studct.CountVectorizer.html) but instead of
 /// just counting the term frequency of each vocabulary entry in each given document,
-/// it computes the termfrequecy times the inverse document frequency, thus giving more importance
+/// it computes the term frequecy times the inverse document frequency, thus giving more importance
 /// to entries that appear many times but only on some documents. The weight function can be adjusted
-/// by setting he appropriate [method](enum.TfIdfMethod.html). This struct provides the same string  
+/// by setting the appropriate [method](enum.TfIdfMethod.html). This struct provides the same string  
 /// processing customizations described in [`CountVectorizer`](studct.CountVectorizer.html).
 pub struct TfIdfVectorizer {
     count_vectorizer: CountVectorizer,

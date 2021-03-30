@@ -150,11 +150,7 @@ impl<F: Float> FittedLinearScaler<F> {
         if records.dim().0 == 0 {
             return Err(Error::NotEnoughSamples);
         }
-        let means = if with_mean {
-            records.mean_axis(Axis(0)).unwrap()
-        } else {
-            Array1::zeros(records.dim().1)
-        };
+        let means = records.mean_axis(Axis(0)).unwrap();
         let std_devs = if with_std {
             records.std_axis(Axis(0), F::zero()).mapv(|s| {
                 if abs_diff_eq!(s, F::zero()) {
@@ -260,7 +256,11 @@ impl<F: Float> Transformer<Array2<F>, Array2<F>> for FittedLinearScaler<F> {
             .and(self.offsets())
             .and(self.scales())
             .apply(|mut col, &offset, &scale| {
-                col.mapv_inplace(|el| (el - offset) * scale);
+                if let ScalingMethod::Standard(false, true) = self.method {
+                    col.mapv_inplace(|el| (el - offset) * scale + offset);
+                } else {
+                    col.mapv_inplace(|el| (el - offset) * scale);
+                }
             });
         match &self.method {
             ScalingMethod::MinMax(min, max) => x * (*max - *min) + *min,
@@ -322,7 +322,7 @@ mod tests {
     fn test_standard_scaler_no_mean() {
         let dataset = array![[1., -1., 2.], [2., 0., 0.], [0., 1., -1.]].into();
         let scaler = LinearScaler::standard_no_mean().fit(&dataset).unwrap();
-        assert_abs_diff_eq!(*scaler.offsets(), array![0., 0., 0.]);
+        assert_abs_diff_eq!(*scaler.offsets(), array![1., 0., 1. / 3.]);
         assert_abs_diff_eq!(
             *scaler.scales(),
             array![1. / 0.81, 1. / 0.81, 1. / 1.24],
@@ -331,11 +331,7 @@ mod tests {
         let transformed = scaler.transform(dataset);
         let means = transformed.records().mean_axis(Axis(0)).unwrap();
         let std_devs = transformed.records().std_axis(Axis(0), 0.);
-        assert_abs_diff_eq!(
-            means,
-            array![1. / 0.81, 0., (1. / 1.24) / 3.],
-            epsilon = 1e-2
-        );
+        assert_abs_diff_eq!(means, array![1., 0., (1. / 3.)], epsilon = 1e-2);
         assert_abs_diff_eq!(std_devs, array![1., 1., 1.]);
     }
 

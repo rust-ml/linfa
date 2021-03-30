@@ -1,7 +1,7 @@
 //! Count vectorization methods
 
 use crate::error::{Error, Result};
-use crate::helpers::NGramQueue;
+use crate::helpers::NGramList;
 use ndarray::{Array1, Array2, ArrayBase, Data, Ix1};
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
@@ -85,7 +85,7 @@ impl CountVectorizer {
     ///
     /// Returns an error if:
     /// * one of the `n_gram` boundaries is set to zero or the minimum value is greater than the maximum value
-    /// * if the minimum document frequency is greater than one or than the maximum frequency, or if the maximum frequecy is  
+    /// * if the minimum document frequency is greater than one or than the maximum frequency, or if the maximum frequency is  
     ///   smaller than zero
     /// * if the regex expression for the split is invalid
     pub fn fit<T: ToString + Clone, D: Data<Elem = T>>(
@@ -100,17 +100,9 @@ impl CountVectorizer {
             .iter()
             .map(|s| transform_string(s.to_string(), &self.properties))
         {
-
-            let mut document_vocabulary: HashSet<String> = HashSet::new();
             let words = regex.find_iter(&string).map(|mat| mat.as_str()).collect();
-            let queue = NGramQueue::new(words, self.properties.n_gram_range);
-            for ngram_items in queue {
-                for item in ngram_items {
-                    // if item was already in the hashet it simply gets overwritten,
-                    // not a problem
-                    document_vocabulary.insert(item);
-                }
-            }
+            let list = NGramList::new(words, self.properties.n_gram_range);
+            let document_vocabulary: HashSet<String> = list.into_iter().flatten().collect();
             for word in document_vocabulary {
                 let len = vocabulary.len();
                 // If vocabulary item was already present then increase its document frequency
@@ -183,7 +175,7 @@ impl FittedCountVectorizer {
         vectorized
     }
 
-    /// Constains all vocabulary entries, in the same order used by the `transform` method.
+    /// Contains all vocabulary entries, in the same order used by the `transform` method.
     pub fn vocabulary(&self) -> &Vec<String> {
         &self.vec_vocabulary
     }
@@ -198,8 +190,8 @@ impl FittedCountVectorizer {
         for (string_index, string) in x.into_iter().map(|s| s.to_string()).enumerate() {
             let string = transform_string(string, &self.properties);
             let words = regex.find_iter(&string).map(|mat| mat.as_str()).collect();
-            let queue = NGramQueue::new(words, self.properties.n_gram_range);
-            for ngram_items in queue {
+            let list = NGramList::new(words, self.properties.n_gram_range);
+            for ngram_items in list {
                 for item in ngram_items {
                     if let Some((item_index, _)) = self.vocabulary.get(&item) {
                         let term_freq = vectorized.get_mut((string_index, *item_index)).unwrap();

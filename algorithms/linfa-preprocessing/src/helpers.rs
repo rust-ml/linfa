@@ -1,24 +1,23 @@
-/// Given a sequence of words, the queue can be iterated to obtain all the n-grams in the sequence,
-/// starting from n-grams of lenght `min` up to n_grams of length `max`. The name "queue" is left from
-/// a previous implementation but I left it because it sounded nice. Suggestions are welcome
-pub struct NGramQueue<T: ToString> {
+/// Given a sequence of words, the list can be iterated to obtain all the n-grams in the sequence,
+/// starting from n-grams of lenght `min` up to n_grams of length `max`.
+pub struct NGramList<T: ToString> {
     min: usize,
     max: usize,
-    queue: Vec<T>,
+    list: Vec<T>,
 }
 
-pub struct NGramQueueIntoIterator<T: ToString> {
-    queue: NGramQueue<T>,
+pub struct NGramListIntoIterator<T: ToString> {
+    list: NGramList<T>,
     index: usize,
 }
 
-impl<T: ToString> Iterator for NGramQueueIntoIterator<T> {
+impl<T: ToString> Iterator for NGramListIntoIterator<T> {
     type Item = Vec<String>;
     fn next(&mut self) -> Option<Self::Item> {
-        if self.index >= self.queue.len() {
+        if self.index >= self.list.len() {
             return None;
         }
-        let res = self.queue.ngram_items(self.index);
+        let res = self.list.ngram_items(self.index);
         if res.is_some() {
             self.index += 1;
             res
@@ -28,53 +27,49 @@ impl<T: ToString> Iterator for NGramQueueIntoIterator<T> {
     }
 }
 
-impl<T: ToString> IntoIterator for NGramQueue<T> {
+impl<T: ToString> IntoIterator for NGramList<T> {
     type Item = Vec<String>;
-    type IntoIter = NGramQueueIntoIterator<T>;
+    type IntoIter = NGramListIntoIterator<T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        NGramQueueIntoIterator {
-            queue: self,
+        NGramListIntoIterator {
+            list: self,
             index: 0,
         }
     }
 }
 
-impl<T: ToString> NGramQueue<T> {
+impl<T: ToString> NGramList<T> {
     pub fn new(vec: Vec<T>, range: (usize, usize)) -> Self {
         Self {
             min: range.0,
             max: range.1,
-            queue: vec,
+            list: vec,
         }
     }
 
     pub fn len(&self) -> usize {
-        self.queue.len()
+        self.list.len()
     }
 
     /// Constructs all n-grams obtainable from the word sequence starting from the word at `index`
     pub fn ngram_items(&self, index: usize) -> Option<Vec<String>> {
         let mut items = Vec::new();
-        let len = self.queue.len();
+        let len = self.list.len();
         let min_end = index + self.min;
         if min_end > len {
             return None;
         }
-        let max_end = if (index + self.max) < len {
-            index + self.max
-        } else {
-            len
-        };
-        let mut item = self.queue[index].to_string();
+        let max_end = usize::min(index + self.max, len);
+        let mut item = self.list[index].to_string();
         for j in (index + 1)..min_end {
             item.push_str(" ");
-            item.push_str(&self.queue[j].to_string());
+            item.push_str(&self.list[j].to_string());
         }
         items.push(item.clone());
         for j in min_end..max_end {
             item.push_str(" ");
-            item.push_str(&self.queue[j].to_string());
+            item.push_str(&self.list[j].to_string());
             items.push(item.clone())
         }
         Some(items)
@@ -105,19 +100,19 @@ mod tests {
             "three;four",
             "four",
         ];
-        let queue = NGramQueue::new(words.clone(), (1, 1));
-        for (i, items) in queue.into_iter().enumerate() {
+        let list = NGramList::new(words.clone(), (1, 1));
+        for (i, items) in list.into_iter().enumerate() {
             assert_eq!(items.len(), 1);
             assert_eq!(items[0], words[i].clone());
         }
 
-        let queue = NGramQueue::new(words.clone(), (2, 2));
-        for (i, items) in queue.into_iter().enumerate() {
+        let list = NGramList::new(words.clone(), (2, 2));
+        for (i, items) in list.into_iter().enumerate() {
             assert_eq!(items.len(), 1);
             assert_eq!(items[0], words[i].to_string() + " " + words[i + 1]);
         }
-        let queue = NGramQueue::new(words.clone(), (1, 2));
-        for (i, items) in queue.into_iter().enumerate() {
+        let list = NGramList::new(words.clone(), (1, 2));
+        for (i, items) in list.into_iter().enumerate() {
             if i < words.len() - 1 {
                 assert_eq!(items.len(), 2);
                 assert_eq!(items[0], words[i]);

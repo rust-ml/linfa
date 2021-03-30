@@ -89,7 +89,7 @@ impl<R: Records, S> DatasetBase<R, S> {
             records,
             targets: self.targets,
             weights: self.weights,
-            feature_names:self.feature_names,
+            feature_names: self.feature_names,
         }
     }
 
