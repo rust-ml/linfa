@@ -144,7 +144,7 @@ fn k_means_para<R: Rng + SeedableRng, F: Float + SampleUniform + for<'b> AddAssi
         let next_candidates_idx = sample_subsequent_candidates::<R, _>(
             &dists,
             F::from(candidates_per_round).unwrap(),
-            rng.gen_range(0, n_samples as u64),
+            rng.gen_range(0, std::u64::MAX),
         );
 
         // Append the newly generated candidates to the current cadidates, breaking out of the loop
