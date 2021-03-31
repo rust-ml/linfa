@@ -48,8 +48,8 @@ pub mod prelude;
 pub mod traits;
 
 pub use dataset::{
-    multi_target_model::MultiTargetModel, Dataset, DatasetBase, DatasetPr, DatasetView, Float,
-    Label,
+    multi_class_model::MultiClassModel, multi_target_model::MultiTargetModel, Dataset, DatasetBase,
+    DatasetPr, DatasetView, Float, Label,
 };
 pub use error::Error;
 
