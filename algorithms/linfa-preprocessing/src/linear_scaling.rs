@@ -502,7 +502,7 @@ mod tests {
         let transformed = scaler.transform(empty.clone());
         assert!(transformed.is_empty());
         let scaler = LinearScaler::max_abs().fit(&dataset).unwrap();
-        let transformed = scaler.transform(empty.clone());
+        let transformed = scaler.transform(empty);
         assert!(transformed.is_empty());
     }
 

@@ -121,6 +121,6 @@ mod tests {
         let scaler = NormScaler::l1();
         assert_abs_diff_eq!(scaler.transform(input.clone()), ground_truth);
         let scaler = NormScaler::l2();
-        assert_abs_diff_eq!(scaler.transform(input.clone()), ground_truth);
+        assert_abs_diff_eq!(scaler.transform(input), ground_truth);
     }
 }

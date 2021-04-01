@@ -1,5 +1,4 @@
 use flate2::read::GzDecoder;
-use iai::black_box;
 use linfa_preprocessing::count_vectorization::CountVectorizer;
 use linfa_preprocessing::tf_idf_vectorization::TfIdfVectorizer;
 use std::path::Path;

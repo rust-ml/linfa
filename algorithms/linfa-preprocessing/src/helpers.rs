@@ -79,7 +79,7 @@ impl<T: ToString> NGramList<T> {
 #[macro_export]
 macro_rules! column_for_word {
     ($voc:expr, $transf:expr, $word: expr ) => {
-        $transf.column($voc.iter().position(|s| *s == $word.to_string()).unwrap())
+        $transf.column($voc.iter().position(|s| s == $word).unwrap())
     };
 }
 
@@ -103,7 +103,7 @@ mod tests {
         let list = NGramList::new(words.clone(), (1, 1));
         for (i, items) in list.into_iter().enumerate() {
             assert_eq!(items.len(), 1);
-            assert_eq!(items[0], words[i].clone());
+            assert_eq!(items[0], words[i]);
         }
 
         let list = NGramList::new(words.clone(), (2, 2));
