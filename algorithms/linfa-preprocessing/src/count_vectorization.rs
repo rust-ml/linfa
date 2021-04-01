@@ -2,9 +2,12 @@
 
 use crate::error::{Error, Result};
 use crate::helpers::NGramList;
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix1};
+use encoding::types::EncodingRef;
+use encoding::DecoderTrap;
+use ndarray::{Array1, Array2, ArrayBase, ArrayViewMut1, Data, Ix1};
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
+use std::io::Read;
 use std::iter::IntoIterator;
 use unicode_normalization::UnicodeNormalization;
 
@@ -100,32 +103,42 @@ impl CountVectorizer {
             .iter()
             .map(|s| transform_string(s.to_string(), &self.properties))
         {
-            let words = regex.find_iter(&string).map(|mat| mat.as_str()).collect();
-            let list = NGramList::new(words, self.properties.n_gram_range);
-            let document_vocabulary: HashSet<String> = list.into_iter().flatten().collect();
-            for word in document_vocabulary {
-                let len = vocabulary.len();
-                // If vocabulary item was already present then increase its document frequency
-                if let Some((_, freq)) = vocabulary.get_mut(&word) {
-                    *freq += 1;
-                // otherwise set it to one
-                } else {
-                    vocabulary.insert(word, (len, 1));
-                }
-            }
+            self.read_document_into_vocabulary(string, &regex, &mut vocabulary);
         }
 
-        let len_f32 = x.len() as f32;
-        let (min_abs_df, max_abs_df) = (
-            (self.properties.document_frequency.0 * len_f32) as usize,
-            (self.properties.document_frequency.1 * len_f32) as usize,
-        );
+        let mut vocabulary = self.filter_vocabulary_by_df(vocabulary, x.len());
+        let vec_vocabulary = hashmap_to_vocabulary(&mut vocabulary);
 
-        let mut vocabulary = vocabulary
-            .into_iter()
-            .filter(|(_, (_, abs_count))| *abs_count >= min_abs_df && *abs_count <= max_abs_df)
-            .collect();
+        Ok(FittedCountVectorizer {
+            vocabulary,
+            vec_vocabulary,
+            properties: self.properties.clone(),
+        })
+    }
 
+    pub fn fit_files(
+        &self,
+        input: &[std::path::PathBuf],
+        encoding: EncodingRef,
+        trap: DecoderTrap,
+    ) -> Result<FittedCountVectorizer> {
+        let regex = validate_properties(&self.properties)?;
+        // word, (integer mapping for word, document frequency for word)
+        let mut vocabulary: HashMap<String, (usize, usize)> = HashMap::new();
+        let documents_count = input.len();
+        for path in input {
+            let mut file = std::fs::File::open(&path)?;
+            let mut document_bytes = Vec::new();
+            file.read_to_end(&mut document_bytes)?;
+            let document = encoding::decode(&document_bytes, trap, encoding).0;
+            if document.is_err() {
+                return Err(crate::error::Error::EncodingError(document.err().unwrap()));
+            }
+            let document = transform_string(document.unwrap(), &self.properties);
+            self.read_document_into_vocabulary(document, &regex, &mut vocabulary);
+        }
+
+        let mut vocabulary = self.filter_vocabulary_by_df(vocabulary, documents_count);
         let vec_vocabulary = hashmap_to_vocabulary(&mut vocabulary);
 
         Ok(FittedCountVectorizer {
@@ -153,6 +166,47 @@ impl CountVectorizer {
             properties: self.properties.clone(),
         })
     }
+
+    fn filter_vocabulary_by_df(
+        &self,
+        vocabulary: HashMap<String, (usize, usize)>,
+        n_documents: usize,
+    ) -> HashMap<String, (usize, usize)> {
+        let (min_df, max_df) = self.properties.document_frequency;
+        let len_f32 = n_documents as f32;
+        let (min_abs_df, max_abs_df) = ((min_df * len_f32) as usize, (max_df * len_f32) as usize);
+
+        if min_abs_df == 0 && max_abs_df == n_documents {
+            vocabulary
+        } else {
+            println!("filtering");
+            vocabulary
+                .into_iter()
+                .filter(|(_, (_, abs_count))| *abs_count >= min_abs_df && *abs_count <= max_abs_df)
+                .collect()
+        }
+    }
+
+    fn read_document_into_vocabulary(
+        &self,
+        doc: String,
+        regex: &Regex,
+        vocabulary: &mut HashMap<String, (usize, usize)>,
+    ) {
+        let words = regex.find_iter(&doc).map(|mat| mat.as_str()).collect();
+        let list = NGramList::new(words, self.properties.n_gram_range);
+        let document_vocabulary: HashSet<String> = list.into_iter().flatten().collect();
+        for word in document_vocabulary {
+            let len = vocabulary.len();
+            // If vocabulary item was already present then increase its document frequency
+            if let Some((_, freq)) = vocabulary.get_mut(&word) {
+                *freq += 1;
+            // otherwise set it to one
+            } else {
+                vocabulary.insert(word, (len, 1));
+            }
+        }
+    }
 }
 
 /// Counts the occurrences of each vocabulary entry, learned during fitting, in a sequence of texts. Each vocabulary entry is mapped
@@ -175,6 +229,16 @@ impl FittedCountVectorizer {
         vectorized
     }
 
+    pub fn transform_files(
+        &self,
+        input: &[std::path::PathBuf],
+        encoding: EncodingRef,
+        trap: DecoderTrap,
+    ) -> Array2<usize> {
+        let (vectorized, _) = self.get_term_and_document_frequencies_files(input, encoding, trap);
+        vectorized
+    }
+
     /// Contains all vocabulary entries, in the same order used by the `transform` method.
     pub fn vocabulary(&self) -> &Vec<String> {
         &self.vec_vocabulary
@@ -188,24 +252,63 @@ impl FittedCountVectorizer {
         let mut document_frequencies = Array1::zeros(self.vocabulary.len());
         let regex = Regex::new(&self.properties.split_regex).unwrap();
         for (string_index, string) in x.into_iter().map(|s| s.to_string()).enumerate() {
-            let string = transform_string(string, &self.properties);
-            let words = regex.find_iter(&string).map(|mat| mat.as_str()).collect();
-            let list = NGramList::new(words, self.properties.n_gram_range);
-            for ngram_items in list {
-                for item in ngram_items {
-                    if let Some((item_index, _)) = self.vocabulary.get(&item) {
-                        let term_freq = vectorized.get_mut((string_index, *item_index)).unwrap();
-                        *term_freq += 1;
-                    }
-                }
-            }
-            for (i, count) in vectorized.row(string_index).iter().enumerate() {
-                if *count > 0 {
-                    document_frequencies[i] += 1;
+            self.analyze_document(
+                string,
+                &regex,
+                vectorized.row_mut(string_index),
+                document_frequencies.view_mut(),
+            );
+        }
+        (vectorized, document_frequencies)
+    }
+
+    pub(crate) fn get_term_and_document_frequencies_files(
+        &self,
+        input: &[std::path::PathBuf],
+        encoding: EncodingRef,
+        trap: DecoderTrap,
+    ) -> (Array2<usize>, Array1<usize>) {
+        let mut vectorized = Array2::zeros((input.len(), self.vocabulary.len()));
+        let mut document_frequencies = Array1::zeros(self.vocabulary.len());
+        let regex = Regex::new(&self.properties.split_regex).unwrap();
+        for (file_index, file_path) in input.iter().enumerate() {
+            let mut file = std::fs::File::open(&file_path).unwrap();
+            let mut document_bytes = Vec::new();
+            file.read_to_end(&mut document_bytes).unwrap();
+            let document = encoding::decode(&document_bytes, trap, encoding).0.unwrap();
+            self.analyze_document(
+                document,
+                &regex,
+                vectorized.row_mut(file_index),
+                document_frequencies.view_mut(),
+            );
+        }
+        (vectorized, document_frequencies)
+    }
+
+    fn analyze_document(
+        &self,
+        document: String,
+        regex: &Regex,
+        mut term_frequencies: ArrayViewMut1<usize>,
+        mut document_frequencies: ArrayViewMut1<usize>,
+    ) {
+        let string = transform_string(document, &self.properties);
+        let words = regex.find_iter(&string).map(|mat| mat.as_str()).collect();
+        let list = NGramList::new(words, self.properties.n_gram_range);
+        for ngram_items in list {
+            for item in ngram_items {
+                if let Some((item_index, _)) = self.vocabulary.get(&item) {
+                    let term_freq = term_frequencies.get_mut(*item_index).unwrap();
+                    *term_freq += 1;
                 }
             }
         }
-        (vectorized, document_frequencies)
+        for (i, count) in term_frequencies.iter().enumerate() {
+            if *count > 0 {
+                document_frequencies[i] += 1;
+            }
+        }
     }
 }
 

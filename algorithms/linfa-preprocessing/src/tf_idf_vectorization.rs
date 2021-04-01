@@ -2,7 +2,9 @@
 
 use crate::count_vectorization::{CountVectorizer, FittedCountVectorizer};
 use crate::error::Result;
-use ndarray::{Array2, ArrayBase, Data, Ix1, Zip};
+use encoding::types::EncodingRef;
+use encoding::DecoderTrap;
+use ndarray::{Array1, Array2, ArrayBase, Data, Ix1, Zip};
 
 #[derive(Clone)]
 /// Methods for computing the inverse document frequency of a vocabulary entry
@@ -115,6 +117,19 @@ impl TfIdfVectorizer {
             method: self.method.clone(),
         })
     }
+
+    pub fn fit_files(
+        &self,
+        input: &[std::path::PathBuf],
+        encoding: EncodingRef,
+        trap: DecoderTrap,
+    ) -> Result<FittedTfIdfVectorizer> {
+        let fitted_vectorizer = self.count_vectorizer.fit_files(input, encoding, trap)?;
+        Ok(FittedTfIdfVectorizer {
+            fitted_vectorizer,
+            method: self.method.clone(),
+        })
+    }
 }
 
 /// Counts the occurrences of each vocabulary entry, learned during fitting, in a sequence of texts and scales them by the inverse document
@@ -141,8 +156,25 @@ impl FittedTfIdfVectorizer {
     ///  Vocabulary entry `j` is the string at the `j`-th position in the vocabulary.
     pub fn transform<T: ToString, D: Data<Elem = T>>(&self, x: &ArrayBase<D, Ix1>) -> Array2<f64> {
         let (term_freqs, doc_freqs) = self.fitted_vectorizer.get_term_and_document_frequencies(x);
+        self.apply_tf_idf(term_freqs, doc_freqs)
+    }
+
+    pub fn transform_files(
+        &self,
+        input: &[std::path::PathBuf],
+        encoding: EncodingRef,
+        trap: DecoderTrap,
+    ) -> Array2<f64> {
+        let (term_freqs, doc_freqs) = self
+            .fitted_vectorizer
+            .get_term_and_document_frequencies_files(input, encoding, trap);
+        self.apply_tf_idf(term_freqs, doc_freqs)
+    }
+
+    fn apply_tf_idf(&self, term_freqs: Array2<usize>, doc_freqs: Array1<usize>) -> Array2<f64> {
         let mut term_freqs = term_freqs.mapv(|x| x as f64);
-        let inv_doc_freqs = doc_freqs.mapv(|doc_freq| self.method.compute_idf(x.len(), doc_freq));
+        let inv_doc_freqs =
+            doc_freqs.mapv(|doc_freq| self.method.compute_idf(term_freqs.dim().0, doc_freq));
         for row in term_freqs.genrows_mut() {
             Zip::from(row)
                 .and(&inv_doc_freqs)

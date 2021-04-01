@@ -2,7 +2,7 @@
 use thiserror::Error;
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Error, Debug, Clone)]
+#[derive(Error, Debug)]
 pub enum Error {
     #[error("wrong measure ({0}) for scaler: {1}")]
     WrongMeasureForScaler(String, String),
@@ -24,4 +24,8 @@ pub enum Error {
     FlippedDocumentFrequencies(f32, f32),
     #[error(transparent)]
     RegexError(#[from] regex::Error),
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+    #[error("Encoding error {0}")]
+    EncodingError(std::borrow::Cow<'static, str>),
 }
