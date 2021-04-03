@@ -1,7 +1,7 @@
 //! Ordinary Least Squares
 #![allow(non_snake_case)]
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2};
-use ndarray_linalg::{Lapack, Scalar, Solve};
+use ndarray_linalg::{Lapack, LeastSquaresSvdInto, Scalar};
 use ndarray_stats::SummaryStatisticsExt;
 use serde::{Deserialize, Serialize};
 
@@ -164,7 +164,7 @@ impl<'a, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> Fit<'a, ArrayBase<
         } else {
             Ok(FittedLinearRegression {
                 intercept: F::from(0).unwrap(),
-                params: solve_normal_equation(X, &y)?,
+                params: solve_least_squares(X, &y)?,
             })
         }
     }
@@ -185,18 +185,17 @@ where
     if normalize {
         let scale: Array1<F> = X.map_axis(Axis(0), |column| column.central_moment(2).unwrap());
         let X: Array2<F> = X / &scale;
-        let mut params: Array1<F> = solve_normal_equation(&X, y)?;
+        let mut params: Array1<F> = solve_least_squares(&X, y)?;
         params /= &scale;
         Ok(params)
     } else {
-        solve_normal_equation(X, y)
+        solve_least_squares(X, y)
     }
 }
 
-/// Solve the overconstrained model Xb = y by solving X^T X b = X^t y,
-/// this is (mathematically, not numerically) equivalent to computing
-/// the solution with the Moore-Penrose pseudo-inverse.
-fn solve_normal_equation<F, B, C>(
+/// Find the b that minimizes the 2-norm of y - X b
+/// by using the least_squares solver from ndarray-linalg
+fn solve_least_squares<F, B, C>(
     X: &ArrayBase<B, Ix2>,
     y: &ArrayBase<C, Ix1>,
 ) -> Result<Array1<F>, String>
@@ -205,10 +204,13 @@ where
     B: Data<Elem = F>,
     C: Data<Elem = F>,
 {
-    let rhs = X.t().dot(y);
-    let linear_operator = X.t().dot(X);
-    linear_operator
-        .solve_into(rhs)
+    // It would be cleaner to use ndarray_linalg::LeastSquaresSvd::least_squares,
+    // but that is currently not possible since ndarray_linalg requires B = C
+    let X = X.to_owned();
+    let y = y.to_owned();
+
+    X.least_squares_into(y)
+        .map(|x| x.solution)
         .map_err(|err| format! {"{}", err})
 }
 
