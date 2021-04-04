@@ -321,7 +321,7 @@ impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<usize>> f
     /// You can retrieve the centroid associated to an index using the
     /// [`centroids` method](#method.centroids).
     fn predict_ref<'a>(&'a self, observations: &ArrayBase<D, Ix2>) -> Array1<usize> {
-        compute_cluster_memberships(&self.centroids, observations)
+        compute_cluster_memberships(&self.centroids, &observations.view())
     }
 }
 
@@ -418,13 +418,13 @@ pub(crate) fn update_min_dists<F: Float>(
 ///
 fn compute_cluster_memberships<F: Float>(
     // (n_centroids, n_features)
-    centroids: &ArrayBase<impl Data<Elem = F>, Ix2>,
+    centroids: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
     // (n_observations, n_features)
-    observations: &ArrayBase<impl Data<Elem = F>, Ix2>,
+    observations: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
 ) -> Array1<usize> {
-    observations.map_axis(Axis(1), |observation| {
-        closest_centroid(&centroids, &observation).0
-    })
+    let mut memberships = Array1::zeros(observations.nrows());
+    update_cluster_memberships(&centroids, &observations, &mut memberships);
+    memberships
 }
 
 /// Given a matrix of centroids with shape (n_centroids, n_features) and an observation,
