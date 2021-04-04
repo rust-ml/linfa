@@ -279,21 +279,12 @@ impl<
 
         let mut memberships = Array1::zeros(n_samples);
         update_cluster_memberships(&model.centroids, &observations, &mut memberships);
-        memberships
-            .iter()
-            .for_each(|&c| model.counts[c] += F::one());
-
-        // We can parallelize this
-        Zip::from(observations.genrows())
-            .and(&memberships)
-            .apply(|obs, &c| {
-                // Moving average of all points in each cluster for this batch.
-                // If cluster is empty for this batch, then this wouldn't even be called, so no
-                // chance of getting NaN.
-                let shift = (&obs - &model.centroids.row(c)).mapv_into(|x| x / model.counts[c]);
-                let mut centroid = model.centroids.row_mut(c);
-                centroid += &shift;
-            });
+        compute_centroids_incremental(
+            &observations,
+            &memberships,
+            &mut model.centroids,
+            &mut model.counts,
+        );
 
         model
     }
@@ -389,6 +380,28 @@ fn compute_centroids<F: Float>(
         .and(&counts)
         .apply(|mut centroid, &cnt| centroid /= F::from(cnt).unwrap());
     centroids
+}
+
+/// Updates `centroids` with the moving average of all observations in each cluster.
+/// Updates `counts` with the number of observations in each cluster.
+fn compute_centroids_incremental<F: Float>(
+    observations: &ArrayBase<impl Data<Elem = F>, Ix2>,
+    cluster_memberships: &ArrayBase<impl Data<Elem = usize>, Ix1>,
+    centroids: &mut ArrayBase<impl DataMut<Elem = F>, Ix2>,
+    counts: &mut ArrayBase<impl DataMut<Elem = F>, Ix1>,
+) {
+    // We can parallelize this
+    Zip::from(observations.genrows())
+        .and(cluster_memberships)
+        .apply(|obs, &c| {
+            // Computes centroids[c] += (observation - centroids[c]) / counts[c]
+            // If cluster is empty for this batch, then this wouldn't even be called, so no
+            // chance of getting NaN.
+            counts[c] += F::one();
+            let shift = (&obs - &centroids.row(c)) / counts[c];
+            let mut centroid = centroids.row_mut(c);
+            centroid += &shift;
+        });
 }
 
 /// Given a matrix of centroids with shape (n_centroids, n_features)
