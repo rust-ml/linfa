@@ -617,4 +617,38 @@ mod tests {
             memberships
         );
     }
+
+    #[test]
+    fn test_compute_centroids_incremental() {
+        let observations = array![[-1.0, -3.0], [0., 0.], [3., 5.], [5., 5.]];
+        let memberships = array![0, 0, 1, 1];
+        let mut centroids = array![[-1., -1.], [3., 4.], [7., 8.]];
+        let mut counts = array![3.0, 0.0, 1.0];
+        compute_centroids_incremental(&observations, &memberships, &mut centroids, &mut counts);
+
+        assert_abs_diff_eq!(centroids, array![[-4. / 5., -6. / 5.], [4., 5.], [7., 8.]]);
+        assert_abs_diff_eq!(counts, array![5., 2., 1.]);
+    }
+
+    #[test]
+    fn test_incremental_kmeans() {
+        let dataset1 = DatasetBase::from(array![[-1.0, -3.0], [0., 0.], [3., 5.], [5., 5.]]);
+        let dataset2 = DatasetBase::from(array![[-5.0, -5.0], [0., 0.], [10., 10.]]);
+        let model = KMeans {
+            centroids: array![[-1., -1.], [3., 4.], [7., 8.]],
+            cluster_count: array![0., 0., 0.],
+            cost: 0.0,
+        };
+        let rng = Isaac64Rng::seed_from_u64(45);
+        let params = KMeans::params_with_rng(3, rng).build();
+
+        let model = params.fit_with(Some(model), &dataset1);
+        assert_abs_diff_eq!(model.centroids(), &array![[-0.5, -1.5], [4., 5.], [7., 8.]]);
+
+        let model = params.fit_with(Some(model), &dataset2);
+        assert_abs_diff_eq!(
+            model.centroids(),
+            &array![[-6. / 4., -8. / 4.], [4., 5.], [10., 10.]]
+        );
+    }
 }
