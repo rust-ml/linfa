@@ -325,6 +325,16 @@ impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<usize>> f
     }
 }
 
+impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix1>, usize> for KMeans<F> {
+    /// Given one input observation, return the index of its closest cluster
+    ///
+    /// You can retrieve the centroid associated to an index using the
+    /// [`centroids` method](#method.centroids).
+    fn predict_ref<'a>(&'a self, observation: &ArrayBase<D, Ix1>) -> usize {
+        closest_centroid(&self.centroids, &observation).0
+    }
+}
+
 /// We compute inertia defined as the sum of the squared distances
 /// of the closest centroid for all observations.
 pub fn compute_inertia<F: Float>(
