@@ -125,7 +125,7 @@ use serde_crate::{Deserialize, Serialize};
 */
 pub struct KMeans<F: Float> {
     centroids: Array2<F>,
-    iter_count: Array1<usize>,
+    cluster_count: Array1<F>,
     cost: F,
 }
 
@@ -147,20 +147,16 @@ impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>> KMeans<F> {
         &self.centroids
     }
 
-    /// Return the number of iterations taken by each run as an array
-    pub fn iter_count(&self) -> &Array1<usize> {
-        &self.iter_count
+    /// Return the number of training points belonging to each cluster
+    pub fn cluster_count(&self) -> &Array1<F> {
+        &self.cluster_count
     }
 
     /// Return the sum of distances between each training point and its closest centroid
+    /// This value is meaningless if model was trained incrementally
     pub fn cost(&self) -> F {
         self.cost
     }
-}
-
-pub struct IncrementalKMeans<F: Float> {
-    centroids: Array2<F>,
-    counts: Array1<F>,
 }
 
 impl<
@@ -188,17 +184,14 @@ impl<
         let mut memberships = Array1::zeros(observations.dim().0);
 
         let n_runs = self.n_runs();
-        let mut iter_count = Array1::zeros(n_runs);
 
-        for r in 0..n_runs {
+        for _ in 0..n_runs {
             let mut inertia = min_inertia;
             let mut centroids = self
                 .init_method()
                 .run(self.n_clusters(), observations, &mut rng);
             let mut converged_iter: Option<u64> = None;
-            let mut iters = 0;
             for n_iter in 0..self.max_n_iterations() {
-                iters += 1;
                 update_cluster_memberships(&centroids, &observations, &mut memberships);
                 let new_centroids = compute_centroids(&centroids, &observations, &memberships);
                 inertia = compute_inertia(&new_centroids, &observations, &memberships);
@@ -211,7 +204,6 @@ impl<
                     break;
                 }
             }
-            iter_count[r] = iters;
 
             // We keep the centroids which minimize the inertia (defined as the sum of
             // the squared distances of the closest centroid for all observations)
@@ -224,11 +216,17 @@ impl<
         }
         match best_iter {
             Some(_n_iter) => match best_centroids {
-                Some(centroids) => Ok(KMeans {
-                    centroids,
-                    iter_count,
-                    cost: min_inertia,
-                }),
+                Some(centroids) => {
+                    let mut cluster_count = Array1::zeros(self.n_clusters());
+                    memberships
+                        .iter()
+                        .for_each(|&c| cluster_count[c] += F::one());
+                    Ok(KMeans {
+                        centroids,
+                        cluster_count,
+                        cost: min_inertia,
+                    })
+                }
                 _ => Err(KMeansError::InertiaError(
                     "No inertia improvement (-inf)".to_string(),
                 )),
@@ -250,8 +248,8 @@ impl<
         T,
     > IncrementalFit<'a, ArrayBase<D, Ix2>, T> for KMeansHyperParams<F, R>
 {
-    type ObjectIn = Option<IncrementalKMeans<F>>;
-    type ObjectOut = IncrementalKMeans<F>;
+    type ObjectIn = Option<KMeans<F>>;
+    type ObjectOut = KMeans<F>;
 
     fn fit_with(
         &self,
@@ -270,9 +268,10 @@ impl<
                 let centroids = self
                     .init_method()
                     .run(self.n_clusters(), observations, &mut rng);
-                IncrementalKMeans {
+                KMeans {
                     centroids,
-                    counts: Array1::zeros(self.n_clusters()),
+                    cluster_count: Array1::zeros(self.n_clusters()),
+                    cost: F::zero(),
                 }
             }
         };
@@ -283,7 +282,7 @@ impl<
             &observations,
             &memberships,
             &mut model.centroids,
-            &mut model.counts,
+            &mut model.cluster_count,
         );
 
         model
@@ -525,7 +524,6 @@ mod tests {
                 .expect("KMeans fitted");
             let clusters = model.predict(dataset);
             let inertia = compute_inertia(model.centroids(), &clusters.records, &clusters.targets);
-            assert_eq!(model.iter_count().len(), 1);
 
             // Second clustering with 10 iterations (default)
             let dataset2 = DatasetBase::from(clusters.records().clone());
@@ -536,7 +534,6 @@ mod tests {
             let clusters2 = model2.predict(dataset2);
             let inertia2 =
                 compute_inertia(model2.centroids(), &clusters2.records, &clusters2.targets);
-            assert_eq!(model2.iter_count().len(), 10);
 
             // Check we improve inertia
             assert!(inertia2 <= inertia);
