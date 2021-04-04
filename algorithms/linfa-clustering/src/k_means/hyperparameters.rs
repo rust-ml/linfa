@@ -90,14 +90,14 @@ impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>, R: Rng + Clone>
     /// having performed validation checks on all the specified hyperparameters.
     ///
     /// **Panics** if any of the validation checks fails.
-    pub fn build(&self) -> KMeansHyperParams<F, R> {
+    pub fn build(self) -> KMeansHyperParams<F, R> {
         KMeansHyperParams::build(
             self.n_clusters,
             self.n_runs,
             self.tolerance,
             self.max_n_iterations,
-            self.init.clone(),
-            self.rng.clone(),
+            self.init,
+            self.rng,
         )
     }
 }

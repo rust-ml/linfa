@@ -289,18 +289,24 @@ impl<
     }
 }
 
-impl<
-        'a,
-        F: Float + SampleUniform + for<'b> AddAssign<&'b F>,
-        R: Rng + SeedableRng + Clone,
-        D: Data<Elem = F>,
-        T,
-    > Fit<'a, ArrayBase<D, Ix2>, T> for KMeansHyperParamsBuilder<F, R>
+impl<'a, F: Float + SampleUniform + for<'b> AddAssign<&'b F>, R: Rng + SeedableRng + Clone>
+    KMeansHyperParamsBuilder<F, R>
 {
-    type Object = Result<KMeans<F>>;
-
-    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Self::Object {
+    /// Shortcut for `.build().fit()`
+    pub fn fit<D: Data<Elem = F>, T>(
+        self,
+        dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
+    ) -> Result<KMeans<F>> {
         self.build().fit(dataset)
+    }
+
+    /// Shortcut for `.build().fit_with()`
+    pub fn fit_with<D: Data<Elem = F>, T>(
+        self,
+        model: Option<KMeans<F>>,
+        dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
+    ) -> KMeans<F> {
+        self.build().fit_with(model, dataset)
     }
 }
 
