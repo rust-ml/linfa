@@ -158,6 +158,11 @@ impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>> KMeans<F> {
     }
 }
 
+pub struct IncrementalKMeans<F: Float> {
+    centroids: Array2<F>,
+    counts: Array1<F>,
+}
+
 impl<
         'a,
         F: Float + SampleUniform + for<'b> AddAssign<&'b F>,
@@ -187,7 +192,9 @@ impl<
 
         for r in 0..n_runs {
             let mut inertia = min_inertia;
-            let mut centroids = self.init().run(self.n_clusters(), observations, &mut rng);
+            let mut centroids = self
+                .init_method()
+                .run(self.n_clusters(), observations, &mut rng);
             let mut converged_iter: Option<u64> = None;
             let mut iters = 0;
             for n_iter in 0..self.max_n_iterations() {
@@ -232,6 +239,63 @@ impl<
                 (n_runs + 1)
             ))),
         }
+    }
+}
+
+impl<
+        'a,
+        F: Float + SampleUniform + for<'b> AddAssign<&'b F>,
+        R: Rng + Clone + SeedableRng,
+        D: Data<Elem = F>,
+        T,
+    > IncrementalFit<'a, ArrayBase<D, Ix2>, T> for KMeansHyperParams<F, R>
+{
+    type ObjectIn = Option<IncrementalKMeans<F>>;
+    type ObjectOut = IncrementalKMeans<F>;
+
+    fn fit_with(
+        &self,
+        model: Self::ObjectIn,
+        dataset: &'a DatasetBase<ArrayBase<D, Ix2>, T>,
+    ) -> Self::ObjectOut {
+        let mut rng = self.rng();
+        let observations = dataset.records().view();
+        let n_samples = observations.nrows();
+
+        let mut model = match model {
+            Some(model) => model,
+            None => {
+                // Initial centroids derived from the first batch instead of the whole dataset
+                // Is this OK?
+                let centroids = self
+                    .init_method()
+                    .run(self.n_clusters(), observations, &mut rng);
+                IncrementalKMeans {
+                    centroids,
+                    counts: Array1::zeros(self.n_clusters()),
+                }
+            }
+        };
+
+        let mut memberships = Array1::zeros(n_samples);
+        update_cluster_memberships(&model.centroids, &observations, &mut memberships);
+        memberships
+            .iter()
+            .for_each(|&c| model.counts[c] += F::one());
+
+        // We can parallelize this
+        Zip::from(observations.genrows())
+            .and(&memberships)
+            .apply(|obs, &c| {
+                // Moving average of all points in each cluster for this batch.
+                // If cluster is empty for this batch, then this wouldn't even be called, so no
+                // chance of getting NaN.
+                let shift = (&obs - &model.centroids.row(c)).mapv_into(|x| x / model.counts[c]);
+                let mut centroid = model.centroids.row_mut(c);
+                centroid += &shift;
+            });
+
+        model
     }
 }
 

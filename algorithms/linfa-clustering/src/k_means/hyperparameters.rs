@@ -164,7 +164,7 @@ impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>, R: Rng + Clone> KMeans
     }
 
     /// Cluster initialization strategy
-    pub fn init(&self) -> &KMeansInit {
+    pub fn init_method(&self) -> &KMeansInit {
         &self.init
     }
 
