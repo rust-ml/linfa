@@ -38,5 +38,9 @@ tar = "0.4.33"
 
 
 [[bench]]
-name = "count_vectorizer_bench"
+name = "vectorizer_bench"
+harness = false
+
+[[bench]]
+name = "linear_scaler_bench"
 harness = false

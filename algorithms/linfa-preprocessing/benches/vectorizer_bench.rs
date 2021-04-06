@@ -61,13 +61,13 @@ fn iai_benchmark_count_vectorizer() {
     let vectorizer = CountVectorizer::default()
         .document_frequency(0.05, 0.5)
         .fit_files(
-            &file_names,
+            iai::black_box(&file_names),
             encoding::all::ISO_8859_1,
             encoding::DecoderTrap::Strict,
         )
         .unwrap();
     let _transformed = vectorizer.transform_files(
-        &file_names,
+        iai::black_box(&file_names),
         encoding::all::ISO_8859_1,
         encoding::DecoderTrap::Strict,
     );

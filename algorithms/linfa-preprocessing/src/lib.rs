@@ -18,8 +18,12 @@ mod helpers;
 pub mod linear_scaling;
 pub mod norm_scaling;
 pub mod tf_idf_vectorization;
+pub mod whitening;
 
-pub trait Float: linfa::Float + ndarray_linalg::Lapack + approx::AbsDiffEq {}
+pub trait Float:
+    linfa::Float + ndarray_linalg::Lapack + approx::AbsDiffEq
+{
+}
 
 impl Float for f32 {}
 impl Float for f64 {}

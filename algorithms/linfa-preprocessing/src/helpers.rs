@@ -54,6 +54,9 @@ impl<T: ToString> NGramList<T> {
 
     /// Constructs all n-grams obtainable from the word sequence starting from the word at `index`
     pub fn ngram_items(&self, index: usize) -> Option<Vec<String>> {
+        if self.max == 1 {
+            return Some(vec![self.list[index].to_string()]);
+        }
         let mut items = Vec::new();
         let len = self.list.len();
         let min_end = index + self.min;

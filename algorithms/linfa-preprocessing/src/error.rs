@@ -28,4 +28,10 @@ pub enum Error {
     IoError(#[from] std::io::Error),
     #[error("Encoding error {0}")]
     EncodingError(std::borrow::Cow<'static, str>),
+    #[error(transparent)]
+    LinalgError(#[from] ndarray_linalg::error::LinalgError),
+    #[error(transparent)]
+    NdarrayLinalgEmptyError(#[from] ndarray_stats::errors::EmptyInput),
+    #[error("Eigenvectors were not computed")]
+    NoneEignenvectors,
 }
