@@ -5,14 +5,13 @@ use linfa::{traits::*, DatasetBase, Float};
 use ndarray::{s, Array, Array1, Array2, Array3, ArrayBase, Axis, Data, Ix2, Ix3, Zip};
 use ndarray_linalg::{cholesky::*, triangular::*, Lapack, Scalar};
 use ndarray_rand::rand::Rng;
-use ndarray_rand::rand::{distributions::uniform::SampleUniform, SeedableRng};
+use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
 use ndarray_stats::QuantileExt;
 use rand_isaac::Isaac64Rng;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
-use std::ops::AddAssign;
 
 #[cfg_attr(
     feature = "serde",
@@ -120,9 +119,7 @@ impl<F: Float> Clone for GaussianMixtureModel<F> {
     }
 }
 
-impl<F: Float + Lapack + Scalar + SampleUniform + for<'b> AddAssign<&'b F>>
-    GaussianMixtureModel<F>
-{
+impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
     fn new<D: Data<Elem = F>, R: Rng + SeedableRng + Clone, T>(
         hyperparameters: &GmmHyperParams<F, R>,
         dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
@@ -396,13 +393,8 @@ impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
     }
 }
 
-impl<
-        'a,
-        F: Float + Lapack + Scalar + SampleUniform + for<'b> AddAssign<&'b F>,
-        R: Rng + SeedableRng + Clone,
-        D: Data<Elem = F>,
-        T,
-    > Fit<'a, ArrayBase<D, Ix2>, T> for GmmHyperParams<F, R>
+impl<'a, F: Float + Lapack + Scalar, R: Rng + SeedableRng + Clone, D: Data<Elem = F>, T>
+    Fit<'a, ArrayBase<D, Ix2>, T> for GmmHyperParams<F, R>
 {
     type Object = Result<GaussianMixtureModel<F>>;
 

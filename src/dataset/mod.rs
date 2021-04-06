@@ -7,12 +7,13 @@ use ndarray::{
     Axis, CowArray, Ix2, Ix3, NdFloat, OwnedRepr,
 };
 use num_traits::{AsPrimitive, FromPrimitive, NumAssignOps, Signed};
+use rand::distributions::uniform::SampleUniform;
 
 use std::cmp::{Ordering, PartialOrd};
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 use std::iter::Sum;
-use std::ops::Deref;
+use std::ops::{AddAssign, Deref, DivAssign, MulAssign, SubAssign};
 
 use crate::error::{Error, Result};
 
@@ -30,7 +31,18 @@ pub mod multi_target_model;
 /// implement them for 32bit and 64bit floating points. They are used in records of a dataset and, for
 /// regression task, in the targets as well.
 pub trait Float:
-    NdFloat + FromPrimitive + Signed + Default + Sum + NumAssignOps + AsPrimitive<usize>
+    NdFloat
+    + FromPrimitive
+    + Signed
+    + Default
+    + Sum
+    + NumAssignOps
+    + AsPrimitive<usize>
+    + for<'a> AddAssign<&'a Self>
+    + for<'a> MulAssign<&'a Self>
+    + for<'a> SubAssign<&'a Self>
+    + for<'a> DivAssign<&'a Self>
+    + SampleUniform
 {
 }
 impl Float for f32 {}
