@@ -466,6 +466,7 @@ mod tests {
     use super::*;
     use crate::generate_blobs;
     use approx::{abs_diff_eq, assert_abs_diff_eq};
+    use lax::error::Error;
     use ndarray::{array, concatenate, ArrayView1, ArrayView2, Axis};
     use ndarray_linalg::error::LinalgError;
     use ndarray_linalg::error::Result as LAResult;
@@ -571,7 +572,8 @@ mod tests {
         assert!(
             match gmm.expect_err("should generate an error with reg_covar being nul") {
                 GmmError::LinalgError(e) => match e {
-                    LinalgError::Lapack(_) => true,
+                    LinalgError::Lapack(Error::LapackComputationalFailure { return_code: 2 }) =>
+                        true,
                     _ => panic!("should be a lapack error 2"),
                 },
                 _ => panic!("should be a linear algebra error"),
@@ -599,7 +601,8 @@ mod tests {
         assert!(
             match gmm.expect_err("should generate an error with reg_covar being nul") {
                 GmmError::LinalgError(e) => match e {
-                    LinalgError::Lapack(_) => true,
+                    LinalgError::Lapack(Error::LapackComputationalFailure { return_code: 1 }) =>
+                        true,
                     _ => panic!("should be a lapack error 1"),
                 },
                 _ => panic!("should be a linear algebra error"),

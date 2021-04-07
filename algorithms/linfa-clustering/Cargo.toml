@@ -30,6 +30,7 @@ features = ["std", "derive"]
 [dependencies]
 ndarray = { version = "0.14", features = ["rayon", "approx"]}
 ndarray-linalg = "0.13"
+lax = "0.1"
 ndarray-rand = "0.13"
 ndarray-stats = "0.4"
 num-traits = "0.2"
