@@ -7,7 +7,7 @@ use tar::Archive;
 
 #[tokio::main]
 async fn download_20news_bydate() -> Vec<std::path::PathBuf> {
-    let file_paths = load_test_filenames();
+    let file_paths = load_train_filenames();
     if file_paths.is_err() {
         let target = "http://qwone.com/~jason/20Newsgroups/20news-bydate.tar.gz";
         let response = reqwest::get(target).await.unwrap();
@@ -15,7 +15,7 @@ async fn download_20news_bydate() -> Vec<std::path::PathBuf> {
         let tar = GzDecoder::new(content.as_slice());
         let mut archive = Archive::new(tar);
         archive.unpack(".").unwrap();
-        load_test_filenames().unwrap()
+        load_train_filenames().unwrap()
     } else {
         file_paths.unwrap()
     }
@@ -39,7 +39,7 @@ fn load_train_filenames() -> Result<Vec<std::path::PathBuf>, std::io::Error> {
     Ok(file_paths)
 }
 
-fn load_test_filenames() -> Result<Vec<std::path::PathBuf>, std::io::Error> {
+fn _load_test_filenames() -> Result<Vec<std::path::PathBuf>, std::io::Error> {
     let mut file_paths = Vec::new();
     let path = Path::new("./20news-bydate-test");
     let dir_content = std::fs::read_dir(path)?;
@@ -55,6 +55,26 @@ fn load_test_filenames() -> Result<Vec<std::path::PathBuf>, std::io::Error> {
         }
     }
     Ok(file_paths)
+}
+
+fn fit_vectorizer(file_names: &Vec<std::path::PathBuf>) {
+    CountVectorizer::default()
+        .fit_files(
+            file_names,
+            encoding::all::ISO_8859_1,
+            encoding::DecoderTrap::Strict,
+        )
+        .unwrap();
+}
+
+fn fit_tf_idf(file_names: &Vec<std::path::PathBuf>) {
+    TfIdfVectorizer::default()
+        .fit_files(
+            file_names,
+            encoding::all::ISO_8859_1,
+            encoding::DecoderTrap::Strict,
+        )
+        .unwrap();
 }
 
 fn fit_transform_vectorizer(file_names: &Vec<std::path::PathBuf>) {
@@ -88,14 +108,20 @@ fn fit_transform_tf_idf(file_names: &Vec<std::path::PathBuf>) {
 
 fn benchmark_count_vectorizer(c: &mut Criterion) {
     let file_names = download_20news_bydate();
-    c.bench_function("count vectorizer", |b| {
+    c.bench_function("count vectorizer fit", |b| {
+        b.iter(|| fit_vectorizer(black_box(&file_names)))
+    });
+    c.bench_function("count vectorizer fit transform", |b| {
         b.iter(|| fit_transform_vectorizer(black_box(&file_names)))
     });
 }
 
 fn benchmark_tf_idf(c: &mut Criterion) {
     let file_names = download_20news_bydate();
-    c.bench_function("tf_idf", |b| {
+    c.bench_function("tf_idf fit ", |b| {
+        b.iter(|| fit_tf_idf(black_box(&file_names)))
+    });
+    c.bench_function("tf_idf fit transform", |b| {
         b.iter(|| fit_transform_tf_idf(black_box(&file_names)))
     });
 }

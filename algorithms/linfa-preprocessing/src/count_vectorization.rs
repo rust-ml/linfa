@@ -4,9 +4,9 @@ use crate::error::{Error, Result};
 use crate::helpers::NGramList;
 use encoding::types::EncodingRef;
 use encoding::DecoderTrap;
-use ndarray::{Array1, Array2, ArrayBase, ArrayViewMut1, Data, Ix1};
+use ndarray::{Array1, ArrayBase, ArrayViewMut1, Data, Ix1};
 use regex::Regex;
-use sprs::{CsMat, CsVec, CsVecViewMut};
+use sprs::{CsMat, CsVec};
 use std::collections::{HashMap, HashSet};
 use std::io::Read;
 use std::iter::IntoIterator;
@@ -22,9 +22,9 @@ pub(crate) struct VectorizerProperties {
     document_frequency: (f32, f32),
 }
 
-/// Count vectorizer: learns a vocabulary from a sequence of texts and maps each
+/// Count vectorizer: learns a vocabulary from a sequence of documents (or file paths) and maps each
 /// vocabulary entry to an integer value, producing a [FittedCountVectorizer](struct.FittedCountVectorizer.html) that can
-/// be used to count the occurrences of each vocabulary entry in any sequence of texts. Alternatively a user-specified vocabulary can
+/// be used to count the occurrences of each vocabulary entry in any sequence of documents. Alternatively a user-specified vocabulary can
 /// be used for fitting.
 ///
 /// ### Attributes
@@ -34,10 +34,10 @@ pub(crate) struct VectorizerProperties {
 ///
 /// * `regex_split`: the regex espression used to split decuments into tokens. Defaults to r"\\b\\w\\w+\\b", which selects "words", using whitespaces and
 /// punctuation symbols as separators.
-/// * `convert_to_lowercase`: if true, all texts used for fitting will be converted to lowercase. Defaults to `true`.
+/// * `convert_to_lowercase`: if true, all documents used for fitting will be converted to lowercase. Defaults to `true`.
 /// * `n_gram_range`: if set to `(1,1)` single words will be candidate vocabulary entries, if `(2,2)` then adjacent words pairs will be considered,
 ///    if `(1,2)` then both single words and adjacent word pairs will be considered, and so on. The default value is `(1,1)`.
-/// * `normalize`: if true, all charachters in the texts used for fitting will be normalized according to unicode's NFKD normalization. Defaults to `true`.
+/// * `normalize`: if true, all charachters in the documents used for fitting will be normalized according to unicode's NFKD normalization. Defaults to `true`.
 /// * `document_frequency`: specifies the minimum and maximum (relative) document frequencies that each vocabulary entry must satisfy. Defaults to `(0., 1.)` (i.e. 0% minimum and 100% maximum)
 ///
 pub struct CountVectorizer {
@@ -84,7 +84,7 @@ impl CountVectorizer {
         self
     }
 
-    /// Learns a vocabulary from the texts in `x`, according to the specified attributes and maps each
+    /// Learns a vocabulary from the documents in `x`, according to the specified attributes and maps each
     /// vocabulary entry to an integer value, producing a [FittedCountVectorizer](struct.FittedCountVectorizer.html).
     ///
     /// Returns an error if:
@@ -117,9 +117,22 @@ impl CountVectorizer {
         })
     }
 
-    pub fn fit_files(
+    /// Learns a vocabulary from the documents contained in the files in `input`, according to the specified attributes and maps each
+    /// vocabulary entry to an integer value, producing a [FittedCountVectorizer](struct.FittedCountVectorizer.html).
+    ///
+    /// The files will be read using the specified `encoding`, and any sequence unrecognized by the encoding will be handled
+    /// according to `trap`.
+    ///
+    /// Returns an error if:
+    /// * one of the `n_gram` boundaries is set to zero or the minimum value is greater than the maximum value
+    /// * if the minimum document frequency is greater than one or than the maximum frequency, or if the maximum frequency is  
+    ///   smaller than zero
+    /// * if the regex expression for the split is invalid
+    /// * if one of the files couldn't be opened
+    /// * if the trap is strict and an unrecognized sequence is encountered in one of the files
+    pub fn fit_files<P: AsRef<std::path::Path>>(
         &self,
-        input: &[std::path::PathBuf],
+        input: &[P],
         encoding: EncodingRef,
         trap: DecoderTrap,
     ) -> Result<FittedCountVectorizer> {
@@ -168,6 +181,9 @@ impl CountVectorizer {
         })
     }
 
+    /// Removes vocabulary items that do not satisfy the document frequencies constraints.
+    /// The total number of documents is needed to convert from relative document frequencies to
+    /// their absolute counterparts.
     fn filter_vocabulary_by_df(
         &self,
         vocabulary: HashMap<String, (usize, usize)>,
@@ -187,6 +203,9 @@ impl CountVectorizer {
         }
     }
 
+    /// Inserts all vocabulary entries learned from a single document (`doc`) into the
+    /// shared `vocabulary`, setting the document frequency to one for new entries and
+    /// incrementing it by one for entries which were already present.
     fn read_document_into_vocabulary(
         &self,
         doc: String,
@@ -209,7 +228,7 @@ impl CountVectorizer {
     }
 }
 
-/// Counts the occurrences of each vocabulary entry, learned during fitting, in a sequence of texts. Each vocabulary entry is mapped
+/// Counts the occurrences of each vocabulary entry, learned during fitting, in a sequence of documents. Each vocabulary entry is mapped
 /// to an integer value that is used to index the count in the result.
 pub struct FittedCountVectorizer {
     pub(crate) vocabulary: HashMap<String, (usize, usize)>,
@@ -218,17 +237,25 @@ pub struct FittedCountVectorizer {
 }
 
 impl FittedCountVectorizer {
-    /// Given a sequence of `n` texts, produces an array of size `(n, vocabulary_entries)` where column `j` of row `i`
-    /// is the number of occurrences of vocabulary entry `j` in the text of index `i`. Vocabulary entry `j` is the string
-    /// at the `j`-th position in the vocabulary.
+    /// Given a sequence of `n` documents, produces a sparse array of size `(n, vocabulary_entries)` where column `j` of row `i`
+    /// is the number of occurrences of vocabulary entry `j` in the document of index `i`. Vocabulary entry `j` is the string
+    /// at the `j`-th position in the vocabulary. If a vocabulary entry was not encountered in a document, then the relative
+    /// cell in the sparse matrix will be set to `None`.
     pub fn transform<T: ToString, D: Data<Elem = T>>(&self, x: &ArrayBase<D, Ix1>) -> CsMat<usize> {
         let (vectorized, _) = self.get_term_and_document_frequencies(x);
         vectorized
     }
 
-    pub fn transform_files(
+    /// Given a sequence of `n` file names, produces a sparse array of size `(n, vocabulary_entries)` where column `j` of row `i`
+    /// is the number of occurrences of vocabulary entry `j` in the document contained in the file of index `i`. Vocabulary entry `j` is the string
+    /// at the `j`-th position in the vocabulary. If a vocabulary entry was not encountered in a document, then the relative
+    /// cell in the sparse matrix will be set to `None`.
+    ///
+    /// The files will be read using the specified `encoding`, and any sequence unrecognized by the encoding will be handled
+    /// according to `trap`.
+    pub fn transform_files<P: AsRef<std::path::Path>>(
         &self,
-        input: &[std::path::PathBuf],
+        input: &[P],
         encoding: EncodingRef,
         trap: DecoderTrap,
     ) -> CsMat<usize> {
@@ -236,11 +263,13 @@ impl FittedCountVectorizer {
         vectorized
     }
 
-    /// Contains all vocabulary entries, in the same order used by the `transform` method.
+    /// Contains all vocabulary entries, in the same order used by the `transform` methods.
     pub fn vocabulary(&self) -> &Vec<String> {
         &self.vec_vocabulary
     }
 
+    /// Counts the occurrence of each vocabulary entry in each document and keeps track of the overall
+    /// document frequency of each entry.
     pub(crate) fn get_term_and_document_frequencies<T: ToString, D: Data<Elem = T>>(
         &self,
         x: &ArrayBase<D, Ix1>,
@@ -256,9 +285,11 @@ impl FittedCountVectorizer {
         (sprs_vectorized, document_frequencies)
     }
 
-    pub(crate) fn get_term_and_document_frequencies_files(
+    /// Counts the occurrence of each vocabulary entry in each document and keeps track of the overall
+    /// document frequency of each entry.
+    pub(crate) fn get_term_and_document_frequencies_files<P: AsRef<std::path::Path>>(
         &self,
-        input: &[std::path::PathBuf],
+        input: &[P],
         encoding: EncodingRef,
         trap: DecoderTrap,
     ) -> (CsMat<usize>, Array1<usize>) {
@@ -271,13 +302,27 @@ impl FittedCountVectorizer {
             let mut document_bytes = Vec::new();
             file.read_to_end(&mut document_bytes).unwrap();
             let document = encoding::decode(&document_bytes, trap, encoding).0.unwrap();
-            sprs_vectorized =
-                sprs_vectorized.append_outer_csvec(self.analyze_document(document, &regex, document_frequencies.view_mut()).view());
+            sprs_vectorized = sprs_vectorized.append_outer_csvec(
+                self.analyze_document(document, &regex, document_frequencies.view_mut())
+                    .view(),
+            );
         }
         (sprs_vectorized, document_frequencies)
     }
 
-    fn analyze_document(&self, document: String, regex: &Regex, mut doc_freqs: ArrayViewMut1<usize>) -> CsVec<usize> {
+    /// Produces a sparse array which counts the occurrences of each vocbulary entry in the given document. Also increases
+    /// the document frequency of all entries found.
+    fn analyze_document(
+        &self,
+        document: String,
+        regex: &Regex,
+        mut doc_freqs: ArrayViewMut1<usize>,
+    ) -> CsVec<usize> {
+        // A dense array is needed to parse each document, since sparse arrays can be mutated only
+        // if all insertions are made with increasing index. Since  vocabulary entries can be
+        // encountered in any order this condition does not hold true in this case.
+        // However, keeping only one dense array at a time, greatly limits memory consumption
+        // in sparse cases.
         let mut term_frequencies: Array1<usize> = Array1::zeros(self.vocabulary.len());
         let string = transform_string(document, &self.properties);
         let words = regex.find_iter(&string).map(|mat| mat.as_str()).collect();
@@ -291,6 +336,8 @@ impl FittedCountVectorizer {
             }
         }
         let mut sprs_term_frequencies = CsVec::empty(self.vocabulary.len());
+
+        // only insert non-zero elements in order to keep a sparse representation
         for (i, freq) in term_frequencies
             .into_iter()
             .enumerate()
@@ -322,11 +369,11 @@ fn validate_properties(properties: &VectorizerProperties) -> Result<Regex> {
 }
 
 fn transform_string(mut string: String, properties: &VectorizerProperties) -> String {
-    if properties.convert_to_lowercase {
-        string = string.to_lowercase();
-    }
     if properties.normalize {
         string = string.nfkd().collect();
+    }
+    if properties.convert_to_lowercase {
+        string = string.to_lowercase();
     }
     string
 }
@@ -346,6 +393,8 @@ mod tests {
     use super::*;
     use crate::column_for_word;
     use ndarray::array;
+    use std::fs::File;
+    use std::io::Write;
 
     macro_rules! assert_counts_for_word {
 
@@ -538,6 +587,101 @@ mod tests {
     }
 
     #[test]
+    fn test_fit_transform_files() {
+        let text_files = create_test_files();
+        let vectorizer = CountVectorizer::default()
+            .fit_files(
+                &text_files[..],
+                encoding::all::UTF_8,
+                encoding::DecoderTrap::Strict,
+            )
+            .unwrap();
+        let vocabulary = vectorizer.vocabulary();
+        let counts = vectorizer
+            .transform_files(
+                &text_files[..],
+                encoding::all::UTF_8,
+                encoding::DecoderTrap::Strict,
+            )
+            .to_dense();
+        let true_vocabulary = vec!["one", "two", "three", "four"];
+        assert_vocabulary_eq(&true_vocabulary, &vocabulary);
+        assert_counts_for_word!(
+            vocabulary,
+            counts,
+            ("one", array![1, 0, 0, 0]),
+            ("two", array![1, 1, 0, 0]),
+            ("three", array![1, 1, 1, 0]),
+            ("four", array![1, 1, 1, 1])
+        );
+
+        let vectorizer = CountVectorizer::default()
+            .n_gram_range(2, 2)
+            .fit_files(
+                &text_files[..],
+                encoding::all::UTF_8,
+                encoding::DecoderTrap::Strict,
+            )
+            .unwrap();
+        let vocabulary = vectorizer.vocabulary();
+        let counts = vectorizer
+            .transform_files(
+                &text_files[..],
+                encoding::all::UTF_8,
+                encoding::DecoderTrap::Strict,
+            )
+            .to_dense();
+        let true_vocabulary = vec!["one two", "two three", "three four"];
+        assert_vocabulary_eq(&true_vocabulary, &vocabulary);
+        assert_counts_for_word!(
+            vocabulary,
+            counts,
+            ("one two", array![1, 0, 0, 0]),
+            ("two three", array![1, 1, 0, 0]),
+            ("three four", array![1, 1, 1, 0])
+        );
+
+        let vectorizer = CountVectorizer::default()
+            .n_gram_range(1, 2)
+            .fit_files(
+                &text_files[..],
+                encoding::all::UTF_8,
+                encoding::DecoderTrap::Strict,
+            )
+            .unwrap();
+        let vocabulary = vectorizer.vocabulary();
+        let counts = vectorizer
+            .transform_files(
+                &text_files[..],
+                encoding::all::UTF_8,
+                encoding::DecoderTrap::Strict,
+            )
+            .to_dense();
+        let true_vocabulary = vec![
+            "one",
+            "one two",
+            "two",
+            "two three",
+            "three",
+            "three four",
+            "four",
+        ];
+        assert_vocabulary_eq(&true_vocabulary, &vocabulary);
+        assert_counts_for_word!(
+            vocabulary,
+            counts,
+            ("one", array![1, 0, 0, 0]),
+            ("one two", array![1, 0, 0, 0]),
+            ("two", array![1, 1, 0, 0]),
+            ("two three", array![1, 1, 0, 0]),
+            ("three", array![1, 1, 1, 0]),
+            ("three four", array![1, 1, 1, 0]),
+            ("four", array![1, 1, 1, 1])
+        );
+        delete_test_files(&text_files);
+    }
+
+    #[test]
     fn test_invalid_gram_boundaries() {
         let texts = array!["oNe two three four", "TWO three four", "three;four", "four"];
         let vectorizer = CountVectorizer::default().n_gram_range(0, 1).fit(&texts);
@@ -572,5 +716,27 @@ mod tests {
             assert!(voc.contains(&word.to_string()));
         }
         assert_eq!(true_voc.len(), voc.len());
+    }
+
+    fn create_test_files() -> Vec<&'static str> {
+        let file_names = vec![
+            "./count_vectorization_test_file_1",
+            "./count_vectorization_test_file_2",
+            "./count_vectorization_test_file_3",
+            "./count_vectorization_test_file_4",
+        ];
+        let contents = vec!["oNe two three four", "TWO three four", "three;four", "four"];
+        //create files and write contents
+        for (f_name, f_content) in file_names.iter().zip(contents.iter()) {
+            let mut file = File::create(f_name).unwrap();
+            file.write_all(f_content.as_bytes()).unwrap();
+        }
+        file_names
+    }
+
+    fn delete_test_files(file_names: &Vec<&'static str>) {
+        for f_name in file_names.iter() {
+            std::fs::remove_file(f_name).unwrap();
+        }
     }
 }

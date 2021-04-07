@@ -1,4 +1,9 @@
 //! Methods for uncorrelating data
+//!
+//! Whitening refers to a collection of methods that, given in input a matrix `X` of records with
+//! covariance matrix =  `sigma`, output a whitening matrix `W` such that `W.T`*`W` = `sigma`.
+//! Appliyng the whitening matrix `W` to the input data gives a new data matrix `Y` such that `Y` has
+//! unit diagonal (white) covariance matrix.
 
 use crate::error::{Error, Result};
 use crate::Float;
@@ -6,7 +11,7 @@ use linfa::dataset::AsTargets;
 use linfa::dataset::Records;
 use linfa::traits::{Fit, Transformer};
 use linfa::DatasetBase;
-use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2};
+use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
 use ndarray_linalg::cholesky::{Cholesky, UPLO};
 use ndarray_linalg::solve::Inverse;
 use ndarray_linalg::svd::SVD;
@@ -17,31 +22,27 @@ pub enum WhiteningMethod {
     Cholesky,
 }
 
+/// Struct that can be fitted to the input data to obtain the related whitening matrix.
+/// Fitting returns a [FittedWhitener](struct.FittedWhitener.html) struct that can be used to
+/// apply the whitening transformation to the input data.
 pub struct Whitener {
     method: WhiteningMethod,
 }
 
-impl std::default::Default for Whitener {
-    fn default() -> Whitener {
-        Whitener {
-            method: WhiteningMethod::Pca,
-        }
-    }
-}
-
 impl Whitener {
+    /// Creates an instance of a Whitener that uses the PCA method
     pub fn pca() -> Self {
         Self {
             method: WhiteningMethod::Pca,
         }
     }
-
+    /// Creates an instance of a Whitener that uses the ZCA (Mahalanobis) method
     pub fn zca() -> Self {
         Self {
             method: WhiteningMethod::Zca,
         }
     }
-
+    /// Creates an instance of a Whitener that uses the cholesky decomposition of the inverse of the covariance matrix
     pub fn cholesky() -> Self {
         Self {
             method: WhiteningMethod::Cholesky,
@@ -53,8 +54,6 @@ impl Whitener {
         self
     }
 }
-
-//ZCAMatrix = np.dot(U, np.dot(np.diag(1.0/np.sqrt(S + epsilon)), U.T)) # [M x M]
 
 impl<'a, F: Float + approx::AbsDiffEq, D: Data<Elem = F>, T: AsTargets>
     Fit<'a, ArrayBase<D, Ix2>, T> for Whitener
@@ -112,9 +111,27 @@ impl<'a, F: Float + approx::AbsDiffEq, D: Data<Elem = F>, T: AsTargets>
     }
 }
 
+/// Struct that can be used to whiten data. Data will be scaled according to the whitening matrix learned
+/// during fitting.
+/// Obtained by fitting a [Whitener](struct.Whitener.html).
+///
+/// Transforming the data used during fitting will yield a scaled data matrix with
+/// unit diagonal covariance matrix.
 pub struct FittedWhitener<F: Float> {
-    pub(crate) transformation_matrix: Array2<F>,
-    pub(crate) mean: Array1<F>,
+    transformation_matrix: Array2<F>,
+    mean: Array1<F>,
+}
+
+impl<F: Float> FittedWhitener<F> {
+    /// The matrix used for scaling the data
+    pub fn transformation_matrix(&self) -> ArrayView2<F> {
+        self.transformation_matrix.view()
+    }
+
+    /// The means that will be subtracted to the features before scaling the data
+    pub fn mean(&self) -> ArrayView1<F> {
+        self.mean.view()
+    }
 }
 
 impl<F: Float> Transformer<Array2<F>, Array2<F>> for FittedWhitener<F> {
@@ -164,9 +181,9 @@ mod tests {
         let dataset = Array2::random_using((1000, 7), Uniform::from(-30. ..30.), &mut rng).into();
         let whitener = Whitener::zca().fit(&dataset).unwrap();
         let inv_cov_est = whitener
-            .transformation_matrix
+            .transformation_matrix()
             .t()
-            .dot(&whitener.transformation_matrix);
+            .dot(&whitener.transformation_matrix());
         let inv_cov = inv_cov(dataset.records());
         assert_abs_diff_eq!(inv_cov, inv_cov_est, epsilon = 1e-9);
     }
@@ -177,9 +194,9 @@ mod tests {
         let dataset = Array2::random_using((1000, 7), Uniform::from(-30. ..30.), &mut rng).into();
         let whitener = Whitener::cholesky().fit(&dataset).unwrap();
         let inv_cov_est = whitener
-            .transformation_matrix
+            .transformation_matrix()
             .t()
-            .dot(&whitener.transformation_matrix);
+            .dot(&whitener.transformation_matrix());
         let inv_cov = inv_cov(dataset.records());
         assert_abs_diff_eq!(inv_cov, inv_cov_est, epsilon = 1e-10);
     }
@@ -190,9 +207,9 @@ mod tests {
         let dataset = Array2::random_using((1000, 7), Uniform::from(-30. ..30.), &mut rng).into();
         let whitener = Whitener::pca().fit(&dataset).unwrap();
         let inv_cov_est = whitener
-            .transformation_matrix
+            .transformation_matrix()
             .t()
-            .dot(&whitener.transformation_matrix);
+            .dot(&whitener.transformation_matrix());
         let inv_cov = inv_cov(dataset.records());
         assert_abs_diff_eq!(inv_cov, inv_cov_est, epsilon = 1e-10);
     }
@@ -225,5 +242,13 @@ mod tests {
         let whitened = whitener.transform(dataset);
         let cov = cov(whitened.records());
         assert_abs_diff_eq!(cov, Array2::eye(cov.dim().0), epsilon = 1e-10)
+    }
+
+    #[test]
+    fn test_train_val_matrix() {
+        let (train, val) = linfa_datasets::diabetes().split_with_ratio(0.9);
+        let whitener = Whitener::pca().fit(&train).unwrap();
+        let _whitened_train = whitener.transform(train);
+        let _whitened_val = whitener.transform(val);
     }
 }

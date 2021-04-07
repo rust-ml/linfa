@@ -4,7 +4,7 @@ use crate::count_vectorization::{CountVectorizer, FittedCountVectorizer};
 use crate::error::Result;
 use encoding::types::EncodingRef;
 use encoding::DecoderTrap;
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix1, Zip};
+use ndarray::{Array1, ArrayBase, Data, Ix1};
 use sprs::CsMat;
 
 #[derive(Clone)]
@@ -119,9 +119,9 @@ impl TfIdfVectorizer {
         })
     }
 
-    pub fn fit_files(
+    pub fn fit_files<P: AsRef<std::path::Path>>(
         &self,
-        input: &[std::path::PathBuf],
+        input: &[P],
         encoding: EncodingRef,
         trap: DecoderTrap,
     ) -> Result<FittedTfIdfVectorizer> {
@@ -160,9 +160,9 @@ impl FittedTfIdfVectorizer {
         self.apply_tf_idf(term_freqs, doc_freqs)
     }
 
-    pub fn transform_files(
+    pub fn transform_files<P: AsRef<std::path::Path>>(
         &self,
-        input: &[std::path::PathBuf],
+        input: &[P],
         encoding: EncodingRef,
         trap: DecoderTrap,
     ) -> CsMat<f64> {
@@ -192,6 +192,8 @@ mod tests {
     use crate::column_for_word;
     use approx::assert_abs_diff_eq;
     use ndarray::array;
+    use std::fs::File;
+    use std::io::Write;
 
     macro_rules! assert_tf_idfs_for_word {
 
@@ -233,5 +235,74 @@ mod tests {
             ("singletons", array![0.0, 0.0, 0.0, 0.0, 2.098]),
             ("maybe", array![0.0, 0.0, 0.0, 2.098, 0.0])
         );
+    }
+
+    #[test]
+    fn test_tf_idf_files() {
+        let text_files = create_test_files();
+        let vectorizer = TfIdfVectorizer::default()
+            .fit_files(
+                &text_files,
+                encoding::all::UTF_8,
+                encoding::DecoderTrap::Strict,
+            )
+            .unwrap();
+        let vocabulary = vectorizer.vocabulary();
+        let transformed = vectorizer
+            .transform_files(
+                &text_files,
+                encoding::all::UTF_8,
+                encoding::DecoderTrap::Strict,
+            )
+            .to_dense();
+        assert_eq!(transformed.dim(), (text_files.len(), vocabulary.len()));
+        assert_tf_idfs_for_word!(
+            vocabulary,
+            transformed,
+            ("one", array![1.693, 0.0, 0.0, 0.0, 1.693]),
+            ("two", array![1.693, 0.0, 0.0, 0.0, 1.693]),
+            ("three", array![1.693, 1.693, 0.0, 0.0, 0.0]),
+            ("four", array![0.0, 1.693, 0.0, 0.0, 1.693]),
+            ("and", array![2.0, 2.0, 1.0, 1.0, 2.0]),
+            ("five", array![0.0, 1.693, 0.0, 0.0, 1.693]),
+            ("seven", array![0.0, 0.0, 1.693, 0.0, 1.693]),
+            ("eight", array![0.0, 0.0, 1.693, 0.0, 1.693]),
+            ("ten", array![0.0, 0.0, 0.0, 1.693, 1.693]),
+            ("eleven", array![0.0, 0.0, 0.0, 1.693, 1.693]),
+            ("an", array![0.0, 0.0, 0.0, 0.0, 2.098]),
+            ("avoid", array![0.0, 0.0, 0.0, 0.0, 2.098]),
+            ("singletons", array![0.0, 0.0, 0.0, 0.0, 2.098]),
+            ("maybe", array![0.0, 0.0, 0.0, 2.098, 0.0])
+        );
+        delete_test_files(&text_files)
+    }
+
+    fn create_test_files() -> Vec<&'static str> {
+        let file_names = vec![
+            "./tf_idf_vectorization_test_file_1",
+            "./tf_idf_vectorization_test_file_2",
+            "./tf_idf_vectorization_test_file_3",
+            "./tf_idf_vectorization_test_file_4",
+            "./tf_idf_vectorization_test_file_5",
+        ];
+        let contents = vec![
+            "one and two and three",
+            "three and four and five",
+            "seven and eight",
+            "maybe ten and eleven",
+            "avoid singletons: one two four five seven eight ten eleven and an and",
+        ];
+        //create files and write contents
+        for (f_name, f_content) in file_names.iter().zip(contents.iter()) {
+            let mut file = File::create(f_name).unwrap();
+            file.write_all(f_content.as_bytes()).unwrap();
+        }
+        file_names
+    }
+
+    fn delete_test_files(file_names: &Vec<&'static str>) {
+        for f_name in file_names.iter() {
+            std::fs::remove_file(f_name).unwrap();
+        }
     }
 }
