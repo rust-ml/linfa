@@ -44,13 +44,16 @@ pub mod error;
 mod metrics_classification;
 mod metrics_clustering;
 mod metrics_regression;
+mod composing;
 pub mod prelude;
 pub mod traits;
 
 pub use dataset::{
-    multi_class_model::MultiClassModel, multi_target_model::MultiTargetModel, Dataset, DatasetBase,
+    Dataset, DatasetBase,
     DatasetPr, DatasetView, Float, Label,
 };
+pub use composing::*;
+
 pub use error::Error;
 
 #[cfg(feature = "ndarray-linalg")]
