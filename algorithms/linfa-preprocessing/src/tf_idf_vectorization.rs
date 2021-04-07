@@ -5,6 +5,7 @@ use crate::error::Result;
 use encoding::types::EncodingRef;
 use encoding::DecoderTrap;
 use ndarray::{Array1, Array2, ArrayBase, Data, Ix1, Zip};
+use sprs::CsMat;
 
 #[derive(Clone)]
 /// Methods for computing the inverse document frequency of a vocabulary entry
@@ -154,7 +155,7 @@ impl FittedTfIdfVectorizer {
     /// Given a sequence of `n` documents, produces an array of size `(n, vocabulary_entries)` where column `j` of row `i`
     /// is the number of occurrences of vocabulary entry `j` in the text of index `i`, scaled by the inverse document frequency.
     ///  Vocabulary entry `j` is the string at the `j`-th position in the vocabulary.
-    pub fn transform<T: ToString, D: Data<Elem = T>>(&self, x: &ArrayBase<D, Ix1>) -> Array2<f64> {
+    pub fn transform<T: ToString, D: Data<Elem = T>>(&self, x: &ArrayBase<D, Ix1>) -> CsMat<f64> {
         let (term_freqs, doc_freqs) = self.fitted_vectorizer.get_term_and_document_frequencies(x);
         self.apply_tf_idf(term_freqs, doc_freqs)
     }
@@ -164,21 +165,21 @@ impl FittedTfIdfVectorizer {
         input: &[std::path::PathBuf],
         encoding: EncodingRef,
         trap: DecoderTrap,
-    ) -> Array2<f64> {
+    ) -> CsMat<f64> {
         let (term_freqs, doc_freqs) = self
             .fitted_vectorizer
             .get_term_and_document_frequencies_files(input, encoding, trap);
         self.apply_tf_idf(term_freqs, doc_freqs)
     }
 
-    fn apply_tf_idf(&self, term_freqs: Array2<usize>, doc_freqs: Array1<usize>) -> Array2<f64> {
-        let mut term_freqs = term_freqs.mapv(|x| x as f64);
+    fn apply_tf_idf(&self, term_freqs: CsMat<usize>, doc_freqs: Array1<usize>) -> CsMat<f64> {
+        let mut term_freqs: CsMat<f64> = term_freqs.map(|x| *x as f64);
         let inv_doc_freqs =
-            doc_freqs.mapv(|doc_freq| self.method.compute_idf(term_freqs.dim().0, doc_freq));
-        for row in term_freqs.genrows_mut() {
-            Zip::from(row)
-                .and(&inv_doc_freqs)
-                .apply(|el, inv_doc_f| *el *= *inv_doc_f);
+            doc_freqs.mapv(|doc_freq| self.method.compute_idf(term_freqs.rows(), doc_freq));
+        for mut row_vec in term_freqs.outer_iterator_mut() {
+            for (col_i, val) in row_vec.iter_mut() {
+                *val *= inv_doc_freqs[col_i];
+            }
         }
         term_freqs
     }
@@ -212,7 +213,7 @@ mod tests {
         ];
         let vectorizer = TfIdfVectorizer::default().fit(&texts).unwrap();
         let vocabulary = vectorizer.vocabulary();
-        let transformed = vectorizer.transform(&texts);
+        let transformed = vectorizer.transform(&texts).to_dense();
         assert_eq!(transformed.dim(), (texts.len(), vocabulary.len()));
         assert_tf_idfs_for_word!(
             vocabulary,

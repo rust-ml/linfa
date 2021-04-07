@@ -1,3 +1,4 @@
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use flate2::read::GzDecoder;
 use linfa_preprocessing::count_vectorization::CountVectorizer;
 use linfa_preprocessing::tf_idf_vectorization::TfIdfVectorizer;
@@ -6,7 +7,7 @@ use tar::Archive;
 
 #[tokio::main]
 async fn download_20news_bydate() -> Vec<std::path::PathBuf> {
-    let file_paths = load_train_filenames();
+    let file_paths = load_test_filenames();
     if file_paths.is_err() {
         let target = "http://qwone.com/~jason/20Newsgroups/20news-bydate.tar.gz";
         let response = reqwest::get(target).await.unwrap();
@@ -14,7 +15,7 @@ async fn download_20news_bydate() -> Vec<std::path::PathBuf> {
         let tar = GzDecoder::new(content.as_slice());
         let mut archive = Archive::new(tar);
         archive.unpack(".").unwrap();
-        load_train_filenames().unwrap()
+        load_test_filenames().unwrap()
     } else {
         file_paths.unwrap()
     }
@@ -56,62 +57,53 @@ fn load_test_filenames() -> Result<Vec<std::path::PathBuf>, std::io::Error> {
     Ok(file_paths)
 }
 
-fn iai_benchmark_count_vectorizer() {
-    let file_names = load_test_filenames().unwrap();
-    let vectorizer = CountVectorizer::default()
-        .document_frequency(0.05, 0.5)
+fn fit_transform_vectorizer(file_names: &Vec<std::path::PathBuf>) {
+    CountVectorizer::default()
         .fit_files(
-            iai::black_box(&file_names),
+            file_names,
             encoding::all::ISO_8859_1,
             encoding::DecoderTrap::Strict,
         )
-        .unwrap();
-    let _transformed = vectorizer.transform_files(
-        iai::black_box(&file_names),
-        encoding::all::ISO_8859_1,
-        encoding::DecoderTrap::Strict,
-    );
+        .unwrap()
+        .transform_files(
+            file_names,
+            encoding::all::ISO_8859_1,
+            encoding::DecoderTrap::Strict,
+        );
 }
-
-fn iai_benchmark_tf_idf() {
-    let file_names = load_test_filenames().unwrap();
-    let vectorizer = TfIdfVectorizer::default()
-        .document_frequency(0.05, 0.5)
+fn fit_transform_tf_idf(file_names: &Vec<std::path::PathBuf>) {
+    TfIdfVectorizer::default()
         .fit_files(
-            &file_names,
+            file_names,
             encoding::all::ISO_8859_1,
             encoding::DecoderTrap::Strict,
         )
-        .unwrap();
-    let _transformed = vectorizer.transform_files(
-        &file_names,
-        encoding::all::ISO_8859_1,
-        encoding::DecoderTrap::Strict,
-    );
+        .unwrap()
+        .transform_files(
+            file_names,
+            encoding::all::ISO_8859_1,
+            encoding::DecoderTrap::Strict,
+        );
 }
 
-macro_rules! main {
-    ( $( $func_name:ident ),+ $(,)* ) => {
-        mod iai_wrappers {
-            $(
-                pub fn $func_name() {
-                    let _ = iai::black_box(super::$func_name());
-                }
-            )+
-        }
-
-        fn main() {
-            download_20news_bydate();
-            let benchmarks : &[&(&'static str, fn())]= &[
-
-                $(
-                    &(stringify!($func_name), iai_wrappers::$func_name),
-                )+
-            ];
-
-            iai::runner(benchmarks);
-        }
-    }
+fn benchmark_count_vectorizer(c: &mut Criterion) {
+    let file_names = download_20news_bydate();
+    c.bench_function("count vectorizer", |b| {
+        b.iter(|| fit_transform_vectorizer(black_box(&file_names)))
+    });
 }
 
-main!(iai_benchmark_count_vectorizer, iai_benchmark_tf_idf);
+fn benchmark_tf_idf(c: &mut Criterion) {
+    let file_names = download_20news_bydate();
+    c.bench_function("tf_idf", |b| {
+        b.iter(|| fit_transform_tf_idf(black_box(&file_names)))
+    });
+}
+
+criterion_group! {
+    name = benches;
+    // This can be any expression that returns a `Criterion` object.
+    config = Criterion::default().sample_size(10);
+    targets = benchmark_count_vectorizer, benchmark_tf_idf
+}
+criterion_main!(benches);
