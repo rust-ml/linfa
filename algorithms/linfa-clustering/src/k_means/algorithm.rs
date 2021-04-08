@@ -3,10 +3,9 @@ use crate::k_means::hyperparameters::{KMeansHyperParams, KMeansHyperParamsBuilde
 use linfa::{traits::*, DatasetBase, Float};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
 use ndarray_rand::rand::Rng;
-use ndarray_rand::rand::{distributions::uniform::SampleUniform, SeedableRng};
+use ndarray_rand::rand::SeedableRng;
 use ndarray_stats::DeviationExt;
 use rand_isaac::Isaac64Rng;
-use std::ops::AddAssign;
 
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
@@ -129,7 +128,7 @@ pub struct KMeans<F: Float> {
     cost: F,
 }
 
-impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>> KMeans<F> {
+impl<F: Float> KMeans<F> {
     pub fn params(nclusters: usize) -> KMeansHyperParamsBuilder<F, Isaac64Rng> {
         KMeansHyperParams::new(nclusters)
     }
@@ -159,13 +158,8 @@ impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>> KMeans<F> {
     }
 }
 
-impl<
-        'a,
-        F: Float + SampleUniform + for<'b> AddAssign<&'b F>,
-        R: Rng + Clone + SeedableRng,
-        D: Data<Elem = F>,
-        T,
-    > Fit<'a, ArrayBase<D, Ix2>, T> for KMeansHyperParams<F, R>
+impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T> Fit<'a, ArrayBase<D, Ix2>, T>
+    for KMeansHyperParams<F, R>
 {
     type Object = Result<KMeans<F>>;
 
@@ -242,7 +236,7 @@ impl<
 
 impl<
         'a,
-        F: Float + SampleUniform + for<'b> AddAssign<&'b F>,
+        F: Float,
         R: Rng + Clone + SeedableRng,
         D: Data<Elem = F>,
         T,
@@ -289,7 +283,7 @@ impl<
     }
 }
 
-impl<'a, F: Float + SampleUniform + for<'b> AddAssign<&'b F>, R: Rng + SeedableRng + Clone>
+impl<'a, F: Float, R: Rng + SeedableRng + Clone>
     KMeansHyperParamsBuilder<F, R>
 {
     /// Shortcut for `.build().fit()`
