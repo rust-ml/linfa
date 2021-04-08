@@ -2,13 +2,10 @@ use super::algorithm::{update_cluster_memberships, update_min_dists};
 use linfa::Float;
 use ndarray::parallel::prelude::*;
 use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
-use ndarray_rand::rand::distributions::{uniform::SampleUniform, Distribution, WeightedIndex};
+use ndarray_rand::rand::distributions::{Distribution, WeightedIndex};
 use ndarray_rand::rand::Rng;
 use ndarray_rand::rand::{self, SeedableRng};
-use std::{
-    ops::AddAssign,
-    sync::atomic::{AtomicU64, Ordering::Relaxed},
-};
+use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
 
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
@@ -28,7 +25,7 @@ pub enum KMeansInit {
 
 impl KMeansInit {
     /// Runs the chosen initialization routine
-    pub(crate) fn run<R: Rng + SeedableRng, F: Float + SampleUniform + for<'b> AddAssign<&'b F>>(
+    pub(crate) fn run<R: Rng + SeedableRng, F: Float>(
         &self,
         n_clusters: usize,
         observations: ArrayView2<F>,
@@ -56,7 +53,7 @@ fn random_init<F: Float>(
 /// Selects centroids using the KMeans++ initialization algorithm. The weights determine the
 /// likeliness of an input point to be selected as a centroid relative to other points. The higher
 /// the weight, the more likely the point will be selected as a centroid.
-fn weighted_k_means_plusplus<F: Float + SampleUniform + for<'a> AddAssign<&'a F>>(
+fn weighted_k_means_plusplus<F: Float>(
     n_clusters: usize,
     observations: ArrayView2<F>,
     weights: ArrayView1<F>,
@@ -97,7 +94,7 @@ fn weighted_k_means_plusplus<F: Float + SampleUniform + for<'a> AddAssign<&'a F>
 }
 
 /// KMeans++ initialization algorithm without biased weights
-fn k_means_plusplus<F: Float + SampleUniform + for<'a> AddAssign<&'a F>>(
+fn k_means_plusplus<F: Float>(
     n_clusters: usize,
     observations: ArrayView2<F>,
     rng: &mut impl Rng,
@@ -115,7 +112,7 @@ fn k_means_plusplus<F: Float + SampleUniform + for<'a> AddAssign<&'a F>>(
 /// input point in parallel. The probability of a point becoming a centroid is the same as with
 /// KMeans++. After multiple iterations, run weighted KMeans++ on the candidates to produce the
 /// final set of centroids.
-fn k_means_para<R: Rng + SeedableRng, F: Float + SampleUniform + for<'b> AddAssign<&'b F>>(
+fn k_means_para<R: Rng + SeedableRng, F: Float>(
     n_clusters: usize,
     observations: ArrayView2<F>,
     rng: &mut R,
