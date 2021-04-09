@@ -1,6 +1,6 @@
 use crate::k_means::errors::{KMeansError, Result};
 use crate::k_means::hyperparameters::{KMeansHyperParams, KMeansHyperParamsBuilder};
-use linfa::{traits::*, DatasetBase, Float};
+use linfa::{prelude::*, DatasetBase, Float};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
 use ndarray_rand::rand::Rng;
 use ndarray_rand::rand::SeedableRng;
@@ -152,7 +152,7 @@ impl<F: Float> KMeans<F> {
     }
 
     /// Return the sum of distances between each training point and its closest centroid
-    /// This value is meaningless if model was trained incrementally
+    /// This value is meaningless if the model was trained incrementally
     pub fn cost(&self) -> F {
         self.cost
     }
@@ -234,13 +234,8 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T> Fit<'a, A
     }
 }
 
-impl<
-        'a,
-        F: Float,
-        R: Rng + Clone + SeedableRng,
-        D: Data<Elem = F>,
-        T,
-    > IncrementalFit<'a, ArrayBase<D, Ix2>, T> for KMeansHyperParams<F, R>
+impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T>
+    IncrementalFit<'a, ArrayBase<D, Ix2>, T> for KMeansHyperParams<F, R>
 {
     type ObjectIn = Option<KMeans<F>>;
     type ObjectOut = KMeans<F>;
@@ -252,7 +247,7 @@ impl<
     ) -> Self::ObjectOut {
         let mut rng = self.rng();
         let observations = dataset.records().view();
-        let n_samples = observations.nrows();
+        let n_samples = dataset.nsamples();
 
         let mut model = match model {
             Some(model) => model,
@@ -283,9 +278,7 @@ impl<
     }
 }
 
-impl<'a, F: Float, R: Rng + SeedableRng + Clone>
-    KMeansHyperParamsBuilder<F, R>
-{
+impl<'a, F: Float, R: Rng + SeedableRng + Clone> KMeansHyperParamsBuilder<F, R> {
     /// Shortcut for `.build().fit()`
     pub fn fit<D: Data<Elem = F>, T>(
         self,
@@ -535,7 +528,6 @@ mod tests {
             let clusters = model.predict(dataset);
             let inertia = compute_inertia(model.centroids(), &clusters.records, &clusters.targets);
             let total_dist = model.transform(clusters.records.view()).sum();
-            assert_eq!(model.iter_count().len(), 1);
             assert_abs_diff_eq!(inertia, total_dist);
 
             // Second clustering with 10 iterations (default)
@@ -548,7 +540,6 @@ mod tests {
             let inertia2 =
                 compute_inertia(model2.centroids(), &clusters2.records, &clusters2.targets);
             let total_dist2 = model2.transform(clusters2.records.view()).sum();
-            assert_eq!(model2.iter_count().len(), 10);
             assert_abs_diff_eq!(inertia2, total_dist2);
 
             // Check we improve inertia
