@@ -3,10 +3,9 @@ use crate::k_means::hyperparameters::{KMeansHyperParams, KMeansHyperParamsBuilde
 use linfa::{traits::*, DatasetBase, Float};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
 use ndarray_rand::rand::Rng;
-use ndarray_rand::rand::{distributions::uniform::SampleUniform, SeedableRng};
+use ndarray_rand::rand::SeedableRng;
 use ndarray_stats::DeviationExt;
 use rand_isaac::Isaac64Rng;
-use std::ops::AddAssign;
 
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
@@ -129,7 +128,7 @@ pub struct KMeans<F: Float> {
     cost: F,
 }
 
-impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>> KMeans<F> {
+impl<F: Float> KMeans<F> {
     pub fn params(nclusters: usize) -> KMeansHyperParamsBuilder<F, Isaac64Rng> {
         KMeansHyperParams::new(nclusters)
     }
@@ -158,13 +157,8 @@ impl<F: Float + SampleUniform + for<'a> AddAssign<&'a F>> KMeans<F> {
     }
 }
 
-impl<
-        'a,
-        F: Float + SampleUniform + for<'b> AddAssign<&'b F>,
-        R: Rng + Clone + SeedableRng,
-        D: Data<Elem = F>,
-        T,
-    > Fit<'a, ArrayBase<D, Ix2>, T> for KMeansHyperParams<F, R>
+impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T> Fit<'a, ArrayBase<D, Ix2>, T>
+    for KMeansHyperParams<F, R>
 {
     type Object = Result<KMeans<F>>;
 
@@ -235,18 +229,23 @@ impl<
     }
 }
 
-impl<
-        'a,
-        F: Float + SampleUniform + for<'b> AddAssign<&'b F>,
-        R: Rng + SeedableRng + Clone,
-        D: Data<Elem = F>,
-        T,
-    > Fit<'a, ArrayBase<D, Ix2>, T> for KMeansHyperParamsBuilder<F, R>
+impl<'a, F: Float, R: Rng + SeedableRng + Clone, D: Data<Elem = F>, T> Fit<'a, ArrayBase<D, Ix2>, T>
+    for KMeansHyperParamsBuilder<F, R>
 {
     type Object = Result<KMeans<F>>;
 
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Self::Object {
         self.build().fit(dataset)
+    }
+}
+
+impl<F: Float, D: Data<Elem = F>> Transformer<ArrayBase<D, Ix2>, Array1<F>> for KMeans<F> {
+    /// Given an input matrix `observations`, with shape `(n_observations, n_features)`,
+    /// `transform` returns, for each observation, its squared distance to its centroid.
+    fn transform(&self, observations: ArrayBase<D, Ix2>) -> Array1<F> {
+        let mut dists = Array1::zeros(observations.nrows());
+        update_min_dists(&self.centroids, &observations.view(), &mut dists);
+        dists
     }
 }
 
@@ -438,7 +437,9 @@ mod tests {
                 .expect("KMeans fitted");
             let clusters = model.predict(dataset);
             let inertia = compute_inertia(model.centroids(), &clusters.records, &clusters.targets);
+            let total_dist = model.transform(clusters.records.view()).sum();
             assert_eq!(model.iter_count().len(), 1);
+            assert_abs_diff_eq!(inertia, total_dist);
 
             // Second clustering with 10 iterations (default)
             let dataset2 = DatasetBase::from(clusters.records().clone());
@@ -449,7 +450,9 @@ mod tests {
             let clusters2 = model2.predict(dataset2);
             let inertia2 =
                 compute_inertia(model2.centroids(), &clusters2.records, &clusters2.targets);
+            let total_dist2 = model2.transform(clusters2.records.view()).sum();
             assert_eq!(model2.iter_count().len(), 10);
+            assert_abs_diff_eq!(inertia2, total_dist2);
 
             // Check we improve inertia
             assert!(inertia2 <= inertia);
