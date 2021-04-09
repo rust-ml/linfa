@@ -304,6 +304,16 @@ impl<'a, F: Float, R: Rng + SeedableRng + Clone>
     }
 }
 
+impl<F: Float, D: Data<Elem = F>> Transformer<ArrayBase<D, Ix2>, Array1<F>> for KMeans<F> {
+    /// Given an input matrix `observations`, with shape `(n_observations, n_features)`,
+    /// `transform` returns, for each observation, its squared distance to its centroid.
+    fn transform(&self, observations: ArrayBase<D, Ix2>) -> Array1<F> {
+        let mut dists = Array1::zeros(observations.nrows());
+        update_min_dists(&self.centroids, &observations.view(), &mut dists);
+        dists
+    }
+}
+
 impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<usize>> for KMeans<F> {
     /// Given an input matrix `observations`, with shape `(n_observations, n_features)`,
     /// `predict` returns, for each observation, the index of the closest cluster/centroid.
@@ -524,6 +534,9 @@ mod tests {
                 .expect("KMeans fitted");
             let clusters = model.predict(dataset);
             let inertia = compute_inertia(model.centroids(), &clusters.records, &clusters.targets);
+            let total_dist = model.transform(clusters.records.view()).sum();
+            assert_eq!(model.iter_count().len(), 1);
+            assert_abs_diff_eq!(inertia, total_dist);
 
             // Second clustering with 10 iterations (default)
             let dataset2 = DatasetBase::from(clusters.records().clone());
@@ -534,6 +547,9 @@ mod tests {
             let clusters2 = model2.predict(dataset2);
             let inertia2 =
                 compute_inertia(model2.centroids(), &clusters2.records, &clusters2.targets);
+            let total_dist2 = model2.transform(clusters2.records.view()).sum();
+            assert_eq!(model2.iter_count().len(), 10);
+            assert_abs_diff_eq!(inertia2, total_dist2);
 
             // Check we improve inertia
             assert!(inertia2 <= inertia);
