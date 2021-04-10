@@ -10,6 +10,8 @@
 * Max Abs Scaling
 * Normalization (l1, l2 and max norm)
 * Count vectorization
+* TfIdf vectorization
+* Whitening
 
 
 ## License

@@ -117,6 +117,20 @@ impl<'a, F: Float + approx::AbsDiffEq, D: Data<Elem = F>, T: AsTargets>
 ///
 /// Transforming the data used during fitting will yield a scaled data matrix with
 /// unit diagonal covariance matrix.
+///
+/// ### Example
+///
+/// ```rust
+/// use linfa::traits::{Fit, Transformer};
+/// use linfa_preprocessing::whitening::Whitener;
+///
+/// // Load dataset
+/// let dataset = linfa_datasets::diabetes();
+/// // Learn whitening parameters
+/// let whitener = Whitener::pca().fit(&dataset).unwrap();
+/// // transform dataset according to whitening parameters
+/// let dataset = whitener.transform(dataset);
+/// ```
 pub struct FittedWhitener<F: Float> {
     transformation_matrix: Array2<F>,
     mean: Array1<F>,
@@ -247,9 +261,12 @@ mod tests {
     #[test]
     fn test_train_val_matrix() {
         let (train, val) = linfa_datasets::diabetes().split_with_ratio(0.9);
+        let (train_dim, val_dim) = (train.records().dim(), val.records().dim());
         let whitener = Whitener::pca().fit(&train).unwrap();
-        let _whitened_train = whitener.transform(train);
-        let _whitened_val = whitener.transform(val);
+        let whitened_train = whitener.transform(train);
+        let whitened_val = whitener.transform(val);
+        assert_eq!(train_dim, whitened_train.records.dim());
+        assert_eq!(val_dim, whitened_val.records.dim());
     }
 
     #[test]

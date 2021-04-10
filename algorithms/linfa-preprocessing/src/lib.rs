@@ -11,6 +11,7 @@
 //! * Normalization (l1, l2 and max norm)
 //! * Count vectorization
 //! * Term frequency - inverse document frequency count vectorization
+//! * Whitening
 
 pub mod count_vectorization;
 pub mod error;
