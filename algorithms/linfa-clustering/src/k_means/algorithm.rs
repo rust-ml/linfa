@@ -151,8 +151,9 @@ impl<F: Float> KMeans<F> {
         &self.cluster_count
     }
 
-    /// Return the sum of distances between each training point and its closest centroid
-    /// This value is meaningless if the model was trained incrementally
+    /// Return the sum of distances between each training point and its closest centroid.
+    /// When training incrementally, this value is computed on the most recent batch, making it a
+    /// good metric for determining convergence.
     pub fn cost(&self) -> F {
         self.cost
     }
@@ -273,6 +274,7 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T>
             &mut model.centroids,
             &mut model.cluster_count,
         );
+        model.cost = compute_inertia(&model.centroids, &observations, &memberships);
 
         model
     }
@@ -653,11 +655,19 @@ mod tests {
 
         let model = params.fit_with(Some(model), &dataset1);
         assert_abs_diff_eq!(model.centroids(), &array![[-0.5, -1.5], [4., 5.], [7., 8.]]);
+        assert_abs_diff_eq!(
+            model.cost(),
+            compute_inertia(&model.centroids, dataset1.records(), &array![0, 0, 1, 1])
+        );
 
         let model = params.fit_with(Some(model), &dataset2);
         assert_abs_diff_eq!(
             model.centroids(),
             &array![[-6. / 4., -8. / 4.], [4., 5.], [10., 10.]]
+        );
+        assert_abs_diff_eq!(
+            model.cost(),
+            compute_inertia(&model.centroids, dataset2.records(), &array![0, 0, 2])
         );
     }
 }
