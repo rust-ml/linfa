@@ -125,7 +125,7 @@ use serde_crate::{Deserialize, Serialize};
 pub struct KMeans<F: Float> {
     centroids: Array2<F>,
     cluster_count: Array1<F>,
-    cost: F,
+    inertia: F,
 }
 
 impl<F: Float> KMeans<F> {
@@ -154,8 +154,8 @@ impl<F: Float> KMeans<F> {
     /// Return the sum of distances between each training point and its closest centroid.
     /// When training incrementally, this value is computed on the most recent batch, making it a
     /// good metric for determining convergence.
-    pub fn cost(&self) -> F {
-        self.cost
+    pub fn inertia(&self) -> F {
+        self.inertia
     }
 }
 
@@ -219,7 +219,7 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T> Fit<'a, A
                     Ok(KMeans {
                         centroids,
                         cluster_count,
-                        cost: min_inertia,
+                        inertia: min_inertia,
                     })
                 }
                 _ => Err(KMeansError::InertiaError(
@@ -261,7 +261,7 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T>
                 KMeans {
                     centroids,
                     cluster_count: Array1::zeros(self.n_clusters()),
-                    cost: F::zero(),
+                    inertia: F::zero(),
                 }
             }
         };
@@ -274,7 +274,7 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T>
             &mut model.centroids,
             &mut model.cluster_count,
         );
-        model.cost = compute_inertia(&model.centroids, &observations, &memberships);
+        model.inertia = compute_inertia(&model.centroids, &observations, &memberships);
 
         model
     }
@@ -648,7 +648,7 @@ mod tests {
         let model = KMeans {
             centroids: array![[-1., -1.], [3., 4.], [7., 8.]],
             cluster_count: array![0., 0., 0.],
-            cost: 0.0,
+            inertia: 0.0,
         };
         let rng = Isaac64Rng::seed_from_u64(45);
         let params = KMeans::params_with_rng(3, rng).build();
@@ -656,7 +656,7 @@ mod tests {
         let model = params.fit_with(Some(model), &dataset1);
         assert_abs_diff_eq!(model.centroids(), &array![[-0.5, -1.5], [4., 5.], [7., 8.]]);
         assert_abs_diff_eq!(
-            model.cost(),
+            model.inertia(),
             compute_inertia(&model.centroids, dataset1.records(), &array![0, 0, 1, 1])
         );
 
@@ -666,7 +666,7 @@ mod tests {
             &array![[-6. / 4., -8. / 4.], [4., 5.], [10., 10.]]
         );
         assert_abs_diff_eq!(
-            model.cost(),
+            model.inertia(),
             compute_inertia(&model.centroids, dataset2.records(), &array![0, 0, 2])
         );
     }

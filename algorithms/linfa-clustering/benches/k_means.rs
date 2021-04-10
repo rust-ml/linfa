@@ -74,7 +74,7 @@ fn k_means_init_bench(c: &mut Criterion) {
                             .tolerance(1000.0) // Guaranteed convergence
                             .fit(&dataset)
                             .unwrap();
-                        total_cost += m.cost();
+                        total_cost += m.inertia();
                         runs += 1;
                     });
                 },
