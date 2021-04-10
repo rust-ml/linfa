@@ -2,7 +2,6 @@ use criterion::{
     black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
     PlotConfiguration,
 };
-use linfa::traits::Fit;
 use linfa::DatasetBase;
 use linfa_clustering::{generate_blobs, KMeans, KMeansInit};
 use ndarray::Array2;
