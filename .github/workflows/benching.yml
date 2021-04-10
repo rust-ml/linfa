@@ -29,5 +29,5 @@ jobs:
       - name: Run cargo bench iai
         uses: actions-rs/cargo@v1
         with:
-          command: bench iai
-          args: --all --features intel-mkl-system
+          command: bench
+          args: iai --all --features intel-mkl-system
