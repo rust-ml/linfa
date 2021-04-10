@@ -34,9 +34,9 @@ linfa-datasets = {version = "0.3.1", path = "../../datasets", features = ["diabe
 iai = "0.1" 
 criterion = "0.3"
 reqwest = { version = "0.10"}
-tokio = { version = "0.2", features = ["full"] }
 flate2 = "1.0.20"
 tar = "0.4.33"
+tokio = {version = "0.2", features = ["macros"]}
 
 
 [[bench]]

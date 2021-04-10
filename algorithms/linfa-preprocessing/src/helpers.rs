@@ -1,17 +1,17 @@
 /// Given a sequence of words, the list can be iterated to obtain all the n-grams in the sequence,
 /// starting from n-grams of lenght `min` up to n_grams of length `max`.
-pub struct NGramList<T: ToString> {
+pub struct NGramList<'a> {
     min: usize,
     max: usize,
-    list: Vec<T>,
+    list: Vec<&'a str>,
 }
 
-pub struct NGramListIntoIterator<T: ToString> {
-    list: NGramList<T>,
+pub struct NGramListIntoIterator<'a> {
+    list: NGramList<'a>,
     index: usize,
 }
 
-impl<T: ToString> Iterator for NGramListIntoIterator<T> {
+impl<'a> Iterator for NGramListIntoIterator<'a> {
     type Item = Vec<String>;
     fn next(&mut self) -> Option<Self::Item> {
         if self.index >= self.list.len() {
@@ -27,9 +27,9 @@ impl<T: ToString> Iterator for NGramListIntoIterator<T> {
     }
 }
 
-impl<T: ToString> IntoIterator for NGramList<T> {
+impl<'a> IntoIterator for NGramList<'a> {
     type Item = Vec<String>;
-    type IntoIter = NGramListIntoIterator<T>;
+    type IntoIter = NGramListIntoIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         NGramListIntoIterator {
@@ -39,8 +39,8 @@ impl<T: ToString> IntoIterator for NGramList<T> {
     }
 }
 
-impl<T: ToString> NGramList<T> {
-    pub fn new(vec: Vec<T>, range: (usize, usize)) -> Self {
+impl<'a> NGramList<'a> {
+    pub fn new(vec: Vec<&'a str>, range: (usize, usize)) -> Self {
         Self {
             min: range.0,
             max: range.1,
@@ -66,13 +66,13 @@ impl<T: ToString> NGramList<T> {
         let max_end = usize::min(index + self.max, len);
         let mut item = self.list[index].to_string();
         for j in (index + 1)..min_end {
-            item.push_str(" ");
-            item.push_str(&self.list[j].to_string());
+            item.push(' ');
+            item.push_str(self.list[j]);
         }
         items.push(item.clone());
         for j in min_end..max_end {
-            item.push_str(" ");
-            item.push_str(&self.list[j].to_string());
+            item.push(' ');
+            item.push_str(self.list[j]);
             items.push(item.clone())
         }
         Some(items)

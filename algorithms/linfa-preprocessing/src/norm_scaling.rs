@@ -71,8 +71,12 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets>
 {
     /// Substitutes the records of the dataset with their scaled versions with unit norm.
     fn transform(&self, x: DatasetBase<ArrayBase<D, Ix2>, T>) -> DatasetBase<Array2<F>, T> {
-        let transformed_records = self.transform(x.records.to_owned());
-        x.with_records(transformed_records)
+        let feature_names = x.feature_names();
+        let (records, targets, weights) = (x.records, x.targets, x.weights);
+        let records = self.transform(records.to_owned());
+        DatasetBase::new(records, targets)
+            .with_weights(weights)
+            .with_feature_names(feature_names)
     }
 }
 
@@ -122,5 +126,13 @@ mod tests {
         assert_abs_diff_eq!(scaler.transform(input.clone()), ground_truth);
         let scaler = NormScaler::l2();
         assert_abs_diff_eq!(scaler.transform(input), ground_truth);
+    }
+
+    #[test]
+    fn test_retain_feature_names() {
+        let dataset = linfa_datasets::diabetes();
+        let original_feature_names = dataset.feature_names();
+        let transformed = NormScaler::l2().transform(dataset);
+        assert_eq!(original_feature_names, transformed.feature_names())
     }
 }

@@ -251,4 +251,15 @@ mod tests {
         let _whitened_train = whitener.transform(train);
         let _whitened_val = whitener.transform(val);
     }
+
+    #[test]
+    fn test_retain_feature_names() {
+        let dataset = linfa_datasets::diabetes();
+        let original_feature_names = dataset.feature_names();
+        let transformed = Whitener::cholesky()
+            .fit(&dataset)
+            .unwrap()
+            .transform(dataset);
+        assert_eq!(original_feature_names, transformed.feature_names())
+    }
 }

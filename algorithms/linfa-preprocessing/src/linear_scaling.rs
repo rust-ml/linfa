@@ -276,8 +276,12 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets>
     /// Substitutes the records of the dataset with their scaled version.
     /// Panics if the shape of the records is not compatible with the shape of the dataset used for fitting.
     fn transform(&self, x: DatasetBase<ArrayBase<D, Ix2>, T>) -> DatasetBase<Array2<F>, T> {
-        let transformed_records = self.transform(x.records.to_owned());
-        x.with_records(transformed_records)
+        let feature_names = x.feature_names();
+        let (records, targets, weights) = (x.records, x.targets, x.weights);
+        let records = self.transform(records.to_owned());
+        DatasetBase::new(records, targets)
+            .with_weights(weights)
+            .with_feature_names(feature_names)
     }
 }
 
@@ -504,6 +508,17 @@ mod tests {
         let scaler = LinearScaler::max_abs().fit(&dataset).unwrap();
         let transformed = scaler.transform(empty);
         assert!(transformed.is_empty());
+    }
+
+    #[test]
+    fn test_retain_feature_names() {
+        let dataset = linfa_datasets::diabetes();
+        let original_feature_names = dataset.feature_names();
+        let transformed = LinearScaler::standard()
+            .fit(&dataset)
+            .unwrap()
+            .transform(dataset);
+        assert_eq!(original_feature_names, transformed.feature_names())
     }
 
     #[test]

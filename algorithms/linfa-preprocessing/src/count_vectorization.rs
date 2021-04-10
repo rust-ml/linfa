@@ -392,7 +392,7 @@ mod tests {
 
     use super::*;
     use crate::column_for_word;
-    use ndarray::array;
+    use ndarray::{array, Array2};
     use std::fs::File;
     use std::io::Write;
 
@@ -410,7 +410,7 @@ mod tests {
         let texts = array!["oNe two three four", "TWO three four", "three;four", "four"];
         let vectorizer = CountVectorizer::default().fit(&texts).unwrap();
         let vocabulary = vectorizer.vocabulary();
-        let counts = vectorizer.transform(&texts).to_dense();
+        let counts: Array2<usize> = vectorizer.transform(&texts).to_dense();
         let true_vocabulary = vec!["one", "two", "three", "four"];
         assert_vocabulary_eq(&true_vocabulary, &vocabulary);
         assert_counts_for_word!(
@@ -427,7 +427,7 @@ mod tests {
             .fit(&texts)
             .unwrap();
         let vocabulary = vectorizer.vocabulary();
-        let counts = vectorizer.transform(&texts).to_dense();
+        let counts: Array2<usize> = vectorizer.transform(&texts).to_dense();
         let true_vocabulary = vec!["one two", "two three", "three four"];
         assert_vocabulary_eq(&true_vocabulary, &vocabulary);
         assert_counts_for_word!(
@@ -443,7 +443,7 @@ mod tests {
             .fit(&texts)
             .unwrap();
         let vocabulary = vectorizer.vocabulary();
-        let counts = vectorizer.transform(&texts).to_dense();
+        let counts: Array2<usize> = vectorizer.transform(&texts).to_dense();
         let true_vocabulary = vec![
             "one",
             "one two",
@@ -481,7 +481,7 @@ mod tests {
             .unwrap();
         let vect_vocabulary = vectorizer.vocabulary();
         assert_vocabulary_eq(&vocabulary, &vect_vocabulary);
-        let transformed = vectorizer.transform(&texts).to_dense();
+        let transformed: Array2<usize> = vectorizer.transform(&texts).to_dense();
         assert_counts_for_word!(
             vect_vocabulary,
             transformed,
@@ -501,7 +501,7 @@ mod tests {
             .fit(&texts)
             .unwrap();
         let vocabulary = vectorizer.vocabulary();
-        let counts = vectorizer.transform(&texts).to_dense();
+        let counts: Array2<usize> = vectorizer.transform(&texts).to_dense();
         let true_vocabulary = vec!["one", "two", "three", "four", "three;four"];
         assert_vocabulary_eq(&true_vocabulary, &vocabulary);
         assert_counts_for_word!(
@@ -523,7 +523,7 @@ mod tests {
             .fit(&texts)
             .unwrap();
         let vocabulary = vectorizer.vocabulary();
-        let counts = vectorizer.transform(&texts).to_dense();
+        let counts: Array2<usize> = vectorizer.transform(&texts).to_dense();
         let true_vocabulary = vec!["oNe", "two", "three", "four", "TWO"];
         assert_vocabulary_eq(&true_vocabulary, &vocabulary);
         assert_counts_for_word!(
@@ -551,7 +551,7 @@ mod tests {
             .fit(&texts)
             .unwrap();
         let vocabulary = vectorizer.vocabulary();
-        let counts = vectorizer.transform(&texts).to_dense();
+        let counts: Array2<usize> = vectorizer.transform(&texts).to_dense();
         let true_vocabulary = vec!["oNe", "two", "three", "four", "TWO", "three;four"];
         assert_vocabulary_eq(&true_vocabulary, &vocabulary);
         assert_counts_for_word!(
@@ -597,7 +597,7 @@ mod tests {
             )
             .unwrap();
         let vocabulary = vectorizer.vocabulary();
-        let counts = vectorizer
+        let counts: Array2<usize> = vectorizer
             .transform_files(
                 &text_files[..],
                 encoding::all::UTF_8,
@@ -624,7 +624,7 @@ mod tests {
             )
             .unwrap();
         let vocabulary = vectorizer.vocabulary();
-        let counts = vectorizer
+        let counts: Array2<usize> = vectorizer
             .transform_files(
                 &text_files[..],
                 encoding::all::UTF_8,
@@ -650,7 +650,7 @@ mod tests {
             )
             .unwrap();
         let vocabulary = vectorizer.vocabulary();
-        let counts = vectorizer
+        let counts: Array2<usize> = vectorizer
             .transform_files(
                 &text_files[..],
                 encoding::all::UTF_8,
