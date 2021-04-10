@@ -59,8 +59,8 @@ fn _load_test_filenames() -> Result<Vec<std::path::PathBuf>, std::io::Error> {
 
 fn fit_vectorizer(file_names: &Vec<std::path::PathBuf>) {
     CountVectorizer::default()
-        .document_frequency(0.05,0.75)
-        .n_gram_range(1,2)
+        .document_frequency(0.05, 0.75)
+        .n_gram_range(1, 2)
         .fit_files(
             file_names,
             encoding::all::ISO_8859_1,
@@ -71,8 +71,8 @@ fn fit_vectorizer(file_names: &Vec<std::path::PathBuf>) {
 
 fn fit_tf_idf(file_names: &Vec<std::path::PathBuf>) {
     TfIdfVectorizer::default()
-        .document_frequency(0.05,0.75)
-        .n_gram_range(1,2)
+        .document_frequency(0.05, 0.75)
+        .n_gram_range(1, 2)
         .fit_files(
             file_names,
             encoding::all::ISO_8859_1,
@@ -83,8 +83,8 @@ fn fit_tf_idf(file_names: &Vec<std::path::PathBuf>) {
 
 fn fit_transform_vectorizer(file_names: &Vec<std::path::PathBuf>) {
     CountVectorizer::default()
-        .document_frequency(0.05,0.75)
-        .n_gram_range(1,2)
+        .document_frequency(0.05, 0.75)
+        .n_gram_range(1, 2)
         .fit_files(
             file_names,
             encoding::all::ISO_8859_1,
@@ -99,8 +99,8 @@ fn fit_transform_vectorizer(file_names: &Vec<std::path::PathBuf>) {
 }
 fn fit_transform_tf_idf(file_names: &Vec<std::path::PathBuf>) {
     TfIdfVectorizer::default()
-        .document_frequency(0.05,0.75)
-        .n_gram_range(1,2)
+        .document_frequency(0.05, 0.75)
+        .n_gram_range(1, 2)
         .fit_files(
             file_names,
             encoding::all::ISO_8859_1,
