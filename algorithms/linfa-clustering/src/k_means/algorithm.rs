@@ -31,13 +31,14 @@ use serde_crate::{Deserialize, Serialize};
 ///
 /// We provide a modified version of the _standard algorithm_ (also known as Lloyd's Algorithm),
 /// called m_k-means, which uses a slightly modified update step to avoid problems with empty
-/// clusters.
+/// clusters. We also provide an incremental version of the algorithm that runs on smaller batches
+/// of input data.
 ///
 /// More details on the algorithm can be found in the next section or
 /// [here](https://en.wikipedia.org/wiki/K-means_clustering). Details on m_k-means can be found
 /// [here](https://www.researchgate.net/publication/228414762_A_Modified_k-means_Algorithm_to_Avoid_Empty_Clusters).
 ///
-/// ## The algorithm
+/// ## Standard algorithm
 ///
 /// K-means is an iterative algorithm: it progressively refines the choice of centroids.
 ///
@@ -54,6 +55,18 @@ use serde_crate::{Deserialize, Serialize};
 /// Assignment and update are repeated in a loop until convergence is reached (either the
 /// euclidean distance between the old and the new clusters is below `tolerance` or
 /// we exceed the `max_n_iterations`).
+///
+/// ## Incremental Algorithm
+///
+/// In addition to the standard algorithm, we also provide an incremental version of K-means known
+/// as Mini-Batch K-means. In this algorithm, the dataset is divided into small batches, and the
+/// assignment and update steps are performed on each batch instead of the entire dataset. The
+/// update step also takes previous update steps into account when updating the centroids.
+///
+/// Due to using smaller batches, Mini-Batch K-means takes significantly less time to execute than
+/// the standard K-means algorithm, although it may yield slightly worse centroids.
+///
+/// More details on Mini-Batch K-means can be found [here](https://www.eecs.tufts.edu/~dsculley/papers/fastkmeans.pdf).
 ///
 /// ## Parallelisation
 ///
@@ -76,7 +89,7 @@ use serde_crate::{Deserialize, Serialize};
 ///
 /// ```
 /// use linfa::DatasetBase;
-/// use linfa::traits::{Fit, Predict};
+/// use linfa::traits::{Fit, IncrementalFit, Predict};
 /// use linfa_clustering::{KMeansHyperParams, KMeans, generate_blobs};
 /// use ndarray::{Axis, array, s};
 /// use ndarray_rand::rand::SeedableRng;
@@ -92,25 +105,63 @@ use serde_crate::{Deserialize, Serialize};
 /// let expected_centroids = array![[0., 1.], [-10., 20.], [-1., 10.]];
 /// // Let's generate a synthetic dataset: three blobs of observations
 /// // (100 points each) centered around our `expected_centroids`
-/// let observations = DatasetBase::from(generate_blobs(100, &expected_centroids, &mut rng));
-///
-/// // Let's configure and run our K-means algorithm
-/// // We use the builder pattern to specify the hyperparameters
-/// // `n_clusters` is the only mandatory parameter.
-/// // If you don't specify the others (e.g. `n_runs`, `tolerance`, `max_n_iterations`)
-/// // default values will be used.
+/// let data = generate_blobs(100, &expected_centroids, &mut rng);
 /// let n_clusters = expected_centroids.len_of(Axis(0));
-/// let model = KMeans::params(n_clusters)
-///     .tolerance(1e-2)
-///     .fit(&observations)
-///     .expect("KMeans fitted");
 ///
-/// // Once we found our set of centroids, we can also assign new points to the nearest cluster
-/// let new_observation = DatasetBase::from(array![[-9., 20.5]]);
-/// // Predict returns the **index** of the nearest cluster
-/// let dataset = model.predict(new_observation);
-/// // We can retrieve the actual centroid of the closest cluster using `.centroids()`
-/// let closest_centroid = &model.centroids().index_axis(Axis(0), dataset.targets()[0]);
+/// // Standard K-means
+/// {
+///     let observations = DatasetBase::from(data.clone());
+///     // Let's configure and run our K-means algorithm
+///     // We use the builder pattern to specify the hyperparameters
+///     // `n_clusters` is the only mandatory parameter.
+///     // If you don't specify the others (e.g. `n_runs`, `tolerance`, `max_n_iterations`)
+///     // default values will be used.
+///     let model = KMeans::params_with_rng(n_clusters, rng.clone())
+///         .tolerance(1e-2)
+///         .fit(&observations)
+///         .expect("KMeans fitted");
+///
+///     // Once we found our set of centroids, we can also assign new points to the nearest cluster
+///     let new_observation = DatasetBase::from(array![[-9., 20.5]]);
+///     // Predict returns the **index** of the nearest cluster
+///     let dataset = model.predict(new_observation);
+///     // We can retrieve the actual centroid of the closest cluster using `.centroids()`
+///     let closest_centroid = &model.centroids().index_axis(Axis(0), dataset.targets()[0]);
+///     assert_abs_diff_eq!(closest_centroid.to_owned(), &array![-10., 20.], epsilon = 1e-1);
+/// }
+///
+/// // Incremental K-means
+/// {
+///     let batch_size = 100;
+///     // Shuffling the dataset is one way of ensuring that the batches contain random points from
+///     // the dataset, which is required for the algorithm to work properly
+///     let observations = DatasetBase::from(data.clone()).shuffle(&mut rng);
+///
+///     let n_clusters = expected_centroids.nrows();
+///     let clf = KMeans::params_with_rng(n_clusters, rng.clone())
+///         .tolerance(1e-3)
+///         .build();
+///
+///     // Repeatedly run fit_with on every batch in the dataset until we have converged
+///     let model = observations
+///         .sample_chunks(batch_size)
+///         .cycle()
+///         .try_fold(None, |current, batch| {
+///             let (model, converged) = clf.fit_with(current, &batch);
+///             if converged {
+///                 // Once we have converged, raise an error to break from the iterator
+///                 Err(model)
+///             } else {
+///                 Ok(Some(model))
+///             }
+///         })
+///         .unwrap_err();
+///
+///     let new_observation = DatasetBase::from(array![[-9., 20.5]]);
+///     let dataset = model.predict(new_observation);
+///     let closest_centroid = &model.centroids().index_axis(Axis(0), dataset.targets()[0]);
+///     assert_abs_diff_eq!(closest_centroid.to_owned(), &array![-10., 20.], epsilon = 1e-1);
+/// }
 /// ```
 ///
 /*///
@@ -247,6 +298,13 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T>
     type ObjectIn = Option<KMeans<F>>;
     type ObjectOut = (KMeans<F>, bool);
 
+    /// Performs a single batch update of the Mini-Batch K-means algorithm.
+    ///
+    /// Given an input matrix `observations`, with shape `(n_batch, n_features)` and a previous
+    /// `KMeans` model, the model's centroids are updated with the input matrix. If `model` is
+    /// `None`, then it's initialized using the specified initialization algorithm. The return
+    /// value consists of the updated model and a `bool` value that indicates whether the algorithm
+    /// has converged.
     fn fit_with(
         &self,
         model: Self::ObjectIn,

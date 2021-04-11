@@ -59,7 +59,7 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParamsBuilder<F, R> {
     ///
     /// We exit the training loop when the number of training iterations
     /// exceeds `max_n_iterations` even if the `tolerance` convergence
-    /// condition has not been met.
+    /// condition has not been met. Not used when training incrementally.
     pub fn max_n_iterations(mut self, max_n_iterations: u64) -> Self {
         self.max_n_iterations = max_n_iterations;
         self
