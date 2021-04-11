@@ -242,7 +242,7 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T>
     IncrementalFit<'a, ArrayBase<D, Ix2>, T> for KMeansHyperParams<F, R>
 {
     type ObjectIn = Option<KMeans<F>>;
-    type ObjectOut = KMeans<F>;
+    type ObjectOut = (KMeans<F>, bool);
 
     fn fit_with(
         &self,
@@ -286,16 +286,18 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T>
 
         let mut memberships = Array1::zeros(n_samples);
         update_cluster_memberships(&model.centroids, &observations, &mut memberships);
-        compute_centroids_incremental(
+        let new_centroids = compute_centroids_incremental(
             &observations,
             &memberships,
-            &mut model.centroids,
+            &model.centroids,
             &mut model.cluster_count,
         );
-        model.inertia = compute_inertia(&model.centroids, &observations, &memberships)
+        model.inertia = compute_inertia(&new_centroids, &observations, &memberships)
             / F::from(n_samples).unwrap();
+        let dist = model.centroids.sq_l2_dist(&new_centroids).unwrap();
+        model.centroids = new_centroids;
 
-        model
+        (model, dist < self.tolerance())
     }
 }
 
@@ -306,15 +308,6 @@ impl<'a, F: Float, R: Rng + SeedableRng + Clone> KMeansHyperParamsBuilder<F, R> 
         dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
     ) -> Result<KMeans<F>> {
         self.build().fit(dataset)
-    }
-
-    /// Shortcut for `.build().fit_with()`
-    pub fn fit_with<D: Data<Elem = F>, T>(
-        self,
-        model: Option<KMeans<F>>,
-        dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
-    ) -> KMeans<F> {
-        self.build().fit_with(model, dataset)
     }
 }
 
@@ -405,14 +398,16 @@ fn compute_centroids<F: Float>(
     centroids
 }
 
-/// Updates `centroids` with the moving average of all observations in each cluster.
+/// Returns new centroids which has the moving average of all observations in each cluster added to
+/// the old centroids.
 /// Updates `counts` with the number of observations in each cluster.
 fn compute_centroids_incremental<F: Float>(
     observations: &ArrayBase<impl Data<Elem = F>, Ix2>,
     cluster_memberships: &ArrayBase<impl Data<Elem = usize>, Ix1>,
-    centroids: &mut ArrayBase<impl DataMut<Elem = F>, Ix2>,
+    old_centroids: &ArrayBase<impl Data<Elem = F>, Ix2>,
     counts: &mut ArrayBase<impl DataMut<Elem = F>, Ix1>,
-) {
+) -> Array2<F> {
+    let mut centroids = old_centroids.to_owned();
     // We can parallelize this
     Zip::from(observations.genrows())
         .and(cluster_memberships)
@@ -425,6 +420,7 @@ fn compute_centroids_incremental<F: Float>(
             let mut centroid = centroids.row_mut(c);
             centroid += &shift;
         });
+    centroids
 }
 
 /// Given a matrix of centroids with shape (n_centroids, n_features)
@@ -652,9 +648,10 @@ mod tests {
     fn test_compute_centroids_incremental() {
         let observations = array![[-1.0, -3.0], [0., 0.], [3., 5.], [5., 5.]];
         let memberships = array![0, 0, 1, 1];
-        let mut centroids = array![[-1., -1.], [3., 4.], [7., 8.]];
+        let centroids = array![[-1., -1.], [3., 4.], [7., 8.]];
         let mut counts = array![3.0, 0.0, 1.0];
-        compute_centroids_incremental(&observations, &memberships, &mut centroids, &mut counts);
+        let centroids =
+            compute_centroids_incremental(&observations, &memberships, &centroids, &mut counts);
 
         assert_abs_diff_eq!(centroids, array![[-4. / 5., -6. / 5.], [4., 5.], [7., 8.]]);
         assert_abs_diff_eq!(counts, array![5., 2., 1.]);
@@ -670,16 +667,17 @@ mod tests {
             inertia: 0.0,
         };
         let rng = Isaac64Rng::seed_from_u64(45);
-        let params = KMeans::params_with_rng(3, rng).build();
+        let params = KMeans::params_with_rng(3, rng).tolerance(100.0).build();
 
-        let model = params.fit_with(Some(model), &dataset1);
+        let (model, converged) = params.fit_with(Some(model), &dataset1);
         assert_abs_diff_eq!(model.centroids(), &array![[-0.5, -1.5], [4., 5.], [7., 8.]]);
         assert_abs_diff_eq!(
             model.inertia(),
             compute_inertia(&model.centroids, dataset1.records(), &array![0, 0, 1, 1]) / 4.0
         );
+        assert!(converged);
 
-        let model = params.fit_with(Some(model), &dataset2);
+        let (model, converged) = params.fit_with(Some(model), &dataset2);
         assert_abs_diff_eq!(
             model.centroids(),
             &array![[-6. / 4., -8. / 4.], [4., 5.], [10., 10.]]
@@ -688,5 +686,6 @@ mod tests {
             model.inertia(),
             compute_inertia(&model.centroids, dataset2.records(), &array![0, 0, 2]) / 3.0
         );
+        assert!(converged);
     }
 }
