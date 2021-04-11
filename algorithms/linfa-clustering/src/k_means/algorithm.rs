@@ -151,9 +151,9 @@ impl<F: Float> KMeans<F> {
         &self.cluster_count
     }
 
-    /// Return the sum of distances between each training point and its closest centroid.
-    /// When training incrementally, this value is computed on the most recent batch, making it a
-    /// good metric for determining convergence.
+    /// Return the sum of distances between each training point and its closest centroid, averaged
+    /// across all training points.  When training incrementally, this value is computed on the
+    /// most recent batch.
     pub fn inertia(&self) -> F {
         self.inertia
     }
@@ -209,6 +209,7 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T> Fit<'a, A
                 best_iter = converged_iter;
             }
         }
+
         match best_iter {
             Some(_n_iter) => match best_centroids {
                 Some(centroids) => {
@@ -219,7 +220,7 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T> Fit<'a, A
                     Ok(KMeans {
                         centroids,
                         cluster_count,
-                        inertia: min_inertia,
+                        inertia: min_inertia / F::from(dataset.nsamples()).unwrap(),
                     })
                 }
                 _ => Err(KMeansError::InertiaError(
@@ -274,7 +275,8 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T>
             &mut model.centroids,
             &mut model.cluster_count,
         );
-        model.inertia = compute_inertia(&model.centroids, &observations, &memberships);
+        model.inertia = compute_inertia(&model.centroids, &observations, &memberships)
+            / F::from(n_samples).unwrap();
 
         model
     }
@@ -657,7 +659,7 @@ mod tests {
         assert_abs_diff_eq!(model.centroids(), &array![[-0.5, -1.5], [4., 5.], [7., 8.]]);
         assert_abs_diff_eq!(
             model.inertia(),
-            compute_inertia(&model.centroids, dataset1.records(), &array![0, 0, 1, 1])
+            compute_inertia(&model.centroids, dataset1.records(), &array![0, 0, 1, 1]) / 4.0
         );
 
         let model = params.fit_with(Some(model), &dataset2);
@@ -667,7 +669,7 @@ mod tests {
         );
         assert_abs_diff_eq!(
             model.inertia(),
-            compute_inertia(&model.centroids, dataset2.records(), &array![0, 0, 2])
+            compute_inertia(&model.centroids, dataset2.records(), &array![0, 0, 2]) / 3.0
         );
     }
 }
