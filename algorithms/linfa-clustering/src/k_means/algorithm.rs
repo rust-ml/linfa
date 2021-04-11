@@ -311,10 +311,10 @@ impl<'a, F: Float, R: Rng + SeedableRng + Clone> KMeansHyperParamsBuilder<F, R> 
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> Transformer<ArrayBase<D, Ix2>, Array1<F>> for KMeans<F> {
+impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<F>> for KMeans<F> {
     /// Given an input matrix `observations`, with shape `(n_observations, n_features)`,
     /// `transform` returns, for each observation, its squared distance to its centroid.
-    fn transform(&self, observations: ArrayBase<D, Ix2>) -> Array1<F> {
+    fn transform(&self, observations: &ArrayBase<D, Ix2>) -> Array1<F> {
         let mut dists = Array1::zeros(observations.nrows());
         update_min_dists(&self.centroids, &observations.view(), &mut dists);
         dists
@@ -544,7 +544,7 @@ mod tests {
                 .expect("KMeans fitted");
             let clusters = model.predict(dataset);
             let inertia = compute_inertia(model.centroids(), &clusters.records, &clusters.targets);
-            let total_dist = model.transform(clusters.records.view()).sum();
+            let total_dist = model.transform(&clusters.records.view()).sum();
             assert_abs_diff_eq!(inertia, total_dist);
 
             // Second clustering with 10 iterations (default)
@@ -556,7 +556,7 @@ mod tests {
             let clusters2 = model2.predict(dataset2);
             let inertia2 =
                 compute_inertia(model2.centroids(), &clusters2.records, &clusters2.targets);
-            let total_dist2 = model2.transform(clusters2.records.view()).sum();
+            let total_dist2 = model2.transform(&clusters2.records.view()).sum();
             assert_abs_diff_eq!(inertia2, total_dist2);
 
             // Check we improve inertia (only really makes a difference for random init)
