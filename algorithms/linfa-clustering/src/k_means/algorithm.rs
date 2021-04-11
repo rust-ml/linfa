@@ -1,7 +1,10 @@
 use std::cmp::Ordering;
 
-use crate::k_means::errors::{KMeansError, Result};
 use crate::k_means::hyperparameters::{KMeansHyperParams, KMeansHyperParamsBuilder};
+use crate::{
+    k_means::errors::{KMeansError, Result},
+    KMeansInit,
+};
 use linfa::{prelude::*, DatasetBase, Float};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
 use ndarray_rand::rand::Rng;
@@ -256,26 +259,32 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T>
         let mut model = match model {
             Some(model) => model,
             None => {
-                let mut dists = Array1::zeros(n_samples);
-                // Initial centroids derived from the first batch by running the init algorithm
-                // n_runs times and taking the centroids with the lowest inertia
-                let (centroids, _) = (0..self.n_runs())
-                    .map(|_| {
-                        let centroids =
-                            self.init_method()
-                                .run(self.n_clusters(), observations, &mut rng);
-                        update_min_dists(&centroids, &observations, &mut dists);
-                        (centroids, dists.sum())
-                    })
-                    .min_by(|(_, d1), (_, d2)| {
-                        if d1 < d2 {
-                            Ordering::Less
-                        } else {
-                            Ordering::Greater
-                        }
-                    })
-                    .unwrap();
-
+                let centroids = if let KMeansInit::Precomputed(centroids) = self.init_method() {
+                    // If using precomputed centroids, don't run the init algorithm multiple times
+                    // since it's pointless
+                    centroids.clone()
+                } else {
+                    let mut dists = Array1::zeros(n_samples);
+                    // Initial centroids derived from the first batch by running the init algorithm
+                    // n_runs times and taking the centroids with the lowest inertia
+                    (0..self.n_runs())
+                        .map(|_| {
+                            let centroids =
+                                self.init_method()
+                                    .run(self.n_clusters(), observations, &mut rng);
+                            update_min_dists(&centroids, &observations, &mut dists);
+                            (centroids, dists.sum())
+                        })
+                        .min_by(|(_, d1), (_, d2)| {
+                            if d1 < d2 {
+                                Ordering::Less
+                            } else {
+                                Ordering::Greater
+                            }
+                        })
+                        .unwrap()
+                        .0
+                };
                 KMeans {
                     centroids,
                     cluster_count: Array1::zeros(self.n_clusters()),
