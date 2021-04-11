@@ -47,7 +47,9 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParamsBuilder<F, R> {
     /// Set the value of `n_runs`.
     ///
     /// The final results will be the best output of n_runs consecutive runs in terms of inertia
-    /// (sum of squared distances to the closest centroid for all observations in the training set)
+    /// (sum of squared distances to the closest centroid for all observations in the training
+    /// set).  For incremental K-means, only the initialization algorithm will be run multiple
+    /// times to pick the best starting centroids.
     pub fn n_runs(mut self, n_runs: usize) -> Self {
         self.n_runs = n_runs;
         self
