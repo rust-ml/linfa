@@ -2,13 +2,34 @@ use criterion::{
     black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
     PlotConfiguration,
 };
-use linfa::traits::IncrementalFit;
+use linfa::traits::{IncrementalFit, Transformer};
 use linfa::DatasetBase;
 use linfa_clustering::{generate_blobs, KMeans, KMeansInit};
 use ndarray::Array2;
 use ndarray_rand::RandomExt;
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform};
 use rand_isaac::Isaac64Rng;
+
+#[derive(Default)]
+struct Stats {
+    total_cost: f64,
+    runs: usize,
+}
+
+impl Stats {
+    fn add(&mut self, cost: f64) {
+        self.total_cost += cost;
+        self.runs += 1;
+    }
+}
+
+impl Drop for Stats {
+    fn drop(&mut self) {
+        if self.runs != 0 {
+            println!("Average cost = {}", self.total_cost / self.runs as f64);
+        }
+    }
+}
 
 fn k_means_bench(c: &mut Criterion) {
     let mut rng = Isaac64Rng::seed_from_u64(40);
@@ -22,8 +43,7 @@ fn k_means_bench(c: &mut Criterion) {
         let centroids =
             Array2::random_using((n_clusters, n_features), Uniform::new(-30., 30.), rng);
         let dataset = DatasetBase::from(generate_blobs(cluster_size, &centroids, rng));
-        let mut total_cost = 0.0;
-        let mut runs = 0;
+        let mut stats = Stats::default();
 
         benchmark.bench_function(
             BenchmarkId::new("naive_k_means", format!("{}x{}", n_clusters, cluster_size)),
@@ -35,12 +55,10 @@ fn k_means_bench(c: &mut Criterion) {
                         .tolerance(black_box(1e-3))
                         .fit(&dataset)
                         .unwrap();
-                    total_cost += m.inertia();
-                    runs += 1;
+                    stats.add(m.inertia());
                 });
             },
         );
-        println!("Average cost = {}", total_cost / runs as f64);
     }
 
     benchmark.finish();
@@ -58,6 +76,7 @@ fn k_means_incr_bench(c: &mut Criterion) {
         let centroids =
             Array2::random_using((n_clusters, n_features), Uniform::new(-30., 30.), rng);
         let dataset = DatasetBase::from(generate_blobs(cluster_size, &centroids, rng)).shuffle(rng);
+        let mut stats = Stats::default();
 
         benchmark.bench_function(
             BenchmarkId::new(
@@ -71,7 +90,7 @@ fn k_means_incr_bench(c: &mut Criterion) {
                             .init_method(KMeansInit::KMeansPlusPlus)
                             .tolerance(black_box(1e-3))
                             .build();
-                    dataset
+                    let model = dataset
                         .sample_chunks(200)
                         .cycle()
                         .try_fold(None, |current, batch| {
@@ -84,6 +103,8 @@ fn k_means_incr_bench(c: &mut Criterion) {
                             }
                         })
                         .unwrap_err();
+                    // Evaluate how well the model performs on the test dataset
+                    stats.add(model.transform(dataset.records()).mean().unwrap());
                 });
             },
         );
@@ -106,8 +127,7 @@ fn k_means_init_bench(c: &mut Criterion) {
             let centroids =
                 Array2::random_using((n_clusters, n_features), Uniform::new(-30., 30.), rng);
             let dataset = DatasetBase::from(generate_blobs(cluster_size, &centroids, rng));
-            let mut total_cost = 0.0;
-            let mut runs = 0;
+            let mut stats = Stats::default();
 
             benchmark.bench_function(
                 BenchmarkId::new(
@@ -125,13 +145,10 @@ fn k_means_init_bench(c: &mut Criterion) {
                             .tolerance(1000.0) // Guaranteed convergence
                             .fit(&dataset)
                             .unwrap();
-                        total_cost += m.inertia();
-                        runs += 1;
+                        stats.add(m.inertia());
                     });
                 },
             );
-
-            //println!("Average cost = {}", total_cost / runs as f64);
         }
     }
 }
