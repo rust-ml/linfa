@@ -228,11 +228,13 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T> Fit<'a, A
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Self::Object {
         let mut rng = self.rng();
         let observations = dataset.records().view();
+        let n_samples = dataset.nsamples();
 
         let mut min_inertia = F::infinity();
         let mut best_centroids = None;
         let mut best_iter = None;
-        let mut memberships = Array1::zeros(observations.dim().0);
+        let mut memberships = Array1::zeros(n_samples);
+        let mut dists = Array1::zeros(n_samples);
 
         let n_runs = self.n_runs();
 
@@ -243,9 +245,14 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T> Fit<'a, A
                 .run(self.n_clusters(), observations, &mut rng);
             let mut converged_iter: Option<u64> = None;
             for n_iter in 0..self.max_n_iterations() {
-                update_cluster_memberships(&centroids, &observations, &mut memberships);
+                update_memberships_and_dists(
+                    &centroids,
+                    &observations,
+                    &mut memberships,
+                    &mut dists,
+                );
                 let new_centroids = compute_centroids(&centroids, &observations, &memberships);
-                inertia = compute_inertia(&new_centroids, &observations, &memberships);
+                inertia = dists.sum();
                 let distance = centroids
                     .sq_l2_dist(&new_centroids)
                     .expect("Failed to compute distance");
@@ -490,12 +497,7 @@ fn compute_centroids_incremental<F: Float>(
     centroids
 }
 
-/// Given a matrix of centroids with shape (n_centroids, n_features)
-/// and a matrix of observations with shape (n_observations, n_features),
-/// update the 1-dimensional `cluster_memberships` array such that:
-///
-/// membership[i] == closest_centroid(&centroids, &observations.slice(s![i, ..])
-///
+// Update `cluster_memberships` with the index of the cluster each observation belongs to.
 pub(crate) fn update_cluster_memberships<F: Float>(
     centroids: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
     observations: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
@@ -508,7 +510,7 @@ pub(crate) fn update_cluster_memberships<F: Float>(
         });
 }
 
-/// Updates `dists` with the number of distance of each observation from its closest centroid.
+// Updates `dists` with the distance of each observation from its closest centroid.
 pub(crate) fn update_min_dists<F: Float>(
     centroids: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
     observations: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
@@ -517,6 +519,23 @@ pub(crate) fn update_min_dists<F: Float>(
     Zip::from(observations.axis_iter(Axis(0)))
         .and(dists)
         .par_apply(|observation, dist| *dist = closest_centroid(&centroids, &observation).1);
+}
+
+// Efficient combination of `update_cluster_memberships` and `update_min_dists`.
+pub(crate) fn update_memberships_and_dists<F: Float>(
+    centroids: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
+    observations: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
+    cluster_memberships: &mut ArrayBase<impl DataMut<Elem = usize>, Ix1>,
+    dists: &mut ArrayBase<impl DataMut<Elem = F>, Ix1>,
+) {
+    Zip::from(observations.axis_iter(Axis(0)))
+        .and(cluster_memberships)
+        .and(dists)
+        .par_apply(|observation, cluster_membership, dist| {
+            let (m, d) = closest_centroid(&centroids, &observation);
+            *cluster_membership = m;
+            *dist = d;
+        });
 }
 
 /// Given a matrix of centroids with shape (n_centroids, n_features)
