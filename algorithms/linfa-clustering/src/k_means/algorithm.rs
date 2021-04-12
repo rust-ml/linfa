@@ -359,15 +359,20 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T>
         };
 
         let mut memberships = Array1::zeros(n_samples);
-        update_cluster_memberships(&model.centroids, &observations, &mut memberships);
+        let mut dists = Array1::zeros(n_samples);
+        update_memberships_and_dists(
+            &model.centroids,
+            &observations,
+            &mut memberships,
+            &mut dists,
+        );
         let new_centroids = compute_centroids_incremental(
             &observations,
             &memberships,
             &model.centroids,
             &mut model.cluster_count,
         );
-        model.inertia = compute_inertia(&new_centroids, &observations, &memberships)
-            / F::from(n_samples).unwrap();
+        model.inertia = dists.sum() / F::from(n_samples).unwrap();
         let dist = model.centroids.sq_l2_dist(&new_centroids).unwrap();
         model.centroids = new_centroids;
 
@@ -757,20 +762,12 @@ mod tests {
 
         let (model, converged) = params.fit_with(Some(model), &dataset1);
         assert_abs_diff_eq!(model.centroids(), &array![[-0.5, -1.5], [4., 5.], [7., 8.]]);
-        assert_abs_diff_eq!(
-            model.inertia(),
-            compute_inertia(&model.centroids, dataset1.records(), &array![0, 0, 1, 1]) / 4.0
-        );
         assert!(converged);
 
         let (model, converged) = params.fit_with(Some(model), &dataset2);
         assert_abs_diff_eq!(
             model.centroids(),
             &array![[-6. / 4., -8. / 4.], [4., 5.], [10., 10.]]
-        );
-        assert_abs_diff_eq!(
-            model.inertia(),
-            compute_inertia(&model.centroids, dataset2.records(), &array![0, 0, 2]) / 3.0
         );
         assert!(converged);
     }
