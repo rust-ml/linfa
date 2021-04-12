@@ -107,7 +107,7 @@ fn platt_newton_method<'a, F: Float>(
     for (v, t) in reg_values.iter().zip(t.iter()) {
         let f_apb = *v * a + b;
         if f_apb >= F::zero() {
-            fval += *t * f_apb + (F::one() + -f_apb.exp()).ln();
+            fval += *t * f_apb + (F::one() + (-f_apb).exp()).ln();
         } else {
             fval += (*t - F::one()) * f_apb + (F::one() + f_apb.exp()).ln();
         }
@@ -142,14 +142,17 @@ fn platt_newton_method<'a, F: Float>(
             g2 += d1;
         }
 
+        dbg!(&g1, &g2);
         if g1.abs() < F::from(1e-5).unwrap() && g2.abs() < F::from(1e-5).unwrap() {
             break;
         }
 
         let det = h11 * h22 - h21 * h21;
-        let d_a = (h22 * g1 - h21 * g2) / det;
+        let d_a = -(h22 * g1 - h21 * g2) / det;
         let d_b = -(-h21 * g1 + h11 * g2) / det;
         let gd = g1 * d_a + g2 * d_b;
+
+        //dbg!(&det, &d_a, &d_b, &gd);
 
         let mut stepsize = F::one();
         while stepsize >= params.minstep {
@@ -163,7 +166,7 @@ fn platt_newton_method<'a, F: Float>(
                 if f_apb >= F::zero() {
                     newf += *t * f_apb + (F::one() + (-f_apb).exp()).ln();
                 } else {
-                    newf += (*t - F::one()) * f_apb + (F::one() + (f_apb).exp()).ln();
+                    newf += (*t - F::one()) * f_apb + (F::one() + f_apb.exp()).ln();
                 }
             }
 
@@ -171,13 +174,15 @@ fn platt_newton_method<'a, F: Float>(
                 a = new_a;
                 b = new_b;
                 fval = newf;
+                break;
             } else {
                 stepsize /= F::one() + F::one();
             }
         }
 
         if stepsize < params.minstep {
-            panic!("Line search failed!");
+            //panic!("Line search failed!");
+            break;
         }
     }
 
@@ -222,7 +227,7 @@ mod tests {
         let mut rng = SmallRng::seed_from_u64(42);
 
         let testcases = &[
-            (10_f32, 0.),
+            (100_f32, 0.),
             /*(100., 0.),
             (10., 0.5),
             (100., 0.)*/
@@ -235,8 +240,9 @@ mod tests {
         };
 
         for (a, b) in testcases {
-            let (reg_vals, dec_vals) = generate_dummy_values(*a, *b, 1000, &mut rng);
+            let (reg_vals, dec_vals) = generate_dummy_values(*a, *b, 3000, &mut rng);
             let (a_est, b_est) = platt_newton_method(reg_vals.view(), dec_vals.view(), &params);
+            dbg!(&a, &a_est, &b, &b_est);
         }
     }
 }
