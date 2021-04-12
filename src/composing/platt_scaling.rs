@@ -1,8 +1,8 @@
 //! Implement Platt calibration with Newton method
 //!
 
-use crate::dataset::{AsTargets, DatasetBase, Pr, Records};
-use crate::traits::{Fit, Predict, PredictRef};
+use crate::dataset::{DatasetBase, Pr};
+use crate::traits::{Predict, PredictRef};
 use crate::Float;
 
 use ndarray::{Array1, ArrayBase, ArrayView1, Data, Ix1, Ix2};
@@ -192,10 +192,11 @@ fn platt_newton_method<'a, F: Float>(
 #[cfg(test)]
 mod tests {
     use rand::{rngs::SmallRng, Rng, SeedableRng};
+    use ndarray::Array1;
+    use approx::assert_abs_diff_eq;
 
     use super::{platt_newton_method, PlattParams};
     use crate::Float;
-    use ndarray::Array1;
 
     fn generate_dummy_values<F: Float, R: Rng>(
         a: F,
@@ -204,13 +205,13 @@ mod tests {
         rng: &mut R,
     ) -> (Array1<F>, Array1<bool>) {
         // generate probability values, omit p = 0.0 to avoid infinity in reverse function
-        let prob_values = Array1::linspace(F::one() / F::from(n).unwrap(), F::one(), n - 1);
+        let prob_values = Array1::linspace(F::one() / F::from(n).unwrap(), F::one() - F::one() / F::from(n).unwrap(), n - 2);
 
         // generate regression values with inverse function
         let reg_values = prob_values
             .iter()
             .map(|x| (F::one() - *x) / *x)
-            .map(|x| (x - b) / a)
+            .map(|x| (x.ln() - b) / a)
             .collect();
 
         // roll decision according to probability
@@ -227,9 +228,9 @@ mod tests {
         let mut rng = SmallRng::seed_from_u64(42);
 
         let testcases = &[
-            (100_f32, 0.),
-            /*(100., 0.),
-            (10., 0.5),
+            (10_f32, -20.),
+            (100., 0.),
+            /*(10., 0.5),
             (100., 0.)*/
         ];
 
@@ -240,9 +241,11 @@ mod tests {
         };
 
         for (a, b) in testcases {
-            let (reg_vals, dec_vals) = generate_dummy_values(*a, *b, 3000, &mut rng);
+            let (reg_vals, dec_vals) = generate_dummy_values(*a, *b, 5000, &mut rng);
             let (a_est, b_est) = platt_newton_method(reg_vals.view(), dec_vals.view(), &params);
-            dbg!(&a, &a_est, &b, &b_est);
+
+            assert_abs_diff_eq!(a_est, a, epsilon = 3.0);
+            assert_abs_diff_eq!(b_est, b, epsilon = 3.0);
         }
     }
 }
