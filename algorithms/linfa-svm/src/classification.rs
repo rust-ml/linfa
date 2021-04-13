@@ -15,18 +15,21 @@ use super::SolverParams;
 use super::{Float, Svm, SvmParams};
 use linfa_kernel::Kernel;
 
-fn calibrate_with_platt<F: Float>(
+fn calibrate_with_platt<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = bool>>(
     mut obj: Svm<F, F>,
     params: &PlattParams<F, ()>,
-    data: ArrayView2<F>,
-    targets: &[bool],
+    dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
 ) -> Result<Svm<F, Pr>> {
-    let pred = data
+    let pred = dataset.records()
         .outer_iter()
         .map(|x| obj.weighted_sum(&x) - obj.rho)
         .collect::<Array1<_>>();
 
-    let (a, b) = platt_newton_method(pred.view(), ArrayView1::from(targets), params)?;
+    let (a, b) = platt_newton_method(
+        pred.view(),
+        dataset.try_single_target()?,
+        params
+    )?;
     obj.probability_coeffs = Some((a, b));
 
     Ok(obj.with_phantom())
@@ -50,13 +53,12 @@ fn calibrate_with_platt<F: Float>(
 /// * `cneg` - C for negative targets
 pub fn fit_c<F: Float>(
     params: SolverParams<F>,
-    platt_params: &PlattParams<F, ()>,
     dataset: ArrayView2<F>,
     kernel: Kernel<F>,
     targets: &[bool],
     cpos: F,
     cneg: F,
-) -> Result<Svm<F, Pr>> {
+) -> Svm<F, F> {
     let bounds = targets
         .iter()
         .map(|x| if *x { cpos } else { cneg })
@@ -84,7 +86,7 @@ pub fn fit_c<F: Float>(
         .map(|(a, b)| if *b { a } else { -a })
         .collect();
 
-    calibrate_with_platt(res, platt_params, dataset, targets)
+    res
 }
 
 /// Support Vector Classification with Nu-penalizing term
@@ -104,12 +106,11 @@ pub fn fit_c<F: Float>(
 /// * `nu` - Nu penalizing term
 pub fn fit_nu<F: Float>(
     params: SolverParams<F>,
-    platt_params: &PlattParams<F, ()>,
     dataset: ArrayView2<F>,
     kernel: Kernel<F>,
     targets: &[bool],
     nu: F,
-) -> Result<Svm<F, Pr>> {
+) -> Svm<F, F> {
     let mut sum_pos = nu * F::from(targets.len()).unwrap() / F::from(2.0).unwrap();
     let mut sum_neg = nu * F::from(targets.len()).unwrap() / F::from(2.0).unwrap();
     let init_alpha = targets
@@ -154,7 +155,7 @@ pub fn fit_nu<F: Float>(
     res.rho /= r;
     res.obj /= r * r;
 
-    calibrate_with_platt(res, platt_params, dataset, targets)
+    res
 }
 
 /// Support Vector Classification for one-class problems
@@ -172,7 +173,7 @@ pub fn fit_one_class<F: Float + num_traits::ToPrimitive>(
     dataset: ArrayView2<F>,
     kernel: Kernel<F>,
     nu: F,
-) -> Svm<F, Pr> {
+) -> Svm<F, F> {
     let size = kernel.size();
     let n = (nu * F::from(size).unwrap()).to_usize().unwrap();
 
@@ -199,7 +200,7 @@ pub fn fit_one_class<F: Float + num_traits::ToPrimitive>(
 
     let res = solver.solve();
 
-    res.with_phantom()
+    res
 }
 
 /// Fit binary classification problem
@@ -217,30 +218,61 @@ macro_rules! impl_classification {
                 let target = dataset.try_single_target()?;
                 let target = target.as_slice().unwrap();
 
+                use linfa::dataset::Records;
+                println!("MAMAA {}", dataset.nsamples());
                 let ret = match (self.c, self.nu) {
                     (Some((c_p, c_n)), _) => fit_c(
                         self.solver_params.clone(),
-                        &self.platt,
                         dataset.records().view(),
                         kernel,
                         target,
                         c_p,
                         c_n,
-                    )
-                    .unwrap(),
+                    ),
                     (None, Some((nu, _))) => fit_nu(
                         self.solver_params.clone(),
-                        &self.platt,
                         dataset.records().view(),
                         kernel,
                         target,
                         nu,
-                    )
-                    .unwrap(),
+                    ),
                     _ => panic!("Set either C value or Nu value"),
                 };
 
-                Ok(ret)
+                println!("BLBU");
+
+                calibrate_with_platt(ret, &self.platt, dataset)
+            }
+        }
+
+        impl<'a, F: Float> Fit<'a, $records, $targets> for SvmParams<F, bool> {
+            type Object = Result<Svm<F, bool>>;
+
+            fn fit(&self, dataset: &DatasetBase<$records, $targets>) -> Self::Object {
+                let kernel = self.kernel.transform(dataset.records());
+                let target = dataset.try_single_target()?;
+                let target = target.as_slice().unwrap();
+
+                let ret = match (self.c, self.nu) {
+                    (Some((c_p, c_n)), _) => fit_c(
+                        self.solver_params.clone(),
+                        dataset.records().view(),
+                        kernel,
+                        target,
+                        c_p,
+                        c_n,
+                    ),
+                    (None, Some((nu, _))) => fit_nu(
+                        self.solver_params.clone(),
+                        dataset.records().view(),
+                        kernel,
+                        target,
+                        nu,
+                    ),
+                    _ => panic!("Set either C value or Nu value"),
+                };
+
+                Ok(ret.with_phantom())
             }
         }
     };
@@ -249,6 +281,7 @@ macro_rules! impl_classification {
 impl_classification!(Array2<F>, Array2<bool>);
 impl_classification!(ArrayView2<'a, F>, ArrayView2<'a, bool>);
 impl_classification!(Array2<F>, CountedTargets<bool, Array2<bool>>);
+impl_classification!(ArrayView2<'a, F>, CountedTargets<bool, Array2<bool>>);
 impl_classification!(ArrayView2<'a, F>, CountedTargets<bool, ArrayView2<'a, bool>>);
 
 /// Fit one-class problem
@@ -257,8 +290,8 @@ impl_classification!(ArrayView2<'a, F>, CountedTargets<bool, ArrayView2<'a, bool
 /// implementation of SVM.
 macro_rules! impl_oneclass {
     ($records:ty, $targets:ty) => {
-        impl<'a, F: Float> Fit<'a, $records, $targets> for SvmParams<F, Pr> {
-            type Object = Result<Svm<F, Pr>>;
+        impl<'a, F: Float> Fit<'a, $records, $targets> for SvmParams<F, bool> {
+            type Object = Result<Svm<F, bool>>;
 
             fn fit(&self, dataset: &DatasetBase<$records, $targets>) -> Self::Object {
                 let kernel = self.kernel.transform(dataset.records());
@@ -269,7 +302,7 @@ macro_rules! impl_oneclass {
                     None => panic!("One class needs Nu value"),
                 };
 
-                Ok(ret)
+                Ok(ret.with_phantom())
             }
         }
     };
@@ -300,6 +333,23 @@ impl<'a, F: Float> Predict<ArrayView1<'a, F>, Pr> for Svm<F, Pr> {
     }
 }
 
+/// Predict a probability with a feature vector
+impl<F: Float> Predict<Array1<F>, bool> for Svm<F, bool> {
+    fn predict(&self, data: Array1<F>) -> bool {
+        let val = self.weighted_sum(&data) - self.rho;
+
+        val >= F::zero()
+    }
+}
+
+/// Predict a probability with a feature vector
+impl<'a, F: Float> Predict<ArrayView1<'a, F>, bool> for Svm<F, bool> {
+    fn predict(&self, data: ArrayView1<'a, F>) -> bool {
+        let val = self.weighted_sum(&data) - self.rho;
+
+        val >= F::zero()
+    }
+}
 /// Classify observations
 ///
 /// This function takes a number of features and predicts target probabilities that they belong to
@@ -317,11 +367,26 @@ impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<Pr>> for 
     }
 }
 
+/// Classify observations
+///
+/// This function takes a number of features and predicts target probabilities that they belong to
+/// the positive class.
+impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<bool>> for Svm<F, bool> {
+    fn predict_ref<'a>(&'a self, data: &ArrayBase<D, Ix2>) -> Array1<bool> {
+        data.outer_iter()
+            .map(|data| {
+                let val = self.weighted_sum(&data) - self.rho;
+
+                val >= F::zero()
+            })
+            .collect()
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::Svm;
     use crate::error::Result;
-    use linfa::dataset::{Dataset, DatasetBase, Pr};
+    use linfa::dataset::{Dataset, DatasetBase};
     use linfa::prelude::ToConfusionMatrix;
     use linfa::traits::{Fit, Predict};
 
@@ -364,23 +429,23 @@ mod tests {
         let dataset = Dataset::new(entries.clone(), targets);
 
         // train model with positive and negative weight
-        let model = Svm::params()
+        let model = Svm::<_, bool>::params()
             .pos_neg_weights(1.0, 1.0)
             .linear_kernel()
             .fit(&dataset)?;
 
-        let y_est = model.predict(&dataset).mapv(|x| x > Pr::even());
+        let y_est = model.predict(&dataset);
 
         let cm = y_est.confusion_matrix(&dataset)?;
         assert_eq!(cm.accuracy(), 1.0);
 
         // train model with Nu parameter
-        let model = Svm::params()
+        let model = Svm::<_, bool>::params()
             .nu_weight(0.05)
             .linear_kernel()
             .fit(&dataset)?;
 
-        let valid = model.predict(&dataset).mapv(|x| x > Pr::even());
+        let valid = model.predict(&dataset);
 
         let cm = valid.confusion_matrix(&dataset)?;
         assert_eq!(cm.accuracy(), 1.0);
@@ -397,14 +462,14 @@ mod tests {
         let dataset = Dataset::new(records.clone(), targets);
 
         // train model with positive and negative weight
-        let model = Svm::params()
+        let model = Svm::<_, bool>::params()
             .pos_neg_weights(1.0, 1.0)
             .polynomial_kernel(0.0, 2.0)
             .fit(&dataset)?;
 
         //println!("{:?}", model.predict(DatasetBase::from(records.clone())).targets());
 
-        let valid = model.predict(&dataset).mapv(|x| x > Pr::even());
+        let valid = model.predict(&dataset);
 
         let cm = valid.confusion_matrix(&dataset)?;
         assert!(cm.accuracy() > 0.9);
@@ -419,23 +484,23 @@ mod tests {
         let dataset = (records.view(), targets.view()).into();
 
         // train model with positive and negative weight
-        let model = Svm::params()
+        let model = Svm::<_, bool>::params()
             .pos_neg_weights(1.0, 1.0)
             .gaussian_kernel(50.0)
             .fit(&dataset)?;
 
-        let y_est = model.predict(&dataset).mapv(|x| x > Pr::even());
+        let y_est = model.predict(&dataset);
 
         let cm = y_est.confusion_matrix(&dataset)?;
         assert!(cm.accuracy() > 0.9);
 
         // train model with Nu parameter
-        let model = Svm::params()
+        let model = Svm::<_, bool>::params()
             .nu_weight(0.01)
             .gaussian_kernel(50.0)
             .fit(&dataset)?;
 
-        let y_est = model.predict(&dataset).mapv(|x| x > Pr::even());
+        let y_est = model.predict(&dataset);
 
         let cm = y_est.confusion_matrix(&dataset)?;
         assert!(cm.accuracy() > 0.9);
@@ -445,7 +510,7 @@ mod tests {
 
     #[test]
     fn test_iris_crossvalidation() {
-        let params = Svm::params()
+        let params = Svm::<_, bool>::params()
             .pos_neg_weights(50000., 5000.)
             .gaussian_kernel(40.0);
 
@@ -456,7 +521,6 @@ mod tests {
             .map(|(model, valid)| {
                 let cm = model
                     .predict(&valid)
-                    .mapv(|x| x > Pr::even())
                     .confusion_matrix(&valid)
                     .unwrap();
 
@@ -480,7 +544,7 @@ mod tests {
             .fit(&dataset)?;
 
         let valid = DatasetBase::from(Array::random((100, 2), Uniform::new(-10., 10f32)));
-        let valid = model.predict(valid).map_targets(|x| *x > Pr::even());
+        let valid = model.predict(valid);
 
         // count the number of correctly rejected samples
         let mut rejected = 0;
