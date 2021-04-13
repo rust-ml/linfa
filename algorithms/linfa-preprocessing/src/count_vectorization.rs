@@ -264,6 +264,11 @@ pub struct FittedCountVectorizer {
 }
 
 impl FittedCountVectorizer {
+    /// Number of vocabulary entries learned during fitting
+    pub fn nentries(&self) -> usize {
+        self.vocabulary.len()
+    }
+
     /// Given a sequence of `n` documents, produces a sparse array of size `(n, vocabulary_entries)` where column `j` of row `i`
     /// is the number of occurrences of vocabulary entry `j` in the document of index `i`. Vocabulary entry `j` is the string
     /// at the `j`-th position in the vocabulary. If a vocabulary entry was not encountered in a document, then the relative

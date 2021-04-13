@@ -149,6 +149,11 @@ pub struct FittedTfIdfVectorizer {
 }
 
 impl FittedTfIdfVectorizer {
+    /// Number of vocabulary entries learned during fitting
+    pub fn nentries(&self) -> usize {
+        self.fitted_vectorizer.vocabulary.len()
+    }
+
     /// Constains all vocabulary entries, in the same order used by the `transform` method.
     pub fn vocabulary(&self) -> &Vec<String> {
         self.fitted_vectorizer.vocabulary()

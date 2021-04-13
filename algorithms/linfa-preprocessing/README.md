@@ -8,11 +8,27 @@
 * Standard scaling 
 * Min-max scaling
 * Max Abs Scaling
-* Normalization (l1, l2 and max norm)
+* Normalization
 * Count vectorization
 * TfIdf vectorization
 * Whitening
 
+## Examples
+
+There are various usage examples in the `examples/` directory. To run, use:
+
+```bash
+$ cargo run --release --example count_vectorization
+```
+```bash
+$ cargo run --release --example tfidf_vectorization
+```
+```bash
+$ cargo run --release --example scaling
+```
+```bash
+$ cargo run --release --example whitening
+```
 
 ## License
 Dual-licensed to be compatible with the Rust project.
