@@ -1,11 +1,14 @@
 //! Implement Platt calibration with Newton method
 //!
 
+use std::marker::PhantomData;
+
 use crate::dataset::{DatasetBase, Pr};
 use crate::traits::{Predict, PredictRef};
 use crate::Float;
 
-use ndarray::{Array1, ArrayBase, ArrayView1, Data, Ix1, Ix2};
+use thiserror::Error;
+use ndarray::{Array1, ArrayBase, ArrayView1, Data, Ix1, Ix2, Array2};
 
 pub struct Platt<F, O> {
     a: F,
@@ -13,38 +16,53 @@ pub struct Platt<F, O> {
     obj: O,
 }
 
-pub struct PlattParams<F> {
+pub struct PlattParams<F, O> {
     maxiter: usize,
     minstep: F,
     eps: F,
+    phantom: PhantomData<O>,
 }
 
-impl<F: Float, O> Platt<F, O> {
-    pub fn params() -> PlattParams<F> {
+impl<F: Float, O> Default for PlattParams<F, O> {
+    fn default() -> Self {
         PlattParams {
             maxiter: 100,
             minstep: F::from(1e-10).unwrap(),
             eps: F::from(1e-12).unwrap(),
+            phantom: PhantomData,
         }
     }
 }
 
-impl<F: Float> PlattParams<F> {
-    pub fn calibrate<'a, O, D, D2>(
+#[derive(Error, Debug, Clone)]
+pub enum PlattNewtonResult {
+    #[error("line search did not converge")]
+    LineSearchNotConverged,
+    #[error("platt scaling did not converge")]
+    MaxIterReached,
+}
+
+impl<F: Float, O> Platt<F, O> {
+    pub fn params() -> PlattParams<F, O> {
+        PlattParams::default()
+    }
+}
+
+impl<F: Float, O> PlattParams<F, O>
+where
+    O: PredictRef<Array2<F>, Array1<F>>,
+{
+    pub fn calibrate<'a>(
         &self,
         obj: O,
-        ds: DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D2, Ix1>>,
-    ) -> Platt<F, O>
-    where
-        D: Data<Elem = F>,
-        D2: Data<Elem = bool>,
-        O: PredictRef<ArrayBase<D, Ix2>, ArrayBase<D, Ix1>>,
+        ds: &DatasetBase<Array2<F>, Array1<bool>>,
+    ) -> Result<Platt<F, O>, PlattNewtonResult>
     {
-        let predicted = obj.predict(&ds);
+        let predicted = obj.predict(ds);
 
-        let (a, b) = platt_newton_method(predicted.view(), ds.targets().view(), self);
+        let (a, b) = platt_newton_method(predicted.view(), ds.targets().view(), self)?;
 
-        Platt { a, b, obj }
+        Ok(Platt { a, b, obj })
     }
 }
 
@@ -57,26 +75,32 @@ where
         self.obj
             .predict(data)
             .iter()
-            .map(|x| {
-                let f_apb = self.a * *x + self.b;
-                let f_apb = f_apb.to_f32().unwrap();
-
-                // avoid numerical problems for large f_apb
-                if f_apb >= 0.0 {
-                    Pr((-f_apb).exp() / (1.0 + (-f_apb).exp()))
-                } else {
-                    Pr(1.0 / (1.0 + f_apb.exp()))
-                }
-            })
+            .map(|x| platt_predict(*x, self.a, self.b))
             .collect()
     }
 }
 
-fn platt_newton_method<'a, F: Float>(
+pub fn platt_predict<F: Float>(
+    x: F,
+    a: F,
+    b: F
+) -> Pr {
+    let f_apb = a * x + b;
+    let f_apb = f_apb.to_f32().unwrap();
+    
+    // avoid numerical problems for large f_apb
+    if f_apb >= 0.0 {
+        Pr((-f_apb).exp() / (1.0 + (-f_apb).exp()))
+    } else {
+        Pr(1.0 / (1.0 + f_apb.exp()))
+    }
+}
+
+pub fn platt_newton_method<'a, F: Float, O>(
     reg_values: ArrayView1<'a, F>,
     labels: ArrayView1<'a, bool>,
-    params: &PlattParams<F>,
-) -> (F, F) {
+    params: &PlattParams<F, O>,
+) -> Result<(F, F), PlattNewtonResult> {
     let (num_pos, num_neg) = labels.iter().fold((0, 0), |mut val, x| {
         match x {
             true => val.0 += 1,
@@ -113,6 +137,7 @@ fn platt_newton_method<'a, F: Float>(
         }
     }
 
+    let mut i = 0;
     for _ in 0..params.maxiter {
         let (mut h11, mut h22) = (params.eps, params.eps);
         let (mut h21, mut g1, mut g2) = (F::zero(), F::zero(), F::zero());
@@ -142,8 +167,8 @@ fn platt_newton_method<'a, F: Float>(
             g2 += d1;
         }
 
-        dbg!(&g1, &g2);
-        if g1.abs() < F::from(1e-5).unwrap() && g2.abs() < F::from(1e-5).unwrap() {
+        if g1.abs() < F::from(1e-5 * reg_values.len() as f32).unwrap() && 
+           g2.abs() < F::from(1e-5 * reg_values.len() as f32).unwrap() {
             break;
         }
 
@@ -151,8 +176,6 @@ fn platt_newton_method<'a, F: Float>(
         let d_a = -(h22 * g1 - h21 * g2) / det;
         let d_b = -(-h21 * g1 + h11 * g2) / det;
         let gd = g1 * d_a + g2 * d_b;
-
-        //dbg!(&det, &d_a, &d_b, &gd);
 
         let mut stepsize = F::one();
         while stepsize >= params.minstep {
@@ -178,25 +201,30 @@ fn platt_newton_method<'a, F: Float>(
             } else {
                 stepsize /= F::one() + F::one();
             }
+
+            if stepsize < params.minstep {
+                return Err(PlattNewtonResult::LineSearchNotConverged);
+            }
         }
 
-        if stepsize < params.minstep {
-            //panic!("Line search failed!");
-            break;
-        }
+        i += 1;
     }
 
-    (a, b)
+    if params.maxiter == i {
+        return Err(PlattNewtonResult::MaxIterReached);
+    }
+
+    Ok((a, b))
 }
 
 #[cfg(test)]
 mod tests {
     use rand::{rngs::SmallRng, Rng, SeedableRng};
-    use ndarray::Array1;
+    use ndarray::{Array1, Array2};
     use approx::assert_abs_diff_eq;
 
-    use super::{platt_newton_method, PlattParams};
-    use crate::Float;
+    use super::{platt_newton_method, PlattParams, Platt};
+    use crate::{Float, DatasetBase, traits::{PredictRef, Predict}};
 
     fn generate_dummy_values<F: Float, R: Rng>(
         a: F,
@@ -223,29 +251,71 @@ mod tests {
         (reg_values, decisions)
     }
 
+    macro_rules! test_newton_solver {
+        ($($fnc:ident, $a_val:expr);*) => {
+            $(
+            #[test]
+            fn $fnc() {
+                let mut rng = SmallRng::seed_from_u64(42);
+
+                let params: PlattParams<f32, ()> = PlattParams {
+                    maxiter: 100,
+                    minstep: 1e-10,
+                    eps: 1e-12,
+                    phantom: std::marker::PhantomData,
+                };
+
+                let a = $a_val as f32;
+
+                for b in &[a / 2.0, a * 2.0] {
+                    let (reg_vals, dec_vals) = generate_dummy_values(a, *b, 10000, &mut rng);
+                    let (a_est, b_est) = platt_newton_method(reg_vals.view(), dec_vals.view(), &params).unwrap();
+
+                    assert_abs_diff_eq!(a_est, a, epsilon = 0.15);
+                    assert_abs_diff_eq!(b_est, b, epsilon = 0.1);
+                }
+            }
+            )*
+        };
+    }
+
+    test_newton_solver!(
+        newton_solver_1, 1;
+        newton_solver_2, 2;
+        newton_solver_5, 5
+    );
+
+    struct DummyModel {
+        reg_vals: Array1<f32>,
+    }
+
+    impl PredictRef<Array2<f32>, Array1<f32>> for DummyModel {
+        fn predict_ref(&self, _: &Array2<f32>) -> Array1<f32> {
+            self.reg_vals.clone()
+        }
+    }
+
     #[test]
-    fn newton_solver() {
+    fn ordered_probabilities() {
         let mut rng = SmallRng::seed_from_u64(42);
 
-        let testcases = &[
-            (10_f32, -20.),
-            (100., 0.),
-            /*(10., 0.5),
-            (100., 0.)*/
-        ];
+        let (reg_vals, dec_vals) = generate_dummy_values(1.0, 0.5, 100, &mut rng);
+        let records = Array2::zeros((100, 3));
+        let dataset = DatasetBase::new(records, dec_vals);
 
-        let params = PlattParams {
-            maxiter: 100,
-            minstep: 1e-10,
-            eps: 1e-12,
-        };
+        let model = DummyModel { reg_vals };
 
-        for (a, b) in testcases {
-            let (reg_vals, dec_vals) = generate_dummy_values(*a, *b, 5000, &mut rng);
-            let (a_est, b_est) = platt_newton_method(reg_vals.view(), dec_vals.view(), &params);
+        let platt = Platt::params()
+            .calibrate(model, &dataset)
+            .unwrap();
 
-            assert_abs_diff_eq!(a_est, a, epsilon = 3.0);
-            assert_abs_diff_eq!(b_est, b, epsilon = 3.0);
+        let pred_probabilities = platt.predict(&dataset)
+            .to_vec();
+
+        for vals in pred_probabilities.windows(2) {
+            if vals[0] > vals[1] {
+                panic!("Probabilities are not monotonically increasing!");
+            }
         }
     }
 }

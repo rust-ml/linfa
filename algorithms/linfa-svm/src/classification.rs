@@ -1,5 +1,6 @@
 use linfa::prelude::Transformer;
 use linfa::{
+    composing::platt_scaling::{platt_newton_method, platt_predict, PlattParams},
     dataset::{AsTargets, CountedTargets, DatasetBase, Pr},
     traits::Fit,
     traits::{Predict, PredictRef},
@@ -13,6 +14,23 @@ use super::solver_smo::SolverState;
 use super::SolverParams;
 use super::{Float, Svm, SvmParams};
 use linfa_kernel::Kernel;
+
+fn calibrate_with_platt<F: Float>(
+    mut obj: Svm<F, F>,
+    params: &PlattParams<F, ()>,
+    data: ArrayView2<F>,
+    targets: &[bool],
+) -> Result<Svm<F, Pr>> {
+    let pred = data
+        .outer_iter()
+        .map(|x| obj.weighted_sum(&x) - obj.rho)
+        .collect::<Array1<_>>();
+
+    let (a, b) = platt_newton_method(pred.view(), ArrayView1::from(targets), params)?;
+    obj.probability_coeffs = Some((a, b));
+
+    Ok(obj.with_phantom())
+}
 
 /// Support Vector Classification with C-penalizing parameter
 ///
@@ -32,12 +50,13 @@ use linfa_kernel::Kernel;
 /// * `cneg` - C for negative targets
 pub fn fit_c<F: Float>(
     params: SolverParams<F>,
+    platt_params: &PlattParams<F, ()>,
     dataset: ArrayView2<F>,
     kernel: Kernel<F>,
     targets: &[bool],
     cpos: F,
     cneg: F,
-) -> Svm<F, Pr> {
+) -> Result<Svm<F, Pr>> {
     let bounds = targets
         .iter()
         .map(|x| if *x { cpos } else { cneg })
@@ -65,7 +84,7 @@ pub fn fit_c<F: Float>(
         .map(|(a, b)| if *b { a } else { -a })
         .collect();
 
-    res.with_phantom()
+    calibrate_with_platt(res, platt_params, dataset, targets)
 }
 
 /// Support Vector Classification with Nu-penalizing term
@@ -85,11 +104,12 @@ pub fn fit_c<F: Float>(
 /// * `nu` - Nu penalizing term
 pub fn fit_nu<F: Float>(
     params: SolverParams<F>,
+    platt_params: &PlattParams<F, ()>,
     dataset: ArrayView2<F>,
     kernel: Kernel<F>,
     targets: &[bool],
     nu: F,
-) -> Svm<F, Pr> {
+) -> Result<Svm<F, Pr>> {
     let mut sum_pos = nu * F::from(targets.len()).unwrap() / F::from(2.0).unwrap();
     let mut sum_neg = nu * F::from(targets.len()).unwrap() / F::from(2.0).unwrap();
     let init_alpha = targets
@@ -134,7 +154,7 @@ pub fn fit_nu<F: Float>(
     res.rho /= r;
     res.obj /= r * r;
 
-    res.with_phantom()
+    calibrate_with_platt(res, platt_params, dataset, targets)
 }
 
 /// Support Vector Classification for one-class problems
@@ -200,19 +220,23 @@ macro_rules! impl_classification {
                 let ret = match (self.c, self.nu) {
                     (Some((c_p, c_n)), _) => fit_c(
                         self.solver_params.clone(),
+                        &self.platt,
                         dataset.records().view(),
                         kernel,
                         target,
                         c_p,
                         c_n,
-                    ),
+                    )
+                    .unwrap(),
                     (None, Some((nu, _))) => fit_nu(
                         self.solver_params.clone(),
+                        &self.platt,
                         dataset.records().view(),
                         kernel,
                         target,
                         nu,
-                    ),
+                    )
+                    .unwrap(),
                     _ => panic!("Set either C value or Nu value"),
                 };
 
@@ -260,8 +284,9 @@ impl_oneclass!(Array2<F>, CountedTargets<(), ArrayView2<'a, ()>>);
 impl<F: Float> Predict<Array1<F>, Pr> for Svm<F, Pr> {
     fn predict(&self, data: Array1<F>) -> Pr {
         let val = self.weighted_sum(&data) - self.rho;
-        // this is safe because `F` is only implemented for `f32` and `f64`
-        Pr(val.to_f32().unwrap())
+        let (a, b) = self.probability_coeffs.clone().unwrap();
+
+        platt_predict(val, a, b)
     }
 }
 
@@ -269,8 +294,9 @@ impl<F: Float> Predict<Array1<F>, Pr> for Svm<F, Pr> {
 impl<'a, F: Float> Predict<ArrayView1<'a, F>, Pr> for Svm<F, Pr> {
     fn predict(&self, data: ArrayView1<'a, F>) -> Pr {
         let val = self.weighted_sum(&data) - self.rho;
-        // this is safe because `F` is only implemented for `f32` and `f64`
-        Pr(val.to_f32().unwrap())
+        let (a, b) = self.probability_coeffs.clone().unwrap();
+
+        platt_predict(val, a, b)
     }
 }
 
@@ -280,15 +306,12 @@ impl<'a, F: Float> Predict<ArrayView1<'a, F>, Pr> for Svm<F, Pr> {
 /// the positive class.
 impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<Pr>> for Svm<F, Pr> {
     fn predict_ref<'a>(&'a self, data: &ArrayBase<D, Ix2>) -> Array1<Pr> {
+        let (a, b) = self.probability_coeffs.clone().unwrap();
+
         data.outer_iter()
             .map(|data| {
                 let val = self.weighted_sum(&data) - self.rho;
-                // dummy for now
-                if val.is_positive() {
-                    Pr(1.0)
-                } else {
-                    Pr(0.0)
-                }
+                platt_predict(val, a, b)
             })
             .collect()
     }

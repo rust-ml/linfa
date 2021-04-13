@@ -67,7 +67,7 @@
 //!
 //! accuracy 0.8867925, MCC 0.40720797
 //! ```
-use linfa::Float;
+use linfa::{composing::PlattParams, Float};
 use ndarray::{ArrayBase, Data, Ix1};
 
 use std::fmt;
@@ -109,6 +109,7 @@ pub struct SvmParams<F: Float, T> {
     solver_params: SolverParams<F>,
     phantom: PhantomData<T>,
     kernel: KernelParams<F>,
+    platt: PlattParams<F, ()>,
 }
 
 impl<F: Float, T> SvmParams<F, T> {
@@ -140,6 +141,13 @@ impl<F: Float, T> SvmParams<F, T> {
     /// this model. To use the "base" SVM model it suffices to choose a `Linear` kernel.
     pub fn with_kernel_params(mut self, kernel: KernelParams<F>) -> Self {
         self.kernel = kernel;
+
+        self
+    }
+
+    /// Set the platt params for probability calibration
+    pub fn with_platt_params(mut self, platt: PlattParams<F, ()>) -> Self {
+        self.platt = platt;
 
         self
     }
@@ -252,6 +260,7 @@ pub struct Svm<F: Float, T> {
     // and not the whole inner matrix
     kernel_method: KernelMethod<F>,
     sep_hyperplane: SeparatingHyperplane<F>,
+    probability_coeffs: Option<(F, F)>,
     phantom: PhantomData<T>,
 }
 
@@ -273,6 +282,7 @@ impl<F: Float, T> Svm<F, T> {
             },
             phantom: PhantomData,
             kernel: Kernel::params().method(KernelMethod::Linear),
+            platt: PlattParams::default(),
         }
     }
 
@@ -297,6 +307,7 @@ impl<F: Float, T> Svm<F, T> {
             iterations: self.iterations,
             sep_hyperplane: self.sep_hyperplane,
             kernel_method: self.kernel_method,
+            probability_coeffs: self.probability_coeffs,
             phantom: PhantomData,
         }
     }

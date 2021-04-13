@@ -38,7 +38,7 @@
 //! If this strikes a chord with you, please take a look at the [roadmap](https://github.com/rust-ml/linfa/issues/7) and get involved!
 //!
 
-mod composing;
+pub mod composing;
 pub mod correlation;
 pub mod dataset;
 pub mod error;
