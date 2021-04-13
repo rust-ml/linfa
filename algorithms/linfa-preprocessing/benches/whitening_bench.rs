@@ -8,27 +8,27 @@ use ndarray_rand::{
 
 fn iai_pca_bench() {
     let mut rng = SmallRng::seed_from_u64(21);
-    for size in (1000..10000).step_by(1000) {
-        fit_transform_whitener(Whitener::pca(), &mut rng, size);
+    for nfeatures in (10..100).step_by(10) {
+        fit_transform_whitener(Whitener::pca(), &mut rng, 10000, nfeatures);
     }
 }
 
 fn iai_zca_bench() {
     let mut rng = SmallRng::seed_from_u64(21);
-    for size in (1000..10000).step_by(1000) {
-        fit_transform_whitener(Whitener::zca(), &mut rng, size);
+    for nfeatures in (10..100).step_by(10) {
+        fit_transform_whitener(Whitener::zca(), &mut rng, 10000, nfeatures);
     }
 }
 
 fn iai_cholesky_bench() {
     let mut rng = SmallRng::seed_from_u64(21);
-    for size in (1000..10000).step_by(1000) {
-        fit_transform_whitener(Whitener::cholesky(), &mut rng, size);
+    for nfeatures in (10..100).step_by(10) {
+        fit_transform_whitener(Whitener::cholesky(), &mut rng, 10000, nfeatures);
     }
 }
 
-fn fit_transform_whitener(whitener: Whitener, rng: &mut SmallRng, size: usize) {
-    let dataset = Array2::random_using((size, 7), Uniform::from(-30. ..30.), rng).into();
+fn fit_transform_whitener(whitener: Whitener, rng: &mut SmallRng, size: usize, nfeatures: usize) {
+    let dataset = Array2::random_using((size, nfeatures), Uniform::from(-30. ..30.), rng).into();
     whitener
         .fit(iai::black_box(&dataset))
         .unwrap()

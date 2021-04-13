@@ -14,7 +14,7 @@ async fn download_20news_bydate() -> Vec<std::path::PathBuf> {
         let content = response.bytes().await.unwrap().to_vec();
         let tar = GzDecoder::new(content.as_slice());
         let mut archive = Archive::new(tar);
-        archive.unpack(".").unwrap();
+        archive.unpack("./20news").unwrap();
         load_train_filenames().unwrap()
     } else {
         file_paths.unwrap()
@@ -23,7 +23,7 @@ async fn download_20news_bydate() -> Vec<std::path::PathBuf> {
 
 fn load_train_filenames() -> Result<Vec<std::path::PathBuf>, std::io::Error> {
     let mut file_paths = Vec::new();
-    let path = Path::new("./20news-bydate-train");
+    let path = Path::new("./20news/20news-bydate-train");
     let dir_content = std::fs::read_dir(path)?;
     for sub_dir in dir_content {
         let sub_dir = sub_dir?;
@@ -41,7 +41,7 @@ fn load_train_filenames() -> Result<Vec<std::path::PathBuf>, std::io::Error> {
 
 fn _load_test_filenames() -> Result<Vec<std::path::PathBuf>, std::io::Error> {
     let mut file_paths = Vec::new();
-    let path = Path::new("./20news-bydate-test");
+    let path = Path::new("./20news/20news-bydate-test");
     let dir_content = std::fs::read_dir(path)?;
     for sub_dir in dir_content {
         let sub_dir = sub_dir?;
@@ -114,7 +114,7 @@ fn fit_transform_tf_idf(file_names: &Vec<std::path::PathBuf>) {
         );
 }
 
-fn benchmark_count_vectorizer(c: &mut Criterion) {
+fn benchmark_vectorizer(c: &mut Criterion) {
     let file_names = download_20news_bydate();
     c.bench_function("count vectorizer fit", |b| {
         b.iter(|| fit_vectorizer(black_box(&file_names)))
@@ -122,22 +122,19 @@ fn benchmark_count_vectorizer(c: &mut Criterion) {
     c.bench_function("count vectorizer fit transform", |b| {
         b.iter(|| fit_transform_vectorizer(black_box(&file_names)))
     });
-}
-
-fn benchmark_tf_idf(c: &mut Criterion) {
-    let file_names = download_20news_bydate();
     c.bench_function("tf_idf fit ", |b| {
         b.iter(|| fit_tf_idf(black_box(&file_names)))
     });
     c.bench_function("tf_idf fit transform", |b| {
         b.iter(|| fit_transform_tf_idf(black_box(&file_names)))
     });
+    std::fs::remove_dir_all("./20news").unwrap();
 }
 
 criterion_group! {
     name = benches;
     // This can be any expression that returns a `Criterion` object.
     config = Criterion::default().sample_size(10);
-    targets = benchmark_count_vectorizer, benchmark_tf_idf
+    targets = benchmark_vectorizer
 }
 criterion_main!(benches);
