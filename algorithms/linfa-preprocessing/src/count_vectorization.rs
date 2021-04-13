@@ -20,6 +20,7 @@ pub(crate) struct VectorizerProperties {
     n_gram_range: (usize, usize),
     normalize: bool,
     document_frequency: (f32, f32),
+    stopwords: Option<HashSet<String>>,
 }
 
 /// Count vectorizer: learns a vocabulary from a sequence of documents (or file paths) and maps each
@@ -39,6 +40,7 @@ pub(crate) struct VectorizerProperties {
 ///    if `(1,2)` then both single words and adjacent word pairs will be considered, and so on. The default value is `(1,1)`.
 /// * `normalize`: if true, all charachters in the documents used for fitting will be normalized according to unicode's NFKD normalization. Defaults to `true`.
 /// * `document_frequency`: specifies the minimum and maximum (relative) document frequencies that each vocabulary entry must satisfy. Defaults to `(0., 1.)` (i.e. 0% minimum and 100% maximum)
+/// * `stopwords`: optional hashset of entries to be excluded from the generated vocabulary. Defaults to `None`
 ///
 pub struct CountVectorizer {
     properties: VectorizerProperties,
@@ -53,6 +55,7 @@ impl std::default::Default for CountVectorizer {
                 n_gram_range: (1, 1),
                 normalize: true,
                 document_frequency: (0., 1.),
+                stopwords: None,
             },
         }
     }
@@ -84,6 +87,11 @@ impl CountVectorizer {
         self
     }
 
+    pub fn stopwords<T: ToString>(mut self, stopwords: &[T]) -> Self {
+        self.properties.stopwords = Some(stopwords.iter().map(|t| t.to_string()).collect());
+        self
+    }
+
     /// Learns a vocabulary from the documents in `x`, according to the specified attributes and maps each
     /// vocabulary entry to an integer value, producing a [FittedCountVectorizer](struct.FittedCountVectorizer.html).
     ///
@@ -107,7 +115,7 @@ impl CountVectorizer {
             self.read_document_into_vocabulary(string, &regex, &mut vocabulary);
         }
 
-        let mut vocabulary = self.filter_vocabulary_by_df(vocabulary, x.len());
+        let mut vocabulary = self.filter_vocabulary(vocabulary, x.len());
         let vec_vocabulary = hashmap_to_vocabulary(&mut vocabulary);
 
         Ok(FittedCountVectorizer {
@@ -152,7 +160,7 @@ impl CountVectorizer {
             self.read_document_into_vocabulary(document, &regex, &mut vocabulary);
         }
 
-        let mut vocabulary = self.filter_vocabulary_by_df(vocabulary, documents_count);
+        let mut vocabulary = self.filter_vocabulary(vocabulary, documents_count);
         let vec_vocabulary = hashmap_to_vocabulary(&mut vocabulary);
 
         Ok(FittedCountVectorizer {
@@ -181,10 +189,11 @@ impl CountVectorizer {
         })
     }
 
-    /// Removes vocabulary items that do not satisfy the document frequencies constraints.
+    /// Removes vocabulary items that do not satisfy the document frequencies constraints or if they appear in the
+    /// optional stopwords test.
     /// The total number of documents is needed to convert from relative document frequencies to
     /// their absolute counterparts.
-    fn filter_vocabulary_by_df(
+    fn filter_vocabulary(
         &self,
         vocabulary: HashMap<String, (usize, usize)>,
         n_documents: usize,
@@ -194,12 +203,30 @@ impl CountVectorizer {
         let (min_abs_df, max_abs_df) = ((min_df * len_f32) as usize, (max_df * len_f32) as usize);
 
         if min_abs_df == 0 && max_abs_df == n_documents {
-            vocabulary
+            match &self.properties.stopwords {
+                None => vocabulary,
+                Some(stopwords) => vocabulary
+                    .into_iter()
+                    .filter(|(entry, (_, _))| !stopwords.contains(entry))
+                    .collect(),
+            }
         } else {
-            vocabulary
-                .into_iter()
-                .filter(|(_, (_, abs_count))| *abs_count >= min_abs_df && *abs_count <= max_abs_df)
-                .collect()
+            match &self.properties.stopwords {
+                None => vocabulary
+                    .into_iter()
+                    .filter(|(_, (_, abs_count))| {
+                        *abs_count >= min_abs_df && *abs_count <= max_abs_df
+                    })
+                    .collect(),
+                Some(stopwords) => vocabulary
+                    .into_iter()
+                    .filter(|(entry, (_, abs_count))| {
+                        *abs_count >= min_abs_df
+                            && *abs_count <= max_abs_df
+                            && !stopwords.contains(entry)
+                    })
+                    .collect(),
+            }
         }
     }
 
@@ -679,6 +706,38 @@ mod tests {
             ("four", array![1, 1, 1, 1])
         );
         delete_test_files(&text_files);
+    }
+
+    #[test]
+    fn test_stopwords() {
+        let texts = array![
+            "one and two and three",
+            "three and four and five",
+            "seven and eight",
+            "maybe ten and eleven",
+            "avoid singletons: one two four five seven eight ten eleven and an and"
+        ];
+        let stopwords = ["and", "maybe", "an"];
+        let vectorizer = CountVectorizer::default()
+            .stopwords(&stopwords)
+            .fit(&texts)
+            .unwrap();
+        let vocabulary = vectorizer.vocabulary();
+        let true_vocabulary = vec![
+            "one",
+            "two",
+            "three",
+            "four",
+            "five",
+            "seven",
+            "eight",
+            "ten",
+            "eleven",
+            "avoid",
+            "singletons",
+        ];
+        println!("voc: {:?}", vocabulary);
+        assert_vocabulary_eq(&true_vocabulary, &vocabulary);
     }
 
     #[test]

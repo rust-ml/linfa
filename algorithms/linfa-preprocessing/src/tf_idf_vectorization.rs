@@ -90,6 +90,13 @@ impl TfIdfVectorizer {
         }
     }
 
+    pub fn stopwords<T: ToString>(self, stopwords: &[T]) -> Self {
+        Self {
+            count_vectorizer: self.count_vectorizer.stopwords(stopwords),
+            method: self.method,
+        }
+    }
+
     /// Learns a vocabulary from the texts in `x`, according to the specified attributes and maps each
     /// vocabulary entry to an integer value, producing a [FittedTfIdfVectorizer](struct.FittedTfIdfVectorizer.html).
     ///

@@ -1,8 +1,9 @@
 //! Methods for uncorrelating data
 //!
 //! Whitening refers to a collection of methods that, given in input a matrix `X` of records with
-//! covariance matrix =  `sigma`, output a whitening matrix `W` such that `W.T`*`W` = `sigma`.
-//! Appliyng the whitening matrix `W` to the input data gives a new data matrix `Y` such that `Y` has
+//! covariance matrix =  `sigma`, output a whitening matrix `W` such that `W.T` dot `W` = `sigma`.
+//! Appliyng the whitening matrix `W` to the input data gives a new data matrix `Y` of the same
+//! size as the input such that `Y` has
 //! unit diagonal (white) covariance matrix.
 
 use crate::error::{Error, Result};
@@ -61,7 +62,7 @@ impl<'a, F: Float + approx::AbsDiffEq, D: Data<Elem = F>, T: AsTargets>
     type Object = Result<FittedWhitener<F>>;
 
     fn fit(&self, x: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Self::Object {
-        if x.records().dim().0 == 0 {
+        if x.nsamples() == 0 {
             return Err(Error::NotEnoughSamples);
         }
         let mean = x.records().mean_axis(Axis(0)).unwrap();
@@ -278,5 +279,26 @@ mod tests {
             .unwrap()
             .transform(dataset);
         assert_eq!(original_feature_names, transformed.feature_names())
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_pca_fail_on_empty_input() {
+        let dataset: DatasetBase<Array2<f64>, _> = Array2::zeros((0, 0)).into();
+        let _whitener = Whitener::pca().fit(&dataset).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_zca_fail_on_empty_input() {
+        let dataset: DatasetBase<Array2<f64>, _> = Array2::zeros((0, 0)).into();
+        let _whitener = Whitener::zca().fit(&dataset).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_cholesky_fail_on_empty_input() {
+        let dataset: DatasetBase<Array2<f64>, _> = Array2::zeros((0, 0)).into();
+        let _whitener = Whitener::cholesky().fit(&dataset).unwrap();
     }
 }

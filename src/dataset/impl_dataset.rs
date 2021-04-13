@@ -88,8 +88,8 @@ impl<R: Records, S> DatasetBase<R, S> {
         DatasetBase {
             records,
             targets: self.targets,
-            weights: self.weights,
-            feature_names: self.feature_names,
+            weights: Array1::zeros(0),
+            feature_names: Vec::new(),
         }
     }
 
