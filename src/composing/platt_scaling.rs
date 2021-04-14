@@ -1,5 +1,19 @@
 //! Implement Platt calibration with Newton method
 //!
+//! Platt scaling is a way of transforming the outputs of a classification model into a probability
+//! distribution over classes. It is, for example, used in the calibration of SVM models to predict
+//! plausible probability values.
+//!
+//! # Example
+//!
+//! ```rust, ignore
+//! let model = ...;
+//!
+//! let model = Platt::params()
+//!      .calibrate(model, &train)?;
+//!
+//! let pred: Array1<Pr> = model.predict(&valid);
+//! ```
 
 use std::marker::PhantomData;
 
@@ -7,19 +21,30 @@ use crate::dataset::{DatasetBase, Pr};
 use crate::traits::{Predict, PredictRef};
 use crate::Float;
 
+use ndarray::{Array1, Array2, ArrayBase, ArrayView1, Data, Ix1, Ix2};
 use thiserror::Error;
-use ndarray::{Array1, ArrayBase, ArrayView1, Data, Ix1, Ix2, Array2};
 
+/// Fitted Platt model
+///
+/// This model contains a sigmoid scaling parameters and a second univariate, uncalibrated model.
+/// The output of the uncalibrated model is scaled with the following function:
+/// ```text
+/// g(x) = 1 / (1 + exp(A * f(x) + B)
+/// ```
+///
+/// The scaling factors `A` and `B` are estimated with the Newton's method, presented in the
+/// following paper: https://www.csie.ntu.edu.tw/~cjlin/papers/plattprob.pdf
 pub struct Platt<F, O> {
     a: F,
     b: F,
     obj: O,
 }
 
+/// Parameters for Platt's Newton method
 pub struct PlattParams<F, O> {
     maxiter: usize,
     minstep: F,
-    eps: F,
+    sigma: F,
     phantom: PhantomData<O>,
 }
 
@@ -28,21 +53,90 @@ impl<F: Float, O> Default for PlattParams<F, O> {
         PlattParams {
             maxiter: 100,
             minstep: F::from(1e-10).unwrap(),
-            eps: F::from(1e-12).unwrap(),
+            sigma: F::from(1e-12).unwrap(),
             phantom: PhantomData,
         }
     }
 }
 
+impl<F: Float, O> PlattParams<F, O> {
+    /// Set the maximum number of iterations in the optimization process
+    ///
+    /// The Newton's method is an iterative optimization process, which uses the first and second
+    /// order gradients to find optimal `A` and `B`. This function caps the maximal number of
+    /// iterations.
+    pub fn maxiter(mut self, maxiter: usize) -> Self {
+        self.maxiter = maxiter;
+
+        self
+    }
+
+    /// Set the minimum stepsize in the line search
+    ///
+    /// After estimating the Hessian matrix, a line search is performed to find the optimal step
+    /// size in each optimization step. In each attempt the stepsize is halfed until this threshold
+    /// is reached. After reaching the threshold the algorithm fails because the desired precision
+    /// could not be achieved.
+    pub fn minstep(mut self, minstep: F) -> Self {
+        self.minstep = minstep;
+
+        self
+    }
+
+    /// Set the Hessian's sigma value
+    ///
+    /// The Hessian matrix is regularized with H' = H + sigma I to avoid numerical issues. This
+    /// function set the amount of regularization.
+    pub fn sigma(mut self, sigma: F) -> Self {
+        self.sigma = sigma;
+
+        self
+    }
+
+    fn validate(&self) -> Result<(), PlattNewtonResult> {
+        if self.maxiter == 0 {
+            return Err(PlattNewtonResult::MaxIterReached);
+        }
+        if self.minstep.is_negative() {
+            return Err(PlattNewtonResult::MinStepNegative(
+                self.minstep.to_f32().unwrap(),
+            ));
+        }
+        if self.sigma.is_negative() {
+            return Err(PlattNewtonResult::SigmaNegative(
+                self.sigma.to_f32().unwrap(),
+            ));
+        }
+
+        Ok(())
+    }
+}
+
 #[derive(Error, Debug, Clone)]
+/// Platt Newton's method errors
+///
+/// Errors occur when setting invalid parameters or the optimization process fails.
 pub enum PlattNewtonResult {
     #[error("line search did not converge")]
     LineSearchNotConverged,
     #[error("platt scaling did not converge")]
     MaxIterReached,
+    #[error("maxiter should be larger than zero")]
+    MaxIterZero,
+    #[error("minstep should be positive, is {0}")]
+    MinStepNegative(f32),
+    #[error("sigma should be positive, is {0}")]
+    SigmaNegative(f32),
 }
 
 impl<F: Float, O> Platt<F, O> {
+    /// Create default parameter set for the Platt scaling algorithm
+    ///
+    /// The default values are:
+    /// * `maxiter`: 100,
+    /// * `minstep`: 1e-10,
+    /// * `sigma`: 1e-12
+    ///
     pub fn params() -> PlattParams<F, O> {
         PlattParams::default()
     }
@@ -52,12 +146,16 @@ impl<F: Float, O> PlattParams<F, O>
 where
     O: PredictRef<Array2<F>, Array1<F>>,
 {
+    /// Calibrate another model with Platt scaling
+    ///
+    /// This function takes another model and binary decision dataset and calibrates it to produce
+    /// probability values. The returned model therefore implements the prediction trait for
+    /// probability targets.
     pub fn calibrate<'a>(
         &self,
         obj: O,
         ds: &DatasetBase<Array2<F>, Array1<bool>>,
-    ) -> Result<Platt<F, O>, PlattNewtonResult>
-    {
+    ) -> Result<Platt<F, O>, PlattNewtonResult> {
         let predicted = obj.predict(ds);
 
         let (a, b) = platt_newton_method(predicted.view(), ds.targets().view(), self)?;
@@ -80,14 +178,16 @@ where
     }
 }
 
-pub fn platt_predict<F: Float>(
-    x: F,
-    a: F,
-    b: F
-) -> Pr {
+/// Predict a probability with the sigmoid function
+///
+/// # Parameters
+/// * `x`: uncalibrated value f(x)
+/// * `a`: parameter A,
+/// * `b`: parameter B,
+pub fn platt_predict<F: Float>(x: F, a: F, b: F) -> Pr {
     let f_apb = a * x + b;
     let f_apb = f_apb.to_f32().unwrap();
-    
+
     // avoid numerical problems for large f_apb
     if f_apb >= 0.0 {
         Pr((-f_apb).exp() / (1.0 + (-f_apb).exp()))
@@ -96,11 +196,19 @@ pub fn platt_predict<F: Float>(
     }
 }
 
+/// Run Newton's method to find optimal `A` and `B` values
+///
+/// The optimization process happens in two steps, first the closed-form Hessian matrix and
+/// gradient vectors are calculated. Then a line-search tries to find the optimal learning rate
+/// for each step.
 pub fn platt_newton_method<'a, F: Float, O>(
     reg_values: ArrayView1<'a, F>,
     labels: ArrayView1<'a, bool>,
     params: &PlattParams<F, O>,
 ) -> Result<(F, F), PlattNewtonResult> {
+    // check that algorithm's parameters are valid
+    params.validate()?;
+
     let (num_pos, num_neg) = labels.iter().fold((0, 0), |mut val, x| {
         match x {
             true => val.0 += 1,
@@ -139,7 +247,7 @@ pub fn platt_newton_method<'a, F: Float, O>(
 
     let mut i = 0;
     for _ in 0..params.maxiter {
-        let (mut h11, mut h22) = (params.eps, params.eps);
+        let (mut h11, mut h22) = (params.sigma, params.sigma);
         let (mut h21, mut g1, mut g2) = (F::zero(), F::zero(), F::zero());
 
         for (v, t) in reg_values.iter().zip(t.iter()) {
@@ -167,8 +275,9 @@ pub fn platt_newton_method<'a, F: Float, O>(
             g2 += d1;
         }
 
-        if g1.abs() < F::from(1e-5 * reg_values.len() as f32).unwrap() && 
-           g2.abs() < F::from(1e-5 * reg_values.len() as f32).unwrap() {
+        if g1.abs() < F::from(1e-5 * reg_values.len() as f32).unwrap()
+            && g2.abs() < F::from(1e-5 * reg_values.len() as f32).unwrap()
+        {
             break;
         }
 
@@ -219,21 +328,29 @@ pub fn platt_newton_method<'a, F: Float, O>(
 
 #[cfg(test)]
 mod tests {
-    use rand::{rngs::SmallRng, Rng, SeedableRng};
-    use ndarray::{Array1, Array2};
     use approx::assert_abs_diff_eq;
+    use ndarray::{Array1, Array2};
+    use rand::{rngs::SmallRng, Rng, SeedableRng};
 
-    use super::{platt_newton_method, PlattParams, Platt};
-    use crate::{Float, DatasetBase, traits::{PredictRef, Predict}};
+    use super::{platt_newton_method, Platt, PlattParams};
+    use crate::{
+        traits::{Predict, PredictRef},
+        DatasetBase, Float,
+    };
 
+    /// Generate dummy values which can be predicted with the Platt model
     fn generate_dummy_values<F: Float, R: Rng>(
         a: F,
         b: F,
         n: usize,
         rng: &mut R,
     ) -> (Array1<F>, Array1<bool>) {
-        // generate probability values, omit p = 0.0 to avoid infinity in reverse function
-        let prob_values = Array1::linspace(F::one() / F::from(n).unwrap(), F::one() - F::one() / F::from(n).unwrap(), n - 2);
+        // generate probability values, omit p = 0.0, p = 1.0 to avoid infinity in reverse function
+        let prob_values = Array1::linspace(
+            F::one() / F::from(n).unwrap(),
+            F::one() - F::one() / F::from(n).unwrap(),
+            n - 2,
+        );
 
         // generate regression values with inverse function
         let reg_values = prob_values
@@ -261,7 +378,7 @@ mod tests {
                 let params: PlattParams<f32, ()> = PlattParams {
                     maxiter: 100,
                     minstep: 1e-10,
-                    eps: 1e-12,
+                    sigma: 1e-12,
                     phantom: std::marker::PhantomData,
                 };
 
@@ -279,6 +396,10 @@ mod tests {
         };
     }
 
+    // Check solutions for
+    // * a = 1.0, (b = 0.5, b = 2.0)
+    // * a = 2.0, (b = 1.0, b = 4.0)
+    // * a = 5.0, (b = 2.5, b = 10.0)
     test_newton_solver!(
         newton_solver_1, 1;
         newton_solver_2, 2;
@@ -296,6 +417,7 @@ mod tests {
     }
 
     #[test]
+    /// Check that the predicted probabilities are non-decreasing monotonical
     fn ordered_probabilities() {
         let mut rng = SmallRng::seed_from_u64(42);
 
@@ -305,17 +427,32 @@ mod tests {
 
         let model = DummyModel { reg_vals };
 
-        let platt = Platt::params()
-            .calibrate(model, &dataset)
-            .unwrap();
+        let platt = Platt::params().calibrate(model, &dataset).unwrap();
 
-        let pred_probabilities = platt.predict(&dataset)
-            .to_vec();
+        let pred_probabilities = platt.predict(&dataset).to_vec();
 
         for vals in pred_probabilities.windows(2) {
             if vals[0] > vals[1] {
                 panic!("Probabilities are not monotonically increasing!");
             }
         }
+    }
+
+    #[test]
+    #[should_panic]
+    fn panic_maxiter_zero() {
+        Platt::<f32, ()>::params().maxiter(0).validate().unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn panic_minstep_negative() {
+        Platt::<f32, ()>::params().minstep(-5.0).validate().unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn panic_sigma_negative() {
+        Platt::<f32, ()>::params().sigma(-1.0).validate().unwrap();
     }
 }

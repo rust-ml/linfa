@@ -1,10 +1,9 @@
-use linfa::prelude::*;
 use linfa::composing::MultiClassModel;
+use linfa::prelude::*;
 use linfa_svm::{error::Result, Svm};
 
 fn main() -> Result<()> {
-    let (train, valid) = linfa_datasets::winequality()
-        .split_with_ratio(0.9);
+    let (train, valid) = linfa_datasets::winequality().split_with_ratio(0.9);
 
     println!(
         "Fit SVM classifier with #{} training points",
@@ -15,7 +14,8 @@ fn main() -> Result<()> {
         //.pos_neg_weights(5000., 500.)
         .gaussian_kernel(30.0);
 
-    let model = train.one_vs_all()?
+    let model = train
+        .one_vs_all()?
         .into_iter()
         .map(|(l, x)| (l, params.fit(&x).unwrap()))
         .collect::<MultiClassModel<_, _>>();

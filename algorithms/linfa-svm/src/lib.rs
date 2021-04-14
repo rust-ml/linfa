@@ -375,7 +375,9 @@ mod tests {
     #[test]
     fn test_iter_folding_for_classification() {
         let mut dataset = linfa_datasets::winequality().map_targets(|x| *x > 6);
-        let params = Svm::<_, bool>::params().pos_neg_weights(7., 0.6).gaussian_kernel(80.0);
+        let params = Svm::<_, bool>::params()
+            .pos_neg_weights(7., 0.6)
+            .gaussian_kernel(80.0);
 
         let avg_acc = dataset
             .iter_fold(4, |training_set| params.fit(&training_set).unwrap())

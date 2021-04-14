@@ -312,7 +312,12 @@ where
     /// dataset into multiple binary target view of the same dataset.
     pub fn one_vs_all(
         &self,
-    ) -> Result<Vec<(L, DatasetBase<ArrayView2<'_, F>, CountedTargets<bool, Array2<bool>>>)>> {
+    ) -> Result<
+        Vec<(
+            L,
+            DatasetBase<ArrayView2<'_, F>, CountedTargets<bool, Array2<bool>>>,
+        )>,
+    > {
         let targets = self.targets().try_single_target()?;
 
         Ok(self
@@ -333,7 +338,6 @@ where
                         .with_feature_names(self.feature_names.clone())
                         .with_weights(self.weights.clone()),
                 )
-
             })
             .collect())
     }

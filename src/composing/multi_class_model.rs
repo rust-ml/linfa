@@ -6,6 +6,7 @@ use crate::Float;
 use ndarray::{Array1, ArrayBase, Data, Ix2};
 use std::iter::FromIterator;
 
+/// Merge models with binary to multi-class classification
 pub struct MultiClassModel<R: Records, L> {
     models: Vec<(L, Box<dyn PredictRef<R, Array1<Pr>>>)>,
 }

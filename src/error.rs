@@ -3,8 +3,8 @@
 
 use thiserror::Error;
 
-use ndarray::ShapeError;
 use crate::composing::PlattNewtonResult;
+use ndarray::ShapeError;
 
 pub type Result<T> = std::result::Result<T, Error>;
 

@@ -20,16 +20,13 @@ fn calibrate_with_platt<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = bool>>(
     params: &PlattParams<F, ()>,
     dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
 ) -> Result<Svm<F, Pr>> {
-    let pred = dataset.records()
+    let pred = dataset
+        .records()
         .outer_iter()
         .map(|x| obj.weighted_sum(&x) - obj.rho)
         .collect::<Array1<_>>();
 
-    let (a, b) = platt_newton_method(
-        pred.view(),
-        dataset.try_single_target()?,
-        params
-    )?;
+    let (a, b) = platt_newton_method(pred.view(), dataset.try_single_target()?, params)?;
     obj.probability_coeffs = Some((a, b));
 
     Ok(obj.with_phantom())
@@ -519,10 +516,7 @@ mod tests {
             .map_targets(|x| *x > 6)
             .iter_fold(1, |v| params.fit(&v).unwrap())
             .map(|(model, valid)| {
-                let cm = model
-                    .predict(&valid)
-                    .confusion_matrix(&valid)
-                    .unwrap();
+                let cm = model.predict(&valid).confusion_matrix(&valid).unwrap();
 
                 cm.accuracy()
             })
