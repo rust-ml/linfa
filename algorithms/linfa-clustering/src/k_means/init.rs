@@ -10,9 +10,11 @@ use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 /// Specifies centroid initialization algorithm for KMeans.
-pub enum KMeansInit {
+pub enum KMeansInit<F: Float> {
     /// Pick random points as centroids.
     Random,
+    /// Precomputed list of centroids, represented as an array of (n_centroids, n_features).
+    Precomputed(Array2<F>),
     /// K-means++ algorithm. Using this over random initialization causes K-means to converge
     /// faster for almost all cases, since K-means++ produces better centroids.
     KMeansPlusPlus,
@@ -23,9 +25,9 @@ pub enum KMeansInit {
     KMeansPara,
 }
 
-impl KMeansInit {
+impl<F: Float> KMeansInit<F> {
     /// Runs the chosen initialization routine
-    pub(crate) fn run<R: Rng + SeedableRng, F: Float>(
+    pub(crate) fn run<R: Rng + SeedableRng>(
         &self,
         n_clusters: usize,
         observations: ArrayView2<F>,
@@ -35,6 +37,12 @@ impl KMeansInit {
             Self::Random => random_init(n_clusters, observations, rng),
             Self::KMeansPlusPlus => k_means_plusplus(n_clusters, observations, rng),
             Self::KMeansPara => k_means_para(n_clusters, observations, rng),
+            Self::Precomputed(centroids) => {
+                // Check centroid dimensions
+                assert_eq!(centroids.nrows(), n_clusters);
+                assert_eq!(centroids.ncols(), observations.ncols());
+                centroids.clone()
+            }
         }
     }
 }
@@ -227,6 +235,14 @@ mod tests {
     use std::collections::HashSet;
 
     #[test]
+    fn test_precomputed() {
+        let mut rng = Isaac64Rng::seed_from_u64(40);
+        let centroids = array![[0.0, 1.0], [40.0, 10.0]];
+        let observations = array![[3.0, 4.0], [1.0, 3.0], [25.0, 15.0]];
+        let c = KMeansInit::Precomputed(centroids.clone()).run(2, observations.view(), &mut rng);
+        assert_abs_diff_eq!(c, centroids);
+    }
+    #[test]
     fn test_min_dists() {
         let centroids = array![[0.0, 1.0], [40.0, 10.0]];
         let observations = array![[3.0, 4.0], [1.0, 3.0], [25.0, 15.0]];
@@ -286,7 +302,7 @@ mod tests {
     }
 
     // Run general tests for a given init algorithm
-    fn verify_init(init: KMeansInit) {
+    fn verify_init(init: KMeansInit<f64>) {
         let mut rng = Isaac64Rng::seed_from_u64(42);
         // Make sure we don't panic on degenerate data (n_clusters > n_samples)
         let degenerate_data = array![[1.0, 2.0]];
