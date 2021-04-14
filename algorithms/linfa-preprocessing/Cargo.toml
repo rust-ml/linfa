@@ -1,0 +1,51 @@
+[package]
+name = "linfa-preprocessing"
+version = "0.3.1"
+authors = ["Sauro98 <ivadonadi98@gmail.com>"]
+
+description = "A Machine Learning framework for Rust"
+edition = "2018"
+license = "MIT/Apache-2.0"
+
+repository = "https://github.com/rust-ml/linfa"
+readme = "README.md"
+
+keywords = ["machine-learning", "linfa", "ai", "ml", "preprocessing"]
+categories = ["algorithms", "mathematics", "science"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+linfa = { version = "0.3.1", path = "../.." }
+ndarray = {version = "0.13",default-features = false, features = ["approx", "blas"]}
+ndarray-linalg = {version = "0.12.1"}
+ndarray-stats = "0.3"
+thiserror = "1"
+approx = { version = "0.3", default-features = false, features = ["std"] }
+ndarray-rand = {version = "0.11"}
+unicode-normalization = "0.1.8"
+regex = "1.4.5"
+encoding = "0.2"
+sprs = { version = "0.9.3", default-features = false }
+
+[dev-dependencies]
+linfa-datasets = {version = "0.3.1", path = "../../datasets", features = ["diabetes", "winequality"]}
+linfa-bayes = {version = "0.3.1", path = "../linfa-bayes"}
+iai = "0.1" 
+curl = "0.4.35"
+flate2 = "1.0.20"
+tar = "0.4.33"
+
+
+[[bench]]
+name = "vectorizer_bench"
+harness = false
+
+[[bench]]
+name = "linear_scaler_bench"
+harness = false
+
+[[bench]]
+name = "whitening_bench"
+harness = false
