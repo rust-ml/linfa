@@ -47,7 +47,8 @@ fn load_set(
     desired_targets: &[&str],
 ) -> Result<Vec<std::path::PathBuf>, std::io::Error> {
     let mut file_paths = Vec::new();
-    let desired_targets: std::collections::HashSet<String> = desired_targets.iter().map(|s| s.to_string()).collect();
+    let desired_targets: std::collections::HashSet<String> =
+        desired_targets.iter().map(|s| s.to_string()).collect();
     let path = Path::new(path);
     let dir_content = std::fs::read_dir(path)?;
     for sub_dir in dir_content {
@@ -68,15 +69,11 @@ fn load_set(
     Ok(file_paths)
 }
 
-fn _load_train_set(
-    desired_targets: &[&str],
-) -> Result<Vec<std::path::PathBuf>, std::io::Error> {
+fn _load_train_set(desired_targets: &[&str]) -> Result<Vec<std::path::PathBuf>, std::io::Error> {
     load_set("./20news/20news-bydate-train", desired_targets)
 }
 
-fn load_test_set(
-    desired_targets: &[&str],
-) -> Result<Vec<std::path::PathBuf>, std::io::Error> {
+fn load_test_set(desired_targets: &[&str]) -> Result<Vec<std::path::PathBuf>, std::io::Error> {
     load_set("./20news/20news-bydate-test", desired_targets)
 }
 
@@ -94,7 +91,6 @@ fn iai_fit_vectorizer() {
 }
 
 fn iai_fit_tf_idf() {
-
     let file_names = load_20news_bydate();
     TfIdfVectorizer::default()
         .document_frequency(0.05, 0.75)
@@ -108,7 +104,6 @@ fn iai_fit_tf_idf() {
 }
 
 fn iai_fit_transform_vectorizer() {
-
     let file_names = load_20news_bydate();
     CountVectorizer::default()
         .document_frequency(0.05, 0.75)
@@ -126,7 +121,6 @@ fn iai_fit_transform_vectorizer() {
         );
 }
 fn iai_fit_transform_tf_idf() {
-
     let file_names = load_20news_bydate();
     TfIdfVectorizer::default()
         .document_frequency(0.05, 0.75)
@@ -169,11 +163,9 @@ macro_rules! iai_main {
     }
 }
 
-iai_main!(iai_fit_vectorizer,
-iai_fit_transform_vectorizer,
-iai_fit_tf_idf,
-iai_fit_transform_tf_idf);
-
-
-
-
+iai_main!(
+    iai_fit_vectorizer,
+    iai_fit_transform_vectorizer,
+    iai_fit_tf_idf,
+    iai_fit_transform_tf_idf
+);
