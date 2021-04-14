@@ -5,7 +5,7 @@ use linfa::{
     traits::Fit,
     traits::{Predict, PredictRef},
 };
-use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix2};
+use ndarray::{Array1, Array2, ArrayBase, ArrayView2, Data, Ix1, Ix2};
 use std::cmp::Ordering;
 
 use super::error::Result;
@@ -215,8 +215,6 @@ macro_rules! impl_classification {
                 let target = dataset.try_single_target()?;
                 let target = target.as_slice().unwrap();
 
-                use linfa::dataset::Records;
-                println!("MAMAA {}", dataset.nsamples());
                 let ret = match (self.c, self.nu) {
                     (Some((c_p, c_n)), _) => fit_c(
                         self.solver_params.clone(),
@@ -235,8 +233,6 @@ macro_rules! impl_classification {
                     ),
                     _ => panic!("Set either C value or Nu value"),
                 };
-
-                println!("BLBU");
 
                 calibrate_with_platt(ret, &self.platt, dataset)
             }
@@ -311,8 +307,8 @@ impl_oneclass!(Array2<F>, CountedTargets<(), Array2<()>>);
 impl_oneclass!(Array2<F>, CountedTargets<(), ArrayView2<'a, ()>>);
 
 /// Predict a probability with a feature vector
-impl<F: Float> Predict<Array1<F>, Pr> for Svm<F, Pr> {
-    fn predict(&self, data: Array1<F>) -> Pr {
+impl<F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix1>, Pr> for Svm<F, Pr> {
+    fn predict(&self, data: ArrayBase<D, Ix1>) -> Pr {
         let val = self.weighted_sum(&data) - self.rho;
         let (a, b) = self.probability_coeffs.clone().unwrap();
 
@@ -321,7 +317,16 @@ impl<F: Float> Predict<Array1<F>, Pr> for Svm<F, Pr> {
 }
 
 /// Predict a probability with a feature vector
-impl<'a, F: Float> Predict<ArrayView1<'a, F>, Pr> for Svm<F, Pr> {
+impl<'a, F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix1>, bool> for Svm<F, bool> {
+    fn predict(&self, data: ArrayBase<D, Ix1>) -> bool {
+        let val = self.weighted_sum(&data) - self.rho;
+
+        val >= F::zero()
+    }
+}
+
+/// Predict a probability with a feature vector
+/*impl<'a, F: Float> Predict<ArrayView1<'a, F>, Pr> for Svm<F, Pr> {
     fn predict(&self, data: ArrayView1<'a, F>) -> Pr {
         let val = self.weighted_sum(&data) - self.rho;
         let (a, b) = self.probability_coeffs.clone().unwrap();
@@ -337,16 +342,8 @@ impl<F: Float> Predict<Array1<F>, bool> for Svm<F, bool> {
 
         val >= F::zero()
     }
-}
+}*/
 
-/// Predict a probability with a feature vector
-impl<'a, F: Float> Predict<ArrayView1<'a, F>, bool> for Svm<F, bool> {
-    fn predict(&self, data: ArrayView1<'a, F>) -> bool {
-        let val = self.weighted_sum(&data) - self.rho;
-
-        val >= F::zero()
-    }
-}
 /// Classify observations
 ///
 /// This function takes a number of features and predicts target probabilities that they belong to

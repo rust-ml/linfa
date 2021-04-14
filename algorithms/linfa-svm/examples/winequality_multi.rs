@@ -25,9 +25,7 @@ fn main() -> Result<()> {
     // create a confusion matrix
     let cm = pred.confusion_matrix(&train)?;
 
-    // Print the confusion matrix, this will print a table with four entries. On the diagonal are
-    // the number of true-positive and true-negative predictions, off the diagonal are
-    // false-positive and false-negative
+    // Print the confusion matrix
     println!("{:?}", cm);
 
     // Calculate the accuracy and Matthew Correlation Coefficient (cross-correlation between
