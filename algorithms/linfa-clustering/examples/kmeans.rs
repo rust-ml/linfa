@@ -1,4 +1,4 @@
-use linfa::traits::{Fit, Predict};
+use linfa::traits::Predict;
 use linfa::DatasetBase;
 use linfa_clustering::{generate_blobs, KMeans};
 use ndarray::{array, Axis};
