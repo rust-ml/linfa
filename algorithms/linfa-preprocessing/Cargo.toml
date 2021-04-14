@@ -33,11 +33,9 @@ sprs = { version = "0.9.3", default-features = false }
 linfa-datasets = {version = "0.3.1", path = "../../datasets", features = ["diabetes", "winequality"]}
 linfa-bayes = {version = "0.3.1", path = "../linfa-bayes"}
 iai = "0.1" 
-criterion = "0.3"
-reqwest = { version = "0.10"}
+curl = "0.4.35"
 flate2 = "1.0.20"
 tar = "0.4.33"
-tokio = {version = "0.2", features = ["macros"]}
 
 
 [[bench]]

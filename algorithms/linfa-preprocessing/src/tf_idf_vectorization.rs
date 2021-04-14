@@ -53,6 +53,7 @@ impl std::default::Default for TfIdfVectorizer {
 }
 
 impl TfIdfVectorizer {
+    ///If true, all documents used for fitting will be converted to lowercase.
     pub fn convert_to_lowercase(self, convert_to_lowercase: bool) -> Self {
         Self {
             count_vectorizer: self
@@ -62,6 +63,7 @@ impl TfIdfVectorizer {
         }
     }
 
+    /// Sets the regex espression used to split decuments into tokens
     pub fn split_regex(self, regex_str: &str) -> Self {
         Self {
             count_vectorizer: self.count_vectorizer.split_regex(regex_str),
@@ -69,6 +71,11 @@ impl TfIdfVectorizer {
         }
     }
 
+    /// If set to `(1,1)` single tokens will be candidate vocabulary entries, if `(2,2)` then adjacent token pairs will be considered,
+    /// if `(1,2)` then both single tokens and adjacent token pairs will be considered, and so on. The definition of token depends on the
+    /// regex used fpr splitting the documents.
+    ///
+    /// `min_n` should not be greater than `max_n`
     pub fn n_gram_range(self, min_n: usize, max_n: usize) -> Self {
         Self {
             count_vectorizer: self.count_vectorizer.n_gram_range(min_n, max_n),
@@ -76,6 +83,7 @@ impl TfIdfVectorizer {
         }
     }
 
+    /// If true, all charachters in the documents used for fitting will be normalized according to unicode's NFKD normalization.
     pub fn normalize(self, normalize: bool) -> Self {
         Self {
             count_vectorizer: self.count_vectorizer.normalize(normalize),
@@ -83,6 +91,8 @@ impl TfIdfVectorizer {
         }
     }
 
+    /// Specifies the minimum and maximum (relative) document frequencies that each vocabulary entry must satisfy.
+    /// `min_freq` and `max_freq` must lie in [0;1] and `min_freq` should not be greater than `max_freq`
     pub fn document_frequency(self, min_freq: f32, max_freq: f32) -> Self {
         Self {
             count_vectorizer: self.count_vectorizer.document_frequency(min_freq, max_freq),
@@ -90,6 +100,7 @@ impl TfIdfVectorizer {
         }
     }
 
+    /// List of entries to be excluded from the generated vocabulary.
     pub fn stopwords<T: ToString>(self, stopwords: &[T]) -> Self {
         Self {
             count_vectorizer: self.count_vectorizer.stopwords(stopwords),

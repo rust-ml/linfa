@@ -1,3 +1,4 @@
+use curl::easy::Easy;
 use encoding::all::ISO_8859_1;
 use encoding::DecoderTrap::Strict;
 use flate2::read::GzDecoder;
@@ -10,11 +11,22 @@ use std::collections::HashSet;
 use std::path::Path;
 use tar::Archive;
 
-async fn download_20news_bydate() {
-    let target = "http://qwone.com/~jason/20Newsgroups/20news-bydate.tar.gz";
-    let response = reqwest::get(target).await.unwrap();
-    let content = response.bytes().await.unwrap().to_vec();
-    let tar = GzDecoder::new(content.as_slice());
+fn download_20news_bydate() {
+    let mut data = Vec::new();
+    let mut easy = Easy::new();
+    easy.url("http://qwone.com/~jason/20Newsgroups/20news-bydate.tar.gz")
+        .unwrap();
+    {
+        let mut transfer = easy.transfer();
+        transfer
+            .write_function(|new_data| {
+                data.extend_from_slice(new_data);
+                Ok(new_data.len())
+            })
+            .unwrap();
+        transfer.perform().unwrap();
+    }
+    let tar = GzDecoder::new(data.as_slice());
     let mut archive = Archive::new(tar);
     archive.unpack("./20news/").unwrap();
 }
@@ -67,10 +79,9 @@ fn delete_20news_bydate() {
     std::fs::remove_dir_all("./20news").unwrap();
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
     println!("Let's download and unpack the \"20 news\" text classification dataset first");
-    download_20news_bydate().await;
+    download_20news_bydate();
 
     // Restrict possible targets to get a simpler problem. The full dataset has 20 targets total
     let desired_targets = [

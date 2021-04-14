@@ -256,7 +256,7 @@ impl<F: Float> Transformer<Array2<F>, Array2<F>> for FittedLinearScaler<F> {
             .and(self.offsets())
             .and(self.scales())
             .apply(|mut col, &offset, &scale| {
-                if let ScalingMethod::Standard(false, true) = self.method {
+                if let ScalingMethod::Standard(false, _) = self.method {
                     col.mapv_inplace(|el| (el - offset) * scale + offset);
                 } else {
                     col.mapv_inplace(|el| (el - offset) * scale);
@@ -350,6 +350,30 @@ mod tests {
         let std_devs = transformed.records().std_axis(Axis(0), 0.);
         assert_abs_diff_eq!(means, array![0., 0., 0.]);
         assert_abs_diff_eq!(std_devs, array![0.81, 0.81, 1.24], epsilon = 1e-2);
+    }
+
+    use super::ScalingMethod;
+
+    #[test]
+    fn test_standard_scaler_no_both() {
+        let dataset = array![[1., -1., 2.], [2., 0., 0.], [0., 1., -1.]].into();
+        let scaler = LinearScaler::new(ScalingMethod::Standard(false, false))
+            .fit(&dataset)
+            .unwrap();
+
+        let original_means = dataset.records().mean_axis(Axis(0)).unwrap();
+        let original_stds = dataset.records().std_axis(Axis(0), 0.);
+
+        assert_abs_diff_eq!(*scaler.offsets(), original_means);
+        assert_abs_diff_eq!(*scaler.scales(), array![1., 1., 1.],);
+
+        let transformed = scaler.transform(dataset);
+
+        let means = transformed.records().mean_axis(Axis(0)).unwrap();
+        let std_devs = transformed.records().std_axis(Axis(0), 0.);
+
+        assert_abs_diff_eq!(means, original_means);
+        assert_abs_diff_eq!(std_devs, original_stds, epsilon = 1e-2);
     }
 
     #[test]

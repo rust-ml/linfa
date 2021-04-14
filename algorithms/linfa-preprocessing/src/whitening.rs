@@ -71,11 +71,11 @@ impl<'a, F: Float + approx::AbsDiffEq, D: Data<Elem = F>, T: AsTargets>
             WhiteningMethod::Pca => {
                 let (_, s, v_t) = sigma.svd(false, true)?;
                 if v_t.is_none() {
-                    return Err(Error::NoneEignenvectors);
+                    return Err(Error::NoneEigenvectors);
                 }
                 let mut v_t = v_t.unwrap();
                 let s = s.mapv(|x| F::from(x).unwrap().max(F::from(1e-8).unwrap()));
-                let cov_scale = (F::from(x.nsamples()).unwrap() - F::one()).sqrt();
+                let cov_scale = (F::from(x.nsamples() - 1).unwrap()).sqrt();
                 for (mut v_t, s) in v_t.axis_iter_mut(Axis(0)).zip(s.iter()) {
                     v_t *= cov_scale / *s;
                 }
@@ -88,7 +88,7 @@ impl<'a, F: Float + approx::AbsDiffEq, D: Data<Elem = F>, T: AsTargets>
                 let sigma = sigma.t().dot(&sigma) / F::from(x.nsamples() - 1).unwrap();
                 let (u, s, _) = sigma.svd(true, false)?;
                 if u.is_none() {
-                    return Err(Error::NoneEignenvectors);
+                    return Err(Error::NoneEigenvectors);
                 }
                 let u = u.unwrap();
                 let s =
