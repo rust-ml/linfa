@@ -70,9 +70,7 @@ impl<'a, F: Float + approx::AbsDiffEq, D: Data<Elem = F>, T: AsTargets>
         match self.method {
             WhiteningMethod::Pca => {
                 let (_, s, v_t) = sigma.svd(false, true)?;
-                if v_t.is_none() {
-                    return Err(Error::NoneEigenvectors);
-                }
+                // Safe because the second argument in the above call is set to true
                 let mut v_t = v_t.unwrap();
                 let s = s.mapv(|x| F::from(x).unwrap().max(F::from(1e-8).unwrap()));
                 let cov_scale = (F::from(x.nsamples() - 1).unwrap()).sqrt();
@@ -87,9 +85,7 @@ impl<'a, F: Float + approx::AbsDiffEq, D: Data<Elem = F>, T: AsTargets>
             WhiteningMethod::Zca => {
                 let sigma = sigma.t().dot(&sigma) / F::from(x.nsamples() - 1).unwrap();
                 let (u, s, _) = sigma.svd(true, false)?;
-                if u.is_none() {
-                    return Err(Error::NoneEigenvectors);
-                }
+                // Safe because the first argument in the above call is set to true
                 let u = u.unwrap();
                 let s =
                     s.mapv(|x| (F::one() / F::from(x).unwrap().sqrt()).max(F::from(1e-8).unwrap()));

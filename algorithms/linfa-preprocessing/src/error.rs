@@ -31,7 +31,5 @@ pub enum Error {
     #[error(transparent)]
     LinalgError(#[from] ndarray_linalg::error::LinalgError),
     #[error(transparent)]
-    NdarrayLinalgEmptyError(#[from] ndarray_stats::errors::EmptyInput),
-    #[error("Eigenvectors were not computed")]
-    NoneEigenvectors,
+    NdarrayStatsEmptyError(#[from] ndarray_stats::errors::EmptyInput),
 }
