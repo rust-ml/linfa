@@ -135,7 +135,7 @@ fn k_means_para<R: Rng + SeedableRng, F: Float>(
     let mut candidates = Array2::zeros((n_clusters * n_rounds, n_features));
 
     // Pick 1st centroid randomly
-    let first_idx = rng.gen_range(0, n_samples);
+    let first_idx = rng.gen_range(0..n_samples);
     candidates.row_mut(0).assign(&observations.row(first_idx));
     let mut n_candidates = 1;
 
@@ -149,7 +149,7 @@ fn k_means_para<R: Rng + SeedableRng, F: Float>(
         let next_candidates_idx = sample_subsequent_candidates::<R, _>(
             &dists,
             F::from(candidates_per_round).unwrap(),
-            rng.gen_range(0, std::u64::MAX),
+            rng.gen_range(0..std::u64::MAX),
         );
 
         // Append the newly generated candidates to the current cadidates, breaking out of the loop
@@ -199,7 +199,7 @@ fn sample_subsequent_candidates<R: Rng + SeedableRng, F: Float>(
             || R::seed_from_u64(seed.fetch_add(1, Relaxed)),
             move |rng, (i, d)| {
                 let d = *d.into_scalar();
-                let rand = F::from(rng.gen_range(0.0, 1.0)).unwrap();
+                let rand = F::from(rng.gen_range(0.0..1.0)).unwrap();
                 let prob = multiplier * d / cost;
                 (i, rand, prob)
             },
@@ -227,7 +227,7 @@ mod tests {
     use super::super::algorithm::{compute_inertia, update_cluster_memberships};
     use super::*;
     use approx::{abs_diff_eq, assert_abs_diff_eq, assert_abs_diff_ne};
-    use ndarray::{array, stack, Array};
+    use ndarray::{array, concatenate, Array};
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::Normal;
     use ndarray_rand::RandomExt;
@@ -307,7 +307,7 @@ mod tests {
         // Make sure we don't panic on degenerate data (n_clusters > n_samples)
         let degenerate_data = array![[1.0, 2.0]];
         let out = init.run(2, degenerate_data.view(), &mut rng);
-        assert_abs_diff_eq!(out, stack![Axis(0), degenerate_data, degenerate_data]);
+        assert_abs_diff_eq!(out, concatenate![Axis(0), degenerate_data, degenerate_data]);
 
         // Build 3 separated clusters of points
         let centroids = [20.0, -1000.0, 1000.0];
@@ -316,7 +316,7 @@ mod tests {
             .map(|&c| Array::random_using((50, 2), Normal::new(c, 1.).unwrap(), &mut rng))
             .collect();
         let obs = clusters.iter().fold(Array2::default((0, 2)), |a, b| {
-            stack(Axis(0), &[a.view(), b.view()]).unwrap()
+            concatenate(Axis(0), &[a.view(), b.view()]).unwrap()
         });
 
         // Look for the right number of centroids
@@ -353,7 +353,7 @@ mod tests {
             .map(|&c| Array::random_using((50, 2), Normal::new(c, 1.).unwrap(), &mut rng))
             .collect();
         let obs = clusters.iter().fold(Array2::default((0, 2)), |a, b| {
-            stack(Axis(0), &[a.view(), b.view()]).unwrap()
+            concatenate(Axis(0), &[a.view(), b.view()]).unwrap()
         });
 
         let out_rand = random_init(3, obs.view(), &mut rng.clone());
