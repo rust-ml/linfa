@@ -16,6 +16,7 @@ use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2
 use ndarray_linalg::cholesky::{Cholesky, UPLO};
 use ndarray_linalg::solve::Inverse;
 use ndarray_linalg::svd::SVD;
+use ndarray_linalg::Scalar;
 
 pub enum WhiteningMethod {
     Pca,
@@ -73,7 +74,7 @@ impl<'a, F: Float + approx::AbsDiffEq, D: Data<Elem = F>, T: AsTargets>
                 // Safe because the second argument in the above call is set to true
                 let mut v_t = v_t.unwrap();
                 let s = s.mapv(|x| F::from(x).unwrap().max(F::from(1e-8).unwrap()));
-                let cov_scale = (F::from(x.nsamples() - 1).unwrap()).sqrt();
+                let cov_scale = Scalar::sqrt(F::from(x.nsamples() - 1).unwrap());
                 for (mut v_t, s) in v_t.axis_iter_mut(Axis(0)).zip(s.iter()) {
                     v_t *= cov_scale / *s;
                 }
@@ -87,8 +88,9 @@ impl<'a, F: Float + approx::AbsDiffEq, D: Data<Elem = F>, T: AsTargets>
                 let (u, s, _) = sigma.svd(true, false)?;
                 // Safe because the first argument in the above call is set to true
                 let u = u.unwrap();
-                let s =
-                    s.mapv(|x| (F::one() / F::from(x).unwrap().sqrt()).max(F::from(1e-8).unwrap()));
+                let s = s.mapv(|x| {
+                    (F::one() / Scalar::sqrt(F::from(x).unwrap())).max(F::from(1e-8).unwrap())
+                });
                 let lambda: Array2<F> = Array2::<F>::eye(s.len()) * s;
                 let transformation_matrix = u.dot(&lambda).dot(&u.t());
                 Ok(FittedWhitener {
