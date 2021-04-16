@@ -26,7 +26,7 @@ features = ["std", "derive"]
 [dependencies]
 ndarray = "0.14"
 num-traits = "0.2"
-sprs = { git="https://github.com/vbarrielle/sprs.git", branch="0.9.4", default-features = false }
+sprs = { version="0.9.4", default-features = false }
 hnsw = "0.6"
 space = "0.10"
 

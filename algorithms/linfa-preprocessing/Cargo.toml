@@ -27,7 +27,7 @@ ndarray-rand = { version = "0.13" }
 unicode-normalization = "0.1.8"
 regex = "1.4.5"
 encoding = "0.2"
-sprs =  { git="https://github.com/vbarrielle/sprs.git", branch="0.9.4", default-features = false }
+sprs =  { version="0.9.4", default-features = false }
 
 [dev-dependencies]
 linfa-datasets = { version = "0.3.1", path = "../../datasets", features = ["diabetes", "winequality"] }
