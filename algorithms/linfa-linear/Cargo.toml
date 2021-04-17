@@ -21,7 +21,7 @@ ndarray = { version = "0.14", features = ["blas", "approx"] }
 ndarray-linalg = "0.13"
 ndarray-stats = "0.4"
 num-traits = "0.2"
-argmin = { version="0.4", features=["ndarrayl"] }
+argmin = { version = "0.4.1", features = ["ndarrayl"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 thiserror = "1"
 
