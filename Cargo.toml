@@ -78,6 +78,7 @@ members = [
     "algorithms/linfa-pls",
     "algorithms/linfa-tsne",
     "algorithms/linfa-preprocessing",
+    "algorithms/linfa-nn",
     "datasets",
 ]
 
