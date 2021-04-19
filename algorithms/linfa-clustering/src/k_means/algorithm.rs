@@ -215,17 +215,17 @@ impl<F: Float> KMeans<F> {
     }
 }
 
-impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T> Fit<'a, ArrayBase<D, Ix2>, T>
-    for KMeansHyperParams<F, R>
+impl<F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T>
+    Fit<ArrayBase<D, Ix2>, T, KMeansError> for KMeansHyperParams<F, R>
 {
-    type Object = Result<KMeans<F>>;
+    type Object = KMeans<F>;
 
     /// Given an input matrix `observations`, with shape `(n_observations, n_features)`,
     /// `fit` identifies `n_clusters` centroids based on the training data distribution.
     ///
     /// An instance of `KMeans` is returned.
     ///
-    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Self::Object {
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
         let mut rng = self.rng();
         let observations = dataset.records().view();
         let n_samples = dataset.nsamples();

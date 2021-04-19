@@ -1,16 +1,17 @@
-use ndarray::{
-    concatenate, s, Array1, Array2, ArrayBase, ArrayView2, ArrayViewMut2, Axis, Data, DataMut,
-    Dimension, Ix1, Ix2,
-};
-use rand::{seq::SliceRandom, Rng};
-use std::collections::HashMap;
-
 use super::{
     super::traits::{Predict, PredictRef},
     iter::{ChunksIter, DatasetIter, Iter},
     AsTargets, AsTargetsMut, CountedTargets, Dataset, DatasetBase, DatasetView, Float,
     FromTargetArray, Label, Labels, Records, Result,
 };
+use crate::traits::Fit;
+use ndarray::{
+    concatenate, s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, ArrayViewMut2, Axis, Data,
+    DataMut, Dimension, Ix1, Ix2,
+};
+use rand::{seq::SliceRandom, Rng};
+use std::collections::HashMap;
+use std::ops::AddAssign;
 
 /// Implementation without constraints on records and targets
 ///
@@ -654,6 +655,18 @@ where
     }
 }
 
+macro_rules! assist_swap_array2 {
+    ($slice: expr, $index: expr, $fold_size: expr, $features: expr) => {
+        if $index != 0 {
+            let adj_fold_size = $fold_size * $features;
+            let start = adj_fold_size * $index;
+            let (first_s, second_s) = $slice.split_at_mut(start);
+            let (mut fold, _) = second_s.split_at_mut(adj_fold_size);
+            first_s[..$fold_size * $features].swap_with_slice(&mut fold);
+        }
+    };
+}
+
 impl<'a, F: Float, E: Copy + 'a, D, S> DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, Ix2>>
 where
     D: DataMut<Elem = F>,
@@ -691,20 +704,24 @@ where
     /// ## Example
     /// ```rust
     /// use linfa::traits::Fit;
-    /// use linfa::dataset::{Dataset, DatasetView};
+    /// use linfa::dataset::{Dataset, DatasetView, Records};
     /// use ndarray::{array, ArrayView1, ArrayView2};
+    /// use linfa::Error;
     ///
     /// struct MockFittable {}
     ///
     /// struct MockFittableResult {
-    ///     mock_var: usize,
+    ///    mock_var: usize,
     /// }
     ///
-    /// impl<'a> Fit<'a, ArrayView2<'a, f64>, ArrayView2<'a, f64>> for MockFittable {
+    ///
+    /// impl<'a> Fit<ArrayView2<'a,f64>, ArrayView2<'a, f64>, linfa::error::Error> for MockFittable {
     ///     type Object = MockFittableResult;
     ///
-    ///     fn fit(&self, training_data: &DatasetView<f64, f64>) -> Self::Object {
-    ///         MockFittableResult { mock_var: training_data.ntargets()}
+    ///     fn fit(&self, training_data: &DatasetView<f64, f64>) -> Result<Self::Object, linfa::error::Error> {
+    ///         Ok(MockFittableResult {
+    ///             mock_var: training_data.nsamples(),
+    ///         })
     ///     }
     /// }
     ///
@@ -713,17 +730,16 @@ where
     /// let mut dataset: Dataset<f64, f64> = (records, targets).into();
     /// let params = MockFittable {};
     ///
-    ///for (model,validation_set) in dataset.iter_fold(5, |v| params.fit(&v)){
+    ///for (model,validation_set) in dataset.iter_fold(5, |v| params.fit(&v).unwrap()){
     ///     // Here you can use `model` and `validation_set` to
     ///     // assert the performance of the chosen algorithm
     /// }
     /// ```
-    pub fn iter_fold<O, C: Fn(DatasetView<F, E>) -> O>(
+    pub fn iter_fold<O, C: Fn(&DatasetView<F, E>) -> O>(
         &'a mut self,
         k: usize,
         fit_closure: C,
     ) -> impl Iterator<Item = (O, DatasetBase<ArrayView2<F>, ArrayView2<E>>)> {
-        //)-> impl Iterator<Item = (O, ())> + 'a {
         assert!(k > 0);
         assert!(k <= self.nsamples());
         let samples_count = self.nsamples();
@@ -732,50 +748,213 @@ where
         let features = self.nfeatures();
         let targets = self.ntargets();
 
-        let mut records_sl = self.records.as_slice_mut().unwrap();
-        let mut targets_sl2 = self.targets.as_multi_targets_mut();
-        let mut targets_sl = targets_sl2.as_slice_mut().unwrap();
-
         let mut objs: Vec<O> = Vec::new();
 
-        for i in 0..k {
-            assist_swap_array2(&mut records_sl, i, fold_size, features);
-            assist_swap_array2(&mut targets_sl, i, fold_size, targets);
+        {
+            let records_sl = self.records.as_slice_mut().unwrap();
+            let mut targets_sl2 = self.targets.as_multi_targets_mut();
+            let targets_sl = targets_sl2.as_slice_mut().unwrap();
 
-            let train = DatasetBase::new(
-                ArrayView2::from_shape(
-                    (samples_count - fold_size, features),
-                    records_sl.split_at(fold_size * features).1,
-                )
-                .unwrap(),
-                ArrayView2::from_shape(
-                    (samples_count - fold_size, targets),
-                    targets_sl.split_at(fold_size * targets).1,
-                )
-                .unwrap(),
-            );
+            for i in 0..k {
+                assist_swap_array2!(records_sl, i, fold_size, features);
+                assist_swap_array2!(targets_sl, i, fold_size, targets);
 
-            let obj = fit_closure(train);
-            objs.push(obj);
+                {
+                    let train = DatasetBase::new(
+                        ArrayView2::from_shape(
+                            (samples_count - fold_size, features),
+                            records_sl.split_at(fold_size * features).1,
+                        )
+                        .unwrap(),
+                        ArrayView2::from_shape(
+                            (samples_count - fold_size, targets),
+                            targets_sl.split_at(fold_size * targets).1,
+                        )
+                        .unwrap(),
+                    );
 
-            assist_swap_array2(&mut records_sl, i, fold_size, features);
-            assist_swap_array2(&mut targets_sl, i, fold_size, targets);
+                    let obj = fit_closure(&train);
+                    objs.push(obj);
+                }
+
+                assist_swap_array2!(records_sl, i, fold_size, features);
+                assist_swap_array2!(targets_sl, i, fold_size, targets);
+            }
         }
 
         objs.into_iter().zip(self.sample_chunks(fold_size))
-        //
     }
-}
 
-fn assist_swap_array2<F>(slice: &mut [F], index: usize, fold_size: usize, features: usize) {
-    if index == 0 {
-        return;
+    /// Cross validation for multi-target algorithms
+    ///
+    /// Given a list of fittable models, cross validation
+    /// is used to compare their performance according to some
+    /// performance metric. To do so, k-folding is applied to the
+    /// dataset and, for each fold, each model is trained on the training set
+    /// and its performance is evaluated on the validation set. The performances
+    /// collected for each model are then averaged over the number of folds.
+    ///
+    /// ### Parameters:
+    ///
+    /// - `k`: the number of folds to apply
+    /// - `parameters`: a list of models to compare
+    /// - `eval`: closure used to evaluate the performance of each trained model
+    ///
+    /// ### Returns
+    ///
+    /// An array of model performances, in the same order as the models in input, if no errors occur.
+    /// The performance of each model is given as an array of performances, one for each target.
+    /// Otherwise, it might return an Error in one of the following cases:
+    ///
+    /// - An error occurred during the fitting of one model
+    /// - An error occurred inside the evaluation closure
+    ///
+    /// ### Example
+    ///
+    /// ```rust, ignore
+    ///
+    /// use linfa::prelude::*;
+    ///
+    /// // mutability needed for fast cross validation
+    /// let mut dataset = linfa_datasets::diabetes();
+    ///
+    /// let models = vec![model1, model2, ... ];
+    ///
+    /// let r2_scores = dataset.cross_validate_mt(5,&models, |prediction, truth| prediction.r2(truth))?;
+    ///
+    /// ```
+    pub fn cross_validate_mt<O, DT, ER, M, FACC, C>(
+        &'a mut self,
+        k: usize,
+        parameters: &[M],
+        eval: C,
+    ) -> std::result::Result<Array2<FACC>, ER>
+    where
+        ER: std::error::Error + std::convert::From<crate::error::Error>,
+        DT: Data<Elem = E>,
+        M: for<'c> Fit<ArrayView2<'c, F>, ArrayView2<'c, E>, ER, Object = O>,
+        O: for<'d> PredictRef<ArrayView2<'a, F>, ArrayBase<DT, Ix2>>,
+        FACC: Float,
+        C: Fn(
+            &ArrayBase<DT, Ix2>,
+            &ArrayView2<E>,
+        ) -> std::result::Result<Array1<FACC>, crate::error::Error>,
+    {
+        let mut evaluations = Array2::from_elem((parameters.len(), self.ntargets()), FACC::zero());
+        let folds_evaluations: std::result::Result<Vec<_>, ER> = self
+            .iter_fold(k, |train| {
+                let fit_result: std::result::Result<Vec<_>, ER> =
+                    parameters.iter().map(|p| p.fit(&train)).collect();
+                fit_result
+            })
+            .map(|(models, valid)| {
+                let targets = valid.targets();
+                let models = models?;
+                let mut eval_predictions =
+                    Array2::from_elem((models.len(), targets.len()), FACC::zero());
+                for (i, model) in models.iter().enumerate() {
+                    let predicted = model.predict(valid.records());
+                    let eval_pred = match eval(&predicted, &targets) {
+                        Err(e) => Err(ER::from(e)),
+                        Ok(res) => Ok(res),
+                    }?;
+                    eval_predictions.row_mut(i).add_assign(&eval_pred);
+                }
+                Ok(eval_predictions)
+            })
+            .collect();
+
+        for fold_evaluation in folds_evaluations? {
+            evaluations.add_assign(&fold_evaluation)
+        }
+        Ok(evaluations / FACC::from(k).unwrap())
     }
-    let adj_fold_size = fold_size * features;
-    let start = adj_fold_size * index;
-    let (first_s, second_s) = slice.split_at_mut(start);
-    let (mut fold, _) = second_s.split_at_mut(adj_fold_size);
-    first_s[..fold_size * features].swap_with_slice(&mut fold);
+
+    /// Cross validation for single target algorithms
+    ///
+    /// Given a list of fittable models, cross validation
+    /// is used to compare their performance according to some
+    /// performance metric. To do so, k-folding is applied to the
+    /// dataset and, for each fold, each model is trained on the training set
+    /// and its performance is evaluated on the validation set. The performances
+    /// collected for each model are then averaged over the number of folds.
+    ///
+    /// ### Parameters:
+    ///
+    /// - `k`: the number of folds to apply
+    /// - `parameters`: a list of models to compare
+    /// - `eval`: closure used to evaluate the performance of each trained model
+    ///
+    /// ### Returns
+    ///
+    /// An array of model performances, in the same order as the models in input, if no errors occur.
+    /// Otherwise, it might return an Error in one of the following cases:
+    ///
+    /// - The dataset is not single target
+    /// - An error occurred during the fitting of one model
+    /// - An error occurred inside the evaluation closure
+    ///
+    /// ### Example
+    ///
+    /// ```rust, ignore
+    ///
+    /// use linfa::prelude::*;
+    ///
+    /// // mutability needed for fast cross validation
+    /// let mut dataset = linfa_datasets::diabetes();
+    ///
+    /// let models = vec![model1, model2, ... ];
+    ///
+    /// let r2_scores = dataset.cross_validate(5,&models, |prediction, truth| prediction.r2(truth))?;
+    ///
+    /// ```
+    pub fn cross_validate<O, DT, ER, M, FACC, C>(
+        &'a mut self,
+        k: usize,
+        parameters: &[M],
+        eval: C,
+    ) -> std::result::Result<Array1<FACC>, ER>
+    where
+        ER: std::error::Error + std::convert::From<crate::error::Error>,
+        DT: Data<Elem = E>,
+        M: for<'c> Fit<ArrayView2<'c, F>, ArrayView2<'c, E>, ER, Object = O>,
+        O: for<'d> PredictRef<ArrayView2<'a, F>, ArrayBase<DT, Ix1>>,
+        FACC: Float,
+        C: Fn(
+            &ArrayBase<DT, Ix1>,
+            &ArrayView1<E>,
+        ) -> std::result::Result<FACC, crate::error::Error>,
+    {
+        self.try_single_target()?;
+        let mut evaluations = Array1::from_elem(parameters.len(), FACC::zero());
+        let folds_evaluations: std::result::Result<Vec<_>, ER> = self
+            .iter_fold(k, |train| {
+                let fit_result: std::result::Result<Vec<_>, ER> =
+                    parameters.iter().map(|p| p.fit(&train)).collect();
+                fit_result
+            })
+            .map(|(models, valid)| {
+                let targets = valid.try_single_target()?;
+                let models = models?;
+                let eval_predictions: std::result::Result<Array1<FACC>, ER> = models
+                    .iter()
+                    .map(|m| {
+                        let predicted = m.predict(valid.records());
+                        match eval(&predicted, &targets) {
+                            Err(e) => Err(ER::from(e)),
+                            Ok(res) => Ok(res),
+                        }
+                    })
+                    .collect();
+                eval_predictions
+            })
+            .collect();
+
+        for fold_evaluation in folds_evaluations? {
+            evaluations.add_assign(&fold_evaluation);
+        }
+        Ok(evaluations / FACC::from(k).unwrap())
+    }
 }
 
 impl<F: Float, E> Dataset<F, E> {

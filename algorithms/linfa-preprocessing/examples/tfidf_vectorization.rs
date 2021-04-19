@@ -4,9 +4,10 @@ use encoding::DecoderTrap::Strict;
 use flate2::read::GzDecoder;
 use linfa::metrics::ToConfusionMatrix;
 use linfa::traits::{Fit, Predict};
+use linfa::Dataset;
 use linfa_bayes::GaussianNbParams;
 use linfa_preprocessing::tf_idf_vectorization::TfIdfVectorizer;
-use ndarray::Array1;
+use ndarray::Array2;
 use std::collections::HashSet;
 use std::path::Path;
 use tar::Archive;
@@ -34,7 +35,7 @@ fn download_20news_bydate() {
 fn load_set(
     path: &'static str,
     desired_targets: &[&str],
-) -> Result<(Vec<std::path::PathBuf>, Array1<usize>, usize), std::io::Error> {
+) -> Result<(Vec<std::path::PathBuf>, Array2<usize>, usize), std::io::Error> {
     let mut file_paths = Vec::new();
     let mut targets = Vec::new();
     let desired_targets: HashSet<String> = desired_targets.iter().map(|s| s.to_string()).collect();
@@ -59,19 +60,19 @@ fn load_set(
             ntargets = ntargets + 1;
         }
     }
-    let targets = Array1::from_shape_vec(targets.len(), targets).unwrap();
+    let targets = Array2::from_shape_vec((targets.len(), 1), targets).unwrap();
     Ok((file_paths, targets, ntargets))
 }
 
 fn load_train_set(
     desired_targets: &[&str],
-) -> Result<(Vec<std::path::PathBuf>, Array1<usize>, usize), std::io::Error> {
+) -> Result<(Vec<std::path::PathBuf>, Array2<usize>, usize), std::io::Error> {
     load_set("./20news/20news-bydate-train", desired_targets)
 }
 
 fn load_test_set(
     desired_targets: &[&str],
-) -> Result<(Vec<std::path::PathBuf>, Array1<usize>, usize), std::io::Error> {
+) -> Result<(Vec<std::path::PathBuf>, Array2<usize>, usize), std::io::Error> {
     load_set("./20news/20news-bydate-test", desired_targets)
 }
 
@@ -162,9 +163,9 @@ fn main() {
     let test_records = vectorizer
         .transform_files(&test_filenames, ISO_8859_1, Strict)
         .to_dense();
-    let test_dataset = (test_records, test_targets).into();
+    let test_dataset: Dataset<f64, usize> = (test_records, test_targets).into();
     // Let's predict the test data targets
-    let test_prediction: Array1<usize> = model.predict(&test_dataset);
+    let test_prediction = model.predict(&test_dataset);
     let cm = test_prediction.confusion_matrix(&test_dataset).unwrap();
     // 0.8402
     let accuracy = cm.f1_score();

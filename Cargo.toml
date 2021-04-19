@@ -61,7 +61,6 @@ features = ["cblas"]
 
 [dev-dependencies]
 ndarray-rand = "0.13"
-
 linfa-datasets = { path = "datasets", features = ["winequality", "iris", "diabetes"] }
 
 [workspace]

@@ -113,14 +113,14 @@ impl<F: Float> LinearScaler<F> {
     }
 }
 
-impl<'a, F: Float, D: Data<Elem = F>, T: AsTargets> Fit<'a, ArrayBase<D, Ix2>, T>
+impl<F: Float, D: Data<Elem = F>, T: AsTargets> Fit<ArrayBase<D, Ix2>, T, Error>
     for LinearScaler<F>
 {
-    type Object = Result<FittedLinearScaler<F>>;
+    type Object = FittedLinearScaler<F>;
 
     /// Fits the input dataset accordng to the scaler [method](enum.ScalingMethod.html). Will return an error
     /// if the dataset does not contain any samples or (in the case of MinMax scaling) if the specified range is not valid.
-    fn fit(&self, x: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Self::Object {
+    fn fit(&self, x: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
         match &self.method {
             ScalingMethod::Standard(with_mean, with_std) => {
                 FittedLinearScaler::standard(x.records(), *with_mean, *with_std)
@@ -149,6 +149,7 @@ impl<F: Float> FittedLinearScaler<F> {
         if records.dim().0 == 0 {
             return Err(Error::NotEnoughSamples);
         }
+        // safe unwrap because of above zero records check
         let means = records.mean_axis(Axis(0)).unwrap();
         let std_devs = if with_std {
             records.std_axis(Axis(0), F::zero()).mapv(|s| {

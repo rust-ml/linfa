@@ -36,13 +36,15 @@ impl Default for PlsSvdParams {
 }
 
 #[allow(clippy::many_single_char_names)]
-impl<F: Float, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, ArrayBase<D, Ix2>> for PlsSvdParams {
-    type Object = Result<PlsSvd<F>>;
+impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsError>
+    for PlsSvdParams
+{
+    type Object = PlsSvd<F>;
 
     fn fit(
         &self,
         dataset: &DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>>,
-    ) -> Result<PlsSvd<F>> {
+    ) -> Result<Self::Object> {
         if dataset.nsamples() < 2 {
             return Err(PlsError::NotEnoughSamplesError(format!(
                 "should be greater than 1, got {}",
@@ -68,7 +70,8 @@ impl<F: Float, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, ArrayBase<D, Ix2>> 
 
         // Compute SVD of cross-covariance matrix
         let c = x.t().dot(&y);
-        let (u, _, vt) = c.svd(true, true).unwrap();
+        let (u, _, vt) = c.svd(true, true)?;
+        // safe unwraps because both parameters are set to true in above call
         let u = u.unwrap().slice(s![.., ..self.n_components]).to_owned();
         let vt = vt.unwrap().slice(s![..self.n_components, ..]).to_owned();
         let (u, vt) = utils::svd_flip(&u, &vt);

@@ -8,7 +8,7 @@ use linfa::{
 use ndarray::{Array1, Array2, ArrayBase, ArrayView2, Data, Ix1, Ix2};
 use std::cmp::Ordering;
 
-use super::error::Result;
+use super::error::{Result, SvmResult};
 use super::permutable_kernel::{PermutableKernel, PermutableKernelOneClass};
 use super::solver_smo::SolverState;
 use super::SolverParams;
@@ -207,15 +207,15 @@ pub fn fit_one_class<F: Float + num_traits::ToPrimitive>(
 /// probabilities for whether a sample belongs to the first or second class.
 macro_rules! impl_classification {
     ($records:ty, $targets:ty) => {
-        impl<'a, F: Float> Fit<'a, $records, $targets> for SvmParams<F, Pr> {
-            type Object = Result<Svm<F, Pr>>;
+        impl<F: Float> Fit<$records, $targets, SvmResult> for SvmParams<F, Pr> {
+            type Object = Svm<F, Pr>;
 
-            fn fit(&self, dataset: &DatasetBase<$records, $targets>) -> Self::Object {
+            fn fit(&self, dataset: &DatasetBase<$records, $targets>) -> Result<Self::Object> {
                 let kernel = self.kernel.transform(dataset.records());
                 let target = dataset.try_single_target()?;
                 let target = target.as_slice().unwrap();
 
-                let ret = match (self.c, self.nu) {
+                let ret: Self::Object = match (self.c, self.nu) {
                     (Some((c_p, c_n)), _) => fit_c(
                         self.solver_params.clone(),
                         dataset.records().view(),
@@ -272,10 +272,9 @@ macro_rules! impl_classification {
 }
 
 impl_classification!(Array2<F>, Array2<bool>);
-impl_classification!(ArrayView2<'a, F>, ArrayView2<'a, bool>);
+impl_classification!(ArrayView2<'_, F>, ArrayView2<'_, bool>);
 impl_classification!(Array2<F>, CountedTargets<bool, Array2<bool>>);
-impl_classification!(ArrayView2<'a, F>, CountedTargets<bool, Array2<bool>>);
-impl_classification!(ArrayView2<'a, F>, CountedTargets<bool, ArrayView2<'a, bool>>);
+impl_classification!(ArrayView2<'_, F>, CountedTargets<bool, ArrayView2<'_, bool>>);
 
 /// Fit one-class problem
 ///
@@ -283,10 +282,10 @@ impl_classification!(ArrayView2<'a, F>, CountedTargets<bool, ArrayView2<'a, bool
 /// implementation of SVM.
 macro_rules! impl_oneclass {
     ($records:ty, $targets:ty) => {
-        impl<'a, F: Float> Fit<'a, $records, $targets> for SvmParams<F, bool> {
-            type Object = Result<Svm<F, bool>>;
+        impl<F: Float> Fit<$records, $targets, SvmResult> for SvmParams<F, Pr> {
+            type Object = Svm<F, Pr>;
 
-            fn fit(&self, dataset: &DatasetBase<$records, $targets>) -> Self::Object {
+            fn fit(&self, dataset: &DatasetBase<$records, $targets>) -> Result<Self::Object> {
                 let kernel = self.kernel.transform(dataset.records());
                 let records = dataset.records().view();
 
@@ -302,9 +301,9 @@ macro_rules! impl_oneclass {
 }
 
 impl_oneclass!(Array2<F>, Array2<()>);
-impl_oneclass!(ArrayView2<'a, F>, ArrayView2<'a, ()>);
+impl_oneclass!(ArrayView2<'_, F>, ArrayView2<'_, ()>);
 impl_oneclass!(Array2<F>, CountedTargets<(), Array2<()>>);
-impl_oneclass!(Array2<F>, CountedTargets<(), ArrayView2<'a, ()>>);
+impl_oneclass!(Array2<F>, CountedTargets<(), ArrayView2<'_, ()>>);
 
 /// Predict a probability with a feature vector
 impl<F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix1>, Pr> for Svm<F, Pr> {

@@ -8,7 +8,7 @@ use linfa::{
 use linfa_kernel::Kernel;
 use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix2};
 
-use super::error::Result;
+use super::error::{Result, SvmResult};
 use super::permutable_kernel::PermutableKernelRegression;
 use super::solver_smo::SolverState;
 use super::SolverParams;
@@ -118,11 +118,11 @@ pub fn fit_nu<F: Float>(
 ///
 /// Take a number of observations and project them to optimal continuous targets.
 macro_rules! impl_regression {
-    ($records:ty, $targets:ty, $f:ty) => {
-        impl<'a> Fit<'a, $records, $targets> for SvmParams<$f, $f> {
-            type Object = Result<Svm<$f, $f>>;
+    ($records:ty, $targets:ty) => {
+        impl<F: Float> Fit<$records, $targets, SvmResult> for SvmParams<F, F> {
+            type Object = Svm<F, F>;
 
-            fn fit(&self, dataset: &DatasetBase<$records, $targets>) -> Self::Object {
+            fn fit(&self, dataset: &DatasetBase<$records, $targets>) -> Result<Svm<F, F>> {
                 let kernel = self.kernel.transform(dataset.records());
                 let target = dataset.try_single_target()?;
                 let target = target.as_slice().unwrap();
@@ -153,14 +153,10 @@ macro_rules! impl_regression {
     };
 }
 
-impl_regression!(Array2<f32>, Array2<f32>, f32);
-impl_regression!(Array2<f64>, Array2<f64>, f64);
-impl_regression!(ArrayView2<'a, f32>, ArrayView2<'a, f32>, f32);
-impl_regression!(ArrayView2<'a, f64>, ArrayView2<'a, f64>, f64);
-impl_regression!(Array2<f32>, Array1<f32>, f32);
-impl_regression!(Array2<f64>, Array1<f64>, f64);
-impl_regression!(ArrayView2<'a, f32>, ArrayView1<'a, f32>, f32);
-impl_regression!(ArrayView2<'a, f64>, ArrayView1<'a, f64>, f64);
+impl_regression!(Array2<F>, Array2<F>);
+impl_regression!(ArrayView2<'_, F>, ArrayView2<'_, F>);
+impl_regression!(Array2<F>, Array1<F>);
+impl_regression!(ArrayView2<'_, F>, ArrayView1<'_, F>);
 
 macro_rules! impl_predict {
     ( $($t:ty),* ) => {

@@ -75,8 +75,10 @@ impl<F: Float> FastIca<F> {
     }
 }
 
-impl<'a, F: Float + Lapack, D: Data<Elem = F>, T> Fit<'a, ArrayBase<D, Ix2>, T> for FastIca<F> {
-    type Object = Result<FittedFastIca<F>>;
+impl<F: Float + Lapack, D: Data<Elem = F>, T> Fit<ArrayBase<D, Ix2>, T, FastIcaError>
+    for FastIca<F>
+{
+    type Object = FittedFastIca<F>;
 
     /// Fit the model
     ///
@@ -87,9 +89,12 @@ impl<'a, F: Float + Lapack, D: Data<Elem = F>, T> Fit<'a, ArrayBase<D, Ix2>, T> 
     ///
     /// If the `alpha` value set for [`GFunc::Logcosh`] is not between 1 and 2
     /// inclusive
-    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<FittedFastIca<F>> {
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
         let x = &dataset.records;
         let (nsamples, nfeatures) = (x.nrows(), x.ncols());
+        if nsamples == 0 {
+            return Err(FastIcaError::NotEnoughSamples);
+        }
 
         // If the number of components is not set, we take the minimum of
         // the number of rows and columns
@@ -105,6 +110,7 @@ impl<'a, F: Float + Lapack, D: Data<Elem = F>, T> Fit<'a, ArrayBase<D, Ix2>, T> 
         }
 
         // We center the input by subtracting the mean of its features
+        // safe unwrap because we already returned an error on zero samples
         let xmean = x.mean_axis(Axis(0)).unwrap();
         let mut xcentered = x - &xmean.view().insert_axis(Axis(0));
 

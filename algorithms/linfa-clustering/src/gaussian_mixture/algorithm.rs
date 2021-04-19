@@ -215,10 +215,10 @@ impl<F: Float> GaussianMixtureModel<F> {
         reg_covar: F,
     ) -> Result<(Array1<F>, Array2<F>, Array3<F>)> {
         let nk = resp.sum_axis(Axis(0));
-        if nk.min().unwrap() < &(F::cast(10.) * F::epsilon()) {
+        if nk.min()? < &(F::cast(10.) * F::epsilon()) {
             return Err(GmmError::EmptyCluster(format!(
                 "Cluster #{} has no more point. Consider decreasing number of clusters or change initialization.",
-                nk.argmin().unwrap() + 1
+                nk.argmin()? + 1
             )));
         }
 
@@ -400,12 +400,12 @@ impl<F: Float> GaussianMixtureModel<F> {
     }
 }
 
-impl<'a, F: Float, R: Rng + SeedableRng + Clone, D: Data<Elem = F>, T> Fit<'a, ArrayBase<D, Ix2>, T>
-    for GmmHyperParams<F, R>
+impl<F: Float, R: Rng + SeedableRng + Clone, D: Data<Elem = F>, T>
+    Fit<ArrayBase<D, Ix2>, T, GmmError> for GmmHyperParams<F, R>
 {
-    type Object = Result<GaussianMixtureModel<F>>;
+    type Object = GaussianMixtureModel<F>;
 
-    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Self::Object {
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
         self.validate()?;
         let observations = dataset.records().view();
         let mut gmm = GaussianMixtureModel::<F>::new(self, dataset, self.rng())?;
@@ -488,7 +488,7 @@ mod tests {
     }
     impl MultivariateNormal {
         pub fn new(mean: &ArrayView1<f64>, covariance: &ArrayView2<f64>) -> LAResult<Self> {
-            let lower = covariance.cholesky(UPLO::Lower).unwrap();
+            let lower = covariance.cholesky(UPLO::Lower)?;
             Ok(MultivariateNormal {
                 mean: mean.to_owned(),
                 covariance: covariance.to_owned(),

@@ -31,6 +31,7 @@ mod iter;
 mod lapack_bounds;
 pub use lapack_bounds::*;
 
+
 /// Floating point numbers
 ///
 /// This trait bound multiplexes to the most common assumption of floating point number and
@@ -523,22 +524,50 @@ mod tests {
         );
     }
 
-    struct MockFittable {}
+    use crate::traits::{Fit, PredictRef};
+    use ndarray::ArrayView2;
+    use thiserror::Error;
+
+    struct MockFittable {
+        mock_var: usize,
+    }
 
     struct MockFittableResult {
         mock_var: usize,
     }
 
-    use crate::traits::Fit;
-    use ndarray::ArrayView2;
+    #[derive(Error, Debug)]
+    enum MockError {
+        #[error(transparent)]
+        LinfaError(#[from] crate::error::Error),
+    }
 
-    impl<'a> Fit<'a, ArrayView2<'a, f64>, ArrayView2<'a, f64>> for MockFittable {
+    impl<'a> Fit<ArrayView2<'a, f64>, ArrayView2<'a, f64>, MockError> for MockFittable {
         type Object = MockFittableResult;
 
-        fn fit(&self, training_data: &DatasetView<f64, f64>) -> Self::Object {
-            MockFittableResult {
-                mock_var: training_data.nsamples(),
+        fn fit(
+            &self,
+            training_data: &DatasetView<f64, f64>,
+        ) -> std::result::Result<Self::Object, MockError> {
+            if self.mock_var == 0 {
+                Err(MockError::LinfaError(Error::Parameters("0".to_string())))
+            } else {
+                Ok(MockFittableResult {
+                    mock_var: training_data.nsamples(),
+                })
             }
+        }
+    }
+
+    impl<'b> PredictRef<ArrayView2<'b, f64>, Array1<f64>> for MockFittableResult {
+        fn predict_ref<'a>(&'a self, _x: &'a ArrayView2<'b, f64>) -> Array1<f64> {
+            array![0.]
+        }
+    }
+
+    impl<'b> PredictRef<ArrayView2<'b, f64>, Array2<f64>> for MockFittableResult {
+        fn predict_ref<'a>(&'a self, _x: &'a ArrayView2<'b, f64>) -> Array2<f64> {
+            array![[0., 0.]]
         }
     }
 
@@ -548,9 +577,12 @@ mod tests {
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
         let mut dataset: Dataset<f64, f64> = (records, targets).into();
-        let params = MockFittable {};
+        let params = MockFittable { mock_var: 1 };
 
-        for (i, (model, validation_set)) in dataset.iter_fold(5, |v| params.fit(&v)).enumerate() {
+        for (i, (model, validation_set)) in dataset
+            .iter_fold(5, |v| params.fit(&v).unwrap())
+            .enumerate()
+        {
             assert_eq!(model.mock_var, 4);
             assert_eq!(validation_set.records().row(0)[0] as usize, i + 1);
             assert_eq!(validation_set.records().row(0)[1] as usize, i + 1);
@@ -566,12 +598,15 @@ mod tests {
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
         let mut dataset: Dataset<f64, f64> = (records, targets).into();
-        let params = MockFittable {};
+        let params = MockFittable { mock_var: 1 };
 
         // If we request three folds from a dataset with 5 samples it will cut the
         // last two samples from the folds and always add them as a tail of the training
         // data
-        for (i, (model, validation_set)) in dataset.iter_fold(3, |v| params.fit(&v)).enumerate() {
+        for (i, (model, validation_set)) in dataset
+            .iter_fold(3, |v| params.fit(&v).unwrap())
+            .enumerate()
+        {
             assert_eq!(model.mock_var, 4);
             assert_eq!(validation_set.records().row(0)[0] as usize, i + 1);
             assert_eq!(validation_set.records().row(0)[1] as usize, i + 1);
@@ -582,7 +617,10 @@ mod tests {
         }
 
         // the same goes for the last sample if we choose 4 folds
-        for (i, (model, validation_set)) in dataset.iter_fold(4, |v| params.fit(&v)).enumerate() {
+        for (i, (model, validation_set)) in dataset
+            .iter_fold(4, |v| params.fit(&v).unwrap())
+            .enumerate()
+        {
             assert_eq!(model.mock_var, 4);
             assert_eq!(validation_set.records().row(0)[0] as usize, i + 1);
             assert_eq!(validation_set.records().row(0)[1] as usize, i + 1);
@@ -594,7 +632,10 @@ mod tests {
 
         // if we choose 2 folds then again the last sample will be only
         // used for trainig
-        for (i, (model, validation_set)) in dataset.iter_fold(2, |v| params.fit(&v)).enumerate() {
+        for (i, (model, validation_set)) in dataset
+            .iter_fold(2, |v| params.fit(&v).unwrap())
+            .enumerate()
+        {
             assert_eq!(model.mock_var, 3);
             assert_eq!(validation_set.targets().dim(), (2, 1));
             assert!(i < 2);
@@ -608,7 +649,7 @@ mod tests {
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
         let mut dataset: Dataset<f64, f64> = (records, targets).into();
-        let params = MockFittable {};
+        let params = MockFittable { mock_var: 1 };
         let _ = dataset.iter_fold(0, |v| params.fit(&v)).enumerate();
     }
 
@@ -619,7 +660,100 @@ mod tests {
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
         let mut dataset: Dataset<f64, f64> = (records, targets).into();
-        let params = MockFittable {};
+        let params = MockFittable { mock_var: 1 };
         let _ = dataset.iter_fold(6, |v| params.fit(&v)).enumerate();
+    }
+
+    #[test]
+    fn test_st_cv_all_correct() {
+        let records =
+            Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
+        let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
+        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 2 }];
+        let acc = dataset
+            .cross_validate(5, &params, |_pred, _truth| Ok(3.))
+            .unwrap();
+        assert_eq!(acc, array![3., 3.])
+    }
+    #[test]
+    fn test_st_cv_one_incorrect() {
+        let records =
+            Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
+        let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
+        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        // second one should throw an error
+        let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 0 }];
+        let err = dataset
+            .cross_validate(5, &params, |_pred, _truth| Ok(0.))
+            .unwrap_err();
+        assert_eq!(err.to_string(), "invalid parameter 0".to_string());
+    }
+
+    #[test]
+    fn test_st_cv_incorrect_eval() {
+        let records =
+            Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
+        let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
+        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        // second one should throw an error
+        let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 1 }];
+        let err = dataset
+            .cross_validate(5, &params, |_pred, _truth| {
+                if false {
+                    Ok(0f32)
+                } else {
+                    Err(Error::Parameters("eval".to_string()))
+                }
+            })
+            .unwrap_err();
+        assert_eq!(err.to_string(), "invalid parameter eval".to_string());
+    }
+
+    #[test]
+    fn test_st_cv_mt_all_correct() {
+        let records =
+            Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
+        let targets = array![[1., 1.], [2., 2.], [3., 3.], [4., 4.], [5., 5.]];
+        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 2 }];
+        let acc = dataset
+            .cross_validate_mt(5, &params, |_pred, _truth| Ok(array![5., 6.]))
+            .unwrap();
+        assert_eq!(acc.dim(), (params.len(), dataset.ntargets()));
+        assert_eq!(acc, array![[5., 6.], [5., 6.]])
+    }
+    #[test]
+    fn test_st_cv_mt_one_incorrect() {
+        let records =
+            Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
+        let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
+        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        // second one should throw an error
+        let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 0 }];
+        let err = dataset
+            .cross_validate_mt(5, &params, |_pred, _truth| Ok(array![5.]))
+            .unwrap_err();
+        assert_eq!(err.to_string(), "invalid parameter 0".to_string());
+    }
+
+    #[test]
+    fn test_st_cv_mt_incorrect_eval() {
+        let records =
+            Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
+        let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
+        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        // second one should throw an error
+        let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 1 }];
+        let err = dataset
+            .cross_validate_mt(5, &params, |_pred, _truth| {
+                if false {
+                    Ok(array![0f32])
+                } else {
+                    Err(Error::Parameters("eval".to_string()))
+                }
+            })
+            .unwrap_err();
+        assert_eq!(err.to_string(), "invalid parameter eval".to_string());
     }
 }

@@ -197,10 +197,15 @@ impl<F: Float> PlsParams<F> {
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, ArrayBase<D, Ix2>> for PlsParams<F> {
-    type Object = Result<Pls<F>>;
+impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsError>
+    for PlsParams<F>
+{
+    type Object = Pls<F>;
 
-    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>>) -> Result<Pls<F>> {
+    fn fit(
+        &self,
+        dataset: &DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>>,
+    ) -> Result<Self::Object> {
         let records = dataset.records();
         let targets = dataset.targets();
 
@@ -259,7 +264,7 @@ impl<F: Float, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, ArrayBase<D, Ix2>> 
                 Algorithm::Nipals => {
                     // Replace columns that are all close to zero with zeros
                     for mut yj in yk.gencolumns_mut() {
-                        if *(yj.mapv(|y| num_traits::float::Float::abs(y)).max().unwrap())
+                        if *(yj.mapv(|y| num_traits::float::Float::abs(y)).max()?)
                             < F::cast(10.) * eps
                         {
                             yj.assign(&Array1::zeros(yj.len()));
@@ -421,6 +426,7 @@ impl<F: Float> PlsParams<F> {
     ) -> Result<(Array1<F>, Array1<F>)> {
         let c = x.t().dot(y);
         let (u, _, vt) = c.svd(true, true)?;
+        // safe unwrap because both parameters are set to true in above call
         let u = u.unwrap().column(0).to_owned();
         let vt = vt.unwrap().row(0).to_owned();
         Ok((u, vt))

@@ -130,14 +130,14 @@ macro_rules! pls_algo { ($name:ident) => {
             }
         }
 
-        impl<F: Float, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, ArrayBase<D, Ix2>>
+        impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsError>
             for [<Pls $name Params>]<F>
         {
-            type Object = Result<[<Pls $name>]<F>>;
+            type Object = [<Pls $name>]<F>;
             fn fit(
                 &self,
                 dataset: &DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>>,
-            ) -> Result<[<Pls $name>]<F>> {
+            ) -> Result<Self::Object> {
                 let pls = self.0.fit(dataset)?;
                 Ok([<Pls $name>](pls))
             }
