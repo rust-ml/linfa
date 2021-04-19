@@ -729,7 +729,8 @@ mod tests {
         let input_arr_1 = Array2::from_shape_vec((5, 10), input_vec.clone()).unwrap();
         let mut input_arr_2 = Array2::from_shape_vec((5, 10), input_vec).unwrap();
         input_arr_2.invert_axis(Axis(0));
-        let input_arr = ndarray::stack(Axis(0), &[input_arr_1.view(), input_arr_2.view()]).unwrap();
+        let input_arr =
+            ndarray::concatenate(Axis(0), &[input_arr_1.view(), input_arr_2.view()]).unwrap();
 
         for kind in vec![KernelType::Dense, KernelType::Sparse(1)] {
             let kernel = KernelView::params()

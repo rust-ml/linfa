@@ -595,7 +595,7 @@ mod tests {
     use super::super::KMeansInit;
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::{array, stack, Array, Array1, Array2, Axis};
+    use ndarray::{array, concatenate, Array, Array1, Array2, Axis};
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::Uniform;
     use ndarray_rand::RandomExt;
@@ -619,7 +619,7 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(42);
         let xt = Array::random_using(100, Uniform::new(0., 1.0), &mut rng).insert_axis(Axis(1));
         let yt = function_test_1d(&xt);
-        let data = stack(Axis(1), &[xt.view(), yt.view()]).unwrap();
+        let data = concatenate(Axis(1), &[xt.view(), yt.view()]).unwrap();
 
         for init in &[
             KMeansInit::Random,
@@ -673,9 +673,10 @@ mod tests {
         let memberships_2 = Array1::ones(cluster_size);
         let expected_centroid_2 = cluster_2.sum_axis(Axis(0)) / (cluster_size + 1) as f64;
 
-        // `stack` combines arrays along a given axis: https://docs.rs/ndarray/0.13.0/ndarray/fn.stack.html
-        let observations = stack(Axis(0), &[cluster_1.view(), cluster_2.view()]).unwrap();
-        let memberships = stack(Axis(0), &[memberships_1.view(), memberships_2.view()]).unwrap();
+        // `concatenate` combines arrays along a given axis: https://docs.rs/ndarray/0.13.0/ndarray/fn.concatenate.html
+        let observations = concatenate(Axis(0), &[cluster_1.view(), cluster_2.view()]).unwrap();
+        let memberships =
+            concatenate(Axis(0), &[memberships_1.view(), memberships_2.view()]).unwrap();
 
         // Does it work?
         let old_centroids = Array2::zeros((2, n_features));

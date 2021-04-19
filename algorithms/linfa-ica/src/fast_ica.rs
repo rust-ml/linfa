@@ -2,7 +2,7 @@
 
 use linfa::{dataset::DatasetBase, traits::*, Float};
 use ndarray::{Array, Array1, Array2, ArrayBase, Axis, Data, Ix2};
-use ndarray_linalg::{eigh::Eigh, lapack::UPLO, svd::SVD, Lapack};
+use ndarray_linalg::{eigh::Eigh, solveh::UPLO, svd::SVD, Lapack};
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
 use ndarray_stats::QuantileExt;
 use rand_isaac::Isaac64Rng;
@@ -368,8 +368,8 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(42);
         let source2 = Array::random_using((nsamples, 1), StudentT::new(1.0).unwrap(), &mut rng);
 
-        // Column stacking both the sources
-        let mut sources = stack![Axis(1), source1.insert_axis(Axis(1)), source2];
+        // Column concatenating both the sources
+        let mut sources = concatenate![Axis(1), source1.insert_axis(Axis(1)), source2];
         center_and_norm(&mut sources);
 
         // Mixing the two sources

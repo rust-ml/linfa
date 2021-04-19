@@ -23,6 +23,6 @@ fn main() {
 
     // Save to disk our dataset (and the cluster label assigned to each observation)
     // We use the `npy` format for compatibility with NumPy
-    write_npy("pca_dataset.npy", dataset.records().view()).expect("Failed to write .npy file");
-    write_npy("pca_embedding.npy", embedding).expect("Failed to write .npy file");
+    write_npy("pca_dataset.npy", &dataset.records().view()).expect("Failed to write .npy file");
+    write_npy("pca_embedding.npy", &embedding).expect("Failed to write .npy file");
 }

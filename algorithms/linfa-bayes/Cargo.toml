@@ -11,12 +11,12 @@ keywords = ["factorization", "machine-learning", "linfa", "unsupervised"]
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
-ndarray = { version = "0.13" , features = ["blas", "approx"]}
-ndarray-stats = "0.3"
+ndarray = { version = "0.14" , features = ["blas", "approx"]}
+ndarray-stats = "0.4"
 thiserror = "1"
 
 linfa = { version = "0.3.1", path = "../.." }
 
 [dev-dependencies]
-approx = "0.3"
+approx = "0.4"
 linfa-datasets = { version = "0.3.1", path = "../../datasets", features = ["winequality"] }

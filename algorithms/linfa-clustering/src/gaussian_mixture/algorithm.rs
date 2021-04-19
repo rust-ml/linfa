@@ -296,7 +296,7 @@ impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
         let n_samples = observations.nrows();
         let (weights, means, covariances) = Self::estimate_gaussian_parameters(
             &observations,
-            &log_resp.mapv(|v| v.exp()),
+            &log_resp.mapv(|v| Scalar::exp(v)),
             &self.covar_type,
             reg_covar,
         )?;
@@ -325,9 +325,9 @@ impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
     ) -> (Array1<F>, Array2<F>) {
         let weighted_log_prob = self.estimate_weighted_log_prob(&observations);
         let log_prob_norm = weighted_log_prob
-            .mapv(|v| v.exp())
+            .mapv(|v| Scalar::exp(v))
             .sum_axis(Axis(1))
-            .mapv(|v| v.ln());
+            .mapv(|v| Scalar::ln(v));
         let log_resp = weighted_log_prob - log_prob_norm.to_owned().insert_axis(Axis(1));
         (log_prob_norm, log_resp)
     }
@@ -384,12 +384,12 @@ impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
             .unwrap()
             .slice(s![.., ..; n_features+1])
             .to_owned()
-            .mapv(|v| v.ln());
+            .mapv(|v| Scalar::ln(v));
         log_diags.sum_axis(Axis(1))
     }
 
     fn estimate_log_weights(&self) -> Array1<F> {
-        self.weights().mapv(|v| v.ln())
+        self.weights().mapv(|v| Scalar::ln(v))
     }
 }
 
@@ -420,7 +420,7 @@ impl<'a, F: Float + Lapack + Scalar, R: Rng + SeedableRng + Clone, D: Data<Elem 
                 lower_bound =
                     GaussianMixtureModel::<F>::compute_lower_bound(&log_resp, log_prob_norm);
                 let change = lower_bound - prev_lower_bound;
-                if change.abs() < self.tolerance() {
+                if ndarray_rand::rand_distr::num_traits::Float::abs(change) < self.tolerance() {
                     converged_iter = Some(n_iter);
                     break;
                 }
@@ -456,7 +456,7 @@ impl<F: Float + Lapack + Scalar, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>
     fn predict_ref<'a>(&'a self, observations: &ArrayBase<D, Ix2>) -> Array1<usize> {
         let (_, log_resp) = self.estimate_log_prob_resp(&observations);
         log_resp
-            .mapv(|v| v.exp())
+            .mapv(|v| Scalar::exp(v))
             .map_axis(Axis(1), |row| row.argmax().unwrap())
     }
 }
@@ -466,7 +466,8 @@ mod tests {
     use super::*;
     use crate::generate_blobs;
     use approx::{abs_diff_eq, assert_abs_diff_eq};
-    use ndarray::{array, stack, ArrayView1, ArrayView2, Axis};
+    use lax::error::Error;
+    use ndarray::{array, concatenate, ArrayView1, ArrayView2, Axis};
     use ndarray_linalg::error::LinalgError;
     use ndarray_linalg::error::Result as LAResult;
     use ndarray_rand::rand::SeedableRng;
@@ -560,7 +561,7 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(42);
         let xt = Array2::random_using((50, 1), Uniform::new(0., 1.), &mut rng);
         let yt = function_test_1d(&xt);
-        let data = stack(Axis(1), &[xt.view(), yt.view()]).unwrap();
+        let data = concatenate(Axis(1), &[xt.view(), yt.view()]).unwrap();
         let dataset = DatasetBase::from(data);
 
         // Test that cholesky decomposition fails when reg_covariance is zero
@@ -571,7 +572,8 @@ mod tests {
         assert!(
             match gmm.expect_err("should generate an error with reg_covar being nul") {
                 GmmError::LinalgError(e) => match e {
-                    LinalgError::Lapack { return_code: 2 } => true,
+                    LinalgError::Lapack(Error::LapackComputationalFailure { return_code: 2 }) =>
+                        true,
                     _ => panic!("should be a lapack error 2"),
                 },
                 _ => panic!("should be a linear algebra error"),
@@ -588,7 +590,7 @@ mod tests {
     fn test_zeroed_reg_covar_const_failure() {
         // repeat values such that covariance is zero
         let xt = Array2::ones((50, 1));
-        let data = stack(Axis(1), &[xt.view(), xt.view()]).unwrap();
+        let data = concatenate(Axis(1), &[xt.view(), xt.view()]).unwrap();
         let dataset = DatasetBase::from(data);
 
         // Test that cholesky decomposition fails when reg_covariance is zero
@@ -599,7 +601,8 @@ mod tests {
         assert!(
             match gmm.expect_err("should generate an error with reg_covar being nul") {
                 GmmError::LinalgError(e) => match e {
-                    LinalgError::Lapack { return_code: 1 } => true,
+                    LinalgError::Lapack(Error::LapackComputationalFailure { return_code: 1 }) =>
+                        true,
                     _ => panic!("should be a lapack error 1"),
                 },
                 _ => panic!("should be a linear algebra error"),
