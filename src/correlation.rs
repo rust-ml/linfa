@@ -290,7 +290,7 @@ impl<F: Float> fmt::Display for PearsonCorrelation<F> {
 #[cfg(test)]
 mod tests {
     use crate::DatasetBase;
-    use ndarray::{stack, Array, Axis};
+    use ndarray::{concatenate, Array, Axis};
     use ndarray_rand::{rand_distr::Uniform, RandomExt};
     use rand::{rngs::SmallRng, SeedableRng};
 
@@ -314,7 +314,7 @@ mod tests {
         let data = Array::random_using((1000, 1), Uniform::new(-1., 1.), &mut rng);
         let data_proj = data.dot(&v.t());
 
-        let corr = DatasetBase::from(stack![Axis(1), data, data_proj])
+        let corr = DatasetBase::from(concatenate![Axis(1), data, data_proj])
             .pearson_correlation_with_p_value(100);
 
         assert!(corr.get_coeffs().mapv(|x| 1. - x).sum() < 1e-2);

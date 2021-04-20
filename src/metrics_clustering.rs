@@ -146,28 +146,28 @@ mod tests {
     use crate::metrics_clustering::SilhouetteScore;
     use crate::{Dataset, DatasetBase};
     use approx::assert_abs_diff_eq;
-    use ndarray::{stack, Array, Array1, Axis};
+    use ndarray::{concatenate, Array, Array1, Axis};
     use num_traits::ToPrimitive;
 
     #[test]
-    fn test_shilouette_score() {
+    fn test_silhouette_score() {
         // Two very far apart clusters, each with its own label.
         // This is a very good clustering for silhouette and should return a score very close to +1
-        let records = stack![
+        let records = concatenate![
             Axis(0),
             Array::linspace(0f64, 1f64, 10),
             Array::linspace(10000f64, 10001f64, 10)
         ]
         .insert_axis(Axis(1));
-        let records = stack![Axis(1), records, records];
-        let targets = stack![Axis(0), Array1::from_elem(10, 0), Array1::from_elem(10, 1)];
+        let records = concatenate![Axis(1), records, records];
+        let targets = concatenate![Axis(0), Array1::from_elem(10, 0), Array1::from_elem(10, 1)];
         let dataset: Dataset<_, _> = (records, targets).into();
         let score = dataset.silhouette_score().unwrap();
         assert_abs_diff_eq!(score, 1f64, epsilon = 1e-3);
 
         // Two clusters separated into halves very far from each other and each very near an half of the other cluster.
         // Bad but not terrible for silhouette, should return a score slightly negative
-        let records = stack![
+        let records = concatenate![
             Axis(0),
             Array::linspace(0f64, 1f64, 5),
             Array::linspace(1f64, 2f64, 5),
@@ -175,8 +175,8 @@ mod tests {
             Array::linspace(10001f64, 10002f64, 5)
         ]
         .insert_axis(Axis(1));
-        let records = stack![Axis(1), records, records];
-        let targets = stack![
+        let records = concatenate![Axis(1), records, records];
+        let targets = concatenate![
             Axis(0),
             Array1::from_elem(5, 0),
             Array1::from_elem(5, 1),
@@ -189,7 +189,7 @@ mod tests {
 
         // Very bad clustering with a high number of clusters, I expect a very negative value
         let records = Array::linspace(0f64, 10f64, 100).insert_axis(Axis(1));
-        let records = stack![Axis(1), records, records];
+        let records = concatenate![Axis(1), records, records];
         let targets = Array1::from_shape_fn(100, |i| (i + 3) % 48);
         let dataset: Dataset<_, _> = (records, targets).into();
         let score = dataset.silhouette_score().unwrap();
@@ -206,8 +206,8 @@ mod tests {
 
     #[test]
     fn test_fail_on_multi_target() {
-        let records = stack![Axis(0), Array::linspace(0f64, 1f64, 10)].insert_axis(Axis(1));
-        let records = stack![Axis(1), records, records];
+        let records = concatenate![Axis(0), Array::linspace(0f64, 1f64, 10)].insert_axis(Axis(1));
+        let records = concatenate![Axis(1), records, records];
 
         let targets = records.mapv(|x| x.to_usize().unwrap());
 

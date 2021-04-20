@@ -395,7 +395,7 @@ fn convert_params<F: Float>(n_features: usize, w: &Array1<F>) -> (Array1<F>, F) 
 
 /// The logistic function
 fn logistic<F: Float>(x: F) -> F {
-    F::one() / (F::one() + (-x).exp())
+    F::one() / (F::one() + num_traits::Float::exp(-x))
 }
 
 /// A numerically stable version of the log of the logistic function.
@@ -407,9 +407,9 @@ fn logistic<F: Float>(x: F) -> F {
 /// http://fa.bianp.net/blog/2013/numerical-optimizers-for-logistic-regression/
 fn log_logistic<F: Float>(x: F) -> F {
     if x > F::zero() {
-        -(F::one() + (-x).exp()).ln()
+        -num_traits::Float::ln(F::one() + num_traits::Float::exp(-x))
     } else {
-        x - (F::one() + x.exp()).ln()
+        x - num_traits::Float::ln(F::one() + num_traits::Float::exp(x))
     }
 }
 

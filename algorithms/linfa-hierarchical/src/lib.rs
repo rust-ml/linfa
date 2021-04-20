@@ -186,7 +186,7 @@ mod tests {
         // we have 10 observations per cluster
         let npoints = 10;
         // generate data
-        let entries = ndarray::stack(
+        let entries = ndarray::concatenate(
             Axis(0),
             &[
                 Array::random((npoints, 2), Normal::new(-1., 0.1).unwrap()).view(),

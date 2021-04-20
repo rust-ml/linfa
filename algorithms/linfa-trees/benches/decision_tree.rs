@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use linfa::prelude::*;
 use linfa_trees::DecisionTree;
-use ndarray::{stack, Array, Array1, Array2, Axis};
+use ndarray::{concatenate, Array, Array1, Array2, Axis};
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::{StandardNormal, Uniform};
 use ndarray_rand::RandomExt;
@@ -14,7 +14,7 @@ fn generate_blobs(means: &Array2<f64>, samples: usize, mut rng: &mut SmallRng) -
         .collect::<Vec<_>>();
     let out2 = out.iter().map(|x| x.view()).collect::<Vec<_>>();
 
-    stack(Axis(0), &out2).unwrap()
+    concatenate(Axis(0), &out2).unwrap()
 }
 
 fn decision_tree_bench(c: &mut Criterion) {

@@ -329,7 +329,7 @@ mod tests {
 
     #[test]
     fn test_linear_classification() -> Result<()> {
-        let entries: Array2<f64> = ndarray::stack(
+        let entries: Array2<f64> = ndarray::concatenate(
             Axis(0),
             &[
                 Array::random((10, 2), Uniform::new(-1., -0.5)).view(),

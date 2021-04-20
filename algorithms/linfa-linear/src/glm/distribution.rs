@@ -51,7 +51,7 @@ impl TweedieDistribution {
 
     fn unit_variance<A: Float>(&self, ypred: ArrayView1<A>) -> Array1<A> {
         // ypred ^ power
-        ypred.mapv(|x| x.powf(A::from(self.power).unwrap()))
+        ypred.mapv(|x| num_traits::Float::powf(x, A::from(self.power).unwrap()))
     }
 
     fn unit_deviance<A: Float>(&self, y: ArrayView1<A>, ypred: ArrayView1<A>) -> Result<Array1<A>> {
@@ -64,24 +64,26 @@ impl TweedieDistribution {
                     x
                 });
                 left.mapv_inplace(|x| {
-                    x.powf(A::from(2. - self.power).unwrap())
+                    num_traits::Float::powf(x, A::from(2. - self.power).unwrap())
                         / A::from((1. - self.power) * (2. - self.power)).unwrap()
                 });
 
                 let middle = &y
                     * &ypred.mapv(|x| {
-                        x.powf(A::from(1. - self.power).unwrap()) / A::from(1. - power).unwrap()
+                        num_traits::Float::powf(x, A::from(1. - self.power).unwrap())
+                            / A::from(1. - power).unwrap()
                     });
 
                 let right = ypred.mapv(|x| {
-                    x.powf(A::from(2. - self.power).unwrap()) / A::from(2. - self.power).unwrap()
+                    num_traits::Float::powf(x, A::from(2. - self.power).unwrap())
+                        / A::from(2. - self.power).unwrap()
                 });
 
                 Ok((left - middle + right).mapv(|x| A::from(2.).unwrap() * x))
             }
             // Normal distribution
             // (y - ypred)^2
-            power if power == 0. => Ok((&y - &ypred).mapv(|x| x.powi(2))),
+            power if power == 0. => Ok((&y - &ypred).mapv(|x| num_traits::Float::powi(x, 2))),
             power if power < 1. => Err(linfa::Error::Parameters(format!(
                 "Power value cannot be between 0 and 1, got: {}",
                 power
@@ -94,7 +96,7 @@ impl TweedieDistribution {
                     if x == A::from(0.).unwrap() {
                         *y = A::from(0.).unwrap();
                     } else {
-                        *y = A::from(2.).unwrap() * (x * y.ln());
+                        *y = A::from(2.).unwrap() * (x * num_traits::Float::ln(*y));
                     }
                 });
                 Ok(div - y + ypred)
@@ -102,23 +104,26 @@ impl TweedieDistribution {
             // Gamma distribution
             // 2 * (log(ypred / y) + (y / ypred) - 1)
             power if (power - 2.).abs() < 1e-6 => {
-                let mut temp = (&ypred / &y).mapv(|x| x.ln()) + (&y / &ypred);
+                let mut temp = (&ypred / &y).mapv(num_traits::Float::ln) + (&y / &ypred);
                 temp.mapv_inplace(|x| x - A::from(1.).unwrap());
                 Ok(temp.mapv(|x| A::from(2.).unwrap() * x))
             }
             power => {
                 let left = y.mapv(|x| {
-                    x.powf(A::from(2. - power).unwrap())
+                    num_traits::Float::powf(x, A::from(2. - power).unwrap())
                         / A::from((1. - power) * (2. - power)).unwrap()
                 });
 
                 let middle = &y
                     * &ypred.mapv(|x| {
-                        x.powf(A::from(1. - power).unwrap()) / A::from(1. - power).unwrap()
+                        num_traits::Float::powf(x, A::from(1. - power).unwrap())
+                            / A::from(1. - power).unwrap()
                     });
 
-                let right = ypred
-                    .mapv(|x| x.powf(A::from(2. - power).unwrap()) / A::from(2. - power).unwrap());
+                let right = ypred.mapv(|x| {
+                    num_traits::Float::powf(x, A::from(2. - power).unwrap())
+                        / A::from(2. - power).unwrap()
+                });
 
                 Ok((left - middle + right).mapv(|x| A::from(2.).unwrap() * x))
             }

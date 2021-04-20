@@ -24,11 +24,11 @@ default-features = false
 features = ["std", "derive"]
 
 [dependencies]
-ndarray = { version = "0.13", default-features=false }
-ndarray-linalg = "0.12"
-ndarray-stats = "0.3"
-ndarray-rand = "0.11"
-rand_isaac = "0.2"
+ndarray = { version = "0.14", default-features=false }
+ndarray-linalg = "0.13"
+ndarray-stats = "0.4"
+ndarray-rand = "0.13"
+rand_isaac = "0.3"
 num-traits = "0.2"
 paste = "1.0"
 
@@ -36,5 +36,5 @@ linfa = { version = "0.3.1", path = "../.." }
 
 [dev-dependencies]
 linfa-datasets = { version = "0.3.1", path = "../../datasets", features = ["linnerud"] }
-rand_isaac = "0.2"
-approx = "0.3"
+rand_isaac = "0.3"
+approx = "0.4"

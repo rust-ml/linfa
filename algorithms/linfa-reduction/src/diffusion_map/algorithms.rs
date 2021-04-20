@@ -11,7 +11,6 @@ use ndarray_linalg::{
     eigh::EighInto, lobpcg, lobpcg::LobpcgResult, Lapack, Scalar, TruncatedOrder, UPLO,
 };
 use ndarray_rand::{rand_distr::Uniform, RandomExt};
-use num_traits::NumCast;
 
 use linfa::{error::Result, traits::Transformer, Float};
 use linfa_kernel::Kernel;
@@ -127,7 +126,7 @@ fn compute_diffusion_map<'b, F: Float + Lapack>(
 
     let d = kernel.sum().mapv(|x| x.recip());
 
-    let d2 = d.mapv(|x| x.powf(F::from(0.5 + alpha).unwrap()));
+    let d2 = d.mapv(|x| num_traits::Float::powf(x, F::from(0.5 + alpha).unwrap()));
 
     // use full eigenvalue decomposition for small problem sizes
     let (vals, mut vecs) = if kernel.size() < 5 * embedding_size + 1 {
@@ -187,15 +186,15 @@ fn compute_diffusion_map<'b, F: Float + Lapack>(
         (vals.slice_move(s![1..]), vecs.slice_move(s![.., 1..]))
     };
 
-    let d = d.mapv(|x| x.sqrt());
+    let d = d.mapv(num_traits::Float::sqrt);
 
     for (mut col, val) in vecs.genrows_mut().into_iter().zip(d.iter()) {
         col *= *val;
     }
 
-    let steps = NumCast::from(steps).unwrap();
+    let steps = F::from(steps).unwrap();
     for (mut vec, val) in vecs.gencolumns_mut().into_iter().zip(vals.iter()) {
-        vec *= val.powf(steps);
+        vec *= num_traits::Float::powf(*val, steps);
     }
 
     (vecs, vals)

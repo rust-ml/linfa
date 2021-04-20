@@ -5,8 +5,8 @@ use super::{
     Label, Labels, Pr, Records,
 };
 use ndarray::{
-    stack, Array1, Array2, ArrayBase, ArrayView2, ArrayViewMut2, Axis, CowArray, Data, DataMut,
-    Dimension, Ix1, Ix2, Ix3, OwnedRepr, ViewRepr,
+    concatenate, Array1, Array2, ArrayBase, ArrayView2, ArrayViewMut2, Axis, CowArray, Data,
+    DataMut, Dimension, Ix1, Ix2, Ix3, OwnedRepr, ViewRepr,
 };
 
 impl<'a, L, S: Data<Elem = L>> AsTargets for ArrayBase<S, Ix1> {
@@ -201,8 +201,8 @@ where
             }
         }
 
-        let records: Array2<F> = stack(Axis(0), &records_arr).unwrap();
-        let targets = stack(Axis(0), &targets_arr).unwrap();
+        let records: Array2<F> = concatenate(Axis(0), &records_arr).unwrap();
+        let targets = concatenate(Axis(0), &targets_arr).unwrap();
 
         let targets = CountedTargets {
             targets,
