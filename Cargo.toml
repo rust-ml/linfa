@@ -58,7 +58,7 @@ features = ["cblas"]
 
 [dev-dependencies]
 ndarray-rand = "0.13"
-approx = { version = "0.4", default-features = false, features = ["std"] }
+approx = "0.4"
 
 linfa-datasets = { path = "datasets", features = ["winequality", "iris", "diabetes"] }
 

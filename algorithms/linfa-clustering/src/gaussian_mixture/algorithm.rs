@@ -119,7 +119,7 @@ impl<F: Float> Clone for GaussianMixtureModel<F> {
     }
 }
 
-impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
+impl<F: Float> GaussianMixtureModel<F> {
     fn new<D: Data<Elem = F>, R: Rng + SeedableRng + Clone, T>(
         hyperparameters: &GmmHyperParams<F, R>,
         dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
@@ -138,7 +138,7 @@ impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
                     .fit(&dataset)?;
                 let mut resp = Array::<F, Ix2>::zeros((n_samples, hyperparameters.n_clusters()));
                 for (k, idx) in model.predict(dataset.records()).iter().enumerate() {
-                    resp[[k, *idx]] = F::from(1.).unwrap();
+                    resp[[k, *idx]] = F::cast(1.);
                 }
                 resp
             }
@@ -150,7 +150,7 @@ impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
                 );
                 let totals = &resp.sum_axis(Axis(1)).insert_axis(Axis(0));
                 resp = (resp.reversed_axes() / totals).reversed_axes();
-                resp.mapv(|v| F::from(v).unwrap())
+                resp.mapv(|v| F::cast(v))
             }
         };
 
@@ -162,7 +162,7 @@ impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
             hyperparameters.covariance_type(),
             hyperparameters.reg_covariance(),
         )?;
-        weights /= F::from(n_samples).unwrap();
+        weights /= F::cast(n_samples);
 
         // GmmCovarType = full
         let precisions_chol = Self::compute_precisions_cholesky_full(&covariances)?;
@@ -179,7 +179,7 @@ impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
     }
 }
 
-impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
+impl<F: Float> GaussianMixtureModel<F> {
     pub fn params(n_clusters: usize) -> GmmHyperParams<F, Isaac64Rng> {
         GmmHyperParams::new(n_clusters)
     }
@@ -211,7 +211,7 @@ impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
         reg_covar: F,
     ) -> Result<(Array1<F>, Array2<F>, Array3<F>)> {
         let nk = resp.sum_axis(Axis(0));
-        if nk.min().unwrap() < &(F::from(10.).unwrap() * F::epsilon()) {
+        if nk.min().unwrap() < &(F::cast(10.) * F::epsilon()) {
             return Err(GmmError::EmptyCluster(format!(
                 "Cluster #{} has no more point. Consider decreasing number of clusters or change initialization.",
                 nk.argmin().unwrap() + 1
@@ -253,9 +253,12 @@ impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
         let n_features = covariances.shape()[1];
         let mut precisions_chol = Array::zeros((n_clusters, n_features, n_features));
         for (k, covariance) in covariances.outer_iter().enumerate() {
-            let cov_chol = covariance.cholesky(UPLO::Lower)?;
-            let sol =
-                cov_chol.solve_triangular(UPLO::Lower, Diag::NonUnit, &Array::eye(n_features))?;
+            let sol = F::map_cauchy_bound_view(covariance, |x| {
+                let decomp = x.cholesky(UPLO::Lower).unwrap();
+
+                decomp.solve_triangular(UPLO::Lower, Diag::NonUnit, &Array::eye(n_features)).unwrap()
+            });
+
             precisions_chol.slice_mut(s![k, .., ..]).assign(&sol.t());
         }
         Ok(precisions_chol)
@@ -296,12 +299,12 @@ impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
         let n_samples = observations.nrows();
         let (weights, means, covariances) = Self::estimate_gaussian_parameters(
             &observations,
-            &log_resp.mapv(|v| Scalar::exp(v)),
+            &log_resp.mapv(|x| x.exp()),
             &self.covar_type,
             reg_covar,
         )?;
         self.means = means;
-        self.weights = weights / F::from(n_samples).unwrap();
+        self.weights = weights / F::cast(n_samples);
         // GmmCovarType = Full()
         self.precisions_chol = Self::compute_precisions_cholesky_full(&covariances)?;
         Ok(())
@@ -325,9 +328,9 @@ impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
     ) -> (Array1<F>, Array2<F>) {
         let weighted_log_prob = self.estimate_weighted_log_prob(&observations);
         let log_prob_norm = weighted_log_prob
-            .mapv(|v| Scalar::exp(v))
+            .mapv(|x| x.exp())
             .sum_axis(Axis(1))
-            .mapv(|v| Scalar::ln(v));
+            .mapv(|x| x.ln());
         let log_resp = weighted_log_prob - log_prob_norm.to_owned().insert_axis(Axis(1));
         (log_prob_norm, log_resp)
     }
@@ -368,8 +371,8 @@ impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
                     .assign(&diff.mapv(|v| v * v).sum_axis(Axis(1)))
             });
         log_prob.mapv(|v| {
-            F::from(-0.5).unwrap()
-                * (v + F::from(n_features as f64 * f64::ln(2. * std::f64::consts::PI)).unwrap())
+            F::cast(-0.5)
+                * (v + F::cast(n_features as f64 * f64::ln(2. * std::f64::consts::PI)))
         }) + log_det
     }
 
@@ -384,16 +387,16 @@ impl<F: Float + Lapack + Scalar> GaussianMixtureModel<F> {
             .unwrap()
             .slice(s![.., ..; n_features+1])
             .to_owned()
-            .mapv(|v| Scalar::ln(v));
+            .mapv(|x| x.ln());
         log_diags.sum_axis(Axis(1))
     }
 
     fn estimate_log_weights(&self) -> Array1<F> {
-        self.weights().mapv(|v| Scalar::ln(v))
+        self.weights().mapv(|x| x.ln())
     }
 }
 
-impl<'a, F: Float + Lapack + Scalar, R: Rng + SeedableRng + Clone, D: Data<Elem = F>, T>
+impl<'a, F: Float, R: Rng + SeedableRng + Clone, D: Data<Elem = F>, T>
     Fit<'a, ArrayBase<D, Ix2>, T> for GmmHyperParams<F, R>
 {
     type Object = Result<GaussianMixtureModel<F>>;
@@ -420,7 +423,7 @@ impl<'a, F: Float + Lapack + Scalar, R: Rng + SeedableRng + Clone, D: Data<Elem 
                 lower_bound =
                     GaussianMixtureModel::<F>::compute_lower_bound(&log_resp, log_prob_norm);
                 let change = lower_bound - prev_lower_bound;
-                if ndarray_rand::rand_distr::num_traits::Float::abs(change) < self.tolerance() {
+                if change.abs() < self.tolerance() {
                     converged_iter = Some(n_iter);
                     break;
                 }
