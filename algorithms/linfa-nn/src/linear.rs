@@ -4,21 +4,20 @@ use std::{
 };
 
 use linfa::Float;
-use ndarray::ArrayView1;
 use ndarray_stats::DeviationExt;
 use ordered_float::NotNan;
 
-use crate::NearestNeighbour;
+use crate::{NearestNeighbour, Point};
 
-fn dist_fn<F: Float>(pt1: &ArrayView1<F>, pt2: &ArrayView1<F>) -> F {
+fn dist_fn<F: Float>(pt1: &Point<F>, pt2: &Point<F>) -> F {
     pt1.sq_l2_dist(&pt2).unwrap()
 }
 
-pub struct LinearSearch<'a, F: Float>(Vec<ArrayView1<'a, F>>);
+pub struct LinearSearch<'a, F: Float>(Vec<Point<'a, F>>);
 
 struct HeapElem<'a, F: Float> {
     dist: Reverse<NotNan<F>>,
-    point: ArrayView1<'a, F>,
+    point: Point<'a, F>,
 }
 
 impl<'a, F: Float> PartialEq for HeapElem<'a, F> {
@@ -41,7 +40,7 @@ impl<'a, F: Float> Ord for HeapElem<'a, F> {
 }
 
 impl<'a, F: Float> NearestNeighbour<'a, F> for LinearSearch<'a, F> {
-    fn add_point(&mut self, point: ArrayView1<'a, F>) {
+    fn add_point(&mut self, point: Point<'a, F>) {
         self.0.push(point);
     }
 
@@ -49,7 +48,7 @@ impl<'a, F: Float> NearestNeighbour<'a, F> for LinearSearch<'a, F> {
         self.0.len()
     }
 
-    fn k_nearest(&self, point: ArrayView1<'a, F>, k: usize) -> Vec<ArrayView1<'a, F>> {
+    fn k_nearest(&self, point: Point<'a, F>, k: usize) -> Vec<Point<'a, F>> {
         let mut heap = BinaryHeap::with_capacity(self.num_points());
         for pt in self.0.iter() {
             let dist = dist_fn(&point, &pt);
@@ -61,7 +60,7 @@ impl<'a, F: Float> NearestNeighbour<'a, F> for LinearSearch<'a, F> {
         (0..k).map(|_| heap.pop().unwrap().point).collect()
     }
 
-    fn within_range(&self, point: ArrayView1<'a, F>, range: F) -> Vec<ArrayView1<'a, F>> {
+    fn within_range(&self, point: Point<'a, F>, range: F) -> Vec<Point<'a, F>> {
         self.0
             .iter()
             .filter(|pt| dist_fn(&point, &pt) < range)
