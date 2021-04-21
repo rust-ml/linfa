@@ -13,12 +13,13 @@ keywords = ["nearest-neighbour", "machine-learning", "linfa"]
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
-ndarray = { version = "0.13", features = ["approx"]}
-ndarray-rand = "0.11"
-ndarray-stats = "0.3"
-num-traits = "0.1.32"
+ndarray = { version = "0.14", features = ["approx"]}
+ndarray-rand = "0.13"
+ndarray-stats = "0.4"
+num-traits = "0.2.0"
+ordered-float = "2.1.1"
 
 linfa = { version = "0.3.1", path = "../.." }
 
 [dev-dependencies]
-approx = "0.3"
+approx = "0.4"
