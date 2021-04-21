@@ -1,19 +1,21 @@
 use std::{
     cmp::{Ordering, Reverse},
     collections::BinaryHeap,
+    marker::PhantomData,
 };
 
 use linfa::Float;
+use ndarray::ArrayView2;
 use ndarray_stats::DeviationExt;
 use ordered_float::NotNan;
 
-use crate::{NearestNeighbour, Point};
+use crate::{NearestNeighbour, NearestNeighbourBuilder, Point};
 
 fn dist_fn<F: Float>(pt1: &Point<F>, pt2: &Point<F>) -> F {
     pt1.sq_l2_dist(&pt2).unwrap()
 }
 
-pub struct LinearSearch<'a, F: Float>(Vec<Point<'a, F>>);
+pub struct LinearSearch<'a, F: Float>(ArrayView2<'a, F>);
 
 struct HeapElem<'a, F: Float> {
     dist: Reverse<NotNan<F>>,
@@ -40,17 +42,13 @@ impl<'a, F: Float> Ord for HeapElem<'a, F> {
 }
 
 impl<'a, F: Float> NearestNeighbour<'a, F> for LinearSearch<'a, F> {
-    fn add_point(&mut self, point: Point<'a, F>) {
-        self.0.push(point);
+    fn from_batch(batch: &'a ArrayView2<'a, F>) -> Self {
+        Self(batch.clone())
     }
 
-    fn num_points(&self) -> usize {
-        self.0.len()
-    }
-
-    fn k_nearest(&self, point: Point<'a, F>, k: usize) -> Vec<Point<'a, F>> {
-        let mut heap = BinaryHeap::with_capacity(self.num_points());
-        for pt in self.0.iter() {
+    fn k_nearest(&'a self, point: Point<'a, F>, k: usize) -> Vec<Point<'a, F>> {
+        let mut heap = BinaryHeap::with_capacity(self.0.nrows());
+        for pt in self.0.genrows() {
             let dist = dist_fn(&point, &pt);
             heap.push(HeapElem {
                 point: pt.clone(),
@@ -60,11 +58,22 @@ impl<'a, F: Float> NearestNeighbour<'a, F> for LinearSearch<'a, F> {
         (0..k).map(|_| heap.pop().unwrap().point).collect()
     }
 
-    fn within_range(&self, point: Point<'a, F>, range: F) -> Vec<Point<'a, F>> {
+    fn within_range(&'a self, point: Point<'a, F>, range: F) -> Vec<Point<'a, F>> {
         self.0
-            .iter()
+            .genrows()
+            .into_iter()
             .filter(|pt| dist_fn(&point, &pt) < range)
-            .cloned()
             .collect()
+    }
+}
+
+pub struct LinearSearchBuilder<F: Float>(PhantomData<F>);
+
+impl<F: Float> NearestNeighbourBuilder<F> for LinearSearchBuilder<F> {
+    fn from_batch<'a>(
+        &self,
+        batch: &'a ArrayView2<'a, F>,
+    ) -> Box<dyn 'a + NearestNeighbour<'a, F>> {
+        Box::new(LinearSearch::from_batch(batch))
     }
 }
