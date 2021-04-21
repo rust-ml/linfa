@@ -22,7 +22,7 @@ mod test {
     use approx::assert_abs_diff_eq;
     use ndarray::{arr2, stack, Axis};
 
-    use crate::{kdtree::KdtreeBuilder, linear::LinearSearchBuilder};
+    use crate::{kdtree::KdTreeBuilder, linear::LinearSearchBuilder};
 
     use super::*;
 
@@ -44,6 +44,6 @@ mod test {
 
     #[test]
     fn kdtree() {
-        nn_test(&KdtreeBuilder::default());
+        nn_test(&KdTreeBuilder::default());
     }
 }

@@ -10,9 +10,9 @@ fn dist_fn<F: Float>(pt1: &[F], pt2: &[F]) -> F {
     aview1(pt1).sq_l2_dist(&aview1(pt2)).unwrap()
 }
 
-pub struct Kdtree<'a, F: Float>(kdtree::KdTree<F, Point<'a, F>, &'a [F]>);
+pub struct KdTree<'a, F: Float>(kdtree::KdTree<F, Point<'a, F>, &'a [F]>);
 
-impl<'a, F: Float> Kdtree<'a, F> {
+impl<'a, F: Float> KdTree<'a, F> {
     fn from_batch(batch: &'a Array2<F>) -> Self {
         let mut tree = kdtree::KdTree::with_capacity(batch.ncols(), batch.nrows());
         for point in batch.genrows() {
@@ -23,7 +23,7 @@ impl<'a, F: Float> Kdtree<'a, F> {
     }
 }
 
-impl<'a, F: Float> NearestNeighbour<F> for Kdtree<'a, F> {
+impl<'a, F: Float> NearestNeighbour<F> for KdTree<'a, F> {
     fn k_nearest<'b>(&self, point: Point<'b, F>, k: usize) -> Vec<Point<F>> {
         self.0
             .iter_nearest(
@@ -51,10 +51,10 @@ impl<'a, F: Float> NearestNeighbour<F> for Kdtree<'a, F> {
 }
 
 #[derive(Default)]
-pub struct KdtreeBuilder<F: Float>(PhantomData<F>);
+pub struct KdTreeBuilder<F: Float>(PhantomData<F>);
 
-impl<F: Float> NearestNeighbourBuilder<F> for KdtreeBuilder<F> {
+impl<F: Float> NearestNeighbourBuilder<F> for KdTreeBuilder<F> {
     fn from_batch<'a>(&self, batch: &'a Array2<F>) -> Box<dyn 'a + NearestNeighbour<F>> {
-        Box::new(Kdtree::from_batch(batch))
+        Box::new(KdTree::from_batch(batch))
     }
 }
