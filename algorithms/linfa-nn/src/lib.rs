@@ -1,6 +1,7 @@
 use linfa::Float;
 use ndarray::{ArrayView1, ArrayView2};
 
+pub mod kdtree;
 pub mod linear;
 
 pub trait NearestNeighbour<'a, F: Float> {
@@ -11,8 +12,6 @@ pub trait NearestNeighbour<'a, F: Float> {
             self.add_point(row);
         }
     }
-
-    fn reset(&mut self);
 
     fn num_points(&self) -> usize;
 

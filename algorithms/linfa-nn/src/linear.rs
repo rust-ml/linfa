@@ -45,10 +45,6 @@ impl<'a, F: Float> NearestNeighbour<'a, F> for LinearSearch<'a, F> {
         self.0.push(point);
     }
 
-    fn reset(&mut self) {
-        self.0.clear();
-    }
-
     fn num_points(&self) -> usize {
         self.0.len()
     }
