@@ -61,7 +61,7 @@ impl<'a, F: Float> NearestNeighbour<'a, F> for LinearSearch<'a, F> {
         (0..k).map(|_| heap.pop().unwrap().point).collect()
     }
 
-    fn within(&self, point: ArrayView1<'a, F>, range: F) -> Vec<ArrayView1<'a, F>> {
+    fn within_range(&self, point: ArrayView1<'a, F>, range: F) -> Vec<ArrayView1<'a, F>> {
         self.0
             .iter()
             .filter(|pt| dist_fn(&point, &pt) < range)

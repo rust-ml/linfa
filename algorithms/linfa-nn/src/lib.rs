@@ -18,5 +18,5 @@ pub trait NearestNeighbour<'a, F: Float> {
     // Returns nearest in order. Might want wrap in result or return iterator
     fn k_nearest(&self, point: ArrayView1<'a, F>, k: usize) -> Vec<ArrayView1<'a, F>>;
 
-    fn within(&self, point: ArrayView1<'a, F>, range: F) -> Vec<ArrayView1<'a, F>>;
+    fn within_range(&self, point: ArrayView1<'a, F>, range: F) -> Vec<ArrayView1<'a, F>>;
 }
