@@ -5,7 +5,7 @@ use std::{
 };
 
 use linfa::Float;
-use ndarray::ArrayView2;
+use ndarray::{Array2, ArrayView2};
 use ndarray_stats::DeviationExt;
 use ordered_float::NotNan;
 
@@ -42,11 +42,11 @@ impl<'a, F: Float> Ord for HeapElem<'a, F> {
 }
 
 impl<'a, F: Float> NearestNeighbour<'a, F> for LinearSearch<'a, F> {
-    fn from_batch(batch: &'a ArrayView2<'a, F>) -> Self {
-        Self(batch.clone())
+    fn from_batch(batch: &'a Array2<F>) -> Self {
+        Self(batch.view())
     }
 
-    fn k_nearest(&'a self, point: Point<'a, F>, k: usize) -> Vec<Point<'a, F>> {
+    fn k_nearest<'b>(&self, point: Point<'b, F>, k: usize) -> Vec<Point<F>> {
         let mut heap = BinaryHeap::with_capacity(self.0.nrows());
         for pt in self.0.genrows() {
             let dist = dist_fn(&point, &pt);
@@ -58,7 +58,7 @@ impl<'a, F: Float> NearestNeighbour<'a, F> for LinearSearch<'a, F> {
         (0..k).map(|_| heap.pop().unwrap().point).collect()
     }
 
-    fn within_range(&'a self, point: Point<'a, F>, range: F) -> Vec<Point<'a, F>> {
+    fn within_range<'b>(&self, point: Point<'b, F>, range: F) -> Vec<Point<F>> {
         self.0
             .genrows()
             .into_iter()
@@ -70,10 +70,7 @@ impl<'a, F: Float> NearestNeighbour<'a, F> for LinearSearch<'a, F> {
 pub struct LinearSearchBuilder<F: Float>(PhantomData<F>);
 
 impl<F: Float> NearestNeighbourBuilder<F> for LinearSearchBuilder<F> {
-    fn from_batch<'a>(
-        &self,
-        batch: &'a ArrayView2<'a, F>,
-    ) -> Box<dyn 'a + NearestNeighbour<'a, F>> {
+    fn from_batch<'a>(&self, batch: &'a Array2<F>) -> Box<dyn 'a + NearestNeighbour<'a, F>> {
         Box::new(LinearSearch::from_batch(batch))
     }
 }
