@@ -10,6 +10,8 @@ pub trait NearestNeighbour<F: Float> {
     // Returns nearest in order. Might want wrap in result or return iterator
     fn k_nearest<'b>(&self, point: Point<'b, F>, k: usize) -> Vec<Point<F>>;
 
+    // Does not have any particular order, though some algorithms may returns these in order of
+    // distance.
     fn within_range<'b>(&self, point: Point<'b, F>, range: F) -> Vec<Point<F>>;
 }
 
