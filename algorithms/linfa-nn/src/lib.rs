@@ -20,30 +20,48 @@ pub trait NearestNeighbourBuilder<F: Float> {
 #[cfg(test)]
 mod test {
     use approx::assert_abs_diff_eq;
-    use ndarray::{arr2, stack, Axis};
+    use ndarray::{arr2, aview1, stack, Axis};
+    use ndarray_stats::DeviationExt;
+    use ordered_float::NotNan;
 
     use crate::{kdtree::KdTreeBuilder, linear::LinearSearchBuilder};
 
     use super::*;
 
-    fn nn_test(builder: &dyn NearestNeighbourBuilder<f64>) {
-        let points = arr2(&[[0.0, 2.0], [10.0, 4.0], [4.0, 5.0]]);
+    fn nn_test(builder: &dyn NearestNeighbourBuilder<f64>, sort_within_range: bool) {
+        let points = arr2(&[[0.0, 2.0], [10.0, 4.0], [4.0, 5.0], [7.0, 1.0], [1.0, 7.2]]);
         let nn = builder.from_batch(&points);
 
-        let out = nn.k_nearest(points.row(0), 2);
+        let out = nn.k_nearest(aview1(&[0.0, 1.0]), 2);
         assert_abs_diff_eq!(
             stack(Axis(0), &out).unwrap(),
             arr2(&[[0.0, 2.0], [4.0, 5.0]])
+        );
+
+        let out = nn.k_nearest(aview1(&[4.0, 4.0]), 3);
+        assert_abs_diff_eq!(
+            stack(Axis(0), &out).unwrap(),
+            arr2(&[[4.0, 5.0], [7.0, 1.0], [1.0, 7.2]])
+        );
+
+        let pt = aview1(&[6.0, 3.0]);
+        let mut out = nn.within_range(pt, 9.0);
+        if sort_within_range {
+            out.sort_by_key(|v| NotNan::new(v.sq_l2_dist(&pt).unwrap()).unwrap());
+        }
+        assert_abs_diff_eq!(
+            stack(Axis(0), &out).unwrap(),
+            arr2(&[[7.0, 1.0], [4.0, 5.0]])
         );
     }
 
     #[test]
     fn linear_search() {
-        nn_test(&LinearSearchBuilder::default());
+        nn_test(&LinearSearchBuilder::default(), true);
     }
 
     #[test]
     fn kdtree() {
-        nn_test(&KdTreeBuilder::default());
+        nn_test(&KdTreeBuilder::default(), false);
     }
 }
