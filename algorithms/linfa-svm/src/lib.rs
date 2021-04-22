@@ -268,7 +268,7 @@ impl<F: Float, T> Svm<F, T> {
             c: Some((F::one(), F::one())),
             nu: None,
             solver_params: SolverParams {
-                eps: F::from(1e-7).unwrap(),
+                eps: F::cast(1e-7),
                 shrinking: false,
             },
             phantom: PhantomData,
@@ -284,7 +284,7 @@ impl<F: Float, T> Svm<F, T> {
         self.alpha
             .iter()
             // around 1e-5 for f32 and 2e-14 for f64
-            .filter(|x| x.abs() > F::from(100.).unwrap() * F::epsilon())
+            .filter(|x| x.abs() > F::cast(100.) * F::epsilon())
             .count()
     }
     pub(crate) fn with_phantom<S>(self) -> Svm<F, S> {
@@ -323,7 +323,7 @@ impl<F: Float, T> Svm<F, T> {
                 .zip(
                     self.alpha
                         .iter()
-                        .filter(|a| a.abs() > F::from(100.).unwrap() * F::epsilon()),
+                        .filter(|a| a.abs() > F::cast(100.) * F::epsilon()),
                 )
                 .map(|(x, a)| self.kernel_method.distance(x, sample.view()) * *a)
                 .sum(),

@@ -53,9 +53,9 @@ impl<F: Float> Transformer<Array2<F>, Array2<F>> for NormScaler {
     fn transform(&self, x: Array2<F>) -> Array2<F> {
         let mut x = x;
         let norms = match &self.norm {
-            Norms::L1 => x.map_axis(Axis(1), |row| F::from(row.norm_l1()).unwrap()),
-            Norms::L2 => x.map_axis(Axis(1), |row| F::from(row.norm_l2()).unwrap()),
-            Norms::Max => x.map_axis(Axis(1), |row| F::from(row.norm_max()).unwrap()),
+            Norms::L1 => x.map_axis(Axis(1), |row| F::cast(row.norm_l1())),
+            Norms::L2 => x.map_axis(Axis(1), |row| F::cast(row.norm_l2())),
+            Norms::Max => x.map_axis(Axis(1), |row| F::cast(row.norm_max())),
         };
         Zip::from(x.genrows_mut())
             .and(&norms)

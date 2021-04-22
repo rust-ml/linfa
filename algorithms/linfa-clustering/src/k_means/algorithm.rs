@@ -283,7 +283,7 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T> Fit<'a, A
                     Ok(KMeans {
                         centroids,
                         cluster_count,
-                        inertia: min_inertia / F::from(dataset.nsamples()).unwrap(),
+                        inertia: min_inertia / F::cast(dataset.nsamples()),
                     })
                 }
                 _ => Err(KMeansError::InertiaError(
@@ -372,7 +372,7 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T>
             &model.centroids,
             &mut model.cluster_count,
         );
-        model.inertia = dists.sum() / F::from(n_samples).unwrap();
+        model.inertia = dists.sum() / F::cast(n_samples);
         let dist = model.centroids.sq_l2_dist(&new_centroids).unwrap();
         model.centroids = new_centroids;
 
@@ -473,7 +473,7 @@ fn compute_centroids<F: Float>(
 
     Zip::from(centroids.genrows_mut())
         .and(&counts)
-        .apply(|mut centroid, &cnt| centroid /= F::from(cnt).unwrap());
+        .apply(|mut centroid, &cnt| centroid /= F::cast(cnt));
     centroids
 }
 

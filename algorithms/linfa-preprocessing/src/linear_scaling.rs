@@ -212,7 +212,7 @@ impl<F: Float> FittedLinearScaler<F> {
             return Err(Error::NotEnoughSamples);
         }
         let scales = records.map_axis(Axis(0), |col| {
-            let norm_max = F::from(col.norm_max()).unwrap();
+            let norm_max = F::cast(col.norm_max());
             if abs_diff_eq!(norm_max, F::zero()) {
                 // if feature is constant at zero then don't scale
                 F::one()

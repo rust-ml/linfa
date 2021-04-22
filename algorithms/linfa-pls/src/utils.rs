@@ -23,20 +23,20 @@ pub fn pinv2<F: Float + Scalar + Lapack, D: Data<Elem = F>>(
     let vh = opt_vh.unwrap();
 
     let cond = cond.unwrap_or(
-        F::from(*s.max().unwrap()).unwrap()
-            * F::from(x.nrows().max(x.ncols())).unwrap()
+        F::cast(*s.max()).unwrap()
+            * F::cast(x.nrows().max(x.ncols()))
             * F::epsilon(),
     );
 
     let rank = s.fold(0, |mut acc, v| {
-        if F::from(*v).unwrap() > cond {
+        if F::cast(*v) > cond {
             acc += 1
         };
         acc
     });
 
     let mut ucut = u.slice(s![.., ..rank]).to_owned();
-    ucut /= &s.slice(s![..rank]).mapv(|v| F::from(v).unwrap());
+    ucut /= &s.slice(s![..rank]).mapv(|v| F::cast(v));
     ucut.dot(&vh.slice(s![..rank, ..]))
         .mapv(|v| v.conj())
         .t()

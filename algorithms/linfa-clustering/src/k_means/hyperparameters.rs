@@ -129,7 +129,7 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParams<F, R> {
     pub fn new_with_rng(n_clusters: usize, rng: R) -> KMeansHyperParamsBuilder<F, R> {
         KMeansHyperParamsBuilder {
             n_runs: 10,
-            tolerance: F::from(1e-4).unwrap(),
+            tolerance: F::cast(1e-4),
             max_n_iterations: 300,
             n_clusters,
             init: KMeansInit::KMeansPlusPlus,

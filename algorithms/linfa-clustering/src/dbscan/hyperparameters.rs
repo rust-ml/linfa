@@ -51,7 +51,7 @@ impl<F: Float> DbscanHyperParams<F> {
     pub fn new(min_points: usize) -> DbscanHyperParamsBuilder<F> {
         DbscanHyperParamsBuilder {
             min_points,
-            tolerance: F::from(1e-4).unwrap(),
+            tolerance: F::cast(1e-4),
         }
     }
 

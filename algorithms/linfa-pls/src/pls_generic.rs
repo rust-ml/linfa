@@ -154,7 +154,7 @@ impl<F: Float> PlsParams<F> {
         PlsParams {
             n_components,
             max_iter: 500,
-            tolerance: F::from(1e-6).unwrap(),
+            tolerance: F::cast(1e-6),
             scale: true,
             algorithm: Algorithm::Nipals,
             deflation_mode: DeflationMode::Regression,
@@ -262,7 +262,7 @@ impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, A
                     // Replace columns that are all close to zero with zeros
                     for mut yj in yk.gencolumns_mut() {
                         if *(yj.mapv(|y| num_traits::float::Float::abs(y)).max().unwrap())
-                            < F::from(10.).unwrap() * eps
+                            < F::cast(10.) * eps
                         {
                             yj.assign(&Array1::zeros(yj.len()));
                         }
@@ -280,7 +280,7 @@ impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, A
             // compute scores, i.e. the projections of x and Y
             let x_scores_k = xk.dot(&x_weights_k);
             let y_ss = if norm_y_weights {
-                F::from(1.).unwrap()
+                F::cast(1.)
             } else {
                 y_weights_k.dot(&y_weights_k)
             };
@@ -365,12 +365,12 @@ impl<F: Float + Scalar + Lapack> PlsParams<F> {
         let mut x_pinv = None;
         let mut y_pinv = None;
         if self.mode == Mode::B {
-            x_pinv = Some(utils::pinv2(&x, Some(F::from(10.).unwrap() * eps)));
-            y_pinv = Some(utils::pinv2(&y, Some(F::from(10.).unwrap() * eps)));
+            x_pinv = Some(utils::pinv2(&x, Some(F::cast(10.) * eps)));
+            y_pinv = Some(utils::pinv2(&y, Some(F::cast(10.) * eps)));
         }
 
         // init to big value for first convergence check
-        let mut x_weights_old = Array1::<F>::from_elem(x.ncols(), F::from(100.).unwrap());
+        let mut x_weights_old = Array1::<F>::from_elem(x.ncols(), F::cast(100.));
 
         let mut n_iter = 1;
         let mut x_weights = Array1::<F>::ones(x.ncols());

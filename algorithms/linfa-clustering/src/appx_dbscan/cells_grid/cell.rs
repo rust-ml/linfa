@@ -91,13 +91,12 @@ impl<F: Float> Cell<F> {
         self.points
             .iter()
             .filter(|s_p| {
-                F::from(
+                F::cast(
                     points
                         .row(point_i)
                         .l2_dist(&points.row(s_p.point_index))
                         .unwrap(),
                 )
-                .unwrap()
                     <= tolerance
             })
             .count()
@@ -192,7 +191,7 @@ impl<F: Float> Cell<F> {
             return;
         }
 
-        let max_dist = F::from(max_dist_squared).unwrap().sqrt();
+        let max_dist = F::cast(max_dist_squared).sqrt();
         // Floored so that it can be used as the maximum step for translation
         // in a single dimension
         let max_one_dim_trasl = max_dist.floor().to_i64().unwrap();

@@ -100,7 +100,7 @@ impl<F: Float + Lapack> DiffusionMap<F> {
     }
     /// Estimate the number of clusters in this embedding (very crude for now)
     pub fn estimate_clusters(&self) -> usize {
-        let mean = self.eigvals.sum() / F::from(self.eigvals.len()).unwrap();
+        let mean = self.eigvals.sum() / F::cast(self.eigvals.len());
         self.eigvals.iter().filter(|x| *x > &mean).count() + 1
     }
 
@@ -126,7 +126,7 @@ fn compute_diffusion_map<'b, F: Float + Lapack>(
 
     let d = kernel.sum().mapv(|x| x.recip());
 
-    let d2 = d.mapv(|x| num_traits::Float::powf(x, F::from(0.5 + alpha).unwrap()));
+    let d2 = d.mapv(|x| num_traits::Float::powf(x, F::cast(0.5 + alpha)));
 
     // use full eigenvalue decomposition for small problem sizes
     let (vals, mut vecs) = if kernel.size() < 5 * embedding_size + 1 {
@@ -151,7 +151,7 @@ fn compute_diffusion_map<'b, F: Float + Lapack>(
                 (kernel.size(), embedding_size + 1),
                 Uniform::new(0.0f64, 1.0),
             )
-            .mapv(|x| F::from(x).unwrap())
+            .mapv(|x| F::cast(x))
         });
 
         let result = lobpcg::lobpcg(
@@ -192,7 +192,7 @@ fn compute_diffusion_map<'b, F: Float + Lapack>(
         col *= *val;
     }
 
-    let steps = F::from(steps).unwrap();
+    let steps = F::cast(steps);
     for (mut vec, val) in vecs.gencolumns_mut().into_iter().zip(vals.iter()) {
         vec *= num_traits::Float::powf(*val, steps);
     }

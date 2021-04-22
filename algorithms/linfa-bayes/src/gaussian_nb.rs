@@ -149,7 +149,7 @@ where
         // numerical errors. We address this by artificially boosting the variance
         // by `epsilon` (a small fraction of the variance of the largest feature)
         let epsilon =
-            F::from(self.var_smoothing).unwrap() * *x.var_axis(Axis(0), F::zero()).max()?;
+            F::cast(self.var_smoothing) * *x.var_axis(Axis(0), F::zero()).max()?;
 
         let mut model = match model_in {
             Some(mut temp) => {
@@ -203,7 +203,7 @@ where
             .values()
             .fold(0, |acc, x| acc + x.class_count);
         for info in model.class_info.values_mut() {
-            info.prior = F::from(info.class_count).unwrap() / F::from(class_count_sum).unwrap();
+            info.prior = F::cast(info.class_count) / F::cast(class_count_sum);
         }
 
         Ok(Some(model))
