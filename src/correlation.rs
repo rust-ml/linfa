@@ -31,7 +31,6 @@ fn pearson_correlation<F: Float, D: Data<Elem = F>>(data: &ArrayBase<D, Ix2>) ->
     let covariance = denoised.t().dot(&denoised) / F::cast(nobservations-1);
     // calculate the standard deviation vector
     let std_deviation = denoised.var_axis(Axis(0), F::one()).mapv(|x| x.sqrt());
-    //let std_deviation: Array1<F> = NdArrayCauchy::from_cauchy(std_deviation);
 
     // we will only save the upper triangular matrix as the diagonal is one and
     // the lower triangular is a mirror of the upper triangular part

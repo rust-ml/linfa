@@ -1,7 +1,7 @@
 use crate::gaussian_mixture::errors::{GmmError, Result};
 use crate::gaussian_mixture::hyperparameters::{GmmCovarType, GmmHyperParams, GmmInitMethod};
 use crate::k_means::KMeans;
-use linfa::{traits::*, DatasetBase, Float};
+use linfa::{traits::*, DatasetBase, Float, dataset::{WithLapack, WithoutLapack}};
 use ndarray::{s, Array, Array1, Array2, Array3, ArrayBase, Axis, Data, Ix2, Ix3, Zip};
 use ndarray_linalg::{cholesky::*, triangular::*, Lapack, Scalar};
 use ndarray_rand::rand::Rng;
@@ -253,11 +253,9 @@ impl<F: Float> GaussianMixtureModel<F> {
         let n_features = covariances.shape()[1];
         let mut precisions_chol = Array::zeros((n_clusters, n_features, n_features));
         for (k, covariance) in covariances.outer_iter().enumerate() {
-            let sol = F::map_cauchy_bound_view(covariance, |x| {
-                let decomp = x.cholesky(UPLO::Lower).unwrap();
-
-                decomp.solve_triangular(UPLO::Lower, Diag::NonUnit, &Array::eye(n_features)).unwrap()
-            });
+            let decomp = covariance.with_lapack().cholesky(UPLO::Lower)?;
+            let sol = decomp.solve_triangular(UPLO::Lower, Diag::NonUnit, &Array::eye(n_features))?
+                .without_lapack();
 
             precisions_chol.slice_mut(s![k, .., ..]).assign(&sol.t());
         }

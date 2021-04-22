@@ -4,9 +4,12 @@
 //! functionality.
 use ndarray::{
     Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2,
-    Axis, CowArray, Ix2, Ix3, OwnedRepr, ScalarOperand, Dimension, ViewRepr,
+    Axis, CowArray, Ix2, Ix3, OwnedRepr, ScalarOperand, 
 };
+
+#[cfg(feature = "ndarray-linalg")]
 use ndarray_linalg::{Scalar, Lapack};
+
 use num_traits::{AsPrimitive, FromPrimitive, NumAssignOps, Signed};
 use rand::distributions::uniform::SampleUniform;
 
@@ -24,8 +27,12 @@ mod impl_records;
 mod impl_targets;
 
 mod iter;
-
 pub mod multi_target_model;
+
+#[cfg(feature = "ndarray-linalg")]
+mod lapack_bounds;
+#[cfg(feature = "ndarray-linalg")]
+pub use lapack_bounds::*;
 
 /// Floating point numbers
 ///
@@ -49,113 +56,26 @@ pub trait Float:
     + for<'a> MulAssign<&'a Self>
     + for<'a> SubAssign<&'a Self>
     + for<'a> DivAssign<&'a Self>
+    + num_traits::MulAdd<Output = Self>
     + SampleUniform
     + ScalarOperand
 {
-    type F2: Scalar + Lapack + Float;
-
-    fn self_to_float(self) -> Self::F2;
-    fn float_to_self(x: Self::F2) -> Self;
-
-    fn ndarray_to_float<I: Dimension>(x: ArrayBase<OwnedRepr<Self>, I>) -> ArrayBase<OwnedRepr<Self::F2>, I>;
-
-    fn ndarray_to_self<I: Dimension>(x: ArrayBase<OwnedRepr<Self::F2>, I>) -> ArrayBase<OwnedRepr<Self>, I>;
-
-    fn ndarray_to_float_view<'a, I: Dimension>(x: ArrayBase<ViewRepr<&'a Self>, I>) -> ArrayBase<ViewRepr<&'a Self::F2>, I>;
-
-    fn ndarray_to_self_view<'a, I: Dimension>(x: ArrayBase<ViewRepr<&'a Self::F2>, I>) -> ArrayBase<ViewRepr<&'a Self>, I>;
+    #[cfg(feature = "ndarray-linalg")]
+    type Lapack: Float + Scalar + Lapack;
 
     fn cast<T: AsPrimitive<f64>>(x: T) -> Self {
         Self::from(x.as_()).unwrap()
     }
-
-    fn map_cauchy_bound<G, I, I2>(x: ArrayBase<OwnedRepr<Self>, I>, fnc: G) -> ArrayBase<OwnedRepr<Self>, I2>
-    where
-        G: Fn(ArrayBase<OwnedRepr<Self::F2>, I>) -> ArrayBase<OwnedRepr<Self::F2>, I2>,
-        I: Dimension,
-        I2: Dimension
-    {
-        let x = Self::ndarray_to_float(x);
-        let x = fnc(x);
-
-        Self::ndarray_to_self(x)
-    }
-
-    fn map_cauchy_bound_view<'a, G, I, I2>(x: ArrayBase<ViewRepr<&'a Self>, I>, fnc: G) -> ArrayBase<OwnedRepr<Self>, I2>
-    where
-        G: Fn(ArrayBase<ViewRepr<&'a Self::F2>, I>) -> ArrayBase<OwnedRepr<Self::F2>, I2>,
-        I: Dimension,
-        I2: Dimension
-    {
-        let x = Self::ndarray_to_float_view(x);
-        let x = fnc(x);
-
-        Self::ndarray_to_self(x)
-    }
 }
 
 impl Float for f32 {
-    type F2 = Self;
-
-    fn self_to_float(self) -> Self::F2 {
-        self
-    }
-
-    fn float_to_self(x: Self::F2) -> Self {
-        x
-    }
-
-    fn ndarray_to_float<I: Dimension>(x: ArrayBase<OwnedRepr<f32>, I>) -> ArrayBase<OwnedRepr<f32>, I>
-    {
-            x
-    }
-
-    fn ndarray_to_self<I: Dimension>(x: ArrayBase<OwnedRepr<f32>, I>) -> ArrayBase<OwnedRepr<f32>, I>
-    {
-        x
-    }
-
-    fn ndarray_to_float_view<'a, I: Dimension>(x: ArrayBase<ViewRepr<&'a f32>, I>) -> ArrayBase<ViewRepr<&'a f32>, I>
-    {
-            x
-    }
-
-    fn ndarray_to_self_view<'a, I: Dimension>(x: ArrayBase<ViewRepr<&'a f32>, I>) -> ArrayBase<ViewRepr<&'a f32>, I>
-    {
-        x
-    }
+    #[cfg(feature = "ndarray-linalg")]
+    type Lapack = f32;
 }
 
 impl Float for f64 {
-    type F2 = Self;
-
-    fn self_to_float(self) -> Self::F2 {
-        self
-    }
-
-    fn float_to_self(x: Self::F2) -> Self {
-        x
-    }
-
-    fn ndarray_to_float<I: Dimension>(x: ArrayBase<OwnedRepr<f64>, I>) -> ArrayBase<OwnedRepr<f64>, I>
-    {
-            x
-    }
-
-    fn ndarray_to_self<I: Dimension>(x: ArrayBase<OwnedRepr<f64>, I>) -> ArrayBase<OwnedRepr<f64>, I>
-    {
-        x
-    }
-
-    fn ndarray_to_float_view<'a, I: Dimension>(x: ArrayBase<ViewRepr<&'a f64>, I>) -> ArrayBase<ViewRepr<&'a f64>, I>
-    {
-            x
-    }
-
-    fn ndarray_to_self_view<'a, I: Dimension>(x: ArrayBase<ViewRepr<&'a f64>, I>) -> ArrayBase<ViewRepr<&'a f64>, I>
-    {
-        x
-    }
+    #[cfg(feature = "ndarray-linalg")]
+    type Lapack = f64;
 }
 
 /// Discrete labels
