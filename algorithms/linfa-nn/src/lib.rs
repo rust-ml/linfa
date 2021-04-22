@@ -1,6 +1,8 @@
 use linfa::Float;
 use ndarray::{Array2, ArrayView1};
 
+pub mod balltree;
+mod heap_elem;
 pub mod kdtree;
 pub mod linear;
 

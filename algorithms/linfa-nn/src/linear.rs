@@ -1,15 +1,11 @@
-use std::{
-    cmp::{Ordering, Reverse},
-    collections::BinaryHeap,
-    marker::PhantomData,
-};
+use std::{cmp::Reverse, collections::BinaryHeap, marker::PhantomData};
 
 use linfa::Float;
 use ndarray::{Array2, ArrayView2};
 use ndarray_stats::DeviationExt;
 use ordered_float::NotNan;
 
-use crate::{NearestNeighbour, NearestNeighbourBuilder, Point};
+use crate::{heap_elem::HeapElem, NearestNeighbour, NearestNeighbourBuilder, Point};
 
 fn dist_fn<F: Float>(pt1: &Point<F>, pt2: &Point<F>) -> F {
     pt1.sq_l2_dist(&pt2).unwrap()
@@ -17,29 +13,7 @@ fn dist_fn<F: Float>(pt1: &Point<F>, pt2: &Point<F>) -> F {
 
 pub struct LinearSearch<'a, F: Float>(ArrayView2<'a, F>);
 
-struct HeapElem<'a, F: Float> {
-    dist: Reverse<NotNan<F>>,
-    point: Point<'a, F>,
-}
-
-impl<'a, F: Float> PartialEq for HeapElem<'a, F> {
-    fn eq(&self, other: &Self) -> bool {
-        self.dist.eq(&other.dist)
-    }
-}
-impl<'a, F: Float> Eq for HeapElem<'a, F> {}
-
-impl<'a, F: Float> PartialOrd for HeapElem<'a, F> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.dist.partial_cmp(&other.dist)
-    }
-}
-
-impl<'a, F: Float> Ord for HeapElem<'a, F> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.dist.cmp(&other.dist)
-    }
-}
+type HeapPoint<'a, F> = HeapElem<F, Point<'a, F>>;
 
 impl<'a, F: Float> LinearSearch<'a, F> {
     fn from_batch(batch: &'a Array2<F>) -> Self {
@@ -52,12 +26,12 @@ impl<'a, F: Float> NearestNeighbour<F> for LinearSearch<'a, F> {
         let mut heap = BinaryHeap::with_capacity(self.0.nrows());
         for pt in self.0.genrows() {
             let dist = dist_fn(&point, &pt);
-            heap.push(HeapElem {
-                point: pt.clone(),
+            heap.push(HeapPoint {
+                elem: pt.clone(),
                 dist: Reverse(NotNan::new(dist).expect("distance should not be NaN")),
             });
         }
-        (0..k).map(|_| heap.pop().unwrap().point).collect()
+        (0..k).map(|_| heap.pop().unwrap().elem).collect()
     }
 
     fn within_range<'b>(&self, point: Point<'b, F>, range: F) -> Vec<Point<F>> {
