@@ -12,7 +12,7 @@ fn dist_fn<F: Float>(pt1: &Point<F>, pt2: &Point<F>) -> F {
 
 // Partition the points using an approximated median value
 fn partition<F: Float>(mut points: Vec<Point<F>>) -> (Vec<Point<F>>, Point<F>, Vec<Point<F>>) {
-    assert!(points.len() >= 2);
+    debug_assert!(points.len() >= 2);
 
     let max_spread_dim = (0..points[0].len())
         .map(|dim| {
@@ -28,16 +28,23 @@ fn partition<F: Float>(mut points: Vec<Point<F>>) -> (Vec<Point<F>>, Point<F>, V
         .unwrap()
         .0;
 
-    // Approximate median on the chosen dimension in linear time
-    let median = order_stat::median_of_medians_by(&mut points, |p1, p2| {
+    let mid = points.len() / 2;
+    // Compute median on the chosen dimension in linear time
+    let median = order_stat::kth_by(&mut points, mid, |p1, p2| {
         p1[max_spread_dim].partial_cmp(&p2[max_spread_dim]).unwrap()
     })
-    .1
     .clone();
 
-    let (left, right) = points
+    let (mut left, mut right): (Vec<_>, Vec<_>) = points
         .into_iter()
         .partition(|pt| pt[max_spread_dim] < median[max_spread_dim]);
+    // We can get an empty left partition with degenerate data where all points are equal and
+    // gathered in the right partition, or when there are only two points and the smaller one is
+    // the median. This ensures that the larger partition will always shrink, guaranteeing
+    // algorithm termination.
+    if left.is_empty() {
+        left.push(right.pop().unwrap());
+    }
     (left, median, right)
 }
 
@@ -61,6 +68,7 @@ impl<'a, F: Float> BallTreeInner<'a, F> {
             BallTreeInner::Leaf(points.pop().unwrap())
         } else {
             let (aps, center, bps) = partition(points);
+            debug_assert!(!aps.is_empty() && !bps.is_empty());
             let radius = aps
                 .iter()
                 .chain(bps.iter())
