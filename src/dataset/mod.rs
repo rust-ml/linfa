@@ -10,7 +10,7 @@ use ndarray::{
 #[cfg(feature = "ndarray-linalg")]
 use ndarray_linalg::{Scalar, Lapack};
 
-use num_traits::{AsPrimitive, FromPrimitive, NumAssignOps, Signed};
+use num_traits::{AsPrimitive, FromPrimitive, NumAssignOps, Signed, NumCast};
 use rand::distributions::uniform::SampleUniform;
 
 use std::fmt;
@@ -59,12 +59,13 @@ pub trait Float:
     + num_traits::MulAdd<Output = Self>
     + SampleUniform
     + ScalarOperand
+    + approx::AbsDiffEq
 {
     #[cfg(feature = "ndarray-linalg")]
     type Lapack: Float + Scalar + Lapack;
 
-    fn cast<T: AsPrimitive<f64>>(x: T) -> Self {
-        Self::from(x.as_()).unwrap()
+    fn cast<T: NumCast>(x: T) -> Self {
+        NumCast::from(x).unwrap()
     }
 }
 

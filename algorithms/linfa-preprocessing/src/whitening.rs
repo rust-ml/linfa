@@ -7,11 +7,10 @@
 //! unit diagonal (white) covariance matrix.
 
 use crate::error::{Error, Result};
-use crate::Float;
 use linfa::dataset::AsTargets;
 use linfa::dataset::Records;
 use linfa::traits::{Fit, Transformer};
-use linfa::DatasetBase;
+use linfa::{DatasetBase, Float};
 use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
 use ndarray_linalg::cholesky::{Cholesky, UPLO};
 use ndarray_linalg::solve::Inverse;

@@ -224,7 +224,7 @@ fn variance_params<'a, F: Float + Lapack, T: AsTargets<Elem = F>, D: Data<Elem =
     }
 
     let var_target =
-        (&target - &y_est).mapv(|x| x * x).sum() / F::cast(nsamples - nfea.unwrap();
+        (&target - &y_est).mapv(|x| x * x).sum() / F::cast(nsamples - nfeatures);
 
     let inv_cov = ds.records().t().dot(ds.records()).inv();
 

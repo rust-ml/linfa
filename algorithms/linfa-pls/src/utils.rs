@@ -23,7 +23,7 @@ pub fn pinv2<F: Float + Scalar + Lapack, D: Data<Elem = F>>(
     let vh = opt_vh.unwrap();
 
     let cond = cond.unwrap_or(
-        F::cast(*s.max()).unwrap()
+        F::cast(*s.max().unwrap())
             * F::cast(x.nrows().max(x.ncols()))
             * F::epsilon(),
     );
