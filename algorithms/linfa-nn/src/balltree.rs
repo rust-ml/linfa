@@ -5,7 +5,7 @@ use ndarray::Array1;
 use ndarray_stats::DeviationExt;
 use ordered_float::NotNan;
 
-use crate::{heap_elem::HeapElem, Point};
+use crate::{heap_elem::HeapElem, NearestNeighbour, Point};
 
 fn dist_fn<F: Float>(pt1: &Point<F>, pt2: &Point<F>) -> F {
     pt1.sq_l2_dist(&pt2).unwrap()
@@ -91,8 +91,8 @@ impl<'a, F: Float> BallTreeInner<'a, F> {
             BallTreeInner::Branch {
                 center,
                 radius,
-                left,
-                right,
+                left: _,
+                right: _,
             } => dist_fn(p, &center.view()) - *radius,
         }
     }
@@ -122,7 +122,7 @@ impl<'a, F: Float> BallTree<'a, F> {
     /// farthest. To get the K nearest neighbors, simply `take` K from the iterator.
     ///
     /// The neighbor, its distance, and associated value is returned.
-    fn nn_helper(&self, point: Point<F>, k: Option<usize>, max_radius: F) {
+    fn nn_helper<'b>(&self, point: Point<'b, F>, k: Option<usize>, max_radius: F) -> Vec<Point<F>> {
         let mut out = Vec::new();
         let mut queue = BinaryHeap::new();
         queue.push(HeapElem::new(self.0.distance(&point), &self.0));
@@ -134,7 +134,7 @@ impl<'a, F: Float> BallTree<'a, F> {
             match elem {
                 BallTreeInner::Leaf(p) => {
                     if dist.into_inner() < max_radius && k.map(|k| out.len() <= k).unwrap_or(true) {
-                        out.push(p);
+                        out.push(p.reborrow());
                     }
                 }
                 BallTreeInner::Empty => (),
@@ -156,5 +156,16 @@ impl<'a, F: Float> BallTree<'a, F> {
                 }
             }
         }
+        out
+    }
+}
+
+impl<'a, F: Float> NearestNeighbour<F> for BallTree<'a, F> {
+    fn k_nearest<'b>(&self, point: Point<'b, F>, k: usize) -> Vec<Point<F>> {
+        self.nn_helper(point, Some(k), F::infinity())
+    }
+
+    fn within_range<'b>(&self, point: Point<'b, F>, range: F) -> Vec<Point<F>> {
+        self.nn_helper(point, None, range)
     }
 }
