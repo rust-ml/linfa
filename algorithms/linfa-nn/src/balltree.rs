@@ -1,7 +1,6 @@
 use std::{cmp::Reverse, collections::BinaryHeap};
 
 use linfa::Float;
-use ndarray::Array1;
 use ndarray_stats::DeviationExt;
 use ordered_float::NotNan;
 
@@ -11,44 +10,35 @@ fn dist_fn<F: Float>(pt1: &Point<F>, pt2: &Point<F>) -> F {
     pt1.sq_l2_dist(&pt2).unwrap()
 }
 
-// Produce a partition of the given points with the following process:
-// * Pick a point `a` that is farthest from `points[0]`
-// * Pick a point `b` that is farthest from `a`
-// * Partition the points into two groups: those closest to `a` and those closest to `b`
-//
-// This doesn't necessarily form the best partition, since `a` and `b` are not guaranteed
-// to be the most distant pair of points, but it's usually sufficient.
-fn partition<F: Float>(mut points: Vec<Point<F>>) -> (Vec<Point<F>>, Vec<Point<F>>) {
+// Partition the points using an approximated median value
+fn partition<F: Float>(mut points: Vec<Point<F>>) -> (Vec<Point<F>>, Point<F>, Vec<Point<F>>) {
     assert!(points.len() >= 2);
 
-    let a_i = points
-        .iter()
-        .enumerate()
-        .max_by_key(|(_, a)| NotNan::new(dist_fn(&points[0], a)).unwrap())
+    let max_spread_dim = (0..points[0].len())
+        .map(|dim| {
+            // Find the spread of each dimension
+            let it = points.iter().map(|p| NotNan::new(p[dim]).unwrap());
+            // May be faster if we can compute min and max with the same iterator, but compiler might
+            // have optimized for that
+            let max = it.clone().max().unwrap();
+            let min = it.min().unwrap();
+            (dim, max - min)
+        })
+        .max_by_key(|&(_, range)| range)
         .unwrap()
         .0;
 
-    let b_i = points
-        .iter()
-        .enumerate()
-        .max_by_key(|(_, b)| NotNan::new(dist_fn(&points[a_i], b)).unwrap())
-        .unwrap()
-        .0;
+    // Approximate median on the chosen dimension in linear time
+    let median = order_stat::median_of_medians_by(&mut points, |p1, p2| {
+        p1[max_spread_dim].partial_cmp(&p2[max_spread_dim]).unwrap()
+    })
+    .1
+    .clone();
 
-    let (a_i, b_i) = (a_i.max(b_i), a_i.min(b_i));
-
-    let mut aps = vec![points.swap_remove(a_i)];
-    let mut bps = vec![points.swap_remove(b_i)];
-
-    for p in points {
-        if dist_fn(&aps[0], &p) < dist_fn(&bps[0], &p) {
-            aps.push(p);
-        } else {
-            bps.push(p);
-        }
-    }
-
-    (aps, bps)
+    let (left, right) = points
+        .into_iter()
+        .partition(|pt| pt[max_spread_dim] < median[max_spread_dim]);
+    (left, median, right)
 }
 
 enum BallTreeInner<'a, F: Float> {
@@ -56,7 +46,7 @@ enum BallTreeInner<'a, F: Float> {
     Leaf(Point<'a, F>),
     // The sphere is a bounding sphere that encompasses this node (both children)
     Branch {
-        center: Array1<F>,
+        center: Point<'a, F>,
         radius: F,
         left: Box<BallTreeInner<'a, F>>,
         right: Box<BallTreeInner<'a, F>>,
@@ -70,12 +60,18 @@ impl<'a, F: Float> BallTreeInner<'a, F> {
         } else if points.len() == 1 {
             BallTreeInner::Leaf(points.pop().unwrap())
         } else {
-            // TODO lmao
-            let (aps, bps) = partition(points);
+            let (aps, center, bps) = partition(points);
+            let radius = aps
+                .iter()
+                .chain(bps.iter())
+                .map(|pt| NotNan::new(dist_fn(pt, &center)).unwrap())
+                .max()
+                .unwrap()
+                .into_inner();
             let (a_tree, b_tree) = (BallTreeInner::new(aps), BallTreeInner::new(bps));
             BallTreeInner::Branch {
-                center: Array1::zeros(0),
-                radius: F::zero(),
+                center,
+                radius,
                 left: Box::new(a_tree),
                 right: Box::new(b_tree),
             }
