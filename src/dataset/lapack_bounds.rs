@@ -1,5 +1,5 @@
 use crate::Float;
-use ndarray::{Data, OwnedRepr, ViewRepr, ArrayBase, Dimension};
+use ndarray::{ArrayBase, Data, Dimension, OwnedRepr, ViewRepr};
 
 pub trait WithLapack<D: Data + WithLapackData, I: Dimension> {
     fn with_lapack(self) -> ArrayBase<D::D, I>;
@@ -31,7 +31,7 @@ where
 
 pub trait WithLapackData
 where
-    Self: Data
+    Self: Data,
 {
     type D: Data;
 
@@ -42,9 +42,7 @@ where
     where
         I: Dimension,
     {
-        unsafe {
-            std::ptr::read(x.as_ptr() as *const ArrayBase<Self::D, I>)
-        }
+        unsafe { std::ptr::read(x.as_ptr() as *const ArrayBase<Self::D, I>) }
     }
 }
 
@@ -58,7 +56,7 @@ impl<'a, F: Float> WithLapackData for ViewRepr<&'a F> {
 
 pub trait WithoutLapackData<F: Float>
 where
-    Self: Data
+    Self: Data,
 {
     type D: Data<Elem = F>;
 
@@ -69,9 +67,7 @@ where
     where
         I: Dimension,
     {
-        unsafe {
-            std::ptr::read(x.as_ptr() as *const ArrayBase<Self::D, I>)
-        }
+        unsafe { std::ptr::read(x.as_ptr() as *const ArrayBase<Self::D, I>) }
     }
 }
 

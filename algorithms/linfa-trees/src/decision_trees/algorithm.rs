@@ -301,8 +301,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
                 let score = w * left_score + (1.0 - w) * right_score;
 
                 // Take the midpoint from this value and the next one as split_value
-                split_value =
-                    (split_value + sorted_index.sorted_values[i + 1].1) / F::cast(2.0);
+                split_value = (split_value + sorted_index.sorted_values[i + 1].1) / F::cast(2.0);
 
                 // override best indices when score improved
                 best = match best.take() {
@@ -593,13 +592,7 @@ impl<F: Float, L: Label + std::fmt::Debug> DecisionTree<F, L> {
         impurity_decrease
             .into_iter()
             .zip(num_nodes.into_iter())
-            .map(|(val, n)| {
-                if n == 0 {
-                    F::zero()
-                } else {
-                    val / F::cast(n)
-                }
-            })
+            .map(|(val, n)| if n == 0 { F::zero() } else { val / F::cast(n) })
             .collect()
     }
 

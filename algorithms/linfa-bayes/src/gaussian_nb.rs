@@ -148,8 +148,7 @@ where
         // If the ratio of the variance between dimensions is too small, it will cause
         // numerical errors. We address this by artificially boosting the variance
         // by `epsilon` (a small fraction of the variance of the largest feature)
-        let epsilon =
-            F::cast(self.var_smoothing) * *x.var_axis(Axis(0), F::zero()).max()?;
+        let epsilon = F::cast(self.var_smoothing) * *x.var_axis(Axis(0), F::zero()).max()?;
 
         let mut model = match model_in {
             Some(mut temp) => {

@@ -1,11 +1,11 @@
 use crate::errors::{PlsError, Result};
-use crate::utils;
+use crate::{utils, Float};
+
 use linfa::{
     dataset::Records, traits::Fit, traits::PredictRef, traits::Transformer, Dataset, DatasetBase,
-    Float,
 };
 use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
-use ndarray_linalg::{svd::*, Lapack, Scalar};
+use ndarray_linalg::svd::*;
 use ndarray_stats::QuantileExt;
 
 #[cfg_attr(
@@ -197,9 +197,7 @@ impl<F: Float> PlsParams<F> {
     }
 }
 
-impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, ArrayBase<D, Ix2>>
-    for PlsParams<F>
-{
+impl<F: Float, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, ArrayBase<D, Ix2>> for PlsParams<F> {
     type Object = Result<Pls<F>>;
 
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>>) -> Result<Pls<F>> {
@@ -343,7 +341,7 @@ impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, A
     }
 }
 
-impl<F: Float + Scalar + Lapack> PlsParams<F> {
+impl<F: Float> PlsParams<F> {
     /// Return the first left and right singular vectors of x'Y.
     /// Provides an alternative to the svd(x'Y) and uses the power method instead.
     fn get_first_singular_vectors_power_method(

@@ -57,10 +57,7 @@ impl<F: Float> TreeStructure<F> {
         }
         let dimensionality = points[0].dim();
         let base_side_size = params.tolerance() / (F::cast(dimensionality)).sqrt();
-        let levels_count = F::cast(1.0)
-            + (F::cast(1.0) / params.slack())
-                .log(F::cast(2.0))
-                .ceil();
+        let levels_count = F::cast(1.0) + (F::cast(1.0) / params.slack()).log(F::cast(2.0)).ceil();
         let levels_count = if levels_count < F::cast(1.0) {
             1
         } else {
@@ -152,10 +149,7 @@ pub fn get_base_cell_index<F: Float>(
     params: &AppxDbscanHyperParams<F>,
 ) -> Array1<i64> {
     let dimensionality = p.dim();
-    get_cell_index(
-        p,
-        params.tolerance() / (F::cast(dimensionality)).sqrt(),
-    )
+    get_cell_index(p, params.tolerance() / (F::cast(dimensionality)).sqrt())
 }
 
 /// Determines the type of intersection between a cell and an approximated ball.
@@ -174,8 +168,7 @@ pub fn determine_intersection<F: Float>(
 
     //let appr_dist = (F::cast(1.0) + params.slack()) * params.tolerance();
     let dist_from_center = F::cast(cell_center.l2_dist(&q).unwrap());
-    let dist_corner_from_center =
-        (side_size * F::cast(dimensionality).sqrt()) / F::cast(2);
+    let dist_corner_from_center = (side_size * F::cast(dimensionality).sqrt()) / F::cast(2);
     let min_dist_edge_from_center = side_size / F::cast(2);
 
     // sufficient condition to be disjoint: shortest possible distance from point q

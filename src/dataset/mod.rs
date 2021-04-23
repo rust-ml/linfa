@@ -4,18 +4,18 @@
 //! functionality.
 use ndarray::{
     Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2,
-    Axis, CowArray, Ix2, Ix3, OwnedRepr, ScalarOperand, 
+    Axis, CowArray, Ix2, Ix3, OwnedRepr, ScalarOperand,
 };
 
 #[cfg(feature = "ndarray-linalg")]
-use ndarray_linalg::{Scalar, Lapack};
+use ndarray_linalg::{Lapack, Scalar};
 
-use num_traits::{AsPrimitive, FromPrimitive, NumAssignOps, Signed, NumCast};
+use num_traits::{AsPrimitive, FromPrimitive, NumAssignOps, NumCast, Signed};
 use rand::distributions::uniform::SampleUniform;
 
-use std::fmt;
 use std::cmp::{Ordering, PartialOrd};
 use std::collections::{HashMap, HashSet};
+use std::fmt;
 use std::hash::Hash;
 use std::iter::Sum;
 use std::ops::{AddAssign, Deref, DivAssign, MulAssign, SubAssign};

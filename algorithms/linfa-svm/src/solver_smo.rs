@@ -661,8 +661,7 @@ impl<'a, F: Float, K: 'a + Permutable<F>> SolverState<'a, F, K> {
         let (gmax1, gmax2, gmax3, gmax4) = (gmax1.0, gmax2.0, gmax3.0, gmax4.0);
 
         // work on all variables when 10*eps is reached
-        if !self.unshrink
-            && F::max(gmax1 + gmax2, gmax3 + gmax4) <= self.params.eps * F::cast(10.0)
+        if !self.unshrink && F::max(gmax1 + gmax2, gmax3 + gmax4) <= self.params.eps * F::cast(10.0)
         {
             self.unshrink = true;
             self.reconstruct_gradient();

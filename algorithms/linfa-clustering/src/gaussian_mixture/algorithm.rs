@@ -1,7 +1,11 @@
 use crate::gaussian_mixture::errors::{GmmError, Result};
 use crate::gaussian_mixture::hyperparameters::{GmmCovarType, GmmHyperParams, GmmInitMethod};
 use crate::k_means::KMeans;
-use linfa::{traits::*, DatasetBase, Float, dataset::{WithLapack, WithoutLapack}};
+use linfa::{
+    dataset::{WithLapack, WithoutLapack},
+    traits::*,
+    DatasetBase, Float,
+};
 use ndarray::{s, Array, Array1, Array2, Array3, ArrayBase, Axis, Data, Ix2, Ix3, Zip};
 use ndarray_linalg::{cholesky::*, triangular::*, Lapack, Scalar};
 use ndarray_rand::rand::Rng;
@@ -254,7 +258,8 @@ impl<F: Float> GaussianMixtureModel<F> {
         let mut precisions_chol = Array::zeros((n_clusters, n_features, n_features));
         for (k, covariance) in covariances.outer_iter().enumerate() {
             let decomp = covariance.with_lapack().cholesky(UPLO::Lower)?;
-            let sol = decomp.solve_triangular(UPLO::Lower, Diag::NonUnit, &Array::eye(n_features))?
+            let sol = decomp
+                .solve_triangular(UPLO::Lower, Diag::NonUnit, &Array::eye(n_features))?
                 .without_lapack();
 
             precisions_chol.slice_mut(s![k, .., ..]).assign(&sol.t());
@@ -369,8 +374,7 @@ impl<F: Float> GaussianMixtureModel<F> {
                     .assign(&diff.mapv(|v| v * v).sum_axis(Axis(1)))
             });
         log_prob.mapv(|v| {
-            F::cast(-0.5)
-                * (v + F::cast(n_features as f64 * f64::ln(2. * std::f64::consts::PI)))
+            F::cast(-0.5) * (v + F::cast(n_features as f64 * f64::ln(2. * std::f64::consts::PI)))
         }) + log_det
     }
 
@@ -394,8 +398,8 @@ impl<F: Float> GaussianMixtureModel<F> {
     }
 }
 
-impl<'a, F: Float, R: Rng + SeedableRng + Clone, D: Data<Elem = F>, T>
-    Fit<'a, ArrayBase<D, Ix2>, T> for GmmHyperParams<F, R>
+impl<'a, F: Float, R: Rng + SeedableRng + Clone, D: Data<Elem = F>, T> Fit<'a, ArrayBase<D, Ix2>, T>
+    for GmmHyperParams<F, R>
 {
     type Object = Result<GaussianMixtureModel<F>>;
 

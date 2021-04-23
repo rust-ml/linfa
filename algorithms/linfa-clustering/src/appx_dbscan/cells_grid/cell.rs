@@ -96,8 +96,7 @@ impl<F: Float> Cell<F> {
                         .row(point_i)
                         .l2_dist(&points.row(s_p.point_index))
                         .unwrap(),
-                )
-                    <= tolerance
+                ) <= tolerance
             })
             .count()
     }

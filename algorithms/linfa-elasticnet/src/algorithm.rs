@@ -1,4 +1,4 @@
-use approx::{abs_diff_eq, abs_diff_ne, AbsDiffEq};
+use approx::{abs_diff_eq, abs_diff_ne};
 use ndarray::{s, Array1, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
 use ndarray_linalg::{Inverse, Lapack};
 
@@ -12,7 +12,7 @@ use super::{ElasticNet, ElasticNetParams, Error, Result};
 
 impl<'a, F, D, T> Fit<'a, ArrayBase<D, Ix2>, T> for ElasticNetParams<F>
 where
-    F: Float + AbsDiffEq + Lapack,
+    F: Float + Lapack,
     D: Data<Elem = F>,
     T: AsTargets<Elem = F>,
 {
@@ -121,7 +121,7 @@ impl<F: Float> ElasticNet<F> {
     }
 }
 
-fn coordinate_descent<'a, F: Float + AbsDiffEq>(
+fn coordinate_descent<'a, F: Float>(
     x: ArrayView2<'a, F>,
     y: ArrayView1<'a, F>,
     tol: F,
@@ -223,8 +223,7 @@ fn variance_params<'a, F: Float + Lapack, T: AsTargets<Elem = F>, D: Data<Elem =
         return Err(Error::NotEnoughSamples);
     }
 
-    let var_target =
-        (&target - &y_est).mapv(|x| x * x).sum() / F::cast(nsamples - nfeatures);
+    let var_target = (&target - &y_est).mapv(|x| x * x).sum() / F::cast(nsamples - nfeatures);
 
     let inv_cov = ds.records().t().dot(ds.records()).inv();
 

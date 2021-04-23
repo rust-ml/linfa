@@ -50,13 +50,17 @@ impl NormScaler {
 impl<F: Float> Transformer<Array2<F>, Array2<F>> for NormScaler {
     /// Scales all samples in the array of shape (nsamples, nfeatures) to have unit norm.
     fn transform(&self, x: Array2<F>) -> Array2<F> {
-        let mut x = x.with_lapack();
+        // add lapack trait bound
+        let x = x.with_lapack();
 
         let norms = match &self.norm {
             Norms::L1 => x.map_axis(Axis(1), |row| F::cast(row.norm_l1())),
             Norms::L2 => x.map_axis(Axis(1), |row| F::cast(row.norm_l2())),
             Norms::Max => x.map_axis(Axis(1), |row| F::cast(row.norm_max())),
-        }.without_lapack();
+        };
+
+        // remove lapack trait bound
+        let mut x = x.without_lapack();
 
         Zip::from(x.genrows_mut())
             .and(&norms)
