@@ -201,7 +201,7 @@ pub fn platt_predict<F: Float>(x: F, a: F, b: F) -> Pr {
 /// The optimization process happens in two steps, first the closed-form Hessian matrix and
 /// gradient vectors are calculated. Then a line-search tries to find the optimal learning rate
 /// for each step.
-#[allow(clippy::suspicious_operation_groupings)]
+//#[allow(clippy::suspicious_operation_groupings)]
 pub fn platt_newton_method<'a, F: Float, O>(
     reg_values: ArrayView1<'a, F>,
     labels: ArrayView1<'a, bool>,
@@ -282,7 +282,7 @@ pub fn platt_newton_method<'a, F: Float, O>(
             break;
         }
 
-        let det = h11 * h22 - h21 * h21;
+        let det = h11 * h22 - h21.powi(2);
         let d_a = -(h22 * g1 - h21 * g2) / det;
         let d_b = -(-h21 * g1 + h11 * g2) / det;
         let gd = g1 * d_a + g2 * d_b;
