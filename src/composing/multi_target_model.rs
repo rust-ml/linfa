@@ -11,6 +11,11 @@ use crate::Float;
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2};
 use std::iter::FromIterator;
 
+/// Merge models with single target to multi-target models
+///
+/// Many models assume that the target variables are uncorrelated and support therefore only a
+/// single target variable. This wrapper allows the user to merge multiple models with only a
+/// single-target variable into a multi-target model.
 pub struct MultiTargetModel<R: Records, L> {
     models: Vec<Box<dyn PredictRef<R, Array1<L>>>>,
 }

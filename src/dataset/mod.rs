@@ -27,7 +27,6 @@ mod impl_records;
 mod impl_targets;
 
 mod iter;
-pub mod multi_target_model;
 
 mod lapack_bounds;
 pub use lapack_bounds::*;
@@ -354,7 +353,7 @@ mod tests {
 
         assert_eq!(datasets_one_vs_all.len(), 3);
 
-        for dataset in datasets_one_vs_all.iter() {
+        for (_, dataset) in datasets_one_vs_all.iter() {
             assert_eq!(dataset.labels().iter().filter(|x| **x).count(), 1);
         }
 
@@ -419,7 +418,7 @@ mod tests {
         let datasets_one_vs_all = view.one_vs_all()?;
         assert_eq!(datasets_one_vs_all.len(), 3);
 
-        for dataset in datasets_one_vs_all.iter() {
+        for (_, dataset) in datasets_one_vs_all.iter() {
             assert_eq!(dataset.labels().iter().filter(|x| **x).count(), 1);
         }
 
