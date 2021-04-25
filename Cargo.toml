@@ -34,10 +34,13 @@ blas = ["ndarray/blas"]
 
 [dependencies]
 num-traits = "0.2"
-thiserror = "1"
 rand = { version = "0.8", features = ["small_rng"] }
+approx = "0.4"
+
 ndarray = { version = "0.14", default-features = false, features = ["approx"] }
 ndarray-linalg = { version = "0.13", optional = true }
+
+thiserror = "1"
 
 [dependencies.intel-mkl-src]
 version = "0.6.0"
@@ -58,7 +61,6 @@ features = ["cblas"]
 
 [dev-dependencies]
 ndarray-rand = "0.13"
-approx = { version = "0.4", default-features = false, features = ["std"] }
 
 linfa-datasets = { path = "datasets", features = ["winequality", "iris", "diabetes"] }
 

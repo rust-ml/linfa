@@ -84,7 +84,7 @@ pub fn fit_nu<F: Float>(
     let mut linear_term = vec![F::zero(); 2 * target.len()];
     let mut targets = vec![true; 2 * target.len()];
 
-    let mut sum = c * nu * F::from(target.len()).unwrap() / F::from(2.0).unwrap();
+    let mut sum = c * nu * F::cast(target.len()) / F::cast(2.0);
     for i in 0..target.len() {
         alpha[i] = F::min(sum, c);
         alpha[i + target.len()] = F::min(sum, c);

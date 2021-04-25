@@ -4,13 +4,18 @@
 //! functionality.
 use ndarray::{
     Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2,
-    Axis, CowArray, Ix2, Ix3, NdFloat, OwnedRepr,
+    Axis, CowArray, Ix2, Ix3, OwnedRepr, ScalarOperand,
 };
-use num_traits::{AsPrimitive, FromPrimitive, NumAssignOps, Signed};
+
+#[cfg(feature = "ndarray-linalg")]
+use ndarray_linalg::{Lapack, Scalar};
+
+use num_traits::{AsPrimitive, FromPrimitive, NumAssignOps, NumCast, Signed};
 use rand::distributions::uniform::SampleUniform;
 
 use std::cmp::{Ordering, PartialOrd};
 use std::collections::{HashMap, HashSet};
+use std::fmt;
 use std::hash::Hash;
 use std::iter::Sum;
 use std::ops::{AddAssign, Deref, DivAssign, MulAssign, SubAssign};
@@ -23,16 +28,24 @@ mod impl_targets;
 
 mod iter;
 
+mod lapack_bounds;
+pub use lapack_bounds::*;
+
 /// Floating point numbers
 ///
 /// This trait bound multiplexes to the most common assumption of floating point number and
 /// implement them for 32bit and 64bit floating points. They are used in records of a dataset and, for
 /// regression task, in the targets as well.
 pub trait Float:
-    NdFloat
-    + FromPrimitive
-    + Signed
+    FromPrimitive
+    + num_traits::Float
+    + PartialOrd
+    + Sync
+    + Send
     + Default
+    + fmt::Display
+    + fmt::Debug
+    + Signed
     + Sum
     + NumAssignOps
     + AsPrimitive<usize>
@@ -40,11 +53,28 @@ pub trait Float:
     + for<'a> MulAssign<&'a Self>
     + for<'a> SubAssign<&'a Self>
     + for<'a> DivAssign<&'a Self>
+    + num_traits::MulAdd<Output = Self>
     + SampleUniform
+    + ScalarOperand
+    + approx::AbsDiffEq
 {
+    #[cfg(feature = "ndarray-linalg")]
+    type Lapack: Float + Scalar + Lapack;
+    #[cfg(not(feature = "ndarray-linalg"))]
+    type Lapack: Float;
+
+    fn cast<T: NumCast>(x: T) -> Self {
+        NumCast::from(x).unwrap()
+    }
 }
-impl Float for f32 {}
-impl Float for f64 {}
+
+impl Float for f32 {
+    type Lapack = f32;
+}
+
+impl Float for f64 {
+    type Lapack = f64;
+}
 
 /// Discrete labels
 ///

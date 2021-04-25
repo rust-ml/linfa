@@ -43,7 +43,7 @@ impl<F: Float> DistanceCount<F> {
 
     /// Divides the total distance from the sample to this cluster by the number of samples in the cluster
     pub fn mean_distance(&self) -> F {
-        self.total_distance / F::from(self.count).unwrap()
+        self.total_distance / F::cast(self.count)
     }
 
     /// To be used in the cluster in which the sample is located. The distance from the sample to itself
@@ -53,7 +53,7 @@ impl<F: Float> DistanceCount<F> {
         if self.count == 1 {
             return F::zero();
         }
-        self.total_distance / F::from(self.count - 1).unwrap()
+        self.total_distance / F::cast(self.count - 1)
     }
 
     /// adds the distance of `other_sample` from `eval_sample` to the total distance of `eval_sample` from the current cluster
@@ -135,7 +135,7 @@ impl<'a, F: Float, L: 'a + Label, D: Data<Elem = F>, T: AsTargets<Elem = L> + La
                 }
             })
             .sum::<F>();
-        let score = score / F::from(self.records().nsamples()).unwrap();
+        let score = score / F::cast(self.records().nsamples());
         Ok(score)
     }
 }

@@ -272,7 +272,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
 
                 // Continue if the next value is equal, so that equal values end up in the same subtree
                 if (sorted_index.sorted_values[i].1 - sorted_index.sorted_values[i + 1].1).abs()
-                    < F::from(1e-5).unwrap()
+                    < F::cast(1e-5)
                 {
                     continue;
                 }
@@ -301,8 +301,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
                 let score = w * left_score + (1.0 - w) * right_score;
 
                 // Take the midpoint from this value and the next one as split_value
-                split_value =
-                    (split_value + sorted_index.sorted_values[i + 1].1) / F::from(2.0).unwrap();
+                split_value = (split_value + sorted_index.sorted_values[i + 1].1) / F::cast(2.0);
 
                 // override best indices when score improved
                 best = match best.take() {
@@ -328,10 +327,10 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
                 SplitQuality::Gini => gini_impurity(&parent_class_freq),
                 SplitQuality::Entropy => entropy(&parent_class_freq),
             };
-            let parent_score = F::from(parent_score).unwrap();
+            let parent_score = F::cast(parent_score);
 
             // return empty leaf if impurity has not decreased enough
-            parent_score - F::from(best_score).unwrap()
+            parent_score - F::cast(best_score)
         } else {
             // return zero impurity decrease if we have not found any solution
             F::zero()
@@ -551,7 +550,7 @@ impl<F: Float, L: Label + std::fmt::Debug> DecisionTree<F, L> {
             max_depth: None,
             min_weight_split: 2.0,
             min_weight_leaf: 1.0,
-            min_impurity_decrease: F::from(0.00001).unwrap(),
+            min_impurity_decrease: F::cast(0.00001),
             phantom: PhantomData,
         }
     }
@@ -593,13 +592,7 @@ impl<F: Float, L: Label + std::fmt::Debug> DecisionTree<F, L> {
         impurity_decrease
             .into_iter()
             .zip(num_nodes.into_iter())
-            .map(|(val, n)| {
-                if n == 0 {
-                    F::zero()
-                } else {
-                    val / F::from(n).unwrap()
-                }
-            })
+            .map(|(val, n)| if n == 0 { F::zero() } else { val / F::cast(n) })
             .collect()
     }
 

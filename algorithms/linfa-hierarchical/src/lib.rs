@@ -85,7 +85,7 @@ impl<F: Float> Transformer<Kernel<F>, DatasetBase<Kernel<F>, Vec<usize>>>
     /// Returns the class id for each data point
     fn transform(&self, kernel: Kernel<F>) -> DatasetBase<Kernel<F>, Vec<usize>> {
         // ignore all similarities below this value
-        let threshold = F::from(1e-6).unwrap();
+        let threshold = F::cast(1e-6);
 
         // transform similarities to distances with log transformation
         let mut distance = kernel

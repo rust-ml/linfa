@@ -1,11 +1,11 @@
 use crate::errors::{PlsError, Result};
-use crate::utils;
+use crate::{utils, Float};
+
 use linfa::{
     dataset::Records, traits::Fit, traits::PredictRef, traits::Transformer, Dataset, DatasetBase,
-    Float,
 };
 use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
-use ndarray_linalg::{svd::*, Lapack, Scalar};
+use ndarray_linalg::svd::*;
 use ndarray_stats::QuantileExt;
 
 #[cfg_attr(
@@ -154,7 +154,7 @@ impl<F: Float> PlsParams<F> {
         PlsParams {
             n_components,
             max_iter: 500,
-            tolerance: F::from(1e-6).unwrap(),
+            tolerance: F::cast(1e-6),
             scale: true,
             algorithm: Algorithm::Nipals,
             deflation_mode: DeflationMode::Regression,
@@ -197,9 +197,7 @@ impl<F: Float> PlsParams<F> {
     }
 }
 
-impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, ArrayBase<D, Ix2>>
-    for PlsParams<F>
-{
+impl<F: Float, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, ArrayBase<D, Ix2>> for PlsParams<F> {
     type Object = Result<Pls<F>>;
 
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>>) -> Result<Pls<F>> {
@@ -262,7 +260,7 @@ impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, A
                     // Replace columns that are all close to zero with zeros
                     for mut yj in yk.gencolumns_mut() {
                         if *(yj.mapv(|y| num_traits::float::Float::abs(y)).max().unwrap())
-                            < F::from(10.).unwrap() * eps
+                            < F::cast(10.) * eps
                         {
                             yj.assign(&Array1::zeros(yj.len()));
                         }
@@ -280,7 +278,7 @@ impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, A
             // compute scores, i.e. the projections of x and Y
             let x_scores_k = xk.dot(&x_weights_k);
             let y_ss = if norm_y_weights {
-                F::from(1.).unwrap()
+                F::cast(1.)
             } else {
                 y_weights_k.dot(&y_weights_k)
             };
@@ -343,7 +341,7 @@ impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, A
     }
 }
 
-impl<F: Float + Scalar + Lapack> PlsParams<F> {
+impl<F: Float> PlsParams<F> {
     /// Return the first left and right singular vectors of x'Y.
     /// Provides an alternative to the svd(x'Y) and uses the power method instead.
     fn get_first_singular_vectors_power_method(
@@ -365,12 +363,12 @@ impl<F: Float + Scalar + Lapack> PlsParams<F> {
         let mut x_pinv = None;
         let mut y_pinv = None;
         if self.mode == Mode::B {
-            x_pinv = Some(utils::pinv2(&x, Some(F::from(10.).unwrap() * eps)));
-            y_pinv = Some(utils::pinv2(&y, Some(F::from(10.).unwrap() * eps)));
+            x_pinv = Some(utils::pinv2(&x, Some(F::cast(10.) * eps)));
+            y_pinv = Some(utils::pinv2(&y, Some(F::cast(10.) * eps)));
         }
 
         // init to big value for first convergence check
-        let mut x_weights_old = Array1::<F>::from_elem(x.ncols(), F::from(100.).unwrap());
+        let mut x_weights_old = Array1::<F>::from_elem(x.ncols(), F::cast(100.));
 
         let mut n_iter = 1;
         let mut x_weights = Array1::<F>::ones(x.ncols());
@@ -590,22 +588,22 @@ mod tests {
         let (x_weights, y_weights) = pls.weights();
         let (x_rotations, y_rotations) = pls.rotations();
         assert_abs_diff_eq!(
-            expected_x_rotations.mapv(|v| v.abs()),
+            expected_x_rotations.mapv(|v: f64| v.abs()),
             x_rotations.mapv(|v| v.abs()),
             epsilon = 1e-7
         );
         assert_abs_diff_eq!(
-            expected_x_weights.mapv(|v| v.abs()),
+            expected_x_weights.mapv(|v: f64| v.abs()),
             x_weights.mapv(|v| v.abs()),
             epsilon = 1e-7
         );
         assert_abs_diff_eq!(
-            expected_y_rotations.mapv(|v| v.abs()),
+            expected_y_rotations.mapv(|v: f64| v.abs()),
             y_rotations.mapv(|v| v.abs()),
             epsilon = 1e-7
         );
         assert_abs_diff_eq!(
-            expected_y_weights.mapv(|v| v.abs()),
+            expected_y_weights.mapv(|v: f64| v.abs()),
             y_weights.mapv(|v| v.abs()),
             epsilon = 1e-7
         );

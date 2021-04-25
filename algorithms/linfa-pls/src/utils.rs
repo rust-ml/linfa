@@ -1,6 +1,6 @@
 use linfa::{DatasetBase, Float};
 use ndarray::{s, Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
-use ndarray_linalg::{svd::*, Lapack, Scalar};
+use ndarray_linalg::svd::*;
 use ndarray_stats::QuantileExt;
 
 pub fn outer<F: Float>(
@@ -14,7 +14,8 @@ pub fn outer<F: Float>(
     outer
 }
 
-pub fn pinv2<F: Float + Scalar + Lapack, D: Data<Elem = F>>(
+/// Calculates the pseudo inverse of a matrix
+pub fn pinv2<F: crate::Float, D: Data<Elem = F>>(
     x: &ArrayBase<D, Ix2>,
     cond: Option<F>,
 ) -> Array2<F> {
@@ -22,21 +23,18 @@ pub fn pinv2<F: Float + Scalar + Lapack, D: Data<Elem = F>>(
     let u = opt_u.unwrap();
     let vh = opt_vh.unwrap();
 
-    let cond = cond.unwrap_or(
-        F::from(*s.max().unwrap()).unwrap()
-            * F::from(x.nrows().max(x.ncols())).unwrap()
-            * F::epsilon(),
-    );
+    let cond = cond
+        .unwrap_or(F::cast(*s.max().unwrap()) * F::cast(x.nrows().max(x.ncols())) * F::epsilon());
 
     let rank = s.fold(0, |mut acc, v| {
-        if F::from(*v).unwrap() > cond {
+        if F::cast(*v) > cond {
             acc += 1
         };
         acc
     });
 
     let mut ucut = u.slice(s![.., ..rank]).to_owned();
-    ucut /= &s.slice(s![..rank]).mapv(|v| F::from(v).unwrap());
+    ucut /= &s.slice(s![..rank]).mapv(|v| F::cast(v));
     ucut.dot(&vh.slice(s![..rank, ..]))
         .mapv(|v| v.conj())
         .t()

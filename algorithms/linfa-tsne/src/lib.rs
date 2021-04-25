@@ -68,8 +68,8 @@ impl<F: Float, R: Rng + Clone> TSne<F, R> {
         TSne {
             embedding_size,
             rng,
-            approx_threshold: F::from(0.5).unwrap(),
-            perplexity: F::from(5.0).unwrap(),
+            approx_threshold: F::cast(0.5),
+            perplexity: F::cast(5.0),
             max_iter: 2000,
             preliminary_iter: None,
         }
@@ -126,7 +126,7 @@ impl<F: Float, R: Rng + Clone> TSne<F, R> {
             return Err(TSneError::EmbeddingSizeTooLarge);
         }
 
-        if F::from(nsamples - 1).unwrap() < F::from(3).unwrap() * self.perplexity {
+        if F::cast(nsamples - 1) < F::cast(3) * self.perplexity {
             return Err(TSneError::PerplexityTooLarge);
         }
 
@@ -151,7 +151,7 @@ impl<F: Float, R: Rng + Clone> Transformer<Array2<F>, Result<Array2<F>>> for TSn
 
         let mut embedding: Vec<F> = (0..nsamples * self.embedding_size)
             .map(|_| rng.sample(&normal))
-            .map(|x| F::from(x).unwrap())
+            .map(|x| F::cast(x))
             .collect();
 
         bhtsne::run(

@@ -64,8 +64,8 @@ impl<F: Float> AppxDbscanHyperParams<F> {
     // Violates the convention that new should return a value of type `Self`
     #[allow(clippy::new_ret_no_self)]
     pub fn new(min_points: usize) -> AppxDbscanHyperParamsBuilder<F> {
-        let default_slack = F::from(1e-2).unwrap();
-        let default_tolerance = F::from(1e-4).unwrap();
+        let default_slack = F::cast(1e-2);
+        let default_tolerance = F::cast(1e-4);
 
         AppxDbscanHyperParamsBuilder {
             min_points,
@@ -99,7 +99,7 @@ impl<F: Float> AppxDbscanHyperParams<F> {
     }
 
     fn build(tolerance: F, min_points: usize, slack: F) -> Self {
-        if tolerance <= F::from(0.).unwrap() {
+        if tolerance <= F::cast(0.) {
             panic!("`tolerance` must be greater than 0!");
         }
         // There is always at least one neighbor to a point (itself)
@@ -107,7 +107,7 @@ impl<F: Float> AppxDbscanHyperParams<F> {
             panic!("`min_points` must be greater than 1!");
         }
 
-        if slack <= F::from(0.).unwrap() {
+        if slack <= F::cast(0.) {
             panic!("`slack` must be greater than 0!");
         }
         Self {
