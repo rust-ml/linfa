@@ -23,7 +23,9 @@ impl<L: Clone + Default, F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix
     for MultiClassModel<ArrayBase<D, Ix2>, L>
 {
     fn predict_ref(&self, arr: &ArrayBase<D, Ix2>) -> Array1<L> {
-        self.models
+        let mut res = Vec::new();
+
+        for pairs in self.models
             .iter()
             .map(|(elm, model)| {
                 model
@@ -31,15 +33,24 @@ impl<L: Clone + Default, F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix
                     .into_iter()
                     .map(|x| (elm.clone(), *x))
                     .collect()
-            })
-            .reduce(|a: Vec<(L, Pr)>, b| {
-                a.into_iter()
-                    .zip(b.into_iter())
-                    .map(|(c, d)| if d.1 > c.1 { d } else { c })
-                    .collect()
-            })
-            .map(|x| x.into_iter().map(|x| x.0).collect())
-            .unwrap()
+            }) 
+        {
+            // initialize result with guess of first model
+            if res.is_empty() {
+                res = pairs;
+                continue
+            }
+
+            // compare probability to each subsequent model and replace label
+            // if probability is higher
+            res = res.into_iter()
+                .zip(pairs.into_iter())
+                .map(|(c, d)| if d.1 > c.1 { d } else { c })
+                .collect();
+        }
+        
+        // remove probabilities from array and convert to `Array1`
+        res.into_iter().map(|x| x.0).collect()
     }
 }
 
