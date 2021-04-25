@@ -1,9 +1,8 @@
 //! Linear Scaling methods
 
 use crate::error::{Error, Result};
-use crate::Float;
 use approx::abs_diff_eq;
-use linfa::dataset::{AsTargets, DatasetBase};
+use linfa::dataset::{AsTargets, DatasetBase, Float, WithLapack};
 use linfa::traits::{Fit, Transformer};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2, Zip};
 use ndarray_linalg::norm::Norm;
@@ -211,8 +210,8 @@ impl<F: Float> FittedLinearScaler<F> {
         if records.dim().0 == 0 {
             return Err(Error::NotEnoughSamples);
         }
-        let scales = records.map_axis(Axis(0), |col| {
-            let norm_max = F::from(col.norm_max()).unwrap();
+        let scales: Array1<F> = records.map_axis(Axis(0), |col| {
+            let norm_max = F::cast(col.with_lapack().norm_max());
             if abs_diff_eq!(norm_max, F::zero()) {
                 // if feature is constant at zero then don't scale
                 F::one()
@@ -220,6 +219,7 @@ impl<F: Float> FittedLinearScaler<F> {
                 F::one() / norm_max
             }
         });
+
         let offsets = Array1::zeros(records.dim().1);
         Ok(Self {
             offsets,

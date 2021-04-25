@@ -90,8 +90,8 @@ pub fn fit_nu<F: Float>(
     targets: &[bool],
     nu: F,
 ) -> Svm<F, Pr> {
-    let mut sum_pos = nu * F::from(targets.len()).unwrap() / F::from(2.0).unwrap();
-    let mut sum_neg = nu * F::from(targets.len()).unwrap() / F::from(2.0).unwrap();
+    let mut sum_pos = nu * F::cast(targets.len()) / F::cast(2.0);
+    let mut sum_neg = nu * F::cast(targets.len()) / F::cast(2.0);
     let init_alpha = targets
         .iter()
         .map(|x| {
@@ -154,13 +154,13 @@ pub fn fit_one_class<F: Float + num_traits::ToPrimitive>(
     nu: F,
 ) -> Svm<F, Pr> {
     let size = kernel.size();
-    let n = (nu * F::from(size).unwrap()).to_usize().unwrap();
+    let n = (nu * F::cast(size)).to_usize().unwrap();
 
     let init_alpha = (0..size)
         .map(|x| match x.cmp(&n) {
             Ordering::Less => F::one(),
             Ordering::Greater => F::zero(),
-            Ordering::Equal => nu * F::from(size).unwrap() - F::from(x).unwrap(),
+            Ordering::Equal => nu * F::cast(size) - F::cast(x),
         })
         .collect::<Vec<_>>();
 

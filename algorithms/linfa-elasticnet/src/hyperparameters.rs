@@ -40,10 +40,10 @@ impl<F: Float> ElasticNetParams<F> {
     pub fn new() -> ElasticNetParams<F> {
         ElasticNetParams {
             penalty: F::one(),
-            l1_ratio: F::from(0.5).unwrap(),
+            l1_ratio: F::cast(0.5),
             with_intercept: true,
             max_iterations: 1000,
-            tolerance: F::from(1e-4).unwrap(),
+            tolerance: F::cast(1e-4),
         }
     }
 

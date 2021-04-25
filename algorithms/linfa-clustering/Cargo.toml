@@ -30,20 +30,20 @@ features = ["std", "derive"]
 [dependencies]
 ndarray = { version = "0.14", features = ["rayon", "approx"]}
 ndarray-linalg = "0.13"
-lax = "0.1"
 ndarray-rand = "0.13"
 ndarray-stats = "0.4"
 num-traits = "0.2"
 rand_isaac = "0.3"
+partitions = "0.2.4"
 
 linfa = { version = "0.3.1", path = "../.." }
-partitions = "0.2.4"
 
 [dev-dependencies]
 ndarray-npy = { version = "0.7", default-features = false }
 criterion = "0.3"
 serde_json = "1"
 approx = "0.4"
+lax = "0.1.0"
 
 [[bench]]
 name = "k_means"

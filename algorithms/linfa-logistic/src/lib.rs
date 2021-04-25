@@ -79,10 +79,10 @@ impl<F: Float> LogisticRegression<F> {
     /// Creates a new LogisticRegression with default configuration.
     pub fn new() -> LogisticRegression<F> {
         LogisticRegression {
-            alpha: F::from(1.0).unwrap(),
+            alpha: F::cast(1.0),
             fit_intercept: true,
             max_iterations: 100,
-            gradient_tolerance: F::from(1e-4).unwrap(),
+            gradient_tolerance: F::cast(1e-4),
             initial_params: None,
         }
     }
@@ -274,7 +274,7 @@ impl<F: Float> LogisticRegression<F> {
         A: Data<Elem = F>,
         C: PartialOrd + Clone,
     {
-        let mut intercept = F::from(0.0).unwrap();
+        let mut intercept = F::cast(0.0);
         let mut params = result.state().best_param.as_array().clone();
         if self.fit_intercept {
             intercept = params[params.len() - 1];
@@ -432,7 +432,7 @@ fn logistic_loss<F: Float, A: Data<Elem = F>>(
     let (params, intercept) = convert_params(n_features, &w);
     let mut yz = (x.dot(&params) + intercept) * y;
     yz.mapv_inplace(log_logistic);
-    -yz.sum() + F::from(0.5).unwrap() * alpha * params.dot(&params)
+    -yz.sum() + F::cast(0.5) * alpha * params.dot(&params)
 }
 
 /// Computes the gradient of the logistic loss function
@@ -475,7 +475,7 @@ impl<F: Float, C: PartialOrd + Clone> FittedLogisticRegression<F, C> {
         labels: ClassLabels<F, C>,
     ) -> FittedLogisticRegression<F, C> {
         FittedLogisticRegression {
-            threshold: F::from(0.5).unwrap(),
+            threshold: F::cast(0.5),
             intercept,
             params,
             labels,

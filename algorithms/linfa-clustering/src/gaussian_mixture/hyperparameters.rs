@@ -62,8 +62,8 @@ impl<F: Float, R: Rng + Clone> GmmHyperParams<F, R> {
         GmmHyperParams {
             n_clusters,
             covar_type: GmmCovarType::Full,
-            tolerance: F::from(1e-3).unwrap(),
-            reg_covar: F::from(1e-6).unwrap(),
+            tolerance: F::cast(1e-3),
+            reg_covar: F::cast(1e-6),
             n_runs: 1,
             max_n_iter: 100,
             init_method: GmmInitMethod::KMeans,

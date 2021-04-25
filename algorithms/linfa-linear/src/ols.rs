@@ -163,7 +163,7 @@ impl<'a, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> Fit<'a, ArrayBase<
             Ok(FittedLinearRegression { intercept, params })
         } else {
             Ok(FittedLinearRegression {
-                intercept: F::from(0).unwrap(),
+                intercept: F::cast(0),
                 params: solve_normal_equation(X, &y)?,
             })
         }

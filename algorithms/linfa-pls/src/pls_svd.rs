@@ -1,8 +1,8 @@
 use crate::errors::{PlsError, Result};
-use crate::utils;
-use linfa::{dataset::Records, traits::Fit, traits::Transformer, DatasetBase, Float};
+use crate::{utils, Float};
+use linfa::{dataset::Records, traits::Fit, traits::Transformer, DatasetBase};
 use ndarray::{s, Array1, Array2, ArrayBase, Data, Ix2};
-use ndarray_linalg::{svd::*, Lapack, Scalar};
+use ndarray_linalg::svd::*;
 
 #[cfg_attr(
     feature = "serde",
@@ -36,9 +36,7 @@ impl Default for PlsSvdParams {
 }
 
 #[allow(clippy::many_single_char_names)]
-impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, ArrayBase<D, Ix2>>
-    for PlsSvdParams
-{
+impl<F: Float, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, ArrayBase<D, Ix2>> for PlsSvdParams {
     type Object = Result<PlsSvd<F>>;
 
     fn fit(

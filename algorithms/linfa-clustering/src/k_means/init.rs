@@ -148,7 +148,7 @@ fn k_means_para<R: Rng + SeedableRng, F: Float>(
         // `candidates_per_round`.
         let next_candidates_idx = sample_subsequent_candidates::<R, _>(
             &dists,
-            F::from(candidates_per_round).unwrap(),
+            F::cast(candidates_per_round),
             rng.gen_range(0..std::u64::MAX),
         );
 
@@ -199,7 +199,7 @@ fn sample_subsequent_candidates<R: Rng + SeedableRng, F: Float>(
             || R::seed_from_u64(seed.fetch_add(1, Relaxed)),
             move |rng, (i, d)| {
                 let d = *d.into_scalar();
-                let rand = F::from(rng.gen_range(0.0..1.0)).unwrap();
+                let rand = F::cast(rng.gen_range(0.0..1.0));
                 let prob = multiplier * d / cost;
                 (i, rand, prob)
             },
