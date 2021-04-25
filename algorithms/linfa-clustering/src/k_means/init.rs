@@ -253,12 +253,9 @@ mod tests {
 
     #[test]
     fn test_sample_subsequent_candidates() {
-        let observations = array![[3.0, 4.0], [1.0, 3.0], [25.0, 15.0]];
-        let dists = array![0.1, 0.4, 0.5];
-        let candidates = sample_subsequent_candidates::<Isaac64Rng, _>(&dists, 4.0, 0);
-        assert_eq!(candidates.len(), 2);
-        assert_abs_diff_eq!(observations.row(candidates[0]), observations.row(1));
-        assert_abs_diff_eq!(observations.row(candidates[1]), observations.row(2));
+        let dists = array![0.0, 0.4, 0.5];
+        let candidates = sample_subsequent_candidates::<Isaac64Rng, _>(&dists, 8.0, 0);
+        assert_eq!(candidates, vec![1, 2]);
     }
 
     #[test]
