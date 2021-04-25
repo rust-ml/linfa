@@ -17,7 +17,7 @@ categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
 
-linfa = { version = "0.3.1", path = "../.." }
+linfa = { version = "0.3.1", path = "../..", features = ["ndarray-linalg"] }
 ndarray = { version = "0.14", default-features = false, features = ["approx", "blas"] }
 ndarray-linalg = { version = "0.13" }
 ndarray-stats = "0.4"

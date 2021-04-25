@@ -43,6 +43,7 @@ ndarray-npy = { version = "0.7", default-features = false }
 criterion = "0.3"
 serde_json = "1"
 approx = "0.4"
+lax = "0.1.0"
 
 [[bench]]
 name = "k_means"

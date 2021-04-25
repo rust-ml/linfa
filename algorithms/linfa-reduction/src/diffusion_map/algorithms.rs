@@ -7,11 +7,10 @@
 //! j.
 //!
 use ndarray::{Array1, Array2};
-use ndarray_linalg::{
-    eigh::EighInto, lobpcg, lobpcg::LobpcgResult, Lapack, Scalar, TruncatedOrder, UPLO,
-};
+use ndarray_linalg::{eigh::EighInto, lobpcg, lobpcg::LobpcgResult, Scalar, TruncatedOrder, UPLO};
 use ndarray_rand::{rand_distr::Uniform, RandomExt};
 
+use linfa::dataset::{WithLapack, WithoutLapack};
 use linfa::{error::Result, traits::Transformer, Float};
 use linfa_kernel::Kernel;
 
@@ -59,9 +58,7 @@ pub struct DiffusionMap<F> {
     eigvals: Array1<F>,
 }
 
-impl<'a, F: Float + Lapack> Transformer<&'a Kernel<F>, Result<DiffusionMap<F>>>
-    for DiffusionMapParams
-{
+impl<'a, F: Float> Transformer<&'a Kernel<F>, Result<DiffusionMap<F>>> for DiffusionMapParams {
     /// Project a kernel matrix to its embedding
     ///
     /// # Parameter
@@ -82,7 +79,7 @@ impl<'a, F: Float + Lapack> Transformer<&'a Kernel<F>, Result<DiffusionMap<F>>>
     }
 }
 
-impl<F: Float + Lapack> DiffusionMap<F> {
+impl<F: Float> DiffusionMap<F> {
     /// Creates the set of default parameters
     ///
     /// # Parameters
@@ -115,7 +112,7 @@ impl<F: Float + Lapack> DiffusionMap<F> {
     }
 }
 
-fn compute_diffusion_map<'b, F: Float + Lapack>(
+fn compute_diffusion_map<'b, F: Float>(
     kernel: &'b Kernel<F>,
     steps: usize,
     alpha: f32,
@@ -125,11 +122,10 @@ fn compute_diffusion_map<'b, F: Float + Lapack>(
     assert!(embedding_size < kernel.size());
 
     let d = kernel.sum().mapv(|x| x.recip());
-
-    let d2 = d.mapv(|x| num_traits::Float::powf(x, F::cast(0.5 + alpha)));
+    let d2 = d.mapv(|x| x.powf(F::cast(0.5 + alpha)));
 
     // use full eigenvalue decomposition for small problem sizes
-    let (vals, mut vecs) = if kernel.size() < 5 * embedding_size + 1 {
+    let (vals, vecs) = if kernel.size() < 5 * embedding_size + 1 {
         let mut matrix = kernel.dot(&Array2::from_diag(&d).view());
         matrix
             .gencolumns_mut()
@@ -137,6 +133,7 @@ fn compute_diffusion_map<'b, F: Float + Lapack>(
             .zip(d.iter())
             .for_each(|(mut a, b)| a *= *b);
 
+        let matrix = matrix.with_lapack();
         let (vals, vecs) = matrix.eigh_into(UPLO::Lower).unwrap();
         let (vals, vecs) = (vals.slice_move(s![..; -1]), vecs.slice_move(s![.., ..; -1]));
         (
@@ -146,28 +143,31 @@ fn compute_diffusion_map<'b, F: Float + Lapack>(
         )
     } else {
         // calculate truncated eigenvalue decomposition
-        let x = guess.unwrap_or_else(|| {
-            Array2::random(
-                (kernel.size(), embedding_size + 1),
-                Uniform::new(0.0f64, 1.0),
-            )
-            .mapv(|x| F::cast(x))
-        });
+        let x = guess
+            .unwrap_or_else(|| {
+                Array2::random(
+                    (kernel.size(), embedding_size + 1),
+                    Uniform::new(0.0f64, 1.0),
+                )
+                .mapv(|x| F::cast(x))
+            })
+            .with_lapack();
 
         let result = lobpcg::lobpcg(
             |y| {
-                let mut y = y.to_owned();
+                let mut y = y.to_owned().without_lapack();
                 y.genrows_mut()
                     .into_iter()
                     .zip(d2.iter())
                     .for_each(|(mut a, b)| a *= *b);
                 let mut y = kernel.dot(&y.view());
+
                 y.genrows_mut()
                     .into_iter()
                     .zip(d2.iter())
                     .for_each(|(mut a, b)| a *= *b);
 
-                y
+                y.with_lapack()
             },
             x,
             |_| {},
@@ -186,7 +186,8 @@ fn compute_diffusion_map<'b, F: Float + Lapack>(
         (vals.slice_move(s![1..]), vecs.slice_move(s![.., 1..]))
     };
 
-    let d = d.mapv(num_traits::Float::sqrt);
+    let (vals, mut vecs): (Array1<F>, _) = (vals.without_lapack(), vecs.without_lapack());
+    let d = d.mapv(|x| x.sqrt());
 
     for (mut col, val) in vecs.genrows_mut().into_iter().zip(d.iter()) {
         col *= *val;
@@ -194,7 +195,7 @@ fn compute_diffusion_map<'b, F: Float + Lapack>(
 
     let steps = F::cast(steps);
     for (mut vec, val) in vecs.gencolumns_mut().into_iter().zip(vals.iter()) {
-        vec *= num_traits::Float::powf(*val, steps);
+        vec *= val.powf(steps);
     }
 
     (vecs, vals)

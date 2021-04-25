@@ -74,10 +74,10 @@ impl<'a, F: Float, D: Data<Elem = F>, T: AsTargets> Fit<'a, ArrayBase<D, Ix2>, T
 
                 // Safe because the second argument in the above call is set to true
                 let mut v_t = v_t.unwrap().without_lapack();
+                let s = s.mapv(Scalar::from_real).without_lapack();
 
-                let s = s.mapv(|x: <<F as linfa::Float>::Lapack as Scalar>::Real| {
-                    F::cast(x).max(F::cast(1e-8))
-                });
+                let s = s.mapv(|x: F| x.max(F::cast(1e-8)));
+
                 let cov_scale = F::cast(x.nsamples() - 1).sqrt();
                 for (mut v_t, s) in v_t.axis_iter_mut(Axis(0)).zip(s.iter()) {
                     v_t *= cov_scale / *s;
@@ -91,9 +91,9 @@ impl<'a, F: Float, D: Data<Elem = F>, T: AsTargets> Fit<'a, ArrayBase<D, Ix2>, T
 
                 // Safe because the first argument in the above call is set to true
                 let u = u.unwrap().without_lapack();
-                let s = s.mapv(|x: <<F as linfa::Float>::Lapack as Scalar>::Real| {
-                    (F::one() / F::cast(x).sqrt()).max(F::cast(1e-8))
-                });
+                let s = s.mapv(Scalar::from_real).without_lapack();
+
+                let s = s.mapv(|x: F| (F::one() / x.sqrt()).max(F::cast(1e-8)));
                 let lambda: Array2<F> = Array2::<F>::eye(s.len()) * s;
                 u.dot(&lambda).dot(&u.t())
             }

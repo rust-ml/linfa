@@ -29,9 +29,7 @@ mod impl_targets;
 mod iter;
 pub mod multi_target_model;
 
-#[cfg(feature = "ndarray-linalg")]
 mod lapack_bounds;
-#[cfg(feature = "ndarray-linalg")]
 pub use lapack_bounds::*;
 
 /// Floating point numbers
@@ -63,6 +61,8 @@ pub trait Float:
 {
     #[cfg(feature = "ndarray-linalg")]
     type Lapack: Float + Scalar + Lapack;
+    #[cfg(not(feature = "ndarray-linalg"))]
+    type Lapack: Float;
 
     fn cast<T: NumCast>(x: T) -> Self {
         NumCast::from(x).unwrap()
@@ -70,12 +70,10 @@ pub trait Float:
 }
 
 impl Float for f32 {
-    #[cfg(feature = "ndarray-linalg")]
     type Lapack = f32;
 }
 
 impl Float for f64 {
-    #[cfg(feature = "ndarray-linalg")]
     type Lapack = f64;
 }
 

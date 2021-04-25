@@ -588,22 +588,22 @@ mod tests {
         let (x_weights, y_weights) = pls.weights();
         let (x_rotations, y_rotations) = pls.rotations();
         assert_abs_diff_eq!(
-            expected_x_rotations.mapv(|v| v.abs()),
+            expected_x_rotations.mapv(|v: f64| v.abs()),
             x_rotations.mapv(|v| v.abs()),
             epsilon = 1e-7
         );
         assert_abs_diff_eq!(
-            expected_x_weights.mapv(|v| v.abs()),
+            expected_x_weights.mapv(|v: f64| v.abs()),
             x_weights.mapv(|v| v.abs()),
             epsilon = 1e-7
         );
         assert_abs_diff_eq!(
-            expected_y_rotations.mapv(|v| v.abs()),
+            expected_y_rotations.mapv(|v: f64| v.abs()),
             y_rotations.mapv(|v| v.abs()),
             epsilon = 1e-7
         );
         assert_abs_diff_eq!(
-            expected_y_weights.mapv(|v| v.abs()),
+            expected_y_weights.mapv(|v: f64| v.abs()),
             y_weights.mapv(|v| v.abs()),
             epsilon = 1e-7
         );

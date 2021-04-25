@@ -257,6 +257,8 @@ impl<F: Float> GaussianMixtureModel<F> {
         let n_features = covariances.shape()[1];
         let mut precisions_chol = Array::zeros((n_clusters, n_features, n_features));
         for (k, covariance) in covariances.outer_iter().enumerate() {
+            dbg!(&covariance.shape());
+            dbg!(&covariance.with_lapack().shape());
             let decomp = covariance.with_lapack().cholesky(UPLO::Lower)?;
             let sol = decomp
                 .solve_triangular(UPLO::Lower, Diag::NonUnit, &Array::eye(n_features))?
