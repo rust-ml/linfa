@@ -25,30 +25,28 @@ impl<L: Clone + Default, F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix
     fn predict_ref(&self, arr: &ArrayBase<D, Ix2>) -> Array1<L> {
         let mut res = Vec::new();
 
-        for pairs in self.models
-            .iter()
-            .map(|(elm, model)| {
-                model
-                    .predict_ref(arr)
-                    .into_iter()
-                    .map(|x| (elm.clone(), *x))
-                    .collect()
-            }) 
-        {
+        for pairs in self.models.iter().map(|(elm, model)| {
+            model
+                .predict_ref(arr)
+                .into_iter()
+                .map(|x| (elm.clone(), *x))
+                .collect()
+        }) {
             // initialize result with guess of first model
             if res.is_empty() {
                 res = pairs;
-                continue
+                continue;
             }
 
             // compare probability to each subsequent model and replace label
             // if probability is higher
-            res = res.into_iter()
+            res = res
+                .into_iter()
                 .zip(pairs.into_iter())
                 .map(|(c, d)| if d.1 > c.1 { d } else { c })
                 .collect();
         }
-        
+
         // remove probabilities from array and convert to `Array1`
         res.into_iter().map(|x| x.0).collect()
     }
