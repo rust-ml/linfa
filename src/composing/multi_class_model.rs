@@ -6,13 +6,15 @@ use crate::Float;
 use ndarray::{Array1, ArrayBase, Data, Ix2};
 use std::iter::FromIterator;
 
+type MultiClassVec<R, L> = Vec<(L, Box<dyn PredictRef<R, Array1<Pr>>>)>;
+
 /// Merge models with binary to multi-class classification
 pub struct MultiClassModel<R: Records, L> {
-    models: Vec<(L, Box<dyn PredictRef<R, Array1<Pr>>>)>,
+    models: MultiClassVec<R, L>,
 }
 
 impl<R: Records, L> MultiClassModel<R, L> {
-    pub fn new(models: Vec<(L, Box<dyn PredictRef<R, Array1<Pr>>>)>) -> Self {
+    pub fn new(models: MultiClassVec<R, L>) -> Self {
         MultiClassModel { models }
     }
 }

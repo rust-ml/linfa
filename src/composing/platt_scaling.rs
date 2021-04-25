@@ -151,7 +151,7 @@ where
     /// This function takes another model and binary decision dataset and calibrates it to produce
     /// probability values. The returned model therefore implements the prediction trait for
     /// probability targets.
-    pub fn calibrate<'a>(
+    pub fn calibrate(
         &self,
         obj: O,
         ds: &DatasetBase<Array2<F>, Array1<bool>>,
@@ -201,6 +201,7 @@ pub fn platt_predict<F: Float>(x: F, a: F, b: F) -> Pr {
 /// The optimization process happens in two steps, first the closed-form Hessian matrix and
 /// gradient vectors are calculated. Then a line-search tries to find the optimal learning rate
 /// for each step.
+#[allow(clippy::suspicious_operation_groupings)]
 pub fn platt_newton_method<'a, F: Float, O>(
     reg_values: ArrayView1<'a, F>,
     labels: ArrayView1<'a, bool>,
@@ -221,7 +222,7 @@ pub fn platt_newton_method<'a, F: Float, O>(
 
     let (hi_target, lo_target) = ((num_pos + 1.0) / (num_pos + 2.0), 1.0 / (num_neg + 2.0));
 
-    let t = labels
+    let target_values = labels
         .iter()
         .map(|x| if *x { hi_target } else { lo_target })
         .map(|x| F::from(x).unwrap())
@@ -236,7 +237,7 @@ pub fn platt_newton_method<'a, F: Float, O>(
     let mut b = F::from((num_neg + 1.0) / (num_pos + 1.0)).unwrap().ln();
     let mut fval = F::zero();
 
-    for (v, t) in reg_values.iter().zip(t.iter()) {
+    for (v, t) in reg_values.iter().zip(target_values.iter()) {
         let f_apb = *v * a + b;
         if f_apb >= F::zero() {
             fval += *t * f_apb + (F::one() + (-f_apb).exp()).ln();
@@ -245,12 +246,12 @@ pub fn platt_newton_method<'a, F: Float, O>(
         }
     }
 
-    let mut i = 0;
+    let mut idx = 0;
     for _ in 0..params.maxiter {
         let (mut h11, mut h22) = (params.sigma, params.sigma);
         let (mut h21, mut g1, mut g2) = (F::zero(), F::zero(), F::zero());
 
-        for (v, t) in reg_values.iter().zip(t.iter()) {
+        for (v, t) in reg_values.iter().zip(target_values.iter()) {
             let f_apb = *v * a + b;
 
             let (p, q) = if f_apb >= F::zero() {
@@ -292,7 +293,7 @@ pub fn platt_newton_method<'a, F: Float, O>(
             let new_b = b + stepsize * d_b;
             let mut newf = F::zero();
 
-            for (v, t) in reg_values.iter().zip(t.iter()) {
+            for (v, t) in reg_values.iter().zip(target_values.iter()) {
                 let f_apb = *v * new_a + new_b;
 
                 if f_apb >= F::zero() {
@@ -316,10 +317,10 @@ pub fn platt_newton_method<'a, F: Float, O>(
             }
         }
 
-        i += 1;
+        idx += 1;
     }
 
-    if params.maxiter == i {
+    if params.maxiter == idx {
         return Err(PlattNewtonResult::MaxIterReached);
     }
 
