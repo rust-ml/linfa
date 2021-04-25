@@ -93,6 +93,16 @@ use std::ops::Mul;
 /// parameters control the ratio of support vectors and accuracy, eps controls the required
 /// precision. After setting the desired parameters a model can be fitted by calling `fit`.
 ///
+/// You can specify the expected return type with the turbofish syntax. If you want to enable
+/// Platt-Scaling for proper probability values, then use: 
+/// ```ignore
+/// let model = Svm::<_, Pr>::params();
+/// ```
+/// or `bool` if you only wants to know the binary decision:
+/// ```ignore
+/// let model = Svm::<_, bool>::params();
+/// ```
+///
 /// ## Example
 ///
 /// ```ignore

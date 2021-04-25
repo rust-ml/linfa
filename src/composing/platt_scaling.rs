@@ -180,6 +180,9 @@ where
 
 /// Predict a probability with the sigmoid function
 ///
+/// Similar to stable sigmoid implementations
+/// https://stackoverflow.com/questions/51976461/optimal-way-of-defining-a-numerically-stable-sigmoid-function-for-a-list-in-pyth
+///
 /// # Parameters
 /// * `x`: uncalibrated value f(x)
 /// * `a`: parameter A,
