@@ -32,9 +32,8 @@ fn main() -> Result<()> {
 
     // Save to disk our dataset (and the cluster label assigned to each observation)
     // We use the `npy` format for compatibility with NumPy
-    write_npy("diffusion_map_dataset.npy", dataset).expect("Failed to write .npy file");
-    write_npy("diffusion_map_embedding.npy", embedding.to_owned())
-        .expect("Failed to write .npy file");
+    write_npy("diffusion_map_dataset.npy", &dataset).expect("Failed to write .npy file");
+    write_npy("diffusion_map_embedding.npy", embedding).expect("Failed to write .npy file");
 
     Ok(())
 }

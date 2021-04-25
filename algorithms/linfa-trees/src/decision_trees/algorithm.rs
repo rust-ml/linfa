@@ -716,7 +716,7 @@ mod tests {
 
     use approx::assert_abs_diff_eq;
     use linfa::{error::Result, metrics::ToConfusionMatrix, Dataset};
-    use ndarray::{array, s, stack, Array, Array1, Array2, Axis};
+    use ndarray::{array, concatenate, s, Array, Array1, Array2, Axis};
     use rand::rngs::SmallRng;
 
     use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
@@ -881,7 +881,7 @@ mod tests {
     #[test]
     /// Multilabel classification
     fn multilabel_four_uniform() -> Result<()> {
-        let mut data = stack(
+        let mut data = concatenate(
             Axis(0),
             &[Array2::random((40, 2), Uniform::new(-1., 1.)).view()],
         )

@@ -293,7 +293,7 @@ mod tests {
             let mp_law = ((b - x) * (x - a)).sqrt() / std::f64::consts::PI / x;
             let empirical = count as f64 / 500. / ((2.8 - 0.1) / 28.);
 
-            assert_abs_diff_eq!(mp_law, empirical, epsilon = 0.05);
+            assert_abs_diff_eq!(mp_law, empirical, epsilon = 0.06);
         }
     }
 

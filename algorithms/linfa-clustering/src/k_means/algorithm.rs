@@ -1,6 +1,11 @@
-use crate::k_means::errors::{KMeansError, Result};
+use std::cmp::Ordering;
+
 use crate::k_means::hyperparameters::{KMeansHyperParams, KMeansHyperParamsBuilder};
-use linfa::{traits::*, DatasetBase, Float};
+use crate::{
+    k_means::errors::{KMeansError, Result},
+    KMeansInit,
+};
+use linfa::{prelude::*, DatasetBase, Float};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
 use ndarray_rand::rand::Rng;
 use ndarray_rand::rand::SeedableRng;
@@ -26,13 +31,14 @@ use serde_crate::{Deserialize, Serialize};
 ///
 /// We provide a modified version of the _standard algorithm_ (also known as Lloyd's Algorithm),
 /// called m_k-means, which uses a slightly modified update step to avoid problems with empty
-/// clusters.
+/// clusters. We also provide an incremental version of the algorithm that runs on smaller batches
+/// of input data.
 ///
 /// More details on the algorithm can be found in the next section or
 /// [here](https://en.wikipedia.org/wiki/K-means_clustering). Details on m_k-means can be found
 /// [here](https://www.researchgate.net/publication/228414762_A_Modified_k-means_Algorithm_to_Avoid_Empty_Clusters).
 ///
-/// ## The algorithm
+/// ## Standard algorithm
 ///
 /// K-means is an iterative algorithm: it progressively refines the choice of centroids.
 ///
@@ -49,6 +55,18 @@ use serde_crate::{Deserialize, Serialize};
 /// Assignment and update are repeated in a loop until convergence is reached (either the
 /// euclidean distance between the old and the new clusters is below `tolerance` or
 /// we exceed the `max_n_iterations`).
+///
+/// ## Incremental Algorithm
+///
+/// In addition to the standard algorithm, we also provide an incremental version of K-means known
+/// as Mini-Batch K-means. In this algorithm, the dataset is divided into small batches, and the
+/// assignment and update steps are performed on each batch instead of the entire dataset. The
+/// update step also takes previous update steps into account when updating the centroids.
+///
+/// Due to using smaller batches, Mini-Batch K-means takes significantly less time to execute than
+/// the standard K-means algorithm, although it may yield slightly worse centroids.
+///
+/// More details on Mini-Batch K-means can be found [here](https://www.eecs.tufts.edu/~dsculley/papers/fastkmeans.pdf).
 ///
 /// ## Parallelisation
 ///
@@ -71,7 +89,7 @@ use serde_crate::{Deserialize, Serialize};
 ///
 /// ```
 /// use linfa::DatasetBase;
-/// use linfa::traits::{Fit, Predict};
+/// use linfa::traits::{Fit, IncrementalFit, Predict};
 /// use linfa_clustering::{KMeansHyperParams, KMeans, generate_blobs};
 /// use ndarray::{Axis, array, s};
 /// use ndarray_rand::rand::SeedableRng;
@@ -87,25 +105,63 @@ use serde_crate::{Deserialize, Serialize};
 /// let expected_centroids = array![[0., 1.], [-10., 20.], [-1., 10.]];
 /// // Let's generate a synthetic dataset: three blobs of observations
 /// // (100 points each) centered around our `expected_centroids`
-/// let observations = DatasetBase::from(generate_blobs(100, &expected_centroids, &mut rng));
-///
-/// // Let's configure and run our K-means algorithm
-/// // We use the builder pattern to specify the hyperparameters
-/// // `n_clusters` is the only mandatory parameter.
-/// // If you don't specify the others (e.g. `n_runs`, `tolerance`, `max_n_iterations`)
-/// // default values will be used.
+/// let data = generate_blobs(100, &expected_centroids, &mut rng);
 /// let n_clusters = expected_centroids.len_of(Axis(0));
-/// let model = KMeans::params(n_clusters)
-///     .tolerance(1e-2)
-///     .fit(&observations)
-///     .expect("KMeans fitted");
 ///
-/// // Once we found our set of centroids, we can also assign new points to the nearest cluster
-/// let new_observation = DatasetBase::from(array![[-9., 20.5]]);
-/// // Predict returns the **index** of the nearest cluster
-/// let dataset = model.predict(new_observation);
-/// // We can retrieve the actual centroid of the closest cluster using `.centroids()`
-/// let closest_centroid = &model.centroids().index_axis(Axis(0), dataset.targets()[0]);
+/// // Standard K-means
+/// {
+///     let observations = DatasetBase::from(data.clone());
+///     // Let's configure and run our K-means algorithm
+///     // We use the builder pattern to specify the hyperparameters
+///     // `n_clusters` is the only mandatory parameter.
+///     // If you don't specify the others (e.g. `n_runs`, `tolerance`, `max_n_iterations`)
+///     // default values will be used.
+///     let model = KMeans::params_with_rng(n_clusters, rng.clone())
+///         .tolerance(1e-2)
+///         .fit(&observations)
+///         .expect("KMeans fitted");
+///
+///     // Once we found our set of centroids, we can also assign new points to the nearest cluster
+///     let new_observation = DatasetBase::from(array![[-9., 20.5]]);
+///     // Predict returns the **index** of the nearest cluster
+///     let dataset = model.predict(new_observation);
+///     // We can retrieve the actual centroid of the closest cluster using `.centroids()`
+///     let closest_centroid = &model.centroids().index_axis(Axis(0), dataset.targets()[0]);
+///     assert_abs_diff_eq!(closest_centroid.to_owned(), &array![-10., 20.], epsilon = 1e-1);
+/// }
+///
+/// // Incremental K-means
+/// {
+///     let batch_size = 100;
+///     // Shuffling the dataset is one way of ensuring that the batches contain random points from
+///     // the dataset, which is required for the algorithm to work properly
+///     let observations = DatasetBase::from(data.clone()).shuffle(&mut rng);
+///
+///     let n_clusters = expected_centroids.nrows();
+///     let clf = KMeans::params_with_rng(n_clusters, rng.clone())
+///         .tolerance(1e-3)
+///         .build();
+///
+///     // Repeatedly run fit_with on every batch in the dataset until we have converged
+///     let model = observations
+///         .sample_chunks(batch_size)
+///         .cycle()
+///         .try_fold(None, |current, batch| {
+///             let (model, converged) = clf.fit_with(current, &batch);
+///             if converged {
+///                 // Once we have converged, raise an error to break from the iterator
+///                 Err(model)
+///             } else {
+///                 Ok(Some(model))
+///             }
+///         })
+///         .unwrap_err();
+///
+///     let new_observation = DatasetBase::from(array![[-9., 20.5]]);
+///     let dataset = model.predict(new_observation);
+///     let closest_centroid = &model.centroids().index_axis(Axis(0), dataset.targets()[0]);
+///     assert_abs_diff_eq!(closest_centroid.to_owned(), &array![-10., 20.], epsilon = 1e-1);
+/// }
 /// ```
 ///
 /*///
@@ -124,8 +180,8 @@ use serde_crate::{Deserialize, Serialize};
 */
 pub struct KMeans<F: Float> {
     centroids: Array2<F>,
-    iter_count: Array1<usize>,
-    cost: F,
+    cluster_count: Array1<F>,
+    inertia: F,
 }
 
 impl<F: Float> KMeans<F> {
@@ -146,14 +202,16 @@ impl<F: Float> KMeans<F> {
         &self.centroids
     }
 
-    /// Return the number of iterations taken by each run as an array
-    pub fn iter_count(&self) -> &Array1<usize> {
-        &self.iter_count
+    /// Return the number of training points belonging to each cluster
+    pub fn cluster_count(&self) -> &Array1<F> {
+        &self.cluster_count
     }
 
-    /// Return the sum of distances between each training point and its closest centroid
-    pub fn cost(&self) -> F {
-        self.cost
+    /// Return the sum of distances between each training point and its closest centroid, averaged
+    /// across all training points.  When training incrementally, this value is computed on the
+    /// most recent batch.
+    pub fn inertia(&self) -> F {
+        self.inertia
     }
 }
 
@@ -170,25 +228,31 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T> Fit<'a, A
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Self::Object {
         let mut rng = self.rng();
         let observations = dataset.records().view();
+        let n_samples = dataset.nsamples();
 
         let mut min_inertia = F::infinity();
         let mut best_centroids = None;
         let mut best_iter = None;
-        let mut memberships = Array1::zeros(observations.dim().0);
+        let mut memberships = Array1::zeros(n_samples);
+        let mut dists = Array1::zeros(n_samples);
 
         let n_runs = self.n_runs();
-        let mut iter_count = Array1::zeros(n_runs);
 
-        for r in 0..n_runs {
+        for _ in 0..n_runs {
             let mut inertia = min_inertia;
-            let mut centroids = self.init().run(self.n_clusters(), observations, &mut rng);
+            let mut centroids = self
+                .init_method()
+                .run(self.n_clusters(), observations, &mut rng);
             let mut converged_iter: Option<u64> = None;
-            let mut iters = 0;
             for n_iter in 0..self.max_n_iterations() {
-                iters += 1;
-                update_cluster_memberships(&centroids, &observations, &mut memberships);
+                update_memberships_and_dists(
+                    &centroids,
+                    &observations,
+                    &mut memberships,
+                    &mut dists,
+                );
                 let new_centroids = compute_centroids(&centroids, &observations, &memberships);
-                inertia = compute_inertia(&new_centroids, &observations, &memberships);
+                inertia = dists.sum();
                 let distance = centroids
                     .sq_l2_dist(&new_centroids)
                     .expect("Failed to compute distance");
@@ -198,7 +262,6 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T> Fit<'a, A
                     break;
                 }
             }
-            iter_count[r] = iters;
 
             // We keep the centroids which minimize the inertia (defined as the sum of
             // the squared distances of the closest centroid for all observations)
@@ -209,13 +272,20 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T> Fit<'a, A
                 best_iter = converged_iter;
             }
         }
+
         match best_iter {
             Some(_n_iter) => match best_centroids {
-                Some(centroids) => Ok(KMeans {
-                    centroids,
-                    iter_count,
-                    cost: min_inertia,
-                }),
+                Some(centroids) => {
+                    let mut cluster_count = Array1::zeros(self.n_clusters());
+                    memberships
+                        .iter()
+                        .for_each(|&c| cluster_count[c] += F::one());
+                    Ok(KMeans {
+                        centroids,
+                        cluster_count,
+                        inertia: min_inertia / F::from(dataset.nsamples()).unwrap(),
+                    })
+                }
                 _ => Err(KMeansError::InertiaError(
                     "No inertia improvement (-inf)".to_string(),
                 )),
@@ -229,20 +299,101 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T> Fit<'a, A
     }
 }
 
-impl<'a, F: Float, R: Rng + SeedableRng + Clone, D: Data<Elem = F>, T> Fit<'a, ArrayBase<D, Ix2>, T>
-    for KMeansHyperParamsBuilder<F, R>
+impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T>
+    IncrementalFit<'a, ArrayBase<D, Ix2>, T> for KMeansHyperParams<F, R>
 {
-    type Object = Result<KMeans<F>>;
+    type ObjectIn = Option<KMeans<F>>;
+    type ObjectOut = (KMeans<F>, bool);
 
-    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Self::Object {
+    /// Performs a single batch update of the Mini-Batch K-means algorithm.
+    ///
+    /// Given an input matrix `observations`, with shape `(n_batch, n_features)` and a previous
+    /// `KMeans` model, the model's centroids are updated with the input matrix. If `model` is
+    /// `None`, then it's initialized using the specified initialization algorithm. The return
+    /// value consists of the updated model and a `bool` value that indicates whether the algorithm
+    /// has converged.
+    fn fit_with(
+        &self,
+        model: Self::ObjectIn,
+        dataset: &'a DatasetBase<ArrayBase<D, Ix2>, T>,
+    ) -> Self::ObjectOut {
+        let mut rng = self.rng();
+        let observations = dataset.records().view();
+        let n_samples = dataset.nsamples();
+
+        let mut model = match model {
+            Some(model) => model,
+            None => {
+                let centroids = if let KMeansInit::Precomputed(centroids) = self.init_method() {
+                    // If using precomputed centroids, don't run the init algorithm multiple times
+                    // since it's pointless
+                    centroids.clone()
+                } else {
+                    let mut dists = Array1::zeros(n_samples);
+                    // Initial centroids derived from the first batch by running the init algorithm
+                    // n_runs times and taking the centroids with the lowest inertia
+                    (0..self.n_runs())
+                        .map(|_| {
+                            let centroids =
+                                self.init_method()
+                                    .run(self.n_clusters(), observations, &mut rng);
+                            update_min_dists(&centroids, &observations, &mut dists);
+                            (centroids, dists.sum())
+                        })
+                        .min_by(|(_, d1), (_, d2)| {
+                            if d1 < d2 {
+                                Ordering::Less
+                            } else {
+                                Ordering::Greater
+                            }
+                        })
+                        .unwrap()
+                        .0
+                };
+                KMeans {
+                    centroids,
+                    cluster_count: Array1::zeros(self.n_clusters()),
+                    inertia: F::zero(),
+                }
+            }
+        };
+
+        let mut memberships = Array1::zeros(n_samples);
+        let mut dists = Array1::zeros(n_samples);
+        update_memberships_and_dists(
+            &model.centroids,
+            &observations,
+            &mut memberships,
+            &mut dists,
+        );
+        let new_centroids = compute_centroids_incremental(
+            &observations,
+            &memberships,
+            &model.centroids,
+            &mut model.cluster_count,
+        );
+        model.inertia = dists.sum() / F::from(n_samples).unwrap();
+        let dist = model.centroids.sq_l2_dist(&new_centroids).unwrap();
+        model.centroids = new_centroids;
+
+        (model, dist < self.tolerance())
+    }
+}
+
+impl<'a, F: Float, R: Rng + SeedableRng + Clone> KMeansHyperParamsBuilder<F, R> {
+    /// Shortcut for `.build().fit()`
+    pub fn fit<D: Data<Elem = F>, T>(
+        self,
+        dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
+    ) -> Result<KMeans<F>> {
         self.build().fit(dataset)
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> Transformer<ArrayBase<D, Ix2>, Array1<F>> for KMeans<F> {
+impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<F>> for KMeans<F> {
     /// Given an input matrix `observations`, with shape `(n_observations, n_features)`,
     /// `transform` returns, for each observation, its squared distance to its centroid.
-    fn transform(&self, observations: ArrayBase<D, Ix2>) -> Array1<F> {
+    fn transform(&self, observations: &ArrayBase<D, Ix2>) -> Array1<F> {
         let mut dists = Array1::zeros(observations.nrows());
         update_min_dists(&self.centroids, &observations.view(), &mut dists);
         dists
@@ -256,7 +407,17 @@ impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<usize>> f
     /// You can retrieve the centroid associated to an index using the
     /// [`centroids` method](#method.centroids).
     fn predict_ref<'a>(&'a self, observations: &ArrayBase<D, Ix2>) -> Array1<usize> {
-        compute_cluster_memberships(&self.centroids, observations)
+        compute_cluster_memberships(&self.centroids, &observations.view())
+    }
+}
+
+impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix1>, usize> for KMeans<F> {
+    /// Given one input observation, return the index of its closest cluster
+    ///
+    /// You can retrieve the centroid associated to an index using the
+    /// [`centroids` method](#method.centroids).
+    fn predict_ref<'a>(&'a self, observation: &ArrayBase<D, Ix1>) -> usize {
+        closest_centroid(&self.centroids, &observation).0
     }
 }
 
@@ -316,12 +477,32 @@ fn compute_centroids<F: Float>(
     centroids
 }
 
-/// Given a matrix of centroids with shape (n_centroids, n_features)
-/// and a matrix of observations with shape (n_observations, n_features),
-/// update the 1-dimensional `cluster_memberships` array such that:
-///
-/// membership[i] == closest_centroid(&centroids, &observations.slice(s![i, ..])
-///
+/// Returns new centroids which has the moving average of all observations in each cluster added to
+/// the old centroids.
+/// Updates `counts` with the number of observations in each cluster.
+fn compute_centroids_incremental<F: Float>(
+    observations: &ArrayBase<impl Data<Elem = F>, Ix2>,
+    cluster_memberships: &ArrayBase<impl Data<Elem = usize>, Ix1>,
+    old_centroids: &ArrayBase<impl Data<Elem = F>, Ix2>,
+    counts: &mut ArrayBase<impl DataMut<Elem = F>, Ix1>,
+) -> Array2<F> {
+    let mut centroids = old_centroids.to_owned();
+    // We can parallelize this
+    Zip::from(observations.genrows())
+        .and(cluster_memberships)
+        .apply(|obs, &c| {
+            // Computes centroids[c] += (observation - centroids[c]) / counts[c]
+            // If cluster is empty for this batch, then this wouldn't even be called, so no
+            // chance of getting NaN.
+            counts[c] += F::one();
+            let shift = (&obs - &centroids.row(c)) / counts[c];
+            let mut centroid = centroids.row_mut(c);
+            centroid += &shift;
+        });
+    centroids
+}
+
+// Update `cluster_memberships` with the index of the cluster each observation belongs to.
 pub(crate) fn update_cluster_memberships<F: Float>(
     centroids: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
     observations: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
@@ -334,7 +515,7 @@ pub(crate) fn update_cluster_memberships<F: Float>(
         });
 }
 
-/// Updates `dists` with the number of distance of each observation from its closest centroid.
+// Updates `dists` with the distance of each observation from its closest centroid.
 pub(crate) fn update_min_dists<F: Float>(
     centroids: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
     observations: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
@@ -345,6 +526,23 @@ pub(crate) fn update_min_dists<F: Float>(
         .par_apply(|observation, dist| *dist = closest_centroid(&centroids, &observation).1);
 }
 
+// Efficient combination of `update_cluster_memberships` and `update_min_dists`.
+pub(crate) fn update_memberships_and_dists<F: Float>(
+    centroids: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
+    observations: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
+    cluster_memberships: &mut ArrayBase<impl DataMut<Elem = usize>, Ix1>,
+    dists: &mut ArrayBase<impl DataMut<Elem = F>, Ix1>,
+) {
+    Zip::from(observations.axis_iter(Axis(0)))
+        .and(cluster_memberships)
+        .and(dists)
+        .par_apply(|observation, cluster_membership, dist| {
+            let (m, d) = closest_centroid(&centroids, &observation);
+            *cluster_membership = m;
+            *dist = d;
+        });
+}
+
 /// Given a matrix of centroids with shape (n_centroids, n_features)
 /// and a matrix of observations with shape (n_observations, n_features),
 /// return a 1-dimensional `membership` array such that:
@@ -353,13 +551,13 @@ pub(crate) fn update_min_dists<F: Float>(
 ///
 fn compute_cluster_memberships<F: Float>(
     // (n_centroids, n_features)
-    centroids: &ArrayBase<impl Data<Elem = F>, Ix2>,
+    centroids: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
     // (n_observations, n_features)
-    observations: &ArrayBase<impl Data<Elem = F>, Ix2>,
+    observations: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
 ) -> Array1<usize> {
-    observations.map_axis(Axis(1), |observation| {
-        closest_centroid(&centroids, &observation).0
-    })
+    let mut memberships = Array1::zeros(observations.nrows());
+    update_cluster_memberships(&centroids, &observations, &mut memberships);
+    memberships
 }
 
 /// Given a matrix of centroids with shape (n_centroids, n_features) and an observation,
@@ -397,7 +595,7 @@ mod tests {
     use super::super::KMeansInit;
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::{array, stack, Array, Array1, Array2, Axis};
+    use ndarray::{array, concatenate, Array, Array1, Array2, Axis};
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::Uniform;
     use ndarray_rand::RandomExt;
@@ -421,7 +619,7 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(42);
         let xt = Array::random_using(100, Uniform::new(0., 1.0), &mut rng).insert_axis(Axis(1));
         let yt = function_test_1d(&xt);
-        let data = stack(Axis(1), &[xt.view(), yt.view()]).unwrap();
+        let data = concatenate(Axis(1), &[xt.view(), yt.view()]).unwrap();
 
         for init in &[
             KMeansInit::Random,
@@ -437,8 +635,7 @@ mod tests {
                 .expect("KMeans fitted");
             let clusters = model.predict(dataset);
             let inertia = compute_inertia(model.centroids(), &clusters.records, &clusters.targets);
-            let total_dist = model.transform(clusters.records.view()).sum();
-            assert_eq!(model.iter_count().len(), 1);
+            let total_dist = model.transform(&clusters.records.view()).sum();
             assert_abs_diff_eq!(inertia, total_dist);
 
             // Second clustering with 10 iterations (default)
@@ -450,12 +647,13 @@ mod tests {
             let clusters2 = model2.predict(dataset2);
             let inertia2 =
                 compute_inertia(model2.centroids(), &clusters2.records, &clusters2.targets);
-            let total_dist2 = model2.transform(clusters2.records.view()).sum();
-            assert_eq!(model2.iter_count().len(), 10);
+            let total_dist2 = model2.transform(&clusters2.records.view()).sum();
             assert_abs_diff_eq!(inertia2, total_dist2);
 
-            // Check we improve inertia
-            assert!(inertia2 <= inertia);
+            // Check we improve inertia (only really makes a difference for random init)
+            if *init == KMeansInit::Random {
+                assert!(inertia2 <= inertia);
+            }
         }
     }
 
@@ -475,9 +673,10 @@ mod tests {
         let memberships_2 = Array1::ones(cluster_size);
         let expected_centroid_2 = cluster_2.sum_axis(Axis(0)) / (cluster_size + 1) as f64;
 
-        // `stack` combines arrays along a given axis: https://docs.rs/ndarray/0.13.0/ndarray/fn.stack.html
-        let observations = stack(Axis(0), &[cluster_1.view(), cluster_2.view()]).unwrap();
-        let memberships = stack(Axis(0), &[memberships_1.view(), memberships_2.view()]).unwrap();
+        // `concatenate` combines arrays along a given axis: https://docs.rs/ndarray/0.13.0/ndarray/fn.concatenate.html
+        let observations = concatenate(Axis(0), &[cluster_1.view(), cluster_2.view()]).unwrap();
+        let memberships =
+            concatenate(Axis(0), &[memberships_1.view(), memberships_2.view()]).unwrap();
 
         // Does it work?
         let old_centroids = Array2::zeros((2, n_features));
@@ -535,5 +734,42 @@ mod tests {
             compute_cluster_memberships(&centroids, &observations),
             memberships
         );
+    }
+
+    #[test]
+    fn test_compute_centroids_incremental() {
+        let observations = array![[-1.0, -3.0], [0., 0.], [3., 5.], [5., 5.]];
+        let memberships = array![0, 0, 1, 1];
+        let centroids = array![[-1., -1.], [3., 4.], [7., 8.]];
+        let mut counts = array![3.0, 0.0, 1.0];
+        let centroids =
+            compute_centroids_incremental(&observations, &memberships, &centroids, &mut counts);
+
+        assert_abs_diff_eq!(centroids, array![[-4. / 5., -6. / 5.], [4., 5.], [7., 8.]]);
+        assert_abs_diff_eq!(counts, array![5., 2., 1.]);
+    }
+
+    #[test]
+    fn test_incremental_kmeans() {
+        let dataset1 = DatasetBase::from(array![[-1.0, -3.0], [0., 0.], [3., 5.], [5., 5.]]);
+        let dataset2 = DatasetBase::from(array![[-5.0, -5.0], [0., 0.], [10., 10.]]);
+        let model = KMeans {
+            centroids: array![[-1., -1.], [3., 4.], [7., 8.]],
+            cluster_count: array![0., 0., 0.],
+            inertia: 0.0,
+        };
+        let rng = Isaac64Rng::seed_from_u64(45);
+        let params = KMeans::params_with_rng(3, rng).tolerance(100.0).build();
+
+        let (model, converged) = params.fit_with(Some(model), &dataset1);
+        assert_abs_diff_eq!(model.centroids(), &array![[-0.5, -1.5], [4., 5.], [7., 8.]]);
+        assert!(converged);
+
+        let (model, converged) = params.fit_with(Some(model), &dataset2);
+        assert_abs_diff_eq!(
+            model.centroids(),
+            &array![[-6. / 4., -8. / 4.], [4., 5.], [10., 10.]]
+        );
+        assert!(converged);
     }
 }

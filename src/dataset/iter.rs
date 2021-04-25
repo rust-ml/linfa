@@ -106,6 +106,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct ChunksIter<'a, 'b: 'a, F: Float, T> {
     records: ArrayView2<'a, F>,
     targets: &'a T,

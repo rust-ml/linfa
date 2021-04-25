@@ -10,9 +10,11 @@ use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 /// Specifies centroid initialization algorithm for KMeans.
-pub enum KMeansInit {
+pub enum KMeansInit<F: Float> {
     /// Pick random points as centroids.
     Random,
+    /// Precomputed list of centroids, represented as an array of (n_centroids, n_features).
+    Precomputed(Array2<F>),
     /// K-means++ algorithm. Using this over random initialization causes K-means to converge
     /// faster for almost all cases, since K-means++ produces better centroids.
     KMeansPlusPlus,
@@ -23,9 +25,9 @@ pub enum KMeansInit {
     KMeansPara,
 }
 
-impl KMeansInit {
+impl<F: Float> KMeansInit<F> {
     /// Runs the chosen initialization routine
-    pub(crate) fn run<R: Rng + SeedableRng, F: Float>(
+    pub(crate) fn run<R: Rng + SeedableRng>(
         &self,
         n_clusters: usize,
         observations: ArrayView2<F>,
@@ -35,6 +37,12 @@ impl KMeansInit {
             Self::Random => random_init(n_clusters, observations, rng),
             Self::KMeansPlusPlus => k_means_plusplus(n_clusters, observations, rng),
             Self::KMeansPara => k_means_para(n_clusters, observations, rng),
+            Self::Precomputed(centroids) => {
+                // Check centroid dimensions
+                assert_eq!(centroids.nrows(), n_clusters);
+                assert_eq!(centroids.ncols(), observations.ncols());
+                centroids.clone()
+            }
         }
     }
 }
@@ -127,7 +135,7 @@ fn k_means_para<R: Rng + SeedableRng, F: Float>(
     let mut candidates = Array2::zeros((n_clusters * n_rounds, n_features));
 
     // Pick 1st centroid randomly
-    let first_idx = rng.gen_range(0, n_samples);
+    let first_idx = rng.gen_range(0..n_samples);
     candidates.row_mut(0).assign(&observations.row(first_idx));
     let mut n_candidates = 1;
 
@@ -141,7 +149,7 @@ fn k_means_para<R: Rng + SeedableRng, F: Float>(
         let next_candidates_idx = sample_subsequent_candidates::<R, _>(
             &dists,
             F::from(candidates_per_round).unwrap(),
-            rng.gen_range(0, std::u64::MAX),
+            rng.gen_range(0..std::u64::MAX),
         );
 
         // Append the newly generated candidates to the current cadidates, breaking out of the loop
@@ -191,7 +199,7 @@ fn sample_subsequent_candidates<R: Rng + SeedableRng, F: Float>(
             || R::seed_from_u64(seed.fetch_add(1, Relaxed)),
             move |rng, (i, d)| {
                 let d = *d.into_scalar();
-                let rand = F::from(rng.gen_range(0.0, 1.0)).unwrap();
+                let rand = F::from(rng.gen_range(0.0..1.0)).unwrap();
                 let prob = multiplier * d / cost;
                 (i, rand, prob)
             },
@@ -219,13 +227,21 @@ mod tests {
     use super::super::algorithm::{compute_inertia, update_cluster_memberships};
     use super::*;
     use approx::{abs_diff_eq, assert_abs_diff_eq, assert_abs_diff_ne};
-    use ndarray::{array, stack, Array};
+    use ndarray::{array, concatenate, Array};
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::Normal;
     use ndarray_rand::RandomExt;
     use rand_isaac::Isaac64Rng;
     use std::collections::HashSet;
 
+    #[test]
+    fn test_precomputed() {
+        let mut rng = Isaac64Rng::seed_from_u64(40);
+        let centroids = array![[0.0, 1.0], [40.0, 10.0]];
+        let observations = array![[3.0, 4.0], [1.0, 3.0], [25.0, 15.0]];
+        let c = KMeansInit::Precomputed(centroids.clone()).run(2, observations.view(), &mut rng);
+        assert_abs_diff_eq!(c, centroids);
+    }
     #[test]
     fn test_min_dists() {
         let centroids = array![[0.0, 1.0], [40.0, 10.0]];
@@ -237,12 +253,9 @@ mod tests {
 
     #[test]
     fn test_sample_subsequent_candidates() {
-        let observations = array![[3.0, 4.0], [1.0, 3.0], [25.0, 15.0]];
-        let dists = array![0.1, 0.4, 0.5];
-        let candidates = sample_subsequent_candidates::<Isaac64Rng, _>(&dists, 4.0, 0);
-        assert_eq!(candidates.len(), 2);
-        assert_abs_diff_eq!(observations.row(candidates[0]), observations.row(1));
-        assert_abs_diff_eq!(observations.row(candidates[1]), observations.row(2));
+        let dists = array![0.0, 0.4, 0.5];
+        let candidates = sample_subsequent_candidates::<Isaac64Rng, _>(&dists, 8.0, 0);
+        assert_eq!(candidates, vec![1, 2]);
     }
 
     #[test]
@@ -286,12 +299,12 @@ mod tests {
     }
 
     // Run general tests for a given init algorithm
-    fn verify_init(init: KMeansInit) {
+    fn verify_init(init: KMeansInit<f64>) {
         let mut rng = Isaac64Rng::seed_from_u64(42);
         // Make sure we don't panic on degenerate data (n_clusters > n_samples)
         let degenerate_data = array![[1.0, 2.0]];
         let out = init.run(2, degenerate_data.view(), &mut rng);
-        assert_abs_diff_eq!(out, stack![Axis(0), degenerate_data, degenerate_data]);
+        assert_abs_diff_eq!(out, concatenate![Axis(0), degenerate_data, degenerate_data]);
 
         // Build 3 separated clusters of points
         let centroids = [20.0, -1000.0, 1000.0];
@@ -300,7 +313,7 @@ mod tests {
             .map(|&c| Array::random_using((50, 2), Normal::new(c, 1.).unwrap(), &mut rng))
             .collect();
         let obs = clusters.iter().fold(Array2::default((0, 2)), |a, b| {
-            stack(Axis(0), &[a.view(), b.view()]).unwrap()
+            concatenate(Axis(0), &[a.view(), b.view()]).unwrap()
         });
 
         // Look for the right number of centroids
@@ -337,7 +350,7 @@ mod tests {
             .map(|&c| Array::random_using((50, 2), Normal::new(c, 1.).unwrap(), &mut rng))
             .collect();
         let obs = clusters.iter().fold(Array2::default((0, 2)), |a, b| {
-            stack(Axis(0), &[a.view(), b.view()]).unwrap()
+            concatenate(Axis(0), &[a.view(), b.view()]).unwrap()
         });
 
         let out_rand = random_init(3, obs.view(), &mut rng.clone());

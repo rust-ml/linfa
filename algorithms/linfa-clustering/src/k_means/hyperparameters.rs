@@ -27,7 +27,7 @@ pub struct KMeansHyperParams<F: Float, R: Rng> {
     /// The number of clusters we will be looking for in the training dataset.
     n_clusters: usize,
     /// The initialization strategy used to initialize the centroids.
-    init: KMeansInit,
+    init: KMeansInit<F>,
     /// The random number generator
     rng: R,
 }
@@ -39,7 +39,7 @@ pub struct KMeansHyperParamsBuilder<F: Float, R: Rng> {
     tolerance: F,
     max_n_iterations: u64,
     n_clusters: usize,
-    init: KMeansInit,
+    init: KMeansInit<F>,
     rng: R,
 }
 
@@ -47,7 +47,9 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParamsBuilder<F, R> {
     /// Set the value of `n_runs`.
     ///
     /// The final results will be the best output of n_runs consecutive runs in terms of inertia
-    /// (sum of squared distances to the closest centroid for all observations in the training set)
+    /// (sum of squared distances to the closest centroid for all observations in the training
+    /// set).  For incremental K-means, only the initialization algorithm will be run multiple
+    /// times to pick the best starting centroids.
     pub fn n_runs(mut self, n_runs: usize) -> Self {
         self.n_runs = n_runs;
         self
@@ -57,7 +59,7 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParamsBuilder<F, R> {
     ///
     /// We exit the training loop when the number of training iterations
     /// exceeds `max_n_iterations` even if the `tolerance` convergence
-    /// condition has not been met.
+    /// condition has not been met. Not used when training incrementally.
     pub fn max_n_iterations(mut self, max_n_iterations: u64) -> Self {
         self.max_n_iterations = max_n_iterations;
         self
@@ -77,7 +79,7 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParamsBuilder<F, R> {
     ///
     /// The initialization method is the function that determines the initial values of the cluster
     /// centroids before the iterative training process. The default value is `KMeansPlusPlus`.
-    pub fn init_method(mut self, init: KMeansInit) -> Self {
+    pub fn init_method(mut self, init: KMeansInit<F>) -> Self {
         self.init = init;
         self
     }
@@ -86,14 +88,14 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParamsBuilder<F, R> {
     /// having performed validation checks on all the specified hyperparameters.
     ///
     /// **Panics** if any of the validation checks fails.
-    pub fn build(&self) -> KMeansHyperParams<F, R> {
+    pub fn build(self) -> KMeansHyperParams<F, R> {
         KMeansHyperParams::build(
             self.n_clusters,
             self.n_runs,
             self.tolerance,
             self.max_n_iterations,
-            self.init.clone(),
-            self.rng.clone(),
+            self.init,
+            self.rng,
         )
     }
 }
@@ -160,7 +162,7 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParams<F, R> {
     }
 
     /// Cluster initialization strategy
-    pub fn init(&self) -> &KMeansInit {
+    pub fn init_method(&self) -> &KMeansInit<F> {
         &self.init
     }
 
@@ -174,7 +176,7 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParams<F, R> {
         n_runs: usize,
         tolerance: F,
         max_n_iterations: u64,
-        init: KMeansInit,
+        init: KMeansInit<F>,
         rng: R,
     ) -> Self {
         if n_runs == 0 {

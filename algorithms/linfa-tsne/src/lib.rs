@@ -215,7 +215,7 @@ mod tests {
     #[test]
     fn blob_separate() -> Result<()> {
         let mut rng = SmallRng::seed_from_u64(42);
-        let entries: Array2<f64> = ndarray::stack(
+        let entries: Array2<f64> = ndarray::concatenate(
             Axis(0),
             &[
                 Array::random_using((100, 2), Normal::new(-10., 0.5).unwrap(), &mut rng).view(),

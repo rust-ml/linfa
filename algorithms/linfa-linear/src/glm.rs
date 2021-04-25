@@ -11,7 +11,7 @@ pub use link::Link;
 use argmin::core::{ArgminOp, Executor};
 use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::LBFGS;
-use ndarray::{array, s, stack};
+use ndarray::{array, concatenate, s};
 use ndarray::{Array, Array1, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
 use serde::{Deserialize, Serialize};
 
@@ -161,7 +161,7 @@ impl<A: Float, D: Data<Elem = A>, T: AsTargets<Elem = A>> Fit<'_, ArrayBase<D, I
         let mut coef = Array::zeros(x.ncols());
         if self.fit_intercept {
             let temp = link.link(&array![y.mean().unwrap()]);
-            coef = stack!(Axis(0), temp, coef);
+            coef = concatenate!(Axis(0), temp, coef);
         }
 
         // Constructing a struct that satisfies the requirements of the L-BFGS solver
@@ -271,7 +271,7 @@ impl<'a, A: Float> ArgminOp for TweedieProblem<'a, A> {
         let der = self.link.inverse_derviative(&lin_pred);
         let temp = der * self.dist.deviance_derivative(self.y, ypred.view());
         if self.fit_intercept {
-            devp = stack![Axis(0), array![temp.sum()], temp.dot(&self.x)];
+            devp = concatenate![Axis(0), array![temp.sum()], temp.dot(&self.x)];
         } else {
             devp = temp.dot(&self.x);
         }

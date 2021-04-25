@@ -51,10 +51,10 @@ fn main() {
 
     // Save to disk our dataset (and the cluster label assigned to each observation)
     // We use the `npy` format for compatibility with NumPy
-    write_npy("clustered_dataset.npy", records).expect("Failed to write .npy file");
+    write_npy("clustered_dataset.npy", &records).expect("Failed to write .npy file");
     write_npy(
         "clustered_memberships.npy",
-        cluster_memberships.map(|&x| x.map(|c| c as i64).unwrap_or(-1)),
+        &cluster_memberships.map(|&x| x.map(|c| c as i64).unwrap_or(-1)),
     )
     .expect("Failed to write .npy file");
 }
