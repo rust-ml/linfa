@@ -36,7 +36,7 @@ num-traits = "0.2"
 rand_isaac = "0.3"
 partitions = "0.2.4"
 
-linfa = { version = "0.3.1", path = "../.." }
+linfa = { version = "0.3.1", path = "../..", features = ["ndarray-linalg"] }
 
 [dev-dependencies]
 ndarray-npy = { version = "0.7", default-features = false }
