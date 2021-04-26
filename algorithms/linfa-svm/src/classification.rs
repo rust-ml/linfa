@@ -215,7 +215,7 @@ macro_rules! impl_classification {
                 let target = dataset.try_single_target()?;
                 let target = target.as_slice().unwrap();
 
-                let ret: Self::Object = match (self.c, self.nu) {
+                let ret = match (self.c, self.nu) {
                     (Some((c_p, c_n)), _) => fit_c(
                         self.solver_params.clone(),
                         dataset.records().view(),
@@ -238,10 +238,10 @@ macro_rules! impl_classification {
             }
         }
 
-        impl<'a, F: Float> Fit<'a, $records, $targets> for SvmParams<F, bool> {
-            type Object = Result<Svm<F, bool>>;
+        impl<F: Float> Fit<$records, $targets, SvmResult> for SvmParams<F, bool> {
+            type Object = Svm<F, bool>;
 
-            fn fit(&self, dataset: &DatasetBase<$records, $targets>) -> Self::Object {
+            fn fit(&self, dataset: &DatasetBase<$records, $targets>) -> Result<Self::Object> {
                 let kernel = self.kernel.transform(dataset.records());
                 let target = dataset.try_single_target()?;
                 let target = target.as_slice().unwrap();
@@ -274,6 +274,7 @@ macro_rules! impl_classification {
 impl_classification!(Array2<F>, Array2<bool>);
 impl_classification!(ArrayView2<'_, F>, ArrayView2<'_, bool>);
 impl_classification!(Array2<F>, CountedTargets<bool, Array2<bool>>);
+impl_classification!(ArrayView2<'_, F>, CountedTargets<bool, Array2<bool>>);
 impl_classification!(ArrayView2<'_, F>, CountedTargets<bool, ArrayView2<'_, bool>>);
 
 /// Fit one-class problem
@@ -283,7 +284,7 @@ impl_classification!(ArrayView2<'_, F>, CountedTargets<bool, ArrayView2<'_, bool
 macro_rules! impl_oneclass {
     ($records:ty, $targets:ty) => {
         impl<F: Float> Fit<$records, $targets, SvmResult> for SvmParams<F, Pr> {
-            type Object = Svm<F, Pr>;
+            type Object = Svm<F, bool>;
 
             fn fit(&self, dataset: &DatasetBase<$records, $targets>) -> Result<Self::Object> {
                 let kernel = self.kernel.transform(dataset.records());

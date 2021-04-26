@@ -118,11 +118,11 @@ pub fn fit_nu<F: Float>(
 ///
 /// Take a number of observations and project them to optimal continuous targets.
 macro_rules! impl_regression {
-    ($records:ty, $targets:ty) => {
-        impl<F: Float> Fit<$records, $targets, SvmResult> for SvmParams<F, F> {
-            type Object = Svm<F, F>;
+    ($records:ty, $targets:ty, $f:ty) => {
+        impl Fit<$records, $targets, SvmResult> for SvmParams<$f, $f> {
+            type Object = Svm<$f, $f>;
 
-            fn fit(&self, dataset: &DatasetBase<$records, $targets>) -> Result<Svm<F, F>> {
+            fn fit(&self, dataset: &DatasetBase<$records, $targets>) -> Result<Self::Object> {
                 let kernel = self.kernel.transform(dataset.records());
                 let target = dataset.try_single_target()?;
                 let target = target.as_slice().unwrap();
@@ -153,10 +153,14 @@ macro_rules! impl_regression {
     };
 }
 
-impl_regression!(Array2<F>, Array2<F>);
-impl_regression!(ArrayView2<'_, F>, ArrayView2<'_, F>);
-impl_regression!(Array2<F>, Array1<F>);
-impl_regression!(ArrayView2<'_, F>, ArrayView1<'_, F>);
+impl_regression!(Array2<f32>, Array2<f32>, f32);
+impl_regression!(Array2<f64>, Array2<f64>, f64);
+impl_regression!(ArrayView2<'_, f32>, ArrayView2<'_, f32>, f32);
+impl_regression!(ArrayView2<'_, f64>, ArrayView2<'_, f64>, f64);
+impl_regression!(Array2<f32>, Array1<f32>, f32);
+impl_regression!(Array2<f64>, Array1<f64>, f64);
+impl_regression!(ArrayView2<'_, f32>, ArrayView1<'_, f32>, f32);
+impl_regression!(ArrayView2<'_, f64>, ArrayView1<'_, f64>, f64);
 
 macro_rules! impl_predict {
     ( $($t:ty),* ) => {
