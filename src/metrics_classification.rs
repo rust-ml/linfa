@@ -490,7 +490,7 @@ mod tests {
     use super::{BinaryClassification, ConfusionMatrix, ToConfusionMatrix};
     //use crate::dataset::CountedTargets;
     use super::{Label, /*DatasetBase,*/ Pr};
-    use approx::{assert_abs_diff_eq};
+    use approx::assert_abs_diff_eq;
     use ndarray::{
         array, Array1, /* Axis*/ Array2,
         /*ArrayBase,*/ ArrayView1, /*, Data, Dimension*/

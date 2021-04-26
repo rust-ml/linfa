@@ -31,7 +31,6 @@ mod iter;
 mod lapack_bounds;
 pub use lapack_bounds::*;
 
-
 /// Floating point numbers
 ///
 /// This trait bound multiplexes to the most common assumption of floating point number and
