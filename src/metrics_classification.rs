@@ -10,7 +10,7 @@ use ndarray::prelude::*;
 use ndarray::Data;
 
 use crate::dataset::{AsTargets, DatasetBase, Label, Labels, Pr, Records};
-use crate::error::Result;
+use crate::error::{Error, Result};
 
 /// Return tuple of class index for each element of prediction and ground_truth
 fn map_prediction_to_idx<L: Label>(
@@ -277,10 +277,15 @@ where
     T: AsTargets<Elem = L> + Labels<Elem = L>,
 {
     fn confusion_matrix(&self, ground_truth: &ArrayBase<S, Ix1>) -> Result<ConfusionMatrix<L>> {
+        let targets = self.try_single_target()?;
+        if targets.len() != ground_truth.len() {
+            return Err(Error::MismatchedShapes(targets.len(), ground_truth.len()));
+        }
+
         let classes = self.labels();
 
         let indices = map_prediction_to_idx(
-            &self.try_single_target()?.as_slice().unwrap(),
+            targets.as_slice().unwrap(),
             &ground_truth.as_slice().unwrap(),
             &classes,
         );
@@ -488,13 +493,9 @@ impl<R: Records, R2: Records, T: AsTargets<Elem = bool>, T2: AsTargets<Elem = Pr
 #[cfg(test)]
 mod tests {
     use super::{BinaryClassification, ConfusionMatrix, ToConfusionMatrix};
-    //use crate::dataset::CountedTargets;
-    use super::{Label, /*DatasetBase,*/ Pr};
+    use super::{Label, Pr};
     use approx::assert_abs_diff_eq;
-    use ndarray::{
-        array, Array1, /* Axis*/ Array2,
-        /*ArrayBase,*/ ArrayView1, /*, Data, Dimension*/
-    };
+    use ndarray::{array, Array1, Array2, ArrayView1};
     use rand::{distributions::Uniform, rngs::SmallRng, Rng, SeedableRng};
     use std::collections::HashMap;
 
@@ -506,7 +507,7 @@ mod tests {
             .collect()
     }
 
-    // confusion mtrices use hash sets for the labels to pair so
+    // confusion matrices use hash sets for the labels to pair so
     // the order of the rows of the matrices is not constant.
     // we can transform the index->member mapping in `cm.members`
     // into a member->index mapping to check each element independently
@@ -591,30 +592,6 @@ mod tests {
             &labels,
         );
     }
-
-    /*#[test]
-    fn test_modification() {
-        let predicted = array![0, 3, 2, 0, 1, 1, 1, 3, 2, 3];
-
-        let ground_truth : DatasetBase<Array2<f64>, CountedTargets<usize, Array2<usize>>> =
-            DatasetBase::new(array![[0.,0.]], array![0, 2, 3, 0, 1, 2, 1, 2, 3, 2].insert_axis(Axis(1))).with_labels(&[&[0],&[1],&[2]]]);
-
-        // exclude class 3 from evaluation
-        let cm = predicted.confusion_matrix(&ground_truth).unwrap();
-        println!("cm {:?}",cm);
-
-        assert_eq_slice(cm.matrix, &[2., 0., 0., 0., 2., 1., 0., 0., 0.]);
-
-        // weight errors in class 2 more severe and exclude class 1
-        let ground_truth = ground_truth
-            .with_weights(array![1., 2., 1., 1., 1., 2., 1., 2., 1., 2.])
-            .with_labels(&[&[0], &[2], &[3]]);
-
-        let cm = predicted.confusion_matrix(&ground_truth).unwrap();
-
-        // the false-positive error for label=2 is twice severe here
-        assert_eq_slice(cm.matrix, &[2., 0., 0., 0., 0., 4., 0., 3., 0.]);
-    }*/
 
     #[test]
     fn test_roc_curve() {
