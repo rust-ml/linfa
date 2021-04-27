@@ -165,9 +165,14 @@ where
     D: Data<Elem = F>,
     T: AsTargets<Elem = L>,
 {
+    /// Transforms the input dataset by keeping only those samples whose label appears in `labels`.
+    ///
+    /// In the multi-target case a sample is kept if *any* of its targets appears in `labels`.
+    ///
+    /// Sample weights and feature names are preserved by this transformation.
     pub fn with_labels(
         &self,
-        labels: &[&[L]],
+        labels: &[L],
     ) -> DatasetBase<Array2<F>, CountedTargets<L, Array2<L>>> {
         let targets = self.targets.as_multi_targets();
         let old_weights = self.weights();
@@ -185,7 +190,7 @@ where
             .zip(targets.genrows().into_iter())
             .enumerate()
         {
-            let any_exists = t.iter().zip(labels.iter()).any(|(a, b)| b.contains(&a));
+            let any_exists = t.iter().any(|a| labels.contains(&a));
 
             if any_exists {
                 for (map, val) in map.iter_mut().zip(t.iter()) {

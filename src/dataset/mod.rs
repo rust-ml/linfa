@@ -284,6 +284,7 @@ pub trait Labels {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use approx::assert_abs_diff_eq;
     use ndarray::{array, Array1, Array2};
     use rand::{rngs::SmallRng, SeedableRng};
 
@@ -754,5 +755,121 @@ mod tests {
             })
             .unwrap_err();
         assert_eq!(err.to_string(), "invalid parameter eval".to_string());
+    }
+
+    #[test]
+    fn test_with_labels_st() {
+        let records = array![
+            [0., 1.],
+            [1., 2.],
+            [2., 3.],
+            [0., 4.],
+            [1., 5.],
+            [2., 6.],
+            [0., 7.],
+            [1., 8.],
+            [2., 9.],
+            [0., 10.]
+        ];
+        let targets = array![0, 1, 2, 0, 1, 2, 0, 1, 2, 0].insert_axis(Axis(1));
+        let dataset = DatasetBase::from((records, targets));
+        assert_eq!(dataset.nsamples(), 10);
+        assert_eq!(dataset.ntargets(), 1);
+        let dataset_no_0 = dataset.with_labels(&[1, 2]);
+        assert_eq!(dataset_no_0.nsamples(), 6);
+        assert_eq!(dataset_no_0.ntargets(), 1);
+        assert_abs_diff_eq!(
+            dataset_no_0.records,
+            array![[1., 2.], [2., 3.], [1., 5.], [2., 6.], [1., 8.], [2., 9.]]
+        );
+        assert_abs_diff_eq!(
+            dataset_no_0.try_single_target().unwrap(),
+            array![1, 2, 1, 2, 1, 2]
+        );
+        let dataset_no_1 = dataset.with_labels(&[0, 2]);
+        assert_eq!(dataset_no_1.nsamples(), 7);
+        assert_eq!(dataset_no_1.ntargets(), 1);
+        assert_abs_diff_eq!(
+            dataset_no_1.records,
+            array![
+                [0., 1.],
+                [2., 3.],
+                [0., 4.],
+                [2., 6.],
+                [0., 7.],
+                [2., 9.],
+                [0., 10.]
+            ]
+        );
+        assert_abs_diff_eq!(
+            dataset_no_1.try_single_target().unwrap(),
+            array![0, 2, 0, 2, 0, 2, 0]
+        );
+        let dataset_no_2 = dataset.with_labels(&[0, 1]);
+        assert_eq!(dataset_no_2.nsamples(), 7);
+        assert_eq!(dataset_no_2.ntargets(), 1);
+        assert_abs_diff_eq!(
+            dataset_no_2.records,
+            array![
+                [0., 1.],
+                [1., 2.],
+                [0., 4.],
+                [1., 5.],
+                [0., 7.],
+                [1., 8.],
+                [0., 10.]
+            ]
+        );
+        assert_abs_diff_eq!(
+            dataset_no_2.try_single_target().unwrap(),
+            array![0, 1, 0, 1, 0, 1, 0]
+        );
+    }
+
+    #[test]
+    fn test_with_labels_mt() {
+        let records = array![
+            [0., 1.],
+            [1., 2.],
+            [2., 3.],
+            [0., 4.],
+            [1., 5.],
+            [2., 6.],
+            [0., 7.],
+            [1., 8.],
+            [2., 9.],
+            [0., 10.]
+        ];
+        let targets = array![
+            [0, 7],
+            [1, 8],
+            [2, 9],
+            [0, 7],
+            [1, 8],
+            [2, 9],
+            [0, 7],
+            [1, 8],
+            [2, 9],
+            [0, 7]
+        ];
+        let dataset = DatasetBase::from((records, targets));
+        assert_eq!(dataset.nsamples(), 10);
+        assert_eq!(dataset.ntargets(), 2);
+        // remove 0 from target 1 and 7 from target 2
+        let dataset_no_07 = dataset.with_labels(&[1, 2, 8, 9]);
+        assert_eq!(dataset_no_07.nsamples(), 6);
+        assert_eq!(dataset_no_07.ntargets(), 2);
+        assert_abs_diff_eq!(
+            dataset_no_07.records,
+            array![[1., 2.], [2., 3.], [1., 5.], [2., 6.], [1., 8.], [2., 9.]]
+        );
+        assert_abs_diff_eq!(
+            dataset_no_07.as_multi_targets(),
+            array![[1, 8], [2, 9], [1, 8], [2, 9], [1, 8], [2, 9]]
+        );
+        // remove label 1 from target 1 and label 7 from target 2: with labels is an "any" so all targets should be kept
+        let dataset_no_17 = dataset.with_labels(&[0, 2, 8, 9]);
+        assert_eq!(dataset_no_17.nsamples(), 10);
+        assert_eq!(dataset_no_17.ntargets(), 2);
     }
 }
