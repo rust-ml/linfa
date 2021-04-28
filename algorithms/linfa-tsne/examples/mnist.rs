@@ -11,7 +11,9 @@ fn main() -> Result<()> {
     let (trn_size, rows, cols) = (50_000usize, 28, 28);
 
     // download and extract it into a dataset
-    let Mnist { images, labels, .. } = MnistBuilder::new()
+    let Mnist {
+        trn_img, trn_lbl, ..
+    } = MnistBuilder::new()
         .label_format_digit()
         .training_set_length(trn_size as u32)
         .download_and_extract()
@@ -19,12 +21,16 @@ fn main() -> Result<()> {
 
     // create a dataset from it
     let ds = Dataset::new(
-        Array::from_shape_vec((trn_size, rows * cols), images)?.mapv(|x| (x as f64) / 255.),
-        Array::from_shape_vec((trn_size, 1), labels)?,
+        Array::from_shape_vec((trn_size, rows * cols), trn_img)?.mapv(|x| (x as f64) / 255.),
+        Array::from_shape_vec((trn_size, 1), trn_lbl)?,
     );
 
     // reduce to 50 dimension without whitening
-    let ds = Pca::params(50).whiten(false).fit(&ds).transform(ds);
+    let ds = Pca::params(50)
+        .whiten(false)
+        .fit(&ds)
+        .unwrap()
+        .transform(ds);
 
     // calculate a two-dimensional embedding with Barnes-Hut t-SNE
     let ds = TSne::embedding_size(2)
