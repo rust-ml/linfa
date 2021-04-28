@@ -9,7 +9,7 @@ Linfa's 0.4.0 release introduced four new algorithms, improved documentation of 
 
 ## New algorithms
 
-The [Partial Least Squares Regression](https://en.wikipedia.org/wiki/Partial_least_squares_regression) model family is added in this release. It projects the observable, as well as predicted variables to a latent space and maximizes the correlation in it. For problems with a large number of targets or collinear predictors it gives a better performance when compared to standard regression. For more information look into the documentation of `linfa-psa`.
+The [Partial Least Squares Regression](https://en.wikipedia.org/wiki/Partial_least_squares_regression) model family is added in this release. It projects the observable, as well as predicted variables to a latent space and maximizes the correlation in it. For problems with a large number of targets or collinear predictors it gives a better performance when compared to standard regression. For more information look into the documentation of `linfa-pls`.
 
 A wrapper for Barnes-Hut t-SNE is also added in this release. The t-SNE algorithm is often used for data visualization and projects data in a high-dimensional space to a similar representation in two/three dimension. It does so by maximizing the Kullback-Leibler Divergence between the high dimensional source distribution to the target distribution. The Barnes-Hut approximation improves the runtime drastically while retaining the performance. Kudos to [github/frjnn](https://github.com/frjnn/) for providing an implementation!
 
