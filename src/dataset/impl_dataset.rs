@@ -879,14 +879,18 @@ where
     ///
     /// - `k`: the number of folds to apply
     /// - `parameters`: a list of models to compare
-    /// - `eval`: closure used to evaluate the performance of each trained model
+    /// - `eval`: closure used to evaluate the performance of each trained model. For single target
+    ///    datasets, this closure is called once for each fold.
+    ///    For multi-target datasets the closure is called, in each fold, once for every different target.
+    ///    If there is the need to use different evaluations for each target, take a look at the
+    ///    [`cross_validate_multi`](struct.DatasetBase.html#method.cross_validate_multi) method.
     ///
     /// ### Returns
     ///
-    /// An array of model performances, in the same order as the models in input, if no errors occur.
-    /// Otherwise, it might return an Error in one of the following cases:
+    /// On succesful evalutation it returns an array of model performances, in the same order as the models in input.
     ///
-    /// - The dataset is not single target
+    /// It returns an Error in one of the following cases:
+    ///
     /// - An error occurred during the fitting of one model
     /// - An error occurred inside the evaluation closure
     ///
