@@ -89,8 +89,8 @@ pub fn svd_flip_1d<F: Float>(
 }
 
 pub fn svd_flip<F: Float>(
-    u: &ArrayBase<impl Data<Elem = F>, Ix2>,
-    v: &ArrayBase<impl Data<Elem = F>, Ix2>,
+    u: ArrayBase<impl Data<Elem = F>, Ix2>,
+    v: ArrayBase<impl Data<Elem = F>, Ix2>,
 ) -> (Array2<F>, Array2<F>) {
     // columns of u, rows of v
     let abs_u = u.mapv(|v| v.abs());
@@ -101,7 +101,7 @@ pub fn svd_flip<F: Float>(
         .and(&max_abs_val_indices)
         .and(&range)
         .apply(|s, &i, &j| *s = u[[i, j]].signum());
-    (u * &signs, v * &signs.insert_axis(Axis(1)))
+    (&u * &signs, &v * &signs.insert_axis(Axis(1)))
 }
 
 #[cfg(test)]

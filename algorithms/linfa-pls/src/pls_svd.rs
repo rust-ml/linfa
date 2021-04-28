@@ -74,7 +74,7 @@ impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsE
         // safe unwraps because both parameters are set to true in above call
         let u = u.unwrap().slice_move(s![.., ..self.n_components]);
         let vt = vt.unwrap().slice_move(s![..self.n_components, ..]);
-        let (u, vt) = utils::svd_flip(&u, &vt);
+        let (u, vt) = utils::svd_flip(u, vt);
         let v = vt.reversed_axes();
 
         let x_weights = u;
