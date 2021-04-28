@@ -19,7 +19,7 @@ A new preprocessing crate makes working with textual data and data normalization
 
 ## Improvements
 
-Numerous improvements are added to the KMeans implementation, thanks to @YuhanLiin. The implementation is optimized for single-shot training, an incremental training model is added and KMeans++/KMeans|| initialization gives good initial cluster means for medium and large datasets.
+Numerous improvements are added to the KMeans implementation, thanks to @YuhanLiin. The implementation is optimized for offline training, an incremental training model is added and KMeans++/KMeans|| initialization gives good initial cluster means for medium and large datasets.
 
 We also moved to ndarray's version 0.14 and introduced `F::cast` for simpler floating point casting.
 
@@ -86,8 +86,66 @@ for (x, y) in ds.sample_iter() {
 }
 ```
 
-You can find the full example at [algorithms/linfa-tsne/examples/mnist.rs](https://github.com/rust-ml/linfa/blob/master/algorithms/linfa-tsne/examples/mnist.rs) and run it with `$ cargo run --example  mnist --features linfa/intel-mkl-system --release`.
+You can find the full example at [algorithms/linfa-tsne/examples/mnist.rs](https://github.com/rust-ml/linfa/blob/master/algorithms/linfa-tsne/examples/mnist.rs) and run it with 
+```
+$ cargo run --example  mnist --features linfa/intel-mkl-system --release
+```
 
-## Pre-processing
+## Preprocessing text data with TF-IDF and `linfa-preprocessing`
 
-Let's move to a different example. This release sees the first version of `linfa-preprocessing` which already includes many algorithms suitable for text processing. We will try to predict the topic of a newspaper article with Naive Gaussian Bayesian. Prior to training such a model, we need to somehow extract continuous embeddings from the text.
+Let's move to a different example. This release sees the first version of `linfa-preprocessing` which already includes many algorithms suitable for text processing. We will try to predict the topic of a newspaper article with Naive Gaussian Bayesian. Prior to training such a model, we need to somehow extract continuous embeddings from the text. `linfa-preprocessing` can construct a vocabulary from files by calling:
+
+```rust
+let vectorizer = TfIdfVectorizer::default()
+    .fit_files(&training_filenames, ISO_8859_1, Strict)?;
+
+println!(
+    "We obtain a vocabulary with {} entries",
+    vectorizer.nentries()
+);  
+```
+
+This vocabulary can then be used to extract an embedding for a text file. The Naive Bayes algorithm does not work with sparse matrices, so we have to make the embedding matrix dense.
+
+```rust
+let training_records = vectorizer
+  .transform_files(&training_filenames, ISO_8859_1, Strict)
+  .to_dense();
+```
+
+The Gaussian Naive Bayes is trained with the default parameters and the dataset passed for training:
+```rust
+let model = GaussianNbParams::params().fit(&training_dataset)?;
+let training_prediction = model.predict(&training_dataset);
+
+let cm = training_prediction
+    .confusion_matrix(&training_dataset)?;
+
+// this gives an F1 score of 0.9994
+println!("The fitted model has a training f1 score of {}", cm.f1_score());   
+```
+
+To evaluate the model we will load a second evaluation dataset, filter it for the desired targets and then calculate the performance:
+```rust
+let test_records = vectorizer
+    .transform_files(&test_filenames, ISO_8859_1, Strict)
+    .to_dense();
+
+let test_dataset = (test_records, test_targets).into();
+
+// Let's predict the test data targets
+let test_prediction: Array1<usize> = model.predict(&test_dataset);
+
+// create a confusion matrix and print F1 score
+let cm = test_prediction.confusion_matrix(&test_dataset)?
+println!("{:?}", cm);                                                                                                                                                                  
+
+// the evaluation gives an F1 score of 0.8402
+println!("The model has a test f1 score of {}", cm.f1_score());
+```
+
+You can find the full example at [algorithms/linfa-preprocessing/examples/tfidf_vectorizer.rs](https://github.com/rust-ml/linfa/blob/master/algorithms/linfa-preprocessing/examples/tfidf_vectorization.rs) and run it with 
+```
+$ cargo run --example tfidf_vectorization --release
+
+```
