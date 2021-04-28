@@ -1,5 +1,6 @@
 //! Ordinary Least Squares
 #![allow(non_snake_case)]
+use crate::error::{LinearError, Result};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2};
 use ndarray_linalg::{Lapack, Scalar, Solve};
 use ndarray_stats::SummaryStatisticsExt;
@@ -117,10 +118,10 @@ impl LinearRegression {
     }
 }
 
-impl<'a, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> Fit<'a, ArrayBase<D, Ix2>, T>
+impl<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> Fit<ArrayBase<D, Ix2>, T, LinearError>
     for LinearRegression
 {
-    type Object = Result<FittedLinearRegression<F>, String>;
+    type Object = FittedLinearRegression<F>;
 
     /// Fit a linear regression model given a feature matrix `X` and a target
     /// variable `y`.
@@ -132,12 +133,9 @@ impl<'a, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> Fit<'a, ArrayBase<
     /// Returns a `FittedLinearRegression` object which contains the fitted
     /// parameters and can be used to `predict` values of the target variable
     /// for new feature values.
-    fn fit(
-        &self,
-        dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
-    ) -> Result<FittedLinearRegression<F>, String> {
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
         let X = dataset.records();
-        let y = dataset.try_single_target().unwrap();
+        let y = dataset.try_single_target()?;
 
         let (n_samples, _) = X.dim();
 
@@ -151,11 +149,9 @@ impl<'a, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> Fit<'a, ArrayBase<
             // to the X_offset and y_offset
             let X_offset: Array1<F> = X
                 .mean_axis(Axis(0))
-                .ok_or_else(|| String::from("cannot compute mean of X"))?;
+                .ok_or_else(|| LinearError::NotEnoughSamples)?;
             let X_centered: Array2<F> = X - &X_offset;
-            let y_offset: F = y
-                .mean()
-                .ok_or_else(|| String::from("cannot compute mean of y"))?;
+            let y_offset: F = y.mean().ok_or_else(|| LinearError::NotEnoughTargets)?;
             let y_centered: Array1<F> = &y - y_offset;
             let params: Array1<F> =
                 compute_params(&X_centered, &y_centered, self.options.should_normalize())?;
@@ -176,7 +172,7 @@ fn compute_params<F, B, C>(
     X: &ArrayBase<B, Ix2>,
     y: &ArrayBase<C, Ix1>,
     normalize: bool,
-) -> Result<Array1<F>, String>
+) -> Result<Array1<F>>
 where
     F: Float,
     B: Data<Elem = F>,
@@ -196,10 +192,7 @@ where
 /// Solve the overconstrained model Xb = y by solving X^T X b = X^t y,
 /// this is (mathematically, not numerically) equivalent to computing
 /// the solution with the Moore-Penrose pseudo-inverse.
-fn solve_normal_equation<F, B, C>(
-    X: &ArrayBase<B, Ix2>,
-    y: &ArrayBase<C, Ix1>,
-) -> Result<Array1<F>, String>
+fn solve_normal_equation<F, B, C>(X: &ArrayBase<B, Ix2>, y: &ArrayBase<C, Ix1>) -> Result<Array1<F>>
 where
     F: Float,
     B: Data<Elem = F>,
@@ -207,9 +200,7 @@ where
 {
     let rhs = X.t().dot(y);
     let linear_operator = X.t().dot(X);
-    linear_operator
-        .solve_into(rhs)
-        .map_err(|err| format! {"{}", err})
+    linear_operator.solve_into(rhs).map_err(|err| err.into())
 }
 
 /// View the fitted parameters and make predictions with a fitted

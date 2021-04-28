@@ -10,13 +10,13 @@ use linfa::{
 
 use super::{ElasticNet, ElasticNetParams, Error, Result};
 
-impl<'a, F, D, T> Fit<'a, ArrayBase<D, Ix2>, T> for ElasticNetParams<F>
+impl<F, D, T> Fit<ArrayBase<D, Ix2>, T, crate::error::Error> for ElasticNetParams<F>
 where
     F: Float + Lapack,
     D: Data<Elem = F>,
     T: AsTargets<Elem = F>,
 {
-    type Object = Result<ElasticNet<F>>;
+    type Object = ElasticNet<F>;
 
     /// Fit an elastic net model given a feature matrix `x` and a target
     /// variable `y`.
@@ -28,7 +28,7 @@ where
     /// Returns a `FittedElasticNet` object which contains the fitted
     /// parameters and can be used to `predict` values of the target variable
     /// for new feature values.
-    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<ElasticNet<F>> {
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
         self.validate_params()?;
         let target = dataset.try_single_target()?;
 

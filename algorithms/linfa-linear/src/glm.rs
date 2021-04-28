@@ -3,7 +3,7 @@
 mod distribution;
 mod link;
 
-use crate::error::Result;
+use crate::error::{LinearError, Result};
 use crate::float::{ArgminParam, Float};
 use distribution::TweedieDistribution;
 pub use link::Link;
@@ -119,12 +119,12 @@ impl TweedieRegressor {
     }
 }
 
-impl<A: Float, D: Data<Elem = A>, T: AsTargets<Elem = A>> Fit<'_, ArrayBase<D, Ix2>, T>
+impl<A: Float, D: Data<Elem = A>, T: AsTargets<Elem = A>> Fit<ArrayBase<D, Ix2>, T, LinearError>
     for TweedieRegressor
 {
-    type Object = Result<FittedTweedieRegressor<A>>;
+    type Object = FittedTweedieRegressor<A>;
 
-    fn fit(&self, ds: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<FittedTweedieRegressor<A>> {
+    fn fit(&self, ds: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
         let (x, y) = (ds.records(), ds.try_single_target()?);
 
         let dist = TweedieDistribution::new(self.power)?;

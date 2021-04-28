@@ -1,8 +1,12 @@
 use crate::errors::{PlsError, Result};
-use crate::{utils, Float};
+use crate::utils;
 
 use linfa::{
-    dataset::Records, traits::Fit, traits::PredictRef, traits::Transformer, Dataset, DatasetBase,
+    dataset::{Records, WithLapack, WithoutLapack},
+    traits::Fit,
+    traits::PredictRef,
+    traits::Transformer,
+    Dataset, DatasetBase, Float,
 };
 use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
 use ndarray_linalg::svd::*;
@@ -197,10 +201,15 @@ impl<F: Float> PlsParams<F> {
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, ArrayBase<D, Ix2>> for PlsParams<F> {
-    type Object = Result<Pls<F>>;
+impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsError>
+    for PlsParams<F>
+{
+    type Object = Pls<F>;
 
-    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>>) -> Result<Pls<F>> {
+    fn fit(
+        &self,
+        dataset: &DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>>,
+    ) -> Result<Self::Object> {
         let records = dataset.records();
         let targets = dataset.targets();
 
@@ -259,9 +268,7 @@ impl<F: Float, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, ArrayBase<D, Ix2>> 
                 Algorithm::Nipals => {
                     // Replace columns that are all close to zero with zeros
                     for mut yj in yk.gencolumns_mut() {
-                        if *(yj.mapv(|y| num_traits::float::Float::abs(y)).max().unwrap())
-                            < F::cast(10.) * eps
-                        {
+                        if *(yj.mapv(|y| y.abs()).max()?) < F::cast(10.) * eps {
                             yj.assign(&Array1::zeros(yj.len()));
                         }
                     }
@@ -278,7 +285,7 @@ impl<F: Float, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, ArrayBase<D, Ix2>> 
             // compute scores, i.e. the projections of x and Y
             let x_scores_k = xk.dot(&x_weights_k);
             let y_ss = if norm_y_weights {
-                F::cast(1.)
+                F::one()
             } else {
                 y_weights_k.dot(&y_weights_k)
             };
@@ -316,8 +323,8 @@ impl<F: Float, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, ArrayBase<D, Ix2>> 
         // Similiarly, Y was approximated as Omega . Delta.T + Y_(R+1)
 
         // Compute transformation matrices (rotations_). See User Guide.
-        let x_rotations = x_weights.dot(&utils::pinv2(&x_loadings.t().dot(&x_weights), None));
-        let y_rotations = y_weights.dot(&utils::pinv2(&y_loadings.t().dot(&y_weights), None));
+        let x_rotations = x_weights.dot(&utils::pinv2(x_loadings.t().dot(&x_weights).view(), None));
+        let y_rotations = y_weights.dot(&utils::pinv2(y_loadings.t().dot(&y_weights).view(), None));
 
         let mut coefficients = x_rotations.dot(&y_loadings.t());
         coefficients *= &y_std;
@@ -354,7 +361,7 @@ impl<F: Float> PlsParams<F> {
 
         let mut y_score = Array1::ones(y.ncols());
         for col in y.t().genrows() {
-            if *col.mapv(|v| num_traits::Float::abs(v)).max().unwrap() > eps {
+            if *col.mapv(|v| v.abs()).max().unwrap() > eps {
                 y_score = col.to_owned();
                 break;
             }
@@ -363,8 +370,8 @@ impl<F: Float> PlsParams<F> {
         let mut x_pinv = None;
         let mut y_pinv = None;
         if self.mode == Mode::B {
-            x_pinv = Some(utils::pinv2(&x, Some(F::cast(10.) * eps)));
-            y_pinv = Some(utils::pinv2(&y, Some(F::cast(10.) * eps)));
+            x_pinv = Some(utils::pinv2(x.view(), Some(F::cast(10.) * eps)));
+            y_pinv = Some(utils::pinv2(y.view(), Some(F::cast(10.) * eps)));
         }
 
         // init to big value for first convergence check
@@ -379,7 +386,7 @@ impl<F: Float> PlsParams<F> {
                 Mode::A => x.t().dot(&y_score) / y_score.dot(&y_score),
                 Mode::B => x_pinv.to_owned().unwrap().dot(&y_score),
             };
-            x_weights /= num_traits::Float::sqrt(x_weights.dot(&x_weights)) + eps;
+            x_weights /= x_weights.dot(&x_weights).sqrt() + eps;
             let x_score = x.dot(&x_weights);
 
             y_weights = match self.mode {
@@ -388,7 +395,7 @@ impl<F: Float> PlsParams<F> {
             };
 
             if norm_y_weights {
-                y_weights /= num_traits::Float::sqrt(y_weights.dot(&y_weights)) + eps
+                y_weights /= y_weights.dot(&y_weights).sqrt() + eps
             }
 
             let ya = y.dot(&y_weights);
@@ -420,9 +427,13 @@ impl<F: Float> PlsParams<F> {
         y: &ArrayBase<impl Data<Elem = F>, Ix2>,
     ) -> Result<(Array1<F>, Array1<F>)> {
         let c = x.t().dot(y);
+
+        let c = c.with_lapack();
         let (u, _, vt) = c.svd(true, true)?;
-        let u = u.unwrap().column(0).to_owned();
-        let vt = vt.unwrap().row(0).to_owned();
+        // safe unwrap because both parameters are set to true in above call
+        let u = u.unwrap().column(0).to_owned().without_lapack();
+        let vt = vt.unwrap().row(0).to_owned().without_lapack();
+
         Ok((u, vt))
     }
 }

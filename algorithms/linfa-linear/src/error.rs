@@ -11,4 +11,10 @@ pub enum LinearError {
     Argmin(#[from] argmin::core::Error),
     #[error(transparent)]
     BaseCrate(#[from] linfa::Error),
+    #[error("At least one sample needed")]
+    NotEnoughSamples,
+    #[error("At least one target needed")]
+    NotEnoughTargets,
+    #[error(transparent)]
+    LinalgError(#[from] ndarray_linalg::error::LinalgError),
 }

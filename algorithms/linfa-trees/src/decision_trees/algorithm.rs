@@ -11,6 +11,7 @@ use super::NodeIter;
 use super::Tikz;
 use linfa::{
     dataset::{AsTargets, Labels, Records},
+    error::Error,
     error::Result,
     traits::*,
     DatasetBase, Float, Label,
@@ -128,10 +129,7 @@ pub struct TreeNode<F, L> {
 
 impl<F: Float, L: Label> Hash for TreeNode<F, L> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        let mut data: Vec<u64> = vec![];
-        data.push(self.feature_idx as u64);
-        //data.push(self.prediction);
-        data.push(self.leaf_node as u64);
+        let data: Vec<u64> = vec![self.feature_idx as u64, self.leaf_node as u64];
         data.hash(state);
     }
 }
@@ -495,7 +493,7 @@ impl<F: Float, L: Label, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1
     for DecisionTree<F, L>
 {
     /// Make predictions for each row of a matrix of features `x`.
-    fn predict_ref<'a>(&'a self, x: &ArrayBase<D, Ix2>) -> Array1<L> {
+    fn predict_ref(&self, x: &ArrayBase<D, Ix2>) -> Array1<L> {
         x.genrows()
             .into_iter()
             .map(|row| make_prediction(&row, &self.root_node))
@@ -503,18 +501,18 @@ impl<F: Float, L: Label, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1
     }
 }
 
-impl<'a, F: Float, L: Label + 'a + std::fmt::Debug, D, T> Fit<'a, ArrayBase<D, Ix2>, T>
+impl<'a, F: Float, L: Label + 'a + std::fmt::Debug, D, T> Fit<ArrayBase<D, Ix2>, T, Error>
     for DecisionTreeParams<F, L>
 where
     D: Data<Elem = F>,
     T: AsTargets<Elem = L> + Labels<Elem = L>,
 {
-    type Object = Result<DecisionTree<F, L>>;
+    type Object = DecisionTree<F, L>;
 
     /// Fit a decision tree using `hyperparamters` on the dataset consisting of
     /// a matrix of features `x` and an array of labels `y`.
-    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Self::Object {
-        self.validate().unwrap();
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
+        self.validate()?;
 
         let x = dataset.records();
         let feature_names = dataset.feature_names();

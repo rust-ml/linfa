@@ -2,6 +2,7 @@
 //!
 
 use crate::dataset::{DatasetBase, Records};
+use std::convert::From;
 
 /// Transformation algorithms
 ///
@@ -20,10 +21,10 @@ pub trait Transformer<R: Records, T> {
 /// A fittable algorithm takes a dataset and creates a concept of some kind about it. For example
 /// in *KMeans* this would be the mean values for each class, or in *SVM* the separating
 /// hyperplane. It returns a model, which can be used to predict targets for new data.
-pub trait Fit<'a, R: Records, T> {
-    type Object: 'a;
+pub trait Fit<R: Records, T, E: std::error::Error + From<crate::error::Error>> {
+    type Object;
 
-    fn fit(&self, dataset: &DatasetBase<R, T>) -> Self::Object;
+    fn fit(&self, dataset: &DatasetBase<R, T>) -> Result<Self::Object, E>;
 }
 
 /// Incremental algorithms

@@ -24,4 +24,6 @@ pub enum Error {
     MultipleTargets,
     #[error("platt scaling failed")]
     Platt(PlattNewtonResult),
+    #[error("The number of samples do not match: {0} - {1}")]
+    MismatchedShapes(usize, usize),
 }

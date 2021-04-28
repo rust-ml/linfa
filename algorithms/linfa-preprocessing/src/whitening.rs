@@ -55,13 +55,14 @@ impl Whitener {
     }
 }
 
-impl<'a, F: Float, D: Data<Elem = F>, T: AsTargets> Fit<'a, ArrayBase<D, Ix2>, T> for Whitener {
-    type Object = Result<FittedWhitener<F>>;
+impl<F: Float, D: Data<Elem = F>, T: AsTargets> Fit<ArrayBase<D, Ix2>, T, Error> for Whitener {
+    type Object = FittedWhitener<F>;
 
-    fn fit(&self, x: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Self::Object {
+    fn fit(&self, x: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
         if x.nsamples() == 0 {
             return Err(Error::NotEnoughSamples);
         }
+        // safe because of above zero samples check
         let mean = x.records().mean_axis(Axis(0)).unwrap();
         let sigma = x.records() - &mean;
 

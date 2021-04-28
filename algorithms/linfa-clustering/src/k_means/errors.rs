@@ -1,27 +1,19 @@
-use std::error::Error;
-use std::fmt::{self, Display};
+use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, KMeansError>;
 
 /// An error when modeling a KMeans algorithm
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum KMeansError {
     /// When any of the hyperparameters are set the wrong value
+    #[error("Invalid value encountered: {0}")]
     InvalidValue(String),
     /// When inertia computation fails
+    #[error("Fitting failed: {0}")]
     InertiaError(String),
     /// When fitting algorithm does not converge
+    #[error("Fitting failed: {0}")]
     NotConverged(String),
+    #[error(transparent)]
+    LinfaError(#[from] linfa::error::Error),
 }
-
-impl Display for KMeansError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::InvalidValue(message) => write!(f, "Invalid value encountered: {}", message),
-            Self::InertiaError(message) => write!(f, "Fitting failed: {}", message),
-            Self::NotConverged(message) => write!(f, "Fitting failed: {}", message),
-        }
-    }
-}
-
-impl Error for KMeansError {}
