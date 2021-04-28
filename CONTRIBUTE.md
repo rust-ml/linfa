@@ -6,38 +6,19 @@ This document should be used as a reference when contributing to Linfa. It descr
 
 An important part of the Linfa ecosystem is how to organize data for the training and estimation process. A [Dataset](src/dataset/mod.rs) serves this purpose. It is a small wrapper of data and targets types and should be used as argument for the [Fit](src/traits.rs) trait. Its parametrization is generic, with [Records](src/dataset/mod.rs) representing input data (atm only implemented for `ndarray::ArrayBase`) and [Targets](src/dataset/mod.rs) for targets.
 
-You can find traits for different classes of algorithms [here](src/traits.rs). For example, to implement a fittable algorithm, which takes an `Array2` as input data and boolean array as targets:
+You can find traits for different classes of algorithms [here](src/traits.rs). For example, to implement a fittable algorithm, which takes an `Array2` as input data and boolean array as targets and could fail with an `Error` struct:
 ```rust
-impl<'a, F: Float> Fit<'a, Array2<F>, Array1<bool>> for SvmParams<F, Pr> {
+impl<F: Float> Fit<Array2<F>, Array1<bool>, Error> for SvmParams<F, Pr> {
     type Object = Svm<F, Pr>;
 
-    fn fit(&self, dataset: &Dataset<Array2<F>, Array1<bool>>) -> Self::Object {
+    fn fit(&self, dataset: &Dataset<Array2<F>, Array1<bool>>) -> Result<Self::Object, Error> {
         ...
     }
 }
 ```
-the type of the dataset is `&Dataset<Kernel<F>, Array1<bool>>`, and lifetime `'a` is the required lifetime for the fitted state. It produces a fitted state, called `Svm<F, Pr>` with probability type `Pr`.
+where the type of the input dataset is `&Dataset<Kernel<F>, Array1<bool>>`. It produces a result with a fitted state, called `Svm<F, Pr>` with probability type `Pr`, or an error of type `Error` in case of failure.
 
-The [Predict](src/traits.rs) should be implemented with dataset arguments, as well as arrays. If a dataset is provided, then predict takes its ownership and returns a new dataset with predicted targets. For an array, predict takes a reference and returns predicted targets. In the same context, SVM implemented predict like this:
-```rust
-impl<F: Float, T: Targets> Predict<Dataset<Array2<F>, T>, Dataset<Array2<F>, Vec<Pr>>>
-    for Svm<F, Pr>
-{
-    fn predict(&self, data: Dataset<Array2<F>, T>) -> Dataset<Array2<F>, Vec<Pr>> {
-        ...
-    }
-}
-```
-and
-```rust
-impl<F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix2>, Vec<Pr>> for Svm<F, Pr> {
-    fn predict(&self, data: ArrayBase<D, Ix2>) -> Vec<Pr> {
-        ...
-    }
-}
-```
-
-For an example of a `Transformer` please look into the [linfa-kernel](linfa-kernel/src/lib.rs) implementation.
+The [Predict](src/traits.rs) trait has its own section later in this document, while for an example of a `Transformer` please look into the [linfa-kernel](linfa-kernel/src/lib.rs) implementation.
 
 ## Parameters and builder
 

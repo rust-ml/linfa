@@ -54,14 +54,13 @@ features = ["cblas"]
 default-features = false
 
 [dependencies.openblas-src]
-version = "0.9.0"
+version = "0.10.4"
 optional = true
 default-features = false
 features = ["cblas"]
 
 [dev-dependencies]
 ndarray-rand = "0.13"
-
 linfa-datasets = { path = "datasets", features = ["winequality", "iris", "diabetes"] }
 
 [workspace]

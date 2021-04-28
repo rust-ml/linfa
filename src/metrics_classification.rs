@@ -10,7 +10,7 @@ use ndarray::prelude::*;
 use ndarray::Data;
 
 use crate::dataset::{AsTargets, DatasetBase, Label, Labels, Pr, Records};
-use crate::error::Result;
+use crate::error::{Error, Result};
 
 /// Return tuple of class index for each element of prediction and ground_truth
 fn map_prediction_to_idx<L: Label>(
@@ -267,10 +267,25 @@ where
     T: AsTargets<Elem = L> + Labels<Elem = L>,
 {
     fn confusion_matrix(&self, ground_truth: ArrayBase<S, Ix1>) -> Result<ConfusionMatrix<L>> {
+        self.confusion_matrix(&ground_truth)
+    }
+}
+
+impl<L: Label, S, T> ToConfusionMatrix<L, &ArrayBase<S, Ix1>> for T
+where
+    S: Data<Elem = L>,
+    T: AsTargets<Elem = L> + Labels<Elem = L>,
+{
+    fn confusion_matrix(&self, ground_truth: &ArrayBase<S, Ix1>) -> Result<ConfusionMatrix<L>> {
+        let targets = self.try_single_target()?;
+        if targets.len() != ground_truth.len() {
+            return Err(Error::MismatchedShapes(targets.len(), ground_truth.len()));
+        }
+
         let classes = self.labels();
 
         let indices = map_prediction_to_idx(
-            &self.try_single_target()?.as_slice().unwrap(),
+            targets.as_slice().unwrap(),
             &ground_truth.as_slice().unwrap(),
             &classes,
         );
@@ -475,105 +490,107 @@ impl<R: Records, R2: Records, T: AsTargets<Elem = bool>, T2: AsTargets<Elem = Pr
     }
 }
 
-/*
 #[cfg(test)]
 mod tests {
-    use super::{BinaryClassification, ToConfusionMatrix};
-    use super::{DatasetBase, Pr};
-    use approx::{abs_diff_eq, AbsDiffEq};
-    use ndarray::{array, Array1, ArrayBase, ArrayView1, Data, Dimension};
+    use super::{BinaryClassification, ConfusionMatrix, ToConfusionMatrix};
+    use super::{Label, Pr};
+    use approx::assert_abs_diff_eq;
+    use ndarray::{array, Array1, Array2, ArrayView1};
     use rand::{distributions::Uniform, rngs::SmallRng, Rng, SeedableRng};
-    use std::borrow::Borrow;
+    use std::collections::HashMap;
 
-    fn assert_eq_slice<
-        A: std::fmt::Debug + PartialEq + AbsDiffEq,
-        S: Data<Elem = A>,
-        D: Dimension,
-    >(
-        a: ArrayBase<S, D>,
-        b: &[A],
-    ) {
-        assert_eq_iter(a.iter(), b);
+    fn get_labels_map<L: Label>(cm: &ConfusionMatrix<L>) -> HashMap<L, usize> {
+        cm.members
+            .iter()
+            .enumerate()
+            .map(|(index, label)| (label.clone(), index))
+            .collect()
     }
 
-    fn assert_eq_iter<'a, A, B>(a: impl IntoIterator<Item = B>, b: impl IntoIterator<Item = &'a A>)
-    where
-        A: 'a + std::fmt::Debug + PartialEq + AbsDiffEq,
-        B: Borrow<A>,
-    {
-        let mut a_iter = a.into_iter();
-        let mut b_iter = b.into_iter();
-        loop {
-            match (a_iter.next(), b_iter.next()) {
-                (None, None) => break,
-                (Some(a_item), Some(b_item)) => {
-                    abs_diff_eq!(a_item.borrow(), b_item);
-                }
-                _ => {
-                    panic!("assert_eq_iters: iterators had different lengths");
-                }
-            }
+    // confusion matrices use hash sets for the labels to pair so
+    // the order of the rows of the matrices is not constant.
+    // we can transform the index->member mapping in `cm.members`
+    // into a member->index mapping to check each element independently
+    fn assert_cm_eq<L: Label>(cm: &ConfusionMatrix<L>, expected: &Array2<f32>, labels: &Array1<L>) {
+        let map = get_labels_map(cm);
+        for ((row, column), value) in expected.indexed_iter().map(|((r, c), v)| {
+            (
+                (*map.get(&labels[r]).unwrap(), *map.get(&labels[c]).unwrap()),
+                v,
+            )
+        }) {
+            let cm_value = *cm.matrix.get((row, column)).unwrap();
+            assert_abs_diff_eq!(cm_value, value);
+        }
+    }
+
+    fn assert_split_eq<L: Label, C: Fn(&ConfusionMatrix<bool>) -> f32>(
+        cm: &ConfusionMatrix<L>,
+        eval: C,
+        expected: &Array1<f32>,
+        labels: &Array1<L>,
+    ) {
+        let map = get_labels_map(cm);
+        let evals = cm
+            .split_one_vs_all()
+            .into_iter()
+            .map(|x| eval(&x))
+            .collect::<Vec<_>>();
+        for (index, value) in expected
+            .indexed_iter()
+            .map(|(i, v)| (*map.get(&labels[i]).unwrap(), v))
+        {
+            let evals_value = *evals.get(index).unwrap();
+            assert_abs_diff_eq!(evals_value, value);
         }
     }
 
     #[test]
     fn test_confusion_matrix() {
-        let predicted = ArrayView1::from(&[0, 1, 0, 1, 0, 1]);
         let ground_truth = ArrayView1::from(&[1, 1, 0, 1, 0, 1]);
+        let predicted = ArrayView1::from(&[0, 1, 0, 1, 0, 1]);
 
-        let cm = predicted.confusion_matrix(ground_truth);
+        let cm = predicted.confusion_matrix(ground_truth).unwrap();
 
-        assert_eq_slice(cm.matrix, &[2., 1., 0., 3.]);
+        let labels = array![0, 1];
+        let expected = array![[2., 1.], [0., 3.]];
+
+        assert_cm_eq(&cm, &expected, &labels);
     }
 
     #[test]
     fn test_cm_metrices() {
-        let predicted = Array1::from(vec![0, 1, 0, 1, 0, 1]);
         let ground_truth = Array1::from(vec![1, 1, 0, 1, 0, 1]);
+        let predicted = Array1::from(vec![0, 1, 0, 1, 0, 1]);
 
-        let x = predicted.confusion_matrix(ground_truth);
+        let x = predicted.confusion_matrix(ground_truth).unwrap();
 
-        abs_diff_eq!(x.accuracy(), 5.0 / 6.0_f32);
-        abs_diff_eq!(
+        let labels = array![0, 1];
+
+        assert_abs_diff_eq!(x.accuracy(), 5.0 / 6.0_f32);
+        assert_abs_diff_eq!(
             x.mcc(),
             (2. * 3. - 1. * 0.) / (2.0f32 * 3. * 3. * 4.).sqrt() as f32
         );
 
-        assert_eq_iter(
-            x.split_one_vs_all().into_iter().map(|x| x.precision()),
-            &[1.0, 3. / 4.],
+        assert_split_eq(
+            &x,
+            |cm| ConfusionMatrix::precision(cm),
+            &array![1.0, 3. / 4.],
+            &labels,
         );
-        assert_eq_iter(
-            x.split_one_vs_all().into_iter().map(|x| x.recall()),
-            &[2.0 / 3.0, 1.0],
+        assert_split_eq(
+            &x,
+            |cm| ConfusionMatrix::recall(cm),
+            &array![2.0 / 3.0, 1.0],
+            &labels,
         );
-        assert_eq_iter(
-            x.split_one_vs_all().into_iter().map(|x| x.f1_score()),
-            &[4.0 / 5.0, 6.0 / 7.0],
+        assert_split_eq(
+            &x,
+            |cm| ConfusionMatrix::f1_score(cm),
+            &array![4.0 / 5.0, 6.0 / 7.0],
+            &labels,
         );
-    }
-
-    #[test]
-    fn test_modification() {
-        let predicted = array![0, 3, 2, 0, 1, 1, 1, 3, 2, 3];
-
-        let ground_truth =
-            DatasetBase::new((), array![0, 2, 3, 0, 1, 2, 1, 2, 3, 2]).with_labels(&[0, 1, 2]);
-
-        // exclude class 3 from evaluation
-        let cm = predicted.confusion_matrix(&ground_truth);
-
-        assert_eq_slice(cm.matrix, &[2., 0., 0., 0., 2., 1., 0., 0., 0.]);
-
-        // weight errors in class 2 more severe and exclude class 1
-        let ground_truth = ground_truth
-            .with_weights(vec![1., 2., 1., 1., 1., 2., 1., 2., 1., 2.])
-            .with_labels(&[0, 2, 3]);
-
-        let cm = predicted.confusion_matrix(&ground_truth);
-
-        // the false-positive error for label=2 is twice severe here
-        assert_eq_slice(cm.matrix, &[2., 0., 0., 0., 0., 4., 0., 3., 0.]);
     }
 
     #[test]
@@ -592,7 +609,7 @@ mod tests {
             (1., 1.),
         ];
 
-        let roc = predicted.roc(&groundtruth);
+        let roc = predicted.roc(&groundtruth).unwrap();
         assert_eq!(roc.get_curve(), result);
     }
 
@@ -609,32 +626,38 @@ mod tests {
             .collect::<Vec<_>>();
 
         // ROC Area-Under-Curve should be approximately 0.5
-        let roc = predicted.roc(&ground_truth);
+        let roc = predicted.roc(&ground_truth).unwrap();
         assert!((roc.area_under_curve() - 0.5) < 0.04);
     }
 
     #[test]
     fn split_one_vs_all() {
-        let predicted = array![0, 3, 2, 0, 1, 1, 1, 3, 2, 3];
         let ground_truth = array![0, 2, 3, 0, 1, 2, 1, 2, 3, 2];
+        let predicted = array![0, 3, 2, 0, 1, 1, 1, 3, 2, 3];
 
         // create a confusion matrix
-        let cm = predicted.confusion_matrix(ground_truth);
+        let cm = predicted.confusion_matrix(ground_truth).unwrap();
+
+        let labels = array![0, 1, 2, 3];
+        let bin_labels = array![true, false];
+        let map = get_labels_map(&cm);
 
         // split four class confusion matrix into 4 binary confusion matrix
         let n_cm = cm.split_one_vs_all();
 
-        let result: &[&[f32]] = &[
-            &[2., 0., 0., 8.], // no misclassification for label=0
-            &[2., 1., 0., 7.], // one false-positive for label=1
-            &[0., 2., 4., 4.], // two false-positive and four false-negative for label=2
-            &[0., 3., 2., 5.], // three false-positive and two false-negative for label=3
+        let result = &[
+            array![[2., 0.], [0., 8.]], // no misclassification for label=0
+            array![[2., 1.], [0., 7.]], // one false-positive for label=1
+            array![[0., 2.], [4., 4.]], // two false-positive and four false-negative for label=2
+            array![[0., 3.], [2., 5.]], // three false-positive and two false-negative for label=3
         ];
 
-        // compare to result
-        n_cm.into_iter()
-            .zip(result.iter())
-            .for_each(|(x, r)| assert_eq_slice(x.matrix, r))
+        for (r, x) in result
+            .iter()
+            .zip(labels.iter())
+            .map(|(r, l)| (r, n_cm.get(*map.get(l).unwrap()).unwrap()))
+        {
+            assert_cm_eq(x, r, &bin_labels);
+        }
     }
 }
-*/

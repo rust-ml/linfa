@@ -99,7 +99,7 @@ impl<F: Float> AppxDbscanHyperParams<F> {
     }
 
     fn build(tolerance: F, min_points: usize, slack: F) -> Self {
-        if tolerance <= F::cast(0.) {
+        if tolerance <= F::zero() {
             panic!("`tolerance` must be greater than 0!");
         }
         // There is always at least one neighbor to a point (itself)
@@ -107,13 +107,13 @@ impl<F: Float> AppxDbscanHyperParams<F> {
             panic!("`min_points` must be greater than 1!");
         }
 
-        if slack <= F::cast(0.) {
+        if slack <= F::zero() {
             panic!("`slack` must be greater than 0!");
         }
         Self {
-            tolerance: tolerance,
-            min_points: min_points,
-            slack: slack,
+            tolerance,
+            min_points,
+            slack,
             appx_tolerance: tolerance * (F::one() + slack),
         }
     }

@@ -95,7 +95,8 @@ impl<'a, F: Float, L: Debug + Label> Tikz<'a, F, L> {
                     let var = format!(
                         "Var({})&:&{}\\\\",
                         node.split().0,
-                        node.feature_name().unwrap()
+                        // TODO:: why use lengend if there are no feature names? Should it be allowed?
+                        node.feature_name().unwrap_or(&"".to_string())
                     );
                     out.push_str(&var);
                     map.insert(node.split().0);

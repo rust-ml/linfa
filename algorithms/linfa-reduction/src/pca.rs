@@ -15,12 +15,13 @@
 //!
 //! // apply PCA projection along a line which maximizes the spread of the data
 //! let embedding = Pca::params(1)
-//!     .fit(&dataset);
+//!     .fit(&dataset).unwrap();
 //!
 //! // reduce dimensionality of the dataset
 //! let dataset = embedding.predict(dataset);
 //! ```
 //!
+use crate::error::{Error, Result};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2};
 use ndarray_linalg::{TruncatedOrder, TruncatedSvd};
 #[cfg(feature = "serde")]
@@ -67,19 +68,22 @@ impl PcaParams {
 /// # Returns
 ///
 /// A fitted PCA model with origin and hyperplane
-impl<'a, T, D: Data<Elem = f64>> Fit<'a, ArrayBase<D, Ix2>, T> for PcaParams {
+impl<T, D: Data<Elem = f64>> Fit<ArrayBase<D, Ix2>, T, Error> for PcaParams {
     type Object = Pca<f64>;
 
-    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Pca<f64> {
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Pca<f64>> {
+        if dataset.nsamples() == 0 {
+            return Err(Error::NotEnoughSamples);
+        }
         let x = dataset.records();
         // calculate mean of data and subtract it
+        // safe because of above 0 samples check
         let mean = x.mean_axis(Axis(0)).unwrap();
         let x = x - &mean;
 
         // estimate Singular Value Decomposition
-        let result = TruncatedSvd::new(x, TruncatedOrder::Largest)
-            .decompose(self.embedding_size)
-            .unwrap();
+        let result =
+            TruncatedSvd::new(x, TruncatedOrder::Largest).decompose(self.embedding_size)?;
 
         // explained variance is the spectral distribution of the eigenvalues
         let (_, sigma, mut v_t) = result.values_vectors();
@@ -96,11 +100,11 @@ impl<'a, T, D: Data<Elem = f64>> Fit<'a, ArrayBase<D, Ix2>, T> for PcaParams {
             }
         }
 
-        Pca {
+        Ok(Pca {
             embedding: v_t,
             sigma,
             mean,
-        }
+        })
     }
 }
 
@@ -118,7 +122,7 @@ impl<'a, T, D: Data<Elem = f64>> Fit<'a, ArrayBase<D, Ix2>, T> for PcaParams {
 ///
 /// // apply PCA projection along a line which maximizes the spread of the data
 /// let embedding = Pca::params(1)
-///     .fit(&dataset);
+///     .fit(&dataset).unwrap();
 ///
 /// // reduce dimensionality of the dataset
 /// let dataset = embedding.predict(dataset);
@@ -216,7 +220,7 @@ mod tests {
 
         let dataset = Dataset::from(tmp.dot(&q));
 
-        let model = Pca::params(2).whiten(true).fit(&dataset);
+        let model = Pca::params(2).whiten(true).fit(&dataset).unwrap();
         let proj = model.predict(&dataset);
 
         // check that the covariance is unit diagonal
@@ -237,7 +241,7 @@ mod tests {
         let data = Array2::random_using((300, 50), Uniform::new(-1.0f64, 1.), &mut rng);
         let dataset = Dataset::from(data);
 
-        let model = Pca::params(10).whiten(true).fit(&dataset);
+        let model = Pca::params(10).whiten(true).fit(&dataset).unwrap();
         let proj = model.predict(&dataset);
 
         // check that the covariance is unit diagonal
@@ -262,7 +266,7 @@ mod tests {
         let data = Array2::random_using((1000, 500), StandardNormal, &mut rng);
         let dataset = Dataset::from(data / 1000f64.sqrt());
 
-        let model = Pca::params(500).fit(&dataset);
+        let model = Pca::params(500).fit(&dataset).unwrap();
         let sv = model.singular_values().mapv(|x| x * x);
 
         // we have created a random spectrum and can apply the Marchenko-Pastur law
@@ -319,7 +323,7 @@ mod tests {
         let dataset = Dataset::from(data);
 
         // fit PCA with 10 possible embeddings
-        let model = Pca::params(10).fit(&dataset);
+        let model = Pca::params(10).fit(&dataset).unwrap();
 
         // only two eigenvalues are relevant
         assert_eq!(model.explained_variance_ratio().len(), 2);
@@ -334,7 +338,7 @@ mod tests {
     #[test]
     fn test_explained_variance_diag() {
         let dataset = Dataset::from(Array2::from_diag(&array![1., 1., 1., 1.]));
-        let model = Pca::params(3).fit(&dataset);
+        let model = Pca::params(3).fit(&dataset).unwrap();
 
         assert_abs_diff_eq!(
             model.explained_variance_ratio(),

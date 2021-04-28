@@ -32,4 +32,6 @@ pub enum Error {
     LinalgError(#[from] ndarray_linalg::error::LinalgError),
     #[error(transparent)]
     NdarrayStatsEmptyError(#[from] ndarray_stats::errors::EmptyInput),
+    #[error(transparent)]
+    LinfaError(#[from] linfa::error::Error),
 }
