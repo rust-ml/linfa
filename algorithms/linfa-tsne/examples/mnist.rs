@@ -7,32 +7,33 @@ use ndarray::Array;
 use linfa::Dataset;
 
 fn main() -> Result<()> {
+    // use 50k samples from the MNIST dataset
     let (trn_size, rows, cols) = (50_000usize, 28, 28);
 
-    let Mnist { trn_img, trn_lbl, .. } = MnistBuilder::new()
+    // download and extract it into a dataset
+    let Mnist { images, labels, .. } = MnistBuilder::new()
         .label_format_digit()
         .training_set_length(trn_size as u32)
-        .validation_set_length(10_000)
-        .test_set_length(10_000)
         .download_and_extract()
         .finalize();
 
-    let trn_img = Array::from_shape_vec((trn_size, rows * cols), trn_img)?
-        .mapv(|x| (x as f64) / 255.);
+    // create a dataset from it
+    let ds = Dataset::new(
+        Array::from_shape_vec((trn_size, rows * cols), images)?.mapv(|x| (x as f64) / 255.),
+        Array::from_shape_vec((trn_size, 1), labels)?
+    );
 
-    let trn_lbl = Array::from_shape_vec((trn_size, 1), trn_lbl)?;
-    let ds = Dataset::new(trn_img, trn_lbl);
-
+    // reduce to 50 dimension without whitening
     let ds = Pca::params(50).whiten(false).fit(&ds).transform(ds);
 
-    println!("Transformed to 10 dimensions and whitened");
-
+    // calculate a two-dimensional embedding with Barnes-Hut t-SNE
     let ds = TSne::embedding_size(2)
         .perplexity(50.0)
         .approx_threshold(0.5)
         .max_iter(1000)
         .transform(ds)?;
 
+    // write out
     let mut f = std::fs::File::create("examples/mnist.dat").unwrap();
 
     for (x, y) in ds.sample_iter() {
@@ -40,9 +41,10 @@ fn main() -> Result<()> {
             .unwrap();
     }
 
+    // and plot with gnuplot
     Command::new("gnuplot")
         .arg("-p")
-        .arg("examples/iris_plot.plt")
+        .arg("examples/mnist_plot.plt")
         .spawn()
         .expect(
             "Failed to launch gnuplot. Pleasure ensure that gnuplot is installed and on the $PATH.",
