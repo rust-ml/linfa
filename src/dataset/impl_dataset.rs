@@ -6,8 +6,8 @@ use super::{
 };
 use crate::traits::Fit;
 use ndarray::{
-    concatenate, s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, ArrayViewMut2, Axis, Data,
-    DataMut, Dimension, Ix1, Ix2,
+    concatenate, s, Array, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, ArrayViewMut2, Axis,
+    Data, DataMut, Dimension, Ix1, Ix2, OwnedRepr,
 };
 use rand::{seq::SliceRandom, Rng};
 use std::collections::HashMap;
@@ -820,10 +820,10 @@ where
     ///
     /// let models = vec![model1, model2, ... ];
     ///
-    /// let r2_scores = dataset.cross_validate_mt(5,&models, |prediction, truth| prediction.r2(truth))?;
+    /// let r2_scores = dataset.cross_validate_multi(5,&models, |prediction, truth| prediction.r2(truth))?;
     ///
     /// ```
-    pub fn cross_validate_mt<O, DT, ER, M, FACC, C>(
+    pub fn cross_validate_multi<O, ER, M, FACC, C>(
         &'a mut self,
         k: usize,
         parameters: &[M],
@@ -831,14 +831,10 @@ where
     ) -> std::result::Result<Array2<FACC>, ER>
     where
         ER: std::error::Error + std::convert::From<crate::error::Error>,
-        DT: Data<Elem = E>,
         M: for<'c> Fit<ArrayView2<'c, F>, ArrayView2<'c, E>, ER, Object = O>,
-        O: for<'d> PredictRef<ArrayView2<'a, F>, ArrayBase<DT, Ix2>>,
+        O: for<'d> PredictRef<ArrayView2<'a, F>, Array2<E>>,
         FACC: Float,
-        C: Fn(
-            &ArrayBase<DT, Ix2>,
-            &ArrayView2<E>,
-        ) -> std::result::Result<Array1<FACC>, crate::error::Error>,
+        C: Fn(&Array2<E>, &ArrayView2<E>) -> std::result::Result<Array1<FACC>, crate::error::Error>,
     {
         let mut evaluations = Array2::from_elem((parameters.len(), self.ntargets()), FACC::zero());
         let folds_evaluations: std::result::Result<Vec<_>, ER> = self
@@ -908,52 +904,82 @@ where
     /// let r2_scores = dataset.cross_validate(5,&models, |prediction, truth| prediction.r2(truth))?;
     ///
     /// ```
-    pub fn cross_validate<O, DT, ER, M, FACC, C>(
+    pub fn cross_validate<O, ER, M, FACC, C, I>(
         &'a mut self,
         k: usize,
         parameters: &[M],
         eval: C,
-    ) -> std::result::Result<Array1<FACC>, ER>
+    ) -> std::result::Result<ArrayBase<OwnedRepr<FACC>, I>, ER>
     where
         ER: std::error::Error + std::convert::From<crate::error::Error>,
-        DT: Data<Elem = E>,
         M: for<'c> Fit<ArrayView2<'c, F>, ArrayView2<'c, E>, ER, Object = O>,
-        O: for<'d> PredictRef<ArrayView2<'a, F>, ArrayBase<DT, Ix1>>,
+        O: for<'d> PredictRef<ArrayView2<'a, F>, ArrayBase<OwnedRepr<E>, I>>,
         FACC: Float,
-        C: Fn(
-            &ArrayBase<DT, Ix1>,
-            &ArrayView1<E>,
-        ) -> std::result::Result<FACC, crate::error::Error>,
+        C: Fn(&ArrayView1<E>, &ArrayView1<E>) -> std::result::Result<FACC, crate::error::Error>,
+        I: Dimension,
     {
-        self.try_single_target()?;
-        let mut evaluations = Array1::from_elem(parameters.len(), FACC::zero());
-        let folds_evaluations: std::result::Result<Vec<_>, ER> = self
+        // construct shape as either vector or matrix
+        let mut shape = match I::NDIM {
+            Some(1) | Some(2) => Ok(I::zeros(I::NDIM.unwrap())),
+            _ => Err(crate::Error::NdShape(ndarray::ShapeError::from_kind(
+                ndarray::ErrorKind::IncompatibleShape,
+            ))),
+        }?;
+
+        // assign shape form of output
+        let mut tmp = shape.as_array_view_mut();
+        tmp[0] = parameters.len();
+        if tmp.len() == 2 {
+            tmp[1] = self.ntargets();
+        }
+
+        let folds_evaluations = self
             .iter_fold(k, |train| {
                 let fit_result: std::result::Result<Vec<_>, ER> =
                     parameters.iter().map(|p| p.fit(&train)).collect();
                 fit_result
             })
             .map(|(models, valid)| {
-                let targets = valid.try_single_target()?;
+                let targets = valid.as_multi_targets();
                 let models = models?;
-                let eval_predictions: std::result::Result<Array1<FACC>, ER> = models
+
+                let eval_predictions = models
                     .iter()
                     .map(|m| {
+                        let nsamples = valid.nsamples();
                         let predicted = m.predict(valid.records());
-                        match eval(&predicted, &targets) {
-                            Err(e) => Err(ER::from(e)),
-                            Ok(res) => Ok(res),
-                        }
-                    })
-                    .collect();
-                eval_predictions
-            })
-            .collect();
 
-        for fold_evaluation in folds_evaluations? {
-            evaluations.add_assign(&fold_evaluation);
-        }
-        Ok(evaluations / FACC::from(k).unwrap())
+                        // reshape to ensure that matrix has two dimensions
+                        let ntargets = if predicted.ndim() == 1 {
+                            1
+                        } else {
+                            predicted.len_of(Axis(1))
+                        };
+
+                        let predicted: Array2<_> =
+                            predicted.into_shape((nsamples, ntargets)).unwrap();
+
+                        predicted
+                            .gencolumns()
+                            .into_iter()
+                            .zip(targets.gencolumns().into_iter())
+                            .map(|(p, t)| eval(&p.view(), &t).map_err(ER::from))
+                            .collect()
+                    })
+                    .collect::<std::result::Result<Vec<Vec<FACC>>, ER>>()?
+                    .into_iter()
+                    .flatten()
+                    .collect();
+
+                Ok(Array::from_shape_vec(shape.clone(), eval_predictions).unwrap())
+            })
+            .collect::<std::result::Result<Vec<_>, ER>>();
+
+        let res = folds_evaluations?
+            .into_iter()
+            .fold(Array::<FACC, _>::zeros(shape.clone()), std::ops::Add::add);
+
+        Ok(res / FACC::cast(k))
     }
 }
 

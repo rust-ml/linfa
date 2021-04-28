@@ -32,7 +32,7 @@ rand_isaac = "0.3"
 num-traits = "0.2"
 paste = "1.0"
 thiserror = "1"
-linfa = { version = "0.3.1", path = "../.." }
+linfa = { version = "0.3.1", path = "../..", features = ["ndarray-linalg"] }
 
 [dev-dependencies]
 linfa-datasets = { version = "0.3.1", path = "../../datasets", features = ["linnerud"] }
