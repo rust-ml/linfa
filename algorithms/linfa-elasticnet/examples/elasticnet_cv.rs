@@ -5,7 +5,7 @@ fn main() -> Result<()> {
     // load Diabetes dataset (mutable to allow fast k-folding)
     let mut dataset = linfa_datasets::diabetes();
 
-    // prameters to compare
+    // parameters to compare
     let ratios = vec![0.1, 0.2, 0.5, 0.7, 1.0];
 
     // create a model for each parameter
