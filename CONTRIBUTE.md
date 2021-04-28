@@ -128,3 +128,15 @@ fn main() {
     /// ...
 }
 ```
+
+## Use the lapack trait bound
+
+When you want to implement an algorithm which requires the [Lapack](https://docs.rs/ndarray-linalg/0.13.1/ndarray_linalg/types/trait.Lapack.html) bound, then you could add the trait bound to the `linfa::Float` standard bound, e.g. `F: Float + Scalar + Lapack`. If you do that you're currently running into conflicting function definitions of [num_traits::Float](https://docs.rs/num-traits/0.2.14/num_traits/float/trait.Float.html) and [cauchy::Scalar](https://docs.rs/cauchy/0.4.0/cauchy/trait.Scalar.html) with the first defined for real-valued values and the second for complex values. 
+
+If you want to avoid that you can use the `linfa::dataset::{WithLapack, WithoutLapack}` traits, which basically adds the lapack trait bound for a block and then removes it again so that the conflicts can be avoided. For example:
+```rust
+let decomp = covariance.with_lapack().cholesky(UPLO::Lower)?;
+let sol = decomp
+     .solve_triangular(UPLO::Lower, Diag::NonUnit, &Array::eye(n_features))?
+     .without_lapack();
+```
