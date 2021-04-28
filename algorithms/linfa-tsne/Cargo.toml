@@ -24,6 +24,7 @@ linfa = { version = "0.4.0", path = "../.." }
 [dev-dependencies]
 rand = "0.8"
 approx = "0.4"
+mnist = { version = "0.4", features = ["download"] }
 
 linfa-datasets = { version = "0.4.0", path = "../../datasets", features = ["iris"] }
 linfa-reduction = { version = "0.4.0", path = "../linfa-reduction" }

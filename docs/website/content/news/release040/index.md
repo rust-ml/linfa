@@ -29,5 +29,6 @@ Other changes:
  * improved documentation of the ICA subcrate
  * prevent overflowing code example in website
 
-# Example
+## Barnest Hut t-SNE
 
+<img src="tsne.png" style="width: 100%" />
