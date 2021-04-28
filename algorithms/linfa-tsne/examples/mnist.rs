@@ -1,10 +1,10 @@
 use linfa::traits::{Fit, Transformer};
+use linfa::Dataset;
 use linfa_reduction::Pca;
 use linfa_tsne::{Result, TSne};
 use mnist::{Mnist, MnistBuilder};
-use std::{io::Write, process::Command};
 use ndarray::Array;
-use linfa::Dataset;
+use std::{io::Write, process::Command};
 
 fn main() -> Result<()> {
     // use 50k samples from the MNIST dataset
@@ -20,7 +20,7 @@ fn main() -> Result<()> {
     // create a dataset from it
     let ds = Dataset::new(
         Array::from_shape_vec((trn_size, rows * cols), images)?.mapv(|x| (x as f64) / 255.),
-        Array::from_shape_vec((trn_size, 1), labels)?
+        Array::from_shape_vec((trn_size, 1), labels)?,
     );
 
     // reduce to 50 dimension without whitening
