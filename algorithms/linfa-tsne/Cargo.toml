@@ -1,6 +1,6 @@
 [package]
 name = "linfa-tsne"
-version = "0.3.1"
+version = "0.4.0"
 authors = ["Lorenz Schmidt <lorenz.schmidt@mailbox.org>"]
 edition = "2018"
 
@@ -10,7 +10,7 @@ license = "MIT/Apache-2.0"
 repository = "https://github.com/rust-ml/linfa"
 readme = "README.md"
 
-keywords = ["tsne", "data visualization", "clustering", "machine-learning", "linfa"]
+keywords = ["tsne", "visualization", "clustering", "machine-learning", "linfa"]
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
@@ -19,11 +19,12 @@ ndarray = { version = "0.14", default-features = false }
 ndarray-rand = "0.13"
 bhtsne = "0.4.0"
 
-linfa = { version = "0.3.1", path = "../.." }
+linfa = { version = "0.4.0", path = "../.." }
 
 [dev-dependencies]
 rand = "0.8"
 approx = "0.4"
+mnist = { version = "0.4", features = ["download"] }
 
-linfa-datasets = { version = "0.3.1", path = "../../datasets", features = ["iris"] }
-linfa-reduction = { version = "0.3.1", path = "../linfa-reduction" }
+linfa-datasets = { version = "0.4.0", path = "../../datasets", features = ["iris"] }
+linfa-reduction = { version = "0.4.0", path = "../linfa-reduction" }

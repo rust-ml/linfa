@@ -1,11 +1,15 @@
 use crate::errors::{PlsError, Result};
 use crate::utils;
+
 use linfa::{
-    dataset::Records, traits::Fit, traits::PredictRef, traits::Transformer, Dataset, DatasetBase,
-    Float,
+    dataset::{Records, WithLapack, WithoutLapack},
+    traits::Fit,
+    traits::PredictRef,
+    traits::Transformer,
+    Dataset, DatasetBase, Float,
 };
 use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
-use ndarray_linalg::{svd::*, Lapack, Scalar};
+use ndarray_linalg::svd::*;
 use ndarray_stats::QuantileExt;
 
 #[cfg_attr(
@@ -154,7 +158,7 @@ impl<F: Float> PlsParams<F> {
         PlsParams {
             n_components,
             max_iter: 500,
-            tolerance: F::from(1e-6).unwrap(),
+            tolerance: F::cast(1e-6),
             scale: true,
             algorithm: Algorithm::Nipals,
             deflation_mode: DeflationMode::Regression,
@@ -197,12 +201,15 @@ impl<F: Float> PlsParams<F> {
     }
 }
 
-impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, ArrayBase<D, Ix2>>
+impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsError>
     for PlsParams<F>
 {
-    type Object = Result<Pls<F>>;
+    type Object = Pls<F>;
 
-    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>>) -> Result<Pls<F>> {
+    fn fit(
+        &self,
+        dataset: &DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>>,
+    ) -> Result<Self::Object> {
         let records = dataset.records();
         let targets = dataset.targets();
 
@@ -261,9 +268,7 @@ impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, A
                 Algorithm::Nipals => {
                     // Replace columns that are all close to zero with zeros
                     for mut yj in yk.gencolumns_mut() {
-                        if *(yj.mapv(|y| num_traits::float::Float::abs(y)).max().unwrap())
-                            < F::from(10.).unwrap() * eps
-                        {
+                        if *(yj.mapv(|y| y.abs()).max()?) < F::cast(10.) * eps {
                             yj.assign(&Array1::zeros(yj.len()));
                         }
                     }
@@ -280,7 +285,7 @@ impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, A
             // compute scores, i.e. the projections of x and Y
             let x_scores_k = xk.dot(&x_weights_k);
             let y_ss = if norm_y_weights {
-                F::from(1.).unwrap()
+                F::one()
             } else {
                 y_weights_k.dot(&y_weights_k)
             };
@@ -318,8 +323,8 @@ impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, A
         // Similiarly, Y was approximated as Omega . Delta.T + Y_(R+1)
 
         // Compute transformation matrices (rotations_). See User Guide.
-        let x_rotations = x_weights.dot(&utils::pinv2(&x_loadings.t().dot(&x_weights), None));
-        let y_rotations = y_weights.dot(&utils::pinv2(&y_loadings.t().dot(&y_weights), None));
+        let x_rotations = x_weights.dot(&utils::pinv2(x_loadings.t().dot(&x_weights).view(), None));
+        let y_rotations = y_weights.dot(&utils::pinv2(y_loadings.t().dot(&y_weights).view(), None));
 
         let mut coefficients = x_rotations.dot(&y_loadings.t());
         coefficients *= &y_std;
@@ -343,7 +348,7 @@ impl<F: Float + Scalar + Lapack, D: Data<Elem = F>> Fit<'_, ArrayBase<D, Ix2>, A
     }
 }
 
-impl<F: Float + Scalar + Lapack> PlsParams<F> {
+impl<F: Float> PlsParams<F> {
     /// Return the first left and right singular vectors of x'Y.
     /// Provides an alternative to the svd(x'Y) and uses the power method instead.
     fn get_first_singular_vectors_power_method(
@@ -356,7 +361,7 @@ impl<F: Float + Scalar + Lapack> PlsParams<F> {
 
         let mut y_score = Array1::ones(y.ncols());
         for col in y.t().genrows() {
-            if *col.mapv(|v| num_traits::Float::abs(v)).max().unwrap() > eps {
+            if *col.mapv(|v| v.abs()).max().unwrap() > eps {
                 y_score = col.to_owned();
                 break;
             }
@@ -365,12 +370,12 @@ impl<F: Float + Scalar + Lapack> PlsParams<F> {
         let mut x_pinv = None;
         let mut y_pinv = None;
         if self.mode == Mode::B {
-            x_pinv = Some(utils::pinv2(&x, Some(F::from(10.).unwrap() * eps)));
-            y_pinv = Some(utils::pinv2(&y, Some(F::from(10.).unwrap() * eps)));
+            x_pinv = Some(utils::pinv2(x.view(), Some(F::cast(10.) * eps)));
+            y_pinv = Some(utils::pinv2(y.view(), Some(F::cast(10.) * eps)));
         }
 
         // init to big value for first convergence check
-        let mut x_weights_old = Array1::<F>::from_elem(x.ncols(), F::from(100.).unwrap());
+        let mut x_weights_old = Array1::<F>::from_elem(x.ncols(), F::cast(100.));
 
         let mut n_iter = 1;
         let mut x_weights = Array1::<F>::ones(x.ncols());
@@ -381,7 +386,7 @@ impl<F: Float + Scalar + Lapack> PlsParams<F> {
                 Mode::A => x.t().dot(&y_score) / y_score.dot(&y_score),
                 Mode::B => x_pinv.to_owned().unwrap().dot(&y_score),
             };
-            x_weights /= num_traits::Float::sqrt(x_weights.dot(&x_weights)) + eps;
+            x_weights /= x_weights.dot(&x_weights).sqrt() + eps;
             let x_score = x.dot(&x_weights);
 
             y_weights = match self.mode {
@@ -390,7 +395,7 @@ impl<F: Float + Scalar + Lapack> PlsParams<F> {
             };
 
             if norm_y_weights {
-                y_weights /= num_traits::Float::sqrt(y_weights.dot(&y_weights)) + eps
+                y_weights /= y_weights.dot(&y_weights).sqrt() + eps
             }
 
             let ya = y.dot(&y_weights);
@@ -422,9 +427,13 @@ impl<F: Float + Scalar + Lapack> PlsParams<F> {
         y: &ArrayBase<impl Data<Elem = F>, Ix2>,
     ) -> Result<(Array1<F>, Array1<F>)> {
         let c = x.t().dot(y);
+
+        let c = c.with_lapack();
         let (u, _, vt) = c.svd(true, true)?;
-        let u = u.unwrap().column(0).to_owned();
-        let vt = vt.unwrap().row(0).to_owned();
+        // safe unwrap because both parameters are set to true in above call
+        let u = u.unwrap().column(0).to_owned().without_lapack();
+        let vt = vt.unwrap().row(0).to_owned().without_lapack();
+
         Ok((u, vt))
     }
 }
@@ -590,22 +599,22 @@ mod tests {
         let (x_weights, y_weights) = pls.weights();
         let (x_rotations, y_rotations) = pls.rotations();
         assert_abs_diff_eq!(
-            expected_x_rotations.mapv(|v| v.abs()),
+            expected_x_rotations.mapv(|v: f64| v.abs()),
             x_rotations.mapv(|v| v.abs()),
             epsilon = 1e-7
         );
         assert_abs_diff_eq!(
-            expected_x_weights.mapv(|v| v.abs()),
+            expected_x_weights.mapv(|v: f64| v.abs()),
             x_weights.mapv(|v| v.abs()),
             epsilon = 1e-7
         );
         assert_abs_diff_eq!(
-            expected_y_rotations.mapv(|v| v.abs()),
+            expected_y_rotations.mapv(|v: f64| v.abs()),
             y_rotations.mapv(|v| v.abs()),
             epsilon = 1e-7
         );
         assert_abs_diff_eq!(
-            expected_y_weights.mapv(|v| v.abs()),
+            expected_y_weights.mapv(|v: f64| v.abs()),
             y_weights.mapv(|v| v.abs()),
             epsilon = 1e-7
         );

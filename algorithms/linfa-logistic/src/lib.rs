@@ -14,7 +14,11 @@
 //! ```bash
 //! $ cargo run --example winequality
 //! ```
+//!
 
+pub mod error;
+
+use crate::error::{Error, Result};
 use argmin::prelude::*;
 use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::lbfgs::LBFGS;
@@ -79,10 +83,10 @@ impl<F: Float> LogisticRegression<F> {
     /// Creates a new LogisticRegression with default configuration.
     pub fn new() -> LogisticRegression<F> {
         LogisticRegression {
-            alpha: F::from(1.0).unwrap(),
+            alpha: F::cast(1.0),
             fit_intercept: true,
             max_iterations: 100,
-            gradient_tolerance: F::from(1e-4).unwrap(),
+            gradient_tolerance: F::cast(1e-4),
             initial_params: None,
         }
     }
@@ -138,11 +142,7 @@ impl<F: Float> LogisticRegression<F> {
     /// i.e. any values are `Inf` or `NaN`, `y` doesn't have as many items as
     /// `x` has rows, or if other parameters (gradient_tolerance, alpha) have
     /// been set to inalid values.
-    fn fit<A, T, C>(
-        &self,
-        x: &ArrayBase<A, Ix2>,
-        y: T,
-    ) -> Result<FittedLogisticRegression<F, C>, String>
+    fn fit<A, T, C>(&self, x: &ArrayBase<A, Ix2>, y: T) -> Result<FittedLogisticRegression<F, C>>
     where
         A: Data<Elem = F>,
         T: AsTargets<Elem = C>,
@@ -159,45 +159,38 @@ impl<F: Float> LogisticRegression<F> {
 
     /// Ensure that `x` and `y` have the right shape and that all data and
     /// configuration parameters are finite.
-    fn validate_data<A, B>(
-        &self,
-        x: &ArrayBase<A, Ix2>,
-        y: &ArrayBase<B, Ix1>,
-    ) -> Result<(), String>
+    fn validate_data<A, B>(&self, x: &ArrayBase<A, Ix2>, y: &ArrayBase<B, Ix1>) -> Result<()>
     where
         A: Data<Elem = F>,
         B: Data<Elem = F>,
     {
         if x.shape()[0] != y.len() {
-            return Err(
-                "Incompatible shapes of data, expected `x` and `y` to have same number of rows"
-                    .to_string(),
-            );
+            return Err(Error::MismatchedShapes(x.shape()[0], y.len()));
         }
         if x.iter().any(|x| !x.is_finite())
             || y.iter().any(|y| !y.is_finite())
             || !self.alpha.is_finite()
         {
-            return Err("Values must be finite and not `Inf`, `-Inf` or `NaN`".to_string());
+            return Err(Error::InvalidValues);
         }
         if !self.gradient_tolerance.is_finite() || self.gradient_tolerance <= F::zero() {
-            return Err("gradient_tolerance must be a positive, finite number".to_string());
+            return Err(Error::InvalidGradientTolerance);
         }
         self.validate_init_params(x)?;
         Ok(())
     }
 
-    fn validate_init_params<A>(&self, x: &ArrayBase<A, Ix2>) -> Result<(), String>
+    fn validate_init_params<A>(&self, x: &ArrayBase<A, Ix2>) -> Result<()>
     where
         A: Data<Elem = F>,
     {
         if let Some((params, intercept)) = self.initial_params.as_ref() {
             let (_, n_features) = x.dim();
             if n_features != params.dim() {
-                return Err("Size of initial parameter guess must be the same as the number of columns in the feature matrix `x`".to_string());
+                return Err(Error::InvalidInitialParametersGuessSize);
             }
             if params.iter().any(|p| !p.is_finite()) || !intercept.is_finite() {
-                return Err("Initial parameter guess must be finite".to_string());
+                return Err(Error::InvalidInitialParametersGuess);
             }
         }
         Ok(())
@@ -254,14 +247,14 @@ impl<F: Float> LogisticRegression<F> {
         problem: LogisticRegressionProblem<'a, F, A>,
         solver: LBFGSType<F>,
         init_params: Array1<F>,
-    ) -> Result<ArgminResult<LogisticRegressionProblem<'a, F, A>>, String>
+    ) -> Result<ArgminResult<LogisticRegressionProblem<'a, F, A>>>
     where
         A: Data<Elem = F>,
     {
         Executor::new(problem, solver, ArgminParam(init_params))
             .max_iters(self.max_iterations)
             .run()
-            .map_err(|err| format!("Error running solver: {}", err))
+            .map_err(|err| err.into())
     }
 
     /// Take an ArgminResult and return a FittedLogisticRegression.
@@ -269,12 +262,12 @@ impl<F: Float> LogisticRegression<F> {
         &self,
         labels: ClassLabels<F, C>,
         result: &ArgminResult<LogisticRegressionProblem<F, A>>,
-    ) -> Result<FittedLogisticRegression<F, C>, String>
+    ) -> Result<FittedLogisticRegression<F, C>>
     where
         A: Data<Elem = F>,
         C: PartialOrd + Clone,
     {
-        let mut intercept = F::from(0.0).unwrap();
+        let mut intercept = F::cast(0.0);
         let mut params = result.state().best_param.as_array().clone();
         if self.fit_intercept {
             intercept = params[params.len() - 1];
@@ -285,9 +278,9 @@ impl<F: Float> LogisticRegression<F> {
 }
 
 impl<'a, C: 'a + PartialOrd + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C>>
-    Fit<'a, ArrayBase<D, Ix2>, T> for LogisticRegression<F>
+    Fit<ArrayBase<D, Ix2>, T, Error> for LogisticRegression<F>
 {
-    type Object = Result<FittedLogisticRegression<F, C>, String>;
+    type Object = FittedLogisticRegression<F, C>;
 
     /// Given a 2-dimensional feature matrix array `x` with shape
     /// (n_samples, n_features) and an array of target classes to predict,
@@ -305,10 +298,7 @@ impl<'a, C: 'a + PartialOrd + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<E
     /// i.e. any values are `Inf` or `NaN`, `y` doesn't have as many items as
     /// `x` has rows, or if other parameters (gradient_tolerance, alpha) have
     /// been set to inalid values.
-    fn fit(
-        &self,
-        dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
-    ) -> Result<FittedLogisticRegression<F, C>, String> {
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
         self.fit(dataset.records(), dataset.targets())
     }
 }
@@ -319,61 +309,57 @@ impl<'a, C: 'a + PartialOrd + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<E
 /// class.
 ///
 /// It is an error to have more than two classes.
-fn label_classes<F, T, C>(y: T) -> Result<(ClassLabels<F, C>, Array1<F>), String>
+fn label_classes<F, T, C>(y: T) -> Result<(ClassLabels<F, C>, Array1<F>)>
 where
     F: Float,
     T: AsTargets<Elem = C>,
     C: PartialOrd + Clone,
 {
-    match y.try_single_target() {
-        Err(_) => Err("Expected single target dataset".to_string()),
-        Ok(y_single_target) => {
-            let mut classes: Vec<&C> = vec![];
-            let mut target_vec = vec![];
-            let mut use_negative_label: bool = true;
-            for item in y_single_target {
-                if let Some(last_item) = classes.last() {
-                    if *last_item != item {
-                        use_negative_label = !use_negative_label;
-                    }
-                }
-                if !classes.contains(&item) {
-                    classes.push(item);
-                }
-                target_vec.push(if use_negative_label {
-                    F::NEGATIVE_LABEL
-                } else {
-                    F::POSITIVE_LABEL
-                });
+    let y_single_target = y.try_single_target()?;
+    let mut classes: Vec<&C> = vec![];
+    let mut target_vec = vec![];
+    let mut use_negative_label: bool = true;
+    for item in y_single_target {
+        if let Some(last_item) = classes.last() {
+            if *last_item != item {
+                use_negative_label = !use_negative_label;
             }
-            if classes.len() != 2 {
-                return Err("Expected exactly two classes for logistic regression".to_string());
-            }
-            let mut target_array = Array1::from(target_vec);
-            let labels = if classes[0] < classes[1] {
-                (F::NEGATIVE_LABEL, F::POSITIVE_LABEL)
-            } else {
-                // If we found the larger class first, flip the sign in the target
-                // vector, so that -1.0 is always the label for the smaller class
-                // and 1.0 the label for the larger class
-                target_array *= -F::one();
-                (F::POSITIVE_LABEL, F::NEGATIVE_LABEL)
-            };
-            Ok((
-                vec![
-                    ClassLabel {
-                        class: classes[0].clone(),
-                        label: labels.0,
-                    },
-                    ClassLabel {
-                        class: classes[1].clone(),
-                        label: labels.1,
-                    },
-                ],
-                target_array,
-            ))
         }
+        if !classes.contains(&item) {
+            classes.push(item);
+        }
+        target_vec.push(if use_negative_label {
+            F::NEGATIVE_LABEL
+        } else {
+            F::POSITIVE_LABEL
+        });
     }
+    if classes.len() != 2 {
+        return Err(Error::WrongNumberOfClasses);
+    }
+    let mut target_array = Array1::from(target_vec);
+    let labels = if classes[0] < classes[1] {
+        (F::NEGATIVE_LABEL, F::POSITIVE_LABEL)
+    } else {
+        // If we found the larger class first, flip the sign in the target
+        // vector, so that -1.0 is always the label for the smaller class
+        // and 1.0 the label for the larger class
+        target_array *= -F::one();
+        (F::POSITIVE_LABEL, F::NEGATIVE_LABEL)
+    };
+    Ok((
+        vec![
+            ClassLabel {
+                class: classes[0].clone(),
+                label: labels.0,
+            },
+            ClassLabel {
+                class: classes[1].clone(),
+                label: labels.1,
+            },
+        ],
+        target_array,
+    ))
 }
 
 /// Conditionally split the feature vector `w` into parameter vector and
@@ -394,8 +380,8 @@ fn convert_params<F: Float>(n_features: usize, w: &Array1<F>) -> (Array1<F>, F) 
 }
 
 /// The logistic function
-fn logistic<F: Float>(x: F) -> F {
-    F::one() / (F::one() + num_traits::Float::exp(-x))
+fn logistic<F: linfa::Float>(x: F) -> F {
+    F::one() / (F::one() + (-x).exp())
 }
 
 /// A numerically stable version of the log of the logistic function.
@@ -405,11 +391,11 @@ fn logistic<F: Float>(x: F) -> F {
 ///
 /// See the blog post describing this implementation:
 /// http://fa.bianp.net/blog/2013/numerical-optimizers-for-logistic-regression/
-fn log_logistic<F: Float>(x: F) -> F {
+fn log_logistic<F: linfa::Float>(x: F) -> F {
     if x > F::zero() {
-        -num_traits::Float::ln(F::one() + num_traits::Float::exp(-x))
+        -(F::one() + (-x).exp()).ln()
     } else {
-        x - num_traits::Float::ln(F::one() + num_traits::Float::exp(x))
+        x - (F::one() + x.exp()).ln()
     }
 }
 
@@ -432,7 +418,7 @@ fn logistic_loss<F: Float, A: Data<Elem = F>>(
     let (params, intercept) = convert_params(n_features, &w);
     let mut yz = (x.dot(&params) + intercept) * y;
     yz.mapv_inplace(log_logistic);
-    -yz.sum() + F::from(0.5).unwrap() * alpha * params.dot(&params)
+    -yz.sum() + F::cast(0.5) * alpha * params.dot(&params)
 }
 
 /// Computes the gradient of the logistic loss function
@@ -475,7 +461,7 @@ impl<F: Float, C: PartialOrd + Clone> FittedLogisticRegression<F, C> {
         labels: ClassLabels<F, C>,
     ) -> FittedLogisticRegression<F, C> {
         FittedLogisticRegression {
-            threshold: F::from(0.5).unwrap(),
+            threshold: F::cast(0.5),
             intercept,
             params,
             labels,
@@ -572,13 +558,13 @@ impl<'a, F: Float, A: Data<Elem = F>> ArgminOp for LogisticRegressionProblem<'a,
     type Float = F;
 
     /// Apply the cost function to a parameter `p`
-    fn apply(&self, p: &Self::Param) -> Result<Self::Output, Error> {
+    fn apply(&self, p: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
         let w = p.as_array();
         Ok(logistic_loss(self.x, &self.target, self.alpha, w))
     }
 
     /// Compute the gradient at parameter `p`.
-    fn gradient(&self, p: &Self::Param) -> Result<Self::Param, Error> {
+    fn gradient(&self, p: &Self::Param) -> std::result::Result<Self::Param, argmin::core::Error> {
         let w = p.as_array();
         Ok(ArgminParam(logistic_grad(
             self.x,
@@ -773,7 +759,10 @@ mod test {
         let x = array![[0.01], [1.0], [-1.0], [-0.01]];
         let y = array![[0, 0], [0, 0], [0, 0], [0, 0]];
         let res = log_reg.fit(&x, &y);
-        assert_eq!(res, Err("Expected single target dataset".to_string()));
+        assert_eq!(
+            res.unwrap_err().to_string(),
+            "multiple targets not supported".to_string()
+        );
     }
 
     #[test]
@@ -783,11 +772,8 @@ mod test {
         let y = array![0.0, 0.0, 1.0, 1.0];
         let res = log_reg.fit(&x, &y);
         assert_eq!(
-            res,
-            Err(
-                "Incompatible shapes of data, expected `x` and `y` to have same number of rows"
-                    .to_string()
-            )
+            res.unwrap_err().to_string(),
+            "Expected `x` and `y` to have same number of rows, got 3 != 4".to_string()
         );
     }
 
@@ -798,15 +784,15 @@ mod test {
         let log_reg = LogisticRegression::default();
         let normal_x = array![[-1.0], [1.0]];
         let y = array![0.0, 1.0];
-        let expected = Err("Values must be finite and not `Inf`, `-Inf` or `NaN`".to_string());
+        let expected = "Values must be finite and not `Inf`, `-Inf` or `NaN`".to_string();
         for inf_x in &inf_xs {
             let res = log_reg.fit(inf_x, &y);
-            assert_eq!(res, expected);
+            assert_eq!(res.unwrap_err().to_string(), expected);
         }
         for inf in &infs {
             let log_reg = LogisticRegression::default().alpha(*inf);
             let res = log_reg.fit(&normal_x, &y);
-            assert_eq!(res, expected);
+            assert_eq!(res.unwrap_err().to_string(), expected);
         }
         let mut non_positives = infs.clone();
         non_positives.push(-1.0);
@@ -815,8 +801,8 @@ mod test {
             let log_reg = LogisticRegression::default().gradient_tolerance(*inf);
             let res = log_reg.fit(&normal_x, &y);
             assert_eq!(
-                res,
-                Err("gradient_tolerance must be a positive, finite number".to_string())
+                res.unwrap_err().to_string(),
+                "gradient_tolerance must be a positive, finite number"
             );
         }
     }
@@ -826,21 +812,21 @@ mod test {
         let infs = vec![std::f64::INFINITY, std::f64::NEG_INFINITY, std::f64::NAN];
         let normal_x = array![[-1.0], [1.0]];
         let normal_y = array![0.0, 1.0];
-        let expected = Err("Initial parameter guess must be finite".to_string());
+        let expected = "Initial parameter guess must be finite".to_string();
         for inf in &infs {
             let log_reg = LogisticRegression::default().initial_params(array![*inf], 0.0);
             let res = log_reg.fit(&normal_x, &normal_y);
-            assert_eq!(res, expected);
+            assert_eq!(res.unwrap_err().to_string(), expected);
         }
         for inf in &infs {
             let log_reg = LogisticRegression::default().initial_params(array![0.0], *inf);
             let res = log_reg.fit(&normal_x, &normal_y);
-            assert_eq!(res, expected);
+            assert_eq!(res.unwrap_err().to_string(), expected);
         }
         {
             let log_reg = LogisticRegression::default().initial_params(array![0.0, 0.0], 0.0);
             let res = log_reg.fit(&normal_x, &normal_y);
-            assert_eq!(res, Err("Size of initial parameter guess must be the same as the number of columns in the feature matrix `x`".to_string()));
+            assert_eq!(res.unwrap_err().to_string(), "Size of initial parameter guess must be the same as the number of columns in the feature matrix `x`".to_string());
         }
     }
 

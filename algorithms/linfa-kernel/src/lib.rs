@@ -106,7 +106,7 @@ impl<F: Float, K1: Inner<Elem = F>, K2: Inner<Elem = F>> KernelBase<K1, K2> {
     pub fn params() -> KernelParams<F> {
         KernelParams {
             kind: KernelType::Dense,
-            method: KernelMethod::Gaussian(F::from(0.5).unwrap()),
+            method: KernelMethod::Gaussian(F::cast(0.5)),
         }
     }
 

@@ -72,7 +72,7 @@ pub trait SingleTargetRegression<F: Float, T: AsTargets<Elem = F>>: AsTargets<El
         abs_error.sort_by(|a, b| a.partial_cmp(&b).unwrap());
         let mid = abs_error.len() / 2;
         if abs_error.len() % 2 == 0 {
-            Ok((abs_error[mid - 1] + abs_error[mid]) / F::from(2.0).unwrap())
+            Ok((abs_error[mid - 1] + abs_error[mid]) / F::cast(2.0))
         } else {
             Ok(abs_error[mid])
         }
@@ -98,7 +98,7 @@ pub trait SingleTargetRegression<F: Float, T: AsTargets<Elem = F>>: AsTargets<El
                 / (single_target_compare_to
                     .mapv(|x| (x - mean) * (x - mean))
                     .sum()
-                    + F::from(1e-10).unwrap()))
+                    + F::cast(1e-10)))
     }
 
     /// Same as R-Squared but with biased variance
@@ -116,7 +116,7 @@ pub trait SingleTargetRegression<F: Float, T: AsTargets<Elem = F>>: AsTargets<El
                 / (single_target_compare_to
                     .mapv(|x| (x - mean) * (x - mean))
                     .sum()
-                    + F::from(1e-10).unwrap()))
+                    + F::cast(1e-10)))
     }
 }
 

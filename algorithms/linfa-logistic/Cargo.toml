@@ -1,6 +1,6 @@
 [package]
 name = "linfa-logistic"
-version = "0.3.1"
+version = "0.4.0"
 authors = ["Paul Körbitz / Google <koerbitz@google.com>"]
 
 description = "A Machine Learning framework for Rust"
@@ -19,9 +19,10 @@ ndarray-linalg = "0.13"
 num-traits = "0.2"
 argmin = { version = "0.4", features = ["ndarrayl"] }
 serde = "1.0"
+thiserror = "1"
 
-linfa = { version = "0.3.1", path = "../.." }
+linfa = { version = "0.4.0", path = "../.." }
 
 [dev-dependencies]
 approx = "0.4"
-linfa-datasets = { version = "0.3.1", path = "../../datasets", features = ["winequality"] }
+linfa-datasets = { version = "0.4.0", path = "../../datasets", features = ["winequality"] }

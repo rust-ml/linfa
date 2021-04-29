@@ -165,9 +165,11 @@ impl CountVectorizer {
             let mut document_bytes = Vec::new();
             file.read_to_end(&mut document_bytes)?;
             let document = encoding::decode(&document_bytes, trap, encoding).0;
+            // encoding error contains a cow string, can't just use ?, must go through the unwrap
             if document.is_err() {
                 return Err(crate::error::Error::EncodingError(document.err().unwrap()));
             }
+            // safe unwrap now that error has been handled
             let document = transform_string(document.unwrap(), &self.properties);
             self.read_document_into_vocabulary(document, &regex, &mut vocabulary);
         }

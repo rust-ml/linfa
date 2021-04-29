@@ -1,4 +1,4 @@
-use approx::{abs_diff_eq, abs_diff_ne, AbsDiffEq};
+use approx::{abs_diff_eq, abs_diff_ne};
 use ndarray::{s, Array1, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
 use ndarray_linalg::{Inverse, Lapack};
 
@@ -10,13 +10,13 @@ use linfa::{
 
 use super::{ElasticNet, ElasticNetParams, Error, Result};
 
-impl<'a, F, D, T> Fit<'a, ArrayBase<D, Ix2>, T> for ElasticNetParams<F>
+impl<F, D, T> Fit<ArrayBase<D, Ix2>, T, crate::error::Error> for ElasticNetParams<F>
 where
-    F: Float + AbsDiffEq + Lapack,
+    F: Float + Lapack,
     D: Data<Elem = F>,
     T: AsTargets<Elem = F>,
 {
-    type Object = Result<ElasticNet<F>>;
+    type Object = ElasticNet<F>;
 
     /// Fit an elastic net model given a feature matrix `x` and a target
     /// variable `y`.
@@ -28,7 +28,7 @@ where
     /// Returns a `FittedElasticNet` object which contains the fitted
     /// parameters and can be used to `predict` values of the target variable
     /// for new feature values.
-    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<ElasticNet<F>> {
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
         self.validate_params()?;
         let target = dataset.try_single_target()?;
 
@@ -106,7 +106,7 @@ impl<F: Float> ElasticNet<F> {
     /// Calculate the confidence level
     pub fn confidence_95th(&self) -> Result<Array1<(F, F)>> {
         // the 95th percentile of our confidence level
-        let p = F::from(1.645).unwrap();
+        let p = F::cast(1.645);
 
         self.variance
             .as_ref()
@@ -121,7 +121,7 @@ impl<F: Float> ElasticNet<F> {
     }
 }
 
-fn coordinate_descent<'a, F: Float + AbsDiffEq>(
+fn coordinate_descent<'a, F: Float>(
     x: ArrayView2<'a, F>,
     y: ArrayView1<'a, F>,
     tol: F,
@@ -129,7 +129,7 @@ fn coordinate_descent<'a, F: Float + AbsDiffEq>(
     l1_ratio: F,
     penalty: F,
 ) -> (Array1<F>, F, u32) {
-    let n_samples = F::from(x.shape()[0]).unwrap();
+    let n_samples = F::cast(x.shape()[0]);
     let n_features = x.shape()[1];
     // the parameters of the model
     let mut w = Array1::<F>::zeros(n_features);
@@ -186,8 +186,8 @@ fn duality_gap<'a, F: Float>(
     l1_ratio: F,
     penalty: F,
 ) -> F {
-    let half = F::from(0.5).unwrap();
-    let n_samples = F::from(x.shape()[0]).unwrap();
+    let half = F::cast(0.5);
+    let n_samples = F::cast(x.shape()[0]);
     let l1_reg = l1_ratio * penalty * n_samples;
     let l2_reg = (F::one() - l1_ratio) * penalty * n_samples;
     let xta = x.t().dot(&r) - &w * l2_reg;
@@ -223,8 +223,7 @@ fn variance_params<'a, F: Float + Lapack, T: AsTargets<Elem = F>, D: Data<Elem =
         return Err(Error::NotEnoughSamples);
     }
 
-    let var_target =
-        (&target - &y_est).mapv(|x| x * x).sum() / F::from(nsamples - nfeatures - 1).unwrap();
+    let var_target = (&target - &y_est).mapv(|x| x * x).sum() / F::cast(nsamples - nfeatures);
 
     let inv_cov = ds.records().t().dot(ds.records()).inv();
 
