@@ -5,8 +5,8 @@ use super::{
     Label, Labels, Pr, Records,
 };
 use ndarray::{
-    concatenate, Array1, Array2, ArrayBase, ArrayView2, ArrayViewMut2, Axis, CowArray, Data,
-    DataMut, Dimension, Ix1, Ix2, Ix3, OwnedRepr, ViewRepr,
+    Array1, Array2, ArrayBase, ArrayView2, ArrayViewMut2, Axis, CowArray, Data, DataMut, Dimension,
+    Ix1, Ix2, Ix3, OwnedRepr, ViewRepr,
 };
 
 impl<'a, L, S: Data<Elem = L>> AsTargets for ArrayBase<S, Ix1> {
@@ -151,12 +151,12 @@ impl<L: Label, S: Data<Elem = L>, I: Dimension> Labels for ArrayBase<S, I> {
     }
 }
 
-/// A NdArray with discrete labels can act as labels
-impl<L: Label, R: Records, T: AsTargets<Elem = L>> Labels for DatasetBase<R, CountedTargets<L, T>> {
+/// Counted labels can act as labels
+impl<L: Label, T: AsTargets<Elem = L>> Labels for CountedTargets<L, T> {
     type Elem = L;
 
     fn label_count(&self) -> Vec<HashMap<L, usize>> {
-        self.targets.labels.clone()
+        self.labels.clone()
     }
 }
 
@@ -165,9 +165,14 @@ where
     D: Data<Elem = F>,
     T: AsTargets<Elem = L>,
 {
+    /// Transforms the input dataset by keeping only those samples whose label appears in `labels`.
+    ///
+    /// In the multi-target case a sample is kept if *any* of its targets appears in `labels`.
+    ///
+    /// Sample weights and feature names are preserved by this transformation.
     pub fn with_labels(
         &self,
-        labels: &[&[L]],
+        labels: &[L],
     ) -> DatasetBase<Array2<F>, CountedTargets<L, Array2<L>>> {
         let targets = self.targets.as_multi_targets();
         let old_weights = self.weights();
@@ -185,7 +190,7 @@ where
             .zip(targets.genrows().into_iter())
             .enumerate()
         {
-            let any_exists = t.iter().zip(labels.iter()).any(|(a, b)| b.contains(&a));
+            let any_exists = t.iter().any(|a| labels.contains(&a));
 
             if any_exists {
                 for (map, val) in map.iter_mut().zip(t.iter()) {
@@ -201,8 +206,15 @@ where
             }
         }
 
-        let records: Array2<F> = concatenate(Axis(0), &records_arr).unwrap();
-        let targets = concatenate(Axis(0), &targets_arr).unwrap();
+        let nsamples = records_arr.len();
+        let nfeatures = self.nfeatures();
+        let ntargets = self.ntargets();
+
+        let records_arr = records_arr.into_iter().flatten().copied().collect();
+        let targets_arr = targets_arr.into_iter().flatten().copied().collect();
+
+        let records = Array2::from_shape_vec((nsamples, nfeatures), records_arr).unwrap();
+        let targets = Array2::from_shape_vec((nsamples, ntargets), targets_arr).unwrap();
 
         let targets = CountedTargets {
             targets,

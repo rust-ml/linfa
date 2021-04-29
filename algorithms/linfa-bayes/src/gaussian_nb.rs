@@ -2,7 +2,7 @@ use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, 
 use ndarray_stats::QuantileExt;
 use std::collections::HashMap;
 
-use crate::error::Result;
+use crate::error::{BayesError, Result};
 use linfa::dataset::{AsTargets, DatasetBase, Labels};
 use linfa::traits::{Fit, IncrementalFit, PredictRef};
 use linfa::Float;
@@ -40,13 +40,13 @@ impl GaussianNbParams {
     }
 }
 
-impl<F, D, L> Fit<'_, ArrayBase<D, Ix2>, L> for GaussianNbParams
+impl<F, D, L> Fit<ArrayBase<D, Ix2>, L, BayesError> for GaussianNbParams
 where
     F: Float,
     D: Data<Elem = F>,
     L: AsTargets<Elem = usize> + Labels<Elem = usize>,
 {
-    type Object = Result<GaussianNb<F>>;
+    type Object = GaussianNb<F>;
 
     /// Fit the model
     ///
@@ -77,7 +77,7 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, L>) -> Self::Object {
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, L>) -> Result<Self::Object> {
         // We extract the unique classes in sorted order
         let mut unique_classes = dataset.targets.labels();
         unique_classes.sort_unstable();
@@ -148,8 +148,7 @@ where
         // If the ratio of the variance between dimensions is too small, it will cause
         // numerical errors. We address this by artificially boosting the variance
         // by `epsilon` (a small fraction of the variance of the largest feature)
-        let epsilon =
-            F::from(self.var_smoothing).unwrap() * *x.var_axis(Axis(0), F::zero()).max()?;
+        let epsilon = F::cast(self.var_smoothing) * *x.var_axis(Axis(0), F::zero()).max()?;
 
         let mut model = match model_in {
             Some(mut temp) => {
@@ -203,7 +202,7 @@ where
             .values()
             .fold(0, |acc, x| acc + x.class_count);
         for info in model.class_info.values_mut() {
-            info.prior = F::from(info.class_count).unwrap() / F::from(class_count_sum).unwrap();
+            info.prior = F::cast(info.class_count) / F::cast(class_count_sum);
         }
 
         Ok(Some(model))
@@ -304,7 +303,7 @@ where
     ///
     /// __Panics__ if the input is empty or if pairwise orderings are undefined
     /// (this occurs in presence of NaN values)
-    fn predict_ref<'a>(&'a self, x: &ArrayBase<D, Ix2>) -> Array1<usize> {
+    fn predict_ref(&self, x: &ArrayBase<D, Ix2>) -> Array1<usize> {
         let joint_log_likelihood = self.joint_log_likelihood(x.view());
 
         // We store the classes and likelihood info in an vec and matrix

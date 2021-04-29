@@ -8,7 +8,7 @@ use linfa::{
 use linfa_kernel::Kernel;
 use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix2};
 
-use super::error::Result;
+use super::error::{Result, SvmResult};
 use super::permutable_kernel::PermutableKernelRegression;
 use super::solver_smo::SolverState;
 use super::SolverParams;
@@ -84,7 +84,7 @@ pub fn fit_nu<F: Float>(
     let mut linear_term = vec![F::zero(); 2 * target.len()];
     let mut targets = vec![true; 2 * target.len()];
 
-    let mut sum = c * nu * F::from(target.len()).unwrap() / F::from(2.0).unwrap();
+    let mut sum = c * nu * F::cast(target.len()) / F::cast(2.0);
     for i in 0..target.len() {
         alpha[i] = F::min(sum, c);
         alpha[i + target.len()] = F::min(sum, c);
@@ -118,11 +118,11 @@ pub fn fit_nu<F: Float>(
 ///
 /// Take a number of observations and project them to optimal continuous targets.
 macro_rules! impl_regression {
-    ($records:ty, $targets:ty) => {
-        impl<'a, F: Float> Fit<'a, $records, $targets> for SvmParams<F, F> {
-            type Object = Result<Svm<F, F>>;
+    ($records:ty, $targets:ty, $f:ty) => {
+        impl Fit<$records, $targets, SvmResult> for SvmParams<$f, $f> {
+            type Object = Svm<$f, $f>;
 
-            fn fit(&self, dataset: &DatasetBase<$records, $targets>) -> Self::Object {
+            fn fit(&self, dataset: &DatasetBase<$records, $targets>) -> Result<Self::Object> {
                 let kernel = self.kernel.transform(dataset.records());
                 let target = dataset.try_single_target()?;
                 let target = target.as_slice().unwrap();
@@ -153,10 +153,14 @@ macro_rules! impl_regression {
     };
 }
 
-impl_regression!(Array2<F>, Array2<F>);
-impl_regression!(ArrayView2<'a, F>, ArrayView2<'a, F>);
-impl_regression!(Array2<F>, Array1<F>);
-impl_regression!(ArrayView2<'a, F>, ArrayView1<'a, F>);
+impl_regression!(Array2<f32>, Array2<f32>, f32);
+impl_regression!(Array2<f64>, Array2<f64>, f64);
+impl_regression!(ArrayView2<'_, f32>, ArrayView2<'_, f32>, f32);
+impl_regression!(ArrayView2<'_, f64>, ArrayView2<'_, f64>, f64);
+impl_regression!(Array2<f32>, Array1<f32>, f32);
+impl_regression!(Array2<f64>, Array1<f64>, f64);
+impl_regression!(ArrayView2<'_, f32>, ArrayView1<'_, f32>, f32);
+impl_regression!(ArrayView2<'_, f64>, ArrayView1<'_, f64>, f64);
 
 macro_rules! impl_predict {
     ( $($t:ty),* ) => {

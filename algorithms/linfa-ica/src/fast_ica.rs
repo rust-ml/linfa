@@ -1,8 +1,12 @@
 //! Fast algorithm for Independent Component Analysis (ICA)
 
-use linfa::{dataset::DatasetBase, traits::*, Float};
+use linfa::{
+    dataset::{DatasetBase, Records, WithLapack, WithoutLapack},
+    traits::*,
+    Float,
+};
 use ndarray::{Array, Array1, Array2, ArrayBase, Axis, Data, Ix2};
-use ndarray_linalg::{eigh::Eigh, solveh::UPLO, svd::SVD, Lapack};
+use ndarray_linalg::{eigh::Eigh, solveh::UPLO, svd::SVD};
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
 use ndarray_stats::QuantileExt;
 use rand_isaac::Isaac64Rng;
@@ -39,7 +43,7 @@ impl<F: Float> FastIca<F> {
             ncomponents: None,
             gfunc: GFunc::Logcosh(1.),
             max_iter: 200,
-            tol: F::from(1e-4).unwrap(),
+            tol: F::cast(1e-4),
             random_state: None,
         }
     }
@@ -75,8 +79,8 @@ impl<F: Float> FastIca<F> {
     }
 }
 
-impl<'a, F: Float + Lapack, D: Data<Elem = F>, T> Fit<'a, ArrayBase<D, Ix2>, T> for FastIca<F> {
-    type Object = Result<FittedFastIca<F>>;
+impl<F: Float, D: Data<Elem = F>, T> Fit<ArrayBase<D, Ix2>, T, FastIcaError> for FastIca<F> {
+    type Object = FittedFastIca<F>;
 
     /// Fit the model
     ///
@@ -87,9 +91,12 @@ impl<'a, F: Float + Lapack, D: Data<Elem = F>, T> Fit<'a, ArrayBase<D, Ix2>, T> 
     ///
     /// If the `alpha` value set for [`GFunc::Logcosh`] is not between 1 and 2
     /// inclusive
-    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<FittedFastIca<F>> {
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
         let x = &dataset.records;
-        let (nsamples, nfeatures) = (x.nrows(), x.ncols());
+        let (nsamples, nfeatures) = (x.nsamples(), x.nfeatures());
+        if dataset.nsamples() == 0 {
+            return Err(FastIcaError::NotEnoughSamples);
+        }
 
         // If the number of components is not set, we take the minimum of
         // the number of rows and columns
@@ -105,6 +112,7 @@ impl<'a, F: Float + Lapack, D: Data<Elem = F>, T> Fit<'a, ArrayBase<D, Ix2>, T> 
         }
 
         // We center the input by subtracting the mean of its features
+        // safe unwrap because we already returned an error on zero samples
         let xmean = x.mean_axis(Axis(0)).unwrap();
         let mut xcentered = x - &xmean.view().insert_axis(Axis(0));
 
@@ -113,20 +121,23 @@ impl<'a, F: Float + Lapack, D: Data<Elem = F>, T> Fit<'a, ArrayBase<D, Ix2>, T> 
 
         // We whiten the matrix to remove any potential correlation between
         // the components
+        let xcentered = xcentered.with_lapack();
         let k = match xcentered.svd(true, false)? {
             (Some(u), s, _) => {
-                let s = s.mapv(|x| F::from(x).unwrap());
-                (u.slice(s![.., ..nsamples.min(nfeatures)]).to_owned() / s)
+                let s = s.mapv(|x| F::Lapack::cast(x));
+                (u.slice_move(s![.., ..nsamples.min(nfeatures)]) / s)
                     .t()
                     .slice(s![..ncomponents, ..])
                     .to_owned()
             }
             _ => return Err(FastIcaError::SvdDecomposition),
         };
-        let mut xwhitened = k.dot(&xcentered);
+
+        let mut xwhitened = k.dot(&xcentered).without_lapack();
+        let k = k.without_lapack();
 
         // We multiply the matrix with root of the number of records
-        let nsamples_sqrt = F::from((nsamples as f64).sqrt()).unwrap();
+        let nsamples_sqrt = F::cast(nsamples).sqrt();
         xwhitened.mapv_inplace(|x| x * nsamples_sqrt);
 
         // We initialize the de-mixing matrix with a uniform distribution
@@ -137,7 +148,7 @@ impl<'a, F: Float + Lapack, D: Data<Elem = F>, T> Fit<'a, ArrayBase<D, Ix2>, T> 
         } else {
             w = Array::random((ncomponents, ncomponents), Uniform::new(0., 1.));
         }
-        let mut w = w.mapv(|x| F::from(x).unwrap());
+        let mut w = w.mapv(|x| F::cast(x));
 
         // We find the optimized de-mixing matrix
         w = self.ica_parallel(&xwhitened, &w)?;
@@ -152,7 +163,7 @@ impl<'a, F: Float + Lapack, D: Data<Elem = F>, T> Fit<'a, ArrayBase<D, Ix2>, T> 
     }
 }
 
-impl<F: Float + Lapack> FastIca<F> {
+impl<F: Float> FastIca<F> {
     // Parallel FastICA, Optimization step
     fn ica_parallel(&self, x: &Array2<F>, w: &Array2<F>) -> Result<Array2<F>> {
         let mut w = Self::sym_decorrelation(&w)?;
@@ -162,7 +173,7 @@ impl<F: Float + Lapack> FastIca<F> {
         for _ in 0..self.max_iter {
             let (gwtx, g_wtx) = self.gfunc.exec(&w.dot(x))?;
 
-            let lhs = gwtx.dot(&x.t()).mapv(|x| x / F::from(p).unwrap());
+            let lhs = gwtx.dot(&x.t()).mapv(|x| x / F::cast(p));
             let rhs = &w * &g_wtx.insert_axis(Axis(1));
             let wnew = Self::sym_decorrelation(&(lhs - rhs))?;
 
@@ -173,15 +184,15 @@ impl<F: Float + Lapack> FastIca<F> {
                 .zip(w.outer_iter())
                 .map(|(a, b)| a.dot(&b))
                 .collect::<Array1<F>>()
-                .mapv(num_traits::Float::abs)
-                .mapv(|x| x - F::from(1.).unwrap())
-                .mapv(num_traits::Float::abs)
+                .mapv(|x| x.abs())
+                .mapv(|x| x - F::cast(1.))
+                .mapv(|x| x.abs())
                 .max()
                 .unwrap();
 
             w = wnew;
 
-            if lim < F::from(self.tol).unwrap() {
+            if lim < F::cast(self.tol) {
                 break;
             }
         }
@@ -193,17 +204,18 @@ impl<F: Float + Lapack> FastIca<F> {
     //
     // W <- (W * W.T)^{-1/2} * W
     fn sym_decorrelation(w: &Array2<F>) -> Result<Array2<F>> {
-        let (eig_val, eig_vec) = w.dot(&w.t()).eigh(UPLO::Upper)?;
-        let eig_val = eig_val.mapv(|x| F::from(x).unwrap());
+        let (eig_val, eig_vec) = w.dot(&w.t()).with_lapack().eigh(UPLO::Upper)?;
+        let eig_val = eig_val.mapv(|x| F::cast(x));
+        let eig_vec = eig_vec.without_lapack();
 
         let tmp = &eig_vec
-            * &(eig_val.mapv(num_traits::Float::sqrt).mapv(|x| {
+            * &(eig_val.mapv(|x| x.sqrt()).mapv(|x| {
                 // We lower bound the float value at 1e-7 when taking the reciprocal
-                let lower_bound = F::from(1e-7).unwrap();
+                let lower_bound = F::cast(1e-7);
                 if x < lower_bound {
-                    return num_traits::Float::recip(lower_bound);
+                    return lower_bound.recip();
                 }
-                num_traits::Float::recip(x)
+                x.recip()
             }))
             .insert_axis(Axis(0));
 

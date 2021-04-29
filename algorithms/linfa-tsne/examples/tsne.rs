@@ -5,7 +5,7 @@ use std::{io::Write, process::Command};
 
 fn main() -> Result<()> {
     let ds = linfa_datasets::iris();
-    let ds = Pca::params(3).whiten(true).fit(&ds).transform(ds);
+    let ds = Pca::params(3).whiten(true).fit(&ds).unwrap().transform(ds);
 
     let ds = TSne::embedding_size(2)
         .perplexity(10.0)

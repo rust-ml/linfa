@@ -148,7 +148,7 @@ fn k_means_para<R: Rng + SeedableRng, F: Float>(
         // `candidates_per_round`.
         let next_candidates_idx = sample_subsequent_candidates::<R, _>(
             &dists,
-            F::from(candidates_per_round).unwrap(),
+            F::cast(candidates_per_round),
             rng.gen_range(0..std::u64::MAX),
         );
 
@@ -199,7 +199,7 @@ fn sample_subsequent_candidates<R: Rng + SeedableRng, F: Float>(
             || R::seed_from_u64(seed.fetch_add(1, Relaxed)),
             move |rng, (i, d)| {
                 let d = *d.into_scalar();
-                let rand = F::from(rng.gen_range(0.0..1.0)).unwrap();
+                let rand = F::cast(rng.gen_range(0.0..1.0));
                 let prob = multiplier * d / cost;
                 (i, rand, prob)
             },
@@ -253,12 +253,9 @@ mod tests {
 
     #[test]
     fn test_sample_subsequent_candidates() {
-        let observations = array![[3.0, 4.0], [1.0, 3.0], [25.0, 15.0]];
-        let dists = array![0.1, 0.4, 0.5];
-        let candidates = sample_subsequent_candidates::<Isaac64Rng, _>(&dists, 4.0, 0);
-        assert_eq!(candidates.len(), 2);
-        assert_abs_diff_eq!(observations.row(candidates[0]), observations.row(1));
-        assert_abs_diff_eq!(observations.row(candidates[1]), observations.row(2));
+        let dists = array![0.0, 0.4, 0.5];
+        let candidates = sample_subsequent_candidates::<Isaac64Rng, _>(&dists, 8.0, 0);
+        assert_eq!(candidates, vec![1, 2]);
     }
 
     #[test]

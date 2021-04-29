@@ -24,10 +24,11 @@ fn pearson_correlation<F: Float, D: Data<Elem = F>>(data: &ArrayBase<D, Ix2>) ->
 
     // center distribution by subtracting mean
     let mean = data.mean_axis(Axis(0)).unwrap();
+    //let std_deviation = mean.clone();
     let denoised = data - &mean.insert_axis(Axis(1)).t();
 
     // calculate the covariance matrix
-    let covariance = denoised.t().dot(&denoised) / F::from(nobservations - 1).unwrap();
+    let covariance = denoised.t().dot(&denoised) / F::cast(nobservations - 1);
     // calculate the standard deviation vector
     let std_deviation = denoised.var_axis(Axis(0), F::one()).mapv(|x| x.sqrt());
 
@@ -98,7 +99,7 @@ fn p_values<F: Float, D: Data<Elem = F>>(
     }
 
     // divide by the number of iterations to re-scale range
-    p_values / F::from(num_iter).unwrap()
+    p_values / F::cast(num_iter)
 }
 
 /// Pearson Correlation Coefficients (or Bivariate Coefficients)

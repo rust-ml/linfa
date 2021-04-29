@@ -1,9 +1,8 @@
 //! Linear Scaling methods
 
 use crate::error::{Error, Result};
-use crate::Float;
 use approx::abs_diff_eq;
-use linfa::dataset::{AsTargets, DatasetBase};
+use linfa::dataset::{AsTargets, DatasetBase, Float, WithLapack};
 use linfa::traits::{Fit, Transformer};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2, Zip};
 use ndarray_linalg::norm::Norm;
@@ -114,14 +113,14 @@ impl<F: Float> LinearScaler<F> {
     }
 }
 
-impl<'a, F: Float, D: Data<Elem = F>, T: AsTargets> Fit<'a, ArrayBase<D, Ix2>, T>
+impl<F: Float, D: Data<Elem = F>, T: AsTargets> Fit<ArrayBase<D, Ix2>, T, Error>
     for LinearScaler<F>
 {
-    type Object = Result<FittedLinearScaler<F>>;
+    type Object = FittedLinearScaler<F>;
 
     /// Fits the input dataset accordng to the scaler [method](enum.ScalingMethod.html). Will return an error
     /// if the dataset does not contain any samples or (in the case of MinMax scaling) if the specified range is not valid.
-    fn fit(&self, x: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Self::Object {
+    fn fit(&self, x: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
         match &self.method {
             ScalingMethod::Standard(with_mean, with_std) => {
                 FittedLinearScaler::standard(x.records(), *with_mean, *with_std)
@@ -150,6 +149,7 @@ impl<F: Float> FittedLinearScaler<F> {
         if records.dim().0 == 0 {
             return Err(Error::NotEnoughSamples);
         }
+        // safe unwrap because of above zero records check
         let means = records.mean_axis(Axis(0)).unwrap();
         let std_devs = if with_std {
             records.std_axis(Axis(0), F::zero()).mapv(|s| {
@@ -211,8 +211,8 @@ impl<F: Float> FittedLinearScaler<F> {
         if records.dim().0 == 0 {
             return Err(Error::NotEnoughSamples);
         }
-        let scales = records.map_axis(Axis(0), |col| {
-            let norm_max = F::from(col.norm_max()).unwrap();
+        let scales: Array1<F> = records.map_axis(Axis(0), |col| {
+            let norm_max = F::cast(col.with_lapack().norm_max());
             if abs_diff_eq!(norm_max, F::zero()) {
                 // if feature is constant at zero then don't scale
                 F::one()
@@ -220,6 +220,7 @@ impl<F: Float> FittedLinearScaler<F> {
                 F::one() / norm_max
             }
         });
+
         let offsets = Array1::zeros(records.dim().1);
         Ok(Self {
             offsets,

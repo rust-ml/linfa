@@ -89,9 +89,9 @@ impl<A: Float> LinkFn<A> for IdentityLink {
 
 struct LogLink;
 
-impl<A: Float> LinkFn<A> for LogLink {
+impl<A: linfa::Float> LinkFn<A> for LogLink {
     fn link(ypred: &Array1<A>) -> Array1<A> {
-        ypred.mapv(|x| num_traits::Float::ln(x))
+        ypred.mapv(|x| x.ln())
     }
 
     fn link_derivative(ypred: &Array1<A>) -> Array1<A> {
@@ -106,40 +106,36 @@ impl<A: Float> LinkFn<A> for LogLink {
     }
 
     fn inverse(lin_pred: &Array1<A>) -> Array1<A> {
-        lin_pred.mapv(|x| num_traits::Float::exp(x))
+        lin_pred.mapv(|x| x.exp())
     }
 
     fn inverse_derivative(lin_pred: &Array1<A>) -> Array1<A> {
-        lin_pred.mapv(|x| num_traits::Float::exp(x))
+        lin_pred.mapv(|x| x.exp())
     }
 }
 
 struct LogitLink;
 
-impl<A: Float> LinkFn<A> for LogitLink {
+impl<A: linfa::Float> LinkFn<A> for LogitLink {
     fn link(ypred: &Array1<A>) -> Array1<A> {
         // logit(ypred)
-        ypred.mapv(|x| num_traits::Float::ln(x / (A::from(1.).unwrap() - x)))
+        ypred.mapv(|x| (x / (A::one() - x)).ln())
     }
 
     fn link_derivative(ypred: &Array1<A>) -> Array1<A> {
         // 1 / (ypred * (1-ypred)
-        ypred.mapv(|x| A::from(1.).unwrap() / (x * (A::from(1.).unwrap() - x)))
+        ypred.mapv(|x| A::one() / (x * (A::one() - x)))
     }
 
     fn inverse(lin_pred: &Array1<A>) -> Array1<A> {
         // expit(lin_pred)
-        lin_pred.mapv(|x| {
-            A::from(1.).unwrap() / (A::from(1.).unwrap() + num_traits::Float::exp(x.neg()))
-        })
+        lin_pred.mapv(|x| A::one() / (A::one() + x.neg().exp()))
     }
 
     fn inverse_derivative(lin_pred: &Array1<A>) -> Array1<A> {
         // expit(lin_pred) * (1 - expit(lin_pred))
-        let expit = lin_pred.mapv(|x| {
-            A::from(1.).unwrap() / (A::from(1.).unwrap() + num_traits::Float::exp(x.neg()))
-        });
-        let one_minus_expit = expit.mapv(|x| A::from(1.).unwrap() - x);
+        let expit = lin_pred.mapv(|x| A::one() / (A::one() + x.neg().exp()));
+        let one_minus_expit = expit.mapv(|x| A::one() - x);
         expit * one_minus_expit
     }
 }

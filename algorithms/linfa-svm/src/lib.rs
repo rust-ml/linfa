@@ -67,7 +67,7 @@
 //!
 //! accuracy 0.8867925, MCC 0.40720797
 //! ```
-use linfa::Float;
+use linfa::{composing::PlattParams, Float};
 use ndarray::{ArrayBase, Data, Ix1};
 
 use std::fmt;
@@ -93,6 +93,16 @@ use std::ops::Mul;
 /// parameters control the ratio of support vectors and accuracy, eps controls the required
 /// precision. After setting the desired parameters a model can be fitted by calling `fit`.
 ///
+/// You can specify the expected return type with the turbofish syntax. If you want to enable
+/// Platt-Scaling for proper probability values, then use:
+/// ```ignore
+/// let model = Svm::<_, Pr>::params();
+/// ```
+/// or `bool` if you only wants to know the binary decision:
+/// ```ignore
+/// let model = Svm::<_, bool>::params();
+/// ```
+///
 /// ## Example
 ///
 /// ```ignore
@@ -109,6 +119,7 @@ pub struct SvmParams<F: Float, T> {
     solver_params: SolverParams<F>,
     phantom: PhantomData<T>,
     kernel: KernelParams<F>,
+    platt: PlattParams<F, ()>,
 }
 
 impl<F: Float, T> SvmParams<F, T> {
@@ -140,6 +151,13 @@ impl<F: Float, T> SvmParams<F, T> {
     /// this model. To use the "base" SVM model it suffices to choose a `Linear` kernel.
     pub fn with_kernel_params(mut self, kernel: KernelParams<F>) -> Self {
         self.kernel = kernel;
+
+        self
+    }
+
+    /// Set the platt params for probability calibration
+    pub fn with_platt_params(mut self, platt: PlattParams<F, ()>) -> Self {
+        self.platt = platt;
 
         self
     }
@@ -252,6 +270,7 @@ pub struct Svm<F: Float, T> {
     // and not the whole inner matrix
     kernel_method: KernelMethod<F>,
     sep_hyperplane: SeparatingHyperplane<F>,
+    probability_coeffs: Option<(F, F)>,
     phantom: PhantomData<T>,
 }
 
@@ -268,11 +287,12 @@ impl<F: Float, T> Svm<F, T> {
             c: Some((F::one(), F::one())),
             nu: None,
             solver_params: SolverParams {
-                eps: F::from(1e-7).unwrap(),
+                eps: F::cast(1e-7),
                 shrinking: false,
             },
             phantom: PhantomData,
             kernel: Kernel::params().method(KernelMethod::Linear),
+            platt: PlattParams::default(),
         }
     }
 
@@ -284,7 +304,7 @@ impl<F: Float, T> Svm<F, T> {
         self.alpha
             .iter()
             // around 1e-5 for f32 and 2e-14 for f64
-            .filter(|x| x.abs() > F::from(100.).unwrap() * F::epsilon())
+            .filter(|x| x.abs() > F::cast(100.) * F::epsilon())
             .count()
     }
     pub(crate) fn with_phantom<S>(self) -> Svm<F, S> {
@@ -297,6 +317,7 @@ impl<F: Float, T> Svm<F, T> {
             iterations: self.iterations,
             sep_hyperplane: self.sep_hyperplane,
             kernel_method: self.kernel_method,
+            probability_coeffs: self.probability_coeffs,
             phantom: PhantomData,
         }
     }
@@ -323,7 +344,7 @@ impl<F: Float, T> Svm<F, T> {
                 .zip(
                     self.alpha
                         .iter()
-                        .filter(|a| a.abs() > F::from(100.).unwrap() * F::epsilon()),
+                        .filter(|a| a.abs() > F::cast(100.) * F::epsilon()),
                 )
                 .map(|(x, a)| self.kernel_method.distance(x, sample.view()) * *a)
                 .sum(),
@@ -364,14 +385,15 @@ mod tests {
     #[test]
     fn test_iter_folding_for_classification() {
         let mut dataset = linfa_datasets::winequality().map_targets(|x| *x > 6);
-        let params = Svm::params().pos_neg_weights(7., 0.6).gaussian_kernel(80.0);
+        let params = Svm::<_, bool>::params()
+            .pos_neg_weights(7., 0.6)
+            .gaussian_kernel(80.0);
 
         let avg_acc = dataset
             .iter_fold(4, |training_set| params.fit(&training_set).unwrap())
             .map(|(model, valid)| {
                 model
                     .predict(valid.view())
-                    .map_targets(|x| **x > 0.0)
                     .confusion_matrix(&valid)
                     .unwrap()
                     .accuracy()
