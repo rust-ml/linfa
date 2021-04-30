@@ -1,10 +1,11 @@
-use std::{cmp::Reverse, collections::BinaryHeap};
+use std::{cmp::Reverse, collections::BinaryHeap, marker::PhantomData};
 
 use linfa::Float;
+use ndarray::Array2;
 use ndarray_stats::DeviationExt;
 use ordered_float::NotNan;
 
-use crate::{heap_elem::HeapElem, NearestNeighbour, Point};
+use crate::{heap_elem::HeapElem, NearestNeighbour, NearestNeighbourBuilder, Point};
 
 fn dist_fn<F: Float>(pt1: &Point<F>, pt2: &Point<F>) -> F {
     pt1.sq_l2_dist(&pt2).unwrap()
@@ -115,9 +116,8 @@ impl<'a, F: Float> BallTreeInner<'a, F> {
 pub struct BallTree<'a, F: Float>(Option<BallTreeInner<'a, F>>);
 
 impl<'a, F: Float> BallTree<'a, F> {
-    /// Construct this `BallTree`. Construction is somewhat expensive, so `BallTree`s
-    /// are best constructed once and then used repeatedly.
-    pub fn new(points: Vec<Point<'a, F>>) -> Self {
+    pub fn from_batch(batch: &'a Array2<F>) -> Self {
+        let points: Vec<_> = batch.genrows().into_iter().collect();
         if points.is_empty() {
             BallTree(None)
         } else {
@@ -138,7 +138,7 @@ impl<'a, F: Float> BallTree<'a, F> {
                 match elem {
                     BallTreeInner::Leaf(p) => {
                         if dist.into_inner() < max_radius
-                            && k.map(|k| out.len() <= k).unwrap_or(true)
+                            && k.map(|k| out.len() < k).unwrap_or(true)
                         {
                             out.push(p.reborrow());
                         }
@@ -175,6 +175,15 @@ impl<'a, F: Float> NearestNeighbour<F> for BallTree<'a, F> {
 
     fn within_range<'b>(&self, point: Point<'b, F>, range: F) -> Vec<Point<F>> {
         self.nn_helper(point, None, range)
+    }
+}
+
+#[derive(Default)]
+pub struct BallTreeBuilder<F: Float>(PhantomData<F>);
+
+impl<F: Float> NearestNeighbourBuilder<F> for BallTreeBuilder<F> {
+    fn from_batch<'a>(&self, batch: &'a Array2<F>) -> Box<dyn 'a + NearestNeighbour<F>> {
+        Box::new(BallTree::from_batch(batch))
     }
 }
 

@@ -28,11 +28,12 @@ mod test {
     use ndarray_stats::DeviationExt;
     use ordered_float::NotNan;
 
-    use crate::{kdtree::KdTreeBuilder, linear::LinearSearchBuilder};
+    use crate::{balltree::BallTreeBuilder, kdtree::KdTreeBuilder, linear::LinearSearchBuilder};
 
     use super::*;
 
     fn nn_test_empty(builder: &dyn NearestNeighbourBuilder<f64>) {
+        // TODO error tests
         let points = Array2::zeros((0, 2));
         let nn = builder.from_batch(&points);
 
@@ -122,4 +123,5 @@ mod test {
 
     nn_tests!(linear_search, LinearSearchBuilder, true);
     nn_tests!(kdtree, KdTreeBuilder, false);
+    nn_tests!(balltree, BallTreeBuilder, false);
 }
