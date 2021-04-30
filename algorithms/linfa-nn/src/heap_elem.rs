@@ -1,17 +1,17 @@
 use std::cmp::{Ordering, Reverse};
 
 use linfa::Float;
-use ordered_float::NotNan;
+use noisy_float::{checkers::NumChecker, NoisyFloat};
 
 pub(crate) struct HeapElem<F: Float, T> {
-    pub(crate) dist: Reverse<NotNan<F>>,
+    pub(crate) dist: Reverse<NoisyFloat<F, NumChecker>>,
     pub(crate) elem: T,
 }
 
 impl<F: Float, T> HeapElem<F, T> {
     pub(crate) fn new(dist: F, elem: T) -> Self {
         Self {
-            dist: Reverse(NotNan::new(dist).unwrap()),
+            dist: Reverse(NoisyFloat::new(dist)),
             elem,
         }
     }

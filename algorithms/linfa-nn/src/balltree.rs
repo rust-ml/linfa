@@ -3,7 +3,7 @@ use std::{cmp::Reverse, collections::BinaryHeap, marker::PhantomData};
 use linfa::Float;
 use ndarray::Array2;
 use ndarray_stats::DeviationExt;
-use ordered_float::NotNan;
+use noisy_float::{checkers::NumChecker, NoisyFloat};
 
 use crate::{heap_elem::HeapElem, NearestNeighbour, NearestNeighbourBuilder, Point};
 
@@ -20,7 +20,9 @@ fn partition<F: Float>(mut points: Vec<Point<F>>) -> (Vec<Point<F>>, Point<F>, V
     let max_spread_dim = (0..points[0].len())
         .map(|dim| {
             // Find the range of each dimension
-            let it = points.iter().map(|p| NotNan::new(p[dim]).unwrap());
+            let it = points
+                .iter()
+                .map(|p| NoisyFloat::<_, NumChecker>::new(p[dim]));
             // May be faster if we can compute min and max with the same iterator, but compiler might
             // have optimized for that
             let max = it.clone().max().unwrap();
@@ -74,10 +76,10 @@ impl<'a, F: Float> BallTreeInner<'a, F> {
             let radius = aps
                 .iter()
                 .chain(bps.iter())
-                .map(|pt| NotNan::new(dist_fn(pt, &center)).unwrap())
+                .map(|pt| NoisyFloat::<_, NumChecker>::new(dist_fn(pt, &center)))
                 .max()
                 .unwrap()
-                .into_inner();
+                .raw();
             let (a_tree, b_tree) = (BallTreeInner::new(aps), BallTreeInner::new(bps));
             BallTreeInner::Branch {
                 center,
@@ -137,9 +139,7 @@ impl<'a, F: Float> BallTree<'a, F> {
                 } = queue.pop().unwrap();
                 match elem {
                     BallTreeInner::Leaf(p) => {
-                        if dist.into_inner() < max_radius
-                            && k.map(|k| out.len() < k).unwrap_or(true)
-                        {
+                        if dist.raw() < max_radius && k.map(|k| out.len() < k).unwrap_or(true) {
                             out.push(p.reborrow());
                         }
                     }

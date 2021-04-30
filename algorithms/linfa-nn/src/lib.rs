@@ -26,7 +26,7 @@ mod test {
     use approx::assert_abs_diff_eq;
     use ndarray::{arr2, aview1, stack, Axis};
     use ndarray_stats::DeviationExt;
-    use ordered_float::NotNan;
+    use noisy_float::{checkers::NumChecker, NoisyFloat};
 
     use crate::{balltree::BallTreeBuilder, kdtree::KdTreeBuilder, linear::LinearSearchBuilder};
 
@@ -67,7 +67,7 @@ mod test {
         let pt = aview1(&[6.0, 3.0]);
         let mut out = nn.within_range(pt, 9.0);
         if sort_within_range {
-            out.sort_by_key(|v| NotNan::new(v.sq_l2_dist(&pt).unwrap()).unwrap());
+            out.sort_by_key(|v| NoisyFloat::<_, NumChecker>::new(v.sq_l2_dist(&pt).unwrap()));
         }
         assert_abs_diff_eq!(
             stack(Axis(0), &out).unwrap(),

@@ -3,7 +3,7 @@ use std::{cmp::Reverse, collections::BinaryHeap, marker::PhantomData};
 use linfa::Float;
 use ndarray::{Array2, ArrayView2};
 use ndarray_stats::DeviationExt;
-use ordered_float::NotNan;
+use noisy_float::NoisyFloat;
 
 use crate::{heap_elem::HeapElem, NearestNeighbour, NearestNeighbourBuilder, Point};
 
@@ -28,7 +28,7 @@ impl<'a, F: Float> NearestNeighbour<F> for LinearSearch<'a, F> {
             let dist = dist_fn(&point, &pt);
             heap.push(HeapPoint {
                 elem: pt.clone(),
-                dist: Reverse(NotNan::new(dist).expect("distance should not be NaN")),
+                dist: Reverse(NoisyFloat::new(dist)),
             });
         }
         (0..k.min(heap.len()))
