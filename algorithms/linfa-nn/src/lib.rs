@@ -32,6 +32,21 @@ mod test {
 
     use super::*;
 
+    fn nn_test_empty(builder: &dyn NearestNeighbourBuilder<f64>) {
+        let points = Array2::zeros((0, 2));
+        let nn = builder.from_batch(&points);
+
+        let out = nn.k_nearest(aview1(&[0.0, 1.0]), 2);
+        assert_eq!(out, Vec::<Point<_>>::new());
+
+        let out = nn.k_nearest(aview1(&[4.0, 4.0]), 3);
+        assert_eq!(out, Vec::<Point<_>>::new());
+
+        let pt = aview1(&[6.0, 3.0]);
+        let out = nn.within_range(pt, 9.0);
+        assert_eq!(out, Vec::<Point<_>>::new());
+    }
+
     fn nn_test(builder: &dyn NearestNeighbourBuilder<f64>, sort_within_range: bool) {
         let points = arr2(&[[0.0, 2.0], [10.0, 4.0], [4.0, 5.0], [7.0, 1.0], [1.0, 7.2]]);
         let nn = builder.from_batch(&points);
@@ -59,13 +74,52 @@ mod test {
         );
     }
 
-    #[test]
-    fn linear_search() {
-        nn_test(&LinearSearchBuilder::default(), true);
+    fn nn_test_degenerate(builder: &dyn NearestNeighbourBuilder<f64>) {
+        let points = arr2(&[[0.0, 2.0], [0.0, 2.0], [0.0, 2.0], [0.0, 2.0], [0.0, 2.0]]);
+        let nn = builder.from_batch(&points);
+
+        let out = nn.k_nearest(aview1(&[0.0, 1.0]), 2);
+        assert_abs_diff_eq!(
+            stack(Axis(0), &out).unwrap(),
+            arr2(&[[0.0, 2.0], [0.0, 2.0]])
+        );
+
+        let out = nn.k_nearest(aview1(&[4.0, 4.0]), 3);
+        assert_abs_diff_eq!(
+            stack(Axis(0), &out).unwrap(),
+            arr2(&[[0.0, 2.0], [0.0, 2.0], [0.0, 2.0]])
+        );
+
+        let pt = aview1(&[3.0, 2.0]);
+        let out = nn.within_range(pt, 1.0);
+        assert_eq!(out, Vec::<Point<_>>::new());
+        let out = nn.within_range(pt, 20.0);
+        assert_abs_diff_eq!(stack(Axis(0), &out).unwrap(), points);
     }
 
-    #[test]
-    fn kdtree() {
-        nn_test(&KdTreeBuilder::default(), false);
+    macro_rules! nn_tests {
+        ($mod:ident, $builder:ident, $sort:expr) => {
+            mod $mod {
+                use super::*;
+
+                #[test]
+                fn empty() {
+                    nn_test_empty(&$builder::default());
+                }
+
+                #[test]
+                fn normal() {
+                    nn_test(&$builder::default(), $sort);
+                }
+
+                #[test]
+                fn degenerate() {
+                    nn_test_degenerate(&$builder::default());
+                }
+            }
+        };
     }
+
+    nn_tests!(linear_search, LinearSearchBuilder, true);
+    nn_tests!(kdtree, KdTreeBuilder, false);
 }

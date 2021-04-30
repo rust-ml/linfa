@@ -31,7 +31,9 @@ impl<'a, F: Float> NearestNeighbour<F> for LinearSearch<'a, F> {
                 dist: Reverse(NotNan::new(dist).expect("distance should not be NaN")),
             });
         }
-        (0..k).map(|_| heap.pop().unwrap().elem).collect()
+        (0..k.min(heap.len()))
+            .map(|_| heap.pop().unwrap().elem)
+            .collect()
     }
 
     fn within_range<'b>(&self, point: Point<'b, F>, range: F) -> Vec<Point<F>> {

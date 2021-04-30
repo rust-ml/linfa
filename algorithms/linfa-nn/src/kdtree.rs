@@ -14,7 +14,7 @@ pub struct KdTree<'a, F: Float>(kdtree::KdTree<F, Point<'a, F>, &'a [F]>);
 
 impl<'a, F: Float> KdTree<'a, F> {
     fn from_batch(batch: &'a Array2<F>) -> Self {
-        let mut tree = kdtree::KdTree::with_capacity(batch.ncols(), batch.nrows());
+        let mut tree = kdtree::KdTree::with_capacity(batch.ncols().max(1), batch.nrows().max(1));
         for point in batch.genrows() {
             tree.add(point.to_slice().expect("views should be contiguous"), point)
                 .unwrap();
