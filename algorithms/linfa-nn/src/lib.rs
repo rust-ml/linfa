@@ -1,3 +1,4 @@
+use distance::{CommonDistance, Distance};
 use linfa::Float;
 use ndarray::{Array2, ArrayView1};
 
@@ -19,8 +20,9 @@ pub trait NearestNeighbour<F: Float> {
     fn within_range<'b>(&self, point: Point<'b, F>, range: F) -> Vec<Point<F>>;
 }
 
-pub trait NearestNeighbourBuilder<F: Float> {
-    fn from_batch<'a>(&self, batch: &'a Array2<F>) -> Box<dyn 'a + NearestNeighbour<F>>;
+pub trait NearestNeighbourBuilder<F: Float, D: Distance<F> = CommonDistance<F>> {
+    fn from_batch<'a>(&self, batch: &'a Array2<F>, dist_fn: D)
+        -> Box<dyn 'a + NearestNeighbour<F>>;
 }
 
 #[cfg(test)]
@@ -30,14 +32,17 @@ mod test {
     use ndarray_stats::DeviationExt;
     use noisy_float::{checkers::NumChecker, NoisyFloat};
 
-    use crate::{balltree::BallTreeBuilder, kdtree::KdTreeBuilder, linear::LinearSearchBuilder};
+    use crate::{
+        balltree::BallTreeBuilder, distance::CommonDistance, kdtree::KdTreeBuilder,
+        linear::LinearSearchBuilder,
+    };
 
     use super::*;
 
     fn nn_test_empty(builder: &dyn NearestNeighbourBuilder<f64>) {
         // TODO error tests
         let points = Array2::zeros((0, 2));
-        let nn = builder.from_batch(&points);
+        let nn = builder.from_batch(&points, CommonDistance::SqL2Dist);
 
         let out = nn.k_nearest(aview1(&[0.0, 1.0]), 2);
         assert_eq!(out, Vec::<Point<_>>::new());
@@ -52,7 +57,7 @@ mod test {
 
     fn nn_test(builder: &dyn NearestNeighbourBuilder<f64>, sort_within_range: bool) {
         let points = arr2(&[[0.0, 2.0], [10.0, 4.0], [4.0, 5.0], [7.0, 1.0], [1.0, 7.2]]);
-        let nn = builder.from_batch(&points);
+        let nn = builder.from_batch(&points, CommonDistance::SqL2Dist);
 
         let out = nn.k_nearest(aview1(&[0.0, 1.0]), 2);
         assert_abs_diff_eq!(
@@ -79,7 +84,7 @@ mod test {
 
     fn nn_test_degenerate(builder: &dyn NearestNeighbourBuilder<f64>) {
         let points = arr2(&[[0.0, 2.0], [0.0, 2.0], [0.0, 2.0], [0.0, 2.0], [0.0, 2.0]]);
-        let nn = builder.from_batch(&points);
+        let nn = builder.from_batch(&points, CommonDistance::SqL2Dist);
 
         let out = nn.k_nearest(aview1(&[0.0, 1.0]), 2);
         assert_abs_diff_eq!(
