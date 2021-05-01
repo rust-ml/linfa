@@ -118,7 +118,7 @@ impl LinearRegression {
     }
 }
 
-impl<F: Float, D: DataMut<Elem = F>, T: AsTargets<Elem = F>> Fit<ArrayBase<D, Ix2>, T, LinearError>
+impl<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> Fit<ArrayBase<D, Ix2>, T, LinearError>
     for LinearRegression
 {
     type Object = FittedLinearRegression<F>;
