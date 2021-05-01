@@ -2,22 +2,21 @@
 title = "Cross Validation"
 +++
 ```rust
-// perform cross-validation with the F1 score
-let f1_runs = dataset
-    .iter_fold(8, |v| params.fit(&v).unwrap())
-    .map(|(model, valid)| {
-        let cm = model
-            .predict(&valid)
-            .mapv(|x| x > Pr::even())
-            .confusion_matrix(&valid).unwrap();
-  
-          cm.f1_score()
-    })  
-    .collect::<Array1<_>>();
-  
-// calculate mean and standard deviation
-println!("F1 score: {}±{}",
-    f1_runs.mean().unwrap(),
-    f1_runs.std_axis(Axis(0), 0.0),
-);  
+// parameters to compare
+let ratios = vec![0.1, 0.2, 0.5, 0.7, 1.0];
+
+// create a model for each parameter
+let models = ratios
+    .iter()
+    .map(|ratio| ElasticNet::params().penalty(0.3).l1_ratio(*ratio))
+    .collect::<Vec<_>>();
+
+// get the mean r2 validation score across 5 folds for each model
+let r2_values =
+    dataset.cross_validate(5, &models, |prediction, truth| prediction.r2(&truth))?;
+
+// show the mean r2 score for each parameter choice
+for (ratio, r2) in ratios.iter().zip(r2_values.iter()) {
+    println!("L1 ratio: {}, r2 score: {}", ratio, r2);
+}
 ```

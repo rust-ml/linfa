@@ -3,7 +3,9 @@
 
 use thiserror::Error;
 
+use crate::composing::PlattNewtonResult;
 use ndarray::ShapeError;
+
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Error, Debug, Clone)]
@@ -20,4 +22,8 @@ pub enum Error {
     NotEnoughSamples,
     #[error("multiple targets not supported")]
     MultipleTargets,
+    #[error("platt scaling failed")]
+    Platt(PlattNewtonResult),
+    #[error("The number of samples do not match: {0} - {1}")]
+    MismatchedShapes(usize, usize),
 }

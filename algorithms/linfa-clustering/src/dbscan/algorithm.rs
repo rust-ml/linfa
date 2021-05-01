@@ -180,7 +180,7 @@ impl<F: Float> DbscanHyperParams<F> {
             .zip(clusters.iter())
             .enumerate()
         {
-            if F::from(candidate.l2_dist(&obs).unwrap()).unwrap() < eps {
+            if F::cast(candidate.l2_dist(&obs).unwrap()) < eps {
                 count += 1;
                 if cluster.is_none() && i != idx {
                     res.push(i);

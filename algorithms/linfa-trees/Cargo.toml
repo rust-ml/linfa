@@ -1,6 +1,6 @@
 [package]
 name = "linfa-trees"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2018"
 authors = ["Moss Ebeling <moss@banay.me>"]
 description = "A collection of tree-based algorithms"
@@ -27,14 +27,14 @@ features = ["std", "derive"]
 ndarray = { version = "0.14" , features = ["rayon", "approx"]}
 ndarray-rand = "0.13"
 
-linfa = { version = "0.3.1", path = "../.." }
+linfa = { version = "0.4.0", path = "../.." }
 
 [dev-dependencies]
 rand = { version = "0.8", features = ["small_rng"] }
 criterion = "0.3"
 approx = "0.4"
 
-linfa-datasets = { version = "0.3.1", path = "../../datasets/", features = ["iris"] }
+linfa-datasets = { version = "0.4.0", path = "../../datasets/", features = ["iris"] }
 
 [[bench]]
 name = "decision_tree"

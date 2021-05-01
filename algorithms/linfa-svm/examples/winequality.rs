@@ -13,7 +13,7 @@ fn main() -> Result<()> {
     );
 
     // fit a SVM with C value 7 and 0.6 for positive and negative classes
-    let model = Svm::params()
+    let model = Svm::<_, bool>::params()
         .pos_neg_weights(50000., 5000.)
         .gaussian_kernel(80.0)
         .fit(&train)?;
@@ -32,7 +32,7 @@ fn main() -> Result<()> {
     let valid = valid.map_targets(tag_classes);
 
     // predict and map targets
-    let pred = model.predict(&valid).map(|x| **x > 0.0).map(tag_classes);
+    let pred = model.predict(&valid).map(tag_classes);
 
     // create a confusion matrix
     let cm = pred.confusion_matrix(&valid)?;

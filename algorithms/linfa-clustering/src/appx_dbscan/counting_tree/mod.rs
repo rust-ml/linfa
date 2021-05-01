@@ -40,7 +40,7 @@ impl<F: Float> TreeStructure<F> {
         TreeStructure {
             cell_center: Array1::zeros(1),
             cnt: 0,
-            side_size: F::from(0.0).unwrap(),
+            side_size: F::cast(0.0),
             children: HashMap::with_capacity(0),
         }
     }
@@ -56,12 +56,9 @@ impl<F: Float> TreeStructure<F> {
             panic!("AppxDbscan::build structure internal error: attempting to initialize counting tree with no points");
         }
         let dimensionality = points[0].dim();
-        let base_side_size = params.tolerance() / (F::from(dimensionality).unwrap()).sqrt();
-        let levels_count = F::from(1.0).unwrap()
-            + (F::from(1.0).unwrap() / params.slack())
-                .log(F::from(2.0).unwrap())
-                .ceil();
-        let levels_count = if levels_count < F::from(1.0).unwrap() {
+        let base_side_size = params.tolerance() / (F::cast(dimensionality)).sqrt();
+        let levels_count = F::cast(1.0) + (F::cast(1.0) / params.slack()).log(F::cast(2.0)).ceil();
+        let levels_count = if levels_count < F::cast(1.0) {
             1
         } else {
             levels_count.to_i32().unwrap()
@@ -77,7 +74,7 @@ impl<F: Float> TreeStructure<F> {
             let mut prev_child = &mut root;
             //level 0 is already used by the root
             for _ in 1..=levels_count {
-                curr_side_size = curr_side_size / F::from(2.0).unwrap();
+                curr_side_size = curr_side_size / F::cast(2.0);
                 let index_arr = get_cell_index(point, curr_side_size);
                 let curr_child: &mut TreeStructure<F> = prev_child
                     .children
@@ -132,11 +129,11 @@ impl<F: Float> TreeStructure<F> {
 pub fn get_cell_index<F: Float>(p: &ArrayView1<F>, side_size: F) -> Array1<i64> {
     let dimensionality = p.dim();
     let mut new_index = Array1::zeros(dimensionality);
-    let half_size = side_size / F::from(2.0).unwrap();
+    let half_size = side_size / F::cast(2.0);
     for (i, coord) in p.iter().enumerate() {
-        if *coord >= (F::from(-1.0).unwrap() * half_size) && *coord < half_size {
+        if *coord >= (F::cast(-1.0) * half_size) && *coord < half_size {
             new_index[i] = 0;
-        } else if *coord > F::from(0.0).unwrap() {
+        } else if *coord > F::cast(0.0) {
             new_index[i] = ((*coord - half_size) / side_size).ceil().to_i64().unwrap();
         } else {
             new_index[i] = -1 + ((*coord + half_size) / side_size).ceil().to_i64().unwrap();
@@ -152,10 +149,7 @@ pub fn get_base_cell_index<F: Float>(
     params: &AppxDbscanHyperParams<F>,
 ) -> Array1<i64> {
     let dimensionality = p.dim();
-    get_cell_index(
-        p,
-        params.tolerance() / (F::from(dimensionality).unwrap()).sqrt(),
-    )
+    get_cell_index(p, params.tolerance() / (F::cast(dimensionality)).sqrt())
 }
 
 /// Determines the type of intersection between a cell and an approximated ball.
@@ -172,11 +166,10 @@ pub fn determine_intersection<F: Float>(
 ) -> IntersectionType {
     let dimensionality = q.dim();
 
-    //let appr_dist = (F::from(1.0).unwrap() + params.slack()) * params.tolerance();
-    let dist_from_center = F::from(cell_center.l2_dist(&q).unwrap()).unwrap();
-    let dist_corner_from_center =
-        (side_size * F::from(dimensionality).unwrap().sqrt()) / F::from(2).unwrap();
-    let min_dist_edge_from_center = side_size / F::from(2).unwrap();
+    //let appr_dist = (F::cast(1.0) + params.slack()) * params.tolerance();
+    let dist_from_center = F::cast(cell_center.l2_dist(&q).unwrap());
+    let dist_corner_from_center = (side_size * F::cast(dimensionality).sqrt()) / F::cast(2);
+    let min_dist_edge_from_center = side_size / F::cast(2);
 
     // sufficient condition to be disjoint: shortest possible distance from point q
     // to the closest point of the cell (lying on a corner) still greater than the tolerance
@@ -202,7 +195,7 @@ pub fn determine_intersection<F: Float>(
     let mut farthest_corner_distance = F::zero();
 
     for corner in corners.axis_iter(Axis(0)) {
-        let dist = F::from(corner.l2_dist(&q).unwrap()).unwrap();
+        let dist = F::cast(corner.l2_dist(&q).unwrap());
         if dist > farthest_corner_distance {
             farthest_corner_distance = dist;
         }
@@ -216,7 +209,7 @@ pub fn determine_intersection<F: Float>(
 
 /// Gets the coordinates of all the corners (2^D) of a cell given its center points and its side size.
 fn get_corners<F: Float>(cell_center: &Array1<F>, side_size: F) -> Array2<F> {
-    let dist = side_size / F::from(2.0).unwrap();
+    let dist = side_size / F::cast(2.0);
     let dimensionality = cell_center.dim();
     // There are 2^d combination of vertices. I can think of each combination as a binary
     // number with d digits. I imagine to associate 0 with quantity -dist and 1 with quantity +dist.
@@ -242,7 +235,7 @@ fn cell_center_from_cell_index<F: Float>(cell_index: ArrayView1<i64>, side_size:
     let dimensionality = cell_index.dim();
     let mut cell_center: Array1<F> = Array1::zeros(dimensionality);
     for i in 0..dimensionality {
-        cell_center[i] = F::from(cell_index[i]).unwrap() * side_size;
+        cell_center[i] = F::cast(cell_index[i]) * side_size;
     }
     cell_center
 }
