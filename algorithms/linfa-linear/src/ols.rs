@@ -1,7 +1,7 @@
 //! Ordinary Least Squares
 #![allow(non_snake_case)]
 use crate::error::{LinearError, Result};
-use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2};
+use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2, DataMut};
 use ndarray_linalg::{Lapack, LeastSquaresSvdInto, Scalar};
 use ndarray_stats::SummaryStatisticsExt;
 use serde::{Deserialize, Serialize};
@@ -154,13 +154,17 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> Fit<ArrayBase<D, Ix2>,
             let y_offset: F = y.mean().ok_or_else(|| LinearError::NotEnoughTargets)?;
             let y_centered: Array1<F> = &y - y_offset;
             let params: Array1<F> =
-                compute_params(&X_centered, &y_centered, self.options.should_normalize())?;
+                compute_params(X_centered, y_centered, self.options.should_normalize())?;
             let intercept: F = y_offset - X_offset.dot(&params);
             Ok(FittedLinearRegression { intercept, params })
         } else {
+            // `LeastSquaresSvdInto` needs a mutable reference to the data and `dataset` is taken
+            // by reference. Therefore copy the problem matrix and target vector.
+            let (X, y) = (X.to_owned(), y.to_owned());
+
             Ok(FittedLinearRegression {
                 intercept: F::cast(0),
-                params: solve_least_squares(X, &y)?,
+                params: solve_least_squares(X, y)?,
             })
         }
     }
@@ -169,19 +173,19 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> Fit<ArrayBase<D, Ix2>,
 /// Compute the parameters for the linear regression model with
 /// or without normalization.
 fn compute_params<F, B, C>(
-    X: &ArrayBase<B, Ix2>,
-    y: &ArrayBase<C, Ix1>,
+    X: ArrayBase<B, Ix2>,
+    y: ArrayBase<C, Ix1>,
     normalize: bool,
 ) -> Result<Array1<F>>
 where
     F: Float,
-    B: Data<Elem = F>,
-    C: Data<Elem = F>,
+    B: DataMut<Elem = F>,
+    C: DataMut<Elem = F>,
 {
     if normalize {
         let scale: Array1<F> = X.map_axis(Axis(0), |column| column.central_moment(2).unwrap());
-        let X: Array2<F> = X / &scale;
-        let mut params: Array1<F> = solve_least_squares(&X, y)?;
+        let X: Array2<F> = &X / &scale;
+        let mut params: Array1<F> = solve_least_squares(X, y)?;
         params /= &scale;
         Ok(params)
     } else {
@@ -191,16 +195,15 @@ where
 
 /// Find the b that minimizes the 2-norm of X b - y
 /// by using the least_squares solver from ndarray-linalg
-fn solve_least_squares<F, B, C>(X: &ArrayBase<B, Ix2>, y: &ArrayBase<C, Ix1>) -> Result<Array1<F>>
+fn solve_least_squares<F, B, C>(mut X: ArrayBase<B, Ix2>, mut y: ArrayBase<C, Ix1>) -> Result<Array1<F>>
 where
     F: Float,
-    B: Data<Elem = F>,
-    C: Data<Elem = F>,
+    B: DataMut<Elem = F>,
+    C: DataMut<Elem = F>,
 {
-    // It would be cleaner to use ndarray_linalg::LeastSquaresSvd::least_squares,
-    // but that is currently not possible since B = C is required
-    let X = X.to_owned();
-    let y = y.to_owned();
+    // ensure that B = C
+    let X = X.view_mut();
+    let y = y.view_mut();
 
     X.least_squares_into(y)
         .map(|x| x.solution)
