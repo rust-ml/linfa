@@ -71,14 +71,20 @@ mod test {
             arr2(&[[4.0, 5.0], [7.0, 1.0], [1.0, 7.2]])
         );
 
+        let out = nn.k_nearest(aview1(&[4.0, 4.0]), 10);
+        assert_abs_diff_eq!(
+            stack(Axis(0), &out).unwrap(),
+            arr2(&[[4.0, 5.0], [7.0, 1.0], [1.0, 7.2], [0.0, 2.0], [10.0, 4.0]])
+        );
+
         let pt = aview1(&[6.0, 3.0]);
-        let mut out = nn.within_range(pt, 9.0);
+        let mut out = nn.within_range(pt, 18.0);
         if sort_within_range {
             out.sort_by_key(|v| NoisyFloat::<_, NumChecker>::new(v.sq_l2_dist(&pt).unwrap()));
         }
         assert_abs_diff_eq!(
             stack(Axis(0), &out).unwrap(),
-            arr2(&[[7.0, 1.0], [4.0, 5.0]])
+            arr2(&[[7.0, 1.0], [4.0, 5.0], [10.0, 4.0]])
         );
     }
 
