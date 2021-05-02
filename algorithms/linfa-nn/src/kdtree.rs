@@ -14,7 +14,7 @@ pub struct KdTree<'a, F: Float, D: Distance<F> = CommonDistance<F>>(
 );
 
 impl<'a, F: Float, D: Distance<F>> KdTree<'a, F, D> {
-    fn from_batch(batch: &'a Array2<F>, dist_fn: D) -> Self {
+    pub fn from_batch(batch: &'a Array2<F>, dist_fn: D) -> Self {
         let mut tree = kdtree::KdTree::with_capacity(batch.ncols().max(1), batch.nrows().max(1));
         for point in batch.genrows() {
             tree.add(point.to_slice().expect("views should be contiguous"), point)

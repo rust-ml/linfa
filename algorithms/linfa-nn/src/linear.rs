@@ -15,7 +15,7 @@ pub struct LinearSearch<'a, F: Float, D: Distance<F> = CommonDistance<F>>(ArrayV
 type HeapPoint<'a, F> = HeapElem<F, Point<'a, F>>;
 
 impl<'a, F: Float, D: Distance<F>> LinearSearch<'a, F, D> {
-    fn from_batch(batch: &'a Array2<F>, dist_fn: D) -> Self {
+    pub fn from_batch(batch: &'a Array2<F>, dist_fn: D) -> Self {
         Self(batch.view(), dist_fn)
     }
 }
