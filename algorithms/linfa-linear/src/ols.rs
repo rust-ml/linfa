@@ -1,7 +1,7 @@
 //! Ordinary Least Squares
 #![allow(non_snake_case)]
 use crate::error::{LinearError, Result};
-use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2, DataMut};
+use ndarray::{Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2};
 use ndarray_linalg::{Lapack, LeastSquaresSvdInto, Scalar};
 use ndarray_stats::SummaryStatisticsExt;
 use serde::{Deserialize, Serialize};
@@ -195,15 +195,17 @@ where
 
 /// Find the b that minimizes the 2-norm of X b - y
 /// by using the least_squares solver from ndarray-linalg
-fn solve_least_squares<F, B, C>(mut X: ArrayBase<B, Ix2>, mut y: ArrayBase<C, Ix1>) -> Result<Array1<F>>
+fn solve_least_squares<F, B, C>(
+    mut X: ArrayBase<B, Ix2>,
+    mut y: ArrayBase<C, Ix1>,
+) -> Result<Array1<F>>
 where
     F: Float,
     B: DataMut<Elem = F>,
     C: DataMut<Elem = F>,
 {
     // ensure that B = C
-    let X = X.view_mut();
-    let y = y.view_mut();
+    let (X, y) = (X.view_mut(), y.view_mut());
 
     X.least_squares_into(y)
         .map(|x| x.solution)
