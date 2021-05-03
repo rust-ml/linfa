@@ -61,6 +61,12 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbour<F> for LinearSearch<'a, F, D
 #[derive(Default)]
 pub struct LinearSearchBuilder<F: Float>(PhantomData<F>);
 
+impl<F: Float> LinearSearchBuilder<F> {
+    pub fn new() -> Self {
+        Self(PhantomData)
+    }
+}
+
 impl<F: Float, D: 'static + Distance<F>> NearestNeighbourBuilder<F, D> for LinearSearchBuilder<F> {
     fn from_batch<'a>(
         &self,

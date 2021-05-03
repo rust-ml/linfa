@@ -43,11 +43,12 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbour<F> for KdTree<'a, F, D> {
     fn k_nearest<'b>(&self, point: Point<'b, F>, k: usize) -> Result<Vec<Point<F>>, NnError> {
         Ok(self
             .0
-            .iter_nearest(
+            .nearest(
                 point.to_slice().expect("views should be contiguous"),
+                k,
                 &|a, b| self.1.distance(aview1(a), aview1(b)),
             )?
-            .take(k)
+            .into_iter()
             .map(|(_, pt)| pt.reborrow())
             .collect())
     }
@@ -68,6 +69,12 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbour<F> for KdTree<'a, F, D> {
 
 #[derive(Default)]
 pub struct KdTreeBuilder<F: Float>(PhantomData<F>);
+
+impl<F: Float> KdTreeBuilder<F> {
+    pub fn new() -> Self {
+        Self(PhantomData)
+    }
+}
 
 impl<F: Float, D: 'static + Distance<F>> NearestNeighbourBuilder<F, D> for KdTreeBuilder<F> {
     fn from_batch<'a>(

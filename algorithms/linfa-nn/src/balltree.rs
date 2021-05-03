@@ -213,6 +213,12 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbour<F> for BallTree<'a, F, D> {
 #[derive(Default)]
 pub struct BallTreeBuilder<F: Float>(PhantomData<F>);
 
+impl<F: Float> BallTreeBuilder<F> {
+    pub fn new() -> Self {
+        Self(PhantomData)
+    }
+}
+
 impl<F: Float, D: 'static + Distance<F>> NearestNeighbourBuilder<F, D> for BallTreeBuilder<F> {
     fn from_batch<'a>(
         &self,

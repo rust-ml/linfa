@@ -27,3 +27,10 @@ linfa = { version = "0.4.0", path = "../.." }
 
 [dev-dependencies]
 approx = "0.4"
+criterion = "0.3"
+rand_isaac = "0.3"
+ndarray-rand = "0.13"
+
+[[bench]]
+name = "nn"
+harness = false
