@@ -44,9 +44,11 @@ pub trait NearestNeighbourBuilder<F: Float, D: Distance<F> = CommonDistance<F>> 
 #[cfg(test)]
 mod test {
     use approx::assert_abs_diff_eq;
-    use ndarray::{arr2, aview1, stack, Axis};
+    use ndarray::{arr1, arr2, aview1, stack, Axis};
+    use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
     use ndarray_stats::DeviationExt;
     use noisy_float::{checkers::FiniteChecker, NoisyFloat};
+    use rand_isaac::Isaac64Rng;
 
     use crate::{
         balltree::BallTreeBuilder, distance::CommonDistance, kdtree::KdTreeBuilder,
@@ -54,6 +56,11 @@ mod test {
     };
 
     use super::*;
+
+    fn sort_by_dist<'a>(mut vec: Vec<Point<'a, f64>>, pt: Point<f64>) -> Vec<Point<'a, f64>> {
+        vec.sort_by_key(|v| NoisyFloat::<_, FiniteChecker>::new(v.sq_l2_dist(&pt).unwrap()));
+        vec
+    }
 
     fn nn_test_empty(builder: &dyn NearestNeighbourBuilder<f64>) {
         let points = Array2::zeros((0, 2));
@@ -113,7 +120,7 @@ mod test {
         let pt = aview1(&[6.0, 3.0]);
         let mut out = nn.within_range(pt, 18.0).unwrap();
         if sort_within_range {
-            out.sort_by_key(|v| NoisyFloat::<_, FiniteChecker>::new(v.sq_l2_dist(&pt).unwrap()));
+            out = sort_by_dist(out, pt.clone());
         }
         assert_abs_diff_eq!(
             stack(Axis(0), &out).unwrap(),
@@ -146,6 +153,58 @@ mod test {
         assert_abs_diff_eq!(stack(Axis(0), &out).unwrap(), points);
     }
 
+    fn nn_test_random(builder: &dyn NearestNeighbourBuilder<f64>) {
+        let mut rng = Isaac64Rng::seed_from_u64(40);
+        let n_points = 50000;
+        let n_features = 3;
+        let points =
+            Array2::random_using((n_points, n_features), Uniform::new(-50., 50.), &mut rng);
+
+        let linear = LinearSearchBuilder::new()
+            .from_batch(&points, CommonDistance::SqL2Dist)
+            .unwrap();
+
+        let nn = builder
+            .from_batch(&points, CommonDistance::SqL2Dist)
+            .unwrap();
+
+        let pt = arr1(&[0., 0., 0.]);
+        assert_abs_diff_eq!(
+            stack(Axis(0), &nn.k_nearest(pt.view(), 200).unwrap()).unwrap(),
+            stack(Axis(0), &linear.k_nearest(pt.view(), 200).unwrap()).unwrap()
+        );
+        assert_abs_diff_eq!(
+            stack(
+                Axis(0),
+                &sort_by_dist(nn.within_range(pt.view(), 200.0).unwrap(), pt.view())
+            )
+            .unwrap(),
+            stack(
+                Axis(0),
+                &sort_by_dist(linear.within_range(pt.view(), 200.0).unwrap(), pt.view())
+            )
+            .unwrap()
+        );
+
+        let pt = arr1(&[-3.4, 10., 0.95]);
+        assert_abs_diff_eq!(
+            stack(Axis(0), &nn.k_nearest(pt.view(), 30).unwrap()).unwrap(),
+            stack(Axis(0), &linear.k_nearest(pt.view(), 30).unwrap()).unwrap()
+        );
+        assert_abs_diff_eq!(
+            stack(
+                Axis(0),
+                &sort_by_dist(nn.within_range(pt.view(), 700.0).unwrap(), pt.view())
+            )
+            .unwrap(),
+            stack(
+                Axis(0),
+                &sort_by_dist(linear.within_range(pt.view(), 700.0).unwrap(), pt.view())
+            )
+            .unwrap()
+        );
+    }
+
     macro_rules! nn_tests {
         ($mod:ident, $builder:ident, $sort:expr) => {
             mod $mod {
@@ -169,6 +228,11 @@ mod test {
                 #[test]
                 fn degenerate() {
                     nn_test_degenerate(&$builder::default());
+                }
+
+                #[test]
+                fn random() {
+                    nn_test_random(&$builder::default());
                 }
             }
         };
