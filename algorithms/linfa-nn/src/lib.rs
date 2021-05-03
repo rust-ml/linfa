@@ -56,7 +56,6 @@ mod test {
     use super::*;
 
     fn nn_test_empty(builder: &dyn NearestNeighbourBuilder<f64>) {
-        // TODO error tests
         let points = Array2::zeros((0, 2));
         let nn = builder
             .from_batch(&points, CommonDistance::SqL2Dist)
@@ -71,6 +70,20 @@ mod test {
         let pt = aview1(&[6.0, 3.0]);
         let out = nn.within_range(pt, 9.0).unwrap();
         assert_eq!(out, Vec::<Point<_>>::new());
+    }
+
+    fn nn_test_error(builder: &dyn NearestNeighbourBuilder<f64>) {
+        let points = Array2::zeros((4, 0));
+        assert!(builder
+            .from_batch(&points, CommonDistance::SqL2Dist)
+            .is_err());
+
+        let points = arr2(&[[0.0, 2.0]]);
+        let nn = builder
+            .from_batch(&points, CommonDistance::SqL2Dist)
+            .unwrap();
+        assert!(nn.k_nearest(aview1(&[]), 2).is_err());
+        assert!(nn.within_range(aview1(&[2.2, 4.4, 5.5]), 4.0).is_err());
     }
 
     fn nn_test(builder: &dyn NearestNeighbourBuilder<f64>, sort_within_range: bool) {
@@ -141,6 +154,11 @@ mod test {
                 #[test]
                 fn empty() {
                     nn_test_empty(&$builder::default());
+                }
+
+                #[test]
+                fn error() {
+                    nn_test_error(&$builder::default());
                 }
 
                 #[test]
