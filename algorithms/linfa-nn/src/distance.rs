@@ -44,58 +44,38 @@ mod test {
 
     use super::*;
 
-    #[test]
-    fn l1_dist() {
+    fn dist_test(dist: CommonDistance<f64>, result: f64) {
         let a = arr1(&[0.5, 6.6]);
         let b = arr1(&[4.4, 3.0]);
-        assert_abs_diff_eq!(
-            CommonDistance::L1Dist.distance(a.view(), b.view()),
-            7.5,
-            epsilon = 1e-3
-        );
+        assert_abs_diff_eq!(dist.distance(a.view(), b.view()), result, epsilon = 1e-3);
+
+        let a = arr1(&[f64::INFINITY, 6.6]);
+        let b = arr1(&[4.4, f64::NEG_INFINITY]);
+        assert!(dist.distance(a.view(), b.view()).is_infinite());
+    }
+
+    #[test]
+    fn l1_dist() {
+        dist_test(CommonDistance::L1Dist, 7.5);
     }
 
     #[test]
     fn l2_dist() {
-        let a = arr1(&[0.5, 6.6]);
-        let b = arr1(&[4.4, 3.0]);
-        assert_abs_diff_eq!(
-            CommonDistance::L2Dist.distance(a.view(), b.view()),
-            5.3075,
-            epsilon = 1e-3
-        );
+        dist_test(CommonDistance::L2Dist, 5.3075);
     }
 
     #[test]
     fn sq_l2_dist() {
-        let a = arr1(&[0.5, 6.6]);
-        let b = arr1(&[4.4, 3.0]);
-        assert_abs_diff_eq!(
-            CommonDistance::SqL2Dist.distance(a.view(), b.view()),
-            28.17,
-            epsilon = 1e-3
-        );
+        dist_test(CommonDistance::SqL2Dist, 28.17);
     }
 
     #[test]
     fn linf_dist() {
-        let a = arr1(&[0.5, 6.6]);
-        let b = arr1(&[4.4, 3.0]);
-        assert_abs_diff_eq!(
-            CommonDistance::LInfDist.distance(a.view(), b.view()),
-            3.9,
-            epsilon = 1e-3
-        );
+        dist_test(CommonDistance::LInfDist, 3.9);
     }
 
     #[test]
     fn p_norm() {
-        let a = arr1(&[0.5, 6.6]);
-        let b = arr1(&[4.4, 3.0]);
-        assert_abs_diff_eq!(
-            CommonDistance::PNorm(3.3).distance(a.view(), b.view()),
-            4.635,
-            epsilon = 1e-3
-        );
+        dist_test(CommonDistance::PNorm(3.3), 4.635);
     }
 }
