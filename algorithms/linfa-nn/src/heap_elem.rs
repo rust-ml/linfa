@@ -1,10 +1,10 @@
 use std::cmp::{Ordering, Reverse};
 
 use linfa::Float;
-use noisy_float::{checkers::NumChecker, NoisyFloat};
+use noisy_float::{checkers::FiniteChecker, NoisyFloat};
 
 pub(crate) struct HeapElem<F: Float, T> {
-    pub(crate) dist: Reverse<NoisyFloat<F, NumChecker>>,
+    pub(crate) dist: Reverse<NoisyFloat<F, FiniteChecker>>,
     pub(crate) elem: T,
 }
 

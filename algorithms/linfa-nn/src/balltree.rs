@@ -2,12 +2,12 @@ use std::{cmp::Reverse, collections::BinaryHeap, marker::PhantomData};
 
 use linfa::Float;
 use ndarray::Array2;
-use noisy_float::{checkers::NumChecker, NoisyFloat};
+use noisy_float::{checkers::FiniteChecker, NoisyFloat};
 
 use crate::{
     distance::{CommonDistance, Distance},
     heap_elem::HeapElem,
-    NearestNeighbour, NearestNeighbourBuilder, Point,
+    BuildError, NearestNeighbour, NearestNeighbourBuilder, NnError, Point,
 };
 
 // Partition the points using median value
@@ -21,21 +21,23 @@ fn partition<F: Float>(mut points: Vec<Point<F>>) -> (Vec<Point<F>>, Point<F>, V
             // Find the range of each dimension
             let it = points
                 .iter()
-                .map(|p| NoisyFloat::<_, NumChecker>::new(p[dim]));
+                .map(|p| NoisyFloat::<_, FiniteChecker>::new(p[dim]));
             // May be faster if we can compute min and max with the same iterator, but compiler might
             // have optimized for that
-            let max = it.clone().max().unwrap();
-            let min = it.min().unwrap();
+            let max = it.clone().max().expect("partitioned empty vec");
+            let min = it.min().expect("partitioned empty vec");
             (dim, max - min)
         })
         .max_by_key(|&(_, range)| range)
-        .unwrap()
+        .expect("vec has no dimensions")
         .0;
 
     let mid = points.len() / 2;
     // Compute median on the chosen dimension in linear time
     let median = order_stat::kth_by(&mut points, mid, |p1, p2| {
-        p1[max_spread_dim].partial_cmp(&p2[max_spread_dim]).unwrap()
+        p1[max_spread_dim]
+            .partial_cmp(&p2[max_spread_dim])
+            .expect("NaN in data")
     })
     .clone();
 
@@ -75,7 +77,7 @@ impl<'a, F: Float> BallTreeInner<'a, F> {
             let radius = aps
                 .iter()
                 .chain(bps.iter())
-                .map(|pt| NoisyFloat::<_, NumChecker>::new(dist_fn.distance(pt.clone(), center)))
+                .map(|pt| NoisyFloat::<_, FiniteChecker>::new(dist_fn.distance(pt.clone(), center)))
                 .max()
                 .unwrap()
                 .raw();
@@ -117,68 +119,93 @@ impl<'a, F: Float> BallTreeInner<'a, F> {
 /// center minus thte radius). The key observation is that a potential neighbor
 /// is necessarily closer than all neighbors that are located inside of a
 /// bounding sphere that is farther than the aforementioned neighbor.
-pub struct BallTree<'a, F: Float, D: Distance<F> = CommonDistance<F>>(
-    Option<BallTreeInner<'a, F>>,
-    D,
-);
+pub struct BallTree<'a, F: Float, D: Distance<F> = CommonDistance<F>> {
+    tree: Option<BallTreeInner<'a, F>>,
+    dist_fn: D,
+    dim: usize,
+}
 
 impl<'a, F: Float, D: Distance<F>> BallTree<'a, F, D> {
-    pub fn from_batch(batch: &'a Array2<F>, dist_fn: D) -> Self {
-        let points: Vec<_> = batch.genrows().into_iter().collect();
-        if points.is_empty() {
-            BallTree(None, dist_fn)
+    pub fn from_batch(batch: &'a Array2<F>, dist_fn: D) -> Result<Self, BuildError> {
+        if batch.ncols() == 0 {
+            Err(BuildError::ZeroDimension)
         } else {
-            BallTree(Some(BallTreeInner::new(points, &dist_fn)), dist_fn)
+            let dim = batch.ncols();
+            let points: Vec<_> = batch.genrows().into_iter().collect();
+            let tree = if points.is_empty() {
+                BallTree {
+                    tree: None,
+                    dist_fn,
+                    dim,
+                }
+            } else {
+                BallTree {
+                    tree: Some(BallTreeInner::new(points, &dist_fn)),
+                    dist_fn,
+                    dim,
+                }
+            };
+            Ok(tree)
         }
     }
 
-    fn nn_helper<'b>(&self, point: Point<'b, F>, k: Option<usize>, max_radius: F) -> Vec<Point<F>> {
-        if let Some(root) = &self.0 {
-            let mut out = Vec::new();
-            let mut queue = BinaryHeap::new();
-            queue.push(HeapElem::new(root.distance(point, &self.1), root));
-            while queue.len() > 0 {
-                let HeapElem {
+    fn nn_helper<'b>(
+        &self,
+        point: Point<'b, F>,
+        k: Option<usize>,
+        max_radius: F,
+    ) -> Result<Vec<Point<F>>, NnError> {
+        if self.dim != point.len() {
+            Err(NnError::WrongDimension)
+        } else {
+            if let Some(root) = &self.tree {
+                let mut out = Vec::new();
+                let mut queue = BinaryHeap::new();
+                queue.push(HeapElem::new(root.distance(point, &self.dist_fn), root));
+
+                while let Some(HeapElem {
                     dist: Reverse(dist),
                     elem,
-                } = queue.pop().unwrap();
-                match elem {
-                    BallTreeInner::Leaf(p) => {
-                        if dist.raw() < max_radius && k.map(|k| out.len() < k).unwrap_or(true) {
-                            out.push(p.reborrow());
+                }) = queue.pop()
+                {
+                    match elem {
+                        BallTreeInner::Leaf(p) => {
+                            if dist.raw() < max_radius && k.map(|k| out.len() < k).unwrap_or(true) {
+                                out.push(p.reborrow());
+                            }
                         }
-                    }
-                    BallTreeInner::Branch {
-                        center: _,
-                        radius: _,
-                        left,
-                        right,
-                    } => {
-                        let dl = left.distance(point, &self.1);
-                        let dr = right.distance(point, &self.1);
+                        BallTreeInner::Branch {
+                            center: _,
+                            radius: _,
+                            left,
+                            right,
+                        } => {
+                            let dl = left.distance(point, &self.dist_fn);
+                            let dr = right.distance(point, &self.dist_fn);
 
-                        if dl <= max_radius {
-                            queue.push(HeapElem::new(dl, left));
-                        }
-                        if dr <= max_radius {
-                            queue.push(HeapElem::new(dr, right));
+                            if dl <= max_radius {
+                                queue.push(HeapElem::new(dl, left));
+                            }
+                            if dr <= max_radius {
+                                queue.push(HeapElem::new(dr, right));
+                            }
                         }
                     }
                 }
+                Ok(out)
+            } else {
+                Ok(Vec::new())
             }
-            out
-        } else {
-            Vec::new()
         }
     }
 }
 
 impl<'a, F: Float, D: Distance<F>> NearestNeighbour<F> for BallTree<'a, F, D> {
-    fn k_nearest<'b>(&self, point: Point<'b, F>, k: usize) -> Vec<Point<F>> {
+    fn k_nearest<'b>(&self, point: Point<'b, F>, k: usize) -> Result<Vec<Point<F>>, NnError> {
         self.nn_helper(point, Some(k), F::infinity())
     }
 
-    fn within_range<'b>(&self, point: Point<'b, F>, range: F) -> Vec<Point<F>> {
+    fn within_range<'b>(&self, point: Point<'b, F>, range: F) -> Result<Vec<Point<F>>, NnError> {
         self.nn_helper(point, None, range)
     }
 }
@@ -191,8 +218,8 @@ impl<F: Float, D: 'static + Distance<F>> NearestNeighbourBuilder<F, D> for BallT
         &self,
         batch: &'a Array2<F>,
         dist_fn: D,
-    ) -> Box<dyn 'a + NearestNeighbour<F>> {
-        Box::new(BallTree::from_batch(batch, dist_fn))
+    ) -> Result<Box<dyn 'a + NearestNeighbour<F>>, BuildError> {
+        BallTree::from_batch(batch, dist_fn).map(|v| Box::new(v) as Box<dyn NearestNeighbour<F>>)
     }
 }
 
