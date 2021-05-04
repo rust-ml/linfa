@@ -194,7 +194,7 @@ mod test {
     }
 
     macro_rules! nn_tests {
-        ($mod:ident, $builder:ident, $sort:expr) => {
+        ($mod:ident, $builder:ident, $sort:expr $(, $_u:ident)?) => {
             mod $mod {
                 use super::*;
 
@@ -218,20 +218,23 @@ mod test {
                     nn_test_degenerate(&$builder::default());
                 }
 
-                #[test]
-                fn random_l2() {
-                    nn_test_random(&$builder::default(), CommonDistance::L2Dist);
-                }
+                $(
+                    #[test]
+                    fn random_l2() {
+                        let $_u: () = ();
+                        nn_test_random(&$builder::default(), CommonDistance::L2Dist);
+                    }
 
-                #[test]
-                fn random_l1() {
-                    nn_test_random(&$builder::default(), CommonDistance::L1Dist);
-                }
+                    #[test]
+                    fn random_l1() {
+                        nn_test_random(&$builder::default(), CommonDistance::L1Dist);
+                    }
+                )?
             }
         };
     }
 
     nn_tests!(linear_search, LinearSearchBuilder, true);
-    nn_tests!(kdtree, KdTreeBuilder, false);
-    nn_tests!(balltree, BallTreeBuilder, false);
+    nn_tests!(kdtree, KdTreeBuilder, false, _u);
+    nn_tests!(balltree, BallTreeBuilder, false, _u);
 }
