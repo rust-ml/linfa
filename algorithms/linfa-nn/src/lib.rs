@@ -143,7 +143,7 @@ mod test {
         assert_abs_diff_eq!(stack(Axis(0), &out).unwrap(), points);
     }
 
-    fn nn_test_random(builder: &dyn NearestNeighbourBuilder<f64>) {
+    fn nn_test_random(builder: &dyn NearestNeighbourBuilder<f64>, dist_fn: CommonDistance<f64>) {
         let mut rng = Isaac64Rng::seed_from_u64(40);
         let n_points = 50000;
         let n_features = 3;
@@ -151,10 +151,10 @@ mod test {
             Array2::random_using((n_points, n_features), Uniform::new(-50., 50.), &mut rng);
 
         let linear = LinearSearchBuilder::new()
-            .from_batch(&points, CommonDistance::L2Dist)
+            .from_batch(&points, dist_fn.clone())
             .unwrap();
 
-        let nn = builder.from_batch(&points, CommonDistance::L2Dist).unwrap();
+        let nn = builder.from_batch(&points, dist_fn).unwrap();
 
         let pt = arr1(&[0., 0., 0.]);
         assert_abs_diff_eq!(
@@ -219,8 +219,13 @@ mod test {
                 }
 
                 #[test]
-                fn random() {
-                    nn_test_random(&$builder::default());
+                fn random_l2() {
+                    nn_test_random(&$builder::default(), CommonDistance::L2Dist);
+                }
+
+                #[test]
+                fn random_l1() {
+                    nn_test_random(&$builder::default(), CommonDistance::L1Dist);
                 }
             }
         };

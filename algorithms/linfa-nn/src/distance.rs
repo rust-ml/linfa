@@ -23,6 +23,7 @@ pub trait Distance<F: Float> {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct L1Dist;
 impl<F: Float> Distance<F> for L1Dist {
     fn distance(&self, a: Point<F>, b: Point<F>) -> F {
@@ -30,6 +31,7 @@ impl<F: Float> Distance<F> for L1Dist {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct L2Dist;
 impl<F: Float> Distance<F> for L2Dist {
     fn distance(&self, a: Point<F>, b: Point<F>) -> F {
@@ -49,6 +51,7 @@ impl<F: Float> Distance<F> for L2Dist {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct LInfDist;
 impl<F: Float> Distance<F> for LInfDist {
     fn distance(&self, a: Point<F>, b: Point<F>) -> F {
@@ -56,6 +59,7 @@ impl<F: Float> Distance<F> for LInfDist {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct LpDist<F: Float>(F);
 impl<F: Float> Distance<F> for LpDist<F> {
     fn distance(&self, a: Point<F>, b: Point<F>) -> F {
@@ -66,6 +70,7 @@ impl<F: Float> Distance<F> for LpDist<F> {
     }
 }
 
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum CommonDistance<F> {
     /// Manhattan distance
