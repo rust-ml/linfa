@@ -25,9 +25,7 @@ fn nn_build_bench(c: &mut Criterion) {
                 BenchmarkId::new(*name, format!("{}", n_points)),
                 &points,
                 |bencher, points| {
-                    bencher.iter(|| {
-                        alg.from_batch(points, CommonDistance::L2Dist).unwrap();
-                    });
+                    bencher.iter(|| alg.from_batch(points, CommonDistance::L2Dist).unwrap());
                 },
             );
         }
@@ -57,7 +55,8 @@ fn k_nearest_bench(c: &mut Criterion) {
                 &k,
                 |bencher, &k| {
                     bencher.iter(|| {
-                        nn.k_nearest(pt.view(), k).unwrap();
+                        let out = nn.k_nearest(pt.view(), k).unwrap();
+                        assert_eq!(out.len(), k);
                     });
                 },
             );
