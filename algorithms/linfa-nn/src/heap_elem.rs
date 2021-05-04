@@ -37,14 +37,3 @@ impl<F: Float, T> MinHeapElem<F, T> {
         }
     }
 }
-
-pub(crate) type MaxHeapElem<F, T> = HeapElem<NoisyFloat<F, FiniteChecker>, T>;
-
-impl<F: Float, T> MaxHeapElem<F, T> {
-    pub(crate) fn new(dist: F, elem: T) -> Self {
-        Self {
-            dist: NoisyFloat::new(dist),
-            elem,
-        }
-    }
-}

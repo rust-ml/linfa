@@ -46,7 +46,7 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbour<F> for KdTree<'a, F, D> {
             .nearest(
                 point.to_slice().expect("views should be contiguous"),
                 k,
-                &|a, b| self.1.distance(aview1(a), aview1(b)),
+                &|a, b| self.1.rdistance(aview1(a), aview1(b)),
             )?
             .into_iter()
             .map(|(_, pt)| pt.reborrow())
@@ -54,12 +54,13 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbour<F> for KdTree<'a, F, D> {
     }
 
     fn within_range<'b>(&self, point: Point<'b, F>, range: F) -> Result<Vec<Point<F>>, NnError> {
+        let range = self.1.dist_to_rdist(range);
         Ok(self
             .0
             .within(
                 point.to_slice().expect("views should be contiguous"),
                 range,
-                &|a, b| self.1.distance(aview1(a), aview1(b)),
+                &|a, b| self.1.rdistance(aview1(a), aview1(b)),
             )?
             .into_iter()
             .map(|(_, pt)| pt.reborrow())

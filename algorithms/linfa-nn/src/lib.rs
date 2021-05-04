@@ -64,9 +64,7 @@ mod test {
 
     fn nn_test_empty(builder: &dyn NearestNeighbourBuilder<f64>) {
         let points = Array2::zeros((0, 2));
-        let nn = builder
-            .from_batch(&points, CommonDistance::SqL2Dist)
-            .unwrap();
+        let nn = builder.from_batch(&points, CommonDistance::L2Dist).unwrap();
 
         let out = nn.k_nearest(aview1(&[0.0, 1.0]), 2).unwrap();
         assert_eq!(out, Vec::<Point<_>>::new());
@@ -81,23 +79,17 @@ mod test {
 
     fn nn_test_error(builder: &dyn NearestNeighbourBuilder<f64>) {
         let points = Array2::zeros((4, 0));
-        assert!(builder
-            .from_batch(&points, CommonDistance::SqL2Dist)
-            .is_err());
+        assert!(builder.from_batch(&points, CommonDistance::L2Dist).is_err());
 
         let points = arr2(&[[0.0, 2.0]]);
-        let nn = builder
-            .from_batch(&points, CommonDistance::SqL2Dist)
-            .unwrap();
+        let nn = builder.from_batch(&points, CommonDistance::L2Dist).unwrap();
         assert!(nn.k_nearest(aview1(&[]), 2).is_err());
         assert!(nn.within_range(aview1(&[2.2, 4.4, 5.5]), 4.0).is_err());
     }
 
     fn nn_test(builder: &dyn NearestNeighbourBuilder<f64>, sort_within_range: bool) {
         let points = arr2(&[[0.0, 2.0], [10.0, 4.0], [4.0, 5.0], [7.0, 1.0], [1.0, 7.2]]);
-        let nn = builder
-            .from_batch(&points, CommonDistance::SqL2Dist)
-            .unwrap();
+        let nn = builder.from_batch(&points, CommonDistance::L2Dist).unwrap();
 
         let out = nn.k_nearest(aview1(&[0.0, 1.0]), 2).unwrap();
         assert_abs_diff_eq!(
@@ -118,7 +110,7 @@ mod test {
         );
 
         let pt = aview1(&[6.0, 3.0]);
-        let mut out = nn.within_range(pt, 18.0).unwrap();
+        let mut out = nn.within_range(pt, 4.3).unwrap();
         if sort_within_range {
             out = sort_by_dist(out, pt.clone());
         }
@@ -130,9 +122,7 @@ mod test {
 
     fn nn_test_degenerate(builder: &dyn NearestNeighbourBuilder<f64>) {
         let points = arr2(&[[0.0, 2.0], [0.0, 2.0], [0.0, 2.0], [0.0, 2.0], [0.0, 2.0]]);
-        let nn = builder
-            .from_batch(&points, CommonDistance::SqL2Dist)
-            .unwrap();
+        let nn = builder.from_batch(&points, CommonDistance::L2Dist).unwrap();
 
         let out = nn.k_nearest(aview1(&[0.0, 1.0]), 2).unwrap();
         assert_abs_diff_eq!(
@@ -161,35 +151,25 @@ mod test {
             Array2::random_using((n_points, n_features), Uniform::new(-50., 50.), &mut rng);
 
         let linear = LinearSearchBuilder::new()
-            .from_batch(&points, CommonDistance::SqL2Dist)
+            .from_batch(&points, CommonDistance::L2Dist)
             .unwrap();
 
-        let nn = builder
-            .from_batch(&points, CommonDistance::SqL2Dist)
-            .unwrap();
+        let nn = builder.from_batch(&points, CommonDistance::L2Dist).unwrap();
 
         let pt = arr1(&[0., 0., 0.]);
         assert_abs_diff_eq!(
-            stack(
-                Axis(0),
-                &sort_by_dist(nn.k_nearest(pt.view(), 5).unwrap(), pt.view())
-            )
-            .unwrap(),
-            stack(
-                Axis(0),
-                &sort_by_dist(linear.k_nearest(pt.view(), 5).unwrap(), pt.view())
-            )
-            .unwrap()
+            stack(Axis(0), &nn.k_nearest(pt.view(), 5).unwrap()).unwrap(),
+            stack(Axis(0), &linear.k_nearest(pt.view(), 5).unwrap()).unwrap()
         );
         assert_abs_diff_eq!(
             stack(
                 Axis(0),
-                &sort_by_dist(nn.within_range(pt.view(), 200.0).unwrap(), pt.view())
+                &sort_by_dist(nn.within_range(pt.view(), 15.0).unwrap(), pt.view())
             )
             .unwrap(),
             stack(
                 Axis(0),
-                &sort_by_dist(linear.within_range(pt.view(), 200.0).unwrap(), pt.view())
+                &sort_by_dist(linear.within_range(pt.view(), 15.0).unwrap(), pt.view())
             )
             .unwrap()
         );
@@ -202,12 +182,12 @@ mod test {
         assert_abs_diff_eq!(
             stack(
                 Axis(0),
-                &sort_by_dist(nn.within_range(pt.view(), 700.0).unwrap(), pt.view())
+                &sort_by_dist(nn.within_range(pt.view(), 25.0).unwrap(), pt.view())
             )
             .unwrap(),
             stack(
                 Axis(0),
-                &sort_by_dist(linear.within_range(pt.view(), 700.0).unwrap(), pt.view())
+                &sort_by_dist(linear.within_range(pt.view(), 25.0).unwrap(), pt.view())
             )
             .unwrap()
         );

@@ -29,7 +29,7 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbour<F> for LinearSearch<'a, F, D
         } else {
             let mut heap = BinaryHeap::with_capacity(self.0.nrows());
             for pt in self.0.genrows() {
-                let dist = self.1.distance(point.clone(), pt.clone());
+                let dist = self.1.rdistance(point.clone(), pt.clone());
                 heap.push(MinHeapElem {
                     elem: pt.clone(),
                     dist: Reverse(NoisyFloat::new(dist)),
@@ -46,11 +46,12 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbour<F> for LinearSearch<'a, F, D
         if self.0.ncols() != point.len() {
             Err(NnError::WrongDimension)
         } else {
+            let range = self.1.dist_to_rdist(range);
             Ok(self
                 .0
                 .genrows()
                 .into_iter()
-                .filter(|pt| self.1.distance(point.clone(), pt.clone()) < range)
+                .filter(|pt| self.1.rdistance(point.clone(), pt.clone()) < range)
                 .collect())
         }
     }

@@ -74,13 +74,16 @@ impl<'a, F: Float> BallTreeInner<'a, F> {
         } else {
             let (aps, center, bps) = partition(points);
             debug_assert!(!aps.is_empty() && !bps.is_empty());
-            let radius = aps
+            let r_rad = aps
                 .iter()
                 .chain(bps.iter())
-                .map(|pt| NoisyFloat::<_, FiniteChecker>::new(dist_fn.distance(pt.clone(), center)))
+                .map(|pt| {
+                    NoisyFloat::<_, FiniteChecker>::new(dist_fn.rdistance(pt.clone(), center))
+                })
                 .max()
                 .unwrap()
                 .raw();
+            let radius = dist_fn.rdist_to_dist(r_rad);
             let a_tree = BallTreeInner::new(aps, dist_fn);
             let b_tree = BallTreeInner::new(bps, dist_fn);
             BallTreeInner::Branch {
@@ -92,10 +95,10 @@ impl<'a, F: Float> BallTreeInner<'a, F> {
         }
     }
 
-    fn distance<D: Distance<F>>(&self, p: Point<F>, dist_fn: &D) -> F {
+    fn rdistance<D: Distance<F>>(&self, p: Point<F>, dist_fn: &D) -> F {
         match self {
             // The distance to a leaf is the distance to the single point inside of it
-            BallTreeInner::Leaf(p0) => dist_fn.distance(p, p0.clone()),
+            BallTreeInner::Leaf(p0) => dist_fn.rdistance(p, p0.clone()),
             // The distance to a branch is the distance to the edge of the bounding sphere. Can be
             // negative, which is fine because we're only ever comparing this to the max distance.
             BallTreeInner::Branch {
@@ -103,7 +106,10 @@ impl<'a, F: Float> BallTreeInner<'a, F> {
                 radius,
                 left: _,
                 right: _,
-            } => dist_fn.distance(p, center.clone()) - *radius,
+            } => {
+                let border_dist = dist_fn.distance(p, center.clone()) - *radius;
+                dist_fn.dist_to_rdist(border_dist.max(F::zero()))
+            }
         }
     }
 }
@@ -159,7 +165,7 @@ impl<'a, F: Float, D: Distance<F>> BallTree<'a, F, D> {
             if let Some(root) = &self.tree {
                 let mut out = Vec::new();
                 let mut queue = BinaryHeap::new();
-                queue.push(MinHeapElem::new(root.distance(point, &self.dist_fn), root));
+                queue.push(MinHeapElem::new(root.rdistance(point, &self.dist_fn), root));
 
                 while let Some(MinHeapElem {
                     dist: Reverse(dist),
@@ -168,7 +174,6 @@ impl<'a, F: Float, D: Distance<F>> BallTree<'a, F, D> {
                 {
                     match elem {
                         BallTreeInner::Leaf(p) => {
-                            //println!("leaf {}", dist);
                             if dist.raw() < max_radius && k.map(|k| out.len() < k).unwrap_or(true) {
                                 out.push(p.reborrow());
                             } else {
@@ -181,9 +186,8 @@ impl<'a, F: Float, D: Distance<F>> BallTree<'a, F, D> {
                             left,
                             right,
                         } => {
-                            let dl = left.distance(point, &self.dist_fn);
-                            let dr = right.distance(point, &self.dist_fn);
-                            println!("branch {} {} {}", dist, dl, dr);
+                            let dl = left.rdistance(point, &self.dist_fn);
+                            let dr = right.rdistance(point, &self.dist_fn);
 
                             if dl <= max_radius {
                                 queue.push(MinHeapElem::new(dl, left));
@@ -208,6 +212,7 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbour<F> for BallTree<'a, F, D> {
     }
 
     fn within_range<'b>(&self, point: Point<'b, F>, range: F) -> Result<Vec<Point<F>>, NnError> {
+        let range = self.dist_fn.dist_to_rdist(range);
         self.nn_helper(point, None, range)
     }
 }
@@ -286,11 +291,11 @@ mod test {
 
     #[test]
     fn create_balltree() {
-        let dist_fn = CommonDistance::SqL2Dist;
+        let dist_fn = CommonDistance::L2Dist;
         let arr = arr2(&[[1.0, 2.0]]);
         let tree = BallTreeInner::new(arr.genrows().into_iter().collect(), &dist_fn);
         assert_eq!(tree, BallTreeInner::Leaf(aview1(&[1.0, 2.0])));
-        assert_abs_diff_eq!(tree.distance(aview1(&[1.0, 3.0]), &dist_fn), 1.0);
+        assert_abs_diff_eq!(tree.rdistance(aview1(&[1.0, 3.0]), &dist_fn), 1.0);
 
         let arr = arr2(&[[1.0, 2.0], [-8.0, 4.0], [3.0, 3.0]]);
         let tree = BallTreeInner::new(arr.genrows().into_iter().collect(), &dist_fn);
@@ -298,16 +303,21 @@ mod test {
             tree,
             BallTreeInner::Branch {
                 center: aview1(&[1.0, 2.0]),
-                radius: 85.0,
+                radius: 85.0f64.sqrt(),
                 left: Box::new(BallTreeInner::Leaf(aview1(&[-8.0, 4.0]))),
                 right: Box::new(BallTreeInner::Branch {
                     center: aview1(&[3.0, 3.0]),
-                    radius: 5.0,
+                    radius: 5.0f64.sqrt(),
                     left: Box::new(BallTreeInner::Leaf(aview1(&[1.0, 2.0]))),
                     right: Box::new(BallTreeInner::Leaf(aview1(&[3.0, 3.0]))),
                 }),
             }
         );
-        assert_abs_diff_eq!(tree.distance(aview1(&[6.0, 3.0]), &dist_fn), 26.0 - 85.0);
+        assert_abs_diff_eq!(tree.rdistance(aview1(&[6.0, 3.0]), &dist_fn), 0.0);
+        assert_abs_diff_eq!(
+            tree.rdistance(aview1(&[10.4, 12.5]), &dist_fn),
+            23.75,
+            epsilon = 1e-3
+        );
     }
 }

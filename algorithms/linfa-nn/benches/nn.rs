@@ -26,7 +26,7 @@ fn nn_build_bench(c: &mut Criterion) {
                 &points,
                 |bencher, points| {
                     bencher.iter(|| {
-                        alg.from_batch(points, CommonDistance::SqL2Dist).unwrap();
+                        alg.from_batch(points, CommonDistance::L2Dist).unwrap();
                     });
                 },
             );
@@ -51,7 +51,7 @@ fn k_nearest_bench(c: &mut Criterion) {
         let points = Array2::random_using((n_points, n_features), distr, &mut rng);
 
         for (alg, name) in algorithms {
-            let nn = alg.from_batch(&points, CommonDistance::SqL2Dist).unwrap();
+            let nn = alg.from_batch(&points, CommonDistance::L2Dist).unwrap();
             benchmark.bench_with_input(
                 BenchmarkId::new(*name, format!("{}-{}", n_points, k)),
                 &k,
@@ -77,12 +77,12 @@ fn within_range_bench(c: &mut Criterion) {
         (Box::new(BallTreeBuilder::new()), "balltree"),
     ];
 
-    for &(n_points, range) in &[(50000, 50.0), (50000, 100.0)] {
+    for &(n_points, range) in &[(50000, 10.0), (50000, 20.0)] {
         let pt = Array1::random_using(n_features, distr, &mut rng);
         let points = Array2::random_using((n_points, n_features), distr, &mut rng);
 
         for (alg, name) in algorithms {
-            let nn = alg.from_batch(&points, CommonDistance::SqL2Dist).unwrap();
+            let nn = alg.from_batch(&points, CommonDistance::L2Dist).unwrap();
             benchmark.bench_with_input(
                 BenchmarkId::new(*name, format!("{}-{}", n_points, range)),
                 &range,
