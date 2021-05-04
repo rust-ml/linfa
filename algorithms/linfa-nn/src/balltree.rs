@@ -6,7 +6,7 @@ use noisy_float::{checkers::FiniteChecker, NoisyFloat};
 
 use crate::{
     distance::{CommonDistance, Distance},
-    heap_elem::HeapElem,
+    heap_elem::MinHeapElem,
     BuildError, NearestNeighbour, NearestNeighbourBuilder, NnError, Point,
 };
 
@@ -81,10 +81,8 @@ impl<'a, F: Float> BallTreeInner<'a, F> {
                 .max()
                 .unwrap()
                 .raw();
-            let (a_tree, b_tree) = (
-                BallTreeInner::new(aps, dist_fn),
-                BallTreeInner::new(bps, dist_fn),
-            );
+            let a_tree = BallTreeInner::new(aps, dist_fn);
+            let b_tree = BallTreeInner::new(bps, dist_fn);
             BallTreeInner::Branch {
                 center,
                 radius,
@@ -161,17 +159,20 @@ impl<'a, F: Float, D: Distance<F>> BallTree<'a, F, D> {
             if let Some(root) = &self.tree {
                 let mut out = Vec::new();
                 let mut queue = BinaryHeap::new();
-                queue.push(HeapElem::new(root.distance(point, &self.dist_fn), root));
+                queue.push(MinHeapElem::new(root.distance(point, &self.dist_fn), root));
 
-                while let Some(HeapElem {
+                while let Some(MinHeapElem {
                     dist: Reverse(dist),
                     elem,
                 }) = queue.pop()
                 {
                     match elem {
                         BallTreeInner::Leaf(p) => {
+                            //println!("leaf {}", dist);
                             if dist.raw() < max_radius && k.map(|k| out.len() < k).unwrap_or(true) {
                                 out.push(p.reborrow());
+                            } else {
+                                break;
                             }
                         }
                         BallTreeInner::Branch {
@@ -182,12 +183,13 @@ impl<'a, F: Float, D: Distance<F>> BallTree<'a, F, D> {
                         } => {
                             let dl = left.distance(point, &self.dist_fn);
                             let dr = right.distance(point, &self.dist_fn);
+                            println!("branch {} {} {}", dist, dl, dr);
 
                             if dl <= max_radius {
-                                queue.push(HeapElem::new(dl, left));
+                                queue.push(MinHeapElem::new(dl, left));
                             }
                             if dr <= max_radius {
-                                queue.push(HeapElem::new(dr, right));
+                                queue.push(MinHeapElem::new(dr, right));
                             }
                         }
                     }

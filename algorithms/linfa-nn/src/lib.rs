@@ -170,8 +170,16 @@ mod test {
 
         let pt = arr1(&[0., 0., 0.]);
         assert_abs_diff_eq!(
-            stack(Axis(0), &nn.k_nearest(pt.view(), 200).unwrap()).unwrap(),
-            stack(Axis(0), &linear.k_nearest(pt.view(), 200).unwrap()).unwrap()
+            stack(
+                Axis(0),
+                &sort_by_dist(nn.k_nearest(pt.view(), 5).unwrap(), pt.view())
+            )
+            .unwrap(),
+            stack(
+                Axis(0),
+                &sort_by_dist(linear.k_nearest(pt.view(), 5).unwrap(), pt.view())
+            )
+            .unwrap()
         );
         assert_abs_diff_eq!(
             stack(

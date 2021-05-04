@@ -6,13 +6,11 @@ use noisy_float::NoisyFloat;
 
 use crate::{
     distance::{CommonDistance, Distance},
-    heap_elem::HeapElem,
+    heap_elem::MinHeapElem,
     BuildError, NearestNeighbour, NearestNeighbourBuilder, NnError, Point,
 };
 
 pub struct LinearSearch<'a, F: Float, D: Distance<F> = CommonDistance<F>>(ArrayView2<'a, F>, D);
-
-type HeapPoint<'a, F> = HeapElem<F, Point<'a, F>>;
 
 impl<'a, F: Float, D: Distance<F>> LinearSearch<'a, F, D> {
     pub fn from_batch(batch: &'a Array2<F>, dist_fn: D) -> Result<Self, BuildError> {
@@ -32,7 +30,7 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbour<F> for LinearSearch<'a, F, D
             let mut heap = BinaryHeap::with_capacity(self.0.nrows());
             for pt in self.0.genrows() {
                 let dist = self.1.distance(point.clone(), pt.clone());
-                heap.push(HeapPoint {
+                heap.push(MinHeapElem {
                     elem: pt.clone(),
                     dist: Reverse(NoisyFloat::new(dist)),
                 });
