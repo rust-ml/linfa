@@ -1,12 +1,12 @@
 use std::{cmp::Reverse, collections::BinaryHeap, marker::PhantomData};
 
 use linfa::Float;
-use ndarray::Array2;
+use ndarray::{Array1, Array2};
 use noisy_float::{checkers::FiniteChecker, NoisyFloat};
 
 use crate::{
     distance::{CommonDistance, Distance},
-    heap_elem::MinHeapElem,
+    heap_elem::{MaxHeapElem, MinHeapElem},
     BuildError, NearestNeighbour, NearestNeighbourBuilder, NnError, Point,
 };
 
@@ -53,9 +53,27 @@ fn partition<F: Float>(mut points: Vec<Point<F>>) -> (Vec<Point<F>>, Point<F>, V
     (left, median, right)
 }
 
+// Calculates radius of a bounding sphere
+fn calc_radius<'a, F: Float, D: Distance<F>>(
+    points: impl Iterator<Item = Point<'a, F>>,
+    center: Point<F>,
+    dist_fn: &D,
+) -> F {
+    let r_rad = points
+        .map(|pt| NoisyFloat::<_, FiniteChecker>::new(dist_fn.rdistance(pt.clone(), center)))
+        .max()
+        .unwrap()
+        .raw();
+    dist_fn.rdist_to_dist(r_rad)
+}
+
 #[derive(Debug, PartialEq)]
 enum BallTreeInner<'a, F: Float> {
-    Leaf(Point<'a, F>),
+    Leaf {
+        center: Array1<F>,
+        radius: F,
+        points: Vec<Point<'a, F>>,
+    },
     // The sphere is a bounding sphere that encompasses this node (both children)
     Branch {
         center: Point<'a, F>,
@@ -66,26 +84,33 @@ enum BallTreeInner<'a, F: Float> {
 }
 
 impl<'a, F: Float> BallTreeInner<'a, F> {
-    fn new<D: Distance<F>>(mut points: Vec<Point<'a, F>>, dist_fn: &D) -> Self {
-        if points.is_empty() {
-            unreachable!();
-        } else if points.len() == 1 {
-            BallTreeInner::Leaf(points.pop().unwrap())
+    fn new<D: Distance<F>>(points: Vec<Point<'a, F>>, leaf_size: usize, dist_fn: &D) -> Self {
+        if points.len() <= leaf_size {
+            if let Some(dim) = points.first().map(|p| p.len()) {
+                let center = {
+                    let mut c = Array1::zeros(dim);
+                    points.iter().for_each(|p| c += p);
+                    c / F::from(points.len()).unwrap()
+                };
+                let radius = calc_radius(points.iter().cloned(), center.view(), dist_fn);
+                BallTreeInner::Leaf {
+                    center,
+                    radius,
+                    points,
+                }
+            } else {
+                BallTreeInner::Leaf {
+                    center: Array1::zeros(0),
+                    points,
+                    radius: F::zero(),
+                }
+            }
         } else {
             let (aps, center, bps) = partition(points);
             debug_assert!(!aps.is_empty() && !bps.is_empty());
-            let r_rad = aps
-                .iter()
-                .chain(bps.iter())
-                .map(|pt| {
-                    NoisyFloat::<_, FiniteChecker>::new(dist_fn.rdistance(pt.clone(), center))
-                })
-                .max()
-                .unwrap()
-                .raw();
-            let radius = dist_fn.rdist_to_dist(r_rad);
-            let a_tree = BallTreeInner::new(aps, dist_fn);
-            let b_tree = BallTreeInner::new(bps, dist_fn);
+            let radius = calc_radius(aps.iter().chain(bps.iter()).cloned(), center, dist_fn);
+            let a_tree = BallTreeInner::new(aps, leaf_size, dist_fn);
+            let b_tree = BallTreeInner::new(bps, leaf_size, dist_fn);
             BallTreeInner::Branch {
                 center,
                 radius,
@@ -96,21 +121,14 @@ impl<'a, F: Float> BallTreeInner<'a, F> {
     }
 
     fn rdistance<D: Distance<F>>(&self, p: Point<F>, dist_fn: &D) -> F {
-        match self {
-            // The distance to a leaf is the distance to the single point inside of it
-            BallTreeInner::Leaf(p0) => dist_fn.rdistance(p, p0.clone()),
-            // The distance to a branch is the distance to the edge of the bounding sphere. Can be
-            // negative, which is fine because we're only ever comparing this to the max distance.
-            BallTreeInner::Branch {
-                center,
-                radius,
-                left: _,
-                right: _,
-            } => {
-                let border_dist = dist_fn.distance(p, center.clone()) - *radius;
-                dist_fn.dist_to_rdist(border_dist.max(F::zero()))
-            }
-        }
+        let (center, radius) = match self {
+            BallTreeInner::Leaf { center, radius, .. } => (center.view(), radius),
+            BallTreeInner::Branch { center, radius, .. } => (center.reborrow(), radius),
+        };
+
+        // The distance to a branch is the distance to the edge of the bounding sphere
+        let border_dist = dist_fn.distance(p, center.clone()) - *radius;
+        dist_fn.dist_to_rdist(border_dist.max(F::zero()))
     }
 }
 
@@ -124,96 +142,100 @@ impl<'a, F: Float> BallTreeInner<'a, F> {
 /// is necessarily closer than all neighbors that are located inside of a
 /// bounding sphere that is farther than the aforementioned neighbor.
 pub struct BallTree<'a, F: Float, D: Distance<F> = CommonDistance<F>> {
-    tree: Option<BallTreeInner<'a, F>>,
+    tree: BallTreeInner<'a, F>,
     dist_fn: D,
     dim: usize,
+    len: usize,
 }
 
 impl<'a, F: Float, D: Distance<F>> BallTree<'a, F, D> {
-    pub fn from_batch(batch: &'a Array2<F>, dist_fn: D) -> Result<Self, BuildError> {
-        if batch.ncols() == 0 {
+    pub fn new(batch: &'a Array2<F>, leaf_size: usize, dist_fn: D) -> Result<Self, BuildError> {
+        let dim = batch.ncols();
+        let len = batch.nrows();
+        if dim == 0 {
             Err(BuildError::ZeroDimension)
         } else {
-            let dim = batch.ncols();
             let points: Vec<_> = batch.genrows().into_iter().collect();
-            let tree = if points.is_empty() {
-                BallTree {
-                    tree: None,
-                    dist_fn,
-                    dim,
-                }
-            } else {
-                BallTree {
-                    tree: Some(BallTreeInner::new(points, &dist_fn)),
-                    dist_fn,
-                    dim,
-                }
-            };
-            Ok(tree)
+            Ok(BallTree {
+                tree: BallTreeInner::new(points, leaf_size, &dist_fn),
+                dist_fn,
+                dim,
+                len,
+            })
         }
     }
 
     fn nn_helper<'b>(
         &self,
         point: Point<'b, F>,
-        k: Option<usize>,
+        k: usize,
         max_radius: F,
     ) -> Result<Vec<Point<F>>, NnError> {
         if self.dim != point.len() {
             Err(NnError::WrongDimension)
+        } else if self.len == 0 {
+            Ok(Vec::new())
         } else {
-            if let Some(root) = &self.tree {
-                let mut out = Vec::new();
-                let mut queue = BinaryHeap::new();
-                queue.push(MinHeapElem::new(root.rdistance(point, &self.dist_fn), root));
+            let mut out: BinaryHeap<MaxHeapElem<_, _>> = BinaryHeap::new();
+            let mut queue = BinaryHeap::new();
+            queue.push(MinHeapElem::new(
+                self.tree.rdistance(point, &self.dist_fn),
+                &self.tree,
+            ));
 
-                while let Some(MinHeapElem {
-                    dist: Reverse(dist),
-                    elem,
-                }) = queue.pop()
-                {
-                    match elem {
-                        BallTreeInner::Leaf(p) => {
-                            if dist.raw() < max_radius && k.map(|k| out.len() < k).unwrap_or(true) {
-                                out.push(p.reborrow());
-                            } else {
-                                break;
-                            }
-                        }
-                        BallTreeInner::Branch {
-                            center: _,
-                            radius: _,
-                            left,
-                            right,
-                        } => {
-                            let dl = left.rdistance(point, &self.dist_fn);
-                            let dr = right.rdistance(point, &self.dist_fn);
+            while let Some(MinHeapElem {
+                dist: Reverse(dist),
+                elem,
+            }) = queue.pop()
+            {
+                if dist >= max_radius || (out.len() == k && dist >= out.peek().unwrap().dist) {
+                    break;
+                }
 
-                            if dl <= max_radius {
-                                queue.push(MinHeapElem::new(dl, left));
-                            }
-                            if dr <= max_radius {
-                                queue.push(MinHeapElem::new(dr, right));
+                match elem {
+                    BallTreeInner::Leaf { points, .. } => {
+                        for p in points {
+                            let dist = self.dist_fn.rdistance(point, p.reborrow());
+                            if dist < max_radius
+                                && (out.len() < k || out.peek().unwrap().dist > dist)
+                            {
+                                out.push(MaxHeapElem::new(dist, p));
+                                if out.len() > k {
+                                    out.pop();
+                                }
                             }
                         }
                     }
+                    BallTreeInner::Branch { left, right, .. } => {
+                        let dl = left.rdistance(point, &self.dist_fn);
+                        let dr = right.rdistance(point, &self.dist_fn);
+
+                        if dl <= max_radius {
+                            queue.push(MinHeapElem::new(dl, left));
+                        }
+                        if dr <= max_radius {
+                            queue.push(MinHeapElem::new(dr, right));
+                        }
+                    }
                 }
-                Ok(out)
-            } else {
-                Ok(Vec::new())
             }
+            Ok(out
+                .into_sorted_vec()
+                .into_iter()
+                .map(|e| e.elem.reborrow())
+                .collect())
         }
     }
 }
 
 impl<'a, F: Float, D: Distance<F>> NearestNeighbour<F> for BallTree<'a, F, D> {
     fn k_nearest<'b>(&self, point: Point<'b, F>, k: usize) -> Result<Vec<Point<F>>, NnError> {
-        self.nn_helper(point, Some(k), F::infinity())
+        self.nn_helper(point, k, F::infinity())
     }
 
     fn within_range<'b>(&self, point: Point<'b, F>, range: F) -> Result<Vec<Point<F>>, NnError> {
         let range = self.dist_fn.dist_to_rdist(range);
-        self.nn_helper(point, None, range)
+        self.nn_helper(point, self.len, range)
     }
 }
 
@@ -232,14 +254,17 @@ impl<F: Float, D: 'static + Distance<F>> NearestNeighbourBuilder<F, D> for BallT
         batch: &'a Array2<F>,
         dist_fn: D,
     ) -> Result<Box<dyn 'a + NearestNeighbour<F>>, BuildError> {
-        BallTree::from_batch(batch, dist_fn).map(|v| Box::new(v) as Box<dyn NearestNeighbour<F>>)
+        BallTree::new(batch, 2usize.pow(4), dist_fn)
+            .map(|v| Box::new(v) as Box<dyn NearestNeighbour<F>>)
     }
 }
 
 #[cfg(test)]
 mod test {
     use approx::assert_abs_diff_eq;
-    use ndarray::{arr1, arr2, aview1, stack, Array1, Array2, Axis};
+    use ndarray::{arr1, arr2, stack, Array1, Array2, Axis};
+
+    use crate::distance::L2Dist;
 
     use super::*;
 
@@ -248,12 +273,14 @@ mod test {
         exp_left: Array2<f64>,
         exp_med: Array1<f64>,
         exp_right: Array2<f64>,
+        exp_rad: f64,
     ) {
-        let vec = input.genrows().into_iter().collect();
-        let (l, mid, r) = partition(vec);
+        let vec: Vec<_> = input.genrows().into_iter().collect();
+        let (l, mid, r) = partition(vec.clone());
         assert_abs_diff_eq!(stack(Axis(0), &l).unwrap(), exp_left);
         assert_abs_diff_eq!(mid.to_owned(), exp_med);
         assert_abs_diff_eq!(stack(Axis(0), &r).unwrap(), exp_right);
+        assert_abs_diff_eq!(calc_radius(vec.iter().cloned(), mid, &L2Dist), exp_rad);
     }
 
     #[test]
@@ -264,12 +291,14 @@ mod test {
             arr2(&[[0.0, 1.0]]),
             arr1(&[2.0, 3.0]),
             arr2(&[[2.0, 3.0]]),
+            8.0f64.sqrt(),
         );
         assert_partition(
             arr2(&[[2.0, 3.0], [0.0, 1.0]]),
             arr2(&[[0.0, 1.0]]),
             arr1(&[2.0, 3.0]),
             arr2(&[[2.0, 3.0]]),
+            8.0f64.sqrt(),
         );
 
         // Partition along the dimension with highest spread
@@ -278,6 +307,7 @@ mod test {
             arr2(&[[0.3, 5.0]]),
             arr1(&[4.5, 7.0]),
             arr2(&[[4.5, 7.0], [8.1, 1.5]]),
+            43.21f64.sqrt(),
         );
 
         // Degenerate data
@@ -286,38 +316,7 @@ mod test {
             arr2(&[[1.4, 4.3]]),
             arr1(&[1.4, 4.3]),
             arr2(&[[1.4, 4.3], [1.4, 4.3], [1.4, 4.3]]),
-        );
-    }
-
-    #[test]
-    fn create_balltree() {
-        let dist_fn = CommonDistance::L2Dist;
-        let arr = arr2(&[[1.0, 2.0]]);
-        let tree = BallTreeInner::new(arr.genrows().into_iter().collect(), &dist_fn);
-        assert_eq!(tree, BallTreeInner::Leaf(aview1(&[1.0, 2.0])));
-        assert_abs_diff_eq!(tree.rdistance(aview1(&[1.0, 3.0]), &dist_fn), 1.0);
-
-        let arr = arr2(&[[1.0, 2.0], [-8.0, 4.0], [3.0, 3.0]]);
-        let tree = BallTreeInner::new(arr.genrows().into_iter().collect(), &dist_fn);
-        assert_eq!(
-            tree,
-            BallTreeInner::Branch {
-                center: aview1(&[1.0, 2.0]),
-                radius: 85.0f64.sqrt(),
-                left: Box::new(BallTreeInner::Leaf(aview1(&[-8.0, 4.0]))),
-                right: Box::new(BallTreeInner::Branch {
-                    center: aview1(&[3.0, 3.0]),
-                    radius: 5.0f64.sqrt(),
-                    left: Box::new(BallTreeInner::Leaf(aview1(&[1.0, 2.0]))),
-                    right: Box::new(BallTreeInner::Leaf(aview1(&[3.0, 3.0]))),
-                }),
-            }
-        );
-        assert_abs_diff_eq!(tree.rdistance(aview1(&[6.0, 3.0]), &dist_fn), 0.0);
-        assert_abs_diff_eq!(
-            tree.rdistance(aview1(&[10.4, 12.5]), &dist_fn),
-            23.75,
-            epsilon = 1e-3
+            0.0,
         );
     }
 }
