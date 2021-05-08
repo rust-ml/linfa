@@ -10,14 +10,17 @@ pub trait Distance<F: Float> {
     fn distance(&self, a: Point<F>, b: Point<F>) -> F;
 
     // Fast distance metric that keeps the order of the distance function
+    #[inline]
     fn rdistance(&self, a: Point<F>, b: Point<F>) -> F {
         self.distance(a, b)
     }
 
+    #[inline]
     fn rdist_to_dist(&self, rdist: F) -> F {
         rdist
     }
 
+    #[inline]
     fn dist_to_rdist(&self, dist: F) -> F {
         dist
     }
@@ -26,6 +29,7 @@ pub trait Distance<F: Float> {
 #[derive(Debug, Clone)]
 pub struct L1Dist;
 impl<F: Float> Distance<F> for L1Dist {
+    #[inline]
     fn distance(&self, a: Point<F>, b: Point<F>) -> F {
         a.l1_dist(&b).unwrap()
     }
@@ -34,18 +38,22 @@ impl<F: Float> Distance<F> for L1Dist {
 #[derive(Debug, Clone)]
 pub struct L2Dist;
 impl<F: Float> Distance<F> for L2Dist {
+    #[inline]
     fn distance(&self, a: Point<F>, b: Point<F>) -> F {
         F::from(a.l2_dist(&b).unwrap()).unwrap()
     }
 
+    #[inline]
     fn rdistance(&self, a: Point<F>, b: Point<F>) -> F {
         F::from(a.sq_l2_dist(&b).unwrap()).unwrap()
     }
 
+    #[inline]
     fn rdist_to_dist(&self, rdist: F) -> F {
         rdist.sqrt()
     }
 
+    #[inline]
     fn dist_to_rdist(&self, dist: F) -> F {
         dist.powi(2)
     }
@@ -54,6 +62,7 @@ impl<F: Float> Distance<F> for L2Dist {
 #[derive(Debug, Clone)]
 pub struct LInfDist;
 impl<F: Float> Distance<F> for LInfDist {
+    #[inline]
     fn distance(&self, a: Point<F>, b: Point<F>) -> F {
         a.linf_dist(&b).unwrap()
     }
@@ -62,6 +71,7 @@ impl<F: Float> Distance<F> for LInfDist {
 #[derive(Debug, Clone)]
 pub struct LpDist<F: Float>(F);
 impl<F: Float> Distance<F> for LpDist<F> {
+    #[inline]
     fn distance(&self, a: Point<F>, b: Point<F>) -> F {
         Zip::from(&a)
             .and(&b)
@@ -84,6 +94,7 @@ pub enum CommonDistance<F> {
 }
 
 impl<F: Float> Distance<F> for CommonDistance<F> {
+    #[inline]
     fn distance(&self, a: Point<F>, b: Point<F>) -> F {
         match self {
             Self::L1Dist => L1Dist.distance(a, b),
@@ -93,6 +104,7 @@ impl<F: Float> Distance<F> for CommonDistance<F> {
         }
     }
 
+    #[inline]
     fn rdistance(&self, a: Point<F>, b: Point<F>) -> F {
         match self {
             Self::L1Dist => L1Dist.rdistance(a, b),
@@ -102,6 +114,7 @@ impl<F: Float> Distance<F> for CommonDistance<F> {
         }
     }
 
+    #[inline]
     fn rdist_to_dist(&self, rdist: F) -> F {
         match self {
             Self::L1Dist => L1Dist.rdist_to_dist(rdist),
@@ -111,6 +124,7 @@ impl<F: Float> Distance<F> for CommonDistance<F> {
         }
     }
 
+    #[inline]
     fn dist_to_rdist(&self, dist: F) -> F {
         match self {
             Self::L1Dist => L1Dist.dist_to_rdist(dist),
