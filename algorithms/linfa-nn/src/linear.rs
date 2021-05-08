@@ -67,9 +67,10 @@ impl<F: Float> LinearSearchBuilder<F> {
 }
 
 impl<F: Float, D: 'static + Distance<F>> NearestNeighbourBuilder<F, D> for LinearSearchBuilder<F> {
-    fn from_batch<'a>(
+    fn from_batch_with_leaf_size<'a>(
         &self,
         batch: &'a Array2<F>,
+        _leaf_size: usize,
         dist_fn: D,
     ) -> Result<Box<dyn 'a + NearestNeighbour<F>>, BuildError> {
         LinearSearch::from_batch(batch, dist_fn)

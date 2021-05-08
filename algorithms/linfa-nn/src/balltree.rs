@@ -249,12 +249,13 @@ impl<F: Float> BallTreeBuilder<F> {
 }
 
 impl<F: Float, D: 'static + Distance<F>> NearestNeighbourBuilder<F, D> for BallTreeBuilder<F> {
-    fn from_batch<'a>(
+    fn from_batch_with_leaf_size<'a>(
         &self,
         batch: &'a Array2<F>,
+        leaf_size: usize,
         dist_fn: D,
     ) -> Result<Box<dyn 'a + NearestNeighbour<F>>, BuildError> {
-        BallTree::new(batch, 2usize.pow(4), dist_fn)
+        BallTree::new(batch, leaf_size, dist_fn)
             .map(|v| Box::new(v) as Box<dyn NearestNeighbour<F>>)
     }
 }

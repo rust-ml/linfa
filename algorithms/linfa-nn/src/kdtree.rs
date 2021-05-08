@@ -14,11 +14,11 @@ pub struct KdTree<'a, F: Float, D: Distance<F> = CommonDistance<F>>(
 );
 
 impl<'a, F: Float, D: Distance<F>> KdTree<'a, F, D> {
-    pub fn from_batch(batch: &'a Array2<F>, dist_fn: D) -> Result<Self, BuildError> {
+    pub fn new(batch: &'a Array2<F>, leaf_size: usize, dist_fn: D) -> Result<Self, BuildError> {
         if batch.ncols() == 0 {
             Err(BuildError::ZeroDimension)
         } else {
-            let mut tree = kdtree::KdTree::new(batch.ncols().max(1));
+            let mut tree = kdtree::KdTree::with_capacity(batch.ncols().max(1), leaf_size);
             for point in batch.genrows() {
                 tree.add(point.to_slice().expect("views should be contiguous"), point)
                     .unwrap();
@@ -77,11 +77,12 @@ impl<F: Float> KdTreeBuilder<F> {
 }
 
 impl<F: Float, D: 'static + Distance<F>> NearestNeighbourBuilder<F, D> for KdTreeBuilder<F> {
-    fn from_batch<'a>(
+    fn from_batch_with_leaf_size<'a>(
         &self,
         batch: &'a Array2<F>,
+        leaf_size: usize,
         dist_fn: D,
     ) -> Result<Box<dyn 'a + NearestNeighbour<F>>, BuildError> {
-        KdTree::from_batch(batch, dist_fn).map(|v| Box::new(v) as Box<dyn NearestNeighbour<F>>)
+        KdTree::new(batch, leaf_size, dist_fn).map(|v| Box::new(v) as Box<dyn NearestNeighbour<F>>)
     }
 }

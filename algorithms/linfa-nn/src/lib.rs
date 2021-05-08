@@ -34,11 +34,20 @@ pub trait NearestNeighbour<F: Float> {
 }
 
 pub trait NearestNeighbourBuilder<F: Float, D: Distance<F> = CommonDistance<F>> {
+    fn from_batch_with_leaf_size<'a>(
+        &self,
+        batch: &'a Array2<F>,
+        leaf_size: usize,
+        dist_fn: D,
+    ) -> Result<Box<dyn 'a + NearestNeighbour<F>>, BuildError>;
+
     fn from_batch<'a>(
         &self,
         batch: &'a Array2<F>,
         dist_fn: D,
-    ) -> Result<Box<dyn 'a + NearestNeighbour<F>>, BuildError>;
+    ) -> Result<Box<dyn 'a + NearestNeighbour<F>>, BuildError> {
+        self.from_batch_with_leaf_size(batch, 2usize.pow(4), dist_fn)
+    }
 }
 
 #[cfg(test)]
