@@ -5,9 +5,9 @@ use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, 
 use ndarray_rand::rand::distributions::{Distribution, WeightedIndex};
 use ndarray_rand::rand::Rng;
 use ndarray_rand::rand::{self, SeedableRng};
-use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
 
 #[cfg_attr(
     feature = "serde",
