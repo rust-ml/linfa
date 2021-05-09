@@ -5,15 +5,15 @@ use ndarray::{aview1, Array2};
 
 use crate::{
     distance::{CommonDistance, Distance},
-    BuildError, NearestNeighbour, NearestNeighbourBuilder, NnError, Point,
+    BuildError, NearestNeighbour, NearestNeighbourIndex, NnError, Point,
 };
 
-pub struct KdTree<'a, F: Float, D: Distance<F> = CommonDistance<F>>(
+pub struct KdTreeIndex<'a, F: Float, D: Distance<F> = CommonDistance<F>>(
     kdtree::KdTree<F, Point<'a, F>, &'a [F]>,
     D,
 );
 
-impl<'a, F: Float, D: Distance<F>> KdTree<'a, F, D> {
+impl<'a, F: Float, D: Distance<F>> KdTreeIndex<'a, F, D> {
     pub fn new(batch: &'a Array2<F>, leaf_size: usize, dist_fn: D) -> Result<Self, BuildError> {
         if batch.ncols() == 0 {
             Err(BuildError::ZeroDimension)
@@ -38,7 +38,7 @@ impl From<kdtree::ErrorKind> for NnError {
     }
 }
 
-impl<'a, F: Float, D: Distance<F>> NearestNeighbour<F> for KdTree<'a, F, D> {
+impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for KdTreeIndex<'a, F, D> {
     fn k_nearest<'b>(&self, point: Point<'b, F>, k: usize) -> Result<Vec<Point<F>>, NnError> {
         Ok(self
             .0
@@ -68,21 +68,22 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbour<F> for KdTree<'a, F, D> {
 }
 
 #[derive(Default)]
-pub struct KdTreeBuilder<F: Float>(PhantomData<F>);
+pub struct KdTree<F: Float>(PhantomData<F>);
 
-impl<F: Float> KdTreeBuilder<F> {
+impl<F: Float> KdTree<F> {
     pub fn new() -> Self {
         Self(PhantomData)
     }
 }
 
-impl<F: Float, D: 'static + Distance<F>> NearestNeighbourBuilder<F, D> for KdTreeBuilder<F> {
+impl<F: Float, D: 'static + Distance<F>> NearestNeighbour<F, D> for KdTree<F> {
     fn from_batch_with_leaf_size<'a>(
         &self,
         batch: &'a Array2<F>,
         leaf_size: usize,
         dist_fn: D,
-    ) -> Result<Box<dyn 'a + NearestNeighbour<F>>, BuildError> {
-        KdTree::new(batch, leaf_size, dist_fn).map(|v| Box::new(v) as Box<dyn NearestNeighbour<F>>)
+    ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError> {
+        KdTreeIndex::new(batch, leaf_size, dist_fn)
+            .map(|v| Box::new(v) as Box<dyn NearestNeighbourIndex<F>>)
     }
 }

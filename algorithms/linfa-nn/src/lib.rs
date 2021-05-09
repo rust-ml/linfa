@@ -24,7 +24,7 @@ pub enum NnError {
     WrongDimension,
 }
 
-pub trait NearestNeighbour<F: Float> {
+pub trait NearestNeighbourIndex<F: Float> {
     // Returns nearest in order. Might want wrap in result or return iterator
     fn k_nearest<'b>(&self, point: Point<'b, F>, k: usize) -> Result<Vec<Point<F>>, NnError>;
 
@@ -33,19 +33,19 @@ pub trait NearestNeighbour<F: Float> {
     fn within_range<'b>(&self, point: Point<'b, F>, range: F) -> Result<Vec<Point<F>>, NnError>;
 }
 
-pub trait NearestNeighbourBuilder<F: Float, D: Distance<F> = CommonDistance<F>> {
+pub trait NearestNeighbour<F: Float, D: Distance<F> = CommonDistance<F>> {
     fn from_batch_with_leaf_size<'a>(
         &self,
         batch: &'a Array2<F>,
         leaf_size: usize,
         dist_fn: D,
-    ) -> Result<Box<dyn 'a + NearestNeighbour<F>>, BuildError>;
+    ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError>;
 
     fn from_batch<'a>(
         &self,
         batch: &'a Array2<F>,
         dist_fn: D,
-    ) -> Result<Box<dyn 'a + NearestNeighbour<F>>, BuildError> {
+    ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError> {
         self.from_batch_with_leaf_size(batch, 2usize.pow(4), dist_fn)
     }
 }
@@ -60,8 +60,7 @@ mod test {
     use rand_isaac::Isaac64Rng;
 
     use crate::{
-        balltree::BallTreeBuilder, distance::CommonDistance, kdtree::KdTreeBuilder,
-        linear::LinearSearchBuilder,
+        balltree::BallTree, distance::CommonDistance, kdtree::KdTree, linear::LinearSearch,
     };
 
     use super::*;
@@ -71,7 +70,7 @@ mod test {
         vec
     }
 
-    fn nn_test_empty(builder: &dyn NearestNeighbourBuilder<f64>) {
+    fn nn_test_empty(builder: &dyn NearestNeighbour<f64>) {
         let points = Array2::zeros((0, 2));
         let nn = builder.from_batch(&points, CommonDistance::L2Dist).unwrap();
 
@@ -86,7 +85,7 @@ mod test {
         assert_eq!(out, Vec::<Point<_>>::new());
     }
 
-    fn nn_test_error(builder: &dyn NearestNeighbourBuilder<f64>) {
+    fn nn_test_error(builder: &dyn NearestNeighbour<f64>) {
         let points = Array2::zeros((4, 0));
         assert!(builder.from_batch(&points, CommonDistance::L2Dist).is_err());
 
@@ -96,7 +95,7 @@ mod test {
         assert!(nn.within_range(aview1(&[2.2, 4.4, 5.5]), 4.0).is_err());
     }
 
-    fn nn_test(builder: &dyn NearestNeighbourBuilder<f64>, sort_within_range: bool) {
+    fn nn_test(builder: &dyn NearestNeighbour<f64>, sort_within_range: bool) {
         let points = arr2(&[[0.0, 2.0], [10.0, 4.0], [4.0, 5.0], [7.0, 1.0], [1.0, 7.2]]);
         let nn = builder.from_batch(&points, CommonDistance::L2Dist).unwrap();
 
@@ -129,7 +128,7 @@ mod test {
         );
     }
 
-    fn nn_test_degenerate(builder: &dyn NearestNeighbourBuilder<f64>) {
+    fn nn_test_degenerate(builder: &dyn NearestNeighbour<f64>) {
         let points = arr2(&[[0.0, 2.0], [0.0, 2.0], [0.0, 2.0], [0.0, 2.0], [0.0, 2.0]]);
         let nn = builder.from_batch(&points, CommonDistance::L2Dist).unwrap();
 
@@ -152,14 +151,14 @@ mod test {
         assert_abs_diff_eq!(stack(Axis(0), &out).unwrap(), points);
     }
 
-    fn nn_test_random(builder: &dyn NearestNeighbourBuilder<f64>, dist_fn: CommonDistance<f64>) {
+    fn nn_test_random(builder: &dyn NearestNeighbour<f64>, dist_fn: CommonDistance<f64>) {
         let mut rng = Isaac64Rng::seed_from_u64(40);
         let n_points = 50000;
         let n_features = 3;
         let points =
             Array2::random_using((n_points, n_features), Uniform::new(-50., 50.), &mut rng);
 
-        let linear = LinearSearchBuilder::new()
+        let linear = LinearSearch::new()
             .from_batch(&points, dist_fn.clone())
             .unwrap();
 
@@ -243,7 +242,7 @@ mod test {
         };
     }
 
-    nn_tests!(linear_search, LinearSearchBuilder, true);
-    nn_tests!(kdtree, KdTreeBuilder, false, _u);
-    nn_tests!(balltree, BallTreeBuilder, false, _u);
+    nn_tests!(linear_search, LinearSearch, true);
+    nn_tests!(kdtree, KdTree, false, _u);
+    nn_tests!(balltree, BallTree, false, _u);
 }

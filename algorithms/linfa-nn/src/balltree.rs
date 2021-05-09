@@ -7,7 +7,7 @@ use noisy_float::{checkers::FiniteChecker, NoisyFloat};
 use crate::{
     distance::{CommonDistance, Distance},
     heap_elem::{MaxHeapElem, MinHeapElem},
-    BuildError, NearestNeighbour, NearestNeighbourBuilder, NnError, Point,
+    BuildError, NearestNeighbour, NearestNeighbourIndex, NnError, Point,
 };
 
 // Partition the points using median value
@@ -141,14 +141,14 @@ impl<'a, F: Float> BallTreeInner<'a, F> {
 /// center minus thte radius). The key observation is that a potential neighbor
 /// is necessarily closer than all neighbors that are located inside of a
 /// bounding sphere that is farther than the aforementioned neighbor.
-pub struct BallTree<'a, F: Float, D: Distance<F> = CommonDistance<F>> {
+pub struct BallTreeIndex<'a, F: Float, D: Distance<F> = CommonDistance<F>> {
     tree: BallTreeInner<'a, F>,
     dist_fn: D,
     dim: usize,
     len: usize,
 }
 
-impl<'a, F: Float, D: Distance<F>> BallTree<'a, F, D> {
+impl<'a, F: Float, D: Distance<F>> BallTreeIndex<'a, F, D> {
     pub fn new(batch: &'a Array2<F>, leaf_size: usize, dist_fn: D) -> Result<Self, BuildError> {
         let dim = batch.ncols();
         let len = batch.nrows();
@@ -156,7 +156,7 @@ impl<'a, F: Float, D: Distance<F>> BallTree<'a, F, D> {
             Err(BuildError::ZeroDimension)
         } else {
             let points: Vec<_> = batch.genrows().into_iter().collect();
-            Ok(BallTree {
+            Ok(BallTreeIndex {
                 tree: BallTreeInner::new(points, leaf_size, &dist_fn),
                 dist_fn,
                 dim,
@@ -228,7 +228,7 @@ impl<'a, F: Float, D: Distance<F>> BallTree<'a, F, D> {
     }
 }
 
-impl<'a, F: Float, D: Distance<F>> NearestNeighbour<F> for BallTree<'a, F, D> {
+impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for BallTreeIndex<'a, F, D> {
     fn k_nearest<'b>(&self, point: Point<'b, F>, k: usize) -> Result<Vec<Point<F>>, NnError> {
         self.nn_helper(point, k, F::infinity())
     }
@@ -240,23 +240,23 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbour<F> for BallTree<'a, F, D> {
 }
 
 #[derive(Default)]
-pub struct BallTreeBuilder<F: Float>(PhantomData<F>);
+pub struct BallTree<F: Float>(PhantomData<F>);
 
-impl<F: Float> BallTreeBuilder<F> {
+impl<F: Float> BallTree<F> {
     pub fn new() -> Self {
         Self(PhantomData)
     }
 }
 
-impl<F: Float, D: 'static + Distance<F>> NearestNeighbourBuilder<F, D> for BallTreeBuilder<F> {
+impl<F: Float, D: 'static + Distance<F>> NearestNeighbour<F, D> for BallTree<F> {
     fn from_batch_with_leaf_size<'a>(
         &self,
         batch: &'a Array2<F>,
         leaf_size: usize,
         dist_fn: D,
-    ) -> Result<Box<dyn 'a + NearestNeighbour<F>>, BuildError> {
-        BallTree::new(batch, leaf_size, dist_fn)
-            .map(|v| Box::new(v) as Box<dyn NearestNeighbour<F>>)
+    ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError> {
+        BallTreeIndex::new(batch, leaf_size, dist_fn)
+            .map(|v| Box::new(v) as Box<dyn NearestNeighbourIndex<F>>)
     }
 }
 

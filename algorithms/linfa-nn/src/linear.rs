@@ -7,12 +7,15 @@ use noisy_float::NoisyFloat;
 use crate::{
     distance::{CommonDistance, Distance},
     heap_elem::MinHeapElem,
-    BuildError, NearestNeighbour, NearestNeighbourBuilder, NnError, Point,
+    BuildError, NearestNeighbour, NearestNeighbourIndex, NnError, Point,
 };
 
-pub struct LinearSearch<'a, F: Float, D: Distance<F> = CommonDistance<F>>(ArrayView2<'a, F>, D);
+pub struct LinearSearchIndex<'a, F: Float, D: Distance<F> = CommonDistance<F>>(
+    ArrayView2<'a, F>,
+    D,
+);
 
-impl<'a, F: Float, D: Distance<F>> LinearSearch<'a, F, D> {
+impl<'a, F: Float, D: Distance<F>> LinearSearchIndex<'a, F, D> {
     pub fn from_batch(batch: &'a Array2<F>, dist_fn: D) -> Result<Self, BuildError> {
         if batch.ncols() == 0 {
             Err(BuildError::ZeroDimension)
@@ -22,7 +25,7 @@ impl<'a, F: Float, D: Distance<F>> LinearSearch<'a, F, D> {
     }
 }
 
-impl<'a, F: Float, D: Distance<F>> NearestNeighbour<F> for LinearSearch<'a, F, D> {
+impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for LinearSearchIndex<'a, F, D> {
     fn k_nearest<'b>(&self, point: Point<'b, F>, k: usize) -> Result<Vec<Point<F>>, NnError> {
         if self.0.ncols() != point.len() {
             Err(NnError::WrongDimension)
@@ -58,22 +61,22 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbour<F> for LinearSearch<'a, F, D
 }
 
 #[derive(Default)]
-pub struct LinearSearchBuilder<F: Float>(PhantomData<F>);
+pub struct LinearSearch<F: Float>(PhantomData<F>);
 
-impl<F: Float> LinearSearchBuilder<F> {
+impl<F: Float> LinearSearch<F> {
     pub fn new() -> Self {
         Self(PhantomData)
     }
 }
 
-impl<F: Float, D: 'static + Distance<F>> NearestNeighbourBuilder<F, D> for LinearSearchBuilder<F> {
+impl<F: Float, D: 'static + Distance<F>> NearestNeighbour<F, D> for LinearSearch<F> {
     fn from_batch_with_leaf_size<'a>(
         &self,
         batch: &'a Array2<F>,
         _leaf_size: usize,
         dist_fn: D,
-    ) -> Result<Box<dyn 'a + NearestNeighbour<F>>, BuildError> {
-        LinearSearch::from_batch(batch, dist_fn)
-            .map(|v| Box::new(v) as Box<dyn NearestNeighbour<F>>)
+    ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError> {
+        LinearSearchIndex::from_batch(batch, dist_fn)
+            .map(|v| Box::new(v) as Box<dyn NearestNeighbourIndex<F>>)
     }
 }
