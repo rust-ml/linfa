@@ -23,7 +23,7 @@ fn main() -> Result<()> {
     let pred = model.predict(&valid);
 
     // create a confusion matrix
-    let cm = pred.confusion_matrix(&train)?;
+    let cm = pred.confusion_matrix(&valid)?;
 
     // Print the confusion matrix
     println!("{:?}", cm);
