@@ -16,6 +16,8 @@ pub(crate) type Point<'a, F> = ArrayView1<'a, F>;
 pub enum BuildError {
     #[error("points have dimension of 0")]
     ZeroDimension,
+    #[error("leaf size is 0")]
+    EmptyLeaf,
 }
 
 #[derive(Error, Debug)]
@@ -88,6 +90,9 @@ mod test {
         assert!(builder.from_batch(&points, L2Dist).is_err());
 
         let points = arr2(&[[0.0, 2.0]]);
+        assert!(builder
+            .from_batch_with_leaf_size(&points, 0, L2Dist)
+            .is_err());
         let nn = builder.from_batch(&points, L2Dist).unwrap();
         assert!(nn.k_nearest(aview1(&[]), 2).is_err());
         assert!(nn.within_range(aview1(&[2.2, 4.4, 5.5]), 4.0).is_err());

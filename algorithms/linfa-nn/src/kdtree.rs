@@ -11,7 +11,9 @@ pub struct KdTreeIndex<'a, F: Float, D: Distance<F>>(kdtree::KdTree<F, Point<'a,
 
 impl<'a, F: Float, D: Distance<F>> KdTreeIndex<'a, F, D> {
     pub fn new(batch: &'a Array2<F>, leaf_size: usize, dist_fn: D) -> Result<Self, BuildError> {
-        if batch.ncols() == 0 {
+        if leaf_size == 0 {
+            Err(BuildError::EmptyLeaf)
+        } else if batch.ncols() == 0 {
             Err(BuildError::ZeroDimension)
         } else {
             let mut tree = kdtree::KdTree::with_capacity(batch.ncols().max(1), leaf_size);

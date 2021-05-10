@@ -12,7 +12,7 @@ use crate::{
 pub struct LinearSearchIndex<'a, F: Float, D: Distance<F>>(ArrayView2<'a, F>, D);
 
 impl<'a, F: Float, D: Distance<F>> LinearSearchIndex<'a, F, D> {
-    pub fn from_batch(batch: &'a Array2<F>, dist_fn: D) -> Result<Self, BuildError> {
+    pub fn new(batch: &'a Array2<F>, dist_fn: D) -> Result<Self, BuildError> {
         if batch.ncols() == 0 {
             Err(BuildError::ZeroDimension)
         } else {
@@ -69,10 +69,13 @@ impl<F: Float, D: 'static + Distance<F>> NearestNeighbour<F, D> for LinearSearch
     fn from_batch_with_leaf_size<'a>(
         &self,
         batch: &'a Array2<F>,
-        _leaf_size: usize,
+        leaf_size: usize,
         dist_fn: D,
     ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError> {
-        LinearSearchIndex::from_batch(batch, dist_fn)
+        if leaf_size == 0 {
+            return Err(BuildError::EmptyLeaf);
+        }
+        LinearSearchIndex::new(batch, dist_fn)
             .map(|v| Box::new(v) as Box<dyn NearestNeighbourIndex<F>>)
     }
 }

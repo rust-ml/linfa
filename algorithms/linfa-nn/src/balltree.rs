@@ -152,7 +152,9 @@ impl<'a, F: Float, D: Distance<F>> BallTreeIndex<'a, F, D> {
     pub fn new(batch: &'a Array2<F>, leaf_size: usize, dist_fn: D) -> Result<Self, BuildError> {
         let dim = batch.ncols();
         let len = batch.nrows();
-        if dim == 0 {
+        if leaf_size == 0 {
+            Err(BuildError::EmptyLeaf)
+        } else if dim == 0 {
             Err(BuildError::ZeroDimension)
         } else {
             let points: Vec<_> = batch.genrows().into_iter().collect();
