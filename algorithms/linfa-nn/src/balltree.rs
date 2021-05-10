@@ -5,7 +5,7 @@ use ndarray::{Array1, Array2};
 use noisy_float::{checkers::FiniteChecker, NoisyFloat};
 
 use crate::{
-    distance::{CommonDistance, Distance},
+    distance::Distance,
     heap_elem::{MaxHeapElem, MinHeapElem},
     BuildError, NearestNeighbour, NearestNeighbourIndex, NnError, Point,
 };
@@ -141,7 +141,7 @@ impl<'a, F: Float> BallTreeInner<'a, F> {
 /// center minus thte radius). The key observation is that a potential neighbor
 /// is necessarily closer than all neighbors that are located inside of a
 /// bounding sphere that is farther than the aforementioned neighbor.
-pub struct BallTreeIndex<'a, F: Float, D: Distance<F> = CommonDistance<F>> {
+pub struct BallTreeIndex<'a, F: Float, D: Distance<F>> {
     tree: BallTreeInner<'a, F>,
     dist_fn: D,
     dim: usize,

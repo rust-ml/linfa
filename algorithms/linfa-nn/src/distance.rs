@@ -80,61 +80,6 @@ impl<F: Float> Distance<F> for LpDist<F> {
     }
 }
 
-#[derive(Debug, Clone)]
-#[non_exhaustive]
-pub enum CommonDistance<F> {
-    /// Manhattan distance
-    L1Dist,
-    /// Euclidean distance
-    L2Dist,
-    /// Chebyshev distance
-    LInfDist,
-    /// Minkowski distance
-    LpDist(F),
-}
-
-impl<F: Float> Distance<F> for CommonDistance<F> {
-    #[inline]
-    fn distance(&self, a: Point<F>, b: Point<F>) -> F {
-        match self {
-            Self::L1Dist => L1Dist.distance(a, b),
-            Self::L2Dist => L2Dist.distance(a, b),
-            Self::LInfDist => LInfDist.distance(a, b),
-            Self::LpDist(p) => LpDist(*p).distance(a, b),
-        }
-    }
-
-    #[inline]
-    fn rdistance(&self, a: Point<F>, b: Point<F>) -> F {
-        match self {
-            Self::L1Dist => L1Dist.rdistance(a, b),
-            Self::L2Dist => L2Dist.rdistance(a, b),
-            Self::LInfDist => LInfDist.rdistance(a, b),
-            Self::LpDist(p) => LpDist(*p).rdistance(a, b),
-        }
-    }
-
-    #[inline]
-    fn rdist_to_dist(&self, rdist: F) -> F {
-        match self {
-            Self::L1Dist => L1Dist.rdist_to_dist(rdist),
-            Self::L2Dist => L2Dist.rdist_to_dist(rdist),
-            Self::LInfDist => LInfDist.rdist_to_dist(rdist),
-            Self::LpDist(p) => LpDist(*p).rdist_to_dist(rdist),
-        }
-    }
-
-    #[inline]
-    fn dist_to_rdist(&self, dist: F) -> F {
-        match self {
-            Self::L1Dist => L1Dist.dist_to_rdist(dist),
-            Self::L2Dist => L2Dist.dist_to_rdist(dist),
-            Self::LInfDist => LInfDist.dist_to_rdist(dist),
-            Self::LpDist(p) => LpDist(*p).dist_to_rdist(dist),
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
     use approx::assert_abs_diff_eq;
@@ -142,7 +87,7 @@ mod test {
 
     use super::*;
 
-    fn dist_test(dist: CommonDistance<f64>, result: f64) {
+    fn dist_test<D: Distance<f64>>(dist: D, result: f64) {
         let a = arr1(&[0.5, 6.6]);
         let b = arr1(&[4.4, 3.0]);
         let ab = dist.distance(a.view(), b.view());
@@ -165,30 +110,26 @@ mod test {
 
     #[test]
     fn l1_dist() {
-        dist_test(CommonDistance::L1Dist, 7.5);
+        dist_test(L1Dist, 7.5);
     }
 
     #[test]
     fn l2_dist() {
-        dist_test(CommonDistance::L2Dist, 5.3075);
+        dist_test(L2Dist, 5.3075);
 
         // Check squared distance
         let a = arr1(&[0.5, 6.6]);
         let b = arr1(&[4.4, 3.0]);
-        assert_abs_diff_eq!(
-            CommonDistance::L2Dist.rdistance(a.view(), b.view()),
-            28.17,
-            epsilon = 1e-3
-        );
+        assert_abs_diff_eq!(L2Dist.rdistance(a.view(), b.view()), 28.17, epsilon = 1e-3);
     }
 
     #[test]
     fn linf_dist() {
-        dist_test(CommonDistance::LInfDist, 3.9);
+        dist_test(LInfDist, 3.9);
     }
 
     #[test]
     fn lp_dist() {
-        dist_test(CommonDistance::LpDist(3.3), 4.635);
+        dist_test(LpDist(3.3), 4.635);
     }
 }

@@ -1,4 +1,4 @@
-use distance::{CommonDistance, Distance};
+use distance::Distance;
 use linfa::Float;
 use ndarray::{Array2, ArrayView1};
 use thiserror::Error;
@@ -33,7 +33,7 @@ pub trait NearestNeighbourIndex<F: Float> {
     fn within_range<'b>(&self, point: Point<'b, F>, range: F) -> Result<Vec<Point<F>>, NnError>;
 }
 
-pub trait NearestNeighbour<F: Float, D: Distance<F> = CommonDistance<F>> {
+pub trait NearestNeighbour<F: Float, D: Distance<F>> {
     fn from_batch_with_leaf_size<'a>(
         &self,
         batch: &'a Array2<F>,
@@ -59,9 +59,7 @@ mod test {
     use noisy_float::{checkers::FiniteChecker, NoisyFloat};
     use rand_isaac::Isaac64Rng;
 
-    use crate::{
-        balltree::BallTree, distance::CommonDistance, kdtree::KdTree, linear::LinearSearch,
-    };
+    use crate::{balltree::BallTree, distance::*, kdtree::KdTree, linear::LinearSearch};
 
     use super::*;
 
@@ -70,9 +68,9 @@ mod test {
         vec
     }
 
-    fn nn_test_empty(builder: &dyn NearestNeighbour<f64>) {
+    fn nn_test_empty(builder: &dyn NearestNeighbour<f64, L2Dist>) {
         let points = Array2::zeros((0, 2));
-        let nn = builder.from_batch(&points, CommonDistance::L2Dist).unwrap();
+        let nn = builder.from_batch(&points, L2Dist).unwrap();
 
         let out = nn.k_nearest(aview1(&[0.0, 1.0]), 2).unwrap();
         assert_eq!(out, Vec::<Point<_>>::new());
@@ -85,19 +83,19 @@ mod test {
         assert_eq!(out, Vec::<Point<_>>::new());
     }
 
-    fn nn_test_error(builder: &dyn NearestNeighbour<f64>) {
+    fn nn_test_error(builder: &dyn NearestNeighbour<f64, L2Dist>) {
         let points = Array2::zeros((4, 0));
-        assert!(builder.from_batch(&points, CommonDistance::L2Dist).is_err());
+        assert!(builder.from_batch(&points, L2Dist).is_err());
 
         let points = arr2(&[[0.0, 2.0]]);
-        let nn = builder.from_batch(&points, CommonDistance::L2Dist).unwrap();
+        let nn = builder.from_batch(&points, L2Dist).unwrap();
         assert!(nn.k_nearest(aview1(&[]), 2).is_err());
         assert!(nn.within_range(aview1(&[2.2, 4.4, 5.5]), 4.0).is_err());
     }
 
-    fn nn_test(builder: &dyn NearestNeighbour<f64>, sort_within_range: bool) {
+    fn nn_test(builder: &dyn NearestNeighbour<f64, L2Dist>, sort_within_range: bool) {
         let points = arr2(&[[0.0, 2.0], [10.0, 4.0], [4.0, 5.0], [7.0, 1.0], [1.0, 7.2]]);
-        let nn = builder.from_batch(&points, CommonDistance::L2Dist).unwrap();
+        let nn = builder.from_batch(&points, L2Dist).unwrap();
 
         let out = nn.k_nearest(aview1(&[0.0, 1.0]), 2).unwrap();
         assert_abs_diff_eq!(
@@ -128,9 +126,9 @@ mod test {
         );
     }
 
-    fn nn_test_degenerate(builder: &dyn NearestNeighbour<f64>) {
+    fn nn_test_degenerate(builder: &dyn NearestNeighbour<f64, L2Dist>) {
         let points = arr2(&[[0.0, 2.0], [0.0, 2.0], [0.0, 2.0], [0.0, 2.0], [0.0, 2.0]]);
-        let nn = builder.from_batch(&points, CommonDistance::L2Dist).unwrap();
+        let nn = builder.from_batch(&points, L2Dist).unwrap();
 
         let out = nn.k_nearest(aview1(&[0.0, 1.0]), 2).unwrap();
         assert_abs_diff_eq!(
@@ -151,7 +149,10 @@ mod test {
         assert_abs_diff_eq!(stack(Axis(0), &out).unwrap(), points);
     }
 
-    fn nn_test_random(builder: &dyn NearestNeighbour<f64>, dist_fn: CommonDistance<f64>) {
+    fn nn_test_random<D: 'static + Distance<f64> + Clone>(
+        builder: &dyn NearestNeighbour<f64, D>,
+        dist_fn: D,
+    ) {
         let mut rng = Isaac64Rng::seed_from_u64(40);
         let n_points = 50000;
         let n_features = 3;
@@ -230,12 +231,12 @@ mod test {
                     #[test]
                     fn random_l2() {
                         let $_u: () = ();
-                        nn_test_random(&$builder::default(), CommonDistance::L2Dist);
+                        nn_test_random(&$builder::default(), L2Dist);
                     }
 
                     #[test]
                     fn random_l1() {
-                        nn_test_random(&$builder::default(), CommonDistance::L1Dist);
+                        nn_test_random(&$builder::default(), L1Dist);
                     }
                 )?
             }

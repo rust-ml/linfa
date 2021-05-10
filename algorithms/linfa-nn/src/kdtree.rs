@@ -4,14 +4,10 @@ use linfa::Float;
 use ndarray::{aview1, Array2};
 
 use crate::{
-    distance::{CommonDistance, Distance},
-    BuildError, NearestNeighbour, NearestNeighbourIndex, NnError, Point,
+    distance::Distance, BuildError, NearestNeighbour, NearestNeighbourIndex, NnError, Point,
 };
 
-pub struct KdTreeIndex<'a, F: Float, D: Distance<F> = CommonDistance<F>>(
-    kdtree::KdTree<F, Point<'a, F>, &'a [F]>,
-    D,
-);
+pub struct KdTreeIndex<'a, F: Float, D: Distance<F>>(kdtree::KdTree<F, Point<'a, F>, &'a [F]>, D);
 
 impl<'a, F: Float, D: Distance<F>> KdTreeIndex<'a, F, D> {
     pub fn new(batch: &'a Array2<F>, leaf_size: usize, dist_fn: D) -> Result<Self, BuildError> {

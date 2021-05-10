@@ -1,7 +1,6 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use linfa_nn::{
-    balltree::BallTree, distance::CommonDistance, kdtree::KdTree, linear::LinearSearch,
-    NearestNeighbour,
+    balltree::BallTree, distance::*, kdtree::KdTree, linear::LinearSearch, NearestNeighbour,
 };
 use ndarray::{Array1, Array2};
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
@@ -11,7 +10,7 @@ fn nn_build_bench(c: &mut Criterion) {
     let mut rng = Isaac64Rng::seed_from_u64(40);
     let mut benchmark = c.benchmark_group("nn_build");
     let n_features = 3;
-    let algorithms: &[(Box<dyn NearestNeighbour<f64>>, _)] = &[
+    let algorithms: &[(Box<dyn NearestNeighbour<f64, L2Dist>>, _)] = &[
         (Box::new(KdTree::new()), "kdtree"),
         (Box::new(BallTree::new()), "balltree"),
     ];
@@ -25,7 +24,7 @@ fn nn_build_bench(c: &mut Criterion) {
                 BenchmarkId::new(*name, format!("{}", n_points)),
                 &points,
                 |bencher, points| {
-                    bencher.iter(|| alg.from_batch(points, CommonDistance::L2Dist).unwrap());
+                    bencher.iter(|| alg.from_batch(points, L2Dist).unwrap());
                 },
             );
         }
@@ -38,7 +37,7 @@ fn k_nearest_bench(c: &mut Criterion) {
     let n_features = 3;
     let distr = Uniform::new(-500., 500.);
 
-    let algorithms: &[(Box<dyn NearestNeighbour<f64>>, _)] = &[
+    let algorithms: &[(Box<dyn NearestNeighbour<f64, L2Dist>>, _)] = &[
         (Box::new(LinearSearch::new()), "linear search"),
         (Box::new(KdTree::new()), "kdtree"),
         (Box::new(BallTree::new()), "balltree"),
@@ -49,7 +48,7 @@ fn k_nearest_bench(c: &mut Criterion) {
         let points = Array2::random_using((n_points, n_features), distr, &mut rng);
 
         for (alg, name) in algorithms {
-            let nn = alg.from_batch(&points, CommonDistance::L2Dist).unwrap();
+            let nn = alg.from_batch(&points, L2Dist).unwrap();
             benchmark.bench_with_input(
                 BenchmarkId::new(*name, format!("{}-{}", n_points, k)),
                 &k,
@@ -70,7 +69,7 @@ fn within_range_bench(c: &mut Criterion) {
     let n_features = 3;
     let distr = Uniform::new(-50., 50.);
 
-    let algorithms: &[(Box<dyn NearestNeighbour<f64>>, _)] = &[
+    let algorithms: &[(Box<dyn NearestNeighbour<f64, L2Dist>>, _)] = &[
         (Box::new(LinearSearch::new()), "linear search"),
         (Box::new(KdTree::new()), "kdtree"),
         (Box::new(BallTree::new()), "balltree"),
@@ -81,7 +80,7 @@ fn within_range_bench(c: &mut Criterion) {
         let points = Array2::random_using((n_points, n_features), distr, &mut rng);
 
         for (alg, name) in algorithms {
-            let nn = alg.from_batch(&points, CommonDistance::L2Dist).unwrap();
+            let nn = alg.from_batch(&points, L2Dist).unwrap();
             benchmark.bench_with_input(
                 BenchmarkId::new(*name, format!("{}-{}", n_points, range)),
                 &range,

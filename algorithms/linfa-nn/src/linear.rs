@@ -5,15 +5,11 @@ use ndarray::{Array2, ArrayView2};
 use noisy_float::NoisyFloat;
 
 use crate::{
-    distance::{CommonDistance, Distance},
-    heap_elem::MinHeapElem,
-    BuildError, NearestNeighbour, NearestNeighbourIndex, NnError, Point,
+    distance::Distance, heap_elem::MinHeapElem, BuildError, NearestNeighbour,
+    NearestNeighbourIndex, NnError, Point,
 };
 
-pub struct LinearSearchIndex<'a, F: Float, D: Distance<F> = CommonDistance<F>>(
-    ArrayView2<'a, F>,
-    D,
-);
+pub struct LinearSearchIndex<'a, F: Float, D: Distance<F>>(ArrayView2<'a, F>, D);
 
 impl<'a, F: Float, D: Distance<F>> LinearSearchIndex<'a, F, D> {
     pub fn from_batch(batch: &'a Array2<F>, dist_fn: D) -> Result<Self, BuildError> {
