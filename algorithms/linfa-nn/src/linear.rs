@@ -9,9 +9,11 @@ use crate::{
     NearestNeighbourIndex, NnError, Point,
 };
 
+/// Spatial indexing structure created by [`LinearSearch`](struct.LinearSearch.html)
 pub struct LinearSearchIndex<'a, F: Float, D: Distance<F>>(ArrayView2<'a, F>, D);
 
 impl<'a, F: Float, D: Distance<F>> LinearSearchIndex<'a, F, D> {
+    /// Creates a new `LinearSearchIndex`
     pub fn new(batch: &'a Array2<F>, dist_fn: D) -> Result<Self, BuildError> {
         if batch.ncols() == 0 {
             Err(BuildError::ZeroDimension)
@@ -56,10 +58,13 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for LinearSearchInde
     }
 }
 
+/// Implementation of linear search, which is the simplest nearest neighbour algorithm. All queries
+/// are implemented by scanning through every point, so all of them are `O(N)`.
 #[derive(Default)]
 pub struct LinearSearch<F: Float>(PhantomData<F>);
 
 impl<F: Float> LinearSearch<F> {
+    /// Creates an instance of `LinearSearch`
     pub fn new() -> Self {
         Self(PhantomData)
     }

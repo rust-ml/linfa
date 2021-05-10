@@ -1,7 +1,5 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use linfa_nn::{
-    balltree::BallTree, distance::*, kdtree::KdTree, linear::LinearSearch, NearestNeighbour,
-};
+use linfa_nn::{distance::*, BallTree, KdTree, LinearSearch, NearestNeighbour};
 use ndarray::{Array1, Array2};
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
 use rand_isaac::Isaac64Rng;

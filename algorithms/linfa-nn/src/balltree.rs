@@ -69,12 +69,13 @@ fn calc_radius<'a, F: Float, D: Distance<F>>(
 
 #[derive(Debug, PartialEq)]
 enum BallTreeInner<'a, F: Float> {
+    // Leaf node sphere
     Leaf {
         center: Array1<F>,
         radius: F,
         points: Vec<Point<'a, F>>,
     },
-    // The sphere is a bounding sphere that encompasses this node (both children)
+    // Sphere that encompasses both children
     Branch {
         center: Point<'a, F>,
         radius: F,
@@ -86,7 +87,10 @@ enum BallTreeInner<'a, F: Float> {
 impl<'a, F: Float> BallTreeInner<'a, F> {
     fn new<D: Distance<F>>(points: Vec<Point<'a, F>>, leaf_size: usize, dist_fn: &D) -> Self {
         if points.len() <= leaf_size {
+            // Leaf node
             if let Some(dim) = points.first().map(|p| p.len()) {
+                // Since we don't need to partition, we can center the sphere around the average of
+                // all points
                 let center = {
                     let mut c = Array1::zeros(dim);
                     points.iter().for_each(|p| c += p);
@@ -99,6 +103,7 @@ impl<'a, F: Float> BallTreeInner<'a, F> {
                     points,
                 }
             } else {
+                // In case of an empty tree
                 BallTreeInner::Leaf {
                     center: Array1::zeros(0),
                     points,
@@ -106,6 +111,7 @@ impl<'a, F: Float> BallTreeInner<'a, F> {
                 }
             }
         } else {
+            // Non-leaf node
             let (aps, center, bps) = partition(points);
             debug_assert!(!aps.is_empty() && !bps.is_empty());
             let radius = calc_radius(aps.iter().chain(bps.iter()).cloned(), center, dist_fn);
@@ -126,21 +132,15 @@ impl<'a, F: Float> BallTreeInner<'a, F> {
             BallTreeInner::Branch { center, radius, .. } => (center.reborrow(), radius),
         };
 
-        // The distance to a branch is the distance to the edge of the bounding sphere
+        // The distance to a sphere is the distance to its edge, so the distance between a point
+        // and a sphere will always be less than the distance between the point and anything inside
+        // the sphere
         let border_dist = dist_fn.distance(p, center.clone()) - *radius;
         dist_fn.dist_to_rdist(border_dist.max(F::zero()))
     }
 }
 
-/// A `BallTree` is a space-partitioning data-structure that allows for finding
-/// nearest neighbors in logarithmic time.
-///
-/// It does this by partitioning data into a series of nested bounding spheres
-/// ("balls" in the literature). Spheres are used because it is trivial to
-/// compute the distance between a point and a sphere (distance to the sphere's
-/// center minus thte radius). The key observation is that a potential neighbor
-/// is necessarily closer than all neighbors that are located inside of a
-/// bounding sphere that is farther than the aforementioned neighbor.
+/// Spatial indexing structure created by [`BallTree`](struct.BallTree.html)
 pub struct BallTreeIndex<'a, F: Float, D: Distance<F>> {
     tree: BallTreeInner<'a, F>,
     dist_fn: D,
@@ -149,6 +149,7 @@ pub struct BallTreeIndex<'a, F: Float, D: Distance<F>> {
 }
 
 impl<'a, F: Float, D: Distance<F>> BallTreeIndex<'a, F, D> {
+    /// Creates a `BallTreeIndex` using the K-D construction algorithm
     pub fn new(batch: &'a Array2<F>, leaf_size: usize, dist_fn: D) -> Result<Self, BuildError> {
         let dim = batch.ncols();
         let len = batch.nrows();
@@ -241,10 +242,15 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for BallTreeIndex<'a
     }
 }
 
+/// Implementation of ball tree, a space partitioning data structure that partitions its points
+/// into nested hyperspheres called "balls". It performs spatial queries in `O(k * logN)` time,
+/// where `k` is the number of points returned by the query. More details can be found
+/// [here](https://en.wikipedia.org/wiki/Ball_tree).
 #[derive(Default)]
 pub struct BallTree<F: Float>(PhantomData<F>);
 
 impl<F: Float> BallTree<F> {
+    /// Creates an instance of `BallTree`
     pub fn new() -> Self {
         Self(PhantomData)
     }

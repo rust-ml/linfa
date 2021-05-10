@@ -4,28 +4,37 @@ use ndarray_stats::DeviationExt;
 
 use crate::Point;
 
-// Should satisfy triangle inequality (no squared Euclidean)
+/// A distance function that can be used in spatial algorithms such as nearest neighbour.
 pub trait Distance<F: Float> {
-    // Panics if a and b are not of equal dimension
+    /// Computes the distance between two points. For most spatial algorithms to work correctly,
+    /// **this metric must satisfy the Triangle Inequality.**
+    ///
+    /// Panics if the points have different dimensions.
     fn distance(&self, a: Point<F>, b: Point<F>) -> F;
 
-    // Fast distance metric that keeps the order of the distance function
+    /// A faster version of the distance metric that keeps the order of the distance function. That
+    /// is, `dist(a, b) > dist(c, d)` implies `rdist(a, b) > rdist(c, d)`. For most algorithms this
+    /// is the same as `distance`. Unlike `distance`, this function does **not** need to satisfy
+    /// the Triangle Inequality.
     #[inline]
     fn rdistance(&self, a: Point<F>, b: Point<F>) -> F {
         self.distance(a, b)
     }
 
+    /// Converts the result of `rdistance` to `distance`
     #[inline]
     fn rdist_to_dist(&self, rdist: F) -> F {
         rdist
     }
 
+    /// Converts the result of `distance` to `rdistance`
     #[inline]
     fn dist_to_rdist(&self, dist: F) -> F {
         dist
     }
 }
 
+/// L1 or [Manhattan](https://en.wikipedia.org/wiki/Taxicab_geometry) distance
 #[derive(Debug, Clone)]
 pub struct L1Dist;
 impl<F: Float> Distance<F> for L1Dist {
@@ -35,6 +44,7 @@ impl<F: Float> Distance<F> for L1Dist {
     }
 }
 
+/// L2 or [Euclidean](https://en.wikipedia.org/wiki/Euclidean_distance) distance
 #[derive(Debug, Clone)]
 pub struct L2Dist;
 impl<F: Float> Distance<F> for L2Dist {
@@ -59,6 +69,7 @@ impl<F: Float> Distance<F> for L2Dist {
     }
 }
 
+/// L-infinte or [Chebyshev](https://en.wikipedia.org/wiki/Chebyshev_distance) distance
 #[derive(Debug, Clone)]
 pub struct LInfDist;
 impl<F: Float> Distance<F> for LInfDist {
@@ -68,6 +79,7 @@ impl<F: Float> Distance<F> for LInfDist {
     }
 }
 
+/// L-p or [Minkowsky](https://en.wikipedia.org/wiki/Minkowski_distance) distance
 #[derive(Debug, Clone)]
 pub struct LpDist<F: Float>(F);
 impl<F: Float> Distance<F> for LpDist<F> {
