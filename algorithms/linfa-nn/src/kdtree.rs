@@ -8,6 +8,7 @@ use crate::{
 };
 
 /// Spatial indexing structure created by [`KdTree`](struct.KdTree.html)
+#[derive(Debug)]
 pub struct KdTreeIndex<'a, F: Float, D: Distance<F>>(kdtree::KdTree<F, Point<'a, F>, &'a [F]>, D);
 
 impl<'a, F: Float, D: Distance<F>> KdTreeIndex<'a, F, D> {
@@ -75,7 +76,7 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for KdTreeIndex<'a, 
 ///
 /// In addition to trait requirements, `KdTree` requires that points be laid out contiguously in
 /// memory.
-#[derive(Default)]
+#[derive(Default, Clone, Debug)]
 pub struct KdTree<F: Float>(PhantomData<F>);
 
 impl<F: Float> KdTree<F> {

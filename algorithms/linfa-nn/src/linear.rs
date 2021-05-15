@@ -10,6 +10,7 @@ use crate::{
 };
 
 /// Spatial indexing structure created by [`LinearSearch`](struct.LinearSearch.html)
+#[derive(Debug)]
 pub struct LinearSearchIndex<'a, F: Float, D: Distance<F>>(ArrayView2<'a, F>, D);
 
 impl<'a, F: Float, D: Distance<F>> LinearSearchIndex<'a, F, D> {
@@ -60,7 +61,7 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for LinearSearchInde
 
 /// Implementation of linear search, which is the simplest nearest neighbour algorithm. All queries
 /// are implemented by scanning through every point, so all of them are `O(N)`.
-#[derive(Default)]
+#[derive(Default, Clone, Debug)]
 pub struct LinearSearch<F: Float>(PhantomData<F>);
 
 impl<F: Float> LinearSearch<F> {

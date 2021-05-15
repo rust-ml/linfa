@@ -5,7 +5,7 @@ use ndarray_stats::DeviationExt;
 use crate::Point;
 
 /// A distance function that can be used in spatial algorithms such as nearest neighbour.
-pub trait Distance<F: Float> {
+pub trait Distance<F: Float>: Clone {
     /// Computes the distance between two points. For most spatial algorithms to work correctly,
     /// **this metric must satisfy the Triangle Inequality.**
     ///

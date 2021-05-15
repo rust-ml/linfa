@@ -141,6 +141,7 @@ impl<'a, F: Float> BallTreeInner<'a, F> {
 }
 
 /// Spatial indexing structure created by [`BallTree`](struct.BallTree.html)
+#[derive(Debug)]
 pub struct BallTreeIndex<'a, F: Float, D: Distance<F>> {
     tree: BallTreeInner<'a, F>,
     dist_fn: D,
@@ -246,7 +247,7 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for BallTreeIndex<'a
 /// into nested hyperspheres called "balls". It performs spatial queries in `O(k * logN)` time,
 /// where `k` is the number of points returned by the query. More details can be found
 /// [here](https://en.wikipedia.org/wiki/Ball_tree).
-#[derive(Default)]
+#[derive(Default, Clone, Debug)]
 pub struct BallTree<F: Float>(PhantomData<F>);
 
 impl<F: Float> BallTree<F> {
