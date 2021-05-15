@@ -19,14 +19,14 @@ fn partition<F: Float>(mut points: Vec<Point<F>>) -> (Vec<Point<F>>, Point<F>, V
     let max_spread_dim = (0..points[0].len())
         .map(|dim| {
             // Find the range of each dimension
-            let it = points
+            let (max, min) = points
                 .iter()
-                .map(|p| NoisyFloat::<_, FiniteChecker>::new(p[dim]));
-            // May be faster if we can compute min and max with the same iterator, but compiler might
-            // have optimized for that
-            let max = it.clone().max().expect("partitioned empty vec");
-            let min = it.min().expect("partitioned empty vec");
-            (dim, max - min)
+                .map(|p| p[dim])
+                .fold((F::neg_infinity(), F::infinity()), |(a, b), c| {
+                    (F::max(a, c), F::min(b, c))
+                });
+
+            (dim, NoisyFloat::<_, FiniteChecker>::new(max - min))
         })
         .max_by_key(|&(_, range)| range)
         .expect("vec has no dimensions")
