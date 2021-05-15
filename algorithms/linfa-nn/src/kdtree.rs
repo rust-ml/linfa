@@ -71,11 +71,12 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for KdTreeIndex<'a, 
 /// Implementation of K-D tree, a space-partitioning data structure.  For each parent node, the
 /// indexed points are split with a hyperplane into two child nodes. Due to its tree-like
 /// structure, the K-D tree performs spatial queries in `O(k * logN)` time, where `k` is the number
-/// of points returned by the query. More details can be found
-/// [here](https://en.wikipedia.org/wiki/K-d_tree).
+/// of points returned by the query. Calling `from_batch` returns a [`KdTree`](struct.KdTree.html).
 ///
-/// In addition to trait requirements, `KdTree` requires that points be laid out contiguously in
-/// memory.
+/// More details can be found [here](https://en.wikipedia.org/wiki/K-d_tree).
+///
+/// Unlike other `NearestNeighbour` implementations, `KdTree` requires that points be laid out
+/// contiguously in memory and will panic otherwise.
 #[derive(Default, Clone, Debug)]
 pub struct KdTree<F: Float>(PhantomData<F>);
 

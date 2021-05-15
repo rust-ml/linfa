@@ -245,8 +245,10 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for BallTreeIndex<'a
 
 /// Implementation of ball tree, a space partitioning data structure that partitions its points
 /// into nested hyperspheres called "balls". It performs spatial queries in `O(k * logN)` time,
-/// where `k` is the number of points returned by the query. More details can be found
-/// [here](https://en.wikipedia.org/wiki/Ball_tree).
+/// where `k` is the number of points returned by the query. Calling `from_batch` returns a
+/// [`BallTreeIndex`](struct.BallTreeIndex.html).
+///
+/// More details can be found [here](https://en.wikipedia.org/wiki/Ball_tree).
 #[derive(Default, Clone, Debug)]
 pub struct BallTree<F: Float>(PhantomData<F>);
 
