@@ -31,9 +31,9 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for LinearSearchInde
         } else {
             let mut heap = BinaryHeap::with_capacity(self.0.nrows());
             for pt in self.0.genrows() {
-                let dist = self.1.rdistance(point.clone(), pt.clone());
+                let dist = self.1.rdistance(point.reborrow(), pt.reborrow());
                 heap.push(MinHeapElem {
-                    elem: pt.clone(),
+                    elem: pt.reborrow(),
                     dist: Reverse(NoisyFloat::new(dist)),
                 });
             }
@@ -53,7 +53,7 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for LinearSearchInde
                 .0
                 .genrows()
                 .into_iter()
-                .filter(|pt| self.1.rdistance(point.clone(), pt.clone()) < range)
+                .filter(|pt| self.1.rdistance(point.reborrow(), pt.reborrow()) < range)
                 .collect())
         }
     }

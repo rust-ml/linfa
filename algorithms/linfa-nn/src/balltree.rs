@@ -39,7 +39,7 @@ fn partition<F: Float>(mut points: Vec<Point<F>>) -> (Vec<Point<F>>, Point<F>, V
             .partial_cmp(&p2[max_spread_dim])
             .expect("NaN in data")
     })
-    .clone();
+    .reborrow();
 
     let (mut left, mut right): (Vec<_>, Vec<_>) = points
         .into_iter()
@@ -60,7 +60,7 @@ fn calc_radius<'a, F: Float, D: Distance<F>>(
     dist_fn: &D,
 ) -> F {
     let r_rad = points
-        .map(|pt| NoisyFloat::<_, FiniteChecker>::new(dist_fn.rdistance(pt.clone(), center)))
+        .map(|pt| NoisyFloat::<_, FiniteChecker>::new(dist_fn.rdistance(pt, center)))
         .max()
         .unwrap()
         .raw();
@@ -96,7 +96,8 @@ impl<'a, F: Float> BallTreeInner<'a, F> {
                     points.iter().for_each(|p| c += p);
                     c / F::from(points.len()).unwrap()
                 };
-                let radius = calc_radius(points.iter().cloned(), center.view(), dist_fn);
+                let radius =
+                    calc_radius(points.iter().map(|p| p.reborrow()), center.view(), dist_fn);
                 BallTreeInner::Leaf {
                     center,
                     radius,
@@ -114,7 +115,11 @@ impl<'a, F: Float> BallTreeInner<'a, F> {
             // Non-leaf node
             let (aps, center, bps) = partition(points);
             debug_assert!(!aps.is_empty() && !bps.is_empty());
-            let radius = calc_radius(aps.iter().chain(bps.iter()).cloned(), center, dist_fn);
+            let radius = calc_radius(
+                aps.iter().chain(bps.iter()).map(|p| p.reborrow()),
+                center,
+                dist_fn,
+            );
             let a_tree = BallTreeInner::new(aps, leaf_size, dist_fn);
             let b_tree = BallTreeInner::new(bps, leaf_size, dist_fn);
             BallTreeInner::Branch {
@@ -135,7 +140,7 @@ impl<'a, F: Float> BallTreeInner<'a, F> {
         // The distance to a sphere is the distance to its edge, so the distance between a point
         // and a sphere will always be less than the distance between the point and anything inside
         // the sphere
-        let border_dist = dist_fn.distance(p, center.clone()) - *radius;
+        let border_dist = dist_fn.distance(p, center.reborrow()) - *radius;
         dist_fn.dist_to_rdist(border_dist.max(F::zero()))
     }
 }
