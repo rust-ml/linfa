@@ -1,0 +1,35 @@
+[package]
+name = "linfa-nn"
+version = "0.1.0"
+authors = ["YuhanLiin <yuhanliin+github@protonmail.com>"]
+edition = "2018"
+description = "A collection of nearest neighbour algorithms"
+license = "MIT/Apache-2.0"
+
+repository = "https://github.com/rust-ml/linfa/"
+readme = "README.md"
+
+keywords = ["nearest-neighbour", "machine-learning", "linfa"]
+categories = ["algorithms", "mathematics", "science"]
+
+[dependencies]
+ndarray = { version = "0.14", features = ["approx"]}
+ndarray-stats = "0.4"
+num-traits = "0.2.0"
+noisy_float = "0.2.0"
+order-stat = "0.1.3"
+thiserror = "1"
+
+kdtree = "0.6.0"
+
+linfa = { version = "0.4.0", path = "../.." }
+
+[dev-dependencies]
+approx = "0.4"
+criterion = "0.3"
+rand_isaac = "0.3"
+ndarray-rand = "0.13"
+
+[[bench]]
+name = "nn"
+harness = false
