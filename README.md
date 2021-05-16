@@ -44,6 +44,7 @@ Where does `linfa` stand right now? [Are we learning yet?](http://www.arewelearn
 | [pls](algorithms/linfa-pls/) | Partial Least Squares | Tested | Supervised learning | Contains PLS estimators for dimensionality reduction and regression |
 | [tsne](algorithms/linfa-tsne/) | Dimensionality reduction| Tested | Unsupervised learning | Contains exact solution and Barnes-Hut approximation t-SNE |
 | [preprocessing](algorithms/linfa-preprocessing/) |Normalization & Vectorization| Tested | Pre-processing | Contains data normalization/whitening and count vectorization/tf-idf |
+| [nn](algorithms/linfa-nn/) | Nearest Neighbours & Distances | Tested / Benchmarked | Pre-processing | Spatial index structures and distance functions |
 
 We believe that only a significant community effort can nurture, build, and sustain a machine learning ecosystem in Rust - there is no other way forward.
 
