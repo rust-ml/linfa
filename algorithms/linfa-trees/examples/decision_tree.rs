@@ -44,7 +44,7 @@ fn main() -> Result<()> {
         .min_weight_leaf(10.0)
         .fit(&train)?;
 
-    let entropy_pred_y = gini_model.predict(&test);
+    let entropy_pred_y = entropy_model.predict(&test);
     let cm = entropy_pred_y.confusion_matrix(&test)?;
 
     println!("{:?}", cm);
