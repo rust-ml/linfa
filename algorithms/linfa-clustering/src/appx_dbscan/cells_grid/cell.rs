@@ -21,7 +21,7 @@ pub struct StatusPoint {
 impl StatusPoint {
     pub fn new(point_index: usize) -> StatusPoint {
         StatusPoint {
-            point_index: point_index,
+            point_index,
             is_core: false,
         }
     }

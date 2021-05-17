@@ -3,9 +3,9 @@ mod cell;
 use crate::appx_dbscan::counting_tree::get_base_cell_index;
 use crate::AppxDbscanHyperParams;
 use linfa::Float;
-use ndarray::{ArrayView1, ArrayView2, Axis, Array2};
+use linfa_nn::{distance::L2Dist, KdTree, NearestNeighbour};
+use ndarray::{Array2, ArrayView1, ArrayView2, Axis};
 use partitions::PartitionVec;
-use linfa_nn::{KdTree, distance::L2Dist, NearestNeighbour};
 
 use cell::{Cell, CellTable, StatusPoint};
 
@@ -25,7 +25,7 @@ impl<F: Float> CellsGrid<F> {
             table: CellTable::with_capacity(points.dim().0),
             cells: PartitionVec::with_capacity(points.dim().0),
             labeled: false,
-            dimensionality: points.dim().1
+            dimensionality: points.dim().1,
         };
         grid.populate(points, params);
         grid
@@ -62,19 +62,36 @@ impl<F: Float> CellsGrid<F> {
     fn populate_neighbours(&mut self) {
         let nindices = self.table.len();
         // map all cell indices from i64 to F and flatten in order to put them all in an array2
-        let all_indices : Vec<F> = self.table.keys().map(|x| x.mapv(|i| F::cast(i)).to_vec()).flatten().collect();
+        let all_indices: Vec<F> = self
+            .table
+            .keys()
+            .map(|x| x.mapv(F::cast).to_vec())
+            .flatten()
+            .collect();
         // construct the matrix of all cell indices
-        let indices: Array2<F> = Array2::from_shape_vec((nindices, self.dimensionality), all_indices).unwrap();
+        let indices: Array2<F> =
+            Array2::from_shape_vec((nindices, self.dimensionality), all_indices).unwrap();
         // bulk load the kdtree with all cell indices that are actually in the table
-        let kd_tree = KdTree::new().from_batch_with_leaf_size(&indices, 4 * self.dimensionality, L2Dist).unwrap();
+        let kd_tree = KdTree::new()
+            .from_batch_with_leaf_size(&indices, 4 * self.dimensionality, L2Dist)
+            .unwrap();
         for (spatial_index, table_index) in &self.table {
-            // the indices of the cell represent their position in space and so the neighboring cells (all the cells that *may* contain a point 
+            // the indices of the cell represent their position in space and so the neighboring cells (all the cells that *may* contain a point
             // within the approximated distacne) are the ones that have an index up to the square root of 4 times the dimensionality of the space
-            let neighbors = kd_tree.within_range(spatial_index.mapv(|x| F::cast(x)).view(), F::cast(4*self.dimensionality).sqrt()).unwrap();
+            let neighbors = kd_tree
+                .within_range(
+                    spatial_index.mapv(F::cast).view(),
+                    F::cast(4 * self.dimensionality).sqrt(),
+                )
+                .unwrap();
             // first map the indices of the neighboring cells back to i64 (safe since they came from there) and then use the indices to
             // get the related cell position in the partition vector. Since the tree was constructed from cells in the vector it is safe
-            // to unwrap the result of `get` 
-            let neighbors = neighbors.into_iter().map(|i| i.mapv(|x| x.to_i64().unwrap())).map(|i| *self.table.get(&i).unwrap()).collect();
+            // to unwrap the result of `get`
+            let neighbors = neighbors
+                .into_iter()
+                .map(|i| i.mapv(|x| x.to_i64().unwrap()))
+                .map(|i| *self.table.get(&i).unwrap())
+                .collect();
             self.cells[*table_index].populate_neighbours(neighbors);
         }
     }
