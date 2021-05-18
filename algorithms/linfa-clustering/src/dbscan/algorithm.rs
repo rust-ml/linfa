@@ -1,4 +1,5 @@
 use crate::dbscan::hyperparameters::{DbscanHyperParams, DbscanHyperParamsBuilder};
+use linfa_nn::distance::{Distance, L2Dist};
 use ndarray::{Array1, ArrayBase, Axis, Data, Ix2};
 use ndarray_stats::DeviationExt;
 use std::collections::VecDeque;
@@ -71,13 +72,20 @@ use linfa::{DatasetBase, Float};
 pub struct Dbscan;
 
 impl Dbscan {
-    pub fn params<F: Float>(min_points: usize) -> DbscanHyperParamsBuilder<F> {
-        DbscanHyperParams::new(min_points)
+    pub fn params<F: Float>(min_points: usize) -> DbscanHyperParamsBuilder<F, L2Dist> {
+        DbscanHyperParamsBuilder::new(min_points)
+    }
+
+    pub fn params_with_dist<F: Float, D: 'static + Distance<F>>(
+        min_points: usize,
+        dist_fn: D,
+    ) -> DbscanHyperParamsBuilder<F, D> {
+        DbscanHyperParamsBuilder::with_dist_fn(min_points, dist_fn)
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<usize>>>
-    for DbscanHyperParams<F>
+impl<F: Float, D: Data<Elem = F>, DF: Distance<F>>
+    Transformer<&ArrayBase<D, Ix2>, Array1<Option<usize>>> for DbscanHyperParams<F, DF>
 {
     fn transform(&self, observations: &ArrayBase<D, Ix2>) -> Array1<Option<usize>> {
         let mut cluster_memberships = Array1::from_elem(observations.nrows(), None);
@@ -127,44 +135,7 @@ impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T>
-    Transformer<
-        DatasetBase<ArrayBase<D, Ix2>, T>,
-        DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>,
-    > for DbscanHyperParams<F>
-{
-    fn transform(
-        &self,
-        dataset: DatasetBase<ArrayBase<D, Ix2>, T>,
-    ) -> DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>> {
-        let predicted = self.transform(dataset.records());
-        dataset.with_targets(predicted)
-    }
-}
-
-impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<usize>>>
-    for DbscanHyperParamsBuilder<F>
-{
-    fn transform(&self, observations: &ArrayBase<D, Ix2>) -> Array1<Option<usize>> {
-        self.build().transform(observations)
-    }
-}
-
-impl<F: Float, D: Data<Elem = F>, T>
-    Transformer<
-        DatasetBase<ArrayBase<D, Ix2>, T>,
-        DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>,
-    > for DbscanHyperParamsBuilder<F>
-{
-    fn transform(
-        &self,
-        dataset: DatasetBase<ArrayBase<D, Ix2>, T>,
-    ) -> DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>> {
-        self.build().transform(dataset)
-    }
-}
-
-impl<F: Float> DbscanHyperParams<F> {
+impl<F: Float, D: Distance<F>> DbscanHyperParams<F, D> {
     fn find_neighbors(
         &self,
         idx: usize,
@@ -191,12 +162,41 @@ impl<F: Float> DbscanHyperParams<F> {
     }
 }
 
+impl<F: Float, D: Data<Elem = F>, T, DF: Distance<F>>
+    Transformer<
+        DatasetBase<ArrayBase<D, Ix2>, T>,
+        DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>,
+    > for DbscanHyperParams<F, DF>
+{
+    fn transform(
+        &self,
+        dataset: DatasetBase<ArrayBase<D, Ix2>, T>,
+    ) -> DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>> {
+        let predicted = self.transform(dataset.records());
+        dataset.with_targets(predicted)
+    }
+}
+
+impl<F: Float, DF: 'static + Distance<F>> DbscanHyperParamsBuilder<F, DF> {
+    pub fn transform<D: Data<Elem = F>>(
+        self,
+        observations: &ArrayBase<D, Ix2>,
+    ) -> Array1<Option<usize>> {
+        self.build().transform(observations)
+    }
+
+    pub fn transform_dataset<D: Data<Elem = F>, T>(
+        self,
+        dataset: DatasetBase<ArrayBase<D, Ix2>, T>,
+    ) -> DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>> {
+        self.build().transform(dataset)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use ndarray::{arr1, arr2, s, Array2};
-
-    use linfa::traits::Transformer;
 
     #[test]
     fn nested_clusters() {
