@@ -79,7 +79,7 @@ pub enum NnError {
 /// // Compute all points within 100 units of `pt`
 /// let range = nn.within_range(pt.view(), 100.0).unwrap();
 /// ```
-pub trait NearestNeighbour<F: Float, D: Distance<F>> {
+pub trait NearestNeighbour<F: Float, D: Distance<F>>: std::fmt::Debug {
     /// Builds a spatial index using a MxN two-dimensional array representing M points with N
     /// dimensions. Also takes `leaf_size`, which specifies the number of elements in the leaf
     /// nodes of tree-like index structures.
