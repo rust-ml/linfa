@@ -9,7 +9,10 @@ use crate::{
 
 /// Spatial indexing structure created by [`KdTree`](struct.KdTree.html)
 #[derive(Debug)]
-pub struct KdTreeIndex<'a, F: Float, D: Distance<F>>(kdtree::KdTree<F, Point<'a, F>, &'a [F]>, D);
+pub struct KdTreeIndex<'a, F: Float, D: Distance<F>>(
+    kdtree::KdTree<F, (Point<'a, F>, usize), &'a [F]>,
+    D,
+);
 
 impl<'a, F: Float, D: Distance<F>> KdTreeIndex<'a, F, D> {
     /// Creates a new `KdTreeIndex`
@@ -24,9 +27,12 @@ impl<'a, F: Float, D: Distance<F>> KdTreeIndex<'a, F, D> {
             Err(BuildError::ZeroDimension)
         } else {
             let mut tree = kdtree::KdTree::with_capacity(batch.ncols().max(1), leaf_size);
-            for point in batch.genrows() {
-                tree.add(point.to_slice().expect("views should be contiguous"), point)
-                    .unwrap();
+            for (i, point) in batch.genrows().into_iter().enumerate() {
+                tree.add(
+                    point.to_slice().expect("views should be contiguous"),
+                    (point, i),
+                )
+                .unwrap();
             }
             Ok(Self(tree, dist_fn))
         }
@@ -44,7 +50,11 @@ impl From<kdtree::ErrorKind> for NnError {
 }
 
 impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for KdTreeIndex<'a, F, D> {
-    fn k_nearest<'b>(&self, point: Point<'b, F>, k: usize) -> Result<Vec<Point<F>>, NnError> {
+    fn k_nearest<'b>(
+        &self,
+        point: Point<'b, F>,
+        k: usize,
+    ) -> Result<Vec<(Point<F>, usize)>, NnError> {
         Ok(self
             .0
             .nearest(
@@ -53,11 +63,15 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for KdTreeIndex<'a, 
                 &|a, b| self.1.rdistance(aview1(a), aview1(b)),
             )?
             .into_iter()
-            .map(|(_, pt)| pt.reborrow())
+            .map(|(_, (pt, pos))| (pt.reborrow(), *pos))
             .collect())
     }
 
-    fn within_range<'b>(&self, point: Point<'b, F>, range: F) -> Result<Vec<Point<F>>, NnError> {
+    fn within_range<'b>(
+        &self,
+        point: Point<'b, F>,
+        range: F,
+    ) -> Result<Vec<(Point<F>, usize)>, NnError> {
         let range = self.1.dist_to_rdist(range);
         Ok(self
             .0
@@ -67,7 +81,7 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for KdTreeIndex<'a, 
                 &|a, b| self.1.rdistance(aview1(a), aview1(b)),
             )?
             .into_iter()
-            .map(|(_, pt)| pt.reborrow())
+            .map(|(_, (pt, pos))| (pt.reborrow(), *pos))
             .collect())
     }
 }
