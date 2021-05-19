@@ -1,7 +1,7 @@
 use std::{cmp::Reverse, collections::BinaryHeap, marker::PhantomData};
 
 use linfa::Float;
-use ndarray::{Array2, ArrayView2};
+use ndarray::ArrayView2;
 use noisy_float::NoisyFloat;
 
 use crate::{
@@ -15,7 +15,7 @@ pub struct LinearSearchIndex<'a, F: Float, D: Distance<F>>(ArrayView2<'a, F>, D)
 
 impl<'a, F: Float, D: Distance<F>> LinearSearchIndex<'a, F, D> {
     /// Creates a new `LinearSearchIndex`
-    pub fn new(batch: &'a Array2<F>, dist_fn: D) -> Result<Self, BuildError> {
+    pub fn new(batch: &'a ArrayView2<'a, F>, dist_fn: D) -> Result<Self, BuildError> {
         if batch.ncols() == 0 {
             Err(BuildError::ZeroDimension)
         } else {
@@ -75,7 +75,7 @@ impl<F: Float> LinearSearch<F> {
 impl<F: Float, D: 'static + Distance<F>> NearestNeighbour<F, D> for LinearSearch<F> {
     fn from_batch_with_leaf_size<'a>(
         &self,
-        batch: &'a Array2<F>,
+        batch: &'a ArrayView2<'a, F>,
         leaf_size: usize,
         dist_fn: D,
     ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError> {

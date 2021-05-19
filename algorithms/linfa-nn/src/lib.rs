@@ -20,7 +20,7 @@
 
 use distance::Distance;
 use linfa::Float;
-use ndarray::{Array2, ArrayView1};
+use ndarray::{ArrayView1, ArrayView2};
 use thiserror::Error;
 
 mod balltree;
@@ -88,7 +88,7 @@ pub trait NearestNeighbour<F: Float, D: Distance<F>>: std::fmt::Debug {
     /// value in the batch is NaN or infinite, the behaviour is unspecified.
     fn from_batch_with_leaf_size<'a>(
         &self,
-        batch: &'a Array2<F>,
+        batch: &'a ArrayView2<'a, F>,
         leaf_size: usize,
         dist_fn: D,
     ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError>;
@@ -97,7 +97,7 @@ pub trait NearestNeighbour<F: Float, D: Distance<F>>: std::fmt::Debug {
     /// information.
     fn from_batch<'a>(
         &self,
-        batch: &'a Array2<F>,
+        batch: &'a ArrayView2<'a, F>,
         dist_fn: D,
     ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError> {
         self.from_batch_with_leaf_size(batch, 2usize.pow(4), dist_fn)
@@ -128,7 +128,7 @@ pub trait NearestNeighbourIndex<F: Float> {
 #[cfg(test)]
 mod test {
     use approx::assert_abs_diff_eq;
-    use ndarray::{arr1, arr2, aview1, stack, Axis};
+    use ndarray::{arr1, arr2, aview1, stack, Array2, Axis};
     use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
     use ndarray_stats::DeviationExt;
     use noisy_float::{checkers::FiniteChecker, NoisyFloat};
@@ -144,7 +144,8 @@ mod test {
     }
 
     fn nn_test_empty(builder: &dyn NearestNeighbour<f64, L2Dist>) {
-        let points = Array2::zeros((0, 2));
+        let points_arr = Array2::zeros((0, 2));
+        let points = points_arr.view();
         let nn = builder.from_batch(&points, L2Dist).unwrap();
 
         let out = nn.k_nearest(aview1(&[0.0, 1.0]), 2).unwrap();
@@ -159,10 +160,12 @@ mod test {
     }
 
     fn nn_test_error(builder: &dyn NearestNeighbour<f64, L2Dist>) {
-        let points = Array2::zeros((4, 0));
+        let points_arr = Array2::zeros((4, 0));
+        let points = points_arr.view();
         assert!(builder.from_batch(&points, L2Dist).is_err());
 
-        let points = arr2(&[[0.0, 2.0]]);
+        let points_arr = arr2(&[[0.0, 2.0]]);
+        let points = points_arr.view();
         assert!(builder
             .from_batch_with_leaf_size(&points, 0, L2Dist)
             .is_err());
@@ -172,7 +175,8 @@ mod test {
     }
 
     fn nn_test(builder: &dyn NearestNeighbour<f64, L2Dist>, sort_within_range: bool) {
-        let points = arr2(&[[0.0, 2.0], [10.0, 4.0], [4.0, 5.0], [7.0, 1.0], [1.0, 7.2]]);
+        let points_arr = arr2(&[[0.0, 2.0], [10.0, 4.0], [4.0, 5.0], [7.0, 1.0], [1.0, 7.2]]);
+        let points = points_arr.view();
         let nn = builder.from_batch(&points, L2Dist).unwrap();
 
         let out = nn.k_nearest(aview1(&[0.0, 1.0]), 2).unwrap();
@@ -205,7 +209,8 @@ mod test {
     }
 
     fn nn_test_degenerate(builder: &dyn NearestNeighbour<f64, L2Dist>) {
-        let points = arr2(&[[0.0, 2.0], [0.0, 2.0], [0.0, 2.0], [0.0, 2.0], [0.0, 2.0]]);
+        let points_arr = arr2(&[[0.0, 2.0], [0.0, 2.0], [0.0, 2.0], [0.0, 2.0], [0.0, 2.0]]);
+        let points = points_arr.view();
         let nn = builder.from_batch(&points, L2Dist).unwrap();
 
         let out = nn.k_nearest(aview1(&[0.0, 1.0]), 2).unwrap();
@@ -234,8 +239,9 @@ mod test {
         let mut rng = Isaac64Rng::seed_from_u64(40);
         let n_points = 50000;
         let n_features = 3;
-        let points =
+        let points_arr =
             Array2::random_using((n_points, n_features), Uniform::new(-50., 50.), &mut rng);
+        let points = points_arr.view();
 
         let linear = LinearSearch::new()
             .from_batch(&points, dist_fn.clone())

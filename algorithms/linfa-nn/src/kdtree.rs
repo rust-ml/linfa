@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use linfa::Float;
-use ndarray::{aview1, Array2};
+use ndarray::{aview1, ArrayView2};
 
 use crate::{
     distance::Distance, BuildError, NearestNeighbour, NearestNeighbourIndex, NnError, Point,
@@ -13,7 +13,11 @@ pub struct KdTreeIndex<'a, F: Float, D: Distance<F>>(kdtree::KdTree<F, Point<'a,
 
 impl<'a, F: Float, D: Distance<F>> KdTreeIndex<'a, F, D> {
     /// Creates a new `KdTreeIndex`
-    pub fn new(batch: &'a Array2<F>, leaf_size: usize, dist_fn: D) -> Result<Self, BuildError> {
+    pub fn new(
+        batch: &'a ArrayView2<'a, F>,
+        leaf_size: usize,
+        dist_fn: D,
+    ) -> Result<Self, BuildError> {
         if leaf_size == 0 {
             Err(BuildError::EmptyLeaf)
         } else if batch.ncols() == 0 {
@@ -68,8 +72,8 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for KdTreeIndex<'a, 
     }
 }
 
-/// Implementation of K-D tree, a space-partitioning data structure.  For each parent node, the
-/// indexed points are split with a hyperplane into two child nodes. Due to its tree-like
+/// Implementation of K-D tree, a fast space-partitioning data structure.  For each parent node,
+/// the indexed points are split with a hyperplane into two child nodes. Due to its tree-like
 /// structure, the K-D tree performs spatial queries in `O(k * logN)` time, where `k` is the number
 /// of points returned by the query. Calling `from_batch` returns a [`KdTree`](struct.KdTree.html).
 ///
@@ -90,7 +94,7 @@ impl<F: Float> KdTree<F> {
 impl<F: Float, D: 'static + Distance<F>> NearestNeighbour<F, D> for KdTree<F> {
     fn from_batch_with_leaf_size<'a>(
         &self,
-        batch: &'a Array2<F>,
+        batch: &'a ArrayView2<'a, F>,
         leaf_size: usize,
         dist_fn: D,
     ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError> {

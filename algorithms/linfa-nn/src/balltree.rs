@@ -1,7 +1,7 @@
 use std::{cmp::Reverse, collections::BinaryHeap, marker::PhantomData};
 
 use linfa::Float;
-use ndarray::{Array1, Array2};
+use ndarray::{Array1, ArrayView2};
 use noisy_float::{checkers::FiniteChecker, NoisyFloat};
 
 use crate::{
@@ -156,7 +156,11 @@ pub struct BallTreeIndex<'a, F: Float, D: Distance<F>> {
 
 impl<'a, F: Float, D: Distance<F>> BallTreeIndex<'a, F, D> {
     /// Creates a `BallTreeIndex` using the K-D construction algorithm
-    pub fn new(batch: &'a Array2<F>, leaf_size: usize, dist_fn: D) -> Result<Self, BuildError> {
+    pub fn new(
+        batch: &'a ArrayView2<'a, F>,
+        leaf_size: usize,
+        dist_fn: D,
+    ) -> Result<Self, BuildError> {
         let dim = batch.ncols();
         let len = batch.nrows();
         if leaf_size == 0 {
@@ -267,7 +271,7 @@ impl<F: Float> BallTree<F> {
 impl<F: Float, D: 'static + Distance<F>> NearestNeighbour<F, D> for BallTree<F> {
     fn from_batch_with_leaf_size<'a>(
         &self,
-        batch: &'a Array2<F>,
+        batch: &'a ArrayView2<'a, F>,
         leaf_size: usize,
         dist_fn: D,
     ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError> {
