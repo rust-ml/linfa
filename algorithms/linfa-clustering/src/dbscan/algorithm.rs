@@ -1,7 +1,9 @@
 use crate::dbscan::hyperparameters::{DbscanHyperParams, DbscanHyperParamsBuilder};
-use linfa_nn::distance::{Distance, L2Dist};
-use ndarray::{Array1, ArrayBase, Axis, Data, Ix2};
-use ndarray_stats::DeviationExt;
+use linfa_nn::{
+    distance::{Distance, L2Dist},
+    NearestNeighbourIndex,
+};
+use ndarray::{Array1, ArrayBase, Data, Ix2};
 use std::collections::VecDeque;
 
 use linfa::traits::Transformer;
@@ -93,13 +95,24 @@ impl<F: Float, D: Data<Elem = F>, DF: Distance<F>>
         // Tracks whether a value is in the search queue to prevent duplicates
         let mut search_found = vec![false; observations.nrows()];
         let mut search_queue = VecDeque::with_capacity(observations.nrows());
+        let obs = observations.view();
+        // TODO what to do about this unwrap
+        let nn = self
+            .nn_impl()
+            .from_batch(&obs, self.dist_fn().clone())
+            .unwrap();
 
         for i in 0..observations.nrows() {
             if cluster_memberships[i].is_some() {
                 continue;
             }
-            let (neighbor_count, neighbors) =
-                self.find_neighbors(i, observations, self.tolerance(), &cluster_memberships);
+            let (neighbor_count, neighbors) = self.find_neighbors(
+                &*nn,
+                i,
+                observations,
+                self.tolerance(),
+                &cluster_memberships,
+            );
             if neighbor_count < self.minimum_points() {
                 continue;
             }
@@ -113,6 +126,7 @@ impl<F: Float, D: Data<Elem = F>, DF: Distance<F>>
                 search_found[candidate_idx] = false;
 
                 let (neighbor_count, neighbors) = self.find_neighbors(
+                    &*nn,
                     candidate_idx,
                     observations,
                     self.tolerance(),
@@ -138,6 +152,7 @@ impl<F: Float, D: Data<Elem = F>, DF: Distance<F>>
 impl<F: Float, D: Distance<F>> DbscanHyperParams<F, D> {
     fn find_neighbors(
         &self,
+        nn: &dyn NearestNeighbourIndex<F>,
         idx: usize,
         observations: &ArrayBase<impl Data<Elem = F>, Ix2>,
         eps: F,
@@ -146,16 +161,11 @@ impl<F: Float, D: Distance<F>> DbscanHyperParams<F, D> {
         let candidate = observations.row(idx);
         let mut res = Vec::with_capacity(self.minimum_points());
         let mut count = 0;
-        for (i, (obs, cluster)) in observations
-            .axis_iter(Axis(0))
-            .zip(clusters.iter())
-            .enumerate()
-        {
-            if F::cast(candidate.l2_dist(&obs).unwrap()) < eps {
-                count += 1;
-                if cluster.is_none() && i != idx {
-                    res.push(i);
-                }
+        // TODO what to do about this unwrap?
+        for (_, i) in nn.within_range(candidate.view(), eps).unwrap().into_iter() {
+            count += 1;
+            if clusters[i].is_none() && i != idx {
+                res.push(i);
             }
         }
         (count, res)
