@@ -109,9 +109,10 @@ pub trait NearestNeighbour<F: Float, D: Distance<F>>: std::fmt::Debug {
 /// computation of nearest neighbour and range queries over the set of points. Individual points
 /// are represented as one-dimensional array views.
 pub trait NearestNeighbourIndex<F: Float> {
-    /// Returns the `k` points in the index that are the closest to the provided point. Points are
-    /// returned in ascending order of the distance away from the provided points, and less than
-    /// `k` points will be returned if the index contains fewer than `k`.
+    /// Returns the `k` points in the index that are the closest to the provided point, along with
+    /// their positions in the original dataset. Points are returned in ascending order of the
+    /// distance away from the provided points, and less than `k` points will be returned if the
+    /// index contains fewer than `k`.
     ///
     /// Returns an error if the provided point has different dimensionality than the index's
     /// points.
@@ -122,8 +123,8 @@ pub trait NearestNeighbourIndex<F: Float> {
     ) -> Result<Vec<(Point<F>, usize)>, NnError>;
 
     /// Returns all the points in the index that are within the specified distance to the provided
-    /// point. The points are not guaranteed to be in any order, though many algorithms return the
-    /// points in order of distance.
+    /// point, along with their positions in the original dataset. The points are not guaranteed to
+    /// be in any order, though many algorithms return the points in order of distance.
     ///
     /// Returns an error if the provided point has different dimensionality than the index's
     /// points.
