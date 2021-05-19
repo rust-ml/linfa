@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use linfa::Float;
-use ndarray::{aview1, ArrayView2};
+use ndarray::{aview1, ArrayBase, ArrayView2, Data, Ix2};
 
 use crate::{
     distance::Distance, BuildError, NearestNeighbour, NearestNeighbourIndex, NnError, Point,
@@ -13,8 +13,8 @@ pub struct KdTreeIndex<'a, F: Float, D: Distance<F>>(kdtree::KdTree<F, Point<'a,
 
 impl<'a, F: Float, D: Distance<F>> KdTreeIndex<'a, F, D> {
     /// Creates a new `KdTreeIndex`
-    pub fn new(
-        batch: &'a ArrayView2<'a, F>,
+    pub fn new<DA: Data<Elem = F>>(
+        batch: &'a ArrayBase<DA, Ix2>,
         leaf_size: usize,
         dist_fn: D,
     ) -> Result<Self, BuildError> {

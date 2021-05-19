@@ -1,7 +1,7 @@
 use std::{cmp::Reverse, collections::BinaryHeap, marker::PhantomData};
 
 use linfa::Float;
-use ndarray::ArrayView2;
+use ndarray::{ArrayBase, ArrayView2, Data, Ix2};
 use noisy_float::NoisyFloat;
 
 use crate::{
@@ -15,7 +15,10 @@ pub struct LinearSearchIndex<'a, F: Float, D: Distance<F>>(ArrayView2<'a, F>, D)
 
 impl<'a, F: Float, D: Distance<F>> LinearSearchIndex<'a, F, D> {
     /// Creates a new `LinearSearchIndex`
-    pub fn new(batch: &'a ArrayView2<'a, F>, dist_fn: D) -> Result<Self, BuildError> {
+    pub fn new<DA: Data<Elem = F>>(
+        batch: &'a ArrayBase<DA, Ix2>,
+        dist_fn: D,
+    ) -> Result<Self, BuildError> {
         if batch.ncols() == 0 {
             Err(BuildError::ZeroDimension)
         } else {

@@ -1,7 +1,7 @@
 use std::{cmp::Reverse, collections::BinaryHeap, marker::PhantomData};
 
 use linfa::Float;
-use ndarray::{Array1, ArrayView2};
+use ndarray::{Array1, ArrayBase, ArrayView2, Data, Ix2};
 use noisy_float::{checkers::FiniteChecker, NoisyFloat};
 
 use crate::{
@@ -156,8 +156,8 @@ pub struct BallTreeIndex<'a, F: Float, D: Distance<F>> {
 
 impl<'a, F: Float, D: Distance<F>> BallTreeIndex<'a, F, D> {
     /// Creates a `BallTreeIndex` using the K-D construction algorithm
-    pub fn new(
-        batch: &'a ArrayView2<'a, F>,
+    pub fn new<DA: Data<Elem = F>>(
+        batch: &'a ArrayBase<DA, Ix2>,
         leaf_size: usize,
         dist_fn: D,
     ) -> Result<Self, BuildError> {
