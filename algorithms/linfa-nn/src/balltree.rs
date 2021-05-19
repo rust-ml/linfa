@@ -257,7 +257,8 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for BallTreeIndex<'a
 /// where `k` is the number of points returned by the query. Calling `from_batch` returns a
 /// [`BallTreeIndex`](struct.BallTreeIndex.html).
 ///
-/// More details can be found [here](https://en.wikipedia.org/wiki/Ball_tree).
+/// More details can be found [here](https://en.wikipedia.org/wiki/Ball_tree). This implementation
+/// is based off of the [ball_tree](https://docs.rs/ball-tree/0.2.0/ball_tree/) crate.
 #[derive(Default, Clone, Debug)]
 pub struct BallTree<F: Float>(PhantomData<F>);
 
