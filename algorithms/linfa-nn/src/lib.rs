@@ -24,8 +24,6 @@
 use distance::Distance;
 use linfa::Float;
 use ndarray::{ArrayView1, ArrayView2};
-#[cfg(feature = "serde")]
-use serde_crate::{de::DeserializeOwned, Deserialize, Serialize};
 use thiserror::Error;
 
 mod balltree;
@@ -55,23 +53,11 @@ pub enum NnError {
     WrongDimension,
 }
 
-#[cfg(feature = "serde")]
-pub trait CfgSerde: Serialize + DeserializeOwned {}
-
-#[cfg(feature = "serde")]
-impl<T> CfgSerde for T where T: Serialize + DeserializeOwned {}
-
-#[cfg(not(feature = "serde"))]
-pub trait CfgSerde {}
-
-#[cfg(not(feature = "serde"))]
-impl<T> CfgSerde for T {}
-
 /// Nearest neighbour algorithm builds a spatial index structure out of a batch of points. The
 /// distance between points is calculated using a provided distance function. The index implements
 /// the [`NearestNeighbourIndex`](trait.NearestNeighbourIndex.html) trait and allows for efficient
 /// computing of nearest neighbour and range queries.
-pub trait NearestNeighbour: std::fmt::Debug + CfgSerde {
+pub trait NearestNeighbour: std::fmt::Debug {
     /// Builds a spatial index using a MxN two-dimensional array representing M points with N
     /// dimensions. Also takes `leaf_size`, which specifies the number of elements in the leaf
     /// nodes of tree-like index structures.
@@ -126,12 +112,6 @@ pub trait NearestNeighbourIndex<F: Float> {
     ) -> Result<Vec<(Point<F>, usize)>, NnError>;
 }
 
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
-#[derive(Debug)]
 /// Enum that dispatches to one of the crate's [`NearestNeighbour`](trait.NearestNeighbour.html)
 /// implementations based on value. This enum should be used instead of using types like
 /// `LinearSearch` and `KdTree` directly.
@@ -161,6 +141,7 @@ pub trait NearestNeighbourIndex<F: Float> {
 /// // Compute all points within 100 units of `pt`
 /// let range = nn.within_range(pt.view(), 100.0).unwrap();
 /// ```
+#[derive(Debug)]
 pub enum CommonNearestNeighbour {
     /// Linear search
     LinearSearch,

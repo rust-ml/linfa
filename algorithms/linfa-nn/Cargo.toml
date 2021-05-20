@@ -12,17 +12,6 @@ readme = "README.md"
 keywords = ["nearest-neighbour", "machine-learning", "linfa"]
 categories = ["algorithms", "mathematics", "science"]
 
-[features]
-default = []
-serde = ["serde_crate", "ndarray/serde"]
-
-[dependencies.serde_crate]
-package = "serde"
-optional = true
-version = "1.0"
-default-features = false
-features = ["std", "derive"]
-
 [dependencies]
 ndarray = { version = "0.14", features = ["approx"]}
 ndarray-stats = "0.4"
