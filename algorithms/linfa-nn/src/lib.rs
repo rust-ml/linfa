@@ -17,10 +17,15 @@
 //! * [Linear Scan](struct.LinearSearch.html)
 //! * [KD Tree](struct.KdTree.html)
 //! * [Ball Tree](struct.BallTree.html)
+//!
+//! The [`CommonNearestNeighbour`](struct.CommonNearestNeighbour) enum should be used to dispatch
+//! between all of the above algorithms flexibly.
 
 use distance::Distance;
 use linfa::Float;
 use ndarray::{ArrayView1, ArrayView2};
+#[cfg(feature = "serde")]
+use serde_crate::{de::DeserializeOwned, Deserialize, Serialize};
 use thiserror::Error;
 
 mod balltree;
@@ -50,44 +55,30 @@ pub enum NnError {
     WrongDimension,
 }
 
+#[cfg(feature = "serde")]
+pub trait CfgSerde: Serialize + DeserializeOwned {}
+
+#[cfg(feature = "serde")]
+impl<T> CfgSerde for T where T: Serialize + DeserializeOwned {}
+
+#[cfg(not(feature = "serde"))]
+pub trait CfgSerde {}
+
+#[cfg(not(feature = "serde"))]
+impl<T> CfgSerde for T {}
+
 /// Nearest neighbour algorithm builds a spatial index structure out of a batch of points. The
 /// distance between points is calculated using a provided distance function. The index implements
 /// the [`NearestNeighbourIndex`](trait.NearestNeighbourIndex.html) trait and allows for efficient
 /// computing of nearest neighbour and range queries.
-///
-/// ## Example
-///
-/// ```rust
-/// use rand_isaac::Isaac64Rng;
-/// use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
-/// use ndarray::{Array1, Array2};
-/// use linfa_nn::{distance::*, KdTree, NearestNeighbour};
-///
-/// // Use seedable RNG for generating points
-/// let mut rng = Isaac64Rng::seed_from_u64(40);
-/// let n_features = 3;
-/// let distr = Uniform::new(-500., 500.);
-/// // Randomly generate points for building the index
-/// let points = Array2::random_using((5000, n_features), distr, &mut rng);
-/// let points_view = points.view();
-///
-/// // Build a K-D tree with Euclidean distance as the distance function
-/// let nn = KdTree::new().from_batch(&points_view, L2Dist).unwrap();
-///
-/// let pt = Array1::random_using(n_features, distr, &mut rng);
-/// // Compute the 10 nearest points to `pt` in the index
-/// let nearest = nn.k_nearest(pt.view(), 10).unwrap();
-/// // Compute all points within 100 units of `pt`
-/// let range = nn.within_range(pt.view(), 100.0).unwrap();
-/// ```
-pub trait NearestNeighbour<F: Float, D: Distance<F>>: std::fmt::Debug {
+pub trait NearestNeighbour: std::fmt::Debug + CfgSerde {
     /// Builds a spatial index using a MxN two-dimensional array representing M points with N
     /// dimensions. Also takes `leaf_size`, which specifies the number of elements in the leaf
     /// nodes of tree-like index structures.
     ///
     /// Returns an error if the points have dimensionality of 0 or if the leaf size is 0. If any
     /// value in the batch is NaN or infinite, the behaviour is unspecified.
-    fn from_batch_with_leaf_size<'a>(
+    fn from_batch_with_leaf_size<'a, F: Float, D: 'a + Distance<F>>(
         &self,
         batch: &'a ArrayView2<'a, F>,
         leaf_size: usize,
@@ -96,7 +87,7 @@ pub trait NearestNeighbour<F: Float, D: Distance<F>>: std::fmt::Debug {
 
     /// Builds a spatial index using a default leaf size. See `from_batch_with_leaf_size` for more
     /// information.
-    fn from_batch<'a>(
+    fn from_batch<'a, F: Float, D: 'a + Distance<F>>(
         &self,
         batch: &'a ArrayView2<'a, F>,
         dist_fn: D,
@@ -135,6 +126,65 @@ pub trait NearestNeighbourIndex<F: Float> {
     ) -> Result<Vec<(Point<F>, usize)>, NnError>;
 }
 
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
+#[derive(Debug)]
+/// Enum that dispatches to one of the crate's [`NearestNeighbour`](trait.NearestNeighbour.html)
+/// implementations based on value. This enum should be used instead of using types like
+/// `LinearSearch` and `KdTree` directly.
+///
+/// ## Example
+///
+/// ```rust
+/// use rand_isaac::Isaac64Rng;
+/// use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
+/// use ndarray::{Array1, Array2};
+/// use linfa_nn::{distance::*, CommonNearestNeighbour, NearestNeighbour};
+///
+/// // Use seedable RNG for generating points
+/// let mut rng = Isaac64Rng::seed_from_u64(40);
+/// let n_features = 3;
+/// let distr = Uniform::new(-500., 500.);
+/// // Randomly generate points for building the index
+/// let points = Array2::random_using((5000, n_features), distr, &mut rng);
+/// let points_view = points.view();
+///
+/// // Build a K-D tree with Euclidean distance as the distance function
+/// let nn = CommonNearestNeighbour::KdTree.from_batch(&points_view, L2Dist).unwrap();
+///
+/// let pt = Array1::random_using(n_features, distr, &mut rng);
+/// // Compute the 10 nearest points to `pt` in the index
+/// let nearest = nn.k_nearest(pt.view(), 10).unwrap();
+/// // Compute all points within 100 units of `pt`
+/// let range = nn.within_range(pt.view(), 100.0).unwrap();
+/// ```
+pub enum CommonNearestNeighbour {
+    /// Linear search
+    LinearSearch,
+    /// KD Tree
+    KdTree,
+    /// Ball Tree
+    BallTree,
+}
+
+impl NearestNeighbour for CommonNearestNeighbour {
+    fn from_batch_with_leaf_size<'a, F: Float, D: 'a + Distance<F>>(
+        &self,
+        batch: &'a ArrayView2<'a, F>,
+        leaf_size: usize,
+        dist_fn: D,
+    ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError> {
+        match self {
+            Self::LinearSearch => LinearSearch.from_batch_with_leaf_size(batch, leaf_size, dist_fn),
+            Self::KdTree => KdTree.from_batch_with_leaf_size(batch, leaf_size, dist_fn),
+            Self::BallTree => BallTree.from_batch_with_leaf_size(batch, leaf_size, dist_fn),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use approx::assert_abs_diff_eq;
@@ -144,7 +194,7 @@ mod test {
     use noisy_float::{checkers::FiniteChecker, NoisyFloat};
     use rand_isaac::Isaac64Rng;
 
-    use crate::{balltree::BallTree, distance::*, kdtree::KdTree, linear::LinearSearch};
+    use crate::distance::*;
 
     use super::*;
 
@@ -169,7 +219,7 @@ mod test {
         );
     }
 
-    fn nn_test_empty(builder: &dyn NearestNeighbour<f64, L2Dist>) {
+    fn nn_test_empty(builder: &CommonNearestNeighbour) {
         let points_arr = Array2::zeros((0, 2));
         let points = points_arr.view();
         let nn = builder.from_batch(&points, L2Dist).unwrap();
@@ -185,8 +235,8 @@ mod test {
         assert_eq!(out, Vec::<_>::new());
     }
 
-    fn nn_test_error(builder: &dyn NearestNeighbour<f64, L2Dist>) {
-        let points_arr = Array2::zeros((4, 0));
+    fn nn_test_error(builder: &CommonNearestNeighbour) {
+        let points_arr = Array2::<f64>::zeros((4, 0));
         let points = points_arr.view();
         assert!(builder.from_batch(&points, L2Dist).is_err());
 
@@ -200,7 +250,7 @@ mod test {
         assert!(nn.within_range(aview1(&[2.2, 4.4, 5.5]), 4.0).is_err());
     }
 
-    fn nn_test(builder: &dyn NearestNeighbour<f64, L2Dist>, sort_within_range: bool) {
+    fn nn_test(builder: &CommonNearestNeighbour, sort_within_range: bool) {
         let points_arr = arr2(&[[0.0, 2.0], [10.0, 4.0], [4.0, 5.0], [7.0, 1.0], [1.0, 7.2]]);
         let points = points_arr.view();
         let nn = builder.from_batch(&points, L2Dist).unwrap();
@@ -222,7 +272,7 @@ mod test {
         assert_query(out, &points_arr, vec![3, 2, 1]);
     }
 
-    fn nn_test_degenerate(builder: &dyn NearestNeighbour<f64, L2Dist>) {
+    fn nn_test_degenerate(builder: &CommonNearestNeighbour) {
         let points_arr = arr2(&[[0.0, 2.0], [0.0, 2.0], [0.0, 2.0], [0.0, 2.0], [0.0, 2.0]]);
         let points = points_arr.view();
         let nn = builder.from_batch(&points, L2Dist).unwrap();
@@ -277,7 +327,7 @@ mod test {
     }
 
     fn nn_test_random<D: 'static + Distance<f64> + Clone>(
-        builder: &dyn NearestNeighbour<f64, D>,
+        builder: &CommonNearestNeighbour,
         dist_fn: D,
     ) {
         let mut rng = Isaac64Rng::seed_from_u64(40);
@@ -321,34 +371,34 @@ mod test {
 
                 #[test]
                 fn empty() {
-                    nn_test_empty(&$builder::default());
+                    nn_test_empty(&CommonNearestNeighbour::$builder);
                 }
 
                 #[test]
                 fn error() {
-                    nn_test_error(&$builder::default());
+                    nn_test_error(&CommonNearestNeighbour::$builder);
                 }
 
                 #[test]
                 fn normal() {
-                    nn_test(&$builder::default(), $sort);
+                    nn_test(&CommonNearestNeighbour::$builder, $sort);
                 }
 
                 #[test]
                 fn degenerate() {
-                    nn_test_degenerate(&$builder::default());
+                    nn_test_degenerate(&CommonNearestNeighbour::$builder);
                 }
 
                 $(
                     #[test]
                     fn random_l2() {
                         let $_u: () = ();
-                        nn_test_random(&$builder::default(), L2Dist);
+                        nn_test_random(&CommonNearestNeighbour::$builder, L2Dist);
                     }
 
                     #[test]
                     fn random_l1() {
-                        nn_test_random(&$builder::default(), L1Dist);
+                        nn_test_random(&CommonNearestNeighbour::$builder, L1Dist);
                     }
                 )?
             }

@@ -1,7 +1,7 @@
-use std::marker::PhantomData;
-
 use linfa::Float;
 use ndarray::{aview1, ArrayBase, ArrayView2, Data, Ix2};
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 use crate::{
     distance::Distance, BuildError, NearestNeighbour, NearestNeighbourIndex, NnError, Point,
@@ -96,17 +96,22 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for KdTreeIndex<'a, 
 /// Unlike other `NearestNeighbour` implementations, `KdTree` requires that points be laid out
 /// contiguously in memory and will panic otherwise.
 #[derive(Default, Clone, Debug)]
-pub struct KdTree<F: Float>(PhantomData<F>);
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
+pub struct KdTree;
 
-impl<F: Float> KdTree<F> {
+impl KdTree {
     /// Creates an instance of `KdTree`
     pub fn new() -> Self {
-        Self(PhantomData)
+        Self
     }
 }
 
-impl<F: Float, D: 'static + Distance<F>> NearestNeighbour<F, D> for KdTree<F> {
-    fn from_batch_with_leaf_size<'a>(
+impl NearestNeighbour for KdTree {
+    fn from_batch_with_leaf_size<'a, F: Float, D: 'a + Distance<F>>(
         &self,
         batch: &'a ArrayView2<'a, F>,
         leaf_size: usize,

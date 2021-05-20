@@ -1,8 +1,10 @@
-use std::{cmp::Reverse, collections::BinaryHeap, marker::PhantomData};
+use std::{cmp::Reverse, collections::BinaryHeap};
 
 use linfa::Float;
 use ndarray::{Array1, ArrayBase, ArrayView2, Data, Ix2};
 use noisy_float::{checkers::FiniteChecker, NoisyFloat};
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 use crate::{
     distance::Distance,
@@ -284,17 +286,22 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for BallTreeIndex<'a
 /// More details can be found [here](https://en.wikipedia.org/wiki/Ball_tree). This implementation
 /// is based off of the [ball_tree](https://docs.rs/ball-tree/0.2.0/ball_tree/) crate.
 #[derive(Default, Clone, Debug)]
-pub struct BallTree<F: Float>(PhantomData<F>);
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
+pub struct BallTree;
 
-impl<F: Float> BallTree<F> {
+impl BallTree {
     /// Creates an instance of `BallTree`
     pub fn new() -> Self {
-        Self(PhantomData)
+        Self
     }
 }
 
-impl<F: Float, D: 'static + Distance<F>> NearestNeighbour<F, D> for BallTree<F> {
-    fn from_batch_with_leaf_size<'a>(
+impl NearestNeighbour for BallTree {
+    fn from_batch_with_leaf_size<'a, F: Float, D: 'a + Distance<F>>(
         &self,
         batch: &'a ArrayView2<'a, F>,
         leaf_size: usize,

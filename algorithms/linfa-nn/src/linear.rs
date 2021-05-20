@@ -1,8 +1,10 @@
-use std::{cmp::Reverse, collections::BinaryHeap, marker::PhantomData};
+use std::{cmp::Reverse, collections::BinaryHeap};
 
 use linfa::Float;
 use ndarray::{ArrayBase, ArrayView2, Data, Ix2};
 use noisy_float::NoisyFloat;
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 use crate::{
     distance::Distance, heap_elem::MinHeapElem, BuildError, NearestNeighbour,
@@ -76,17 +78,22 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for LinearSearchInde
 /// are implemented by scanning through every point, so all of them are `O(N)`. Calling
 /// `from_batch` returns a [`LinearSearchIndex`](struct.LinearSearchIndex.html).
 #[derive(Default, Clone, Debug)]
-pub struct LinearSearch<F: Float>(PhantomData<F>);
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
+pub struct LinearSearch;
 
-impl<F: Float> LinearSearch<F> {
+impl LinearSearch {
     /// Creates an instance of `LinearSearch`
     pub fn new() -> Self {
-        Self(PhantomData)
+        Self
     }
 }
 
-impl<F: Float, D: 'static + Distance<F>> NearestNeighbour<F, D> for LinearSearch<F> {
-    fn from_batch_with_leaf_size<'a>(
+impl NearestNeighbour for LinearSearch {
+    fn from_batch_with_leaf_size<'a, F: Float, D: 'a + Distance<F>>(
         &self,
         batch: &'a ArrayView2<'a, F>,
         leaf_size: usize,
