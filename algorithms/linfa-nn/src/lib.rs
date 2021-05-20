@@ -23,7 +23,7 @@
 
 use distance::Distance;
 use linfa::Float;
-use ndarray::{ArrayView1, ArrayView2};
+use ndarray::{ArrayBase, ArrayView1, Data, Ix2};
 use thiserror::Error;
 
 mod balltree;
@@ -64,18 +64,18 @@ pub trait NearestNeighbour: std::fmt::Debug {
     ///
     /// Returns an error if the points have dimensionality of 0 or if the leaf size is 0. If any
     /// value in the batch is NaN or infinite, the behaviour is unspecified.
-    fn from_batch_with_leaf_size<'a, F: Float, D: 'a + Distance<F>>(
+    fn from_batch_with_leaf_size<'a, F: Float, DT: Data<Elem = F>, D: 'a + Distance<F>>(
         &self,
-        batch: &'a ArrayView2<'a, F>,
+        batch: &'a ArrayBase<DT, Ix2>,
         leaf_size: usize,
         dist_fn: D,
     ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError>;
 
     /// Builds a spatial index using a default leaf size. See `from_batch_with_leaf_size` for more
     /// information.
-    fn from_batch<'a, F: Float, D: 'a + Distance<F>>(
+    fn from_batch<'a, F: Float, DT: Data<Elem = F>, D: 'a + Distance<F>>(
         &self,
-        batch: &'a ArrayView2<'a, F>,
+        batch: &'a ArrayBase<DT, Ix2>,
         dist_fn: D,
     ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError> {
         self.from_batch_with_leaf_size(batch, 2usize.pow(4), dist_fn)
@@ -130,10 +130,9 @@ pub trait NearestNeighbourIndex<F: Float> {
 /// let distr = Uniform::new(-500., 500.);
 /// // Randomly generate points for building the index
 /// let points = Array2::random_using((5000, n_features), distr, &mut rng);
-/// let points_view = points.view();
 ///
 /// // Build a K-D tree with Euclidean distance as the distance function
-/// let nn = CommonNearestNeighbour::KdTree.from_batch(&points_view, L2Dist).unwrap();
+/// let nn = CommonNearestNeighbour::KdTree.from_batch(&points, L2Dist).unwrap();
 ///
 /// let pt = Array1::random_using(n_features, distr, &mut rng);
 /// // Compute the 10 nearest points to `pt` in the index
@@ -152,9 +151,9 @@ pub enum CommonNearestNeighbour {
 }
 
 impl NearestNeighbour for CommonNearestNeighbour {
-    fn from_batch_with_leaf_size<'a, F: Float, D: 'a + Distance<F>>(
+    fn from_batch_with_leaf_size<'a, F: Float, DT: Data<Elem = F>, D: 'a + Distance<F>>(
         &self,
-        batch: &'a ArrayView2<'a, F>,
+        batch: &'a ArrayBase<DT, Ix2>,
         leaf_size: usize,
         dist_fn: D,
     ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError> {
@@ -201,8 +200,7 @@ mod test {
     }
 
     fn nn_test_empty(builder: &CommonNearestNeighbour) {
-        let points_arr = Array2::zeros((0, 2));
-        let points = points_arr.view();
+        let points = Array2::zeros((0, 2));
         let nn = builder.from_batch(&points, L2Dist).unwrap();
 
         let out = nn.k_nearest(aview1(&[0.0, 1.0]), 2).unwrap();
@@ -217,12 +215,10 @@ mod test {
     }
 
     fn nn_test_error(builder: &CommonNearestNeighbour) {
-        let points_arr = Array2::<f64>::zeros((4, 0));
-        let points = points_arr.view();
+        let points = Array2::<f64>::zeros((4, 0));
         assert!(builder.from_batch(&points, L2Dist).is_err());
 
-        let points_arr = arr2(&[[0.0, 2.0]]);
-        let points = points_arr.view();
+        let points = arr2(&[[0.0, 2.0]]);
         assert!(builder
             .from_batch_with_leaf_size(&points, 0, L2Dist)
             .is_err());
@@ -232,30 +228,28 @@ mod test {
     }
 
     fn nn_test(builder: &CommonNearestNeighbour, sort_within_range: bool) {
-        let points_arr = arr2(&[[0.0, 2.0], [10.0, 4.0], [4.0, 5.0], [7.0, 1.0], [1.0, 7.2]]);
-        let points = points_arr.view();
+        let points = arr2(&[[0.0, 2.0], [10.0, 4.0], [4.0, 5.0], [7.0, 1.0], [1.0, 7.2]]);
         let nn = builder.from_batch(&points, L2Dist).unwrap();
 
         let out = nn.k_nearest(aview1(&[0.0, 1.0]), 2).unwrap();
-        assert_query(out, &points_arr, vec![0, 2]);
+        assert_query(out, &points, vec![0, 2]);
 
         let out = nn.k_nearest(aview1(&[4.0, 4.0]), 3).unwrap();
-        assert_query(out, &points_arr, vec![2, 3, 4]);
+        assert_query(out, &points, vec![2, 3, 4]);
 
         let out = nn.k_nearest(aview1(&[4.0, 4.0]), 10).unwrap();
-        assert_query(out, &points_arr, vec![2, 3, 4, 0, 1]);
+        assert_query(out, &points, vec![2, 3, 4, 0, 1]);
 
         let pt = aview1(&[6.0, 3.0]);
         let mut out = nn.within_range(pt, 4.3).unwrap();
         if sort_within_range {
             out = sort_by_dist(out, pt.clone());
         }
-        assert_query(out, &points_arr, vec![3, 2, 1]);
+        assert_query(out, &points, vec![3, 2, 1]);
     }
 
     fn nn_test_degenerate(builder: &CommonNearestNeighbour) {
-        let points_arr = arr2(&[[0.0, 2.0], [0.0, 2.0], [0.0, 2.0], [0.0, 2.0], [0.0, 2.0]]);
-        let points = points_arr.view();
+        let points = arr2(&[[0.0, 2.0], [0.0, 2.0], [0.0, 2.0], [0.0, 2.0], [0.0, 2.0]]);
         let nn = builder.from_batch(&points, L2Dist).unwrap();
 
         let out = nn
@@ -314,9 +308,8 @@ mod test {
         let mut rng = Isaac64Rng::seed_from_u64(40);
         let n_points = 50000;
         let n_features = 3;
-        let points_arr =
+        let points =
             Array2::random_using((n_points, n_features), Uniform::new(-50., 50.), &mut rng);
-        let points = points_arr.view();
 
         let linear = LinearSearch::new()
             .from_batch(&points, dist_fn.clone())

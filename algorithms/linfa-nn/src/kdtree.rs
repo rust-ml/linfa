@@ -1,5 +1,5 @@
 use linfa::Float;
-use ndarray::{aview1, ArrayBase, ArrayView2, Data, Ix2};
+use ndarray::{aview1, ArrayBase, Data, Ix2};
 
 use crate::{
     distance::Distance, BuildError, NearestNeighbour, NearestNeighbourIndex, NnError, Point,
@@ -14,8 +14,8 @@ pub struct KdTreeIndex<'a, F: Float, D: Distance<F>>(
 
 impl<'a, F: Float, D: Distance<F>> KdTreeIndex<'a, F, D> {
     /// Creates a new `KdTreeIndex`
-    pub fn new<DA: Data<Elem = F>>(
-        batch: &'a ArrayBase<DA, Ix2>,
+    pub fn new<DT: Data<Elem = F>>(
+        batch: &'a ArrayBase<DT, Ix2>,
         leaf_size: usize,
         dist_fn: D,
     ) -> Result<Self, BuildError> {
@@ -104,9 +104,9 @@ impl KdTree {
 }
 
 impl NearestNeighbour for KdTree {
-    fn from_batch_with_leaf_size<'a, F: Float, D: 'a + Distance<F>>(
+    fn from_batch_with_leaf_size<'a, F: Float, DT: Data<Elem = F>, D: 'a + Distance<F>>(
         &self,
-        batch: &'a ArrayView2<'a, F>,
+        batch: &'a ArrayBase<DT, Ix2>,
         leaf_size: usize,
         dist_fn: D,
     ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError> {

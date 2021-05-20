@@ -1,7 +1,7 @@
 use crate::dbscan::hyperparameters::{DbscanHyperParams, DbscanHyperParamsBuilder};
 use linfa_nn::{
     distance::{Distance, L2Dist},
-    NearestNeighbourIndex,
+    CommonNearestNeighbour, NearestNeighbour, NearestNeighbourIndex,
 };
 use ndarray::{Array1, ArrayBase, Data, Ix2};
 use std::collections::VecDeque;
@@ -74,20 +74,36 @@ use linfa::{DatasetBase, Float};
 pub struct Dbscan;
 
 impl Dbscan {
-    pub fn params<F: Float>(min_points: usize) -> DbscanHyperParamsBuilder<F, L2Dist> {
-        DbscanHyperParamsBuilder::new(min_points)
+    /// Configures the hyperparameters with the minimum number of points required to form a cluster
+    ///
+    /// Defaults are provided if the optional parameters are not specified:
+    /// * `tolerance = 1e-4`
+    /// * `dist_fn = L2Dist` (Euclidean distance)
+    /// * `nn_impl = KdTree`
+    pub fn params<F: Float>(
+        min_points: usize,
+    ) -> DbscanHyperParamsBuilder<F, L2Dist, CommonNearestNeighbour> {
+        Self::params_with_custom_fields(min_points, L2Dist, CommonNearestNeighbour::KdTree)
     }
 
-    pub fn params_with_dist<F: Float, D: 'static + Distance<F>>(
+    /// Configures the hyperparameters with the minimum number of points, a custom distance metric,
+    /// and a custom nearest neighbour algorithm
+    pub fn params_with_custom_fields<F: Float, D: Distance<F>, N: NearestNeighbour>(
         min_points: usize,
         dist_fn: D,
-    ) -> DbscanHyperParamsBuilder<F, D> {
-        DbscanHyperParamsBuilder::with_dist_fn(min_points, dist_fn)
+        nn_impl: N,
+    ) -> DbscanHyperParamsBuilder<F, D, N> {
+        DbscanHyperParamsBuilder {
+            min_points,
+            tolerance: F::cast(1e-4),
+            dist_fn,
+            nn_impl,
+        }
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, DF: Distance<F>>
-    Transformer<&ArrayBase<D, Ix2>, Array1<Option<usize>>> for DbscanHyperParams<F, DF>
+impl<F: Float, D: Data<Elem = F>, DF: Distance<F>, N: NearestNeighbour>
+    Transformer<&ArrayBase<D, Ix2>, Array1<Option<usize>>> for DbscanHyperParams<F, DF, N>
 {
     fn transform(&self, observations: &ArrayBase<D, Ix2>) -> Array1<Option<usize>> {
         let mut cluster_memberships = Array1::from_elem(observations.nrows(), None);
@@ -95,11 +111,10 @@ impl<F: Float, D: Data<Elem = F>, DF: Distance<F>>
         // Tracks whether a value is in the search queue to prevent duplicates
         let mut search_found = vec![false; observations.nrows()];
         let mut search_queue = VecDeque::with_capacity(observations.nrows());
-        let obs = observations.view();
         // TODO what to do about this unwrap
         let nn = self
             .nn_impl()
-            .from_batch(&obs, self.dist_fn().clone())
+            .from_batch(&observations, self.dist_fn().clone())
             .unwrap();
 
         for i in 0..observations.nrows() {
@@ -149,7 +164,7 @@ impl<F: Float, D: Data<Elem = F>, DF: Distance<F>>
     }
 }
 
-impl<F: Float, D: Distance<F>> DbscanHyperParams<F, D> {
+impl<F: Float, D: Distance<F>, N: NearestNeighbour> DbscanHyperParams<F, D, N> {
     fn find_neighbors(
         &self,
         nn: &dyn NearestNeighbourIndex<F>,
@@ -172,11 +187,11 @@ impl<F: Float, D: Distance<F>> DbscanHyperParams<F, D> {
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T, DF: Distance<F>>
+impl<F: Float, D: Data<Elem = F>, T, DF: Distance<F>, N: NearestNeighbour>
     Transformer<
         DatasetBase<ArrayBase<D, Ix2>, T>,
         DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>,
-    > for DbscanHyperParams<F, DF>
+    > for DbscanHyperParams<F, DF, N>
 {
     fn transform(
         &self,
@@ -187,7 +202,7 @@ impl<F: Float, D: Data<Elem = F>, T, DF: Distance<F>>
     }
 }
 
-impl<F: Float, DF: 'static + Distance<F>> DbscanHyperParamsBuilder<F, DF> {
+impl<F: Float, DF: 'static + Distance<F>, N: NearestNeighbour> DbscanHyperParamsBuilder<F, DF, N> {
     pub fn transform<D: Data<Elem = F>>(
         self,
         observations: &ArrayBase<D, Ix2>,

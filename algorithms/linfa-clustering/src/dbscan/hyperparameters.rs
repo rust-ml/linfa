@@ -1,8 +1,5 @@
 use linfa::Float;
-use linfa_nn::{
-    distance::{Distance, L2Dist},
-    KdTree, NearestNeighbour,
-};
+use linfa_nn::{distance::Distance, NearestNeighbour};
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 
@@ -14,7 +11,7 @@ use serde_crate::{Deserialize, Serialize};
 #[derive(Debug)]
 /// The set of hyperparameters that can be specified for the execution of
 /// the [DBSCAN algorithm](struct.Dbscan.html).
-pub struct DbscanHyperParams<F: Float, D: Distance<F>> {
+pub struct DbscanHyperParams<F: Float, D: Distance<F>, N: NearestNeighbour> {
     /// Distance between points for them to be considered neighbours.
     tolerance: F,
     /// Minimum number of neighboring points a point needs to have to be a core
@@ -23,43 +20,18 @@ pub struct DbscanHyperParams<F: Float, D: Distance<F>> {
     /// Distance metric used in the DBSCAN calculation
     dist_fn: D,
     /// Nearest neighbour algorithm used for range queries
-    nn_impl: Box<dyn NearestNeighbour<F, D>>,
+    nn_impl: N,
 }
 
 /// Helper struct used to construct a set of hyperparameters for [DBSCAN algorithm](struct.Dbscan.html).
-pub struct DbscanHyperParamsBuilder<F: Float, D: Distance<F>> {
-    tolerance: F,
-    min_points: usize,
-    dist_fn: D,
-    nn_impl: Box<dyn NearestNeighbour<F, D>>,
+pub struct DbscanHyperParamsBuilder<F: Float, D: Distance<F>, N: NearestNeighbour> {
+    pub(crate) tolerance: F,
+    pub(crate) min_points: usize,
+    pub(crate) dist_fn: D,
+    pub(crate) nn_impl: N,
 }
 
-impl<F: Float> DbscanHyperParamsBuilder<F, L2Dist> {
-    /// Configures the hyperparameters with the minimum number of points required to form a cluster
-    ///
-    /// Defaults are provided if the optional parameters are not specified:
-    /// * `tolerance = 1e-4`
-    /// * `nn_impl = KdTree`
-    /// * `dist_fn = L2Dist` (Euclidean distance)
-    // Violates the convention that new should return a value of type `Self`
-    #[allow(clippy::new_ret_no_self)]
-    pub fn new(min_points: usize) -> Self {
-        Self::with_dist_fn(min_points, L2Dist)
-    }
-}
-
-impl<F: Float, D: 'static + Distance<F>> DbscanHyperParamsBuilder<F, D> {
-    /// Configures the hyperparameters with the minimum number of points and a custom distance
-    /// metric
-    pub fn with_dist_fn(min_points: usize, dist_fn: D) -> Self {
-        DbscanHyperParamsBuilder {
-            min_points,
-            tolerance: F::cast(1e-4),
-            dist_fn,
-            nn_impl: Box::new(KdTree::new()),
-        }
-    }
-
+impl<F: Float, D: Distance<F>, N: NearestNeighbour> DbscanHyperParamsBuilder<F, D, N> {
     /// Distance between points for them to be considered neighbours.
     pub fn tolerance(mut self, tolerance: F) -> Self {
         self.tolerance = tolerance;
@@ -67,8 +39,14 @@ impl<F: Float, D: 'static + Distance<F>> DbscanHyperParamsBuilder<F, D> {
     }
 
     /// Nearest neighbour algorithm used for range queries
-    pub fn nn_impl(mut self, nn_impl: impl 'static + NearestNeighbour<F, D>) -> Self {
-        self.nn_impl = Box::new(nn_impl);
+    pub fn nn_impl(mut self, nn_impl: N) -> Self {
+        self.nn_impl = nn_impl;
+        self
+    }
+
+    /// Distance metric used in the DBSCAN calculation
+    pub fn dist_fn(mut self, dist_fn: D) -> Self {
+        self.dist_fn = dist_fn;
         self
     }
 
@@ -76,7 +54,7 @@ impl<F: Float, D: 'static + Distance<F>> DbscanHyperParamsBuilder<F, D> {
     /// validation checks on all hyperparameters.
     ///
     /// **Panics** if any of the validation checks fail.
-    pub fn build(self) -> DbscanHyperParams<F, D> {
+    pub fn build(self) -> DbscanHyperParams<F, D, N> {
         if self.tolerance <= F::zero() {
             panic!("`tolerance` must be greater than 0!");
         }
@@ -93,7 +71,7 @@ impl<F: Float, D: 'static + Distance<F>> DbscanHyperParamsBuilder<F, D> {
     }
 }
 
-impl<F: Float, D: Distance<F>> DbscanHyperParams<F, D> {
+impl<F: Float, D: Distance<F>, N: NearestNeighbour> DbscanHyperParams<F, D, N> {
     /// Two points are considered neighbors if the euclidean distance between
     /// them is below the tolerance
     pub fn tolerance(&self) -> F {
@@ -112,7 +90,7 @@ impl<F: Float, D: Distance<F>> DbscanHyperParams<F, D> {
     }
 
     /// Nearest neighbour algorithm used for range queries
-    pub fn nn_impl(&self) -> &dyn NearestNeighbour<F, D> {
-        &*self.nn_impl
+    pub fn nn_impl(&self) -> &N {
+        &self.nn_impl
     }
 }
