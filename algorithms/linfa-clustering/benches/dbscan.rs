@@ -1,7 +1,4 @@
-use criterion::{
-    black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
-    PlotConfiguration,
-};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use linfa_clustering::{generate_blobs, Dbscan};
 use ndarray::Array2;
 use ndarray_rand::rand::SeedableRng;
@@ -14,7 +11,6 @@ fn dbscan_bench(c: &mut Criterion) {
     let cluster_sizes = vec![10, 100, 1000, 10000];
 
     let mut benchmark = c.benchmark_group("dbscan");
-    benchmark.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
     for cluster_size in cluster_sizes {
         let rng = &mut rng;
         benchmark.bench_with_input(
