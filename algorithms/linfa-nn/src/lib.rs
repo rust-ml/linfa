@@ -140,6 +140,7 @@ pub trait NearestNeighbourIndex<F: Float> {
 /// // Compute all points within 100 units of `pt`
 /// let range = nn.within_range(pt.view(), 100.0).unwrap();
 /// ```
+#[non_exhaustive]
 #[derive(Debug)]
 pub enum CommonNearestNeighbour {
     /// Linear search
