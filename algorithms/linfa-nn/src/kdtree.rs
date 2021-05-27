@@ -1,5 +1,7 @@
 use linfa::Float;
 use ndarray::{aview1, ArrayBase, Data, Ix2};
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 use crate::{
     distance::Distance, BuildError, NearestNeighbour, NearestNeighbourIndex, NnError, Point,
@@ -94,6 +96,11 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for KdTreeIndex<'a, 
 /// Unlike other `NearestNeighbour` implementations, `KdTree` requires that points be laid out
 /// contiguously in memory and will panic otherwise.
 #[derive(Default, Clone, Debug)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub struct KdTree;
 
 impl KdTree {

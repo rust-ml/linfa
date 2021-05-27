@@ -24,6 +24,8 @@
 use distance::Distance;
 use linfa::Float;
 use ndarray::{ArrayBase, ArrayView1, Data, Ix2};
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 use thiserror::Error;
 
 mod balltree;
@@ -142,6 +144,11 @@ pub trait NearestNeighbourIndex<F: Float> {
 /// ```
 #[non_exhaustive]
 #[derive(Debug)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub enum CommonNearestNeighbour {
     /// Linear search
     LinearSearch,
