@@ -18,7 +18,7 @@ categories = ["algorithms", "mathematics", "science"]
 
 [features]
 default = []
-serde = ["serde_crate", "ndarray/serde"]
+serde = ["serde_crate", "ndarray/serde", "linfa-nn/serde"]
 
 [dependencies.serde_crate]
 package = "serde"
