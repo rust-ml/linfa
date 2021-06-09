@@ -79,25 +79,25 @@ impl Dbscan {
     /// Defaults are provided if the optional parameters are not specified:
     /// * `tolerance = 1e-4`
     /// * `dist_fn = L2Dist` (Euclidean distance)
-    /// * `nn_impl = KdTree`
+    /// * `nn_algo = KdTree`
     pub fn params<F: Float>(
         min_points: usize,
     ) -> DbscanHyperParamsBuilder<F, L2Dist, CommonNearestNeighbour> {
-        Self::params_with_custom_fields(min_points, L2Dist, CommonNearestNeighbour::KdTree)
+        Self::params_with(min_points, L2Dist, CommonNearestNeighbour::KdTree)
     }
 
     /// Configures the hyperparameters with the minimum number of points, a custom distance metric,
     /// and a custom nearest neighbour algorithm
-    pub fn params_with_custom_fields<F: Float, D: Distance<F>, N: NearestNeighbour>(
+    pub fn params_with<F: Float, D: Distance<F>, N: NearestNeighbour>(
         min_points: usize,
         dist_fn: D,
-        nn_impl: N,
+        nn_algo: N,
     ) -> DbscanHyperParamsBuilder<F, D, N> {
         DbscanHyperParamsBuilder {
             min_points,
             tolerance: F::cast(1e-4),
             dist_fn,
-            nn_impl,
+            nn_algo,
         }
     }
 }
@@ -113,7 +113,7 @@ impl<F: Float, D: Data<Elem = F>, DF: Distance<F>, N: NearestNeighbour>
         let mut search_queue = VecDeque::with_capacity(observations.nrows());
         // TODO what to do about this unwrap
         let nn = self
-            .nn_impl()
+            .nn_algo()
             .from_batch(&observations, self.dist_fn().clone())
             .unwrap();
 

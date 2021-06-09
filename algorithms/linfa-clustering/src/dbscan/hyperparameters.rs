@@ -20,7 +20,7 @@ pub struct DbscanHyperParams<F: Float, D: Distance<F>, N: NearestNeighbour> {
     /// Distance metric used in the DBSCAN calculation
     dist_fn: D,
     /// Nearest neighbour algorithm used for range queries
-    nn_impl: N,
+    nn_algo: N,
 }
 
 /// Helper struct used to construct a set of hyperparameters for [DBSCAN algorithm](struct.Dbscan.html).
@@ -28,7 +28,7 @@ pub struct DbscanHyperParamsBuilder<F: Float, D: Distance<F>, N: NearestNeighbou
     pub(crate) tolerance: F,
     pub(crate) min_points: usize,
     pub(crate) dist_fn: D,
-    pub(crate) nn_impl: N,
+    pub(crate) nn_algo: N,
 }
 
 impl<F: Float, D: Distance<F>, N: NearestNeighbour> DbscanHyperParamsBuilder<F, D, N> {
@@ -39,8 +39,8 @@ impl<F: Float, D: Distance<F>, N: NearestNeighbour> DbscanHyperParamsBuilder<F, 
     }
 
     /// Nearest neighbour algorithm used for range queries
-    pub fn nn_impl(mut self, nn_impl: N) -> Self {
-        self.nn_impl = nn_impl;
+    pub fn nn_algo(mut self, nn_algo: N) -> Self {
+        self.nn_algo = nn_algo;
         self
     }
 
@@ -65,7 +65,7 @@ impl<F: Float, D: Distance<F>, N: NearestNeighbour> DbscanHyperParamsBuilder<F, 
         DbscanHyperParams {
             tolerance: self.tolerance,
             min_points: self.min_points,
-            nn_impl: self.nn_impl,
+            nn_algo: self.nn_algo,
             dist_fn: self.dist_fn,
         }
     }
@@ -90,7 +90,7 @@ impl<F: Float, D: Distance<F>, N: NearestNeighbour> DbscanHyperParams<F, D, N> {
     }
 
     /// Nearest neighbour algorithm used for range queries
-    pub fn nn_impl(&self) -> &N {
-        &self.nn_impl
+    pub fn nn_algo(&self) -> &N {
+        &self.nn_algo
     }
 }
