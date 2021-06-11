@@ -26,8 +26,14 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           override: true
 
-      - name: Run cargo check
+      - name: Run cargo check (no features)
         uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --all
+          args: --workspace
+
+      - name: Run cargo check (with serde)
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --workspace --features linfa-clustering/serde linfa-ica/serde linfa-kernel/serde linfa-reduction/serde linfa-svm/serde linfa-elasticnet/serde linfa-pls/serde linfa-trees/serde
