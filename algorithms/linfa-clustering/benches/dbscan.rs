@@ -1,4 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use linfa::traits::Predict;
 use linfa_clustering::{generate_blobs, Dbscan};
 use ndarray::Array2;
 use ndarray_rand::rand::SeedableRng;
@@ -27,7 +28,7 @@ fn dbscan_bench(c: &mut Criterion) {
                     black_box(
                         Dbscan::params(min_points)
                             .tolerance(tolerance)
-                            .transform(&dataset),
+                            .predict(&dataset),
                     )
                 });
             },

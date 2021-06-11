@@ -1,4 +1,4 @@
-use crate::dbscan::hyperparameters::{DbscanHyperParams, DbscanHyperParamsBuilder};
+use crate::dbscan::hyperparameters::DbscanHyperParams;
 use linfa_nn::{
     distance::{Distance, L2Dist},
     CommonNearestNeighbour, NearestNeighbour, NearestNeighbourIndex,
@@ -6,8 +6,8 @@ use linfa_nn::{
 use ndarray::{Array1, ArrayBase, Data, Ix2};
 use std::collections::VecDeque;
 
-use linfa::traits::Transformer;
-use linfa::{DatasetBase, Float};
+use linfa::traits::PredictRef;
+use linfa::Float;
 
 #[derive(Clone, Debug, PartialEq)]
 /// DBSCAN (Density-based Spatial Clustering of Applications with Noise)
@@ -41,7 +41,7 @@ use linfa::{DatasetBase, Float};
 /// Let's do a walkthrough of an example running DBSCAN on some data.
 ///
 /// ```rust
-/// use linfa::traits::Transformer;
+/// use linfa::traits::Predict;
 /// use linfa_clustering::{DbscanHyperParams, Dbscan, generate_blobs};
 /// use ndarray::{Axis, array, s};
 /// use ndarray_rand::rand::SeedableRng;
@@ -67,7 +67,7 @@ use linfa::{DatasetBase, Float};
 /// let min_points = 3;
 /// let clusters = Dbscan::params(min_points)
 ///     .tolerance(1e-2)
-///     .transform(&observations);
+///     .predict(&observations);
 /// // Points are `None` if noise `Some(id)` if belonging to a cluster.
 /// ```
 ///
@@ -82,7 +82,7 @@ impl Dbscan {
     /// * `nn_algo = KdTree`
     pub fn params<F: Float>(
         min_points: usize,
-    ) -> DbscanHyperParamsBuilder<F, L2Dist, CommonNearestNeighbour> {
+    ) -> DbscanHyperParams<F, L2Dist, CommonNearestNeighbour> {
         Self::params_with(min_points, L2Dist, CommonNearestNeighbour::KdTree)
     }
 
@@ -92,20 +92,15 @@ impl Dbscan {
         min_points: usize,
         dist_fn: D,
         nn_algo: N,
-    ) -> DbscanHyperParamsBuilder<F, D, N> {
-        DbscanHyperParamsBuilder {
-            min_points,
-            tolerance: F::cast(1e-4),
-            dist_fn,
-            nn_algo,
-        }
+    ) -> DbscanHyperParams<F, D, N> {
+        DbscanHyperParams::new(min_points, dist_fn, nn_algo)
     }
 }
 
 impl<F: Float, D: Data<Elem = F>, DF: Distance<F>, N: NearestNeighbour>
-    Transformer<&ArrayBase<D, Ix2>, Array1<Option<usize>>> for DbscanHyperParams<F, DF, N>
+    PredictRef<ArrayBase<D, Ix2>, Array1<Option<usize>>> for DbscanHyperParams<F, DF, N>
 {
-    fn transform(&self, observations: &ArrayBase<D, Ix2>) -> Array1<Option<usize>> {
+    fn predict_ref<'a>(&'a self, observations: &'a ArrayBase<D, Ix2>) -> Array1<Option<usize>> {
         let mut cluster_memberships = Array1::from_elem(observations.nrows(), None);
         let mut current_cluster_id = 0;
         // Tracks whether a value is in the search queue to prevent duplicates
@@ -113,22 +108,17 @@ impl<F: Float, D: Data<Elem = F>, DF: Distance<F>, N: NearestNeighbour>
         let mut search_queue = VecDeque::with_capacity(observations.nrows());
         // TODO what to do about this unwrap
         let nn = self
-            .nn_algo()
-            .from_batch(&observations, self.dist_fn().clone())
+            .nn_algo
+            .from_batch(&observations, self.dist_fn.clone())
             .unwrap();
 
         for i in 0..observations.nrows() {
             if cluster_memberships[i].is_some() {
                 continue;
             }
-            let (neighbor_count, neighbors) = self.find_neighbors(
-                &*nn,
-                i,
-                observations,
-                self.tolerance(),
-                &cluster_memberships,
-            );
-            if neighbor_count < self.minimum_points() {
+            let (neighbor_count, neighbors) =
+                self.find_neighbors(&*nn, i, observations, self.tolerance, &cluster_memberships);
+            if neighbor_count < self.min_points {
                 continue;
             }
             neighbors.iter().for_each(|&n| search_found[n] = true);
@@ -144,12 +134,12 @@ impl<F: Float, D: Data<Elem = F>, DF: Distance<F>, N: NearestNeighbour>
                     &*nn,
                     candidate_idx,
                     observations,
-                    self.tolerance(),
+                    self.tolerance,
                     &cluster_memberships,
                 );
                 // Make the candidate a part of the cluster even if it's not a core point
                 cluster_memberships[candidate_idx] = Some(current_cluster_id);
-                if neighbor_count >= self.minimum_points() {
+                if neighbor_count >= self.min_points {
                     for n in neighbors.into_iter() {
                         if !search_found[n] {
                             search_queue.push_back(n);
@@ -174,7 +164,7 @@ impl<F: Float, D: Distance<F>, N: NearestNeighbour> DbscanHyperParams<F, D, N> {
         clusters: &Array1<Option<usize>>,
     ) -> (usize, Vec<usize>) {
         let candidate = observations.row(idx);
-        let mut res = Vec::with_capacity(self.minimum_points());
+        let mut res = Vec::with_capacity(self.min_points);
         let mut count = 0;
         // TODO what to do about this unwrap?
         for (_, i) in nn.within_range(candidate.view(), eps).unwrap().into_iter() {
@@ -187,40 +177,10 @@ impl<F: Float, D: Distance<F>, N: NearestNeighbour> DbscanHyperParams<F, D, N> {
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T, DF: Distance<F>, N: NearestNeighbour>
-    Transformer<
-        DatasetBase<ArrayBase<D, Ix2>, T>,
-        DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>,
-    > for DbscanHyperParams<F, DF, N>
-{
-    fn transform(
-        &self,
-        dataset: DatasetBase<ArrayBase<D, Ix2>, T>,
-    ) -> DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>> {
-        let predicted = self.transform(dataset.records());
-        dataset.with_targets(predicted)
-    }
-}
-
-impl<F: Float, DF: 'static + Distance<F>, N: NearestNeighbour> DbscanHyperParamsBuilder<F, DF, N> {
-    pub fn transform<D: Data<Elem = F>>(
-        self,
-        observations: &ArrayBase<D, Ix2>,
-    ) -> Array1<Option<usize>> {
-        self.build().transform(observations)
-    }
-
-    pub fn transform_dataset<D: Data<Elem = F>, T>(
-        self,
-        dataset: DatasetBase<ArrayBase<D, Ix2>, T>,
-    ) -> DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>> {
-        self.build().transform(dataset)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use linfa::traits::Predict;
     use ndarray::{arr1, arr2, s, Array2};
 
     #[test]
@@ -242,7 +202,7 @@ mod tests {
         data.column_mut(0).slice_mut(s![40..]).fill(5.0);
         data.column_mut(1).slice_mut(s![40..]).fill(5.0);
 
-        let labels = Dbscan::params(2).tolerance(1.0).transform(&data);
+        let labels = Dbscan::params(2).tolerance(1.0).predict(&data);
 
         assert!(labels.slice(s![..40]).iter().all(|x| x == &Some(0)));
         assert!(labels.slice(s![40..]).iter().all(|x| x == &Some(1)));
@@ -253,7 +213,7 @@ mod tests {
         let mut data: Array2<f64> = Array2::zeros((5, 2));
         data.row_mut(0).assign(&arr1(&[10.0, 10.0]));
 
-        let labels = Dbscan::params(4).transform(&data);
+        let labels = Dbscan::params(4).predict(&data);
 
         let expected = arr1(&[None, Some(0), Some(0), Some(0), Some(0)]);
         assert_eq!(labels, expected);
@@ -274,7 +234,7 @@ mod tests {
         ]);
 
         // Run the approximate dbscan with tolerance of 1.1, 5 min points for density
-        let labels = Dbscan::params(5).tolerance(1.1).transform(&data);
+        let labels = Dbscan::params(5).tolerance(1.1).predict(&data);
 
         assert_eq!(labels[0], None);
         for id in labels.slice(s![1..]).iter() {
@@ -286,7 +246,7 @@ mod tests {
     fn dataset_too_small() {
         let data: Array2<f64> = Array2::zeros((3, 2));
 
-        let labels = Dbscan::params(4).transform(&data);
+        let labels = Dbscan::params(4).predict(&data);
         assert!(labels.iter().all(|x| x.is_none()));
     }
 }

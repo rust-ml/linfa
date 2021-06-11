@@ -13,84 +13,68 @@ use serde_crate::{Deserialize, Serialize};
 /// the [DBSCAN algorithm](struct.Dbscan.html).
 pub struct DbscanHyperParams<F: Float, D: Distance<F>, N: NearestNeighbour> {
     /// Distance between points for them to be considered neighbours.
-    tolerance: F,
+    pub(crate) tolerance: F,
     /// Minimum number of neighboring points a point needs to have to be a core
     /// point and not a noise point.
-    min_points: usize,
-    /// Distance metric used in the DBSCAN calculation
-    dist_fn: D,
-    /// Nearest neighbour algorithm used for range queries
-    nn_algo: N,
-}
-
-/// Helper struct used to construct a set of hyperparameters for [DBSCAN algorithm](struct.Dbscan.html).
-pub struct DbscanHyperParamsBuilder<F: Float, D: Distance<F>, N: NearestNeighbour> {
-    pub(crate) tolerance: F,
     pub(crate) min_points: usize,
+    /// Distance metric used in the DBSCAN calculation
     pub(crate) dist_fn: D,
+    /// Nearest neighbour algorithm used for range queries
     pub(crate) nn_algo: N,
 }
 
-impl<F: Float, D: Distance<F>, N: NearestNeighbour> DbscanHyperParamsBuilder<F, D, N> {
-    /// Distance between points for them to be considered neighbours.
+impl<F: Float, D: Distance<F>, N: NearestNeighbour> DbscanHyperParams<F, D, N> {
+    pub(crate) fn new(min_points: usize, dist_fn: D, nn_algo: N) -> Self {
+        if min_points <= 1 {
+            panic!("`min_points` must be greater than 1!");
+        }
+
+        DbscanHyperParams {
+            min_points,
+            tolerance: F::cast(1e-4),
+            dist_fn,
+            nn_algo,
+        }
+    }
+
+    /// Set the tolerance
     pub fn tolerance(mut self, tolerance: F) -> Self {
+        if tolerance <= F::zero() {
+            panic!("`tolerance` must be greater than 0!");
+        }
+
         self.tolerance = tolerance;
         self
     }
 
-    /// Nearest neighbour algorithm used for range queries
+    /// Set the nearest neighbour algorithm to be used
     pub fn nn_algo(mut self, nn_algo: N) -> Self {
         self.nn_algo = nn_algo;
         self
     }
 
-    /// Distance metric used in the DBSCAN calculation
+    /// Set the distance metric
     pub fn dist_fn(mut self, dist_fn: D) -> Self {
         self.dist_fn = dist_fn;
         self
     }
 
-    /// Return an instance of `DbscanHyperParams` after having performed
-    /// validation checks on all hyperparameters.
-    ///
-    /// **Panics** if any of the validation checks fail.
-    pub fn build(self) -> DbscanHyperParams<F, D, N> {
-        if self.tolerance <= F::zero() {
-            panic!("`tolerance` must be greater than 0!");
-        }
-        // There is always at least one neighbor to a point (itself)
-        if self.min_points <= 1 {
-            panic!("`min_points` must be greater than 1!");
-        }
-        DbscanHyperParams {
-            tolerance: self.tolerance,
-            min_points: self.min_points,
-            nn_algo: self.nn_algo,
-            dist_fn: self.dist_fn,
-        }
-    }
-}
-
-impl<F: Float, D: Distance<F>, N: NearestNeighbour> DbscanHyperParams<F, D, N> {
-    /// Two points are considered neighbors if the euclidean distance between
-    /// them is below the tolerance
-    pub fn tolerance(&self) -> F {
+    /// Get the tolerance
+    pub fn get_tolerance(&self) -> F {
         self.tolerance
     }
 
-    /// Minimum number of a points in a neighborhood around a point for it to
-    /// not be considered noise
-    pub fn minimum_points(&self) -> usize {
+    /// Get the minimum number of points
+    pub fn get_minimum_points(&self) -> usize {
         self.min_points
     }
 
-    /// Distance metric used in the DBSCAN calculation
-    pub fn dist_fn(&self) -> &D {
+    /// Get the distance metric
+    pub fn get_dist_fn(&self) -> &D {
         &self.dist_fn
     }
 
-    /// Nearest neighbour algorithm used for range queries
-    pub fn nn_algo(&self) -> &N {
+    pub fn get_nn_algo(&self) -> &N {
         &self.nn_algo
     }
 }

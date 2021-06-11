@@ -1,7 +1,7 @@
 use crate::appx_dbscan::clustering::AppxDbscanLabeler;
-use crate::appx_dbscan::hyperparameters::{AppxDbscanHyperParams, AppxDbscanHyperParamsBuilder};
-use linfa::traits::Transformer;
-use linfa::{DatasetBase, Float};
+use crate::appx_dbscan::hyperparameters::AppxDbscanHyperParams;
+use linfa::traits::PredictRef;
+use linfa::Float;
 use ndarray::{Array1, ArrayBase, Data, Ix2};
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
@@ -56,7 +56,7 @@ use serde_crate::{Deserialize, Serialize};
 ///
 /// ```rust
 /// use linfa_clustering::{AppxDbscan, generate_blobs};
-/// use linfa::traits::Transformer;
+/// use linfa::traits::Predict;
 /// use ndarray::{Axis, array, s};
 /// use ndarray_rand::rand::SeedableRng;
 /// use rand_isaac::Isaac64Rng;
@@ -79,65 +79,34 @@ use serde_crate::{Deserialize, Serialize};
 /// // If you don't specify the others (e.g. `tolerance`, `slack`)
 /// // default values will be used.
 /// let min_points = 3;
-/// let params = AppxDbscan::params(min_points).tolerance(1e-2).slack(1e-3).build();
+/// let params = AppxDbscan::params(min_points).tolerance(1e-2).slack(1e-3);
 /// // Let's run the algorithm!
-/// let labels = params.transform(&observations);
+/// let labels = params.predict(&observations);
 /// // Points are `None` if noise `Some(id)` if belonging to a cluster.
 /// ```
 ///
 pub struct AppxDbscan;
 
 impl AppxDbscan {
-    pub fn params<F: Float>(min_points: usize) -> AppxDbscanHyperParamsBuilder<F> {
+    /// Configures the hyperparameters with the minimum number of points required to form a cluster
+    ///
+    /// Defaults are provided if the optional parameters are not specified:
+    /// * `tolerance = 1e-4`
+    /// * `slack = 1e-2`
+    pub fn params<F: Float>(min_points: usize) -> AppxDbscanHyperParams<F> {
         AppxDbscanHyperParams::new(min_points)
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<usize>>>
+impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<Option<usize>>>
     for AppxDbscanHyperParams<F>
 {
-    fn transform(&self, observations: &ArrayBase<D, Ix2>) -> Array1<Option<usize>> {
+    fn predict_ref<'a>(&'a self, observations: &'a ArrayBase<D, Ix2>) -> Array1<Option<usize>> {
         if observations.dim().0 == 0 {
             return Array1::from_elem(0, None);
         }
+
         let labeler = AppxDbscanLabeler::new(&observations.view(), &self);
-        labeler.labels().clone()
-    }
-}
-
-impl<F: Float, D: Data<Elem = F>, T>
-    Transformer<
-        DatasetBase<ArrayBase<D, Ix2>, T>,
-        DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>,
-    > for AppxDbscanHyperParams<F>
-{
-    fn transform(
-        &self,
-        dataset: DatasetBase<ArrayBase<D, Ix2>, T>,
-    ) -> DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>> {
-        let predicted = self.transform(dataset.records());
-        dataset.with_targets(predicted)
-    }
-}
-
-impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<usize>>>
-    for AppxDbscanHyperParamsBuilder<F>
-{
-    fn transform(&self, observations: &ArrayBase<D, Ix2>) -> Array1<Option<usize>> {
-        self.build().transform(observations)
-    }
-}
-
-impl<F: Float, D: Data<Elem = F>, T>
-    Transformer<
-        DatasetBase<ArrayBase<D, Ix2>, T>,
-        DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>,
-    > for AppxDbscanHyperParamsBuilder<F>
-{
-    fn transform(
-        &self,
-        dataset: DatasetBase<ArrayBase<D, Ix2>, T>,
-    ) -> DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>> {
-        self.build().transform(dataset)
+        labeler.into_labels()
     }
 }

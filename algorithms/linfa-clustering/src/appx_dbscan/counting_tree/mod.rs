@@ -30,7 +30,7 @@ impl<F: Float> TreeStructure<F> {
         let structure = TreeStructure {
             cell_center: cell_center_from_cell_index(cell_index.view(), side_size),
             cnt: 0,
-            side_size: side_size,
+            side_size,
             children: HashMap::new(),
         };
         structure
@@ -56,8 +56,8 @@ impl<F: Float> TreeStructure<F> {
             panic!("AppxDbscan::build structure internal error: attempting to initialize counting tree with no points");
         }
         let dimensionality = points[0].dim();
-        let base_side_size = params.tolerance() / (F::cast(dimensionality)).sqrt();
-        let levels_count = F::cast(1.0) + (F::cast(1.0) / params.slack()).log(F::cast(2.0)).ceil();
+        let base_side_size = params.tolerance / (F::cast(dimensionality)).sqrt();
+        let levels_count = F::cast(1.0) + (F::cast(1.0) / params.slack).log(F::cast(2.0)).ceil();
         let levels_count = if levels_count < F::cast(1.0) {
             1
         } else {
@@ -149,7 +149,7 @@ pub fn get_base_cell_index<F: Float>(
     params: &AppxDbscanHyperParams<F>,
 ) -> Array1<i64> {
     let dimensionality = p.dim();
-    get_cell_index(p, params.tolerance() / (F::cast(dimensionality)).sqrt())
+    get_cell_index(p, params.tolerance / (F::cast(dimensionality)).sqrt())
 }
 
 /// Determines the type of intersection between a cell and an approximated ball.
@@ -173,20 +173,20 @@ pub fn determine_intersection<F: Float>(
 
     // sufficient condition to be disjoint: shortest possible distance from point q
     // to the closest point of the cell (lying on a corner) still greater than the tolerance
-    if dist_from_center - dist_corner_from_center > params.tolerance() {
+    if dist_from_center - dist_corner_from_center > params.tolerance {
         // here we have sufficient and necessary conditions to be disjoint so we return that
         return IntersectionType::Disjoint;
     }
 
     // sufficient condition to be completely covered: distance from point to cell center plus distance from center to a corner
     // (farthest point from center) smaller or equal to the extended radius
-    if dist_from_center + dist_corner_from_center <= params.appx_tolerance() {
+    if dist_from_center + dist_corner_from_center <= params.get_appx_tolerance() {
         return IntersectionType::FullyCovered;
     }
 
     // sufficient condition to not be disjoint: longest possible distance from point q
     // to the closest point of the cell (lying on the middle of an 'egde') smaller than the tolerance
-    if dist_from_center - min_dist_edge_from_center <= params.tolerance() {
+    if dist_from_center - min_dist_edge_from_center <= params.tolerance {
         return IntersectionType::Intersecting;
     }
 
@@ -201,7 +201,7 @@ pub fn determine_intersection<F: Float>(
         }
     }
 
-    if farthest_corner_distance < params.appx_tolerance() {
+    if farthest_corner_distance < params.get_appx_tolerance() {
         return IntersectionType::FullyCovered;
     }
     return IntersectionType::Intersecting;
