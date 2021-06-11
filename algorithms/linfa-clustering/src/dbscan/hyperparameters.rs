@@ -78,3 +78,22 @@ impl<F: Float, D: Distance<F>, N: NearestNeighbour> DbscanHyperParams<F, D, N> {
         &self.nn_algo
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use linfa_nn::{CommonNearestNeighbour, distance::L2Dist};
+
+    use super::*;
+
+    #[test]
+    #[should_panic]
+    fn tolerance_cannot_be_zero() {
+        DbscanHyperParams::new(2, L2Dist, CommonNearestNeighbour::KdTree).tolerance(0.0);
+    }
+
+    #[test]
+    #[should_panic]
+    fn min_points_at_least_2() {
+        DbscanHyperParams::new(1, L2Dist, CommonNearestNeighbour::KdTree).tolerance(3.3);
+    }
+}
