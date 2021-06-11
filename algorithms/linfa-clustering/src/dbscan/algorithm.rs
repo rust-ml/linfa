@@ -106,11 +106,15 @@ impl<F: Float, D: Data<Elem = F>, DF: Distance<F>, N: NearestNeighbour>
         // Tracks whether a value is in the search queue to prevent duplicates
         let mut search_found = vec![false; observations.nrows()];
         let mut search_queue = VecDeque::with_capacity(observations.nrows());
-        // TODO what to do about this unwrap
-        let nn = self
-            .nn_algo
-            .from_batch(&observations, self.dist_fn.clone())
-            .unwrap();
+
+        // Construct NN index
+        let nn = match self.nn_algo.from_batch(&observations, self.dist_fn.clone()) {
+            Ok(nn) => nn,
+            Err(linfa_nn::BuildError::ZeroDimension) => {
+                return Array1::from_elem(observations.nrows(), None)
+            }
+            Err(e) => panic!("Unexpected nearest neighbour error: {}", e),
+        };
 
         for i in 0..observations.nrows() {
             if cluster_memberships[i].is_some() {
@@ -166,7 +170,9 @@ impl<F: Float, D: Distance<F>, N: NearestNeighbour> DbscanHyperParams<F, D, N> {
         let candidate = observations.row(idx);
         let mut res = Vec::with_capacity(self.min_points);
         let mut count = 0;
-        // TODO what to do about this unwrap?
+
+        // Unwrap here is fine because we don't expect any dimension mismatch when calling
+        // within_range with points from the observations
         for (_, i) in nn.within_range(candidate.view(), eps).unwrap().into_iter() {
             count += 1;
             if clusters[i].is_none() && i != idx {
