@@ -81,7 +81,7 @@ impl<F: Float, D: Distance<F>, N: NearestNeighbour> DbscanHyperParams<F, D, N> {
 
 #[cfg(test)]
 mod tests {
-    use linfa_nn::{CommonNearestNeighbour, distance::L2Dist};
+    use linfa_nn::{distance::L2Dist, CommonNearestNeighbour};
 
     use super::*;
 
