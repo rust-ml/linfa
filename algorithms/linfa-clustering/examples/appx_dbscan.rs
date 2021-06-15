@@ -1,6 +1,6 @@
 use linfa::dataset::{DatasetBase, Labels, Records};
 use linfa::metrics::SilhouetteScore;
-use linfa::traits::Transformer;
+use linfa::traits::Predict;
 use linfa_clustering::{generate_blobs, AppxDbscan};
 use ndarray::array;
 use ndarray_npy::write_npy;
@@ -31,7 +31,7 @@ fn main() {
     let cluster_memberships = AppxDbscan::params(min_points)
         .tolerance(1.)
         .slack(1e-2)
-        .transform(dataset);
+        .predict(dataset);
 
     // sigle target dataset
     let label_count = cluster_memberships.label_count().remove(0);

@@ -2,7 +2,7 @@ use criterion::{
     black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
     PlotConfiguration,
 };
-use linfa::traits::Transformer;
+use linfa::traits::Predict;
 use linfa_clustering::{generate_blobs, AppxDbscan};
 use ndarray::Array2;
 use ndarray_rand::rand::SeedableRng;
@@ -38,7 +38,7 @@ fn appx_dbscan_bench(c: &mut Criterion) {
                         AppxDbscan::params(min_points)
                             .tolerance(tolerance)
                             .slack(cluster_size_and_slack.1)
-                            .transform(&dataset),
+                            .predict(&dataset),
                     )
                 });
             },

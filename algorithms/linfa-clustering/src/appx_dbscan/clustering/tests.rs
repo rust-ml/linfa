@@ -3,11 +3,8 @@ use ndarray::Array2;
 
 #[test]
 fn clustering_test() {
-    let params = AppxDbscanHyperParams::new(2)
-        .tolerance(2.0)
-        .slack(0.1)
-        .build();
-    let l = params.tolerance() / (2 as f64).sqrt();
+    let params = AppxDbscanHyperParams::new(2).tolerance(2.0).slack(0.1);
+    let l = params.tolerance / (2 as f64).sqrt();
     let all_points = vec![
         2.0 * l,
         2.0 * l,
