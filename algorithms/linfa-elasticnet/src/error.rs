@@ -17,7 +17,6 @@ pub enum Error {
     /// The input is singular
     #[error("the data is ill-conditioned")]
     IllConditioned,
-    #[cfg_attr(feature = "serde", serde(skip))]
     #[error(transparent)]
     BaseCrate(#[from] linfa::Error),
 }

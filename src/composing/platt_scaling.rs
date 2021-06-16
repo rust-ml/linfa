@@ -22,6 +22,8 @@ use crate::traits::{Predict, PredictRef};
 use crate::Float;
 
 use ndarray::{Array1, Array2, ArrayBase, ArrayView1, Data, Ix1, Ix2};
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// Fitted Platt model
@@ -112,6 +114,11 @@ impl<F: Float, O> PlattParams<F, O> {
     }
 }
 
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Error, Debug, Clone)]
 /// Platt Newton's method errors
 ///
