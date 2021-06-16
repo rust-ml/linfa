@@ -61,8 +61,8 @@ where
     #[cfg_attr(
         feature = "serde",
         serde(bound(
-            serialize = "KernelMethod<R::Elem>: Serialize",
-            deserialize = "KernelMethod<R::Elem>: Deserialize<'de>"
+            serialize = "KernelMethod<K1::Elem>: Serialize",
+            deserialize = "KernelMethod<K1::Elem>: Deserialize<'de>"
         ))
     )]
     /// The inner product that will be used by the kernel

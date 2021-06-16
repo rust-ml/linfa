@@ -11,6 +11,8 @@ use linfa::{
 use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
 use ndarray_linalg::svd::*;
 use ndarray_stats::QuantileExt;
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 #[cfg_attr(
     feature = "serde",
