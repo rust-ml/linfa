@@ -3,11 +3,8 @@ use ndarray::Array2;
 
 #[test]
 fn find_cells_test() {
-    let params = AppxDbscanHyperParams::new(2)
-        .tolerance(2.0)
-        .slack(0.1)
-        .build();
-    let l = params.tolerance() / (2 as f64).sqrt();
+    let params = AppxDbscanHyperParams::new(2).tolerance(2.0).slack(0.1);
+    let l = params.tolerance / (2 as f64).sqrt();
     let points = Array2::from_shape_vec((2, 2), vec![l, -l, -l, l]).unwrap();
     let grid = CellsGrid::new(&points.view(), &params);
     assert_eq!(grid.cells().len(), 2);
@@ -15,11 +12,8 @@ fn find_cells_test() {
 
 #[test]
 fn label_points_test() {
-    let params = AppxDbscanHyperParams::new(2)
-        .tolerance(2.0)
-        .slack(0.1)
-        .build();
-    let l = params.tolerance() / (2 as f64).sqrt();
+    let params = AppxDbscanHyperParams::new(2).tolerance(2.0).slack(0.1);
+    let l = params.tolerance / (2 as f64).sqrt();
     let all_points = vec![2.0 * l, 2.0 * l, 2.0 * l, 2.0 * l, 2.0 * l, 2.0 * l, l, l];
     let points = Array2::from_shape_vec((4, 2), all_points).unwrap();
     assert_eq!(points.row(0).dim(), 2);

@@ -5,11 +5,8 @@ use ndarray::{arr1, ArrayView};
 
 #[test]
 fn counting_test() {
-    let params = AppxDbscanHyperParams::new(2)
-        .tolerance(2.0)
-        .slack(0.1)
-        .build();
-    let l = params.tolerance() / (2 as f64).sqrt();
+    let params = AppxDbscanHyperParams::new(2).tolerance(2.0).slack(0.1);
+    let l = params.tolerance / (2 as f64).sqrt();
     let q_fixed = [l, l];
     let q2_fixed = [-l, l];
     let q = ArrayView::from(&q_fixed);
@@ -55,8 +52,7 @@ fn edge_points_counting_test() {
     let slack = 0.00001;
     let params = AppxDbscanHyperParams::new(2)
         .tolerance(epsilon)
-        .slack(slack)
-        .build();
+        .slack(slack);
 
     let central: Array1<f64> = Array1::from_shape_vec(2, vec![0.39, 0.0]).unwrap();
     let left: Array1<f64> = Array1::from_shape_vec(2, vec![-0.6, 0.0]).unwrap();
@@ -129,11 +125,8 @@ fn get_corners_test() {
 
 #[test]
 fn determine_intersection_test() {
-    let params = AppxDbscanHyperParams::new(2)
-        .tolerance(2.0)
-        .slack(0.1)
-        .build();
-    let l = params.tolerance() / (2.0 as f64).sqrt();
+    let params = AppxDbscanHyperParams::new(2).tolerance(2.0).slack(0.1);
+    let l = params.tolerance / (2.0 as f64).sqrt();
     let fixed_point = [l / 2.0, (3.0 / 2.0) * l];
     let q = ArrayView::from(&fixed_point);
     let cell_index_1 = arr1(&[0, 1]);

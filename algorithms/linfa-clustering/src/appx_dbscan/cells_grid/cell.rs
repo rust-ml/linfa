@@ -215,7 +215,7 @@ impl<F: Float> Cell<F> {
         points: &ArrayView2<F>,
         params: &AppxDbscanHyperParams<F>,
     ) {
-        if self.points.len() >= params.minimum_points() {
+        if self.points.len() >= params.min_points {
             self.label_dense(points, params);
         } else {
             self.label_sparse(&cells, points, params);
@@ -255,14 +255,13 @@ impl<F: Float> Cell<F> {
             let mut tot_pts = 0;
             for n_index in &self.neighbour_cell_indexes {
                 let neighbour = cells.get(*n_index).unwrap();
-                tot_pts +=
-                    neighbour.points_in_range(s_point.point_index, points, params.tolerance());
+                tot_pts += neighbour.points_in_range(s_point.point_index, points, params.tolerance);
 
-                if tot_pts >= params.minimum_points() {
+                if tot_pts >= params.min_points {
                     break;
                 }
             }
-            if tot_pts >= params.minimum_points() {
+            if tot_pts >= params.min_points {
                 s_point.is_core = true;
                 self.is_core = true;
                 core_points.push(points.row(s_point.point_index));
