@@ -3,6 +3,8 @@ use crate::{utils, Float};
 use linfa::{dataset::Records, traits::Fit, traits::Transformer, DatasetBase};
 use ndarray::{s, Array1, Array2, ArrayBase, Data, Ix2};
 use ndarray_linalg::svd::*;
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 #[cfg_attr(
     feature = "serde",

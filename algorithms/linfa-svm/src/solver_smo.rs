@@ -2,6 +2,8 @@ use super::permutable_kernel::Permutable;
 use super::{ExitReason, Float, Svm};
 
 use ndarray::{Array1, Array2, ArrayView2, Axis};
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 use std::marker::PhantomData;
 
 /// Parameters of the solver routine
@@ -42,6 +44,11 @@ impl<F: Float> Alpha<F> {
     }
 }
 
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub enum SeparatingHyperplane<F: Float> {
     Linear(Array1<F>),
     WeightedCombination(Array2<F>),

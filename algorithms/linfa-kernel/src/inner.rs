@@ -1,8 +1,6 @@
 use linfa::Float;
 use ndarray::prelude::*;
 use ndarray::Data;
-#[cfg(feature = "serde")]
-use serde_crate::{Deserialize, Serialize};
 use sprs::{CsMat, CsMatView};
 use std::ops::Mul;
 
