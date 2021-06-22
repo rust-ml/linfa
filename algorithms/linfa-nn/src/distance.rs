@@ -3,7 +3,7 @@ use ndarray::{ArrayView, Dimension, Zip};
 use ndarray_stats::DeviationExt;
 
 /// A distance function that can be used in spatial algorithms such as nearest neighbour.
-pub trait Distance<F: Float>: Clone {
+pub trait Distance<F: Float>: Clone + Send + Sync {
     /// Computes the distance between two points. For most spatial algorithms to work correctly,
     /// **this metric must satisfy the Triangle Inequality.**
     ///

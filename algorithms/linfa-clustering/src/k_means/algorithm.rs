@@ -10,7 +10,6 @@ use linfa_nn::distance::{Distance, L2Dist};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
 use ndarray_rand::rand::Rng;
 use ndarray_rand::rand::SeedableRng;
-use ndarray_stats::DeviationExt;
 use rand_isaac::Isaac64Rng;
 
 #[cfg(feature = "serde")]
@@ -245,12 +244,16 @@ impl<F: Float, R: Rng + SeedableRng + Clone, DA: Data<Elem = F>, T, D: Distance<
 
         for _ in 0..n_runs {
             let mut inertia = min_inertia;
-            let mut centroids =
-                self.get_init_method()
-                    .run(self.get_n_clusters(), observations, &mut rng);
+            let mut centroids = self.get_init_method().run(
+                self.get_dist_fn(),
+                self.get_n_clusters(),
+                observations,
+                &mut rng,
+            );
             let mut converged_iter: Option<u64> = None;
             for n_iter in 0..self.get_max_n_iterations() {
                 update_memberships_and_dists(
+                    self.get_dist_fn(),
                     &centroids,
                     &observations,
                     &mut memberships,
@@ -258,9 +261,9 @@ impl<F: Float, R: Rng + SeedableRng + Clone, DA: Data<Elem = F>, T, D: Distance<
                 );
                 let new_centroids = compute_centroids(&centroids, &observations, &memberships);
                 inertia = dists.sum();
-                let distance = centroids
-                    .sq_l2_dist(&new_centroids)
-                    .expect("Failed to compute distance");
+                let distance = self
+                    .get_dist_fn()
+                    .rdistance(centroids.view(), new_centroids.view());
                 centroids = new_centroids;
                 if distance < self.get_tolerance() {
                     converged_iter = Some(n_iter);
@@ -341,11 +344,17 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, DA: Data<Elem = F>, T, D: 'a + 
                     (0..self.get_n_runs())
                         .map(|_| {
                             let centroids = self.get_init_method().run(
+                                self.get_dist_fn(),
                                 self.get_n_clusters(),
                                 observations,
                                 &mut rng,
                             );
-                            update_min_dists(&centroids, &observations, &mut dists);
+                            update_min_dists(
+                                self.get_dist_fn(),
+                                &centroids,
+                                &observations,
+                                &mut dists,
+                            );
                             (centroids, dists.sum())
                         })
                         .min_by(|(_, d1), (_, d2)| {
@@ -370,6 +379,7 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, DA: Data<Elem = F>, T, D: 'a + 
         let mut memberships = Array1::zeros(n_samples);
         let mut dists = Array1::zeros(n_samples);
         update_memberships_and_dists(
+            self.get_dist_fn(),
             &model.centroids,
             &observations,
             &mut memberships,
@@ -382,7 +392,9 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, DA: Data<Elem = F>, T, D: 'a + 
             &mut model.cluster_count,
         );
         model.inertia = dists.sum() / F::cast(n_samples);
-        let dist = model.centroids.sq_l2_dist(&new_centroids).unwrap();
+        let dist = self
+            .get_dist_fn()
+            .rdistance(model.centroids.view(), new_centroids.view());
         model.centroids = new_centroids;
 
         (model, dist < self.get_tolerance())
@@ -396,7 +408,12 @@ impl<F: Float, DA: Data<Elem = F>, D: Distance<F>> Transformer<&ArrayBase<DA, Ix
     /// `transform` returns, for each observation, its squared distance to its centroid.
     fn transform(&self, observations: &ArrayBase<DA, Ix2>) -> Array1<F> {
         let mut dists = Array1::zeros(observations.nrows());
-        update_min_dists(&self.centroids, &observations.view(), &mut dists);
+        update_min_dists(
+            &self.dist_fn,
+            &self.centroids,
+            &observations.view(),
+            &mut dists,
+        );
         dists
     }
 }
@@ -410,7 +427,14 @@ impl<F: Float, DA: Data<Elem = F>, D: Distance<F>> PredictRef<ArrayBase<DA, Ix2>
     /// You can retrieve the centroid associated to an index using the
     /// [`centroids` method](#method.centroids).
     fn predict_ref<'a>(&'a self, observations: &ArrayBase<DA, Ix2>) -> Array1<usize> {
-        compute_cluster_memberships(&self.centroids, &observations.view())
+        let mut memberships = Array1::zeros(observations.nrows());
+        update_cluster_memberships(
+            &self.dist_fn,
+            self.centroids(),
+            &observations.view(),
+            &mut memberships,
+        );
+        memberships
     }
 }
 
@@ -422,16 +446,13 @@ impl<F: Float, DA: Data<Elem = F>, D: Distance<F>> PredictRef<ArrayBase<DA, Ix1>
     /// You can retrieve the centroid associated to an index using the
     /// [`centroids` method](#method.centroids).
     fn predict_ref<'a>(&'a self, observation: &ArrayBase<DA, Ix1>) -> usize {
-        closest_centroid(&self.centroids, &observation).0
+        closest_centroid(&self.dist_fn, &self.centroids, &observation).0
     }
 }
 
 /// K-means is an iterative algorithm.
 /// We will perform the assignment and update steps until we are satisfied
 /// (according to our convergence criteria).
-///
-/// If you check the `compute_cluster_memberships` function,
-/// you can see that it expects to receive centroids as a 2-dimensional array.
 ///
 /// `compute_centroids` returns a 2-dimensional array,
 /// where the i-th row corresponds to the i-th cluster.
@@ -488,7 +509,8 @@ fn compute_centroids_incremental<F: Float>(
 }
 
 // Update `cluster_memberships` with the index of the cluster each observation belongs to.
-pub(crate) fn update_cluster_memberships<F: Float>(
+pub(crate) fn update_cluster_memberships<F: Float, D: Distance<F>>(
+    dist_fn: &D,
     centroids: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
     observations: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
     cluster_memberships: &mut ArrayBase<impl DataMut<Elem = usize>, Ix1>,
@@ -496,23 +518,27 @@ pub(crate) fn update_cluster_memberships<F: Float>(
     Zip::from(observations.axis_iter(Axis(0)))
         .and(cluster_memberships)
         .par_apply(|observation, cluster_membership| {
-            *cluster_membership = closest_centroid(&centroids, &observation).0
+            *cluster_membership = closest_centroid(dist_fn, &centroids, &observation).0
         });
 }
 
 // Updates `dists` with the distance of each observation from its closest centroid.
-pub(crate) fn update_min_dists<F: Float>(
+pub(crate) fn update_min_dists<F: Float, D: Distance<F>>(
+    dist_fn: &D,
     centroids: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
     observations: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
     dists: &mut ArrayBase<impl DataMut<Elem = F>, Ix1>,
 ) {
     Zip::from(observations.axis_iter(Axis(0)))
         .and(dists)
-        .par_apply(|observation, dist| *dist = closest_centroid(&centroids, &observation).1);
+        .par_apply(|observation, dist| {
+            *dist = closest_centroid(dist_fn, &centroids, &observation).1
+        });
 }
 
 // Efficient combination of `update_cluster_memberships` and `update_min_dists`.
-pub(crate) fn update_memberships_and_dists<F: Float>(
+pub(crate) fn update_memberships_and_dists<F: Float, D: Distance<F>>(
+    dist_fn: &D,
     centroids: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
     observations: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
     cluster_memberships: &mut ArrayBase<impl DataMut<Elem = usize>, Ix1>,
@@ -522,32 +548,16 @@ pub(crate) fn update_memberships_and_dists<F: Float>(
         .and(cluster_memberships)
         .and(dists)
         .par_apply(|observation, cluster_membership, dist| {
-            let (m, d) = closest_centroid(&centroids, &observation);
+            let (m, d) = closest_centroid(dist_fn, &centroids, &observation);
             *cluster_membership = m;
             *dist = d;
         });
 }
 
-/// Given a matrix of centroids with shape (n_centroids, n_features)
-/// and a matrix of observations with shape (n_observations, n_features),
-/// return a 1-dimensional `membership` array such that:
-///
-/// membership[i] == closest_centroid(&centroids, &observations.slice(s![i, ..])
-///
-fn compute_cluster_memberships<F: Float>(
-    // (n_centroids, n_features)
-    centroids: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
-    // (n_observations, n_features)
-    observations: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
-) -> Array1<usize> {
-    let mut memberships = Array1::zeros(observations.nrows());
-    update_cluster_memberships(&centroids, &observations, &mut memberships);
-    memberships
-}
-
 /// Given a matrix of centroids with shape (n_centroids, n_features) and an observation,
 /// return the index of the closest centroid (the index of the corresponding row in `centroids`).
-pub(crate) fn closest_centroid<F: Float>(
+pub(crate) fn closest_centroid<F: Float, D: Distance<F>>(
+    dist_fn: &D,
     // (n_centroids, n_features)
     centroids: &ArrayBase<impl Data<Elem = F>, Ix2>,
     // (n_features)
@@ -558,15 +568,11 @@ pub(crate) fn closest_centroid<F: Float>(
     let first_centroid = centroids.row(0);
     let (mut closest_index, mut minimum_distance) = (
         0,
-        first_centroid
-            .sq_l2_dist(&observation)
-            .expect("Failed to compute distance"),
+        dist_fn.rdistance(first_centroid.view(), observation.view()),
     );
 
     for (centroid_index, centroid) in iterator.enumerate() {
-        let distance = centroid
-            .sq_l2_dist(&observation)
-            .expect("Failed to compute distance");
+        let distance = dist_fn.rdistance(centroid.view(), observation.view());
         if distance < minimum_distance {
             closest_index = centroid_index;
             minimum_distance = distance;
@@ -600,13 +606,30 @@ mod tests {
     }
 
     macro_rules! calc_inertia {
-        ($centroids:expr, $obs:expr, $memberships:expr) => {
+        ($dist:expr, $centroids:expr, $obs:expr, $memberships:expr) => {
             $obs.genrows()
                 .into_iter()
                 .zip($memberships.iter())
-                .map(|(row, &c)| row.sq_l2_dist(&$centroids.row(c)).unwrap())
+                .map(|(row, &c)| $dist.rdistance(row.view(), $centroids.row(c).view()))
                 .sum::<f64>()
         };
+    }
+
+    macro_rules! calc_memberships {
+        ($dist:expr, $centroids:expr, $obs:expr) => {{
+            let mut memberships = Array1::zeros($obs.nrows());
+            update_cluster_memberships(&$dist, &$centroids, &$obs, &mut memberships);
+            memberships
+        }};
+    }
+
+    #[test]
+    fn test_min_dists() {
+        let centroids = array![[0.0, 1.0], [40.0, 10.0]];
+        let observations = array![[3.0, 4.0], [1.0, 3.0], [25.0, 15.0]];
+        let mut dists = Array1::zeros(observations.nrows());
+        update_min_dists(&L2Dist, &centroids, &observations, &mut dists);
+        assert_abs_diff_eq!(dists, array![18.0, 5.0, 250.0]);
     }
 
     #[test]
@@ -629,7 +652,12 @@ mod tests {
                 .fit(&dataset)
                 .expect("KMeans fitted");
             let clusters = model.predict(dataset);
-            let inertia = calc_inertia!(model.centroids(), clusters.records, clusters.targets);
+            let inertia = calc_inertia!(
+                L2Dist,
+                model.centroids(),
+                clusters.records,
+                clusters.targets
+            );
             let total_dist = model.transform(&clusters.records.view()).sum();
             assert_abs_diff_eq!(inertia, total_dist, epsilon = 1e-5);
 
@@ -640,7 +668,12 @@ mod tests {
                 .fit(&dataset2)
                 .expect("KMeans fitted");
             let clusters2 = model2.predict(dataset2);
-            let inertia2 = calc_inertia!(model2.centroids(), clusters2.records, clusters2.targets);
+            let inertia2 = calc_inertia!(
+                L2Dist,
+                model2.centroids(),
+                clusters2.records,
+                clusters2.targets
+            );
             let total_dist2 = model2.transform(&clusters2.records.view()).sum();
             assert_abs_diff_eq!(inertia2, total_dist2, epsilon = 1e-5);
 
@@ -713,7 +746,7 @@ mod tests {
 
         let expected_memberships: Vec<usize> = (0..n_centroids).into_iter().collect();
         assert_eq!(
-            compute_cluster_memberships(&centroids, &centroids),
+            calc_memberships!(L2Dist, centroids, centroids),
             Array1::from(expected_memberships)
         );
     }
@@ -725,7 +758,7 @@ mod tests {
         let memberships = array![0, 2, 2, 3];
 
         assert_eq!(
-            compute_cluster_memberships(&centroids, &observations),
+            calc_memberships!(L2Dist, centroids, observations),
             memberships
         );
     }
