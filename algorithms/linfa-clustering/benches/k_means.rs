@@ -2,7 +2,7 @@ use criterion::{
     black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
     PlotConfiguration,
 };
-use linfa::traits::{IncrementalFit, Transformer};
+use linfa::traits::{Fit, IncrementalFit, Transformer};
 use linfa::DatasetBase;
 use linfa_clustering::{generate_blobs, KMeans, KMeansInit};
 use ndarray::Array2;
@@ -88,8 +88,7 @@ fn k_means_incr_bench(c: &mut Criterion) {
                     let clf =
                         KMeans::params_with_rng(black_box(n_clusters), black_box(rng.clone()))
                             .init_method(KMeansInit::KMeansPlusPlus)
-                            .tolerance(black_box(1e-3))
-                            .build();
+                            .tolerance(black_box(1e-3));
                     let model = dataset
                         .sample_chunks(200)
                         .cycle()
