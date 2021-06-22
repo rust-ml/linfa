@@ -231,7 +231,6 @@ fn cluster_membership_counts<F: Float>(
 
 #[cfg(test)]
 mod tests {
-    use super::super::algorithm::{compute_inertia, update_cluster_memberships};
     use super::*;
     use approx::{abs_diff_eq, assert_abs_diff_eq, assert_abs_diff_ne};
     use ndarray::{array, concatenate, Array};
@@ -373,8 +372,8 @@ mod tests {
         centroids: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
         observations: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
     ) -> f64 {
-        let mut memberships = Array1::zeros(observations.nrows());
-        update_cluster_memberships(centroids, observations, &mut memberships);
-        compute_inertia(centroids, observations, &memberships)
+        let mut dists = Array1::zeros(observations.nrows());
+        update_min_dists(centroids, observations, &mut dists);
+        dists.sum()
     }
 }

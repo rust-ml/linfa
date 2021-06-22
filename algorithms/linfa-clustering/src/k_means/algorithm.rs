@@ -421,26 +421,6 @@ impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix1>, usize> for KMean
     }
 }
 
-/// We compute inertia defined as the sum of the squared distances
-/// of the closest centroid for all observations.
-pub fn compute_inertia<F: Float>(
-    centroids: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
-    observations: &ArrayBase<impl Data<Elem = F>, Ix2>,
-    cluster_memberships: &ArrayBase<impl Data<Elem = usize>, Ix1>,
-) -> F {
-    let mut dists = Array1::<F>::zeros(observations.nrows());
-    Zip::from(observations.genrows())
-        .and(cluster_memberships)
-        .and(&mut dists)
-        .par_apply(|observation, &cluster_membership, d| {
-            *d = centroids
-                .row(cluster_membership)
-                .sq_l2_dist(&observation)
-                .expect("Failed to compute distance");
-        });
-    dists.sum()
-}
-
 /// K-means is an iterative algorithm.
 /// We will perform the assignment and update steps until we are satisfied
 /// (according to our convergence criteria).
@@ -614,6 +594,16 @@ mod tests {
         y
     }
 
+    macro_rules! calc_inertia {
+        ($centroids:expr, $obs:expr, $memberships:expr) => {
+            $obs.genrows()
+                .into_iter()
+                .zip($memberships.iter())
+                .map(|(row, &c)| row.sq_l2_dist(&$centroids.row(c)).unwrap())
+                .sum::<f64>()
+        };
+    }
+
     #[test]
     fn test_n_runs() {
         let mut rng = Isaac64Rng::seed_from_u64(42);
@@ -634,9 +624,9 @@ mod tests {
                 .fit(&dataset)
                 .expect("KMeans fitted");
             let clusters = model.predict(dataset);
-            let inertia = compute_inertia(model.centroids(), &clusters.records, &clusters.targets);
+            let inertia = calc_inertia!(model.centroids(), clusters.records, clusters.targets);
             let total_dist = model.transform(&clusters.records.view()).sum();
-            assert_abs_diff_eq!(inertia, total_dist);
+            assert_abs_diff_eq!(inertia, total_dist, epsilon = 1e-5);
 
             // Second clustering with 10 iterations (default)
             let dataset2 = DatasetBase::from(clusters.records().clone());
@@ -645,10 +635,9 @@ mod tests {
                 .fit(&dataset2)
                 .expect("KMeans fitted");
             let clusters2 = model2.predict(dataset2);
-            let inertia2 =
-                compute_inertia(model2.centroids(), &clusters2.records, &clusters2.targets);
+            let inertia2 = calc_inertia!(model2.centroids(), clusters2.records, clusters2.targets);
             let total_dist2 = model2.transform(&clusters2.records.view()).sum();
-            assert_abs_diff_eq!(inertia2, total_dist2);
+            assert_abs_diff_eq!(inertia2, total_dist2, epsilon = 1e-5);
 
             // Check we improve inertia (only really makes a difference for random init)
             if *init == KMeansInit::Random {
