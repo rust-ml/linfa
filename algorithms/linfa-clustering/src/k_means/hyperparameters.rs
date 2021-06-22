@@ -1,5 +1,6 @@
 use super::init::KMeansInit;
 use linfa::Float;
+use linfa_nn::distance::Distance;
 use ndarray_rand::rand::Rng;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
@@ -12,7 +13,7 @@ use serde_crate::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq)]
 /// The set of hyperparameters that can be specified for the execution of
 /// the [K-means algorithm](struct.KMeans.html).
-pub struct KMeansHyperParams<F: Float, R: Rng> {
+pub struct KMeansHyperParams<F: Float, R: Rng, D: Distance<F>> {
     /// Number of time the k-means algorithm will be run with different centroid seeds.
     n_runs: usize,
     /// The training is considered complete if the euclidean distance
@@ -29,9 +30,11 @@ pub struct KMeansHyperParams<F: Float, R: Rng> {
     init: KMeansInit<F>,
     /// The random number generator
     rng: R,
+    /// Distance metric used in the centroid assignment step
+    dist_fn: D,
 }
 
-impl<F: Float, R: Rng + Clone> KMeansHyperParams<F, R> {
+impl<F: Float, R: Rng, D: Distance<F>> KMeansHyperParams<F, R, D> {
     /// `new` lets us configure our training algorithm parameters:
     /// * we will be looking for `n_clusters` in the training dataset;
     /// * the training is considered complete if the euclidean distance
@@ -53,7 +56,7 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParams<F, R> {
     /// * `n_runs = 10`
     /// * `init = KMeansPlusPlus`
 
-    pub fn new_with_rng(n_clusters: usize, rng: R) -> Self {
+    pub fn new(n_clusters: usize, rng: R, dist_fn: D) -> Self {
         if n_clusters == 0 {
             panic!("`n_clusters` cannot be 0!");
         }
@@ -64,6 +67,7 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParams<F, R> {
             n_clusters,
             init: KMeansInit::KMeansPlusPlus,
             rng,
+            dist_fn,
         }
     }
 
@@ -96,9 +100,14 @@ impl<F: Float, R: Rng + Clone> KMeansHyperParams<F, R> {
         &self.init
     }
 
-    /// Returns a clone of the random generator
-    pub fn get_rng(&self) -> R {
-        self.rng.clone()
+    /// Returns the random generator
+    pub fn get_rng(&self) -> &R {
+        &self.rng
+    }
+
+    /// Returns the distance metric
+    pub fn get_dist_fn(&self) -> &D {
+        &self.dist_fn
     }
 
     /// Change the value of `n_runs`
@@ -142,7 +151,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn n_clusters_cannot_be_zero() {
-        KMeans::<f32>::params(0);
+        KMeans::<f32, _>::params(0);
     }
 
     #[test]

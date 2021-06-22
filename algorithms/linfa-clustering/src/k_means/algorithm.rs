@@ -6,7 +6,7 @@ use crate::{
     KMeansInit,
 };
 use linfa::{prelude::*, DatasetBase, Float};
-use linfa_nn::distance::Distance;
+use linfa_nn::distance::{Distance, L2Dist};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
 use ndarray_rand::rand::Rng;
 use ndarray_rand::rand::SeedableRng;
@@ -179,19 +179,26 @@ use serde_crate::{Deserialize, Serialize};
 /// assert_eq!(model.hyperparameters(), loaded_model.hyperparameters());
 /// ```
 */
-pub struct KMeans<F: Float> {
+pub struct KMeans<F: Float, D: Distance<F>> {
     centroids: Array2<F>,
     cluster_count: Array1<F>,
     inertia: F,
+    dist_fn: D,
 }
 
-impl<F: Float> KMeans<F> {
-    pub fn params(nclusters: usize) -> KMeansHyperParams<F, Isaac64Rng> {
-        KMeansHyperParams::new_with_rng(nclusters, Isaac64Rng::seed_from_u64(42))
+impl<F: Float> KMeans<F, L2Dist> {
+    pub fn params(nclusters: usize) -> KMeansHyperParams<F, Isaac64Rng, L2Dist> {
+        KMeansHyperParams::new(nclusters, Isaac64Rng::seed_from_u64(42), L2Dist)
     }
 
-    pub fn params_with_rng<R: Rng + Clone>(nclusters: usize, rng: R) -> KMeansHyperParams<F, R> {
-        KMeansHyperParams::new_with_rng(nclusters, rng)
+    pub fn params_with_rng<R: Rng>(nclusters: usize, rng: R) -> KMeansHyperParams<F, R, L2Dist> {
+        KMeansHyperParams::new(nclusters, rng, L2Dist)
+    }
+}
+
+impl<F: Float, D: Distance<F>> KMeans<F, D> {
+    pub fn params_with<R: Rng>(nclusters: usize, rng: R, dist_fn: D) -> KMeansHyperParams<F, R, D> {
+        KMeansHyperParams::new(nclusters, rng, dist_fn)
     }
 
     /// Return the set of centroids as a 2-dimensional matrix with shape
@@ -213,18 +220,18 @@ impl<F: Float> KMeans<F> {
     }
 }
 
-impl<F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T>
-    Fit<ArrayBase<D, Ix2>, T, KMeansError> for KMeansHyperParams<F, R>
+impl<F: Float, R: Rng + SeedableRng + Clone, DA: Data<Elem = F>, T, D: Distance<F>>
+    Fit<ArrayBase<DA, Ix2>, T, KMeansError> for KMeansHyperParams<F, R, D>
 {
-    type Object = KMeans<F>;
+    type Object = KMeans<F, D>;
 
     /// Given an input matrix `observations`, with shape `(n_observations, n_features)`,
     /// `fit` identifies `n_clusters` centroids based on the training data distribution.
     ///
     /// An instance of `KMeans` is returned.
     ///
-    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
-        let mut rng = self.get_rng();
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<DA, Ix2>, T>) -> Result<Self::Object> {
+        let mut rng = self.get_rng().clone();
         let observations = dataset.records().view();
         let n_samples = dataset.nsamples();
 
@@ -282,6 +289,7 @@ impl<F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T>
                         centroids,
                         cluster_count,
                         inertia: min_inertia / F::cast(dataset.nsamples()),
+                        dist_fn: self.get_dist_fn().clone(),
                     })
                 }
                 _ => Err(KMeansError::InertiaError(
@@ -297,11 +305,11 @@ impl<F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T>
     }
 }
 
-impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T>
-    IncrementalFit<'a, ArrayBase<D, Ix2>, T> for KMeansHyperParams<F, R>
+impl<'a, F: Float, R: Rng + Clone + SeedableRng, DA: Data<Elem = F>, T, D: 'a + Distance<F>>
+    IncrementalFit<'a, ArrayBase<DA, Ix2>, T> for KMeansHyperParams<F, R, D>
 {
-    type ObjectIn = Option<KMeans<F>>;
-    type ObjectOut = (KMeans<F>, bool);
+    type ObjectIn = Option<KMeans<F, D>>;
+    type ObjectOut = (KMeans<F, D>, bool);
 
     /// Performs a single batch update of the Mini-Batch K-means algorithm.
     ///
@@ -313,9 +321,9 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T>
     fn fit_with(
         &self,
         model: Self::ObjectIn,
-        dataset: &'a DatasetBase<ArrayBase<D, Ix2>, T>,
+        dataset: &'a DatasetBase<ArrayBase<DA, Ix2>, T>,
     ) -> Self::ObjectOut {
-        let mut rng = self.get_rng();
+        let mut rng = self.get_rng().clone();
         let observations = dataset.records().view();
         let n_samples = dataset.nsamples();
 
@@ -354,6 +362,7 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T>
                     centroids,
                     cluster_count: Array1::zeros(self.get_n_clusters()),
                     inertia: F::zero(),
+                    dist_fn: self.get_dist_fn().clone(),
                 }
             }
         };
@@ -380,33 +389,39 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, D: Data<Elem = F>, T>
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<F>> for KMeans<F> {
+impl<F: Float, DA: Data<Elem = F>, D: Distance<F>> Transformer<&ArrayBase<DA, Ix2>, Array1<F>>
+    for KMeans<F, D>
+{
     /// Given an input matrix `observations`, with shape `(n_observations, n_features)`,
     /// `transform` returns, for each observation, its squared distance to its centroid.
-    fn transform(&self, observations: &ArrayBase<D, Ix2>) -> Array1<F> {
+    fn transform(&self, observations: &ArrayBase<DA, Ix2>) -> Array1<F> {
         let mut dists = Array1::zeros(observations.nrows());
         update_min_dists(&self.centroids, &observations.view(), &mut dists);
         dists
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<usize>> for KMeans<F> {
+impl<F: Float, DA: Data<Elem = F>, D: Distance<F>> PredictRef<ArrayBase<DA, Ix2>, Array1<usize>>
+    for KMeans<F, D>
+{
     /// Given an input matrix `observations`, with shape `(n_observations, n_features)`,
     /// `predict` returns, for each observation, the index of the closest cluster/centroid.
     ///
     /// You can retrieve the centroid associated to an index using the
     /// [`centroids` method](#method.centroids).
-    fn predict_ref<'a>(&'a self, observations: &ArrayBase<D, Ix2>) -> Array1<usize> {
+    fn predict_ref<'a>(&'a self, observations: &ArrayBase<DA, Ix2>) -> Array1<usize> {
         compute_cluster_memberships(&self.centroids, &observations.view())
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix1>, usize> for KMeans<F> {
+impl<F: Float, DA: Data<Elem = F>, D: Distance<F>> PredictRef<ArrayBase<DA, Ix1>, usize>
+    for KMeans<F, D>
+{
     /// Given one input observation, return the index of its closest cluster
     ///
     /// You can retrieve the centroid associated to an index using the
     /// [`centroids` method](#method.centroids).
-    fn predict_ref<'a>(&'a self, observation: &ArrayBase<D, Ix1>) -> usize {
+    fn predict_ref<'a>(&'a self, observation: &ArrayBase<DA, Ix1>) -> usize {
         closest_centroid(&self.centroids, &observation).0
     }
 }
@@ -736,6 +751,7 @@ mod tests {
             centroids: array![[-1., -1.], [3., 4.], [7., 8.]],
             cluster_count: array![0., 0., 0.],
             inertia: 0.0,
+            dist_fn: L2Dist,
         };
         let rng = Isaac64Rng::seed_from_u64(45);
         let params = KMeans::params_with_rng(3, rng).tolerance(100.0);
