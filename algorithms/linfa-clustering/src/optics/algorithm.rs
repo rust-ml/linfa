@@ -143,11 +143,20 @@ impl<'a, F: Float, D: Data<Elem = F>> Transformer<&'a ArrayBase<D, Ix2>, OpticsA
             .map(|(i, x)| Neighbor::new(i, x))
             .collect::<Vec<_>>();
 
+        // The BTreeSet is used so that the indexes are ordered to make it easy to find next
+        // index
         let mut processed = BTreeSet::new();
-        while processed.len() != points.len() {
-            let mut expected = 0;
+        let mut index = 0;
+        loop {
+            if index == points.len() {
+                break;
+            } else if processed.contains(&index) {
+                index += 1;
+                continue;
+            }
+            let mut expected = index + 1;
             let mut points_index = 0;
-            for index in &processed {
+            for index in processed.range((index + 1)..) {
                 if expected != *index {
                     points_index = expected;
                     processed.insert(expected);
@@ -155,6 +164,7 @@ impl<'a, F: Float, D: Data<Elem = F>> Transformer<&'a ArrayBase<D, Ix2>, OpticsA
                 }
                 expected += 1;
             }
+            index += 1;
             let neighbors = find_neighbors(
                 &points[points_index].observation,
                 observations,
