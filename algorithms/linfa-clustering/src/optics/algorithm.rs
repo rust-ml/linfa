@@ -30,7 +30,7 @@ pub struct Optics;
 #[derive(Clone, Debug)]
 // This is a struct as in future may want to implement methods on it to get certain metrics from
 // the optics cluster distances.
-pub struct OpticsResult<'a, F: Float> {
+pub struct OpticsAnalysis<'a, F: Float> {
     /// A list of the samples in the dataset sorted and with their reachability and core distances
     /// computed.
     pub orderings: Vec<Sample<'a, F>>,
@@ -125,11 +125,11 @@ impl Optics {
     }
 }
 
-impl<'a, F: Float, D: Data<Elem = F>> Transformer<&'a ArrayBase<D, Ix2>, OpticsResult<'a, F>>
+impl<'a, F: Float, D: Data<Elem = F>> Transformer<&'a ArrayBase<D, Ix2>, OpticsAnalysis<'a, F>>
     for OpticsHyperParams
 {
-    fn transform(&self, observations: &'a ArrayBase<D, Ix2>) -> OpticsResult<'a, F> {
-        let mut result = OpticsResult { orderings: vec![] };
+    fn transform(&self, observations: &'a ArrayBase<D, Ix2>) -> OpticsAnalysis<'a, F> {
+        let mut result = OpticsAnalysis { orderings: vec![] };
 
         let mut points = observations
             .axis_iter(Axis(0))
