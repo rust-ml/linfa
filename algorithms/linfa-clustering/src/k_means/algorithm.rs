@@ -138,9 +138,7 @@ use serde_crate::{Deserialize, Serialize};
 ///     let observations = DatasetBase::from(data.clone()).shuffle(&mut rng);
 ///
 ///     let n_clusters = expected_centroids.nrows();
-///     let clf = KMeans::params_with_rng(n_clusters, rng.clone())
-///         .tolerance(1e-3)
-///         .build();
+///     let clf = KMeans::params_with_rng(n_clusters, rng.clone()).tolerance(1e-3);
 ///
 ///     // Repeatedly run fit_with on every batch in the dataset until we have converged
 ///     let model = observations
@@ -586,10 +584,12 @@ mod tests {
     use super::super::KMeansInit;
     use super::*;
     use approx::assert_abs_diff_eq;
+    use linfa_nn::distance::L1Dist;
     use ndarray::{array, concatenate, Array, Array1, Array2, Axis};
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::Uniform;
     use ndarray_rand::RandomExt;
+    use std::iter::FromIterator;
 
     fn function_test_1d(x: &Array2<f64>) -> Array2<f64> {
         let mut y = Array2::zeros(x.dim());
@@ -628,12 +628,14 @@ mod tests {
         let centroids = array![[0.0, 1.0], [40.0, 10.0]];
         let observations = array![[3.0, 4.0], [1.0, 3.0], [25.0, 15.0]];
         let mut dists = Array1::zeros(observations.nrows());
+
         update_min_dists(&L2Dist, &centroids, &observations, &mut dists);
         assert_abs_diff_eq!(dists, array![18.0, 5.0, 250.0]);
+        update_min_dists(&L1Dist, &centroids, &observations, &mut dists);
+        assert_abs_diff_eq!(dists, array![6.0, 3.0, 20.0]);
     }
 
-    #[test]
-    fn test_n_runs() {
+    fn test_n_runs<D: Distance<f64>>(dist_fn: D) {
         let mut rng = Isaac64Rng::seed_from_u64(42);
         let xt = Array::random_using(100, Uniform::new(0., 1.0), &mut rng).insert_axis(Axis(1));
         let yt = function_test_1d(&xt);
@@ -646,14 +648,14 @@ mod tests {
         ] {
             // First clustering with one iteration
             let dataset = DatasetBase::from(data.clone());
-            let model = KMeans::params_with_rng(3, rng.clone())
+            let model = KMeans::params_with(3, rng.clone(), dist_fn.clone())
                 .n_runs(1)
                 .init_method(init.clone())
                 .fit(&dataset)
                 .expect("KMeans fitted");
             let clusters = model.predict(dataset);
             let inertia = calc_inertia!(
-                L2Dist,
+                dist_fn,
                 model.centroids(),
                 clusters.records,
                 clusters.targets
@@ -663,13 +665,13 @@ mod tests {
 
             // Second clustering with 10 iterations (default)
             let dataset2 = DatasetBase::from(clusters.records().clone());
-            let model2 = KMeans::params_with_rng(3, rng.clone())
+            let model2 = KMeans::params_with(3, rng.clone(), dist_fn.clone())
                 .init_method(init.clone())
                 .fit(&dataset2)
                 .expect("KMeans fitted");
             let clusters2 = model2.predict(dataset2);
             let inertia2 = calc_inertia!(
-                L2Dist,
+                dist_fn,
                 model2.centroids(),
                 clusters2.records,
                 clusters2.targets
@@ -682,6 +684,16 @@ mod tests {
                 assert!(inertia2 <= inertia);
             }
         }
+    }
+
+    #[test]
+    fn test_n_runs_l2dist() {
+        test_n_runs(L2Dist);
+    }
+
+    #[test]
+    fn test_n_runs_l1dist() {
+        test_n_runs(L1Dist);
     }
 
     #[test]
@@ -744,22 +756,31 @@ mod tests {
             &mut rng,
         );
 
-        let expected_memberships: Vec<usize> = (0..n_centroids).into_iter().collect();
+        let expected_memberships = Array1::from_iter((0..n_centroids).into_iter());
         assert_eq!(
             calc_memberships!(L2Dist, centroids, centroids),
-            Array1::from(expected_memberships)
+            expected_memberships
+        );
+        assert_eq!(
+            calc_memberships!(L1Dist, centroids, centroids),
+            expected_memberships
         );
     }
 
     #[test]
     fn oracle_test_for_closest_centroid() {
         let centroids = array![[0., 0.], [1., 2.], [20., 0.], [0., 20.],];
-        let observations = array![[1., 0.5], [20., 2.], [20., 0.], [7., 20.],];
-        let memberships = array![0, 2, 2, 3];
+        let observations = array![[1., 0.6], [20., 2.], [20., 0.], [7., 20.],];
+        let l2_memberships = array![0, 2, 2, 3];
+        let l1_memberships = array![1, 2, 2, 3];
 
         assert_eq!(
             calc_memberships!(L2Dist, centroids, observations),
-            memberships
+            l2_memberships
+        );
+        assert_eq!(
+            calc_memberships!(L1Dist, centroids, observations),
+            l1_memberships
         );
     }
 

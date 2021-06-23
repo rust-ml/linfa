@@ -241,7 +241,7 @@ fn cluster_membership_counts<F: Float, D: Distance<F>>(
 mod tests {
     use super::*;
     use approx::{abs_diff_eq, assert_abs_diff_eq, assert_abs_diff_ne};
-    use linfa_nn::distance::L2Dist;
+    use linfa_nn::distance::{L1Dist, L2Dist};
     use ndarray::{array, concatenate, Array};
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::Normal;
@@ -272,10 +272,13 @@ mod tests {
 
     #[test]
     fn test_cluster_membership_counts() {
-        let centroids = array![[0.0, 1.0], [40.0, 10.0]];
+        let centroids = array![[0.0, 1.0], [40.0, 10.0], [3.0, 9.0]];
         let observations = array![[3.0, 4.0], [1.0, 3.0], [25.0, 15.0]];
+
         let counts = cluster_membership_counts(&L2Dist, &centroids, &observations);
-        assert_abs_diff_eq!(counts, array![2.0, 1.0]);
+        assert_abs_diff_eq!(counts, array![2.0, 1.0, 0.0]);
+        let counts = cluster_membership_counts(&L1Dist, &centroids, &observations);
+        assert_abs_diff_eq!(counts, array![1.0, 1.0, 1.0]);
     }
 
     #[test]
@@ -302,20 +305,22 @@ mod tests {
 
     #[test]
     fn test_k_means_plusplus() {
-        verify_init(KMeansInit::KMeansPlusPlus);
+        verify_init(KMeansInit::KMeansPlusPlus, L2Dist);
+        verify_init(KMeansInit::KMeansPlusPlus, L1Dist);
     }
 
     #[test]
     fn test_k_means_para() {
-        verify_init(KMeansInit::KMeansPara);
+        verify_init(KMeansInit::KMeansPara, L2Dist);
+        verify_init(KMeansInit::KMeansPara, L1Dist);
     }
 
     // Run general tests for a given init algorithm
-    fn verify_init(init: KMeansInit<f64>) {
+    fn verify_init<D: Distance<f64>>(init: KMeansInit<f64>, dist_fn: D) {
         let mut rng = Isaac64Rng::seed_from_u64(42);
         // Make sure we don't panic on degenerate data (n_clusters > n_samples)
         let degenerate_data = array![[1.0, 2.0]];
-        let out = init.run(&L2Dist, 2, degenerate_data.view(), &mut rng);
+        let out = init.run(&dist_fn, 2, degenerate_data.view(), &mut rng);
         assert_abs_diff_eq!(out, concatenate![Axis(0), degenerate_data, degenerate_data]);
 
         // Build 3 separated clusters of points
@@ -329,7 +334,7 @@ mod tests {
         });
 
         // Look for the right number of centroids
-        let out = init.run(&L2Dist, centroids.len(), obs.view(), &mut rng);
+        let out = init.run(&dist_fn, centroids.len(), obs.view(), &mut rng);
         let mut cluster_ids = HashSet::new();
         for row in out.genrows() {
             // Centroid should not be 0
@@ -338,14 +343,13 @@ mod tests {
             let found = clusters
                 .iter()
                 .enumerate()
-                .filter_map(|(i, c)| {
+                .find_map(|(i, c)| {
                     if c.genrows().into_iter().any(|cl| abs_diff_eq!(row, cl)) {
                         Some(i)
                     } else {
                         None
                     }
                 })
-                .next()
                 .unwrap();
             cluster_ids.insert(found);
         }
@@ -353,8 +357,15 @@ mod tests {
         assert_eq!(cluster_ids, [0, 1, 2].iter().copied().collect());
     }
 
-    #[test]
-    fn test_compare() {
+    macro_rules! calc_loss {
+        ($dist_fn:expr, $centroids:expr, $observations:expr) => {{
+            let mut dists = Array1::zeros($observations.nrows());
+            update_min_dists(&$dist_fn, &$centroids, &$observations, &mut dists);
+            dists.sum()
+        }};
+    }
+
+    fn test_compare<D: Distance<f64>>(dist_fn: D) {
         let mut rng = Isaac64Rng::seed_from_u64(42);
         let centroids = [20.0, -1000.0, 1000.0];
         let clusters: Vec<Array2<_>> = centroids
@@ -366,20 +377,21 @@ mod tests {
         });
 
         let out_rand = random_init(3, obs.view(), &mut rng.clone());
-        let out_pp = k_means_plusplus(&L2Dist, 3, obs.view(), &mut rng.clone());
-        let out_para = k_means_para(&L2Dist, 3, obs.view(), &mut rng.clone());
+        let out_pp = k_means_plusplus(&dist_fn, 3, obs.view(), &mut rng.clone());
+        let out_para = k_means_para(&dist_fn, 3, obs.view(), &mut rng.clone());
         // Loss of Kmeans++ should be better than using random_init
-        assert!(calc_loss(&out_pp, &obs) < calc_loss(&out_rand, &obs));
+        assert!(calc_loss!(dist_fn, out_pp, obs) < calc_loss!(dist_fn, out_rand, obs));
         // Loss of Kmeans|| should be better than using random_init
-        assert!(calc_loss(&out_para, &obs) < calc_loss(&out_rand, &obs));
+        assert!(calc_loss!(dist_fn, out_para, obs) < calc_loss!(dist_fn, out_rand, obs));
     }
 
-    fn calc_loss(
-        centroids: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
-        observations: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
-    ) -> f64 {
-        let mut dists = Array1::zeros(observations.nrows());
-        update_min_dists(&L2Dist, centroids, observations, &mut dists);
-        dists.sum()
+    #[test]
+    fn test_compare_l2() {
+        test_compare(L2Dist);
+    }
+
+    #[test]
+    fn test_compare_l1() {
+        test_compare(L1Dist);
     }
 }
