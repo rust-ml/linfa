@@ -9,7 +9,7 @@ use ndarray_stats::DeviationExt;
 use serde_crate::{Deserialize, Serialize};
 use space::MetricPoint;
 use std::cmp::{max, Ordering};
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 
 /// Implementation of euclidean distance for ndarray
 struct Euclidean<'a, F>(ArrayView1<'a, F>);
@@ -66,8 +66,6 @@ struct Neighbor<'a, F: Float> {
     index: usize,
     /// The observation
     observation: ArrayView<'a, F, Ix1>,
-    /// Whether this point has been processed
-    processed: bool,
     /// The core distance
     c_distance: Option<FloatOrd<f64>>,
     /// The reachability distance
@@ -80,7 +78,6 @@ impl<'a, F: Float> Neighbor<'a, F> {
         Self {
             index,
             observation,
-            processed: false,
             c_distance: None,
             r_distance: None,
         }
@@ -146,20 +143,24 @@ impl<'a, F: Float, D: Data<Elem = F>> Transformer<&'a ArrayBase<D, Ix2>, OpticsA
             .map(|(i, x)| Neighbor::new(i, x))
             .collect::<Vec<_>>();
 
-        let mut processed = HashSet::new();
+        let mut processed = BTreeSet::new();
         while processed.len() != points.len() {
-            let obs = points
-                .iter_mut()
-                .enumerate()
-                .find(|x| !x.1.processed)
-                .unwrap();
-            if processed.contains(&obs.0) {
-                // We've processed this point so can move on
-                continue;
+            let mut expected = 0;
+            let mut points_index = 0;
+            for index in &processed {
+                if expected != *index {
+                    points_index = expected;
+                    processed.insert(expected);
+                    break;
+                }
+                expected += 1;
             }
-            processed.insert(obs.0);
-            let neighbors = find_neighbors(&obs.1.observation, observations, self.tolerance());
-            let n = obs.1;
+            let neighbors = find_neighbors(
+                &points[points_index].observation,
+                observations,
+                self.tolerance(),
+            );
+            let n = &mut points[points_index];
             n.set_core_distance(self.minimum_points(), &neighbors);
             result.orderings.push(n.sample());
             if n.c_distance.is_some() {
@@ -197,7 +198,7 @@ fn get_seeds<'a, F: Float>(
     sample: Neighbor<'a, F>,
     neighbors: &[Neighbor<'a, F>],
     points: &mut [Neighbor<'a, F>],
-    processed: &HashSet<usize>,
+    processed: &BTreeSet<usize>,
     seeds: &mut Vec<usize>,
 ) {
     for n in neighbors.iter().filter(|x| !processed.contains(&x.index)) {
@@ -255,7 +256,6 @@ fn find_neighbors<'a, F: Float>(
             let distance = candidate.l2_dist(&observation).unwrap();
             Neighbor {
                 index: x.index,
-                processed: false,
                 observation,
                 r_distance: Some(FloatOrd(distance)),
                 c_distance: None,
