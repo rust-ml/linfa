@@ -53,7 +53,7 @@ impl OpticsHyperParams {
     pub fn new(min_points: usize) -> OpticsHyperParamsBuilder {
         OpticsHyperParamsBuilder {
             min_points,
-            tolerance: f64::MAX,
+            tolerance: std::f64::MAX,
         }
     }
 
