@@ -1,14 +1,13 @@
 use crate::optics::hyperparameters::{OpticsHyperParams, OpticsHyperParamsBuilder};
 use float_ord::FloatOrd;
+use linfa::traits::Transformer;
+use linfa::Float;
 use ndarray::{ArrayBase, ArrayView, Axis, Data, Ix1, Ix2};
 use ndarray_stats::DeviationExt;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 use std::cmp::{max, Ordering};
 use std::collections::HashSet;
-
-use linfa::traits::Transformer;
-use linfa::Float;
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(
@@ -78,10 +77,8 @@ impl<'a, F: Float> Neighbor<'a, F> {
     /// Set the core distance given the minimum points in a cluster and the points neighbors
     fn set_core_distance(&mut self, min_pts: usize, neighbors: &[Neighbor<'a, F>]) {
         self.c_distance = neighbors
-            .iter()
-            .nth(min_pts - 1)
-            .map(|x| FloatOrd(self.observation.l2_dist(&x.observation).unwrap()))
-            .clone();
+            .get(min_pts - 1)
+            .map(|x| FloatOrd(self.observation.l2_dist(&x.observation).unwrap()));
     }
 
     /// Convert the neighbor to a sample for the user
@@ -207,7 +204,7 @@ fn get_seeds<'a, F: Float>(
 
 /// Given a candidate point, a list of observations, epsilon and list of already
 /// assigned cluster IDs return a list of observations that neighbor the candidate. This function
-/// uses euclidean distance.
+/// uses euclidean distance and the neighbours are returned in sorted order.
 fn find_neighbors<'a, F: Float>(
     candidate: &ArrayBase<impl Data<Elem = F>, Ix1>,
     observations: &'a ArrayBase<impl Data<Elem = F>, Ix2>,
