@@ -28,12 +28,14 @@ default-features = false
 features = ["std", "derive"]
 
 [dependencies]
+hnsw = "0.6"
 ndarray = { version = "0.14", features = ["rayon", "approx"]}
 ndarray-linalg = "0.13"
 ndarray-rand = "0.13"
 ndarray-stats = "0.4"
 num-traits = "0.2"
 rand_isaac = "0.3"
+space = "0.10"
 thiserror = "1"
 partitions = "0.2.4"
 

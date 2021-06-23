@@ -1,13 +1,25 @@
 use crate::optics::hyperparameters::{OpticsHyperParams, OpticsHyperParamsBuilder};
 use float_ord::FloatOrd;
+use hnsw::{Params, Searcher, HNSW};
 use linfa::traits::Transformer;
 use linfa::Float;
-use ndarray::{ArrayBase, ArrayView, Axis, Data, Ix1, Ix2};
+use ndarray::{ArrayBase, ArrayView, ArrayView1, Axis, Data, Ix1, Ix2};
 use ndarray_stats::DeviationExt;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
+use space::MetricPoint;
 use std::cmp::{max, Ordering};
 use std::collections::HashSet;
+
+/// Implementation of euclidean distance for ndarray
+struct Euclidean<'a, F>(ArrayView1<'a, F>);
+
+impl<F: Float> MetricPoint for Euclidean<'_, F> {
+    fn distance(&self, rhs: &Self) -> u32 {
+        let val = self.0.l2_dist(&rhs.0).unwrap();
+        space::f64_metric(val)
+    }
+}
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(
@@ -210,21 +222,46 @@ fn find_neighbors<'a, F: Float>(
     observations: &'a ArrayBase<impl Data<Elem = F>, Ix2>,
     eps: f64,
 ) -> Vec<Neighbor<'a, F>> {
-    let mut res = Vec::new();
-    for (i, obs) in observations.axis_iter(Axis(0)).enumerate() {
-        let distance = candidate.l2_dist(&obs).unwrap();
-        if distance < eps {
-            res.push(Neighbor {
-                index: i,
+    let params = Params::new().ef_construction(observations.nrows());
+    let mut searcher = Searcher::default();
+    let mut hnsw: HNSW<Euclidean<F>> = HNSW::new_params(params);
+
+    // insert all rows as data points into HNSW graph
+    for feature in observations.genrows().into_iter() {
+        hnsw.insert(Euclidean(feature), &mut searcher);
+    }
+    let mut neighbours = vec![space::Neighbor::invalid(); observations.nrows()];
+    hnsw.nearest(
+        &Euclidean(candidate.view()),
+        observations.nrows(),
+        &mut searcher,
+        &mut neighbours,
+    );
+    let eps = space::f64_metric(eps);
+    let out_of_bounds = neighbours
+        .iter()
+        .enumerate()
+        .find(|(_, x)| x.distance > eps)
+        .map(|(i, _)| i);
+    if let Some(i) = out_of_bounds {
+        // once shrink_to is stablised can switch to that
+        neighbours.resize_with(i, space::Neighbor::invalid);
+    }
+
+    neighbours
+        .iter()
+        .map(|x| {
+            let observation = observations.row(x.index);
+            let distance = candidate.l2_dist(&observation).unwrap();
+            Neighbor {
+                index: x.index,
                 processed: false,
-                observation: obs,
+                observation,
                 r_distance: Some(FloatOrd(distance)),
                 c_distance: None,
-            });
-        }
-    }
-    res.sort_unstable();
-    res
+            }
+        })
+        .collect()
 }
 
 #[cfg(test)]
