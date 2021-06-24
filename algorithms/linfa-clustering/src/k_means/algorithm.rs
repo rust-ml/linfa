@@ -422,7 +422,12 @@ impl<F: Float, DA: Data<Elem = F>, D: Distance<F>> PredictRef<ArrayBase<DA, Ix2>
     /// [`centroids` method](#method.centroids).
     fn predict_ref(&self, observations: &ArrayBase<DA, Ix2>) -> Array1<usize> {
         let mut memberships = Array1::zeros(observations.nrows());
-        update_cluster_memberships(&self.dist_fn, &self.centroids, &observations.view(), &mut memberships);
+        update_cluster_memberships(
+            &self.dist_fn,
+            &self.centroids,
+            &observations.view(),
+            &mut memberships,
+        );
         memberships
     }
 }
