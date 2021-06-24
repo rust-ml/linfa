@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     for (id, target) in kernel
         .targets()
-        .into_iter()
+        .iter()
         .zip(dataset.targets().into_iter())
     {
         let name = match *target as usize {
@@ -30,7 +30,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         print!("({} {}) ", id, name);
     }
-    println!("");
+    println!();
 
     Ok(())
 }

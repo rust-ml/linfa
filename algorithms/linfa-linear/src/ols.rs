@@ -148,10 +148,9 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> Fit<ArrayBase<D, Ix2>,
             // and the intercept as the residual of fitted parameters applied
             // to the X_offset and y_offset
             let X_offset: Array1<F> = X
-                .mean_axis(Axis(0))
-                .ok_or_else(|| LinearError::NotEnoughSamples)?;
+                .mean_axis(Axis(0)).ok_or(LinearError::NotEnoughSamples)?;
             let X_centered: Array2<F> = X - &X_offset;
-            let y_offset: F = y.mean().ok_or_else(|| LinearError::NotEnoughTargets)?;
+            let y_offset: F = y.mean().ok_or(LinearError::NotEnoughTargets)?;
             let y_centered: Array1<F> = &y - y_offset;
             let params: Array1<F> =
                 compute_params(X_centered, y_centered, self.options.should_normalize())?;
@@ -232,7 +231,7 @@ impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<F>>
     /// Given an input matrix `X`, with shape `(n_samples, n_features)`,
     /// `predict` returns the target variable according to linear model
     /// learned from the training data distribution.
-    fn predict_ref<'a>(&'a self, x: &ArrayBase<D, Ix2>) -> Array1<F> {
+    fn predict_ref(&self, x: &ArrayBase<D, Ix2>) -> Array1<F> {
         x.dot(&self.params) + self.intercept
     }
 }

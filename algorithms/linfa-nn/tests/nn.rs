@@ -72,7 +72,7 @@ fn nn_test(builder: &CommonNearestNeighbour, sort_within_range: bool) {
     let pt = aview1(&[6.0, 3.0]);
     let mut out = nn.within_range(pt, 4.3).unwrap();
     if sort_within_range {
-        out = sort_by_dist(out, pt.clone());
+        out = sort_by_dist(out, pt);
     }
     assert_query(out, &points, vec![3, 2, 1]);
 }

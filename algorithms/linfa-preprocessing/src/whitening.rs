@@ -100,9 +100,7 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets> Fit<ArrayBase<D, Ix2>, T, Error>
             }
             WhiteningMethod::Cholesky => {
                 let sigma = sigma.t().dot(&sigma) / F::Lapack::cast(x.nsamples() - 1);
-                let res = sigma.inv()?.cholesky(UPLO::Upper)?.without_lapack();
-
-                res
+                sigma.inv()?.cholesky(UPLO::Upper)?.without_lapack()
             }
         };
 
@@ -184,11 +182,11 @@ mod tests {
         let mean = x.mean_axis(Axis(0)).unwrap();
         let sigma = x - &mean;
         let sigma = sigma.t().dot(&sigma) / ((x.dim().0 - 1) as f64);
-        return sigma;
+        sigma
     }
 
     fn inv_cov<D: Data<Elem = f64>>(x: &ArrayBase<D, Ix2>) -> Array2<f64> {
-        return cov(x).inv().unwrap();
+        cov(x).inv().unwrap()
     }
 
     #[test]

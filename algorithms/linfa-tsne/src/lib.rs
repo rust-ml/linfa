@@ -151,7 +151,7 @@ impl<F: Float, R: Rng + Clone> Transformer<Array2<F>, Result<Array2<F>>> for TSn
 
         let mut embedding: Vec<F> = (0..nsamples * self.embedding_size)
             .map(|_| rng.sample(&normal))
-            .map(|x| F::cast(x))
+            .map(F::cast)
             .collect();
 
         bhtsne::run(
@@ -224,7 +224,7 @@ mod tests {
         )?;
 
         let targets = (0..200).map(|x| x < 100).collect::<Array1<_>>();
-        let dataset = Dataset::new(entries.clone(), targets);
+        let dataset = Dataset::new(entries, targets);
 
         let ds = TSne::embedding_size_with_rng(2, rng)
             .perplexity(60.0)

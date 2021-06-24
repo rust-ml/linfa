@@ -115,7 +115,7 @@ impl AppxDbscanLabeler {
                 'nbrs: for neighbour_i in cell.neighbours_indexes() {
                     // indexes are added to neighbours only if tthey are in the table
                     let neighbour = grid.cells().get(*neighbour_i).unwrap();
-                    if neighbour.approximate_range_counting(curr_point, &params) > 0 {
+                    if neighbour.approximate_range_counting(curr_point, params) > 0 {
                         clusters[cp_index] = Some(neighbour.cluster_i().unwrap_or_else(|| {
                             panic!("Attempted to get cluster index of a non core cell")
                         }));

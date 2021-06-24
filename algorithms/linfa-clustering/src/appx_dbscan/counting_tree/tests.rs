@@ -1,12 +1,13 @@
 use super::*;
 use crate::AppxDbscanHyperParams;
 
+use approx::assert_abs_diff_eq;
 use ndarray::{arr1, ArrayView};
 
 #[test]
 fn counting_test() {
     let params = AppxDbscanHyperParams::new(2).tolerance(2.0).slack(0.1);
-    let l = params.tolerance / (2 as f64).sqrt();
+    let l = params.tolerance / 2_f64.sqrt();
     let q_fixed = [l, l];
     let q2_fixed = [-l, l];
     let q = ArrayView::from(&q_fixed);
@@ -74,59 +75,59 @@ fn get_corners_test() {
     let cell_center = arr1(&[0.0, 0.0]);
     let corners = get_corners(&cell_center, side_size);
     //--0
-    assert_eq!(corners.row(0)[0], -1.0);
-    assert_eq!(corners.row(0)[1], -1.0);
+    assert_abs_diff_eq!(corners.row(0)[0], -1.0);
+    assert_abs_diff_eq!(corners.row(0)[1], -1.0);
     //--1
-    assert_eq!(corners.row(1)[0], 1.0);
-    assert_eq!(corners.row(1)[1], -1.0);
+    assert_abs_diff_eq!(corners.row(1)[0], 1.0);
+    assert_abs_diff_eq!(corners.row(1)[1], -1.0);
     //--2
-    assert_eq!(corners.row(2)[0], -1.0);
-    assert_eq!(corners.row(2)[1], 1.0);
+    assert_abs_diff_eq!(corners.row(2)[0], -1.0);
+    assert_abs_diff_eq!(corners.row(2)[1], 1.0);
     //--3
-    assert_eq!(corners.row(3)[0], 1.0);
-    assert_eq!(corners.row(3)[0], 1.0);
+    assert_abs_diff_eq!(corners.row(3)[0], 1.0);
+    assert_abs_diff_eq!(corners.row(3)[0], 1.0);
 
     let cell_center = arr1(&[0.0, 0.0, 0.0]);
     let corners = get_corners(&cell_center, side_size);
 
     //--0
-    assert_eq!(corners.row(0)[0], -1.0);
-    assert_eq!(corners.row(0)[1], -1.0);
-    assert_eq!(corners.row(0)[2], -1.0);
+    assert_abs_diff_eq!(corners.row(0)[0], -1.0);
+    assert_abs_diff_eq!(corners.row(0)[1], -1.0);
+    assert_abs_diff_eq!(corners.row(0)[2], -1.0);
     //--1
-    assert_eq!(corners.row(1)[0], 1.0);
-    assert_eq!(corners.row(1)[1], -1.0);
-    assert_eq!(corners.row(1)[2], -1.0);
+    assert_abs_diff_eq!(corners.row(1)[0], 1.0);
+    assert_abs_diff_eq!(corners.row(1)[1], -1.0);
+    assert_abs_diff_eq!(corners.row(1)[2], -1.0);
     //--2
-    assert_eq!(corners.row(2)[0], -1.0);
-    assert_eq!(corners.row(2)[1], 1.0);
-    assert_eq!(corners.row(2)[2], -1.0);
+    assert_abs_diff_eq!(corners.row(2)[0], -1.0);
+    assert_abs_diff_eq!(corners.row(2)[1], 1.0);
+    assert_abs_diff_eq!(corners.row(2)[2], -1.0);
     //--3
-    assert_eq!(corners.row(3)[0], 1.0);
-    assert_eq!(corners.row(3)[1], 1.0);
-    assert_eq!(corners.row(3)[2], -1.0);
+    assert_abs_diff_eq!(corners.row(3)[0], 1.0);
+    assert_abs_diff_eq!(corners.row(3)[1], 1.0);
+    assert_abs_diff_eq!(corners.row(3)[2], -1.0);
     //--4
-    assert_eq!(corners.row(4)[0], -1.0);
-    assert_eq!(corners.row(4)[1], -1.0);
-    assert_eq!(corners.row(4)[2], 1.0);
+    assert_abs_diff_eq!(corners.row(4)[0], -1.0);
+    assert_abs_diff_eq!(corners.row(4)[1], -1.0);
+    assert_abs_diff_eq!(corners.row(4)[2], 1.0);
     //--5
-    assert_eq!(corners.row(5)[0], 1.0);
-    assert_eq!(corners.row(5)[1], -1.0);
-    assert_eq!(corners.row(5)[2], 1.0);
+    assert_abs_diff_eq!(corners.row(5)[0], 1.0);
+    assert_abs_diff_eq!(corners.row(5)[1], -1.0);
+    assert_abs_diff_eq!(corners.row(5)[2], 1.0);
     //--6
-    assert_eq!(corners.row(6)[0], -1.0);
-    assert_eq!(corners.row(6)[1], 1.0);
-    assert_eq!(corners.row(6)[2], 1.0);
+    assert_abs_diff_eq!(corners.row(6)[0], -1.0);
+    assert_abs_diff_eq!(corners.row(6)[1], 1.0);
+    assert_abs_diff_eq!(corners.row(6)[2], 1.0);
     //--7
-    assert_eq!(corners.row(7)[0], 1.0);
-    assert_eq!(corners.row(7)[1], 1.0);
-    assert_eq!(corners.row(7)[2], 1.0);
+    assert_abs_diff_eq!(corners.row(7)[0], 1.0);
+    assert_abs_diff_eq!(corners.row(7)[1], 1.0);
+    assert_abs_diff_eq!(corners.row(7)[2], 1.0);
 }
 
 #[test]
 fn determine_intersection_test() {
     let params = AppxDbscanHyperParams::new(2).tolerance(2.0).slack(0.1);
-    let l = params.tolerance / (2.0 as f64).sqrt();
+    let l = params.tolerance / 2.0_f64.sqrt();
     let fixed_point = [l / 2.0, (3.0 / 2.0) * l];
     let q = ArrayView::from(&fixed_point);
     let cell_index_1 = arr1(&[0, 1]);

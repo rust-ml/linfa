@@ -36,7 +36,7 @@ pub fn pinv2<F: Float>(x: ArrayView2<F>, cond: Option<F>) -> Array2<F> {
     });
 
     let mut ucut = u.slice_move(s![.., ..rank]);
-    ucut /= &s.slice(s![..rank]).mapv(|v| F::Lapack::cast(v));
+    ucut /= &s.slice(s![..rank]).mapv(F::Lapack::cast);
 
     vh.slice(s![..rank, ..])
         .t()
@@ -57,8 +57,8 @@ pub fn center_scale_dataset<F: Float, D: Data<Elem = F>>(
     Array1<F>,
     Array1<F>,
 ) {
-    let (xnorm, x_mean, x_std) = center_scale(&dataset.records(), scale);
-    let (ynorm, y_mean, y_std) = center_scale(&dataset.targets(), scale);
+    let (xnorm, x_mean, x_std) = center_scale(dataset.records(), scale);
+    let (ynorm, y_mean, y_std) = center_scale(dataset.targets(), scale);
     (xnorm, ynorm, x_mean, y_mean, x_std, y_std)
 }
 

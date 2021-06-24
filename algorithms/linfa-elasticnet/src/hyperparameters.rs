@@ -26,6 +26,12 @@ pub struct ElasticNetParams<F> {
     pub tolerance: F,
 }
 
+impl<F:Float> Default for ElasticNetParams<F> {
+    fn default() -> Self {
+        Self::new()
+    } 
+}
+
 ///AbsDiffEq + Float + FromPrimitive + ScalarOperand + NumAssignOps>
 /// Configure and fit a Elastic Net model
 impl<F: Float> ElasticNetParams<F> {
@@ -113,7 +119,7 @@ impl<F: Float> ElasticNetParams<F> {
     pub fn validate_params(&self) -> Result<()> {
         if self.penalty.is_negative() {
             let msg = format!("Penalty should be positive, but is {}", self.penalty);
-            return Err(linfa::Error::Parameters(msg))?;
+            return Err(linfa::Error::Parameters(msg).into());
         }
 
         Ok(())

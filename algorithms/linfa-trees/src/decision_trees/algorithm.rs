@@ -359,8 +359,8 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
             Some(Box::new(TreeNode::fit(
                 data,
                 &left_mask,
-                &hyperparameters,
-                &sorted_indices,
+                hyperparameters,
+                sorted_indices,
                 depth + 1,
             )?))
         } else {
@@ -371,8 +371,8 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
             Some(Box::new(TreeNode::fit(
                 data,
                 &right_mask,
-                &hyperparameters,
-                &sorted_indices,
+                hyperparameters,
+                sorted_indices,
                 depth + 1,
             )?))
         } else {
@@ -519,11 +519,11 @@ where
         let all_idxs = RowMask::all(x.nrows());
         let sorted_indices: Vec<_> = (0..(x.ncols()))
             .map(|feature_idx| {
-                SortedIndex::of_array_column(&x, feature_idx, &feature_names[feature_idx])
+                SortedIndex::of_array_column(x, feature_idx, &feature_names[feature_idx])
             })
             .collect();
 
-        let mut root_node = TreeNode::fit(&dataset, &all_idxs, &self, &sorted_indices, 0)?;
+        let mut root_node = TreeNode::fit(dataset, &all_idxs, self, &sorted_indices, 0)?;
         root_node.prune();
 
         Ok(DecisionTree {
@@ -633,7 +633,7 @@ impl<F: Float, L: Label + std::fmt::Debug> DecisionTree<F, L> {
     /// * `complete=true`
     ///
     pub fn export_to_tikz(&self) -> Tikz<F, L> {
-        Tikz::new(&self)
+        Tikz::new(self)
     }
 }
 

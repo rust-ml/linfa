@@ -248,7 +248,7 @@ impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsE
         }
         let norm_y_weights = self.deflation_mode == DeflationMode::Canonical;
         let (mut xk, mut yk, x_mean, y_mean, x_std, y_std) =
-            utils::center_scale_dataset(&dataset, self.scale);
+            utils::center_scale_dataset(dataset, self.scale);
 
         let mut x_weights = Array2::<F>::zeros((p, n_components)); // U
         let mut y_weights = Array2::<F>::zeros((q, n_components)); // V

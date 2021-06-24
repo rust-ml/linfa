@@ -370,7 +370,7 @@ impl<L: Label, R: Records, S: AsTargets<Elem = L>> DatasetBase<R, S> {
                     freqs.insert(elm.clone(), 0.0);
                 }
 
-                *freqs.get_mut(&elm).unwrap() += val;
+                *freqs.get_mut(elm).unwrap() += val;
             }
         }
 
@@ -559,8 +559,8 @@ where
         let mut indices = (0..self.nsamples()).collect::<Vec<_>>();
         indices.shuffle(rng);
 
-        let records = (&self).records().select(Axis(0), &indices);
-        let targets = (&self).as_multi_targets().select(Axis(0), &indices);
+        let records = self.records().select(Axis(0), &indices);
+        let targets = self.as_multi_targets().select(Axis(0), &indices);
         let targets = T::new_targets(targets);
 
         DatasetBase::new(records, targets)
@@ -840,7 +840,7 @@ where
         let folds_evaluations: std::result::Result<Vec<_>, ER> = self
             .iter_fold(k, |train| {
                 let fit_result: std::result::Result<Vec<_>, ER> =
-                    parameters.iter().map(|p| p.fit(&train)).collect();
+                    parameters.iter().map(|p| p.fit(train)).collect();
                 fit_result
             })
             .map(|(models, valid)| {
@@ -850,7 +850,7 @@ where
                     Array2::from_elem((models.len(), targets.len()), FACC::zero());
                 for (i, model) in models.iter().enumerate() {
                     let predicted = model.predict(valid.records());
-                    let eval_pred = match eval(&predicted, &targets) {
+                    let eval_pred = match eval(&predicted, targets) {
                         Err(e) => Err(ER::from(e)),
                         Ok(res) => Ok(res),
                     }?;
@@ -940,7 +940,7 @@ where
         let folds_evaluations = self
             .iter_fold(k, |train| {
                 let fit_result: std::result::Result<Vec<_>, ER> =
-                    parameters.iter().map(|p| p.fit(&train)).collect();
+                    parameters.iter().map(|p| p.fit(train)).collect();
                 fit_result
             })
             .map(|(models, valid)| {

@@ -69,7 +69,7 @@ pub trait SingleTargetRegression<F: Float, T: AsTargets<Elem = F>>: AsTargets<El
             .sub(&compare_to.try_single_target()?)
             .mapv(|x| x.abs())
             .to_vec();
-        abs_error.sort_by(|a, b| a.partial_cmp(&b).unwrap());
+        abs_error.sort_by(|a, b| a.partial_cmp(b).unwrap());
         let mid = abs_error.len() / 2;
         if abs_error.len() % 2 == 0 {
             Ok((abs_error[mid - 1] + abs_error[mid]) / F::cast(2.0))

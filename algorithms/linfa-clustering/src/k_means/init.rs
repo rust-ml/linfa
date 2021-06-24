@@ -223,7 +223,7 @@ fn cluster_membership_counts<F: Float>(
     let n_samples = observations.nrows();
     let n_clusters = centroids.nrows();
     let mut memberships = Array1::zeros(n_samples);
-    update_cluster_memberships(&centroids, observations, &mut memberships);
+    update_cluster_memberships(centroids, observations, &mut memberships);
     let mut counts = Array1::zeros(n_clusters);
     memberships.iter().for_each(|&c| counts[c] += F::one());
     counts
@@ -333,14 +333,13 @@ mod tests {
             let found = clusters
                 .iter()
                 .enumerate()
-                .filter_map(|(i, c)| {
+                .find_map(|(i, c)| {
                     if c.genrows().into_iter().any(|cl| abs_diff_eq!(row, cl)) {
                         Some(i)
                     } else {
                         None
                     }
                 })
-                .next()
                 .unwrap();
             cluster_ids.insert(found);
         }
@@ -362,7 +361,7 @@ mod tests {
 
         let out_rand = random_init(3, obs.view(), &mut rng.clone());
         let out_pp = k_means_plusplus(3, obs.view(), &mut rng.clone());
-        let out_para = k_means_para(3, obs.view(), &mut rng.clone());
+        let out_para = k_means_para(3, obs.view(), &mut rng);
         // Loss of Kmeans++ should be better than using random_init
         assert!(calc_loss(&out_pp, &obs) < calc_loss(&out_rand, &obs));
         // Loss of Kmeans|| should be better than using random_init

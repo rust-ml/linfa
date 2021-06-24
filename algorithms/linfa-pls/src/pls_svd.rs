@@ -68,7 +68,7 @@ impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsE
             )));
         }
         let (x, y, x_mean, y_mean, x_std, y_std) =
-            utils::center_scale_dataset(&dataset, self.scale);
+            utils::center_scale_dataset(dataset, self.scale);
 
         // Compute SVD of cross-covariance matrix
         let c = x.t().dot(&y);

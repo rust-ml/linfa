@@ -23,7 +23,7 @@ impl TweedieDistribution {
                 return Err(linfa::Error::Parameters(format!(
                     "Power value cannot be between 0 and 1, got: {}",
                     power
-                )))?;
+                )).into());
             }
             power if (1.0..2.0).contains(&power) => Self {
                 power,
@@ -79,10 +79,10 @@ impl TweedieDistribution {
             // Normal distribution
             // (y - ypred)^2
             power if power == 0. => Ok((&y - &ypred).mapv(|x| x * x)),
-            power if power < 1. => Err(linfa::Error::Parameters(format!(
+            power if power < 1. => return Err(linfa::Error::Parameters(format!(
                 "Power value cannot be between 0 and 1, got: {}",
                 power
-            )))?,
+            )).into()),
             // Poisson distribution
             // 2 * (y * log(y / ypred) - y + ypred)
             power if (power - 1.).abs() < 1e-6 => {
@@ -154,6 +154,7 @@ mod tests {
         ($($name:ident: ($dist:expr, $input:expr, $expected:expr),)*) => {
             $(
                 #[test]
+                #[allow(clippy::bool_assert_comparison)]
                 fn $name() {
                     let output = $dist.in_range(&$input.view());
                     assert_eq!(output, $expected);

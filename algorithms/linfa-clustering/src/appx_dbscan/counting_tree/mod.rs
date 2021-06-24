@@ -52,7 +52,7 @@ impl<F: Float> TreeStructure<F> {
         points: Vec<ArrayView1<F>>,
         params: &AppxDbscanHyperParams<F>,
     ) -> TreeStructure<F> {
-        if points.len() == 0 {
+        if points.is_empty() {
             panic!("AppxDbscan::build structure internal error: attempting to initialize counting tree with no points");
         }
         let dimensionality = points[0].dim();
@@ -74,12 +74,12 @@ impl<F: Float> TreeStructure<F> {
             let mut prev_child = &mut root;
             //level 0 is already used by the root
             for _ in 1..=levels_count {
-                curr_side_size = curr_side_size / F::cast(2.0);
+                curr_side_size /= F::cast(2.0);
                 let index_arr = get_cell_index(point, curr_side_size);
                 let curr_child: &mut TreeStructure<F> = prev_child
                     .children
                     .entry(index_arr.clone())
-                    .or_insert(TreeStructure::new(&index_arr, curr_side_size));
+                    .or_insert_with(|| TreeStructure::new(&index_arr, curr_side_size));
                 curr_child.cnt += 1;
                 prev_child = curr_child;
             }
@@ -107,7 +107,7 @@ impl<F: Float> TreeStructure<F> {
                 ans += self.cnt;
             }
             IntersectionType::Intersecting => {
-                if self.children.len() > 0 {
+                if !self.children.is_empty() {
                     for child in self.children.values() {
                         ans += child.approximate_range_counting(q, params);
                         // There is no need to know the exact count
@@ -167,7 +167,7 @@ pub fn determine_intersection<F: Float>(
     let dimensionality = q.dim();
 
     //let appr_dist = (F::cast(1.0) + params.slack()) * params.tolerance();
-    let dist_from_center = F::cast(cell_center.l2_dist(&q).unwrap());
+    let dist_from_center = F::cast(cell_center.l2_dist(q).unwrap());
     let dist_corner_from_center = (side_size * F::cast(dimensionality).sqrt()) / F::cast(2);
     let min_dist_edge_from_center = side_size / F::cast(2);
 
@@ -190,12 +190,12 @@ pub fn determine_intersection<F: Float>(
         return IntersectionType::Intersecting;
     }
 
-    let corners = get_corners(&cell_center, side_size);
+    let corners = get_corners(cell_center, side_size);
 
     let mut farthest_corner_distance = F::zero();
 
     for corner in corners.axis_iter(Axis(0)) {
-        let dist = F::cast(corner.l2_dist(&q).unwrap());
+        let dist = F::cast(corner.l2_dist(q).unwrap());
         if dist > farthest_corner_distance {
             farthest_corner_distance = dist;
         }
@@ -204,7 +204,7 @@ pub fn determine_intersection<F: Float>(
     if farthest_corner_distance < params.get_appx_tolerance() {
         return IntersectionType::FullyCovered;
     }
-    return IntersectionType::Intersecting;
+    IntersectionType::Intersecting
 }
 
 /// Gets the coordinates of all the corners (2^D) of a cell given its center points and its side size.
