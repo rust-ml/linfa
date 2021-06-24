@@ -23,7 +23,8 @@ impl TweedieDistribution {
                 return Err(linfa::Error::Parameters(format!(
                     "Power value cannot be between 0 and 1, got: {}",
                     power
-                )).into());
+                ))
+                .into());
             }
             power if (1.0..2.0).contains(&power) => Self {
                 power,
@@ -79,10 +80,13 @@ impl TweedieDistribution {
             // Normal distribution
             // (y - ypred)^2
             power if power == 0. => Ok((&y - &ypred).mapv(|x| x * x)),
-            power if power < 1. => return Err(linfa::Error::Parameters(format!(
-                "Power value cannot be between 0 and 1, got: {}",
-                power
-            )).into()),
+            power if power < 1. => {
+                return Err(linfa::Error::Parameters(format!(
+                    "Power value cannot be between 0 and 1, got: {}",
+                    power
+                ))
+                .into())
+            }
             // Poisson distribution
             // 2 * (y * log(y / ypred) - y + ypred)
             power if (power - 1.).abs() < 1e-6 => {

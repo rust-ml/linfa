@@ -133,7 +133,8 @@ impl<A: Float, D: Data<Elem = A>, T: AsTargets<Elem = A>> Fit<ArrayBase<D, Ix2>,
             return Err(linfa::Error::Parameters(format!(
                 "Penalty term must be a non-negative number, got: {}",
                 self.alpha
-            )).into());
+            ))
+            .into());
         }
 
         // If link is not set we automatically select an appropriate
@@ -154,7 +155,8 @@ impl<A: Float, D: Data<Elem = A>, T: AsTargets<Elem = A>> Fit<ArrayBase<D, Ix2>,
             return Err(linfa::Error::Parameters(format!(
                 "Some value(s) of y are out of the valid range for power value {}",
                 self.power
-            )).into());
+            ))
+            .into());
         }
 
         // We initialize the coefficients and intercept

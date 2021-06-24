@@ -26,10 +26,10 @@ pub struct ElasticNetParams<F> {
     pub tolerance: F,
 }
 
-impl<F:Float> Default for ElasticNetParams<F> {
+impl<F: Float> Default for ElasticNetParams<F> {
     fn default() -> Self {
         Self::new()
-    } 
+    }
 }
 
 ///AbsDiffEq + Float + FromPrimitive + ScalarOperand + NumAssignOps>

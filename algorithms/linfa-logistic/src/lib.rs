@@ -580,7 +580,7 @@ mod test {
     extern crate linfa;
 
     use super::*;
-    use approx::{AbsDiffEq, assert_abs_diff_eq};
+    use approx::{assert_abs_diff_eq, AbsDiffEq};
     use ndarray::{array, Array2};
 
     /// Test that the logistic loss function works as expected.

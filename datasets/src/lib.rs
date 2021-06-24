@@ -221,7 +221,7 @@ mod tests {
     #[cfg(feature = "winequality")]
     #[test]
     fn test_winequality() {
-    use approx::abs_diff_eq;
+        use approx::abs_diff_eq;
 
         let ds = winequality();
 
@@ -258,9 +258,12 @@ mod tests {
         ];
 
         let freqs = ds.label_frequencies();
-        assert!(compare_to
-            .into_iter()
-            .all(|(key, val)| { freqs.get(&key).map(|x| abs_diff_eq!(*x, val)).unwrap_or(false) }));
+        assert!(compare_to.into_iter().all(|(key, val)| {
+            freqs
+                .get(&key)
+                .map(|x| abs_diff_eq!(*x, val))
+                .unwrap_or(false)
+        }));
 
         // perform correlation analysis and assert that fixed acidity and citric acid are
         // correlated

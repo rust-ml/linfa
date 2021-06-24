@@ -147,8 +147,7 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> Fit<ArrayBase<D, Ix2>,
             // compute the models parameters based on the centered X and y
             // and the intercept as the residual of fitted parameters applied
             // to the X_offset and y_offset
-            let X_offset: Array1<F> = X
-                .mean_axis(Axis(0)).ok_or(LinearError::NotEnoughSamples)?;
+            let X_offset: Array1<F> = X.mean_axis(Axis(0)).ok_or(LinearError::NotEnoughSamples)?;
             let X_centered: Array2<F> = X - &X_offset;
             let y_offset: F = y.mean().ok_or(LinearError::NotEnoughTargets)?;
             let y_centered: Array1<F> = &y - y_offset;
