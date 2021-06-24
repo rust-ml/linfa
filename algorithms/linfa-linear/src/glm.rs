@@ -133,7 +133,8 @@ impl<A: Float, D: Data<Elem = A>, T: AsTargets<Elem = A>> Fit<ArrayBase<D, Ix2>,
             return Err(linfa::Error::Parameters(format!(
                 "Penalty term must be a non-negative number, got: {}",
                 self.alpha
-            )))?;
+            ))
+            .into());
         }
 
         // If link is not set we automatically select an appropriate
@@ -154,7 +155,8 @@ impl<A: Float, D: Data<Elem = A>, T: AsTargets<Elem = A>> Fit<ArrayBase<D, Ix2>,
             return Err(linfa::Error::Parameters(format!(
                 "Some value(s) of y are out of the valid range for power value {}",
                 self.power
-            )))?;
+            ))
+            .into());
         }
 
         // We initialize the coefficients and intercept
@@ -249,7 +251,7 @@ impl<'a, A: Float> ArgminOp for TweedieProblem<'a, A> {
     fn apply(&self, p: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
         let p = p.as_array();
 
-        let (ypred, _, offset) = self.ypred(&p);
+        let (ypred, _, offset) = self.ypred(p);
 
         let dev = self.dist.deviance(self.y, ypred.view())?;
 
@@ -265,7 +267,7 @@ impl<'a, A: Float> ArgminOp for TweedieProblem<'a, A> {
     fn gradient(&self, p: &Self::Param) -> std::result::Result<Self::Param, argmin::core::Error> {
         let p = p.as_array();
 
-        let (ypred, lin_pred, offset) = self.ypred(&p);
+        let (ypred, lin_pred, offset) = self.ypred(p);
 
         let devp;
         let der = self.link.inverse_derviative(&lin_pred);
@@ -302,7 +304,7 @@ impl<A: Float, D: Data<Elem = A>> PredictRef<ArrayBase<D, Ix2>, Array1<A>>
     for FittedTweedieRegressor<A>
 {
     /// Predict the target
-    fn predict_ref<'a>(&'a self, x: &ArrayBase<D, Ix2>) -> Array1<A> {
+    fn predict_ref(&self, x: &ArrayBase<D, Ix2>) -> Array1<A> {
         let ypred = x.dot(&self.coef) + self.intercept;
         self.link.inverse(&ypred)
     }

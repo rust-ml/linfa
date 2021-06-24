@@ -34,11 +34,11 @@ fn load_20news_bydate() -> Vec<std::path::PathBuf> {
         "sci.space",
     ];
     let file_paths = load_test_set(&desired_targets);
-    if file_paths.is_err() {
+    if let Ok(paths) = file_paths {
+        paths
+    } else {
         download_20news_bydate();
         load_test_set(&desired_targets).unwrap()
-    } else {
-        file_paths.unwrap()
     }
 }
 

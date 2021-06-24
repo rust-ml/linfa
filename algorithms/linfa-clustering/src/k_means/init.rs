@@ -231,7 +231,7 @@ fn cluster_membership_counts<F: Float, D: Distance<F>>(
     let n_samples = observations.nrows();
     let n_clusters = centroids.nrows();
     let mut memberships = Array1::zeros(n_samples);
-    update_cluster_memberships(dist_fn, &centroids, observations, &mut memberships);
+    update_cluster_memberships(dist_fn, centroids, observations, &mut memberships);
     let mut counts = Array1::zeros(n_clusters);
     memberships.iter().for_each(|&c| counts[c] += F::one());
     counts
@@ -378,7 +378,7 @@ mod tests {
 
         let out_rand = random_init(3, obs.view(), &mut rng.clone());
         let out_pp = k_means_plusplus(&dist_fn, 3, obs.view(), &mut rng.clone());
-        let out_para = k_means_para(&dist_fn, 3, obs.view(), &mut rng.clone());
+        let out_para = k_means_para(&dist_fn, 3, obs.view(), &mut rng);
         // Loss of Kmeans++ should be better than using random_init
         assert!(calc_loss!(dist_fn, out_pp, obs) < calc_loss!(dist_fn, out_rand, obs));
         // Loss of Kmeans|| should be better than using random_init

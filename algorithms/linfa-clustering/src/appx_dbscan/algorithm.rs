@@ -106,7 +106,7 @@ impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<Option<us
             return Array1::from_elem(0, None);
         }
 
-        let labeler = AppxDbscanLabeler::new(&observations.view(), &self);
+        let labeler = AppxDbscanLabeler::new(&observations.view(), self);
         labeler.into_labels()
     }
 }
