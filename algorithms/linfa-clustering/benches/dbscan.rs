@@ -12,6 +12,7 @@ fn dbscan_bench(c: &mut Criterion) {
     let cluster_sizes = vec![10, 100, 1000, 10000];
 
     let mut benchmark = c.benchmark_group("dbscan");
+    benchmark.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
     for cluster_size in cluster_sizes {
         let rng = &mut rng;
         benchmark.bench_with_input(
