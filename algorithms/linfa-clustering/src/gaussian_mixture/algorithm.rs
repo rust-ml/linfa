@@ -137,8 +137,10 @@ impl<F: Float> GaussianMixtureModel<F> {
         // Responsabilities can be initialized either from a KMeans result or randomly.
         let resp = match hyperparameters.init_method() {
             GmmInitMethod::KMeans => {
-                let model =
-                    KMeans::params_with_rng(hyperparameters.n_clusters(), rng).fit(&dataset)?;
+                let model = KMeans::params_with_rng(hyperparameters.n_clusters(), rng)
+                    .build()
+                    .unwrap()
+                    .fit(&dataset)?;
                 let mut resp = Array::<F, Ix2>::zeros((n_samples, hyperparameters.n_clusters()));
                 for (k, idx) in model.predict(dataset.records()).iter().enumerate() {
                     resp[[k, *idx]] = F::cast(1.);
