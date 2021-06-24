@@ -458,7 +458,7 @@ mod tests {
         let vocabulary = vectorizer.vocabulary();
         let counts: Array2<usize> = vectorizer.transform(&texts).to_dense();
         let true_vocabulary = vec!["one", "two", "three", "four"];
-        assert_vocabulary_eq(&true_vocabulary, &vocabulary);
+        assert_vocabulary_eq(&true_vocabulary, vocabulary);
         assert_counts_for_word!(
             vocabulary,
             counts,
@@ -475,7 +475,7 @@ mod tests {
         let vocabulary = vectorizer.vocabulary();
         let counts: Array2<usize> = vectorizer.transform(&texts).to_dense();
         let true_vocabulary = vec!["one two", "two three", "three four"];
-        assert_vocabulary_eq(&true_vocabulary, &vocabulary);
+        assert_vocabulary_eq(&true_vocabulary, vocabulary);
         assert_counts_for_word!(
             vocabulary,
             counts,
@@ -499,7 +499,7 @@ mod tests {
             "three four",
             "four",
         ];
-        assert_vocabulary_eq(&true_vocabulary, &vocabulary);
+        assert_vocabulary_eq(&true_vocabulary, vocabulary);
         assert_counts_for_word!(
             vocabulary,
             counts,
@@ -526,7 +526,7 @@ mod tests {
             .fit_vocabulary(&vocabulary)
             .unwrap();
         let vect_vocabulary = vectorizer.vocabulary();
-        assert_vocabulary_eq(&vocabulary, &vect_vocabulary);
+        assert_vocabulary_eq(&vocabulary, vect_vocabulary);
         let transformed: Array2<usize> = vectorizer.transform(&texts).to_dense();
         assert_counts_for_word!(
             vect_vocabulary,
@@ -549,7 +549,7 @@ mod tests {
         let vocabulary = vectorizer.vocabulary();
         let counts: Array2<usize> = vectorizer.transform(&texts).to_dense();
         let true_vocabulary = vec!["one", "two", "three", "four", "three;four"];
-        assert_vocabulary_eq(&true_vocabulary, &vocabulary);
+        assert_vocabulary_eq(&true_vocabulary, vocabulary);
         assert_counts_for_word!(
             vocabulary,
             counts,
@@ -571,7 +571,7 @@ mod tests {
         let vocabulary = vectorizer.vocabulary();
         let counts: Array2<usize> = vectorizer.transform(&texts).to_dense();
         let true_vocabulary = vec!["oNe", "two", "three", "four", "TWO"];
-        assert_vocabulary_eq(&true_vocabulary, &vocabulary);
+        assert_vocabulary_eq(&true_vocabulary, vocabulary);
         assert_counts_for_word!(
             vocabulary,
             counts,
@@ -599,7 +599,7 @@ mod tests {
         let vocabulary = vectorizer.vocabulary();
         let counts: Array2<usize> = vectorizer.transform(&texts).to_dense();
         let true_vocabulary = vec!["oNe", "two", "three", "four", "TWO", "three;four"];
-        assert_vocabulary_eq(&true_vocabulary, &vocabulary);
+        assert_vocabulary_eq(&true_vocabulary, vocabulary);
         assert_counts_for_word!(
             vocabulary,
             counts,
@@ -629,7 +629,7 @@ mod tests {
         let true_vocabulary = vec![
             "one", "two", "three", "four", "five", "seven", "eight", "ten", "eleven",
         ];
-        assert_vocabulary_eq(&true_vocabulary, &vocabulary);
+        assert_vocabulary_eq(&true_vocabulary, vocabulary);
     }
 
     #[test]
@@ -651,7 +651,7 @@ mod tests {
             )
             .to_dense();
         let true_vocabulary = vec!["one", "two", "three", "four"];
-        assert_vocabulary_eq(&true_vocabulary, &vocabulary);
+        assert_vocabulary_eq(&true_vocabulary, vocabulary);
         assert_counts_for_word!(
             vocabulary,
             counts,
@@ -678,7 +678,7 @@ mod tests {
             )
             .to_dense();
         let true_vocabulary = vec!["one two", "two three", "three four"];
-        assert_vocabulary_eq(&true_vocabulary, &vocabulary);
+        assert_vocabulary_eq(&true_vocabulary, vocabulary);
         assert_counts_for_word!(
             vocabulary,
             counts,
@@ -712,7 +712,7 @@ mod tests {
             "three four",
             "four",
         ];
-        assert_vocabulary_eq(&true_vocabulary, &vocabulary);
+        assert_vocabulary_eq(&true_vocabulary, vocabulary);
         assert_counts_for_word!(
             vocabulary,
             counts,
@@ -756,7 +756,7 @@ mod tests {
             "singletons",
         ];
         println!("voc: {:?}", vocabulary);
-        assert_vocabulary_eq(&true_vocabulary, &vocabulary);
+        assert_vocabulary_eq(&true_vocabulary, vocabulary);
     }
 
     #[test]
@@ -812,7 +812,7 @@ mod tests {
         file_names
     }
 
-    fn delete_test_files(file_names: &Vec<&'static str>) {
+    fn delete_test_files(file_names: &[&'static str]) {
         for f_name in file_names.iter() {
             std::fs::remove_file(f_name).unwrap();
         }

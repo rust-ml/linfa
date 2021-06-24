@@ -108,7 +108,7 @@ impl<F: Float, D: Data<Elem = F>, DF: Distance<F>, N: NearestNeighbour>
         let mut search_queue = VecDeque::with_capacity(observations.nrows());
 
         // Construct NN index
-        let nn = match self.nn_algo.from_batch(&observations, self.dist_fn.clone()) {
+        let nn = match self.nn_algo.from_batch(observations, self.dist_fn.clone()) {
             Ok(nn) => nn,
             Err(linfa_nn::BuildError::ZeroDimension) => {
                 return Array1::from_elem(observations.nrows(), None)

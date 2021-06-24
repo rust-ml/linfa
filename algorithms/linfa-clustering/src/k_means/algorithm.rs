@@ -406,7 +406,7 @@ impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<usize>> f
     ///
     /// You can retrieve the centroid associated to an index using the
     /// [`centroids` method](#method.centroids).
-    fn predict_ref<'a>(&'a self, observations: &ArrayBase<D, Ix2>) -> Array1<usize> {
+    fn predict_ref(&self, observations: &ArrayBase<D, Ix2>) -> Array1<usize> {
         compute_cluster_memberships(&self.centroids, &observations.view())
     }
 }
@@ -416,8 +416,8 @@ impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix1>, usize> for KMean
     ///
     /// You can retrieve the centroid associated to an index using the
     /// [`centroids` method](#method.centroids).
-    fn predict_ref<'a>(&'a self, observation: &ArrayBase<D, Ix1>) -> usize {
-        closest_centroid(&self.centroids, &observation).0
+    fn predict_ref(&self, observation: &ArrayBase<D, Ix1>) -> usize {
+        closest_centroid(&self.centroids, observation).0
     }
 }
 
@@ -511,7 +511,7 @@ pub(crate) fn update_cluster_memberships<F: Float>(
     Zip::from(observations.axis_iter(Axis(0)))
         .and(cluster_memberships)
         .par_apply(|observation, cluster_membership| {
-            *cluster_membership = closest_centroid(&centroids, &observation).0
+            *cluster_membership = closest_centroid(centroids, &observation).0
         });
 }
 
@@ -523,7 +523,7 @@ pub(crate) fn update_min_dists<F: Float>(
 ) {
     Zip::from(observations.axis_iter(Axis(0)))
         .and(dists)
-        .par_apply(|observation, dist| *dist = closest_centroid(&centroids, &observation).1);
+        .par_apply(|observation, dist| *dist = closest_centroid(centroids, &observation).1);
 }
 
 // Efficient combination of `update_cluster_memberships` and `update_min_dists`.
@@ -537,7 +537,7 @@ pub(crate) fn update_memberships_and_dists<F: Float>(
         .and(cluster_memberships)
         .and(dists)
         .par_apply(|observation, cluster_membership, dist| {
-            let (m, d) = closest_centroid(&centroids, &observation);
+            let (m, d) = closest_centroid(centroids, &observation);
             *cluster_membership = m;
             *dist = d;
         });
@@ -556,7 +556,7 @@ fn compute_cluster_memberships<F: Float>(
     observations: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
 ) -> Array1<usize> {
     let mut memberships = Array1::zeros(observations.nrows());
-    update_cluster_memberships(&centroids, &observations, &mut memberships);
+    update_cluster_memberships(centroids, observations, &mut memberships);
     memberships
 }
 
@@ -574,13 +574,13 @@ pub(crate) fn closest_centroid<F: Float>(
     let (mut closest_index, mut minimum_distance) = (
         0,
         first_centroid
-            .sq_l2_dist(&observation)
+            .sq_l2_dist(observation)
             .expect("Failed to compute distance"),
     );
 
     for (centroid_index, centroid) in iterator.enumerate() {
         let distance = centroid
-            .sq_l2_dist(&observation)
+            .sq_l2_dist(observation)
             .expect("Failed to compute distance");
         if distance < minimum_distance {
             closest_index = centroid_index;
@@ -605,7 +605,7 @@ mod tests {
         Zip::from(&mut y).and(x).apply(|yi, &xi| {
             if xi < 0.4 {
                 *yi = xi * xi;
-            } else if xi >= 0.4 && xi < 0.8 {
+            } else if (0.4..0.8).contains(&xi) {
                 *yi = 3. * xi + 1.;
             } else {
                 *yi = f64::sin(10. * xi);

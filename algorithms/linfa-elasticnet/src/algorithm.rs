@@ -45,7 +45,7 @@ where
         let y_est = dataset.records().dot(&parameters) + intercept;
 
         // try to calculate the variance
-        let variance = variance_params(&dataset, y_est);
+        let variance = variance_params(dataset, y_est);
 
         Ok(ElasticNet {
             intercept,
@@ -61,7 +61,7 @@ impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<F>> for E
     /// Given an input matrix `X`, with shape `(n_samples, n_features)`,
     /// `predict` returns the target variable according to elastic net
     /// learned from the training data distribution.
-    fn predict_ref<'a>(&'a self, x: &ArrayBase<D, Ix2>) -> Array1<F> {
+    fn predict_ref(&self, x: &ArrayBase<D, Ix2>) -> Array1<F> {
         x.dot(&self.parameters) + self.intercept
     }
 }
@@ -208,7 +208,7 @@ fn duality_gap<'a, F: Float>(
     gap
 }
 
-fn variance_params<'a, F: Float + Lapack, T: AsTargets<Elem = F>, D: Data<Elem = F>>(
+fn variance_params<F: Float + Lapack, T: AsTargets<Elem = F>, D: Data<Elem = F>>(
     ds: &DatasetBase<ArrayBase<D, Ix2>, T>,
     y_est: Array1<F>,
 ) -> Result<Array1<F>> {

@@ -92,7 +92,7 @@ pub struct SolverState<'a, F: Float, K: Permutable<F>> {
     phantom: PhantomData<&'a K>,
 }
 
-#[allow(clippy::needless_range_loop)]
+#[allow(clippy::needless_range_loop, clippy::too_many_arguments)]
 impl<'a, F: Float, K: 'a + Permutable<F>> SolverState<'a, F, K> {
     /// Initialize a solver state
     ///

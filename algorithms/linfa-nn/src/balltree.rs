@@ -1,3 +1,4 @@
+#![allow(clippy::type_complexity)]
 use std::{cmp::Reverse, collections::BinaryHeap};
 
 use linfa::Float;

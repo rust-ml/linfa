@@ -172,7 +172,7 @@ impl Pca<f64> {
 }
 
 impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array2<F>> for Pca<F> {
-    fn predict_ref<'a>(&'a self, records: &ArrayBase<D, Ix2>) -> Array2<F> {
+    fn predict_ref(&self, records: &ArrayBase<D, Ix2>) -> Array2<F> {
         (records - &self.mean).dot(&self.embedding.t())
     }
 }

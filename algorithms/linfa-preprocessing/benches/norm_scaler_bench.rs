@@ -28,7 +28,7 @@ fn iai_max_scaler_bench() {
 
 fn transform_scaler(scaler: NormScaler, rng: &mut SmallRng, size: usize, nfeatures: usize) {
     let dataset: Array2<f64> =
-        Array2::random_using((size, nfeatures), Uniform::from(-30. ..30.), rng).into();
+        Array2::random_using((size, nfeatures), Uniform::from(-30. ..30.), rng);
     scaler.transform(iai::black_box(dataset));
 }
 

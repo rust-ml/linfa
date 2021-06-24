@@ -286,7 +286,7 @@ where
 
         let indices = map_prediction_to_idx(
             targets.as_slice().unwrap(),
-            &ground_truth.as_slice().unwrap(),
+            ground_truth.as_slice().unwrap(),
             &classes,
         );
 

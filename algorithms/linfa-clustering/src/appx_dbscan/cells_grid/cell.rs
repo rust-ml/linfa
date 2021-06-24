@@ -21,7 +21,7 @@ pub struct StatusPoint {
 impl StatusPoint {
     pub fn new(point_index: usize) -> StatusPoint {
         StatusPoint {
-            point_index: point_index,
+            point_index,
             is_core: false,
         }
     }
@@ -201,10 +201,8 @@ impl<F: Float> Cell<F> {
             new_index[j] = nval;
             if j < dimensionality - 1 {
                 self.get_neighbours_rec(&new_index, j + 1, cells);
-            } else {
-                if let Some(i) = cells.get(&new_index) {
-                    self.neighbour_cell_indexes.push(*i);
-                }
+            } else if let Some(i) = cells.get(&new_index) {
+                self.neighbour_cell_indexes.push(*i);
             }
         }
     }
@@ -218,7 +216,7 @@ impl<F: Float> Cell<F> {
         if self.points.len() >= params.min_points {
             self.label_dense(points, params);
         } else {
-            self.label_sparse(&cells, points, params);
+            self.label_sparse(cells, points, params);
         }
     }
 
