@@ -22,6 +22,8 @@ fn appx_dbscan_test_100() {
         .predict(&dataset);
     let ex_res = Dbscan::params(min_points)
         .tolerance(tolerance)
+        .build()
+        .unwrap()
         .predict(&dataset);
 
     // The order of the labels of the clusters in the two algorithms may not be the same
@@ -70,6 +72,8 @@ fn appx_dbscan_test_250() {
         .predict(&dataset);
     let ex_res = Dbscan::params(min_points)
         .tolerance(tolerance)
+        .build()
+        .unwrap()
         .predict(&dataset);
 
     // The order of the labels of the clusters in the two algorithms may not be the same
@@ -115,6 +119,8 @@ fn appx_dbscan_test_500() {
         .predict(&dataset);
     let ex_res = Dbscan::params(min_points)
         .tolerance(tolerance)
+        .build()
+        .unwrap()
         .predict(&dataset);
 
     // The order of the labels of the clusters in the two algorithms may not be the same

@@ -1,4 +1,4 @@
-use crate::dbscan::hyperparameters::DbscanHyperParams;
+use crate::{dbscan::hyperparameters::DbscanHyperParams, DbscanHyperParamsBuilder};
 use linfa_nn::{
     distance::{Distance, L2Dist},
     CommonNearestNeighbour, NearestNeighbour, NearestNeighbourIndex,
@@ -82,7 +82,7 @@ impl Dbscan {
     /// * `nn_algo = KdTree`
     pub fn params<F: Float>(
         min_points: usize,
-    ) -> DbscanHyperParams<F, L2Dist, CommonNearestNeighbour> {
+    ) -> DbscanHyperParamsBuilder<F, L2Dist, CommonNearestNeighbour> {
         Self::params_with(min_points, L2Dist, CommonNearestNeighbour::KdTree)
     }
 
@@ -92,8 +92,8 @@ impl Dbscan {
         min_points: usize,
         dist_fn: D,
         nn_algo: N,
-    ) -> DbscanHyperParams<F, D, N> {
-        DbscanHyperParams::new(min_points, dist_fn, nn_algo)
+    ) -> DbscanHyperParamsBuilder<F, D, N> {
+        DbscanHyperParamsBuilder::new(min_points, dist_fn, nn_algo)
     }
 }
 
@@ -208,7 +208,11 @@ mod tests {
         data.column_mut(0).slice_mut(s![40..]).fill(5.0);
         data.column_mut(1).slice_mut(s![40..]).fill(5.0);
 
-        let labels = Dbscan::params(2).tolerance(1.0).predict(&data);
+        let labels = Dbscan::params(2)
+            .tolerance(1.0)
+            .build()
+            .unwrap()
+            .predict(&data);
 
         assert!(labels.slice(s![..40]).iter().all(|x| x == &Some(0)));
         assert!(labels.slice(s![40..]).iter().all(|x| x == &Some(1)));
@@ -219,7 +223,7 @@ mod tests {
         let mut data: Array2<f64> = Array2::zeros((5, 2));
         data.row_mut(0).assign(&arr1(&[10.0, 10.0]));
 
-        let labels = Dbscan::params(4).predict(&data);
+        let labels = Dbscan::params(4).build().unwrap().predict(&data);
 
         let expected = arr1(&[None, Some(0), Some(0), Some(0), Some(0)]);
         assert_eq!(labels, expected);
@@ -240,7 +244,11 @@ mod tests {
         ]);
 
         // Run the approximate dbscan with tolerance of 1.1, 5 min points for density
-        let labels = Dbscan::params(5).tolerance(1.1).predict(&data);
+        let labels = Dbscan::params(5)
+            .tolerance(1.1)
+            .build()
+            .unwrap()
+            .predict(&data);
 
         assert_eq!(labels[0], None);
         for id in labels.slice(s![1..]).iter() {
@@ -252,7 +260,7 @@ mod tests {
     fn dataset_too_small() {
         let data: Array2<f64> = Array2::zeros((3, 2));
 
-        let labels = Dbscan::params(4).predict(&data);
+        let labels = Dbscan::params(4).build().unwrap().predict(&data);
         assert!(labels.iter().all(|x| x.is_none()));
     }
 }
