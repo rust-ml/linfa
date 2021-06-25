@@ -31,6 +31,8 @@ fn main() {
     let cluster_memberships = AppxDbscan::params(min_points)
         .tolerance(1.)
         .slack(1e-2)
+        .build()
+        .unwrap()
         .predict(dataset);
 
     // sigle target dataset

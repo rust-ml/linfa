@@ -1,4 +1,5 @@
-use crate::{generate_blobs, AppxDbscan, AppxDbscanHyperParams, Dbscan};
+use crate::AppxDbscan;
+use crate::{generate_blobs, AppxDbscanHyperParamsBuilder, Dbscan};
 use linfa::traits::Predict;
 use ndarray::{arr2, s, Array1, Array2};
 use ndarray_rand::rand::SeedableRng;
@@ -19,6 +20,8 @@ fn appx_dbscan_test_100() {
     let appx_res = AppxDbscan::params(min_points)
         .tolerance(tolerance)
         .slack(1e-4)
+        .build()
+        .unwrap()
         .predict(&dataset);
     let ex_res = Dbscan::params(min_points)
         .tolerance(tolerance)
@@ -69,6 +72,8 @@ fn appx_dbscan_test_250() {
     let appx_res = AppxDbscan::params(min_points)
         .tolerance(tolerance)
         .slack(1e-4)
+        .build()
+        .unwrap()
         .predict(&dataset);
     let ex_res = Dbscan::params(min_points)
         .tolerance(tolerance)
@@ -116,6 +121,8 @@ fn appx_dbscan_test_500() {
     let appx_res = AppxDbscan::params(min_points)
         .tolerance(tolerance)
         .slack(1e-4)
+        .build()
+        .unwrap()
         .predict(&dataset);
     let ex_res = Dbscan::params(min_points)
         .tolerance(tolerance)
@@ -169,6 +176,8 @@ fn test_border() {
     let labels = AppxDbscan::params(5)
         .tolerance(1.1)
         .slack(1e-5)
+        .build()
+        .unwrap()
         .predict(&data);
 
     assert_eq!(labels[0], None);
@@ -219,6 +228,8 @@ fn test_outliers() {
     let labels = AppxDbscan::params(2)
         .tolerance(1.0)
         .slack(1e-4)
+        .build()
+        .unwrap()
         .predict(&data);
     // we should find that the first 50 points are all in the same cluster (cluster 0)
     // and that the other points are so far away from one another that they are all noise points
@@ -252,6 +263,8 @@ fn nested_clusters() {
     let labels = AppxDbscan::params(2)
         .tolerance(1.0)
         .slack(1e-4)
+        .build()
+        .unwrap()
         .predict(&data);
 
     assert!(labels.slice(s![..40]).iter().all(|x| x == &Some(0)));
@@ -280,31 +293,46 @@ fn test_exp(){
 }*/
 
 #[test]
-#[should_panic]
 fn tolerance_cannot_be_zero() {
-    AppxDbscanHyperParams::new(2).tolerance(0.0).slack(0.1);
+    assert!(AppxDbscanHyperParamsBuilder::new(2)
+        .tolerance(0.0)
+        .slack(0.1)
+        .build()
+        .is_err());
 }
 
 #[test]
-#[should_panic]
 fn slack_cannot_be_zero() {
-    AppxDbscanHyperParams::new(2).tolerance(0.1).slack(0.0);
+    assert!(AppxDbscanHyperParamsBuilder::new(2)
+        .tolerance(0.1)
+        .slack(0.0)
+        .build()
+        .is_err());
 }
 
 #[test]
-#[should_panic]
 fn min_points_at_least_2() {
-    AppxDbscanHyperParams::new(1).tolerance(0.1).slack(0.1);
+    assert!(AppxDbscanHyperParamsBuilder::new(1)
+        .tolerance(0.1)
+        .slack(0.1)
+        .build()
+        .is_err());
 }
 
 #[test]
-#[should_panic]
 fn tolerance_should_be_positive() {
-    AppxDbscanHyperParams::new(2).tolerance(-1.0).slack(0.1);
+    assert!(AppxDbscanHyperParamsBuilder::new(2)
+        .tolerance(-1.0)
+        .slack(0.1)
+        .build()
+        .is_err());
 }
 
 #[test]
-#[should_panic]
 fn slack_should_be_positive() {
-    AppxDbscanHyperParams::new(2).tolerance(0.1).slack(-1.0);
+    assert!(AppxDbscanHyperParamsBuilder::new(2)
+        .tolerance(0.1)
+        .slack(-1.0)
+        .build()
+        .is_err());
 }

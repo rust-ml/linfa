@@ -67,6 +67,8 @@ use linfa::Float;
 /// let min_points = 3;
 /// let clusters = Dbscan::params(min_points)
 ///     .tolerance(1e-2)
+///     .build()
+///     .unwrap()
 ///     .predict(&observations);
 /// // Points are `None` if noise `Some(id)` if belonging to a cluster.
 /// ```
