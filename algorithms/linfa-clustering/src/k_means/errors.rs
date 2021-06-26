@@ -2,18 +2,31 @@ use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, KMeansError>;
 
+/// An error when fitting with an invalid hyperparameter
+#[derive(Error, Debug)]
+pub enum KMeansParamsError {
+    #[error("n_clusters cannot be 0")]
+    NClusters,
+    #[error("n_runs cannot be 0")]
+    NRuns,
+    #[error("tolerance must be greater than 0")]
+    Tolerance,
+    #[error("max_n_iterations cannot be 0")]
+    MaxIterations,
+}
+
 /// An error when modeling a KMeans algorithm
 #[derive(Error, Debug)]
 pub enum KMeansError {
     /// When any of the hyperparameters are set the wrong value
-    #[error("Invalid value encountered: {0}")]
-    InvalidValue(String),
+    #[error("Invalid hyperparameter: {0}")]
+    InvalidParams(#[from] KMeansParamsError),
     /// When inertia computation fails
-    #[error("Fitting failed: {0}")]
-    InertiaError(String),
+    #[error("Fitting failed: No inertia improvement (-inf)")]
+    InertiaError,
     /// When fitting algorithm does not converge
-    #[error("Fitting failed: {0}")]
-    NotConverged(String),
+    #[error("Fitting failed: Did not converge. Try different init parameters or check for degenerate data.")]
+    NotConverged,
     #[error(transparent)]
     LinfaError(#[from] linfa::error::Error),
 }
