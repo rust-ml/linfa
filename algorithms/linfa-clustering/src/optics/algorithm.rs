@@ -1,10 +1,11 @@
 use crate::optics::hyperparameters::{OpticsHyperParams, OpticsHyperParamsBuilder};
 use float_ord::FloatOrd;
-use hnsw::{Params, Searcher, HNSW};
+use hnsw::{Hnsw, Params, Searcher};
 use linfa::traits::Transformer;
 use linfa::Float;
 use ndarray::{ArrayBase, ArrayView, ArrayView1, Axis, Data, Ix1, Ix2};
 use ndarray_stats::DeviationExt;
+use rand_pcg::Pcg64;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 use space::MetricPoint;
@@ -156,6 +157,7 @@ impl<'a, F: Float, D: Data<Elem = F>> Transformer<&'a ArrayBase<D, Ix2>, OpticsA
             }
             let mut expected = index + 1;
             let mut points_index = 0;
+            // Look for next point to process starting from lowest possible unprocessed index
             for index in processed.range((index + 1)..) {
                 if expected != *index {
                     points_index = expected;
@@ -235,7 +237,7 @@ fn find_neighbors<'a, F: Float>(
 ) -> Vec<Neighbor<'a, F>> {
     let params = Params::new().ef_construction(observations.nrows());
     let mut searcher = Searcher::default();
-    let mut hnsw: HNSW<Euclidean<F>> = HNSW::new_params(params);
+    let mut hnsw: Hnsw<Euclidean<F>, Pcg64, 12, 24> = Hnsw::new_params(params);
 
     // insert all rows as data points into HNSW graph
     for feature in observations.genrows().into_iter() {
