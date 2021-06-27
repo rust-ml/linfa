@@ -1,3 +1,4 @@
+use crate::optics::errors::Result;
 use crate::optics::hyperparameters::OpticsHyperParams;
 use float_ord::FloatOrd;
 use hnsw::{Hnsw, Params, Searcher};
@@ -132,10 +133,11 @@ impl Optics {
     }
 }
 
-impl<'a, F: Float, D: Data<Elem = F>> Transformer<&'a ArrayBase<D, Ix2>, OpticsAnalysis<'a, F>>
-    for OpticsHyperParams
+impl<'a, F: Float, D: Data<Elem = F>>
+    Transformer<&'a ArrayBase<D, Ix2>, Result<OpticsAnalysis<'a, F>>> for OpticsHyperParams
 {
-    fn transform(&self, observations: &'a ArrayBase<D, Ix2>) -> OpticsAnalysis<'a, F> {
+    fn transform(&self, observations: &'a ArrayBase<D, Ix2>) -> Result<OpticsAnalysis<'a, F>> {
+        self.validate()?;
         let mut result = OpticsAnalysis { orderings: vec![] };
 
         let mut points = observations
@@ -201,7 +203,7 @@ impl<'a, F: Float, D: Data<Elem = F>> Transformer<&'a ArrayBase<D, Ix2>, OpticsA
                 }
             }
         }
-        result
+        Ok(result)
     }
 }
 
