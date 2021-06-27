@@ -67,7 +67,7 @@ struct Neighbor<'a, F: Float> {
     index: usize,
     /// The observation
     observation: ArrayView<'a, F, Ix1>,
-    /// The core distance
+    /// The core distance, named so to avoid name clash with `Sample::core_distance`
     c_distance: Option<FloatOrd<f64>>,
     /// The reachability distance
     r_distance: Option<FloatOrd<f64>>,
@@ -148,6 +148,7 @@ impl<'a, F: Float, D: Data<Elem = F>> Transformer<&'a ArrayBase<D, Ix2>, OpticsA
         // index
         let mut processed = BTreeSet::new();
         let mut index = 0;
+        let mut seeds = Vec::new();
         loop {
             if index == points.len() {
                 break;
@@ -176,9 +177,9 @@ impl<'a, F: Float, D: Data<Elem = F>> Transformer<&'a ArrayBase<D, Ix2>, OpticsA
             n.set_core_distance(self.minimum_points(), &neighbors);
             result.orderings.push(n.sample());
             if n.c_distance.is_some() {
+                seeds.clear();
                 // Here we get a list of "density reachable" samples that haven't been processed
                 // and sort them by reachability so we can process the closest ones first.
-                let mut seeds = Vec::new();
                 get_seeds(n.clone(), &neighbors, &mut points, &processed, &mut seeds);
                 while !seeds.is_empty() {
                     seeds.sort_unstable_by(|a, b| b.cmp(a));
