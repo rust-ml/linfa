@@ -158,13 +158,12 @@ impl<'a, F: Float, D: Data<Elem = F>>
                 index += 1;
                 continue;
             }
-            let mut expected = index + 1;
-            let mut points_index = 0;
+            let mut expected = if processed.is_empty() { 0 } else { index };
+            let mut points_index = index;
             // Look for next point to process starting from lowest possible unprocessed index
-            for index in processed.range((index + 1)..) {
+            for index in processed.range(index..) {
                 if expected != *index {
                     points_index = expected;
-                    processed.insert(expected);
                     break;
                 }
                 expected += 1;
@@ -177,7 +176,6 @@ impl<'a, F: Float, D: Data<Elem = F>>
             );
             let n = &mut points[points_index];
             n.set_core_distance(self.minimum_points(), &neighbors);
-            result.orderings.push(n.sample());
             if n.c_distance.is_some() {
                 seeds.clear();
                 // Here we get a list of "density reachable" samples that haven't been processed
@@ -201,6 +199,11 @@ impl<'a, F: Float, D: Data<Elem = F>>
                         get_seeds(n.clone(), &neighbors, &mut points, &processed, &mut seeds);
                     }
                 }
+            } else {
+                // Ensure whole dataset is included so we can see the points with undefined core or
+                // reachability distance
+                result.orderings.push(n.sample());
+                processed.insert(n.index);
             }
         }
         Ok(result)
@@ -283,14 +286,102 @@ fn find_neighbors<'a, F: Float>(
 mod tests {
     use super::*;
     use ndarray::Array2;
+    use std::collections::BTreeSet;
 
     #[test]
-    fn simple_optics() {
-        let params = Optics::params(3).build();
+    fn optics_consistency() {
+        let params = Optics::params(3);
         let data = vec![1.0, 2.0, 3.0, 8.0, 8.0, 7.0, 2.0, 5.0, 6.0, 7.0, 8.0, 3.0];
-        let data: Array2<f64> = Array2::from_shape_vec((6, 2), data).unwrap();
+        let data: Array2<f64> = Array2::from_shape_vec((data.len(), 1), data.clone()).unwrap();
 
-        let samples = params.transform(&data);
-        panic!("Figure out good test");
+        let samples = params.transform(&data).unwrap();
+
+        // Make sure whole dataset is present:
+        let indexes = samples
+            .orderings
+            .iter()
+            .map(|x| x.index)
+            .collect::<BTreeSet<_>>();
+        assert!((0..data.len()).all(|x| indexes.contains(&x)));
+
+        // As we haven't set a tolerance every point should have a core distance
+        assert!(samples.orderings.iter().all(|x| x.core_distance.is_some()));
+    }
+
+    #[test]
+    fn simple_dataset() {
+        let params = Optics::params(3).with_tolerance(4.0);
+        //               0    1   2    3     4     5     6     7     8    9     10    11     12
+        let data = vec![
+            1.0, 2.0, 3.0, 10.0, 18.0, 18.0, 15.0, 2.0, 15.0, 18.0, 3.0, 100.0, 101.0,
+        ];
+        let data: Array2<f64> = Array2::from_shape_vec((data.len(), 1), data.clone()).unwrap();
+
+        // indexes of groupings of points in the dataset. These will end up with an outlier value
+        // in between them to help separate things
+        let first_grouping = [0, 1, 2, 7, 10].iter().collect::<BTreeSet<_>>();
+        let second_grouping = [4, 5, 6, 8, 9].iter().collect::<BTreeSet<_>>();
+
+        let samples = params.transform(&data).unwrap();
+
+        let indexes = samples
+            .orderings
+            .iter()
+            .map(|x| x.index)
+            .collect::<BTreeSet<_>>();
+        assert!((0..data.len()).all(|x| indexes.contains(&x)));
+
+        assert!(samples
+            .orderings
+            .iter()
+            .take(first_grouping.len())
+            .all(|x| first_grouping.contains(&x.index)));
+        let skip_len = first_grouping.len() + 1;
+        assert!(samples
+            .orderings
+            .iter()
+            .skip(skip_len)
+            .take(first_grouping.len())
+            .all(|x| second_grouping.contains(&x.index)));
+
+        let anomaly = samples.orderings.iter().find(|x| x.index == 3).unwrap();
+        assert!(anomaly.core_distance.is_none());
+        assert!(anomaly.reachability_distance.is_none());
+
+        let anomaly = samples.orderings.iter().find(|x| x.index == 11).unwrap();
+        assert!(anomaly.core_distance.is_none());
+        assert!(anomaly.reachability_distance.is_none());
+
+        let anomaly = samples.orderings.iter().find(|x| x.index == 12).unwrap();
+        assert!(anomaly.core_distance.is_none());
+        assert!(anomaly.reachability_distance.is_none());
+    }
+
+    #[test]
+    fn dataset_too_small() {
+        let params = Optics::params(4);
+        let data = vec![1.0, 2.0, 3.0];
+        let data: Array2<f64> = Array2::from_shape_vec((data.len(), 1), data).unwrap();
+
+        let samples = params.transform(&data).unwrap();
+
+        assert!(samples
+            .orderings
+            .iter()
+            .all(|x| x.core_distance.is_none() && x.reachability_distance.is_none()));
+    }
+
+    #[test]
+    fn invalid_params() {
+        let params = Optics::params(1);
+        let data = vec![1.0, 2.0, 3.0];
+        let data: Array2<f64> = Array2::from_shape_vec((data.len(), 1), data).unwrap();
+        assert!(params.transform(&data).is_err());
+
+        let params = Optics::params(2);
+        assert!(params.transform(&data).is_ok());
+
+        let params = params.with_tolerance(0.0);
+        assert!(params.transform(&data).is_err());
     }
 }
