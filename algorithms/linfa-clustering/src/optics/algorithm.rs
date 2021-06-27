@@ -1,4 +1,4 @@
-use crate::optics::hyperparameters::{OpticsHyperParams, OpticsHyperParamsBuilder};
+use crate::optics::hyperparameters::OpticsHyperParams;
 use float_ord::FloatOrd;
 use hnsw::{Hnsw, Params, Searcher};
 use linfa::traits::Transformer;
@@ -127,7 +127,7 @@ impl<'a, F: Float> Ord for Neighbor<'a, F> {
 }
 
 impl Optics {
-    pub fn params(min_points: usize) -> OpticsHyperParamsBuilder {
+    pub fn params(min_points: usize) -> OpticsHyperParams {
         OpticsHyperParams::new(min_points)
     }
 }
