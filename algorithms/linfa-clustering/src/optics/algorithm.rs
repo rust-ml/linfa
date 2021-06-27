@@ -16,7 +16,7 @@ use std::collections::BTreeSet;
 struct Euclidean<'a, F>(ArrayView1<'a, F>);
 
 impl<F: Float> MetricPoint for Euclidean<'_, F> {
-    fn distance(&self, rhs: &Self) -> u32 {
+    fn distance(&self, rhs: &Self) -> u64 {
         let val = self.0.l2_dist(&rhs.0).unwrap();
         space::f64_metric(val)
     }
