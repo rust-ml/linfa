@@ -384,4 +384,115 @@ mod tests {
         let params = params.with_tolerance(0.0);
         assert!(params.transform(&data).is_err());
     }
+
+    #[test]
+    fn find_neighbors_test() {
+        let data = vec![1.0, 2.0, 10.0, 15.0, 13.0];
+        let data: Array2<f64> = Array2::from_shape_vec((data.len(), 1), data.clone()).unwrap();
+
+        let neighbors = find_neighbors(&data.row(0), &data, 6.0);
+        assert_eq!(neighbors.len(), 2);
+        assert_eq!(
+            vec![0, 1],
+            neighbors
+                .iter()
+                .map(|x| x.r_distance.unwrap().0 as u32)
+                .collect::<Vec<u32>>()
+        );
+        assert!(neighbors.iter().all(|x| x.c_distance.is_none()));
+
+        let neighbors = find_neighbors(&data.row(4), &data, 6.0);
+        assert_eq!(neighbors.len(), 3);
+        assert!(neighbors.iter().all(|x| x.c_distance.is_none()));
+        assert_eq!(
+            vec![0, 2, 3],
+            neighbors
+                .iter()
+                .map(|x| x.r_distance.unwrap().0 as u32)
+                .collect::<Vec<u32>>()
+        );
+    }
+
+    #[test]
+    fn get_seeds_test() {
+        let data = vec![1.0, 2.0, 10.0, 15.0, 13.0];
+        let data: Array2<f64> = Array2::from_shape_vec((data.len(), 1), data.clone()).unwrap();
+
+        let mut points = data
+            .axis_iter(Axis(0))
+            .enumerate()
+            .map(|(i, x)| Neighbor::new(i, x))
+            .collect::<Vec<_>>();
+
+        let neighbors = find_neighbors(&data.row(0), &data, 6.0);
+        // set core distance and make sure it's set correctly given number of neghobrs restriction
+
+        points[0].set_core_distance(3, &neighbors);
+        assert!(points[0].c_distance.is_none());
+
+        let neighbors = find_neighbors(&data.row(4), &data, 6.0);
+        points[4].set_core_distance(3, &neighbors);
+        assert!(points[4].c_distance.is_some());
+
+        let mut seeds = vec![];
+        let mut processed = BTreeSet::new();
+        // With a valid core distance make sure neighbours to point are returned in order if
+        // unprocessed
+
+        get_seeds(
+            points[4].clone(),
+            &neighbors,
+            &mut points,
+            &processed,
+            &mut seeds,
+        );
+
+        assert_eq!(seeds, vec![4, 3, 2]);
+
+        let mut points = data
+            .axis_iter(Axis(0))
+            .enumerate()
+            .map(|(i, x)| Neighbor::new(i, x))
+            .collect::<Vec<_>>();
+
+        // if one of the neighbours has been processed make sure it's not in the seed list
+
+        points[4].set_core_distance(3, &neighbors);
+        processed.insert(3);
+        seeds.clear();
+
+        get_seeds(
+            points[4].clone(),
+            &neighbors,
+            &mut points,
+            &processed,
+            &mut seeds,
+        );
+
+        assert_eq!(seeds, vec![4, 2]);
+
+        let mut points = data
+            .axis_iter(Axis(0))
+            .enumerate()
+            .map(|(i, x)| Neighbor::new(i, x))
+            .collect::<Vec<_>>();
+
+        // If one of the neighbours has a smaller R distance than it has to the core point make
+        // sure it's not added to the seed list
+
+        processed.clear();
+        points[4].set_core_distance(3, &neighbors);
+        points[2].r_distance = Some(FloatOrd(0.001));
+        seeds.clear();
+
+        get_seeds(
+            points[4].clone(),
+            &neighbors,
+            &mut points,
+            &processed,
+            &mut seeds,
+        );
+
+        assert_eq!(seeds, vec![4, 3]);
+    }
 }
