@@ -148,7 +148,7 @@ use serde_crate::{Deserialize, Serialize};
 ///         .sample_chunks(batch_size)
 ///         .cycle()
 ///         .try_fold(None, |current, batch| {
-///             let (model, converged) = clf.fit_with(current, &batch);
+///             let (model, converged) = clf.fit_with(current, &batch).unwrap();
 ///             if converged {
 ///                 // Once we have converged, raise an error to break from the iterator
 ///                 Err(model)
@@ -308,7 +308,7 @@ impl<F: Float, R: Rng + SeedableRng + Clone, DA: Data<Elem = F>, T, D: Distance<
 }
 
 impl<'a, F: Float, R: Rng + Clone + SeedableRng, DA: Data<Elem = F>, T, D: 'a + Distance<F>>
-    IncrementalFit<'a, ArrayBase<DA, Ix2>, T> for KMeansHyperParams<F, R, D>
+    IncrementalFit<'a, ArrayBase<DA, Ix2>, T, KMeansError> for KMeansHyperParams<F, R, D>
 {
     type ObjectIn = Option<KMeans<F, D>>;
     type ObjectOut = (KMeans<F, D>, bool);
@@ -324,7 +324,7 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, DA: Data<Elem = F>, T, D: 'a + 
         &self,
         model: Self::ObjectIn,
         dataset: &'a DatasetBase<ArrayBase<DA, Ix2>, T>,
-    ) -> Self::ObjectOut {
+    ) -> Result<Self::ObjectOut> {
         let mut rng = self.rng().clone();
         let observations = dataset.records().view();
         let n_samples = dataset.nsamples();
@@ -391,7 +391,7 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, DA: Data<Elem = F>, T, D: 'a + 
             .rdistance(model.centroids.view(), new_centroids.view());
         model.centroids = new_centroids;
 
-        (model, dist < self.tolerance())
+        Ok((model, dist < self.tolerance()))
     }
 }
 
@@ -812,11 +812,11 @@ mod tests {
             .build()
             .unwrap();
 
-        let (model, converged) = params.fit_with(Some(model), &dataset1);
+        let (model, converged) = params.fit_with(Some(model), &dataset1).unwrap();
         assert_abs_diff_eq!(model.centroids(), &array![[-0.5, -1.5], [4., 5.], [7., 8.]]);
         assert!(converged);
 
-        let (model, converged) = params.fit_with(Some(model), &dataset2);
+        let (model, converged) = params.fit_with(Some(model), &dataset2).unwrap();
         assert_abs_diff_eq!(
             model.centroids(),
             &array![[-6. / 4., -8. / 4.], [4., 5.], [10., 10.]]

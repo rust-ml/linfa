@@ -97,7 +97,7 @@ fn k_means_incr_bench(c: &mut Criterion) {
                         .sample_chunks(200)
                         .cycle()
                         .try_fold(None, |current, batch| {
-                            let (model, converged) = clf.fit_with(current, &batch);
+                            let (model, converged) = clf.fit_with(current, &batch).unwrap();
                             if converged {
                                 // Early stop condition for the kmeans loop
                                 Err(model)
