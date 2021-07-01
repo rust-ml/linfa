@@ -51,6 +51,7 @@ mod metrics_clustering;
 mod metrics_regression;
 pub mod prelude;
 pub mod traits;
+pub mod hyperparams;
 
 pub use composing::*;
 pub use dataset::{Dataset, DatasetBase, DatasetPr, DatasetView, Float, Label};

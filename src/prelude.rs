@@ -24,3 +24,6 @@ pub use crate::metrics_clustering::SilhouetteScore;
 
 #[doc(no_inline)]
 pub use crate::correlation::PearsonCorrelation;
+
+#[doc(no_inline)]
+pub use crate::hyperparams::UncheckedHyperParams;
