@@ -2,7 +2,7 @@ use std::error::Error;
 
 use crate::{
     prelude::Records,
-    traits::{Fit, PredictRef, Transformer},
+    traits::{Fit, IncrementalFit, PredictRef, Transformer},
 };
 
 /// A set of hyperparameters whose values have not been checked for validity. A reference to the
@@ -43,6 +43,22 @@ where
     fn fit(&self, dataset: &crate::DatasetBase<R, T>) -> Result<Self::Object, E> {
         let checked = self.check_ref()?;
         checked.fit(dataset)
+    }
+}
+
+/// Performs checking step and calls `fit_with` on the checked hyperparameters. If checking failed,
+/// the checking error is converted to the original error type of `IncrementalFit` and returned.
+impl<'a, R: Records, T, E, P: UncheckedHyperParams> IncrementalFit<'a, R, T, E> for P
+where
+    P::Checked: IncrementalFit<'a, R, T, E>,
+    E: Error + From<crate::error::Error> + From<P::Error>,
+{
+    type ObjectIn = <<P as UncheckedHyperParams>::Checked as IncrementalFit<'a, R, T, E>>::ObjectIn;
+    type ObjectOut = <<P as UncheckedHyperParams>::Checked as IncrementalFit<'a, R, T, E>>::ObjectOut;
+
+    fn fit_with(&self, model: Self::ObjectIn, dataset: &'a crate::DatasetBase<R, T>) -> Result<Self::ObjectOut, E> {
+        let checked = self.check_ref()?;
+        checked.fit_with(model, dataset)
     }
 }
 
