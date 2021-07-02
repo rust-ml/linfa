@@ -54,9 +54,14 @@ where
     E: Error + From<crate::error::Error> + From<P::Error>,
 {
     type ObjectIn = <<P as UncheckedHyperParams>::Checked as IncrementalFit<'a, R, T, E>>::ObjectIn;
-    type ObjectOut = <<P as UncheckedHyperParams>::Checked as IncrementalFit<'a, R, T, E>>::ObjectOut;
+    type ObjectOut =
+        <<P as UncheckedHyperParams>::Checked as IncrementalFit<'a, R, T, E>>::ObjectOut;
 
-    fn fit_with(&self, model: Self::ObjectIn, dataset: &'a crate::DatasetBase<R, T>) -> Result<Self::ObjectOut, E> {
+    fn fit_with(
+        &self,
+        model: Self::ObjectIn,
+        dataset: &'a crate::DatasetBase<R, T>,
+    ) -> Result<Self::ObjectOut, E> {
         let checked = self.check_ref()?;
         checked.fit_with(model, dataset)
     }

@@ -36,7 +36,11 @@ pub trait IncrementalFit<'a, R: Records, T, E: std::error::Error + From<crate::e
     type ObjectIn: 'a;
     type ObjectOut: 'a;
 
-    fn fit_with(&self, model: Self::ObjectIn, dataset: &'a DatasetBase<R, T>) -> Result<Self::ObjectOut, E>;
+    fn fit_with(
+        &self,
+        model: Self::ObjectIn,
+        dataset: &'a DatasetBase<R, T>,
+    ) -> Result<Self::ObjectOut, E>;
 }
 
 /// Predict with model
