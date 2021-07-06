@@ -1,11 +1,10 @@
 use std::cmp::Ordering;
+use std::fmt::Debug;
 
 use crate::k_means::hyperparameters::KMeansHyperParams;
+use crate::IncrKMeansError;
 use crate::KMeansHyperParamsBuilder;
-use crate::{
-    k_means::errors::{KMeansError, Result},
-    KMeansInit,
-};
+use crate::{k_means::errors::KMeansError, KMeansInit};
 use linfa::{prelude::*, DatasetBase, Float};
 use linfa_nn::distance::{Distance, L2Dist};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
@@ -91,7 +90,7 @@ use serde_crate::{Deserialize, Serialize};
 /// ```
 /// use linfa::DatasetBase;
 /// use linfa::traits::{Fit, IncrementalFit, Predict};
-/// use linfa_clustering::{KMeansHyperParams, KMeans, generate_blobs};
+/// use linfa_clustering::{KMeansHyperParams, KMeans, generate_blobs, IncrKMeansError};
 /// use ndarray::{Axis, array, s};
 /// use ndarray_rand::rand::SeedableRng;
 /// use rand_isaac::Isaac64Rng;
@@ -148,12 +147,12 @@ use serde_crate::{Deserialize, Serialize};
 ///         .sample_chunks(batch_size)
 ///         .cycle()
 ///         .try_fold(None, |current, batch| {
-///             let (model, converged) = clf.fit_with(current, &batch).unwrap();
-///             if converged {
-///                 // Once we have converged, raise an error to break from the iterator
-///                 Err(model)
-///             } else {
-///                 Ok(Some(model))
+///             match clf.fit_with(current, &batch) {
+///                 // Early stop condition for the kmeans loop
+///                 Ok(model) => Err(model),
+///                 // Continue running if not converged
+///                 Err(IncrKMeansError::NotConverged(model)) => Ok(Some(model)),
+///                 Err(err) => panic!("unexpected kmeans error: {}", err),
 ///             }
 ///         })
 ///         .unwrap_err();
@@ -237,7 +236,10 @@ impl<F: Float, R: Rng + SeedableRng + Clone, DA: Data<Elem = F>, T, D: Distance<
     ///
     /// An instance of `KMeans` is returned.
     ///
-    fn fit(&self, dataset: &DatasetBase<ArrayBase<DA, Ix2>, T>) -> Result<Self::Object> {
+    fn fit(
+        &self,
+        dataset: &DatasetBase<ArrayBase<DA, Ix2>, T>,
+    ) -> Result<Self::Object, KMeansError> {
         let mut rng = self.rng().clone();
         let observations = dataset.records().view();
         let n_samples = dataset.nsamples();
@@ -307,11 +309,18 @@ impl<F: Float, R: Rng + SeedableRng + Clone, DA: Data<Elem = F>, T, D: Distance<
     }
 }
 
-impl<'a, F: Float, R: Rng + Clone + SeedableRng, DA: Data<Elem = F>, T, D: 'a + Distance<F>>
-    IncrementalFit<'a, ArrayBase<DA, Ix2>, T, KMeansError> for KMeansHyperParams<F, R, D>
+impl<
+        'a,
+        F: Float + Debug,
+        R: Rng + Clone + SeedableRng,
+        DA: Data<Elem = F>,
+        T,
+        D: 'a + Distance<F> + Debug,
+    > IncrementalFit<'a, ArrayBase<DA, Ix2>, T, IncrKMeansError<KMeans<F, D>>>
+    for KMeansHyperParams<F, R, D>
 {
     type ObjectIn = Option<KMeans<F, D>>;
-    type ObjectOut = (KMeans<F, D>, bool);
+    type ObjectOut = KMeans<F, D>;
 
     /// Performs a single batch update of the Mini-Batch K-means algorithm.
     ///
@@ -324,7 +333,7 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, DA: Data<Elem = F>, T, D: 'a + 
         &self,
         model: Self::ObjectIn,
         dataset: &'a DatasetBase<ArrayBase<DA, Ix2>, T>,
-    ) -> Result<Self::ObjectOut> {
+    ) -> Result<Self::ObjectOut, IncrKMeansError<Self::ObjectOut>> {
         let mut rng = self.rng().clone();
         let observations = dataset.records().view();
         let n_samples = dataset.nsamples();
@@ -391,7 +400,11 @@ impl<'a, F: Float, R: Rng + Clone + SeedableRng, DA: Data<Elem = F>, T, D: 'a + 
             .rdistance(model.centroids.view(), new_centroids.view());
         model.centroids = new_centroids;
 
-        Ok((model, dist < self.tolerance()))
+        if dist < self.tolerance() {
+            Ok(model)
+        } else {
+            Err(IncrKMeansError::NotConverged(model))
+        }
     }
 }
 
@@ -812,15 +825,14 @@ mod tests {
             .build()
             .unwrap();
 
-        let (model, converged) = params.fit_with(Some(model), &dataset1).unwrap();
+        // Should converge on first try
+        let model = params.fit_with(Some(model), &dataset1).unwrap();
         assert_abs_diff_eq!(model.centroids(), &array![[-0.5, -1.5], [4., 5.], [7., 8.]]);
-        assert!(converged);
 
-        let (model, converged) = params.fit_with(Some(model), &dataset2).unwrap();
+        let model = params.fit_with(Some(model), &dataset2).unwrap();
         assert_abs_diff_eq!(
             model.centroids(),
             &array![[-6. / 4., -8. / 4.], [4., 5.], [10., 10.]]
         );
-        assert!(converged);
     }
 }

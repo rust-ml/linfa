@@ -4,7 +4,7 @@ use criterion::{
 };
 use linfa::traits::{Fit, IncrementalFit, Transformer};
 use linfa::DatasetBase;
-use linfa_clustering::{generate_blobs, KMeans, KMeansInit};
+use linfa_clustering::{generate_blobs, IncrKMeansError, KMeans, KMeansInit};
 use ndarray::Array2;
 use ndarray_rand::RandomExt;
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform};
@@ -97,12 +97,11 @@ fn k_means_incr_bench(c: &mut Criterion) {
                         .sample_chunks(200)
                         .cycle()
                         .try_fold(None, |current, batch| {
-                            let (model, converged) = clf.fit_with(current, &batch).unwrap();
-                            if converged {
+                            match clf.fit_with(current, &batch) {
                                 // Early stop condition for the kmeans loop
-                                Err(model)
-                            } else {
-                                Ok(Some(model))
+                                Ok(model) => Err(model),
+                                Err(IncrKMeansError::NotConverged(model)) => Ok(Some(model)),
+                                Err(err) => panic!("unexpected kmeans error: {}", err),
                             }
                         })
                         .unwrap_err();
