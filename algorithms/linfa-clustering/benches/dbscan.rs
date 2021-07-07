@@ -2,6 +2,7 @@ use criterion::{
     black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
     PlotConfiguration,
 };
+use linfa::prelude::UncheckedHyperParams;
 use linfa::traits::Predict;
 use linfa_clustering::{generate_blobs, Dbscan};
 use ndarray::Array2;
@@ -30,7 +31,7 @@ fn dbscan_bench(c: &mut Criterion) {
                 let dataset = generate_blobs(cluster_size, &centroids, rng);
                 let model = Dbscan::params(min_points)
                     .tolerance(tolerance)
-                    .build()
+                    .check()
                     .unwrap();
 
                 bencher.iter(|| black_box(model.predict(&dataset)));

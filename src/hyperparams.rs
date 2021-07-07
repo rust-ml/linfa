@@ -9,6 +9,8 @@ use crate::{
 /// checked hyperparameters can only be obtained after checking has completed. If any of the
 /// algorithm traits have been implemented on the checked hyperparameters, they will also be
 /// implemented on the unchecked hyperparameters with the checking step done automatically.
+///
+/// The hyperparameter validation done in `check_ref()` and `check()` should be identical.
 pub trait UncheckedHyperParams {
     /// The checked hyperparameters
     type Checked;
@@ -18,6 +20,9 @@ pub trait UncheckedHyperParams {
     /// Checks the hyperparameters and returns a reference to the checked hyperparameters if
     /// successful
     fn check_ref(&self) -> Result<&Self::Checked, Self::Error>;
+
+    /// Checks the hyperparameters and returns the checked hyperparameters if successful
+    fn check(self) -> Result<Self::Checked, Self::Error>;
 }
 
 /// Performs the checking step and calls `transform` on the checked hyperparameters. Returns error

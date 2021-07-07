@@ -1,4 +1,4 @@
-use linfa::Float;
+use linfa::{prelude::*, Float};
 use linfa_nn::{distance::Distance, NearestNeighbour};
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
@@ -21,12 +21,9 @@ pub struct DbscanHyperParams<F: Float, D: Distance<F>, N: NearestNeighbour> {
 
 #[derive(Debug)]
 /// Helper struct for building a set of [DBSCAN hyperparameters](struct.DbscanHyperParams.html)
-pub struct DbscanHyperParamsBuilder<F: Float, D: Distance<F>, N: NearestNeighbour> {
-    tolerance: F,
-    min_points: usize,
-    dist_fn: D,
-    nn_algo: N,
-}
+pub struct UncheckedDbscanHyperParams<F: Float, D: Distance<F>, N: NearestNeighbour>(
+    DbscanHyperParams<F, D, N>,
+);
 
 #[derive(Error, Debug)]
 pub enum DbscanParamsError {
@@ -36,48 +33,54 @@ pub enum DbscanParamsError {
     Tolerance,
 }
 
-impl<F: Float, D: Distance<F>, N: NearestNeighbour> DbscanHyperParamsBuilder<F, D, N> {
+impl<F: Float, D: Distance<F>, N: NearestNeighbour> UncheckedDbscanHyperParams<F, D, N> {
     pub(crate) fn new(min_points: usize, dist_fn: D, nn_algo: N) -> Self {
-        DbscanHyperParamsBuilder {
+        Self(DbscanHyperParams {
             min_points,
             tolerance: F::cast(1e-4),
             dist_fn,
             nn_algo,
-        }
+        })
     }
 
     /// Set the tolerance
     pub fn tolerance(mut self, tolerance: F) -> Self {
-        self.tolerance = tolerance;
+        self.0.tolerance = tolerance;
         self
     }
 
     /// Set the nearest neighbour algorithm to be used
     pub fn nn_algo(mut self, nn_algo: N) -> Self {
-        self.nn_algo = nn_algo;
+        self.0.nn_algo = nn_algo;
         self
     }
 
     /// Set the distance metric
     pub fn dist_fn(mut self, dist_fn: D) -> Self {
-        self.dist_fn = dist_fn;
+        self.0.dist_fn = dist_fn;
         self
     }
+}
 
-    /// Verify the values in the builder and return a set of hyperparameters
-    pub fn build(self) -> Result<DbscanHyperParams<F, D, N>, DbscanParamsError> {
-        if self.min_points <= 1 {
+impl<F: Float, D: Distance<F>, N: NearestNeighbour> UncheckedHyperParams
+    for UncheckedDbscanHyperParams<F, D, N>
+{
+    type Checked = DbscanHyperParams<F, D, N>;
+    type Error = DbscanParamsError;
+
+    fn check_ref(&self) -> Result<&Self::Checked, Self::Error> {
+        if self.0.min_points <= 1 {
             Err(DbscanParamsError::MinPoints)
-        } else if self.tolerance <= F::zero() {
+        } else if self.0.tolerance <= F::zero() {
             Err(DbscanParamsError::Tolerance)
         } else {
-            Ok(DbscanHyperParams {
-                min_points: self.min_points,
-                tolerance: self.tolerance,
-                nn_algo: self.nn_algo,
-                dist_fn: self.dist_fn,
-            })
+            Ok(&self.0)
         }
+    }
+
+    fn check(self) -> Result<Self::Checked, Self::Error> {
+        self.check_ref()?;
+        Ok(self.0)
     }
 }
 
@@ -112,21 +115,17 @@ mod tests {
 
     #[test]
     fn tolerance_cannot_be_zero() {
-        assert!(
-            DbscanHyperParamsBuilder::new(2, L2Dist, CommonNearestNeighbour::KdTree)
-                .tolerance(0.0)
-                .build()
-                .is_err()
-        );
+        let res = UncheckedDbscanHyperParams::new(2, L2Dist, CommonNearestNeighbour::KdTree)
+            .tolerance(0.0)
+            .check();
+        assert!(matches!(res, Err(DbscanParamsError::Tolerance)));
     }
 
     #[test]
     fn min_points_at_least_2() {
-        assert!(
-            DbscanHyperParamsBuilder::new(1, L2Dist, CommonNearestNeighbour::KdTree)
-                .tolerance(3.3)
-                .build()
-                .is_err()
-        );
+        let res = UncheckedDbscanHyperParams::new(1, L2Dist, CommonNearestNeighbour::KdTree)
+            .tolerance(3.3)
+            .check();
+        assert!(matches!(res, Err(DbscanParamsError::MinPoints)));
     }
 }

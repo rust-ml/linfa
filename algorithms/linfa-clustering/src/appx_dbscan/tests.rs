@@ -1,5 +1,6 @@
 use crate::AppxDbscan;
 use crate::{generate_blobs, AppxDbscanHyperParamsBuilder, Dbscan};
+use linfa::prelude::UncheckedHyperParams;
 use linfa::traits::Predict;
 use ndarray::{arr2, s, Array1, Array2};
 use ndarray_rand::rand::SeedableRng;
@@ -25,7 +26,7 @@ fn appx_dbscan_test_100() {
         .predict(&dataset);
     let ex_res = Dbscan::params(min_points)
         .tolerance(tolerance)
-        .build()
+        .check()
         .unwrap()
         .predict(&dataset);
 
@@ -77,7 +78,7 @@ fn appx_dbscan_test_250() {
         .predict(&dataset);
     let ex_res = Dbscan::params(min_points)
         .tolerance(tolerance)
-        .build()
+        .check()
         .unwrap()
         .predict(&dataset);
 
@@ -126,7 +127,7 @@ fn appx_dbscan_test_500() {
         .predict(&dataset);
     let ex_res = Dbscan::params(min_points)
         .tolerance(tolerance)
-        .build()
+        .check()
         .unwrap()
         .predict(&dataset);
 
