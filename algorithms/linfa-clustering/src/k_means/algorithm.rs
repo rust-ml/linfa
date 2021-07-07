@@ -2,9 +2,8 @@ use std::cmp::Ordering;
 use std::fmt::Debug;
 
 use crate::k_means::hyperparameters::KMeansHyperParams;
-use crate::IncrKMeansError;
-use crate::KMeansHyperParamsBuilder;
 use crate::{k_means::errors::KMeansError, KMeansInit};
+use crate::{IncrKMeansError, UncheckedKMeansHyperParams};
 use linfa::{prelude::*, DatasetBase, Float};
 use linfa_nn::distance::{Distance, L2Dist};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
@@ -118,8 +117,6 @@ use serde_crate::{Deserialize, Serialize};
 ///     // default values will be used.
 ///     let model = KMeans::params_with_rng(n_clusters, rng.clone())
 ///         .tolerance(1e-2)
-///         .build()
-///         .unwrap()
 ///         .fit(&observations)
 ///         .expect("KMeans fitted");
 ///
@@ -140,7 +137,7 @@ use serde_crate::{Deserialize, Serialize};
 ///     let observations = DatasetBase::from(data.clone()).shuffle(&mut rng);
 ///
 ///     let n_clusters = expected_centroids.nrows();
-///     let clf = KMeans::params_with_rng(n_clusters, rng.clone()).tolerance(1e-3).build().unwrap();
+///     let clf = KMeans::params_with_rng(n_clusters, rng.clone()).tolerance(1e-3);
 ///
 ///     // Repeatedly run fit_with on every batch in the dataset until we have converged
 ///     let model = observations
@@ -186,15 +183,15 @@ pub struct KMeans<F: Float, D: Distance<F>> {
 }
 
 impl<F: Float> KMeans<F, L2Dist> {
-    pub fn params(nclusters: usize) -> KMeansHyperParamsBuilder<F, Isaac64Rng, L2Dist> {
-        KMeansHyperParamsBuilder::new(nclusters, Isaac64Rng::seed_from_u64(42), L2Dist)
+    pub fn params(nclusters: usize) -> UncheckedKMeansHyperParams<F, Isaac64Rng, L2Dist> {
+        UncheckedKMeansHyperParams::new(nclusters, Isaac64Rng::seed_from_u64(42), L2Dist)
     }
 
     pub fn params_with_rng<R: Rng>(
         nclusters: usize,
         rng: R,
-    ) -> KMeansHyperParamsBuilder<F, R, L2Dist> {
-        KMeansHyperParamsBuilder::new(nclusters, rng, L2Dist)
+    ) -> UncheckedKMeansHyperParams<F, R, L2Dist> {
+        UncheckedKMeansHyperParams::new(nclusters, rng, L2Dist)
     }
 }
 
@@ -203,8 +200,8 @@ impl<F: Float, D: Distance<F>> KMeans<F, D> {
         nclusters: usize,
         rng: R,
         dist_fn: D,
-    ) -> KMeansHyperParamsBuilder<F, R, D> {
-        KMeansHyperParamsBuilder::new(nclusters, rng, dist_fn)
+    ) -> UncheckedKMeansHyperParams<F, R, D> {
+        UncheckedKMeansHyperParams::new(nclusters, rng, dist_fn)
     }
 
     /// Return the set of centroids as a 2-dimensional matrix with shape
@@ -659,8 +656,6 @@ mod tests {
             let model = KMeans::params_with(3, rng.clone(), dist_fn.clone())
                 .n_runs(1)
                 .init_method(init.clone())
-                .build()
-                .unwrap()
                 .fit(&dataset)
                 .expect("KMeans fitted");
             let clusters = model.predict(dataset);
@@ -677,8 +672,6 @@ mod tests {
             let dataset2 = DatasetBase::from(clusters.records().clone());
             let model2 = KMeans::params_with(3, rng.clone(), dist_fn.clone())
                 .init_method(init.clone())
-                .build()
-                .unwrap()
                 .fit(&dataset2)
                 .expect("KMeans fitted");
             let clusters2 = model2.predict(dataset2);
@@ -820,10 +813,7 @@ mod tests {
             dist_fn: L2Dist,
         };
         let rng = Isaac64Rng::seed_from_u64(45);
-        let params = KMeans::params_with_rng(3, rng)
-            .tolerance(100.0)
-            .build()
-            .unwrap();
+        let params = KMeans::params_with_rng(3, rng).tolerance(100.0);
 
         // Should converge on first try
         let model = params.fit_with(Some(model), &dataset1).unwrap();
