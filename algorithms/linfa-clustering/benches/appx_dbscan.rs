@@ -38,8 +38,6 @@ fn appx_dbscan_bench(c: &mut Criterion) {
                         AppxDbscan::params(min_points)
                             .tolerance(tolerance)
                             .slack(cluster_size_and_slack.1)
-                            .build()
-                            .unwrap()
                             .predict(&dataset),
                     )
                 });

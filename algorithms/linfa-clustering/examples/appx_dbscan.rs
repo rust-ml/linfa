@@ -1,5 +1,6 @@
 use linfa::dataset::{DatasetBase, Labels, Records};
 use linfa::metrics::SilhouetteScore;
+use linfa::prelude::UncheckedHyperParams;
 use linfa::traits::Predict;
 use linfa_clustering::{generate_blobs, AppxDbscan};
 use ndarray::array;
@@ -31,7 +32,7 @@ fn main() {
     let cluster_memberships = AppxDbscan::params(min_points)
         .tolerance(1.)
         .slack(1e-2)
-        .build()
+        .check()
         .unwrap()
         .predict(dataset);
 

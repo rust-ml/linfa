@@ -1,4 +1,6 @@
+use linfa::prelude::*;
 use linfa::Float;
+
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 use thiserror::Error;
@@ -20,11 +22,7 @@ pub struct AppxDbscanHyperParams<F: Float> {
 #[derive(Debug)]
 /// Helper struct for building a set of [Approximated DBSCAN
 /// hyperparameters](struct.AppxDbscanHyperParams.html)
-pub struct AppxDbscanHyperParamsBuilder<F: Float> {
-    tolerance: F,
-    min_points: usize,
-    slack: F,
-}
+pub struct UncheckedAppxDbscanHyperParams<F: Float>(AppxDbscanHyperParams<F>);
 
 #[derive(Debug, Error)]
 pub enum AppxDbscanParamsError {
@@ -36,44 +34,50 @@ pub enum AppxDbscanParamsError {
     Slack,
 }
 
-impl<F: Float> AppxDbscanHyperParamsBuilder<F> {
+impl<F: Float> UncheckedAppxDbscanHyperParams<F> {
     pub(crate) fn new(min_points: usize) -> Self {
         let default_slack = F::cast(1e-2);
         let default_tolerance = F::cast(1e-4);
 
-        Self {
+        Self(AppxDbscanHyperParams {
             min_points,
             tolerance: default_tolerance,
             slack: default_slack,
-        }
+        })
     }
 
     /// Set the tolerance
     pub fn tolerance(mut self, tolerance: F) -> Self {
-        self.tolerance = tolerance;
+        self.0.tolerance = tolerance;
         self
     }
 
     /// Set the slack
     pub fn slack(mut self, slack: F) -> Self {
-        self.slack = slack;
+        self.0.slack = slack;
         self
     }
+}
 
-    pub fn build(self) -> Result<AppxDbscanHyperParams<F>, AppxDbscanParamsError> {
-        if self.min_points <= 1 {
+impl<F: Float> UncheckedHyperParams for UncheckedAppxDbscanHyperParams<F> {
+    type Checked = AppxDbscanHyperParams<F>;
+    type Error = AppxDbscanParamsError;
+
+    fn check_ref(&self) -> Result<&Self::Checked, Self::Error> {
+        if self.0.min_points <= 1 {
             Err(AppxDbscanParamsError::MinPoints)
-        } else if self.tolerance <= F::zero() {
+        } else if self.0.tolerance <= F::zero() {
             Err(AppxDbscanParamsError::Tolerance)
-        } else if self.slack <= F::zero() {
+        } else if self.0.slack <= F::zero() {
             Err(AppxDbscanParamsError::Slack)
         } else {
-            Ok(AppxDbscanHyperParams {
-                min_points: self.min_points,
-                tolerance: self.tolerance,
-                slack: self.slack,
-            })
+            Ok(&self.0)
         }
+    }
+
+    fn check(self) -> Result<Self::Checked, Self::Error> {
+        self.check_ref()?;
+        Ok(self.0)
     }
 }
 
