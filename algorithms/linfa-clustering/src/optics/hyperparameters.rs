@@ -35,14 +35,14 @@ impl OpticsHyperParams {
     /// parameter isn't strictly necessary but improves execution time by not considering every
     /// point. If the tolerance is too low the distances calculated are undefined and no clusters
     /// will be returned.
-    pub fn with_tolerance(mut self, tolerance: f64) -> Self {
+    pub fn tolerance(mut self, tolerance: f64) -> Self {
         self.tolerance = tolerance;
         self
     }
 
     /// Two points are considered neighbors if the euclidean distance between
     /// them is below the tolerance
-    pub fn tolerance(&self) -> f64 {
+    pub fn get_tolerance(&self) -> f64 {
         self.tolerance
     }
 

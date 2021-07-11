@@ -37,11 +37,11 @@ impl<F: Float> MetricPoint for Euclidean<'_, F> {
 ///
 /// OPTICS cluster analysis can be used to derive clusters equivalent to the output of other
 /// clustering algorithms such as DBSCAN. However, due to it's more complicated neighborhood
-/// queries it typically has a higher computational cost that other more specific algorithms.
+/// queries it typically has a higher computational cost than other more specific algorithms.
 pub struct Optics;
 
 #[derive(Clone, Debug)]
-// This is a struct as in future may want to implement methods on it to get certain metrics from
+// This is a struct as in future we may want to implement methods on it to get certain metrics from
 // the optics cluster distances.
 pub struct OpticsAnalysis<'a, F: Float> {
     /// A list of the samples in the dataset sorted and with their reachability and core distances
@@ -172,7 +172,7 @@ impl<'a, F: Float, D: Data<Elem = F>>
             let neighbors = find_neighbors(
                 &points[points_index].observation,
                 observations,
-                self.tolerance(),
+                self.get_tolerance(),
             );
             let n = &mut points[points_index];
             n.set_core_distance(self.minimum_points(), &neighbors);
@@ -191,7 +191,8 @@ impl<'a, F: Float, D: Data<Elem = F>>
                     let n = &mut points[*min_point];
                     seeds.remove(i);
                     processed.insert(n.index);
-                    let neighbors = find_neighbors(&n.observation, observations, self.tolerance());
+                    let neighbors =
+                        find_neighbors(&n.observation, observations, self.get_tolerance());
 
                     n.set_core_distance(self.minimum_points(), &neighbors);
                     result.orderings.push(n.sample());
