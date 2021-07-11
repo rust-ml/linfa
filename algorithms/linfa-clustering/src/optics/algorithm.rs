@@ -1,11 +1,11 @@
 use crate::optics::errors::Result;
 use crate::optics::hyperparameters::OpticsHyperParams;
-use float_ord::FloatOrd;
 use hnsw::{Hnsw, Params, Searcher};
 use linfa::traits::Transformer;
 use linfa::Float;
 use ndarray::{ArrayBase, ArrayView, ArrayView1, Axis, Data, Ix1, Ix2};
 use ndarray_stats::DeviationExt;
+use noisy_float::prelude::*;
 use rand_pcg::Pcg64;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
@@ -69,9 +69,9 @@ struct Neighbor<'a, F: Float> {
     /// The observation
     observation: ArrayView<'a, F, Ix1>,
     /// The core distance, named so to avoid name clash with `Sample::core_distance`
-    c_distance: Option<FloatOrd<f64>>,
+    c_distance: Option<N64>,
     /// The reachability distance
-    r_distance: Option<FloatOrd<f64>>,
+    r_distance: Option<N64>,
 }
 
 impl<'a, F: Float> Neighbor<'a, F> {
@@ -89,7 +89,7 @@ impl<'a, F: Float> Neighbor<'a, F> {
     fn set_core_distance(&mut self, min_pts: usize, neighbors: &[Neighbor<'a, F>]) {
         self.c_distance = neighbors
             .get(min_pts - 1)
-            .map(|x| FloatOrd(self.observation.l2_dist(&x.observation).unwrap()));
+            .map(|x| n64(self.observation.l2_dist(&x.observation).unwrap()));
     }
 
     /// Convert the neighbor to a sample for the user
@@ -97,8 +97,8 @@ impl<'a, F: Float> Neighbor<'a, F> {
         Sample {
             index: self.index,
             observation: self.observation.clone(),
-            reachability_distance: self.r_distance.map(|x| x.0),
-            core_distance: self.c_distance.map(|x| x.0),
+            reachability_distance: self.r_distance.map(|x| x.raw()),
+            core_distance: self.c_distance.map(|x| x.raw()),
         }
     }
 }
@@ -221,7 +221,7 @@ fn get_seeds<'a, F: Float>(
     seeds: &mut Vec<usize>,
 ) {
     for n in neighbors.iter().filter(|x| !processed.contains(&x.index)) {
-        let dist = FloatOrd(n.observation.l2_dist(&sample.observation).unwrap());
+        let dist = n64(n.observation.l2_dist(&sample.observation).unwrap());
         let r_dist = max(sample.c_distance.unwrap(), dist);
         match points[n.index].r_distance {
             None => {
@@ -276,7 +276,7 @@ fn find_neighbors<'a, F: Float>(
             Neighbor {
                 index: x.index,
                 observation,
-                r_distance: Some(FloatOrd(distance)),
+                r_distance: Some(n64(distance)),
                 c_distance: None,
             }
         })
@@ -311,7 +311,7 @@ mod tests {
 
     #[test]
     fn simple_dataset() {
-        let params = Optics::params(3).with_tolerance(4.0);
+        let params = Optics::params(3).tolerance(4.0);
         //               0    1   2    3     4     5     6     7     8    9     10    11     12
         let data = vec![
             1.0, 2.0, 3.0, 10.0, 18.0, 18.0, 15.0, 2.0, 15.0, 18.0, 3.0, 100.0, 101.0,
@@ -382,7 +382,7 @@ mod tests {
         let params = Optics::params(2);
         assert!(params.transform(&data).is_ok());
 
-        let params = params.with_tolerance(0.0);
+        let params = params.tolerance(0.0);
         assert!(params.transform(&data).is_err());
     }
 
@@ -397,7 +397,7 @@ mod tests {
             vec![0, 1],
             neighbors
                 .iter()
-                .map(|x| x.r_distance.unwrap().0 as u32)
+                .map(|x| x.r_distance.unwrap().raw() as u32)
                 .collect::<Vec<u32>>()
         );
         assert!(neighbors.iter().all(|x| x.c_distance.is_none()));
@@ -409,7 +409,7 @@ mod tests {
             vec![0, 2, 3],
             neighbors
                 .iter()
-                .map(|x| x.r_distance.unwrap().0 as u32)
+                .map(|x| x.r_distance.unwrap().raw() as u32)
                 .collect::<Vec<u32>>()
         );
     }
@@ -483,7 +483,7 @@ mod tests {
 
         processed.clear();
         points[4].set_core_distance(3, &neighbors);
-        points[2].r_distance = Some(FloatOrd(0.001));
+        points[2].r_distance = Some(n64(0.001));
         seeds.clear();
 
         get_seeds(
