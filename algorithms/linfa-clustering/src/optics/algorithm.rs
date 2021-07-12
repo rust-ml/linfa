@@ -3,7 +3,7 @@ use crate::optics::hyperparameters::OpticsHyperParams;
 use hnsw::{Hnsw, Params, Searcher};
 use linfa::traits::Transformer;
 use linfa::Float;
-use ndarray::{ArrayBase, ArrayView, ArrayView1, Axis, Data, Ix1, Ix2};
+use ndarray::{ArrayView, ArrayView1, Ix1, Ix2};
 use ndarray_stats::DeviationExt;
 use noisy_float::prelude::*;
 use rand_pcg::Pcg64;
@@ -61,33 +61,36 @@ pub struct Sample {
 }
 
 #[derive(Clone)]
-struct Neighbor<'a, F: Float> {
+struct Neighbor {
     /// Index of the observation in the dataset
     index: usize,
-    /// The observation
-    observation: ArrayView<'a, F, Ix1>,
     /// The core distance, named so to avoid name clash with `Sample::core_distance`
     c_distance: Option<N64>,
     /// The reachability distance
     r_distance: Option<N64>,
 }
 
-impl<'a, F: Float> Neighbor<'a, F> {
+impl Neighbor {
     /// Create a new neighbor
-    fn new(index: usize, observation: ArrayView<'a, F, Ix1>) -> Self {
+    fn new(index: usize) -> Self {
         Self {
             index,
-            observation,
             c_distance: None,
             r_distance: None,
         }
     }
 
     /// Set the core distance given the minimum points in a cluster and the points neighbors
-    fn set_core_distance(&mut self, min_pts: usize, neighbors: &[Neighbor<'a, F>]) {
+    fn set_core_distance<F: Float>(
+        &mut self,
+        min_pts: usize,
+        neighbors: &[Neighbor],
+        dataset: ArrayView<F, Ix2>,
+    ) {
+        let observation = dataset.row(self.index);
         self.c_distance = neighbors
             .get(min_pts - 1)
-            .map(|x| n64(self.observation.l2_dist(&x.observation).unwrap()));
+            .map(|x| n64(observation.l2_dist(&dataset.row(x.index)).unwrap()));
     }
 
     /// Convert the neighbor to a sample for the user
@@ -100,9 +103,9 @@ impl<'a, F: Float> Neighbor<'a, F> {
     }
 }
 
-impl<'a, F: Float> Eq for Neighbor<'a, F> {}
+impl Eq for Neighbor {}
 
-impl<'a, F: Float> PartialEq for Neighbor<'a, F> {
+impl PartialEq for Neighbor {
     fn eq(&self, other: &Self) -> bool {
         self.r_distance == other.r_distance
     }
@@ -112,13 +115,13 @@ impl<'a, F: Float> PartialEq for Neighbor<'a, F> {
     }
 }
 
-impl<'a, F: Float> PartialOrd for Neighbor<'a, F> {
+impl PartialOrd for Neighbor {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.r_distance.partial_cmp(&other.r_distance)
     }
 }
 
-impl<'a, F: Float> Ord for Neighbor<'a, F> {
+impl Ord for Neighbor {
     fn cmp(&self, other: &Self) -> Ordering {
         self.r_distance.cmp(&other.r_distance)
     }
@@ -130,17 +133,13 @@ impl Optics {
     }
 }
 
-impl<'a, F: Float, D: Data<Elem = F>> Transformer<&'a ArrayBase<D, Ix2>, Result<OpticsAnalysis>>
-    for OpticsHyperParams
-{
-    fn transform(&self, observations: &'a ArrayBase<D, Ix2>) -> Result<OpticsAnalysis> {
+impl<F: Float> Transformer<ArrayView<'_, F, Ix2>, Result<OpticsAnalysis>> for OpticsHyperParams {
+    fn transform(&self, observations: ArrayView<F, Ix2>) -> Result<OpticsAnalysis> {
         self.validate()?;
         let mut result = OpticsAnalysis { orderings: vec![] };
 
-        let mut points = observations
-            .axis_iter(Axis(0))
-            .enumerate()
-            .map(|(i, x)| Neighbor::new(i, x))
+        let mut points = (0..observations.nrows())
+            .map(|x| Neighbor::new(x))
             .collect::<Vec<_>>();
 
         // The BTreeSet is used so that the indexes are ordered to make it easy to find next
@@ -167,17 +166,24 @@ impl<'a, F: Float, D: Data<Elem = F>> Transformer<&'a ArrayBase<D, Ix2>, Result<
             }
             index += 1;
             let neighbors = find_neighbors(
-                &points[points_index].observation,
+                observations.row(points_index),
                 observations,
                 self.get_tolerance(),
             );
             let n = &mut points[points_index];
-            n.set_core_distance(self.get_minimum_points(), &neighbors);
+            n.set_core_distance(self.get_minimum_points(), &neighbors, observations);
             if n.c_distance.is_some() {
                 seeds.clear();
                 // Here we get a list of "density reachable" samples that haven't been processed
                 // and sort them by reachability so we can process the closest ones first.
-                get_seeds(n.clone(), &neighbors, &mut points, &processed, &mut seeds);
+                get_seeds(
+                    observations,
+                    n.clone(),
+                    &neighbors,
+                    &mut points,
+                    &processed,
+                    &mut seeds,
+                );
                 while !seeds.is_empty() {
                     seeds.sort_unstable_by(|a, b| b.cmp(a));
                     let (i, min_point) = seeds
@@ -188,13 +194,23 @@ impl<'a, F: Float, D: Data<Elem = F>> Transformer<&'a ArrayBase<D, Ix2>, Result<
                     let n = &mut points[*min_point];
                     seeds.remove(i);
                     processed.insert(n.index);
-                    let neighbors =
-                        find_neighbors(&n.observation, observations, self.get_tolerance());
+                    let neighbors = find_neighbors(
+                        observations.row(n.index),
+                        observations,
+                        self.get_tolerance(),
+                    );
 
-                    n.set_core_distance(self.get_minimum_points(), &neighbors);
+                    n.set_core_distance(self.get_minimum_points(), &neighbors, observations);
                     result.orderings.push(n.sample());
                     if n.c_distance.is_some() {
-                        get_seeds(n.clone(), &neighbors, &mut points, &processed, &mut seeds);
+                        get_seeds(
+                            observations,
+                            n.clone(),
+                            &neighbors,
+                            &mut points,
+                            &processed,
+                            &mut seeds,
+                        );
                     }
                 }
             } else {
@@ -210,15 +226,19 @@ impl<'a, F: Float, D: Data<Elem = F>> Transformer<&'a ArrayBase<D, Ix2>, Result<
 
 /// For a sample find the points which are directly density reachable which have not
 /// yet been processed
-fn get_seeds<'a, F: Float>(
-    sample: Neighbor<'a, F>,
-    neighbors: &[Neighbor<'a, F>],
-    points: &mut [Neighbor<'a, F>],
+fn get_seeds<F: Float>(
+    observations: ArrayView<F, Ix2>,
+    sample: Neighbor,
+    neighbors: &[Neighbor],
+    points: &mut [Neighbor],
     processed: &BTreeSet<usize>,
     seeds: &mut Vec<usize>,
 ) {
     for n in neighbors.iter().filter(|x| !processed.contains(&x.index)) {
-        let dist = n64(n.observation.l2_dist(&sample.observation).unwrap());
+        let dist = n64(observations
+            .row(n.index)
+            .l2_dist(&observations.row(sample.index))
+            .unwrap());
         let r_dist = max(sample.c_distance.unwrap(), dist);
         match points[n.index].r_distance {
             None => {
@@ -234,11 +254,11 @@ fn get_seeds<'a, F: Float>(
 /// Given a candidate point, a list of observations, epsilon and list of already
 /// assigned cluster IDs return a list of observations that neighbor the candidate. This function
 /// uses euclidean distance and the neighbours are returned in sorted order.
-fn find_neighbors<'a, F: Float>(
-    candidate: &ArrayBase<impl Data<Elem = F>, Ix1>,
-    observations: &'a ArrayBase<impl Data<Elem = F>, Ix2>,
+fn find_neighbors<F: Float>(
+    candidate: ArrayView<F, Ix1>,
+    observations: ArrayView<F, Ix2>,
     eps: f64,
-) -> Vec<Neighbor<'a, F>> {
+) -> Vec<Neighbor> {
     let params = Params::new().ef_construction(observations.nrows());
     let mut searcher = Searcher::default();
     let mut hnsw: Hnsw<Euclidean<F>, Pcg64, 12, 24> = Hnsw::new_params(params);
@@ -265,19 +285,17 @@ fn find_neighbors<'a, F: Float>(
         neighbours.resize_with(i, space::Neighbor::invalid);
     }
 
-    neighbours
-        .iter()
-        .map(|x| {
-            let observation = observations.row(x.index);
-            let distance = candidate.l2_dist(&observation).unwrap();
-            Neighbor {
-                index: x.index,
-                observation,
-                r_distance: Some(n64(distance)),
-                c_distance: None,
-            }
-        })
-        .collect()
+    let mut result = vec![];
+    for n in &neighbours {
+        let observation = observations.row(n.index);
+        let distance = candidate.l2_dist(&observation).unwrap();
+        result.push(Neighbor {
+            index: n.index,
+            r_distance: Some(n64(distance)),
+            c_distance: None,
+        });
+    }
+    result
 }
 
 #[cfg(test)]
@@ -425,11 +443,11 @@ mod tests {
         let neighbors = find_neighbors(&data.row(0), &data, 6.0);
         // set core distance and make sure it's set correctly given number of neghobrs restriction
 
-        points[0].set_core_distance(3, &neighbors);
+        points[0].set_core_distance(3, &neighbors, &data);
         assert!(points[0].c_distance.is_none());
 
         let neighbors = find_neighbors(&data.row(4), &data, 6.0);
-        points[4].set_core_distance(3, &neighbors);
+        points[4].set_core_distance(3, &neighbors, &data);
         assert!(points[4].c_distance.is_some());
 
         let mut seeds = vec![];
@@ -455,7 +473,7 @@ mod tests {
 
         // if one of the neighbours has been processed make sure it's not in the seed list
 
-        points[4].set_core_distance(3, &neighbors);
+        points[4].set_core_distance(3, &neighbors, &data);
         processed.insert(3);
         seeds.clear();
 
@@ -479,7 +497,7 @@ mod tests {
         // sure it's not added to the seed list
 
         processed.clear();
-        points[4].set_core_distance(3, &neighbors);
+        points[4].set_core_distance(3, &neighbors, &data);
         points[2].r_distance = Some(n64(0.001));
         seeds.clear();
 
