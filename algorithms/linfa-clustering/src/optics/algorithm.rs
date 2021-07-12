@@ -1,3 +1,4 @@
+use crate::optics::analysis::*;
 use crate::optics::errors::Result;
 use crate::optics::hyperparameters::OpticsHyperParams;
 use hnsw::{Hnsw, Params, Searcher};
@@ -39,26 +40,6 @@ impl<F: Float> MetricPoint for Euclidean<'_, F> {
 /// clustering algorithms such as DBSCAN. However, due to it's more complicated neighborhood
 /// queries it typically has a higher computational cost than other more specific algorithms.
 pub struct Optics;
-
-#[derive(Clone, Debug)]
-// This is a struct as in future we may want to implement methods on it to get certain metrics from
-// the optics cluster distances.
-pub struct OpticsAnalysis {
-    /// A list of the samples in the dataset sorted and with their reachability and core distances
-    /// computed.
-    pub orderings: Vec<Sample>,
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct Sample {
-    /// Index of the sample in the dataset.
-    pub index: usize,
-    /// The reachability distance of a sample is the distance between the point and it's cluster
-    /// core or another point whichever is larger.
-    pub reachability_distance: Option<f64>,
-    /// The distance to the nth closest point where n is the minimum points to form a cluster.
-    pub core_distance: Option<f64>,
-}
 
 #[derive(Clone)]
 struct Neighbor {
