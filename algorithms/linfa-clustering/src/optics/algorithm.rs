@@ -310,7 +310,7 @@ mod tests {
         let data = vec![1.0, 2.0, 3.0, 8.0, 8.0, 7.0, 2.0, 5.0, 6.0, 7.0, 8.0, 3.0];
         let data: Array2<f64> = Array2::from_shape_vec((data.len(), 1), data.clone()).unwrap();
 
-        let samples = params.transform(&data).unwrap();
+        let samples = params.transform(data.view()).unwrap();
 
         // Make sure whole dataset is present:
         let indexes = samples
@@ -338,7 +338,7 @@ mod tests {
         let first_grouping = [0, 1, 2, 7, 10].iter().collect::<BTreeSet<_>>();
         let second_grouping = [4, 5, 6, 8, 9].iter().collect::<BTreeSet<_>>();
 
-        let samples = params.transform(&data).unwrap();
+        let samples = params.transform(data.view()).unwrap();
 
         let indexes = samples
             .orderings
@@ -379,7 +379,7 @@ mod tests {
         let data = vec![1.0, 2.0, 3.0];
         let data: Array2<f64> = Array2::from_shape_vec((data.len(), 1), data).unwrap();
 
-        let samples = params.transform(&data).unwrap();
+        let samples = params.transform(data.view()).unwrap();
 
         assert!(samples
             .orderings
@@ -392,13 +392,13 @@ mod tests {
         let params = Optics::params(1);
         let data = vec![1.0, 2.0, 3.0];
         let data: Array2<f64> = Array2::from_shape_vec((data.len(), 1), data).unwrap();
-        assert!(params.transform(&data).is_err());
+        assert!(params.transform(data.view()).is_err());
 
         let params = Optics::params(2);
-        assert!(params.transform(&data).is_ok());
+        assert!(params.transform(data.view()).is_ok());
 
         let params = params.tolerance(0.0);
-        assert!(params.transform(&data).is_err());
+        assert!(params.transform(data.view()).is_err());
     }
 
     #[test]
@@ -406,7 +406,7 @@ mod tests {
         let data = vec![1.0, 2.0, 10.0, 15.0, 13.0];
         let data: Array2<f64> = Array2::from_shape_vec((data.len(), 1), data.clone()).unwrap();
 
-        let neighbors = find_neighbors(&data.row(0), &data, 6.0);
+        let neighbors = find_neighbors(data.row(0), data.view(), 6.0);
         assert_eq!(neighbors.len(), 2);
         assert_eq!(
             vec![0, 1],
@@ -417,7 +417,7 @@ mod tests {
         );
         assert!(neighbors.iter().all(|x| x.c_distance.is_none()));
 
-        let neighbors = find_neighbors(&data.row(4), &data, 6.0);
+        let neighbors = find_neighbors(data.row(4), data.view(), 6.0);
         assert_eq!(neighbors.len(), 3);
         assert!(neighbors.iter().all(|x| x.c_distance.is_none()));
         assert_eq!(
@@ -434,20 +434,18 @@ mod tests {
         let data = vec![1.0, 2.0, 10.0, 15.0, 13.0];
         let data: Array2<f64> = Array2::from_shape_vec((data.len(), 1), data.clone()).unwrap();
 
-        let mut points = data
-            .axis_iter(Axis(0))
-            .enumerate()
-            .map(|(i, x)| Neighbor::new(i, x))
+        let mut points = (0..data.nrows())
+            .map(|i| Neighbor::new(i))
             .collect::<Vec<_>>();
 
-        let neighbors = find_neighbors(&data.row(0), &data, 6.0);
+        let neighbors = find_neighbors(data.row(0), data.view(), 6.0);
         // set core distance and make sure it's set correctly given number of neghobrs restriction
 
-        points[0].set_core_distance(3, &neighbors, &data);
+        points[0].set_core_distance(3, &neighbors, data.view());
         assert!(points[0].c_distance.is_none());
 
-        let neighbors = find_neighbors(&data.row(4), &data, 6.0);
-        points[4].set_core_distance(3, &neighbors, &data);
+        let neighbors = find_neighbors(data.row(4), data.view(), 6.0);
+        points[4].set_core_distance(3, &neighbors, data.view());
         assert!(points[4].c_distance.is_some());
 
         let mut seeds = vec![];
@@ -456,6 +454,7 @@ mod tests {
         // unprocessed
 
         get_seeds(
+            data.view(),
             points[4].clone(),
             &neighbors,
             &mut points,
@@ -465,19 +464,18 @@ mod tests {
 
         assert_eq!(seeds, vec![4, 3, 2]);
 
-        let mut points = data
-            .axis_iter(Axis(0))
-            .enumerate()
-            .map(|(i, x)| Neighbor::new(i, x))
+        let mut points = (0..data.nrows())
+            .map(|i| Neighbor::new(i))
             .collect::<Vec<_>>();
 
         // if one of the neighbours has been processed make sure it's not in the seed list
 
-        points[4].set_core_distance(3, &neighbors, &data);
+        points[4].set_core_distance(3, &neighbors, data.view());
         processed.insert(3);
         seeds.clear();
 
         get_seeds(
+            data.view(),
             points[4].clone(),
             &neighbors,
             &mut points,
@@ -487,21 +485,20 @@ mod tests {
 
         assert_eq!(seeds, vec![4, 2]);
 
-        let mut points = data
-            .axis_iter(Axis(0))
-            .enumerate()
-            .map(|(i, x)| Neighbor::new(i, x))
+        let mut points = (0..data.nrows())
+            .map(|i| Neighbor::new(i))
             .collect::<Vec<_>>();
 
         // If one of the neighbours has a smaller R distance than it has to the core point make
         // sure it's not added to the seed list
 
         processed.clear();
-        points[4].set_core_distance(3, &neighbors, &data);
+        points[4].set_core_distance(3, &neighbors, data.view());
         points[2].r_distance = Some(n64(0.001));
         seeds.clear();
 
         get_seeds(
+            data.view(),
             points[4].clone(),
             &neighbors,
             &mut points,
