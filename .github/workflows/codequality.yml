@@ -47,7 +47,10 @@ jobs:
 
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
-        with: stable
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
 
       - name: Get rustc version
         id: rustc-version
