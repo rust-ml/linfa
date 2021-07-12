@@ -56,12 +56,12 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2021-03-24
+          toolchain: nightly
           override: true
 
       - name: Get rustc version
         id: rustc-version
-        run: echo "::set-output name=version::$(cargo +nightly-2021-03-24 --version | cut -d ' ' -f 2)"
+        run: echo "::set-output name=version::$(cargo +nightly --version | cut -d ' ' -f 2)"
         shell: bash
 
       - uses: actions/cache@v2
@@ -73,7 +73,7 @@ jobs:
 
       - name: Install tarpaulin
         if: steps.tarpaulin-cache.outputs.cache-hit != 'true'
-        run: cargo +nightly-2021-03-24 install cargo-tarpaulin
+        run: cargo +nightly install cargo-tarpaulin
 
       - name: Generate code coverage
         run: |
