@@ -11,9 +11,12 @@ jobs:
       matrix:
         toolchain:
           - 1.42.0
-          - nightly-2021-03-24
-          - beta
+          - nightly
           - stable
+      include:
+        toolchain: nightly
+        continue-on-error: true
+    continue-on-error: ${{ matrix.continue-on-error }}
 
     steps:
       - name: Checkout sources

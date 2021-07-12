@@ -13,7 +13,13 @@ jobs:
     strategy:
       matrix:
         toolchain:
+          - 1.42.0
+          - nightly
           - stable
+      include:
+        toolchain: nightly
+        continue-on-error: true
+    continue-on-error: ${{ matrix.continue-on-error }}
 
     steps:
       - name: Checkout sources
