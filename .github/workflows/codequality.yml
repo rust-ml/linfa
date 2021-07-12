@@ -11,8 +11,8 @@ jobs:
     strategy:
       matrix:
         toolchain:
-          - 1.49.0
-          - nightly-2021-03-24
+          - 1.50.0
+          - nightly
           - beta
           - stable
 
@@ -77,7 +77,7 @@ jobs:
 
       - name: Generate code coverage
         run: |
-          cargo +nightly-2021-03-24 tarpaulin --verbose --features intel-mkl-system --timeout 120 --out Xml --all --release
+          cargo +nightly tarpaulin --verbose --features intel-mkl-system --timeout 120 --out Xml --all --release
 
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1
