@@ -48,7 +48,7 @@ impl OpticsHyperParams {
 
     /// Minimum number of a points in a neighborhood around a point for it to
     /// not be considered noise
-    pub fn minimum_points(&self) -> usize {
+    pub fn get_minimum_points(&self) -> usize {
         self.min_points
     }
 

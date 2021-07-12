@@ -43,18 +43,16 @@ pub struct Optics;
 #[derive(Clone, Debug)]
 // This is a struct as in future we may want to implement methods on it to get certain metrics from
 // the optics cluster distances.
-pub struct OpticsAnalysis<'a, F: Float> {
+pub struct OpticsAnalysis {
     /// A list of the samples in the dataset sorted and with their reachability and core distances
     /// computed.
-    pub orderings: Vec<Sample<'a, F>>,
+    pub orderings: Vec<Sample>,
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct Sample<'a, F: Float> {
+pub struct Sample {
     /// Index of the sample in the dataset.
     pub index: usize,
-    /// A reference to the datum.
-    pub observation: ArrayView<'a, F, Ix1>,
     /// The reachability distance of a sample is the distance between the point and it's cluster
     /// core or another point whichever is larger.
     pub reachability_distance: Option<f64>,
@@ -93,10 +91,9 @@ impl<'a, F: Float> Neighbor<'a, F> {
     }
 
     /// Convert the neighbor to a sample for the user
-    fn sample(&self) -> Sample<'a, F> {
+    fn sample(&self) -> Sample {
         Sample {
             index: self.index,
-            observation: self.observation.clone(),
             reachability_distance: self.r_distance.map(|x| x.raw()),
             core_distance: self.c_distance.map(|x| x.raw()),
         }
@@ -133,10 +130,10 @@ impl Optics {
     }
 }
 
-impl<'a, F: Float, D: Data<Elem = F>>
-    Transformer<&'a ArrayBase<D, Ix2>, Result<OpticsAnalysis<'a, F>>> for OpticsHyperParams
+impl<'a, F: Float, D: Data<Elem = F>> Transformer<&'a ArrayBase<D, Ix2>, Result<OpticsAnalysis>>
+    for OpticsHyperParams
 {
-    fn transform(&self, observations: &'a ArrayBase<D, Ix2>) -> Result<OpticsAnalysis<'a, F>> {
+    fn transform(&self, observations: &'a ArrayBase<D, Ix2>) -> Result<OpticsAnalysis> {
         self.validate()?;
         let mut result = OpticsAnalysis { orderings: vec![] };
 
@@ -175,7 +172,7 @@ impl<'a, F: Float, D: Data<Elem = F>>
                 self.get_tolerance(),
             );
             let n = &mut points[points_index];
-            n.set_core_distance(self.minimum_points(), &neighbors);
+            n.set_core_distance(self.get_minimum_points(), &neighbors);
             if n.c_distance.is_some() {
                 seeds.clear();
                 // Here we get a list of "density reachable" samples that haven't been processed
@@ -194,7 +191,7 @@ impl<'a, F: Float, D: Data<Elem = F>>
                     let neighbors =
                         find_neighbors(&n.observation, observations, self.get_tolerance());
 
-                    n.set_core_distance(self.minimum_points(), &neighbors);
+                    n.set_core_distance(self.get_minimum_points(), &neighbors);
                     result.orderings.push(n.sample());
                     if n.c_distance.is_some() {
                         get_seeds(n.clone(), &neighbors, &mut points, &processed, &mut seeds);
