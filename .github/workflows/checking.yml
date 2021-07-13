@@ -11,7 +11,7 @@ jobs:
       fail-fast: false
       matrix:
         toolchain:
-          - 1.42.0
+          - 1.49.0
           - nightly
           - stable
         experimental: [false]
@@ -38,7 +38,6 @@ jobs:
           args: --workspace
 
       - name: Run cargo check (with serde)
-        if: ${{ matrix.toolchain != '1.42.0' }} # The following args don't work on older versions of Cargo
         uses: actions-rs/cargo@v1
         with:
           command: check

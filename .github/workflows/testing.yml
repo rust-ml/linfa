@@ -14,7 +14,7 @@ jobs:
       fail-fast: false
       matrix:
         toolchain:
-          - 1.42.0
+          - 1.49.0
           - nightly
           - stable
         experimental: [false]
