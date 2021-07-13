@@ -16,8 +16,8 @@ jobs:
           - stable
         experimental: [false]
         include:
-          toolchain: nightly
-          experimental: true
+          - toolchain: nightly
+            experimental: true
     continue-on-error: ${{ matrix.experimental }}
 
     steps:
