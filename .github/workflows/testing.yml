@@ -11,15 +11,17 @@ jobs:
       image: rustmath/mkl-rust:1.43.0
       options: --security-opt seccomp=unconfined
     strategy:
+      fail-fast: false
       matrix:
         toolchain:
           - 1.42.0
           - nightly
           - stable
-      include:
-        toolchain: nightly
-        continue-on-error: true
-    continue-on-error: ${{ matrix.continue-on-error }}
+        experimental: [false]
+        include:
+          toolchain: nightly
+          experimental: true
+    continue-on-error: ${{ matrix.experimental }}
 
     steps:
       - name: Checkout sources

@@ -8,15 +8,17 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
     strategy:
+      fail-fast: false
       matrix:
         toolchain:
           - 1.42.0
           - nightly
           - stable
-      include:
-        toolchain: nightly
-        continue-on-error: true
-    continue-on-error: ${{ matrix.continue-on-error }}
+        experimental: [false]
+        include:
+          toolchain: nightly
+          experimental: true
+    continue-on-error: ${{ matrix.experimental }}
 
     steps:
       - name: Checkout sources
