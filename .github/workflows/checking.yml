@@ -12,7 +12,6 @@ jobs:
       matrix:
         toolchain:
           - 1.49.0
-          - nightly
           - stable
         experimental: [false]
         include:
