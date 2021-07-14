@@ -16,11 +16,6 @@ jobs:
         toolchain:
           - 1.49.0
           - stable
-        experimental: [false]
-        include:
-          - toolchain: nightly
-            experimental: true
-    continue-on-error: ${{ matrix.experimental }}
 
     steps:
       - name: Checkout sources
