@@ -1,3 +1,4 @@
+use linfa::traits::Fit;
 use linfa::traits::Predict;
 use linfa::DatasetBase;
 use linfa_clustering::{generate_blobs, KMeans};
@@ -22,6 +23,8 @@ fn main() {
     let model = KMeans::params_with_rng(n_clusters, rng)
         .max_n_iterations(200)
         .tolerance(1e-5)
+        .build()
+        .unwrap()
         .fit(&dataset)
         .expect("KMeans fitted");
 

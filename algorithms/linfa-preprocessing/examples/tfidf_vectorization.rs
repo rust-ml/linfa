@@ -57,7 +57,7 @@ fn load_set(
                 // each directory is a target
                 targets.push(ntargets);
             }
-            ntargets = ntargets + 1;
+            ntargets += 1;
         }
     }
     let targets = Array2::from_shape_vec((targets.len(), 1), targets).unwrap();

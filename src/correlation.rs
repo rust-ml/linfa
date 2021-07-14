@@ -158,11 +158,11 @@ impl<F: Float> PearsonCorrelation<F> {
         num_iter: Option<usize>,
     ) -> Self {
         // calculate pearson coefficients
-        let pearson_coeffs = pearson_correlation(&dataset.records());
+        let pearson_coeffs = pearson_correlation(dataset.records());
 
         // calculate p values
         let p_values = match num_iter {
-            Some(num_iter) => p_values(&dataset.records(), &pearson_coeffs, num_iter),
+            Some(num_iter) => p_values(dataset.records(), &pearson_coeffs, num_iter),
             None => Array1::zeros(0),
         };
 

@@ -1,5 +1,6 @@
 use super::algorithm::{update_cluster_memberships, update_min_dists};
 use linfa::Float;
+use linfa_nn::distance::Distance;
 use ndarray::parallel::prelude::*;
 use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
 use ndarray_rand::rand::distributions::{Distribution, WeightedIndex};
@@ -34,16 +35,17 @@ pub enum KMeansInit<F: Float> {
 
 impl<F: Float> KMeansInit<F> {
     /// Runs the chosen initialization routine
-    pub(crate) fn run<R: Rng + SeedableRng>(
+    pub(crate) fn run<R: Rng + SeedableRng, D: Distance<F>>(
         &self,
+        dist_fn: &D,
         n_clusters: usize,
         observations: ArrayView2<F>,
         rng: &mut R,
     ) -> Array2<F> {
         match self {
             Self::Random => random_init(n_clusters, observations, rng),
-            Self::KMeansPlusPlus => k_means_plusplus(n_clusters, observations, rng),
-            Self::KMeansPara => k_means_para(n_clusters, observations, rng),
+            Self::KMeansPlusPlus => k_means_plusplus(dist_fn, n_clusters, observations, rng),
+            Self::KMeansPara => k_means_para(dist_fn, n_clusters, observations, rng),
             Self::Precomputed(centroids) => {
                 // Check centroid dimensions
                 assert_eq!(centroids.nrows(), n_clusters);
@@ -68,7 +70,8 @@ fn random_init<F: Float>(
 /// Selects centroids using the KMeans++ initialization algorithm. The weights determine the
 /// likeliness of an input point to be selected as a centroid relative to other points. The higher
 /// the weight, the more likely the point will be selected as a centroid.
-fn weighted_k_means_plusplus<F: Float>(
+fn weighted_k_means_plusplus<F: Float, D: Distance<F>>(
+    dist_fn: &D,
     n_clusters: usize,
     observations: ArrayView2<F>,
     weights: ArrayView1<F>,
@@ -88,6 +91,7 @@ fn weighted_k_means_plusplus<F: Float>(
     let mut dists = Array1::zeros(n_samples);
     for c_cnt in 1..n_clusters {
         update_min_dists(
+            dist_fn,
             &centroids.slice(s![0..c_cnt, ..]),
             &observations,
             &mut dists,
@@ -109,12 +113,14 @@ fn weighted_k_means_plusplus<F: Float>(
 }
 
 /// KMeans++ initialization algorithm without biased weights
-fn k_means_plusplus<F: Float>(
+fn k_means_plusplus<F: Float, D: Distance<F>>(
+    dist_fn: &D,
     n_clusters: usize,
     observations: ArrayView2<F>,
     rng: &mut impl Rng,
 ) -> Array2<F> {
     weighted_k_means_plusplus(
+        dist_fn,
         n_clusters,
         observations,
         Array1::ones(observations.nrows()).view(),
@@ -127,7 +133,8 @@ fn k_means_plusplus<F: Float>(
 /// input point in parallel. The probability of a point becoming a centroid is the same as with
 /// KMeans++. After multiple iterations, run weighted KMeans++ on the candidates to produce the
 /// final set of centroids.
-fn k_means_para<R: Rng + SeedableRng, F: Float>(
+fn k_means_para<R: Rng + SeedableRng, F: Float, D: Distance<F>>(
+    dist_fn: &D,
     n_clusters: usize,
     observations: ArrayView2<F>,
     rng: &mut R,
@@ -149,7 +156,7 @@ fn k_means_para<R: Rng + SeedableRng, F: Float>(
     let mut dists = Array1::zeros(n_samples);
     'outer: for _ in 0..n_rounds {
         let current_candidates = candidates.slice(s![0..n_candidates, ..]);
-        update_min_dists(&current_candidates, &observations, &mut dists);
+        update_min_dists(dist_fn, &current_candidates, &observations, &mut dists);
         // Generate the next set of candidates from the input points, using the same probability
         // formula as KMeans++. On average this generates candidates equal to
         // `candidates_per_round`.
@@ -174,11 +181,11 @@ fn k_means_para<R: Rng + SeedableRng, F: Float>(
 
     let final_candidates = candidates.slice(s![0..n_candidates, ..]);
     // Weigh the candidate centroids by the sizes of the clusters they form in the input points.
-    let weights = cluster_membership_counts(&final_candidates, &observations);
+    let weights = cluster_membership_counts(dist_fn, &final_candidates, &observations);
 
     // The number of candidates is almost certainly higher than the number of centroids, so we
     // recluster the candidates into the right number of centroids using weighted KMeans++.
-    weighted_k_means_plusplus(n_clusters, final_candidates, weights.view(), rng)
+    weighted_k_means_plusplus(dist_fn, n_clusters, final_candidates, weights.view(), rng)
 }
 
 /// Generate candidate centroids by sampling each observation in parallel using a seedable RNG in
@@ -216,14 +223,15 @@ fn sample_subsequent_candidates<R: Rng + SeedableRng, F: Float>(
 }
 
 /// Returns the number of observation points that belong to each cluster.
-fn cluster_membership_counts<F: Float>(
+fn cluster_membership_counts<F: Float, D: Distance<F>>(
+    dist_fn: &D,
     centroids: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
     observations: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
 ) -> Array1<F> {
     let n_samples = observations.nrows();
     let n_clusters = centroids.nrows();
     let mut memberships = Array1::zeros(n_samples);
-    update_cluster_memberships(&centroids, observations, &mut memberships);
+    update_cluster_memberships(dist_fn, centroids, observations, &mut memberships);
     let mut counts = Array1::zeros(n_clusters);
     memberships.iter().for_each(|&c| counts[c] += F::one());
     counts
@@ -231,9 +239,9 @@ fn cluster_membership_counts<F: Float>(
 
 #[cfg(test)]
 mod tests {
-    use super::super::algorithm::{compute_inertia, update_cluster_memberships};
     use super::*;
     use approx::{abs_diff_eq, assert_abs_diff_eq, assert_abs_diff_ne};
+    use linfa_nn::distance::{L1Dist, L2Dist};
     use ndarray::{array, concatenate, Array};
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::Normal;
@@ -246,16 +254,13 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(40);
         let centroids = array![[0.0, 1.0], [40.0, 10.0]];
         let observations = array![[3.0, 4.0], [1.0, 3.0], [25.0, 15.0]];
-        let c = KMeansInit::Precomputed(centroids.clone()).run(2, observations.view(), &mut rng);
+        let c = KMeansInit::Precomputed(centroids.clone()).run(
+            &L2Dist,
+            2,
+            observations.view(),
+            &mut rng,
+        );
         assert_abs_diff_eq!(c, centroids);
-    }
-    #[test]
-    fn test_min_dists() {
-        let centroids = array![[0.0, 1.0], [40.0, 10.0]];
-        let observations = array![[3.0, 4.0], [1.0, 3.0], [25.0, 15.0]];
-        let mut dists = Array1::zeros(observations.nrows());
-        update_min_dists(&centroids, &observations, &mut dists);
-        assert_abs_diff_eq!(dists, array![18.0, 5.0, 250.0]);
     }
 
     #[test]
@@ -267,10 +272,13 @@ mod tests {
 
     #[test]
     fn test_cluster_membership_counts() {
-        let centroids = array![[0.0, 1.0], [40.0, 10.0]];
+        let centroids = array![[0.0, 1.0], [40.0, 10.0], [3.0, 9.0]];
         let observations = array![[3.0, 4.0], [1.0, 3.0], [25.0, 15.0]];
-        let counts = cluster_membership_counts(&centroids, &observations);
-        assert_abs_diff_eq!(counts, array![2.0, 1.0]);
+
+        let counts = cluster_membership_counts(&L2Dist, &centroids, &observations);
+        assert_abs_diff_eq!(counts, array![2.0, 1.0, 0.0]);
+        let counts = cluster_membership_counts(&L1Dist, &centroids, &observations);
+        assert_abs_diff_eq!(counts, array![1.0, 1.0, 1.0]);
     }
 
     #[test]
@@ -280,7 +288,7 @@ mod tests {
         let mut weights = Array1::zeros(1000);
         weights[0] = 2.0;
         weights[1] = 3.0;
-        let out = weighted_k_means_plusplus(2, obs.view(), weights.view(), &mut rng);
+        let out = weighted_k_means_plusplus(&L2Dist, 2, obs.view(), weights.view(), &mut rng);
         let mut expected_centroids = {
             let mut arr = Array2::zeros((2, 2));
             arr.row_mut(0).assign(&obs.row(0));
@@ -297,20 +305,22 @@ mod tests {
 
     #[test]
     fn test_k_means_plusplus() {
-        verify_init(KMeansInit::KMeansPlusPlus);
+        verify_init(KMeansInit::KMeansPlusPlus, L2Dist);
+        verify_init(KMeansInit::KMeansPlusPlus, L1Dist);
     }
 
     #[test]
     fn test_k_means_para() {
-        verify_init(KMeansInit::KMeansPara);
+        verify_init(KMeansInit::KMeansPara, L2Dist);
+        verify_init(KMeansInit::KMeansPara, L1Dist);
     }
 
     // Run general tests for a given init algorithm
-    fn verify_init(init: KMeansInit<f64>) {
+    fn verify_init<D: Distance<f64>>(init: KMeansInit<f64>, dist_fn: D) {
         let mut rng = Isaac64Rng::seed_from_u64(42);
         // Make sure we don't panic on degenerate data (n_clusters > n_samples)
         let degenerate_data = array![[1.0, 2.0]];
-        let out = init.run(2, degenerate_data.view(), &mut rng);
+        let out = init.run(&dist_fn, 2, degenerate_data.view(), &mut rng);
         assert_abs_diff_eq!(out, concatenate![Axis(0), degenerate_data, degenerate_data]);
 
         // Build 3 separated clusters of points
@@ -324,7 +334,7 @@ mod tests {
         });
 
         // Look for the right number of centroids
-        let out = init.run(centroids.len(), obs.view(), &mut rng);
+        let out = init.run(&dist_fn, centroids.len(), obs.view(), &mut rng);
         let mut cluster_ids = HashSet::new();
         for row in out.genrows() {
             // Centroid should not be 0
@@ -333,14 +343,13 @@ mod tests {
             let found = clusters
                 .iter()
                 .enumerate()
-                .filter_map(|(i, c)| {
+                .find_map(|(i, c)| {
                     if c.genrows().into_iter().any(|cl| abs_diff_eq!(row, cl)) {
                         Some(i)
                     } else {
                         None
                     }
                 })
-                .next()
                 .unwrap();
             cluster_ids.insert(found);
         }
@@ -348,8 +357,15 @@ mod tests {
         assert_eq!(cluster_ids, [0, 1, 2].iter().copied().collect());
     }
 
-    #[test]
-    fn test_compare() {
+    macro_rules! calc_loss {
+        ($dist_fn:expr, $centroids:expr, $observations:expr) => {{
+            let mut dists = Array1::zeros($observations.nrows());
+            update_min_dists(&$dist_fn, &$centroids, &$observations, &mut dists);
+            dists.sum()
+        }};
+    }
+
+    fn test_compare<D: Distance<f64>>(dist_fn: D) {
         let mut rng = Isaac64Rng::seed_from_u64(42);
         let centroids = [20.0, -1000.0, 1000.0];
         let clusters: Vec<Array2<_>> = centroids
@@ -361,20 +377,21 @@ mod tests {
         });
 
         let out_rand = random_init(3, obs.view(), &mut rng.clone());
-        let out_pp = k_means_plusplus(3, obs.view(), &mut rng.clone());
-        let out_para = k_means_para(3, obs.view(), &mut rng.clone());
+        let out_pp = k_means_plusplus(&dist_fn, 3, obs.view(), &mut rng.clone());
+        let out_para = k_means_para(&dist_fn, 3, obs.view(), &mut rng);
         // Loss of Kmeans++ should be better than using random_init
-        assert!(calc_loss(&out_pp, &obs) < calc_loss(&out_rand, &obs));
+        assert!(calc_loss!(dist_fn, out_pp, obs) < calc_loss!(dist_fn, out_rand, obs));
         // Loss of Kmeans|| should be better than using random_init
-        assert!(calc_loss(&out_para, &obs) < calc_loss(&out_rand, &obs));
+        assert!(calc_loss!(dist_fn, out_para, obs) < calc_loss!(dist_fn, out_rand, obs));
     }
 
-    fn calc_loss(
-        centroids: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
-        observations: &ArrayBase<impl Data<Elem = f64> + Sync, Ix2>,
-    ) -> f64 {
-        let mut memberships = Array1::zeros(observations.nrows());
-        update_cluster_memberships(centroids, observations, &mut memberships);
-        compute_inertia(centroids, observations, &memberships)
+    #[test]
+    fn test_compare_l2() {
+        test_compare(L2Dist);
+    }
+
+    #[test]
+    fn test_compare_l1() {
+        test_compare(L1Dist);
     }
 }

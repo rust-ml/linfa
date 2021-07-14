@@ -323,7 +323,7 @@ mod tests {
         file_names
     }
 
-    fn delete_test_files(file_names: &Vec<&'static str>) {
+    fn delete_test_files(file_names: &[&'static str]) {
         for f_name in file_names.iter() {
             std::fs::remove_file(f_name).unwrap();
         }

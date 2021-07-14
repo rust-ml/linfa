@@ -389,7 +389,7 @@ mod tests {
             .gaussian_kernel(80.0);
 
         let avg_acc = dataset
-            .iter_fold(4, |training_set| params.fit(&training_set).unwrap())
+            .iter_fold(4, |training_set| params.fit(training_set).unwrap())
             .map(|(model, valid)| {
                 model
                     .predict(valid.view())

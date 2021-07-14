@@ -11,8 +11,10 @@ jobs:
       image: rustmath/mkl-rust:1.43.0
       options: --security-opt seccomp=unconfined
     strategy:
+      fail-fast: false
       matrix:
         toolchain:
+          - 1.49.0
           - stable
 
     steps:

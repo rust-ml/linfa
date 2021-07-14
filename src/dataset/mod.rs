@@ -581,9 +581,8 @@ mod tests {
         let mut dataset: Dataset<f64, f64> = (records, targets).into();
         let params = MockFittable { mock_var: 1 };
 
-        for (i, (model, validation_set)) in dataset
-            .iter_fold(5, |v| params.fit(&v).unwrap())
-            .enumerate()
+        for (i, (model, validation_set)) in
+            dataset.iter_fold(5, |v| params.fit(v).unwrap()).enumerate()
         {
             assert_eq!(model.mock_var, 4);
             assert_eq!(validation_set.records().row(0)[0] as usize, i + 1);
@@ -605,9 +604,8 @@ mod tests {
         // If we request three folds from a dataset with 5 samples it will cut the
         // last two samples from the folds and always add them as a tail of the training
         // data
-        for (i, (model, validation_set)) in dataset
-            .iter_fold(3, |v| params.fit(&v).unwrap())
-            .enumerate()
+        for (i, (model, validation_set)) in
+            dataset.iter_fold(3, |v| params.fit(v).unwrap()).enumerate()
         {
             assert_eq!(model.mock_var, 4);
             assert_eq!(validation_set.records().row(0)[0] as usize, i + 1);
@@ -619,9 +617,8 @@ mod tests {
         }
 
         // the same goes for the last sample if we choose 4 folds
-        for (i, (model, validation_set)) in dataset
-            .iter_fold(4, |v| params.fit(&v).unwrap())
-            .enumerate()
+        for (i, (model, validation_set)) in
+            dataset.iter_fold(4, |v| params.fit(v).unwrap()).enumerate()
         {
             assert_eq!(model.mock_var, 4);
             assert_eq!(validation_set.records().row(0)[0] as usize, i + 1);
@@ -634,9 +631,8 @@ mod tests {
 
         // if we choose 2 folds then again the last sample will be only
         // used for trainig
-        for (i, (model, validation_set)) in dataset
-            .iter_fold(2, |v| params.fit(&v).unwrap())
-            .enumerate()
+        for (i, (model, validation_set)) in
+            dataset.iter_fold(2, |v| params.fit(v).unwrap()).enumerate()
         {
             assert_eq!(model.mock_var, 3);
             assert_eq!(validation_set.targets().dim(), (2, 1));
@@ -652,7 +648,7 @@ mod tests {
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
         let mut dataset: Dataset<f64, f64> = (records, targets).into();
         let params = MockFittable { mock_var: 1 };
-        let _ = dataset.iter_fold(0, |v| params.fit(&v)).enumerate();
+        let _ = dataset.iter_fold(0, |v| params.fit(v)).enumerate();
     }
 
     #[test]
@@ -663,7 +659,7 @@ mod tests {
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
         let mut dataset: Dataset<f64, f64> = (records, targets).into();
         let params = MockFittable { mock_var: 1 };
-        let _ = dataset.iter_fold(6, |v| params.fit(&v)).enumerate();
+        let _ = dataset.iter_fold(6, |v| params.fit(v)).enumerate();
     }
 
     #[test]
