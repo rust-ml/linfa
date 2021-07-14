@@ -71,7 +71,9 @@ impl Neighbor {
         let observation = dataset.row(self.index);
         self.c_distance = neighbors
             .get(min_pts - 1)
-            .map(|x| n64(observation.l2_dist(&dataset.row(x.index)).unwrap()));
+            .map(|x| dataset.row(x.index))
+            .map(|x| observation.l2_dist(&x).unwrap())
+            .map(|x| n64(x));
     }
 
     /// Convert the neighbor to a sample for the user
@@ -266,17 +268,19 @@ fn find_neighbors<F: Float>(
         neighbours.resize_with(i, space::Neighbor::invalid);
     }
 
-    let mut result = vec![];
-    for n in &neighbours {
-        let observation = observations.row(n.index);
-        let distance = candidate.l2_dist(&observation).unwrap();
-        result.push(Neighbor {
-            index: n.index,
-            r_distance: Some(n64(distance)),
-            c_distance: None,
-        });
-    }
-    result
+    neighbours
+        .into_iter()
+        .map(|x| x.index)
+        .map(|idx| {
+            let observation = observations.row(idx);
+            let distance = candidate.l2_dist(&observation).unwrap();
+            Neighbor {
+                index: idx,
+                r_distance: Some(n64(distance)),
+                c_distance: None,
+            }
+        })
+        .collect()
 }
 
 #[cfg(test)]
