@@ -1091,6 +1091,33 @@ where
     }
 }
 
+#[cfg(feature = "linfa-kernel")]
+mod predict_kernels_impl {
+    use linfa_kernel::{Kernel, KernelBase, Inner};
+    use crate::traits::{Predict, PredictRef};
+    use linfa_kernel::{DatasetBase, dataset::Records};
+    use linfa_kernel::Float;
+
+    impl<F: Float, T, O> Predict<Kernel<F>, DatasetBase<Kernel<F>, T>> for O
+    where
+        O: PredictRef<Kernel<F>, T>,
+    {
+        fn predict(&self, records: Kernel<F>) -> DatasetBase<Kernel<F>, T> {
+            let new_targets = self.predict_ref(&records);
+            DatasetBase::new(records, new_targets)
+        }
+    }
+    
+    impl<'a, F: Float, T, O> Predict<&'a Kernel<F>, T> for O
+    where
+        O: PredictRef<Kernel<F>, T>,
+    {
+        fn predict(&self, records: &'a Kernel<F>) -> T {
+            self.predict_ref(records)
+        }
+    }
+}
+
 impl<L: Label, S: Labels<Elem = L>> CountedTargets<L, S> {
     pub fn new(targets: S) -> Self {
         let labels = targets.label_count();

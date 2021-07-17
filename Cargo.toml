@@ -68,6 +68,11 @@ optional = true
 default-features = false
 features = ["cblas"]
 
+[dependencies.linfa-kernel]
+version = "0.4.0"
+path = "algorithms/linfa-kernel"
+optional = true
+
 [dev-dependencies]
 ndarray-rand = "0.13"
 linfa-datasets = { path = "datasets", features = ["winequality", "iris", "diabetes"] }

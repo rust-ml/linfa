@@ -25,10 +25,13 @@ use serde_crate::{Deserialize, Serialize};
 use sprs::{CsMat, CsMatView};
 use std::ops::Mul;
 
+pub use linfa::Float;
+
 use linfa::{
     dataset::AsTargets, dataset::DatasetBase, dataset::FromTargetArray, dataset::Records,
-    traits::Transformer, Float,
+    traits::Transformer,
 };
+
 
 /// Kernel representation, can be either dense or sparse
 #[derive(Clone)]
@@ -231,18 +234,6 @@ impl<'a, F: Float> KernelView<'a, F> {
             },
             method: self.method.clone(),
         }
-    }
-}
-
-impl<F: Float, K1: Inner<Elem = F>, K2: Inner<Elem = F>> Records for KernelBase<K1, K2> {
-    type Elem = F;
-
-    fn nsamples(&self) -> usize {
-        self.size()
-    }
-
-    fn nfeatures(&self) -> usize {
-        self.size()
     }
 }
 
@@ -547,6 +538,18 @@ fn sparse_from_fn<F: Float, D: Data<Elem = F>>(
         }
     }
     data
+}
+
+impl<F: Float, K1: Inner<Elem = F>, K2: Inner<Elem = F>> Records for KernelBase<K1, K2> {
+    type Elem = F;
+
+    fn nsamples(&self) -> usize {
+        self.size()
+    }
+
+    fn nfeatures(&self) -> usize {
+        self.size()
+    }
 }
 
 #[cfg(test)]

@@ -19,12 +19,12 @@
 //! [kodama](https://docs.rs/kodama/0.2.3/kodama/) crate.
 
 use std::collections::HashMap;
+use ndarray::Array1;
 
 use kodama::linkage;
 pub use kodama::Method;
 
-use linfa::dataset::DatasetBase;
-use linfa::traits::Transformer;
+use linfa::traits::PredictRef;
 use linfa::Float;
 use linfa_kernel::Kernel;
 
@@ -40,9 +40,50 @@ enum Criterion<T> {
 
 /// Agglomerative hierarchical clustering
 ///
-/// In this clustering algorithm, each point is first considered as a separate cluster. During each
-/// step, two points are merged into new clusters, until a stopping criterion is reached. The distance
-/// between the points is computed as the negative-log transform of the similarity kernel.
+/// Hierarchical clustering is a method of cluster analysis which seeks to build a hierarchy of
+/// cluster. First each points is considered as a separate cluster. During each step, two points 
+/// are merged into new clusters, until a stopping criterion is reached. The distance between the 
+/// points is computed as the negative-log transform of the similarity kernel.
+///
+/// # Example
+///
+/// This example loads the iris flower dataset and performs hierarchical clustering into three
+/// separate clusters.
+/// ```rust
+/// use std::error::Error;
+/// 
+/// use linfa::traits::Transformer;
+/// use linfa_hierarchical::HierarchicalCluster;
+/// use linfa_kernel::{Kernel, KernelMethod};
+/// 
+/// fn main() -> Result<(), Box<dyn Error>> {
+///     // load Iris plant dataset
+///     let dataset = linfa_datasets::iris();
+/// 
+///     let kernel = Kernel::params()
+///         .method(KernelMethod::Gaussian(1.0))
+///         .transform(dataset.records().view());
+/// 
+///     let kernel = HierarchicalCluster::default()
+///         .num_clusters(3)
+///         .transform(kernel);
+/// 
+///     for (id, target) in kernel.targets().iter().zip(dataset.targets().into_iter()) {
+///         let name = match *target as usize {
+///             0 => "setosa",
+///             1 => "versicolor",
+///             2 => "virginica",
+///             _ => unreachable!(),
+///         };
+/// 
+///         print!("({} {}) ", id, name);
+///     }
+///     println!();
+/// 
+///     Ok(())
+/// }
+/// ```
+
 pub struct HierarchicalCluster<T> {
     method: Method,
     stopping: Criterion<T>,
@@ -77,13 +118,14 @@ impl<F: Float> HierarchicalCluster<F> {
     }
 }
 
-impl<F: Float> Transformer<Kernel<F>, DatasetBase<Kernel<F>, Vec<usize>>>
+/// Predict cluster assignements with a kernel operator
+impl<F: Float> PredictRef<Kernel<F>, Array1<usize>>
     for HierarchicalCluster<F>
 {
     /// Perform hierarchical clustering of a similarity matrix
     ///
     /// Returns the class id for each data point
-    fn transform(&self, kernel: Kernel<F>) -> DatasetBase<Kernel<F>, Vec<usize>> {
+    fn predict_ref(&self, kernel: &Kernel<F>) -> Array1<usize> {
         // ignore all similarities below this value
         let threshold = F::cast(1e-6);
 
@@ -145,19 +187,7 @@ impl<F: Float> Transformer<Kernel<F>, DatasetBase<Kernel<F>, Vec<usize>>>
         }
 
         // return node_index -> cluster_index map
-        DatasetBase::new(kernel, tmp)
-    }
-}
-
-impl<F: Float, T> Transformer<DatasetBase<Kernel<F>, T>, DatasetBase<Kernel<F>, Vec<usize>>>
-    for HierarchicalCluster<F>
-{
-    /// Perform hierarchical clustering of a similarity matrix
-    ///
-    /// Returns the class id for each data point
-    fn transform(&self, dataset: DatasetBase<Kernel<F>, T>) -> DatasetBase<Kernel<F>, Vec<usize>> {
-        //let Dataset { records, .. } = dataset;
-        self.transform(dataset.records)
+        Array1::from(tmp)
     }
 }
 
@@ -174,7 +204,8 @@ impl<T> Default for HierarchicalCluster<T> {
 
 #[cfg(test)]
 mod tests {
-    use linfa::traits::Transformer;
+    use linfa::traits::{Transformer, Predict};
+    use linfa::Dataset;
     use linfa_kernel::{Kernel, KernelMethod};
     use ndarray::{Array, Axis};
     use ndarray_rand::{rand_distr::Normal, RandomExt};
@@ -199,12 +230,11 @@ mod tests {
             .method(KernelMethod::Gaussian(5.0))
             .transform(entries.view());
 
-        let kernel = HierarchicalCluster::default()
+        let ids = HierarchicalCluster::default()
             .max_distance(0.1)
-            .transform(kernel);
+            .predict_ref(&kernel);
 
         // check that all assigned ids are equal for the first cluster
-        let ids = kernel.targets();
         let first_cluster_id = &ids[0];
         assert!(ids
             .iter()
