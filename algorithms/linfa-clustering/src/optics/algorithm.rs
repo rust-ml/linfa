@@ -39,6 +39,9 @@ impl<F: Float> MetricPoint for Euclidean<'_, F> {
 /// OPTICS cluster analysis can be used to derive clusters equivalent to the output of other
 /// clustering algorithms such as DBSCAN. However, due to it's more complicated neighborhood
 /// queries it typically has a higher computational cost than other more specific algorithms.
+///
+/// More details on the OPTICS algorithm can be found
+/// [here](https://www.wikipedia.org/wiki/OPTICS_algorithm)
 pub struct Optics;
 
 #[derive(Clone)]

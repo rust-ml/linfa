@@ -17,6 +17,7 @@
 //! * [DBSCAN](struct.Dbscan.html)
 //! * [Approximated DBSCAN](struct.AppxDbscan.html)
 //! * [Gaussian-Mixture-Model](struct.GaussianMixtureModel.html)
+//! * [OPTICS](struct.OpticsAnalysis.html)
 //!
 //! Implementation choices, algorithmic details and tutorials can be found in the page dedicated to the specific algorithms.
 //!
