@@ -28,6 +28,7 @@ fn main() {
 
     // Perform OPTICS analysis with minimum points for a cluster neighborhood set to 3
     let analysis = Optics::params(min_points)
+        .tolerance(3.0)
         .transform(dataset.view())
         .unwrap();
 
