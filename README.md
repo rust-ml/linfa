@@ -30,7 +30,7 @@ Where does `linfa` stand right now? [Are we learning yet?](http://www.arewelearn
 
 | Name | Purpose | Status | Category |  Notes | 
 | :--- | :--- | :---| :--- | :---| 
-| [clustering](algorithms/linfa-clustering/) | Data clustering | Tested / Benchmarked  | Unsupervised learning | Clustering of unlabeled data; contains K-Means, Gaussian-Mixture-Model and DBSCAN  | 
+| [clustering](algorithms/linfa-clustering/) | Data clustering | Tested / Benchmarked  | Unsupervised learning | Clustering of unlabeled data; contains K-Means, Gaussian-Mixture-Model, DBSCAN and OPTICS | 
 | [kernel](algorithms/linfa-kernel/) | Kernel methods for data transformation  | Tested  | Pre-processing | Maps feature vector into higher-dimensional space| 
 | [linear](algorithms/linfa-linear/) | Linear regression | Tested  | Partial fit | Contains Ordinary Least Squares (OLS), Generalized Linear Models (GLM) | 
 | [elasticnet](algorithms/linfa-elasticnet/) | Elastic Net | Tested | Supervised learning | Linear regression with elastic net constraints |
