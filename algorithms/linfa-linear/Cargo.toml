@@ -25,7 +25,7 @@ argmin = { version = "0.4", features = ["ndarrayl"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 thiserror = "=1.0.25"
 
-linfa = { version = "0.4.0", path = "../.." }
+linfa = { version = "0.4.0", path = "../..", features=["serde"] }
 
 [dev-dependencies]
 linfa-datasets = { version = "0.4.0", path = "../../datasets", features = ["diabetes"] }
