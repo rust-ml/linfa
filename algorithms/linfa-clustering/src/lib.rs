@@ -17,6 +17,7 @@
 //! * [DBSCAN](struct.Dbscan.html)
 //! * [Approximated DBSCAN](struct.AppxDbscan.html)
 //! * [Gaussian-Mixture-Model](struct.GaussianMixtureModel.html)
+//! * [OPTICS](struct.OpticsAnalysis.html)
 //!
 //! Implementation choices, algorithmic details and tutorials can be found in the page dedicated to the specific algorithms.
 //!
@@ -28,10 +29,12 @@ mod dbscan;
 mod gaussian_mixture;
 #[allow(clippy::new_ret_no_self)]
 mod k_means;
+mod optics;
 mod utils;
 
 pub use appx_dbscan::*;
 pub use dbscan::*;
 pub use gaussian_mixture::*;
 pub use k_means::*;
+pub use optics::*;
 pub use utils::*;
