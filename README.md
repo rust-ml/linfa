@@ -66,6 +66,10 @@ cd linfa-reduction && cargo run --release --example pca --features linfa/intel-m
 ```
 This selects the `intel-mkl` system library as BLAS/LAPACK backend. On the other hand if you want to compile the library and link it with the generated artifacts, pass `intel-mkl-static`.
 
+## Note on Benchmarks
+
+If gnuplot is not installed, Criterion will produce plots with the plotters backend as a fallback. This leads to the benchmark getting stuck due to [this bug](https://github.com/bheisler/criterion.rs/issues/471).
+
 # License
 Dual-licensed to be compatible with the Rust project.
 
