@@ -68,7 +68,7 @@ This selects the `intel-mkl` system library as BLAS/LAPACK backend. On the other
 
 ## Note on Benchmarks
 
-When running the Criterion benchmarks make sure to have `gnuplot` installed on your system. If `gnuplot` is not installed, Criterion will fall back on the `plotters` backend when plotting results, which leads to the benchmark getting stuck due to [this bug](https://github.com/bheisler/criterion.rs/issues/471).
+If gnuplot is not installed, Criterion will produce plots with the plotters backend as a fallback. This leads to the benchmark getting stuck due to [this bug](https://github.com/bheisler/criterion.rs/issues/471).
 
 # License
 Dual-licensed to be compatible with the Rust project.
