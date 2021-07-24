@@ -451,9 +451,21 @@ impl<F: Float, DA: Data<Elem = F>, D: Distance<F>> PredictInto<ArrayBase<DA, Ix2
     ///
     /// # Panics
     /// `targets` must be sufficiently large to hold the targets `observations.nrows() <= targets.len()`
-    fn predict_into<'a>(&'a self, observations: &'a ArrayBase<DA, Ix2>, targets: &mut Array1<usize>) {
-        assert!(observations.nrows() <= targets.len(), "Tried to predict into a too small Array");
-        update_cluster_memberships(&self.dist_fn, &self.centroids, &observations.view(), targets);
+    fn predict_into<'a>(
+        &'a self,
+        observations: &'a ArrayBase<DA, Ix2>,
+        targets: &mut Array1<usize>,
+    ) {
+        assert!(
+            observations.nrows() <= targets.len(),
+            "Tried to predict into a too small Array"
+        );
+        update_cluster_memberships(
+            &self.dist_fn,
+            &self.centroids,
+            &observations.view(),
+            targets,
+        );
     }
 }
 
