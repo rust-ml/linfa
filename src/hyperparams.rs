@@ -2,13 +2,14 @@ use std::error::Error;
 
 use crate::{
     prelude::Records,
-    traits::{Fit, IncrementalFit, PredictRef, Transformer},
+    traits::{Fit, IncrementalFit, Transformer},
 };
 
 /// A set of hyperparameters whose values have not been checked for validity. A reference to the
-/// checked hyperparameters can only be obtained after checking has completed. If any of the
-/// algorithm traits have been implemented on the checked hyperparameters, they will also be
-/// implemented on the unchecked hyperparameters with the checking step done automatically.
+/// checked hyperparameters can only be obtained after checking has completed. If the
+/// `Transformer`, `Fit`, or `IncrementalFit` traits have been implemented on the checked
+/// hyperparameters, they will also be implemented on the unchecked hyperparameters with the
+/// checking step done automatically.
 ///
 /// The hyperparameter validation done in `check_ref()` and `check()` should be identical.
 pub trait UncheckedHyperParams {
@@ -69,16 +70,5 @@ where
     ) -> Result<Self::ObjectOut, E> {
         let checked = self.check_ref()?;
         checked.fit_with(model, dataset)
-    }
-}
-
-/// Performs the checking step and calls `predict_ref` on the checked hyperparameters. Returns
-/// error if checking was unsuccessful.
-impl<R: Records, T, P: UncheckedHyperParams> PredictRef<R, Result<T, P::Error>> for P
-where
-    P::Checked: PredictRef<R, T>,
-{
-    fn predict_ref<'a>(&'a self, x: &'a R) -> Result<T, P::Error> {
-        self.check_ref().map(|p| p.predict_ref(x))
     }
 }

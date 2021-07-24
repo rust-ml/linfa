@@ -1,7 +1,7 @@
 use crate::{generate_blobs, AppxDbscanParamsError, Dbscan};
 use crate::{AppxDbscan, UncheckedAppxDbscanHyperParams};
 use linfa::prelude::UncheckedHyperParams;
-use linfa::traits::Predict;
+use linfa::traits::Transformer;
 use ndarray::{arr2, s, Array1, Array2};
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::Uniform;
@@ -21,13 +21,13 @@ fn appx_dbscan_test_100() {
     let appx_res = AppxDbscan::params(min_points)
         .tolerance(tolerance)
         .slack(1e-4)
-        .predict(&dataset)
+        .transform(&dataset)
         .unwrap();
     let ex_res = Dbscan::params(min_points)
         .tolerance(tolerance)
         .check()
         .unwrap()
-        .predict(&dataset);
+        .transform(&dataset);
 
     // The order of the labels of the clusters in the two algorithms may not be the same
     // but it does not affect the result. We have to create a mapping from the exact labels
@@ -72,13 +72,13 @@ fn appx_dbscan_test_250() {
     let appx_res = AppxDbscan::params(min_points)
         .tolerance(tolerance)
         .slack(1e-4)
-        .predict(&dataset)
+        .transform(&dataset)
         .unwrap();
     let ex_res = Dbscan::params(min_points)
         .tolerance(tolerance)
         .check()
         .unwrap()
-        .predict(&dataset);
+        .transform(&dataset);
 
     // The order of the labels of the clusters in the two algorithms may not be the same
     // but it does not affect the result. We have to create a mapping from the exact labels
@@ -120,13 +120,13 @@ fn appx_dbscan_test_500() {
     let appx_res = AppxDbscan::params(min_points)
         .tolerance(tolerance)
         .slack(1e-4)
-        .predict(&dataset)
+        .transform(&dataset)
         .unwrap();
     let ex_res = Dbscan::params(min_points)
         .tolerance(tolerance)
         .check()
         .unwrap()
-        .predict(&dataset);
+        .transform(&dataset);
 
     // The order of the labels of the clusters in the two algorithms may not be the same
     // but it does not affect the result. We have to create a mapping from the exact labels
@@ -174,7 +174,7 @@ fn test_border() {
     let labels = AppxDbscan::params(5)
         .tolerance(1.1)
         .slack(1e-5)
-        .predict(&data)
+        .transform(&data)
         .unwrap();
 
     assert_eq!(labels[0], None);
@@ -225,7 +225,7 @@ fn test_outliers() {
     let labels = AppxDbscan::params(2)
         .tolerance(1.0)
         .slack(1e-4)
-        .predict(&data)
+        .transform(&data)
         .unwrap();
     // we should find that the first 50 points are all in the same cluster (cluster 0)
     // and that the other points are so far away from one another that they are all noise points
@@ -259,7 +259,7 @@ fn nested_clusters() {
     let labels = AppxDbscan::params(2)
         .tolerance(1.0)
         .slack(1e-4)
-        .predict(&data)
+        .transform(&data)
         .unwrap();
 
     assert!(labels.slice(s![..40]).iter().all(|x| x == &Some(0)));
