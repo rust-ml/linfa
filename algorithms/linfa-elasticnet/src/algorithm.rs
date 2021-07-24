@@ -48,8 +48,8 @@ where
         let variance = variance_params(dataset, y_est);
 
         Ok(ElasticNet {
-            intercept,
             parameters,
+            intercept,
             duality_gap,
             n_steps,
             variance,
