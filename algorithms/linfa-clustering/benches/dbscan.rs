@@ -33,8 +33,7 @@ fn dbscan_bench(c: &mut Criterion) {
                     black_box(
                         Dbscan::params(min_points)
                             .tolerance(tolerance)
-                            .check()
-                            .unwrap()
+                            .check_unwrap()
                             .transform(&dataset),
                     )
                 });

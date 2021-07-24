@@ -24,6 +24,14 @@ pub trait UncheckedHyperParams {
 
     /// Checks the hyperparameters and returns the checked hyperparameters if successful
     fn check(self) -> Result<Self::Checked, Self::Error>;
+
+    /// Calls `check()` and unwraps the result
+    fn check_unwrap(self) -> Self::Checked
+    where
+        Self: Sized,
+    {
+        self.check().unwrap()
+    }
 }
 
 /// Performs the checking step and calls `transform` on the checked hyperparameters. Returns error
