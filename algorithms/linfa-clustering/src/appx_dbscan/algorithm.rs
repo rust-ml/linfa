@@ -1,6 +1,6 @@
 use crate::appx_dbscan::clustering::AppxDbscanLabeler;
 use crate::appx_dbscan::hyperparameters::AppxDbscanHyperParams;
-use linfa::traits::PredictInto;
+use linfa::traits::PredictInplace;
 use linfa::Float;
 use ndarray::{Array1, ArrayBase, Data, Ix2};
 #[cfg(feature = "serde")]
@@ -98,10 +98,10 @@ impl AppxDbscan {
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> PredictInto<ArrayBase<D, Ix2>, Array1<Option<usize>>>
+impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<Option<usize>>>
     for AppxDbscanHyperParams<F>
 {
-    fn predict_into<'a>(
+    fn predict_inplace<'a>(
         &'a self,
         observations: &'a ArrayBase<D, Ix2>,
         targets: &mut Array1<Option<usize>>,

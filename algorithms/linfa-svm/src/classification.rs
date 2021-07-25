@@ -3,7 +3,7 @@ use linfa::{
     composing::platt_scaling::{platt_newton_method, platt_predict, PlattParams},
     dataset::{AsTargets, CountedTargets, DatasetBase, Pr},
     traits::Fit,
-    traits::{Predict, PredictInto},
+    traits::{Predict, PredictInplace},
 };
 use ndarray::{Array1, Array2, ArrayBase, ArrayView2, Data, Ix1, Ix2};
 use std::cmp::Ordering;
@@ -346,8 +346,8 @@ impl<F: Float> Predict<Array1<F>, bool> for Svm<F, bool> {
 ///
 /// This function takes a number of features and predicts target probabilities that they belong to
 /// the positive class.
-impl<F: Float, D: Data<Elem = F>> PredictInto<ArrayBase<D, Ix2>, Array1<Pr>> for Svm<F, Pr> {
-    fn predict_into(&self, data: &ArrayBase<D, Ix2>, targets: &mut Array1<Pr>) {
+impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<Pr>> for Svm<F, Pr> {
+    fn predict_inplace(&self, data: &ArrayBase<D, Ix2>, targets: &mut Array1<Pr>) {
         assert_eq!(
             data.nrows(),
             targets.len(),
@@ -370,8 +370,8 @@ impl<F: Float, D: Data<Elem = F>> PredictInto<ArrayBase<D, Ix2>, Array1<Pr>> for
 ///
 /// This function takes a number of features and predicts target probabilities that they belong to
 /// the positive class.
-impl<F: Float, D: Data<Elem = F>> PredictInto<ArrayBase<D, Ix2>, Array1<bool>> for Svm<F, bool> {
-    fn predict_into(&self, data: &ArrayBase<D, Ix2>, targets: &mut Array1<bool>) {
+impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<bool>> for Svm<F, bool> {
+    fn predict_inplace(&self, data: &ArrayBase<D, Ix2>, targets: &mut Array1<bool>) {
         assert_eq!(
             data.nrows(),
             targets.len(),

@@ -524,7 +524,7 @@ mod tests {
         );
     }
 
-    use crate::traits::{Fit, PredictInto};
+    use crate::traits::{Fit, PredictInplace};
     use ndarray::ArrayView2;
     use thiserror::Error;
 
@@ -561,8 +561,8 @@ mod tests {
         }
     }
 
-    impl<'b> PredictInto<ArrayView2<'b, f64>, Array1<f64>> for MockFittableResult {
-        fn predict_into<'a>(&'a self, x: &'a ArrayView2<'b, f64>, y: &mut Array1<f64>) {
+    impl<'b> PredictInplace<ArrayView2<'b, f64>, Array1<f64>> for MockFittableResult {
+        fn predict_inplace<'a>(&'a self, x: &'a ArrayView2<'b, f64>, y: &mut Array1<f64>) {
             assert_eq!(
                 x.nrows(),
                 y.len(),
@@ -572,8 +572,8 @@ mod tests {
         }
     }
 
-    impl<'b> PredictInto<ArrayView2<'b, f64>, Array2<f64>> for MockFittableResult {
-        fn predict_into<'a>(&'a self, x: &'a ArrayView2<'b, f64>, y: &mut Array2<f64>) {
+    impl<'b> PredictInplace<ArrayView2<'b, f64>, Array2<f64>> for MockFittableResult {
+        fn predict_inplace<'a>(&'a self, x: &'a ArrayView2<'b, f64>, y: &mut Array2<f64>) {
             assert_eq!(
                 x.nrows(),
                 y.nrows(),

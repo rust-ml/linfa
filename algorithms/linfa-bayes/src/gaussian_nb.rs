@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use crate::error::{BayesError, Result};
 use linfa::dataset::{AsTargets, DatasetBase, Labels};
-use linfa::traits::{Fit, IncrementalFit, PredictInto};
+use linfa::traits::{Fit, IncrementalFit, PredictInplace};
 use linfa::Float;
 
 /// Gaussian Naive Bayes (GaussianNB)
@@ -295,7 +295,7 @@ struct ClassInfo<A> {
     sigma: Array1<A>,
 }
 
-impl<F: Float, D> PredictInto<ArrayBase<D, Ix2>, Array1<usize>> for GaussianNb<F>
+impl<F: Float, D> PredictInplace<ArrayBase<D, Ix2>, Array1<usize>> for GaussianNb<F>
 where
     D: Data<Elem = F>,
 {
@@ -303,7 +303,7 @@ where
     ///
     /// __Panics__ if the input is empty or if pairwise orderings are undefined
     /// (this occurs in presence of NaN values)
-    fn predict_into(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<usize>) {
+    fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<usize>) {
         assert_eq!(
             x.nrows(),
             y.len(),

@@ -7,7 +7,7 @@ use ndarray_stats::SummaryStatisticsExt;
 use serde::{Deserialize, Serialize};
 
 use linfa::dataset::{AsTargets, DatasetBase};
-use linfa::traits::{Fit, PredictInto};
+use linfa::traits::{Fit, PredictInplace};
 
 pub trait Float: linfa::Float + Lapack + Scalar {}
 impl Float for f32 {}
@@ -224,13 +224,13 @@ impl<F: Float> FittedLinearRegression<F> {
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> PredictInto<ArrayBase<D, Ix2>, Array1<F>>
+impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<F>>
     for FittedLinearRegression<F>
 {
     /// Given an input matrix `X`, with shape `(n_samples, n_features)`,
     /// `predict` returns the target variable according to linear model
     /// learned from the training data distribution.
-    fn predict_into(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<F>) {
+    fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<F>) {
         assert_eq!(
             x.nrows(),
             y.len(),

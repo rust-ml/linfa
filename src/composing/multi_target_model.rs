@@ -6,7 +6,7 @@
 //!
 //!
 use crate::dataset::Records;
-use crate::traits::{PredictInto, PredictRef};
+use crate::traits::{PredictInplace, PredictRef};
 use crate::Float;
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2};
 use std::iter::FromIterator;
@@ -32,10 +32,10 @@ impl<R: Records, L> MultiTargetModel<R, L> {
     }
 }
 
-impl<L, F: Float, D: Data<Elem = F>> PredictInto<ArrayBase<D, Ix2>, Array2<L>>
+impl<L, F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array2<L>>
     for MultiTargetModel<ArrayBase<D, Ix2>, L>
 {
-    fn predict_into(&self, arr: &ArrayBase<D, Ix2>, targets: &mut Array2<L>) {
+    fn predict_inplace(&self, arr: &ArrayBase<D, Ix2>, targets: &mut Array2<L>) {
         assert_eq!(
             arr.nrows(),
             targets.nrows(),
@@ -68,7 +68,7 @@ impl<F: Float, D: Data<Elem = F>, L, P: PredictRef<ArrayBase<D, Ix2>, Array1<L>>
 #[cfg(test)]
 mod tests {
     use crate::{
-        traits::{Predict, PredictInto},
+        traits::{Predict, PredictInplace},
         MultiTargetModel,
     };
     use approx::assert_abs_diff_eq;
@@ -79,8 +79,8 @@ mod tests {
         val: f32,
     }
 
-    impl PredictInto<Array2<f32>, Array1<f32>> for DummyModel {
-        fn predict_into(&self, arr: &Array2<f32>, targets: &mut Array1<f32>) {
+    impl PredictInplace<Array2<f32>, Array1<f32>> for DummyModel {
+        fn predict_inplace(&self, arr: &Array2<f32>, targets: &mut Array1<f32>) {
             assert_eq!(
                 arr.nrows(),
                 targets.len(),
@@ -95,8 +95,8 @@ mod tests {
         val: f32,
     }
 
-    impl PredictInto<Array2<f32>, Array1<f32>> for DummyModel2 {
-        fn predict_into(&self, arr: &Array2<f32>, targets: &mut Array1<f32>) {
+    impl PredictInplace<Array2<f32>, Array1<f32>> for DummyModel2 {
+        fn predict_inplace(&self, arr: &Array2<f32>, targets: &mut Array1<f32>) {
             assert_eq!(
                 arr.nrows(),
                 targets.len(),

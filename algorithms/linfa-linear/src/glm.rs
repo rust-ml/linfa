@@ -300,11 +300,11 @@ pub struct FittedTweedieRegressor<A> {
     link: Link,
 }
 
-impl<A: Float, D: Data<Elem = A>> PredictInto<ArrayBase<D, Ix2>, Array1<A>>
+impl<A: Float, D: Data<Elem = A>> PredictInplace<ArrayBase<D, Ix2>, Array1<A>>
     for FittedTweedieRegressor<A>
 {
     /// Predict the target
-    fn predict_into(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<A>) {
+    fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<A>) {
         assert_eq!(
             x.nrows(),
             y.len(),

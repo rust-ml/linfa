@@ -59,6 +59,6 @@ pub trait PredictRef<R: Records, T> {
 }
 
 /// Predict with model into a mutable reference of targets.
-pub trait PredictInto<R: Records, T> {
-    fn predict_into<'a>(&'a self, x: &'a R, y: &mut T);
+pub trait PredictInplace<R: Records, T> {
+    fn predict_inplace<'a>(&'a self, x: &'a R, y: &mut T);
 }

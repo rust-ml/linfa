@@ -235,9 +235,9 @@ pub struct FittedFastIca<F> {
     components: Array2<F>,
 }
 
-impl<F: Float> PredictInto<Array2<F>, Array2<F>> for FittedFastIca<F> {
+impl<F: Float> PredictInplace<Array2<F>, Array2<F>> for FittedFastIca<F> {
     /// Recover the sources
-    fn predict_into(&self, x: &Array2<F>, y: &mut Array2<F>) {
+    fn predict_inplace(&self, x: &Array2<F>, y: &mut Array2<F>) {
         assert_eq!(
             x.nrows(),
             y.nrows(),

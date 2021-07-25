@@ -1,7 +1,7 @@
 //! Merge models with binary to multi-class classification
 //!
 use crate::dataset::{Pr, Records};
-use crate::traits::{PredictInto, PredictRef};
+use crate::traits::{PredictInplace, PredictRef};
 use crate::Float;
 use ndarray::{Array1, ArrayBase, Data, Ix2};
 use std::iter::FromIterator;
@@ -19,10 +19,10 @@ impl<R: Records, L> MultiClassModel<R, L> {
     }
 }
 
-impl<L: Clone + Default, F: Float, D: Data<Elem = F>> PredictInto<ArrayBase<D, Ix2>, Array1<L>>
+impl<L: Clone + Default, F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<L>>
     for MultiClassModel<ArrayBase<D, Ix2>, L>
 {
-    fn predict_into(&self, arr: &ArrayBase<D, Ix2>, targets: &mut Array1<L>) {
+    fn predict_inplace(&self, arr: &ArrayBase<D, Ix2>, targets: &mut Array1<L>) {
         assert_eq!(
             arr.nrows(),
             targets.len(),
@@ -80,7 +80,7 @@ impl<F: Float, D: Data<Elem = F>, L, P: PredictRef<ArrayBase<D, Ix2>, Array1<Pr>
 mod tests {
     use crate::{
         dataset::Pr,
-        traits::{Predict, PredictInto},
+        traits::{Predict, PredictInplace},
         MultiClassModel,
     };
     use ndarray::{array, Array1, Array2};
@@ -90,8 +90,8 @@ mod tests {
         on_even: bool,
     }
 
-    impl PredictInto<Array2<f32>, Array1<Pr>> for DummyModel {
-        fn predict_into(&self, arr: &Array2<f32>, targets: &mut Array1<Pr>) {
+    impl PredictInplace<Array2<f32>, Array1<Pr>> for DummyModel {
+        fn predict_inplace(&self, arr: &Array2<f32>, targets: &mut Array1<Pr>) {
             assert_eq!(
                 arr.nrows(),
                 targets.len(),

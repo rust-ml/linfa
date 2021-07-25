@@ -29,7 +29,7 @@ use serde_crate::{Deserialize, Serialize};
 
 use linfa::{
     dataset::Records,
-    traits::{Fit, PredictInto, PredictRef, Transformer},
+    traits::{Fit, PredictInplace, PredictRef, Transformer},
     DatasetBase, Float,
 };
 
@@ -171,8 +171,8 @@ impl Pca<f64> {
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> PredictInto<ArrayBase<D, Ix2>, Array2<F>> for Pca<F> {
-    fn predict_into(&self, records: &ArrayBase<D, Ix2>, targets: &mut Array2<F>) {
+impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array2<F>> for Pca<F> {
+    fn predict_inplace(&self, records: &ArrayBase<D, Ix2>, targets: &mut Array2<F>) {
         assert_eq!(
             records.nrows(),
             targets.nrows(),

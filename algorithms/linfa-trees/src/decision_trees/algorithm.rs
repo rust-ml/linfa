@@ -489,11 +489,11 @@ pub struct DecisionTree<F: Float, L: Label> {
     num_features: usize,
 }
 
-impl<F: Float, L: Label, D: Data<Elem = F>> PredictInto<ArrayBase<D, Ix2>, Array1<L>>
+impl<F: Float, L: Label, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<L>>
     for DecisionTree<F, L>
 {
     /// Make predictions for each row of a matrix of features `x`.
-    fn predict_into(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<L>) {
+    fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<L>) {
         assert_eq!(
             x.nrows(),
             y.len(),

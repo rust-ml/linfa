@@ -6,7 +6,7 @@ use linfa_nn::{
 use ndarray::{Array1, ArrayBase, Data, Ix2};
 use std::collections::VecDeque;
 
-use linfa::traits::PredictInto;
+use linfa::traits::PredictInplace;
 use linfa::Float;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -98,9 +98,9 @@ impl Dbscan {
 }
 
 impl<F: Float, D: Data<Elem = F>, DF: Distance<F>, N: NearestNeighbour>
-    PredictInto<ArrayBase<D, Ix2>, Array1<Option<usize>>> for DbscanHyperParams<F, DF, N>
+    PredictInplace<ArrayBase<D, Ix2>, Array1<Option<usize>>> for DbscanHyperParams<F, DF, N>
 {
-    fn predict_into<'a>(
+    fn predict_inplace<'a>(
         &'a self,
         observations: &'a ArrayBase<D, Ix2>,
         targets: &mut Array1<Option<usize>>,

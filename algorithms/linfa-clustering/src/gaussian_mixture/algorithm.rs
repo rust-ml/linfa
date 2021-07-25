@@ -456,10 +456,10 @@ impl<F: Float, R: Rng + SeedableRng + Clone, D: Data<Elem = F>, T>
     }
 }
 
-impl<F: Float + Lapack + Scalar, D: Data<Elem = F>> PredictInto<ArrayBase<D, Ix2>, Array1<usize>>
+impl<F: Float + Lapack + Scalar, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<usize>>
     for GaussianMixtureModel<F>
 {
-    fn predict_into(&self, observations: &ArrayBase<D, Ix2>, targets: &mut Array1<usize>) {
+    fn predict_inplace(&self, observations: &ArrayBase<D, Ix2>, targets: &mut Array1<usize>) {
         assert_eq!(
             observations.nrows(),
             targets.len(),

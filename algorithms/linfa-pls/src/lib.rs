@@ -44,7 +44,7 @@ mod utils;
 
 use crate::pls_generic::*;
 
-use linfa::{traits::Fit, traits::PredictInto, traits::Transformer, DatasetBase};
+use linfa::{traits::Fit, traits::PredictInplace, traits::Transformer, DatasetBase};
 use ndarray::{Array2, ArrayBase, Data, Ix2};
 use ndarray_linalg::{Lapack, Scalar};
 
@@ -157,14 +157,14 @@ macro_rules! pls_algo { ($name:ident) => {
             }
         }
 
-        impl<F: Float, D: Data<Elem = F>> PredictInto<ArrayBase<D, Ix2>, Array2<F>> for [<Pls $name>]<F> {
+        impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array2<F>> for [<Pls $name>]<F> {
             /// Given an input matrix `X`, with shape `(n_samples, n_features)`,
             /// `predict` returns the target variable according to [<Pls $name>] method
             /// learned from the training data distribution.
-            fn predict_into<'a>(&'a self, x: &ArrayBase<D, Ix2>, y: &mut Array2<F>) {
+            fn predict_inplace<'a>(&'a self, x: &ArrayBase<D, Ix2>, y: &mut Array2<F>) {
                 assert_eq!(x.nrows(), y.nrows(), "The number of data points must match the number of output targets.");
 
-                self.0.predict_into(x, y);
+                self.0.predict_inplace(x, y);
             }
         }
     }

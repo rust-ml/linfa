@@ -4,7 +4,7 @@ use crate::utils;
 use linfa::{
     dataset::{Records, WithLapack, WithoutLapack},
     traits::Fit,
-    traits::PredictInto,
+    traits::PredictInplace,
     traits::Transformer,
     Dataset, DatasetBase, Float,
 };
@@ -136,8 +136,8 @@ impl<F: Float, D: Data<Elem = F>>
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> PredictInto<ArrayBase<D, Ix2>, Array2<F>> for Pls<F> {
-    fn predict_into(&self, x: &ArrayBase<D, Ix2>, y: &mut Array2<F>) {
+impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array2<F>> for Pls<F> {
+    fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array2<F>) {
         assert_eq!(
             x.nrows(),
             y.nrows(),

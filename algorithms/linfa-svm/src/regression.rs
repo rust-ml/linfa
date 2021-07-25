@@ -3,7 +3,7 @@ use linfa::{
     dataset::{AsTargets, DatasetBase},
     traits::Fit,
     traits::Transformer,
-    traits::{Predict, PredictInto},
+    traits::{Predict, PredictInplace},
 };
 use linfa_kernel::Kernel;
 use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix2};
@@ -182,8 +182,8 @@ macro_rules! impl_predict {
         ///
         /// This function takes a number of features and predicts target probabilities that they belong to
         /// the positive class.
-        impl<D: Data<Elem = $t>> PredictInto<ArrayBase<D, Ix2>, Array1<$t>> for Svm<$t, $t> {
-            fn predict_into<'a>(&'a self, data: &ArrayBase<D, Ix2>, targets: &mut Array1<$t>) {
+        impl<D: Data<Elem = $t>> PredictInplace<ArrayBase<D, Ix2>, Array1<$t>> for Svm<$t, $t> {
+            fn predict_inplace<'a>(&'a self, data: &ArrayBase<D, Ix2>, targets: &mut Array1<$t>) {
                 assert_eq!(data.nrows(), targets.len(), "The number of data points must match the number of output targets.");
                 *targets = data.outer_iter()
                     .map(|data| {
