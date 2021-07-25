@@ -420,18 +420,18 @@ impl<F: Float, DA: Data<Elem = F>, D: Distance<F>> PredictInplace<ArrayBase<DA, 
     ///
     /// You can retrieve the centroid associated to an index using the
     /// [`centroids` method](#method.centroids).
-    fn predict_inplace(&self, observations: &ArrayBase<DA, Ix2>, targets: &mut Array1<usize>) {
+    fn predict_inplace(&self, observations: &ArrayBase<DA, Ix2>, memberships: &mut Array1<usize>) {
         assert_eq!(
             observations.nrows(),
-            targets.len(),
-            "The number of data points must match the number of output targets."
+            memberships.len(),
+            "The number of data points must match the number of memberships."
         );
 
         update_cluster_memberships(
             &self.dist_fn,
             &self.centroids,
             &observations.view(),
-            targets,
+            memberships,
         );
     }
 }
@@ -443,10 +443,10 @@ impl<F: Float, DA: Data<Elem = F>, D: Distance<F>> PredictInplace<ArrayBase<DA, 
     ///
     /// You can retrieve the centroid associated to an index using the
     /// [`centroids` method](#method.centroids).
-    fn predict_inplace(&self, observation: &ArrayBase<DA, Ix1>, target: &mut usize) {
+    fn predict_inplace(&self, observation: &ArrayBase<DA, Ix1>, membership: &mut usize) {
         assert_eq!(observation.len(), 1, "The number of data points must be 1.");
 
-        *target = closest_centroid(&self.dist_fn, &self.centroids, observation).0;
+        *membership = closest_centroid(&self.dist_fn, &self.centroids, observation).0;
     }
 }
 
