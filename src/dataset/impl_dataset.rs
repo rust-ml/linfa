@@ -1111,7 +1111,7 @@ where
     S: Default,
 {
     fn predict_ref(&self, records: &ArrayBase<D, Ix2>) -> Array2<S> {
-        let mut targets = Array2::default((records.nrows(), 1));
+        let mut targets = Array2::default((records.nrows(), self.num_targets()));
         self.predict_inplace(records, &mut targets);
         targets
     }

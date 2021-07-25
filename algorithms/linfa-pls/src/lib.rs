@@ -166,6 +166,10 @@ macro_rules! pls_algo { ($name:ident) => {
 
                 self.0.predict_inplace(x, y);
             }
+
+            fn num_targets(&self) -> usize {
+                self.0.num_targets()
+            }
         }
     }
 }}

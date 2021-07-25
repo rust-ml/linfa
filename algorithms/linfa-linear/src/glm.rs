@@ -314,6 +314,10 @@ impl<A: Float, D: Data<Elem = A>> PredictInplace<ArrayBase<D, Ix2>, Array1<A>>
         let ypred = x.dot(&self.coef) + self.intercept;
         *y = self.link.inverse(&ypred);
     }
+
+    fn num_targets(&self) -> usize {
+        1
+    }
 }
 
 #[cfg(test)]

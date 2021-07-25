@@ -50,6 +50,10 @@ impl<L, F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array2<L>
             .unwrap()
             .reversed_axes();
     }
+
+    fn num_targets(&self) -> usize {
+        todo!()
+    }
 }
 
 impl<F: Float, D: Data<Elem = F>, L, P: PredictRef<ArrayBase<D, Ix2>, Array1<L>> + 'static>
@@ -88,6 +92,10 @@ mod tests {
             );
             *targets = Array1::from_elem(arr.len_of(Axis(0)), self.val);
         }
+
+        fn num_targets(&self) -> usize {
+            1
+        }
     }
 
     /// Second dummy model, counts up from a start value to the number of samples
@@ -107,6 +115,10 @@ mod tests {
                 self.val + arr.len_of(Axis(0)) as f32 - 1.0,
                 arr.len_of(Axis(0)),
             );
+        }
+
+        fn num_targets(&self) -> usize {
+            1
         }
     }
 

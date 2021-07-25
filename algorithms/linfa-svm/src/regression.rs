@@ -191,6 +191,10 @@ macro_rules! impl_predict {
                     })
                     .collect();
             }
+
+            fn num_targets(&self) -> usize {
+                1
+            }
         }
 
     ) *

@@ -148,6 +148,10 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array2<F>> f
         x /= &self.x_std;
         *y = x.dot(&self.coefficients) + &self.y_mean;
     }
+
+    fn num_targets(&self) -> usize {
+        todo!()
+    }
 }
 
 #[derive(Debug, Clone)]

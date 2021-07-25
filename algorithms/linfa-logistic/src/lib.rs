@@ -524,6 +524,10 @@ impl<C: PartialOrd + Clone, F: Float, D: Data<Elem = F>> PredictInplace<ArrayBas
 
         *y = self.predict(x);
     }
+
+    fn num_targets(&self) -> usize {
+        1
+    }
 }
 
 #[derive(PartialEq, Debug, Clone)]

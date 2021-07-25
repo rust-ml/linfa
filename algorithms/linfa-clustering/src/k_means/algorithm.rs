@@ -434,6 +434,10 @@ impl<F: Float, DA: Data<Elem = F>, D: Distance<F>> PredictInplace<ArrayBase<DA, 
             memberships,
         );
     }
+
+    fn num_targets(&self) -> usize {
+       1
+    }
 }
 
 impl<F: Float, DA: Data<Elem = F>, D: Distance<F>> PredictInplace<ArrayBase<DA, Ix1>, usize>
@@ -447,6 +451,10 @@ impl<F: Float, DA: Data<Elem = F>, D: Distance<F>> PredictInplace<ArrayBase<DA, 
         assert_eq!(observation.len(), 1, "The number of data points must be 1.");
 
         *membership = closest_centroid(&self.dist_fn, &self.centroids, observation).0;
+    }
+
+    fn num_targets(&self) -> usize {
+        1
     }
 }
 

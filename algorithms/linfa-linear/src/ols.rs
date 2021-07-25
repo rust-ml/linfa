@@ -239,6 +239,10 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<F>>
 
         *y = x.dot(&self.params) + self.intercept;
     }
+
+    fn num_targets(&self) -> usize {
+        1
+    }
 }
 
 #[cfg(test)]

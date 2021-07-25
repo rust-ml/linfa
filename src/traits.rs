@@ -61,4 +61,7 @@ pub trait PredictRef<R: Records, T> {
 /// Predict with model into a mutable reference of targets.
 pub trait PredictInplace<R: Records, T> {
     fn predict_inplace<'a>(&'a self, x: &'a R, y: &mut T);
+
+    /// The number of features each target has.
+    fn num_targets(&self) -> usize;
 }

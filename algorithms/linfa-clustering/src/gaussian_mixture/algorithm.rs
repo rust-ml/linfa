@@ -471,6 +471,10 @@ impl<F: Float + Lapack + Scalar, D: Data<Elem = F>> PredictInplace<ArrayBase<D, 
             .mapv(Scalar::exp)
             .map_axis(Axis(1), |row| row.argmax().unwrap());
     }
+
+    fn num_targets(&self) -> usize {
+        1
+    }
 }
 
 #[cfg(test)]

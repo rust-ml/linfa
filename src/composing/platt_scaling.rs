@@ -189,6 +189,10 @@ where
             .map(|x| platt_predict(*x, self.a, self.b))
             .collect();
     }
+
+    fn num_targets(&self) -> usize {
+        1
+    }
 }
 
 /// Predict a probability with the sigmoid function
@@ -435,6 +439,10 @@ mod tests {
                 "The number of data points must match the number of output targets."
             );
             *y = self.reg_vals.clone();
+        }
+
+        fn num_targets(&self) -> usize {
+            1
         }
     }
 

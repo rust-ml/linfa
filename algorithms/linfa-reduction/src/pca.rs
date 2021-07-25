@@ -180,6 +180,10 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array2<F>> f
         );
         *targets = (records - &self.mean).dot(&self.embedding.t());
     }
+
+    fn num_targets(&self) -> usize {
+        todo!()
+    }
 }
 
 impl<F: Float, D: Data<Elem = F>, T>

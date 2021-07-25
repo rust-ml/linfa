@@ -167,6 +167,10 @@ impl<F: Float, D: Data<Elem = F>, DF: Distance<F>, N: NearestNeighbour>
         }
         *targets = cluster_memberships;
     }
+
+    fn num_targets(&self) -> usize {
+        1
+    }
 }
 
 impl<F: Float, D: Distance<F>, N: NearestNeighbour> DbscanHyperParams<F, D, N> {

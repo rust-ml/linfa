@@ -120,4 +120,8 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<Optio
         let labeler = AppxDbscanLabeler::new(&observations.view(), self);
         *targets = labeler.into_labels();
     }
+
+    fn num_targets(&self) -> usize {
+        1
+    }
 }

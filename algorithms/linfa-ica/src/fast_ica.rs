@@ -247,6 +247,10 @@ impl<F: Float> PredictInplace<Array2<F>, Array2<F>> for FittedFastIca<F> {
         let xcentered = x - &self.mean.view().insert_axis(Axis(0));
         *y = xcentered.dot(&self.components.t());
     }
+
+    fn num_targets(&self) -> usize {
+        todo!()
+    }
 }
 
 /// Some standard non-linear functions
