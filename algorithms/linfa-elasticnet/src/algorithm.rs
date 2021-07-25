@@ -2,7 +2,7 @@ use approx::{abs_diff_eq, abs_diff_ne};
 use ndarray::{s, Array1, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
 use ndarray_linalg::{Inverse, Lapack};
 
-use linfa::traits::{Fit, PredictRef};
+use linfa::traits::{Fit, PredictInto};
 use linfa::{
     dataset::{AsTargets, Records},
     DatasetBase, Float,
@@ -57,12 +57,18 @@ where
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<F>> for ElasticNet<F> {
+impl<F: Float, D: Data<Elem = F>> PredictInto<ArrayBase<D, Ix2>, Array1<F>> for ElasticNet<F> {
     /// Given an input matrix `X`, with shape `(n_samples, n_features)`,
     /// `predict` returns the target variable according to elastic net
     /// learned from the training data distribution.
-    fn predict_ref(&self, x: &ArrayBase<D, Ix2>) -> Array1<F> {
-        x.dot(&self.parameters) + self.intercept
+    fn predict_into(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<F>) {
+        assert_eq!(
+            x.nrows(),
+            y.len(),
+            "The number of data points must match the number of output targets."
+        );
+
+        *y = x.dot(&self.parameters) + self.intercept;
     }
 }
 

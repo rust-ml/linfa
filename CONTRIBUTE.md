@@ -58,19 +58,20 @@ fn div_capped<F: Float>(num: F) {
 
 ## Implement prediction traits
 
-There are two different traits for predictions, `Predict` and `PredictRef`. `PredictRef` takes a reference to the records and produces a new set of targets. This should be implemented by a new algorithms, for example:
+There are three different traits for predictions, `Predict`, `PredictRef` and `PredictInto`. `PredictInto` takes a reference to the records and writes them into targets. This should be implemented by a new algorithms, for example:
 ```rust
-impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<F>> for Svm<F, F> {
-    fn predict_ref<'a>(&'a self, data: &ArrayBase<D; Ix2>) -> Array1<F> {
-        data.outer_iter().map(|data| {
-            self.normal.dot(&data) - self.rho
-        })
-        .collect()
+impl<F: Float, D: Data<Elem = F>> PredictInto<ArrayBase<D, Ix2>, Array1<F>> for Svm<F, F> {
+    fn predict_into<'a>(&'a self, data: &ArrayBase<D; Ix2>, targets: &mut Array1<F>) {
+        assert_eq!(data.n_rows(), targets.len(), "The number of data points must match the number of output targets.");
+
+        for (data, target) in data.outer_iter().zip(targets.iter_mut()) {
+            *target = self.normal.dot(&data) - self.rho;
+        }
     }
 }
 ```
 
-This implementation is then used by `Predict` to provide the following `records` and `targets` combinations:
+This implementation is then used by `Predict`, `PredictRef` to provide the following `records` and `targets` combinations:
 
  * `Dataset` -> `Dataset`
  * `&Dataset` -> `Array1`

@@ -6,7 +6,7 @@
 //!
 //!
 use crate::dataset::Records;
-use crate::traits::PredictRef;
+use crate::traits::{PredictInto, PredictRef};
 use crate::Float;
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2};
 use std::iter::FromIterator;
@@ -32,17 +32,23 @@ impl<R: Records, L> MultiTargetModel<R, L> {
     }
 }
 
-impl<L, F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array2<L>>
+impl<L, F: Float, D: Data<Elem = F>> PredictInto<ArrayBase<D, Ix2>, Array2<L>>
     for MultiTargetModel<ArrayBase<D, Ix2>, L>
 {
-    fn predict_ref(&self, arr: &ArrayBase<D, Ix2>) -> Array2<L> {
-        self.models
+    fn predict_into(&self, arr: &ArrayBase<D, Ix2>, targets: &mut Array2<L>) {
+        assert_eq!(
+            arr.nrows(),
+            targets.nrows(),
+            "The number of data points must match the number of output targets."
+        );
+        *targets = self
+            .models
             .iter()
             .flat_map(|model| model.predict_ref(arr).into_raw_vec())
             .collect::<Array1<L>>()
             .into_shape((self.models.len(), arr.len_of(Axis(0))))
             .unwrap()
-            .reversed_axes()
+            .reversed_axes();
     }
 }
 
@@ -62,7 +68,7 @@ impl<F: Float, D: Data<Elem = F>, L, P: PredictRef<ArrayBase<D, Ix2>, Array1<L>>
 #[cfg(test)]
 mod tests {
     use crate::{
-        traits::{Predict, PredictRef},
+        traits::{Predict, PredictInto},
         MultiTargetModel,
     };
     use approx::assert_abs_diff_eq;
@@ -73,9 +79,14 @@ mod tests {
         val: f32,
     }
 
-    impl PredictRef<Array2<f32>, Array1<f32>> for DummyModel {
-        fn predict_ref(&self, arr: &Array2<f32>) -> Array1<f32> {
-            Array1::from_elem(arr.len_of(Axis(0)), self.val)
+    impl PredictInto<Array2<f32>, Array1<f32>> for DummyModel {
+        fn predict_into(&self, arr: &Array2<f32>, targets: &mut Array1<f32>) {
+            assert_eq!(
+                arr.nrows(),
+                targets.len(),
+                "The number of data points must match the number of output targets."
+            );
+            *targets = Array1::from_elem(arr.len_of(Axis(0)), self.val);
         }
     }
 
@@ -84,13 +95,18 @@ mod tests {
         val: f32,
     }
 
-    impl PredictRef<Array2<f32>, Array1<f32>> for DummyModel2 {
-        fn predict_ref(&self, arr: &Array2<f32>) -> Array1<f32> {
-            Array1::linspace(
+    impl PredictInto<Array2<f32>, Array1<f32>> for DummyModel2 {
+        fn predict_into(&self, arr: &Array2<f32>, targets: &mut Array1<f32>) {
+            assert_eq!(
+                arr.nrows(),
+                targets.len(),
+                "The number of data points must match the number of output targets."
+            );
+            *targets = Array1::linspace(
                 self.val,
                 self.val + arr.len_of(Axis(0)) as f32 - 1.0,
                 arr.len_of(Axis(0)),
-            )
+            );
         }
     }
 

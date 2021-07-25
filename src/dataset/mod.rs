@@ -94,7 +94,7 @@ impl Label for Option<usize> {}
 /// This helper struct exists to distinguish probabilities from floating points. For example SVM
 /// selects regression or classification training, based on the target type, and could not
 /// distinguish them without a new-type definition.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 pub struct Pr(pub f32);
 
 impl Pr {
@@ -524,7 +524,7 @@ mod tests {
         );
     }
 
-    use crate::traits::{Fit, PredictRef};
+    use crate::traits::{Fit, PredictInto};
     use ndarray::ArrayView2;
     use thiserror::Error;
 
@@ -561,15 +561,25 @@ mod tests {
         }
     }
 
-    impl<'b> PredictRef<ArrayView2<'b, f64>, Array1<f64>> for MockFittableResult {
-        fn predict_ref<'a>(&'a self, _x: &'a ArrayView2<'b, f64>) -> Array1<f64> {
-            array![0.]
+    impl<'b> PredictInto<ArrayView2<'b, f64>, Array1<f64>> for MockFittableResult {
+        fn predict_into<'a>(&'a self, x: &'a ArrayView2<'b, f64>, y: &mut Array1<f64>) {
+            assert_eq!(
+                x.nrows(),
+                y.len(),
+                "The number of data points must match the number of output targets."
+            );
+            *y = array![0.];
         }
     }
 
-    impl<'b> PredictRef<ArrayView2<'b, f64>, Array2<f64>> for MockFittableResult {
-        fn predict_ref<'a>(&'a self, _x: &'a ArrayView2<'b, f64>) -> Array2<f64> {
-            array![[0., 0.]]
+    impl<'b> PredictInto<ArrayView2<'b, f64>, Array2<f64>> for MockFittableResult {
+        fn predict_into<'a>(&'a self, x: &'a ArrayView2<'b, f64>, y: &mut Array2<f64>) {
+            assert_eq!(
+                x.nrows(),
+                y.nrows(),
+                "The number of data points must match the number of output targets."
+            );
+            *y = array![[0., 0.]];
         }
     }
 

@@ -489,15 +489,21 @@ pub struct DecisionTree<F: Float, L: Label> {
     num_features: usize,
 }
 
-impl<F: Float, L: Label, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<L>>
+impl<F: Float, L: Label, D: Data<Elem = F>> PredictInto<ArrayBase<D, Ix2>, Array1<L>>
     for DecisionTree<F, L>
 {
     /// Make predictions for each row of a matrix of features `x`.
-    fn predict_ref(&self, x: &ArrayBase<D, Ix2>) -> Array1<L> {
-        x.genrows()
+    fn predict_into(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<L>) {
+        assert_eq!(
+            x.nrows(),
+            y.len(),
+            "The number of data points must match the number of output targets."
+        );
+        *y = x
+            .genrows()
             .into_iter()
             .map(|row| make_prediction(&row, &self.root_node))
-            .collect()
+            .collect();
     }
 }
 

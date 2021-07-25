@@ -235,11 +235,17 @@ pub struct FittedFastIca<F> {
     components: Array2<F>,
 }
 
-impl<F: Float> PredictRef<Array2<F>, Array2<F>> for FittedFastIca<F> {
+impl<F: Float> PredictInto<Array2<F>, Array2<F>> for FittedFastIca<F> {
     /// Recover the sources
-    fn predict_ref(&self, x: &Array2<F>) -> Array2<F> {
+    fn predict_into(&self, x: &Array2<F>, y: &mut Array2<F>) {
+        assert_eq!(
+            x.nrows(),
+            y.nrows(),
+            "The number of data points must match the number of output targets."
+        );
+
         let xcentered = x - &self.mean.view().insert_axis(Axis(0));
-        xcentered.dot(&self.components.t())
+        *y = xcentered.dot(&self.components.t());
     }
 }
 

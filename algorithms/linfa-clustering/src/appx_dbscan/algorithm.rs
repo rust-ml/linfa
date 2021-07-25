@@ -1,6 +1,6 @@
 use crate::appx_dbscan::clustering::AppxDbscanLabeler;
 use crate::appx_dbscan::hyperparameters::AppxDbscanHyperParams;
-use linfa::traits::PredictRef;
+use linfa::traits::PredictInto;
 use linfa::Float;
 use ndarray::{Array1, ArrayBase, Data, Ix2};
 #[cfg(feature = "serde")]
@@ -98,15 +98,26 @@ impl AppxDbscan {
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<Option<usize>>>
+impl<F: Float, D: Data<Elem = F>> PredictInto<ArrayBase<D, Ix2>, Array1<Option<usize>>>
     for AppxDbscanHyperParams<F>
 {
-    fn predict_ref<'a>(&'a self, observations: &'a ArrayBase<D, Ix2>) -> Array1<Option<usize>> {
+    fn predict_into<'a>(
+        &'a self,
+        observations: &'a ArrayBase<D, Ix2>,
+        targets: &mut Array1<Option<usize>>,
+    ) {
+        assert_eq!(
+            observations.nrows(),
+            targets.len(),
+            "The number of data points must match the number of output targets."
+        );
+
         if observations.dim().0 == 0 {
-            return Array1::from_elem(0, None);
+            *targets = Array1::from_elem(0, None);
+            return;
         }
 
         let labeler = AppxDbscanLabeler::new(&observations.view(), self);
-        labeler.into_labels()
+        *targets = labeler.into_labels();
     }
 }

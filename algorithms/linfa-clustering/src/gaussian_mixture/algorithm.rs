@@ -456,14 +456,20 @@ impl<F: Float, R: Rng + SeedableRng + Clone, D: Data<Elem = F>, T>
     }
 }
 
-impl<F: Float + Lapack + Scalar, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<usize>>
+impl<F: Float + Lapack + Scalar, D: Data<Elem = F>> PredictInto<ArrayBase<D, Ix2>, Array1<usize>>
     for GaussianMixtureModel<F>
 {
-    fn predict_ref(&self, observations: &ArrayBase<D, Ix2>) -> Array1<usize> {
+    fn predict_into(&self, observations: &ArrayBase<D, Ix2>, targets: &mut Array1<usize>) {
+        assert_eq!(
+            observations.nrows(),
+            targets.len(),
+            "The number of data points must match the number of output targets."
+        );
+
         let (_, log_resp) = self.estimate_log_prob_resp(observations);
-        log_resp
+        *targets = log_resp
             .mapv(Scalar::exp)
-            .map_axis(Axis(1), |row| row.argmax().unwrap())
+            .map_axis(Axis(1), |row| row.argmax().unwrap());
     }
 }
 

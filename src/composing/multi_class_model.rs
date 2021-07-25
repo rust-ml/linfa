@@ -1,7 +1,7 @@
 //! Merge models with binary to multi-class classification
 //!
 use crate::dataset::{Pr, Records};
-use crate::traits::PredictRef;
+use crate::traits::{PredictInto, PredictRef};
 use crate::Float;
 use ndarray::{Array1, ArrayBase, Data, Ix2};
 use std::iter::FromIterator;
@@ -19,10 +19,16 @@ impl<R: Records, L> MultiClassModel<R, L> {
     }
 }
 
-impl<L: Clone + Default, F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<L>>
+impl<L: Clone + Default, F: Float, D: Data<Elem = F>> PredictInto<ArrayBase<D, Ix2>, Array1<L>>
     for MultiClassModel<ArrayBase<D, Ix2>, L>
 {
-    fn predict_ref(&self, arr: &ArrayBase<D, Ix2>) -> Array1<L> {
+    fn predict_into(&self, arr: &ArrayBase<D, Ix2>, targets: &mut Array1<L>) {
+        assert_eq!(
+            arr.nrows(),
+            targets.len(),
+            "The number of data points must match the number of output targets."
+        );
+
         let mut res = Vec::new();
 
         for pairs in self.models.iter().map(|(elm, model)| {
@@ -48,7 +54,7 @@ impl<L: Clone + Default, F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix
         }
 
         // remove probabilities from array and convert to `Array1`
-        res.into_iter().map(|x| x.0).collect()
+        *targets = res.into_iter().map(|x| x.0).collect();
     }
 }
 
@@ -74,7 +80,7 @@ impl<F: Float, D: Data<Elem = F>, L, P: PredictRef<ArrayBase<D, Ix2>, Array1<Pr>
 mod tests {
     use crate::{
         dataset::Pr,
-        traits::{Predict, PredictRef},
+        traits::{Predict, PredictInto},
         MultiClassModel,
     };
     use ndarray::{array, Array1, Array2};
@@ -84,12 +90,26 @@ mod tests {
         on_even: bool,
     }
 
-    impl PredictRef<Array2<f32>, Array1<Pr>> for DummyModel {
-        fn predict_ref(&self, arr: &Array2<f32>) -> Array1<Pr> {
+    impl PredictInto<Array2<f32>, Array1<Pr>> for DummyModel {
+        fn predict_into(&self, arr: &Array2<f32>, targets: &mut Array1<Pr>) {
+            assert_eq!(
+                arr.nrows(),
+                targets.len(),
+                "The number of data points must match the number of output targets."
+            );
+
             if !self.on_even {
-                Array1::from_shape_fn(arr.nrows(), |x| if x % 2 == 1 { Pr(1.0) } else { Pr(0.0) })
+                *targets =
+                    Array1::from_shape_fn(
+                        arr.nrows(),
+                        |x| if x % 2 == 1 { Pr(1.0) } else { Pr(0.0) },
+                    );
             } else {
-                Array1::from_shape_fn(arr.nrows(), |x| if x % 2 == 1 { Pr(0.0) } else { Pr(1.0) })
+                *targets =
+                    Array1::from_shape_fn(
+                        arr.nrows(),
+                        |x| if x % 2 == 1 { Pr(0.0) } else { Pr(1.0) },
+                    );
             }
         }
     }

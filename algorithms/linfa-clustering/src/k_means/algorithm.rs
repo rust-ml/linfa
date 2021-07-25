@@ -412,7 +412,7 @@ impl<F: Float, DA: Data<Elem = F>, D: Distance<F>> Transformer<&ArrayBase<DA, Ix
     }
 }
 
-impl<F: Float, DA: Data<Elem = F>, D: Distance<F>> PredictRef<ArrayBase<DA, Ix2>, Array1<usize>>
+impl<F: Float, DA: Data<Elem = F>, D: Distance<F>> PredictInto<ArrayBase<DA, Ix2>, Array1<usize>>
     for KMeans<F, D>
 {
     /// Given an input matrix `observations`, with shape `(n_observations, n_features)`,
@@ -420,52 +420,33 @@ impl<F: Float, DA: Data<Elem = F>, D: Distance<F>> PredictRef<ArrayBase<DA, Ix2>
     ///
     /// You can retrieve the centroid associated to an index using the
     /// [`centroids` method](#method.centroids).
-    fn predict_ref(&self, observations: &ArrayBase<DA, Ix2>) -> Array1<usize> {
-        let mut memberships = Array1::zeros(observations.nrows());
-        update_cluster_memberships(
-            &self.dist_fn,
-            &self.centroids,
-            &observations.view(),
-            &mut memberships,
+    fn predict_into(&self, observations: &ArrayBase<DA, Ix2>, targets: &mut Array1<usize>) {
+        assert_eq!(
+            observations.nrows(),
+            targets.len(),
+            "The number of data points must match the number of output targets."
         );
-        memberships
-    }
-}
 
-impl<F: Float, DA: Data<Elem = F>, D: Distance<F>> PredictRef<ArrayBase<DA, Ix1>, usize>
-    for KMeans<F, D>
-{
-    /// Given one input observation, return the index of its closest cluster
-    ///
-    /// You can retrieve the centroid associated to an index using the
-    /// [`centroids` method](#method.centroids).
-    fn predict_ref(&self, observation: &ArrayBase<DA, Ix1>) -> usize {
-        closest_centroid(&self.dist_fn, &self.centroids, observation).0
-    }
-}
-
-impl<F: Float, DA: Data<Elem = F>, D: Distance<F>> PredictInto<ArrayBase<DA, Ix2>, Array1<usize>>
-    for KMeans<F, D>
-{
-    /// Predict into a mutable reference of `targets`
-    ///
-    /// # Panics
-    /// `targets` must be sufficiently large to hold the targets `observations.nrows() <= targets.len()`
-    fn predict_into<'a>(
-        &'a self,
-        observations: &'a ArrayBase<DA, Ix2>,
-        targets: &mut Array1<usize>,
-    ) {
-        assert!(
-            observations.nrows() <= targets.len(),
-            "Tried to predict into a too small Array"
-        );
         update_cluster_memberships(
             &self.dist_fn,
             &self.centroids,
             &observations.view(),
             targets,
         );
+    }
+}
+
+impl<F: Float, DA: Data<Elem = F>, D: Distance<F>> PredictInto<ArrayBase<DA, Ix1>, usize>
+    for KMeans<F, D>
+{
+    /// Given one input observation, return the index of its closest cluster
+    ///
+    /// You can retrieve the centroid associated to an index using the
+    /// [`centroids` method](#method.centroids).
+    fn predict_into(&self, observation: &ArrayBase<DA, Ix1>, target: &mut usize) {
+        assert_eq!(observation.len(), 1, "The number of data points must be 1.");
+
+        *target = closest_centroid(&self.dist_fn, &self.centroids, observation).0;
     }
 }
 

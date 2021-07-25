@@ -6,7 +6,7 @@ use linfa_nn::{
 use ndarray::{Array1, ArrayBase, Data, Ix2};
 use std::collections::VecDeque;
 
-use linfa::traits::PredictRef;
+use linfa::traits::PredictInto;
 use linfa::Float;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -98,9 +98,19 @@ impl Dbscan {
 }
 
 impl<F: Float, D: Data<Elem = F>, DF: Distance<F>, N: NearestNeighbour>
-    PredictRef<ArrayBase<D, Ix2>, Array1<Option<usize>>> for DbscanHyperParams<F, DF, N>
+    PredictInto<ArrayBase<D, Ix2>, Array1<Option<usize>>> for DbscanHyperParams<F, DF, N>
 {
-    fn predict_ref<'a>(&'a self, observations: &'a ArrayBase<D, Ix2>) -> Array1<Option<usize>> {
+    fn predict_into<'a>(
+        &'a self,
+        observations: &'a ArrayBase<D, Ix2>,
+        targets: &mut Array1<Option<usize>>,
+    ) {
+        assert_eq!(
+            observations.nrows(),
+            targets.len(),
+            "The number of data points must match the number of output targets."
+        );
+
         let mut cluster_memberships = Array1::from_elem(observations.nrows(), None);
         let mut current_cluster_id = 0;
         // Tracks whether a value is in the search queue to prevent duplicates
@@ -111,7 +121,8 @@ impl<F: Float, D: Data<Elem = F>, DF: Distance<F>, N: NearestNeighbour>
         let nn = match self.nn_algo.from_batch(observations, self.dist_fn.clone()) {
             Ok(nn) => nn,
             Err(linfa_nn::BuildError::ZeroDimension) => {
-                return Array1::from_elem(observations.nrows(), None)
+                *targets = Array1::from_elem(observations.nrows(), None);
+                return;
             }
             Err(e) => panic!("Unexpected nearest neighbour error: {}", e),
         };
@@ -154,7 +165,7 @@ impl<F: Float, D: Data<Elem = F>, DF: Distance<F>, N: NearestNeighbour>
             }
             current_cluster_id += 1;
         }
-        cluster_memberships
+        *targets = cluster_memberships;
     }
 }
 

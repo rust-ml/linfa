@@ -18,7 +18,7 @@
 use std::marker::PhantomData;
 
 use crate::dataset::{DatasetBase, Pr};
-use crate::traits::{Predict, PredictRef};
+use crate::traits::{Predict, PredictInto, PredictRef};
 use crate::Float;
 
 use ndarray::{Array1, Array2, ArrayBase, ArrayView1, Data, Ix1, Ix2};
@@ -171,17 +171,23 @@ where
     }
 }
 
-impl<F: Float, D, O> PredictRef<ArrayBase<D, Ix2>, Array1<Pr>> for Platt<F, O>
+impl<F: Float, D, O> PredictInto<ArrayBase<D, Ix2>, Array1<Pr>> for Platt<F, O>
 where
     D: Data<Elem = F>,
     O: PredictRef<ArrayBase<D, Ix2>, ArrayBase<D, Ix1>>,
 {
-    fn predict_ref(&self, data: &ArrayBase<D, Ix2>) -> Array1<Pr> {
-        self.obj
+    fn predict_into(&self, data: &ArrayBase<D, Ix2>, targets: &mut Array1<Pr>) {
+        assert_eq!(
+            data.nrows(),
+            targets.len(),
+            "The number of data points must match the number of output targets."
+        );
+        *targets = self
+            .obj
             .predict(data)
             .iter()
             .map(|x| platt_predict(*x, self.a, self.b))
-            .collect()
+            .collect();
     }
 }
 
@@ -345,7 +351,7 @@ mod tests {
 
     use super::{platt_newton_method, Platt, PlattParams};
     use crate::{
-        traits::{Predict, PredictRef},
+        traits::{Predict, PredictInto},
         DatasetBase, Float,
     };
 
@@ -421,9 +427,14 @@ mod tests {
         reg_vals: Array1<f32>,
     }
 
-    impl PredictRef<Array2<f32>, Array1<f32>> for DummyModel {
-        fn predict_ref(&self, _: &Array2<f32>) -> Array1<f32> {
-            self.reg_vals.clone()
+    impl PredictInto<Array2<f32>, Array1<f32>> for DummyModel {
+        fn predict_into(&self, x: &Array2<f32>, y: &mut Array1<f32>) {
+            assert_eq!(
+                x.nrows(),
+                y.len(),
+                "The number of data points must match the number of output targets."
+            );
+            *y = self.reg_vals.clone();
         }
     }
 

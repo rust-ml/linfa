@@ -1,5 +1,5 @@
 use super::{
-    super::traits::{Predict, PredictRef},
+    super::traits::{Predict, PredictInto, PredictRef},
     iter::{ChunksIter, DatasetIter, Iter},
     AsTargets, AsTargetsMut, CountedTargets, Dataset, DatasetBase, DatasetView, Float,
     FromTargetArray, Label, Labels, Records, Result,
@@ -1088,6 +1088,32 @@ where
 {
     fn predict(&self, records: &'a ArrayBase<D, Ix2>) -> T {
         self.predict_ref(records)
+    }
+}
+
+impl<F: Float, D, S, O> PredictRef<ArrayBase<D, Ix2>, Array1<S>> for O
+where
+    D: Data<Elem = F>,
+    O: PredictInto<ArrayBase<D, Ix2>, Array1<S>>,
+    S: Default,
+{
+    fn predict_ref(&self, records: &ArrayBase<D, Ix2>) -> Array1<S> {
+        let mut targets = Array1::default(records.nrows());
+        self.predict_into(records, &mut targets);
+        targets
+    }
+}
+
+impl<F: Float, D, S, O> PredictRef<ArrayBase<D, Ix2>, Array2<S>> for O
+where
+    D: Data<Elem = F>,
+    O: PredictInto<ArrayBase<D, Ix2>, Array2<S>>,
+    S: Default,
+{
+    fn predict_ref(&self, records: &ArrayBase<D, Ix2>) -> Array2<S> {
+        let mut targets = Array2::default((records.nrows(), 1));
+        self.predict_into(records, &mut targets);
+        targets
     }
 }
 

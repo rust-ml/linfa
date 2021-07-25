@@ -4,7 +4,7 @@ use crate::utils;
 use linfa::{
     dataset::{Records, WithLapack, WithoutLapack},
     traits::Fit,
-    traits::PredictRef,
+    traits::PredictInto,
     traits::Transformer,
     Dataset, DatasetBase, Float,
 };
@@ -136,11 +136,17 @@ impl<F: Float, D: Data<Elem = F>>
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array2<F>> for Pls<F> {
-    fn predict_ref(&self, x: &ArrayBase<D, Ix2>) -> Array2<F> {
+impl<F: Float, D: Data<Elem = F>> PredictInto<ArrayBase<D, Ix2>, Array2<F>> for Pls<F> {
+    fn predict_into(&self, x: &ArrayBase<D, Ix2>, y: &mut Array2<F>) {
+        assert_eq!(
+            x.nrows(),
+            y.nrows(),
+            "The number of data points must match the number of output targets."
+        );
+
         let mut x = x - &self.x_mean;
         x /= &self.x_std;
-        x.dot(&self.coefficients) + &self.y_mean
+        *y = x.dot(&self.coefficients) + &self.y_mean;
     }
 }
 
