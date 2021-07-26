@@ -76,7 +76,7 @@ impl Neighbor {
             .get(min_pts - 1)
             .map(|x| dataset.row(x.index))
             .map(|x| observation.l2_dist(&x).unwrap())
-            .map(|x| n64(x));
+            .map(n64);
     }
 
     /// Convert the neighbor to a sample for the user
@@ -94,10 +94,6 @@ impl Eq for Neighbor {}
 impl PartialEq for Neighbor {
     fn eq(&self, other: &Self) -> bool {
         self.r_distance == other.r_distance
-    }
-
-    fn ne(&self, other: &Self) -> bool {
-        !self.eq(other)
     }
 }
 
@@ -125,7 +121,7 @@ impl<F: Float> Transformer<ArrayView<'_, F, Ix2>, Result<OpticsAnalysis>> for Op
         let mut result = OpticsAnalysis { orderings: vec![] };
 
         let mut points = (0..observations.nrows())
-            .map(|x| Neighbor::new(x))
+            .map(Neighbor::new)
             .collect::<Vec<_>>();
 
         // The BTreeSet is used so that the indexes are ordered to make it easy to find next
@@ -296,7 +292,7 @@ mod tests {
     fn optics_consistency() {
         let params = Optics::params(3);
         let data = vec![1.0, 2.0, 3.0, 8.0, 8.0, 7.0, 2.0, 5.0, 6.0, 7.0, 8.0, 3.0];
-        let data: Array2<f64> = Array2::from_shape_vec((data.len(), 1), data.clone()).unwrap();
+        let data: Array2<f64> = Array2::from_shape_vec((data.len(), 1), data).unwrap();
 
         let samples = params.transform(data.view()).unwrap();
 
@@ -319,7 +315,7 @@ mod tests {
         let data = vec![
             1.0, 2.0, 3.0, 10.0, 18.0, 18.0, 15.0, 2.0, 15.0, 18.0, 3.0, 100.0, 101.0,
         ];
-        let data: Array2<f64> = Array2::from_shape_vec((data.len(), 1), data.clone()).unwrap();
+        let data: Array2<f64> = Array2::from_shape_vec((data.len(), 1), data).unwrap();
 
         // indexes of groupings of points in the dataset. These will end up with an outlier value
         // in between them to help separate things
@@ -392,7 +388,7 @@ mod tests {
     #[test]
     fn find_neighbors_test() {
         let data = vec![1.0, 2.0, 10.0, 15.0, 13.0];
-        let data: Array2<f64> = Array2::from_shape_vec((data.len(), 1), data.clone()).unwrap();
+        let data: Array2<f64> = Array2::from_shape_vec((data.len(), 1), data).unwrap();
 
         let neighbors = find_neighbors(data.row(0), data.view(), 6.0);
         assert_eq!(neighbors.len(), 2);
@@ -420,11 +416,9 @@ mod tests {
     #[test]
     fn get_seeds_test() {
         let data = vec![1.0, 2.0, 10.0, 15.0, 13.0];
-        let data: Array2<f64> = Array2::from_shape_vec((data.len(), 1), data.clone()).unwrap();
+        let data: Array2<f64> = Array2::from_shape_vec((data.len(), 1), data).unwrap();
 
-        let mut points = (0..data.nrows())
-            .map(|i| Neighbor::new(i))
-            .collect::<Vec<_>>();
+        let mut points = (0..data.nrows()).map(Neighbor::new).collect::<Vec<_>>();
 
         let neighbors = find_neighbors(data.row(0), data.view(), 6.0);
         // set core distance and make sure it's set correctly given number of neghobrs restriction
@@ -452,9 +446,7 @@ mod tests {
 
         assert_eq!(seeds, vec![4, 3, 2]);
 
-        let mut points = (0..data.nrows())
-            .map(|i| Neighbor::new(i))
-            .collect::<Vec<_>>();
+        let mut points = (0..data.nrows()).map(Neighbor::new).collect::<Vec<_>>();
 
         // if one of the neighbours has been processed make sure it's not in the seed list
 
@@ -473,9 +465,7 @@ mod tests {
 
         assert_eq!(seeds, vec![4, 2]);
 
-        let mut points = (0..data.nrows())
-            .map(|i| Neighbor::new(i))
-            .collect::<Vec<_>>();
+        let mut points = (0..data.nrows()).map(Neighbor::new).collect::<Vec<_>>();
 
         // If one of the neighbours has a smaller R distance than it has to the core point make
         // sure it's not added to the seed list

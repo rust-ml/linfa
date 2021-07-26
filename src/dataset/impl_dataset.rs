@@ -1050,9 +1050,10 @@ impl<F: Float, E> Dataset<F, E> {
     }
 }
 
-impl<F: Float, D, T, O> Predict<ArrayBase<D, Ix2>, DatasetBase<ArrayBase<D, Ix2>, T>> for O
+impl<F: Float, D, E, T, O> Predict<ArrayBase<D, Ix2>, DatasetBase<ArrayBase<D, Ix2>, T>> for O
 where
     D: Data<Elem = F>,
+    T: AsTargets<Elem = E>,
     O: PredictRef<ArrayBase<D, Ix2>, T>,
 {
     fn predict(&self, records: ArrayBase<D, Ix2>) -> DatasetBase<ArrayBase<D, Ix2>, T> {
@@ -1061,9 +1062,10 @@ where
     }
 }
 
-impl<F: Float, R, T, S, O> Predict<DatasetBase<R, T>, DatasetBase<R, S>> for O
+impl<F: Float, R, T, E, S, O> Predict<DatasetBase<R, T>, DatasetBase<R, S>> for O
 where
     R: Records<Elem = F>,
+    S: AsTargets<Elem = E>,
     O: PredictRef<R, S>,
 {
     fn predict(&self, ds: DatasetBase<R, T>) -> DatasetBase<R, S> {
@@ -1071,6 +1073,7 @@ where
         DatasetBase::new(ds.records, new_targets)
     }
 }
+
 impl<'a, F: Float, R, T, S, O> Predict<&'a DatasetBase<R, T>, S> for O
 where
     R: Records<Elem = F>,
