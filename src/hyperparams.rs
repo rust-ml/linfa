@@ -5,25 +5,21 @@ use crate::{
     traits::{Fit, IncrementalFit, Transformer},
 };
 
-/// A set of hyperparameters whose values have not been checked for validity. A reference to the
+/// A set of parameters whose values have not been checked for validity. A reference to the
 /// checked hyperparameters can only be obtained after checking has completed. If the
 /// `Transformer`, `Fit`, or `IncrementalFit` traits have been implemented on the checked
 /// hyperparameters, they will also be implemented on the unchecked hyperparameters with the
 /// checking step done automatically.
 ///
 /// The hyperparameter validation done in `check_ref()` and `check()` should be identical.
-pub trait UncheckedHyperParams {
-    /// The checked hyperparameters
-    type Checked;
-    /// Error type resulting from failed hyperparameter checking
-    type Error: Error;
+pub trait ParameterCheck {
+    type Checked: IsChecked<true>;
 
-    /// Checks the hyperparameters and returns a reference to the checked hyperparameters if
-    /// successful
-    fn check_ref(&self) -> Result<&Self::Checked, Self::Error>;
+    /// Check the parameter set and returns an error if an invalid value is encountered
+    fn is_valid(&self) -> Result<(), <Self::Checked as IsChecked<true>>::Error>;
 
     /// Checks the hyperparameters and returns the checked hyperparameters if successful
-    fn check(self) -> Result<Self::Checked, Self::Error>;
+    fn check(self) -> Result<Self::Checked, <Self::Checked as IsChecked<true>>::Error>;
 
     /// Calls `check()` and unwraps the result
     fn check_unwrap(self) -> Self::Checked
@@ -34,6 +30,23 @@ pub trait UncheckedHyperParams {
     }
 }
 
+pub trait IsChecked<const C: bool> {
+    type Error: Error;
+}
+
+impl<T> ParameterCheck for T where T: IsChecked<true> {
+    type Checked = Self;
+
+    fn is_valid(&self) -> Result<(), <Self::Checked as IsChecked<true>>::Error> {
+        Ok(())
+    }
+
+    fn check(self) -> Result<Self::Checked, <Self::Checked as IsChecked<true>>::Error> {
+        Ok(self)
+    }
+}
+
+/*
 /// Performs the checking step and calls `transform` on the checked hyperparameters. Returns error
 /// if checking was unsuccessful.
 impl<R: Records, T, P: UncheckedHyperParams> Transformer<R, Result<T, P::Error>> for P
@@ -80,3 +93,4 @@ where
         checked.fit_with(model, dataset)
     }
 }
+*/

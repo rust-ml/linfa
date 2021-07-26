@@ -19,6 +19,7 @@ use std::marker::PhantomData;
 
 use crate::dataset::{DatasetBase, Pr};
 use crate::traits::{Predict, PredictRef};
+use crate::hyperparams::{ParameterCheck, IsChecked};
 use crate::Float;
 
 use ndarray::{Array1, Array2, ArrayBase, ArrayView1, Data, Ix1, Ix2};
@@ -43,14 +44,14 @@ pub struct Platt<F, O> {
 }
 
 /// Parameters for Platt's Newton method
-pub struct PlattParams<F, O> {
+pub struct PlattParams<F, O, const C: bool> {
     maxiter: usize,
     minstep: F,
     sigma: F,
     phantom: PhantomData<O>,
 }
 
-impl<F: Float, O> Default for PlattParams<F, O> {
+impl<F: Float, O> Default for PlattParams<F, O, false> {
     fn default() -> Self {
         PlattParams {
             maxiter: 100,
@@ -61,16 +62,31 @@ impl<F: Float, O> Default for PlattParams<F, O> {
     }
 }
 
-impl<F: Float, O> PlattParams<F, O> {
+impl<F: Float, O, const C: bool> PlattParams<F, O, C> {
+    fn unchecked(other: Self) -> PlattParams<F, O, false> {
+        let PlattParams { maxiter, minstep, sigma, phantom } = other;
+
+        PlattParams {
+            maxiter, minstep, sigma, phantom
+        }
+    }
+    fn checked(other: Self) -> PlattParams<F, O, true> {
+        let PlattParams { maxiter, minstep, sigma, phantom } = other;
+
+        PlattParams {
+            maxiter, minstep, sigma, phantom
+        }
+    }
+
     /// Set the maximum number of iterations in the optimization process
     ///
     /// The Newton's method is an iterative optimization process, which uses the first and second
     /// order gradients to find optimal `A` and `B`. This function caps the maximal number of
     /// iterations.
-    pub fn maxiter(mut self, maxiter: usize) -> Self {
+    pub fn maxiter(mut self, maxiter: usize) -> PlattParams<F, O, false> {
         self.maxiter = maxiter;
 
-        self
+        Self::unchecked(self)
     }
 
     /// Set the minimum stepsize in the line search
@@ -79,23 +95,32 @@ impl<F: Float, O> PlattParams<F, O> {
     /// size in each optimization step. In each attempt the stepsize is halfed until this threshold
     /// is reached. After reaching the threshold the algorithm fails because the desired precision
     /// could not be achieved.
-    pub fn minstep(mut self, minstep: F) -> Self {
+    pub fn minstep(mut self, minstep: F) -> PlattParams<F, O, false> {
         self.minstep = minstep;
 
-        self
+        Self::unchecked(self)
     }
 
     /// Set the Hessian's sigma value
     ///
     /// The Hessian matrix is regularized with H' = H + sigma I to avoid numerical issues. This
     /// function set the amount of regularization.
-    pub fn sigma(mut self, sigma: F) -> Self {
+    pub fn sigma(mut self, sigma: F) -> PlattParams<F, O, false> {
         self.sigma = sigma;
 
-        self
+        Self::unchecked(self)
     }
 
-    fn validate(&self) -> Result<(), PlattNewtonResult> {
+}
+
+impl<F, O, const C: bool> IsChecked<C> for PlattParams<F, O, C> {
+    type Error = PlattNewtonResult;
+}
+
+impl<F: Float, O> ParameterCheck for PlattParams<F, O, false> {
+    type Checked = PlattParams<F, O, true>;
+
+    fn is_valid(&self) -> Result<(), PlattNewtonResult> {
         if self.maxiter == 0 {
             return Err(PlattNewtonResult::MaxIterReached);
         }
@@ -112,7 +137,27 @@ impl<F: Float, O> PlattParams<F, O> {
 
         Ok(())
     }
+
+    fn check(self) -> Result<Self::Checked, PlattNewtonResult> {
+        self.is_valid()?;
+
+        Ok(Self::checked(self))
+    }
 }
+
+/*
+impl<F: Float, O> ParameterCheck<true> for PlattParams<F, O, true> {
+    type Checked = PlattParams<F, O, true>;
+    type Error = PlattNewtonResult;
+
+    fn is_valid(&self) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn check(self) -> Result<Self::Checked, Self::Error> {
+        Ok(self)
+    }
+}*/
 
 #[cfg_attr(
     feature = "serde",
@@ -144,12 +189,12 @@ impl<F: Float, O> Platt<F, O> {
     /// * `minstep`: 1e-10,
     /// * `sigma`: 1e-12
     ///
-    pub fn params() -> PlattParams<F, O> {
+    pub fn params() -> PlattParams<F, O, false> {
         PlattParams::default()
     }
 }
 
-impl<F: Float, O> PlattParams<F, O>
+impl<F: Float, O> PlattParams<F, O, true>
 where
     O: PredictRef<Array2<F>, Array1<F>>,
 {
@@ -215,10 +260,10 @@ pub fn platt_predict<F: Float>(x: F, a: F, b: F) -> Pr {
 pub fn platt_newton_method<'a, F: Float, O>(
     reg_values: ArrayView1<'a, F>,
     labels: ArrayView1<'a, bool>,
-    params: &PlattParams<F, O>,
+    params: &PlattParams<F, O, true>,
 ) -> Result<(F, F), PlattNewtonResult> {
     // check that algorithm's parameters are valid
-    params.validate()?;
+    params.is_valid()?;
 
     let (num_pos, num_neg) = labels.iter().fold((0, 0), |mut val, x| {
         match x {
