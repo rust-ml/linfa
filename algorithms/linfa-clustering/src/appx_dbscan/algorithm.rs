@@ -103,12 +103,11 @@ impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<
 {
     fn transform(&self, observations: &ArrayBase<D, Ix2>) -> Array1<Option<usize>> {
         if observations.dim().0 == 0 {
-            *targets = Array1::from_elem(0, None);
-            return;
+            return Array1::from_elem(0, None);
         }
 
         let labeler = AppxDbscanLabeler::new(&observations.view(), self);
-        *targets = labeler.into_labels();
+        labeler.into_labels()
     }
 }
 

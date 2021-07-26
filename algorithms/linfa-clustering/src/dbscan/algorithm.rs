@@ -112,8 +112,7 @@ impl<F: Float, D: Data<Elem = F>, DF: Distance<F>, N: NearestNeighbour>
         let nn = match self.nn_algo.from_batch(observations, self.dist_fn.clone()) {
             Ok(nn) => nn,
             Err(linfa_nn::BuildError::ZeroDimension) => {
-                *targets = Array1::from_elem(observations.nrows(), None);
-                return;
+                return Array1::from_elem(observations.nrows(), None)
             }
             Err(e) => panic!("Unexpected nearest neighbour error: {}", e),
         };
@@ -156,7 +155,7 @@ impl<F: Float, D: Data<Elem = F>, DF: Distance<F>, N: NearestNeighbour>
             }
             current_cluster_id += 1;
         }
-        *targets = cluster_memberships;
+        cluster_memberships
     }
 }
 
