@@ -63,5 +63,7 @@ pub trait PredictInplace<R: Records, T> {
     fn predict_inplace<'a>(&'a self, x: &'a R, y: &mut T);
 
     /// The number of features each target has.
-    fn num_targets(&self) -> usize;
+    fn num_target_variables_hint(&self) -> usize {
+        1
+    }
 }

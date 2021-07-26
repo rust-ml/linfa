@@ -505,10 +505,6 @@ impl<F: Float, L: Label, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Ar
             .map(|row| make_prediction(&row, &self.root_node))
             .collect();
     }
-
-    fn num_targets(&self) -> usize {
-        1
-    }
 }
 
 impl<'a, F: Float, L: Label + 'a + std::fmt::Debug, D, T> Fit<ArrayBase<D, Ix2>, T, Error>

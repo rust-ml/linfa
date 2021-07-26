@@ -570,10 +570,6 @@ mod tests {
             );
             *y = array![0.];
         }
-
-        fn num_targets(&self) -> usize {
-            1
-        }
     }
 
     impl<'b> PredictInplace<ArrayView2<'b, f64>, Array2<f64>> for MockFittableResult {
@@ -586,8 +582,8 @@ mod tests {
             *y = array![[0., 0.]];
         }
 
-        fn num_targets(&self) -> usize {
-            todo!()
+        fn num_target_variables_hint(&self) -> usize {
+            2
         }
     }
 

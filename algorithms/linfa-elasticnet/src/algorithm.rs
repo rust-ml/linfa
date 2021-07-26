@@ -70,10 +70,6 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<F>> f
 
         *y = x.dot(&self.parameters) + self.intercept;
     }
-
-    fn num_targets(&self) -> usize {
-        1
-    }
 }
 
 /// View the fitted parameters and make predictions with a fitted

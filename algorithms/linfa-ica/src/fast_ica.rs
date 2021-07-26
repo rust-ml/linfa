@@ -248,8 +248,8 @@ impl<F: Float> PredictInplace<Array2<F>, Array2<F>> for FittedFastIca<F> {
         *y = xcentered.dot(&self.components.t());
     }
 
-    fn num_targets(&self) -> usize {
-        todo!()
+    fn num_target_variables_hint(&self) -> usize {
+        self.components.nrows()
     }
 }
 

@@ -510,8 +510,8 @@ impl<F: Float, C: PartialOrd + Clone> FittedLogisticRegression<F, C> {
     }
 }
 
-impl<C: PartialOrd + Clone, F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<C>>
-    for FittedLogisticRegression<F, C>
+impl<C: PartialOrd + Clone, F: Float, D: Data<Elem = F>>
+    PredictInplace<ArrayBase<D, Ix2>, Array1<C>> for FittedLogisticRegression<F, C>
 {
     /// Given a feature matrix, predict the classes learned when the model was
     /// fitted.
@@ -523,10 +523,6 @@ impl<C: PartialOrd + Clone, F: Float, D: Data<Elem = F>> PredictInplace<ArrayBas
         );
 
         *y = self.predict(x);
-    }
-
-    fn num_targets(&self) -> usize {
-        1
     }
 }
 

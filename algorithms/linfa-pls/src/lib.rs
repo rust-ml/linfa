@@ -167,8 +167,8 @@ macro_rules! pls_algo { ($name:ident) => {
                 self.0.predict_inplace(x, y);
             }
 
-            fn num_targets(&self) -> usize {
-                self.0.num_targets()
+            fn num_target_variables_hint(&self) -> usize {
+                PredictInplace::<ArrayBase<D, Ix2>, Array2<F>>::num_target_variables_hint(&self.0)
             }
         }
     }

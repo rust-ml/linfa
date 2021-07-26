@@ -56,10 +56,6 @@ impl<L: Clone + Default, F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D
         // remove probabilities from array and convert to `Array1`
         *targets = res.into_iter().map(|x| x.0).collect();
     }
-
-    fn num_targets(&self) -> usize {
-        1
-    }
 }
 
 impl<F: Float, D: Data<Elem = F>, L, P: PredictRef<ArrayBase<D, Ix2>, Array1<Pr>> + 'static>
@@ -115,10 +111,6 @@ mod tests {
                         |x| if x % 2 == 1 { Pr(0.0) } else { Pr(1.0) },
                     );
             }
-        }
-
-        fn num_targets(&self) -> usize {
-            1
         }
     }
 

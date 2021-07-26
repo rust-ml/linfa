@@ -333,10 +333,6 @@ where
             *classes.get(i).unwrap()
         });
     }
-
-    fn num_targets(&self) -> usize {
-        1
-    }
 }
 
 impl<A: Float> GaussianNb<A> {

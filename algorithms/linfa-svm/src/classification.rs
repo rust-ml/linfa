@@ -364,10 +364,6 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<Pr>> 
             })
             .collect();
     }
-
-    fn num_targets(&self) -> usize {
-        1
-    }
 }
 
 /// Classify observations
@@ -390,10 +386,6 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<bool>
                 val >= F::zero()
             })
             .collect();
-    }
-
-    fn num_targets(&self) -> usize {
-        1
     }
 }
 #[cfg(test)]
