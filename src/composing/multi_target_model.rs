@@ -6,7 +6,7 @@
 //!
 //!
 use crate::dataset::Records;
-use crate::traits::{PredictInplace, PredictRef};
+use crate::traits::PredictInplace;
 use crate::Float;
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2};
 use std::iter::FromIterator;
@@ -17,7 +17,7 @@ use std::iter::FromIterator;
 /// single target variable. This wrapper allows the user to merge multiple models with only a
 /// single-target variable into a multi-target model.
 pub struct MultiTargetModel<R: Records, L> {
-    models: Vec<Box<dyn PredictRef<R, Array1<L>>>>,
+    models: Vec<Box<dyn PredictInplace<R, Array1<L>>>>,
 }
 
 impl<R: Records, L> MultiTargetModel<R, L> {
@@ -27,12 +27,12 @@ impl<R: Records, L> MultiTargetModel<R, L> {
     /// prediction trait and can otherwise contain any object. This allows the mixture of different
     /// models into the same wrapper. If you want to use the same model for all predictions, just
     /// use the `FromIterator` implementation.
-    pub fn new(models: Vec<Box<dyn PredictRef<R, Array1<L>>>>) -> Self {
+    pub fn new(models: Vec<Box<dyn PredictInplace<R, Array1<L>>>>) -> Self {
         MultiTargetModel { models }
     }
 }
 
-impl<L, F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array2<L>>
+impl<L: Default, F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array2<L>>
     for MultiTargetModel<ArrayBase<D, Ix2>, L>
 {
     fn predict_inplace(&self, arr: &ArrayBase<D, Ix2>, targets: &mut Array2<L>) {
@@ -47,7 +47,11 @@ impl<L, F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array2<L>
         *targets = self
             .models
             .iter()
-            .flat_map(|model| model.predict_ref(arr).into_raw_vec())
+            .flat_map(|model| {
+                let mut targets = Array1::default(arr.nrows());
+                model.predict_inplace(arr, &mut targets);
+                targets.into_raw_vec()
+            })
             .collect::<Array1<L>>()
             .into_shape((self.models.len(), arr.len_of(Axis(0))))
             .unwrap()
@@ -59,13 +63,13 @@ impl<L, F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array2<L>
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, L, P: PredictRef<ArrayBase<D, Ix2>, Array1<L>> + 'static>
+impl<F: Float, D: Data<Elem = F>, L, P: PredictInplace<ArrayBase<D, Ix2>, Array1<L>> + 'static>
     FromIterator<P> for MultiTargetModel<ArrayBase<D, Ix2>, L>
 {
     fn from_iter<I: IntoIterator<Item = P>>(iter: I) -> Self {
         let models = iter
             .into_iter()
-            .map(|x| Box::new(x) as Box<dyn PredictRef<ArrayBase<D, Ix2>, Array1<L>>>)
+            .map(|x| Box::new(x) as Box<dyn PredictInplace<ArrayBase<D, Ix2>, Array1<L>>>)
             .collect();
 
         MultiTargetModel { models }

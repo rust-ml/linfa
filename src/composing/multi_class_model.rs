@@ -1,12 +1,12 @@
 //! Merge models with binary to multi-class classification
 //!
 use crate::dataset::{Pr, Records};
-use crate::traits::{PredictInplace, PredictRef};
+use crate::traits::PredictInplace;
 use crate::Float;
 use ndarray::{Array1, ArrayBase, Data, Ix2};
 use std::iter::FromIterator;
 
-type MultiClassVec<R, L> = Vec<(L, Box<dyn PredictRef<R, Array1<Pr>>>)>;
+type MultiClassVec<R, L> = Vec<(L, Box<dyn PredictInplace<R, Array1<Pr>>>)>;
 
 /// Merge models with binary to multi-class classification
 pub struct MultiClassModel<R: Records, L> {
@@ -32,11 +32,10 @@ impl<L: Clone + Default, F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D
         let mut res = Vec::new();
 
         for pairs in self.models.iter().map(|(elm, model)| {
-            model
-                .predict_ref(arr)
-                .into_iter()
-                .map(|x| (elm.clone(), *x))
-                .collect()
+            let mut targets = Array1::default(arr.nrows());
+            model.predict_inplace(arr, &mut targets);
+
+            targets.into_iter().map(|x| (elm.clone(), *x)).collect()
         }) {
             // initialize result with guess of first model
             if res.is_empty() {
@@ -58,8 +57,12 @@ impl<L: Clone + Default, F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, L, P: PredictRef<ArrayBase<D, Ix2>, Array1<Pr>> + 'static>
-    FromIterator<(L, P)> for MultiClassModel<ArrayBase<D, Ix2>, L>
+impl<
+        F: Float,
+        D: Data<Elem = F>,
+        L,
+        P: PredictInplace<ArrayBase<D, Ix2>, Array1<Pr>> + 'static,
+    > FromIterator<(L, P)> for MultiClassModel<ArrayBase<D, Ix2>, L>
 {
     fn from_iter<I: IntoIterator<Item = (L, P)>>(iter: I) -> Self {
         let models = iter
@@ -67,7 +70,7 @@ impl<F: Float, D: Data<Elem = F>, L, P: PredictRef<ArrayBase<D, Ix2>, Array1<Pr>
             .map(|(l, x)| {
                 (
                     l,
-                    Box::new(x) as Box<dyn PredictRef<ArrayBase<D, Ix2>, Array1<Pr>>>,
+                    Box::new(x) as Box<dyn PredictInplace<ArrayBase<D, Ix2>, Array1<Pr>>>,
                 )
             })
             .collect();

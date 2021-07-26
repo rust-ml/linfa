@@ -18,7 +18,7 @@
 use std::marker::PhantomData;
 
 use crate::dataset::{DatasetBase, Pr};
-use crate::traits::{Predict, PredictInplace, PredictRef};
+use crate::traits::{Predict, PredictInplace};
 use crate::Float;
 
 use ndarray::{Array1, Array2, ArrayBase, ArrayView1, Data, Ix1, Ix2};
@@ -151,7 +151,7 @@ impl<F: Float, O> Platt<F, O> {
 
 impl<F: Float, O> PlattParams<F, O>
 where
-    O: PredictRef<Array2<F>, Array1<F>>,
+    O: PredictInplace<Array2<F>, Array1<F>>,
 {
     /// Calibrate another model with Platt scaling
     ///
@@ -174,7 +174,7 @@ where
 impl<F: Float, D, O> PredictInplace<ArrayBase<D, Ix2>, Array1<Pr>> for Platt<F, O>
 where
     D: Data<Elem = F>,
-    O: PredictRef<ArrayBase<D, Ix2>, ArrayBase<D, Ix1>>,
+    O: PredictInplace<ArrayBase<D, Ix2>, ArrayBase<D, Ix1>>,
 {
     fn predict_inplace(&self, data: &ArrayBase<D, Ix2>, targets: &mut Array1<Pr>) {
         assert_eq!(

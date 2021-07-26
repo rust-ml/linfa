@@ -29,7 +29,7 @@ use serde_crate::{Deserialize, Serialize};
 
 use linfa::{
     dataset::Records,
-    traits::{Fit, PredictInplace, PredictRef, Transformer},
+    traits::{Fit, PredictInplace, Transformer},
     DatasetBase, Float,
 };
 
@@ -200,7 +200,11 @@ impl<F: Float, D: Data<Elem = F>, T>
             ..
         } = ds;
 
-        let new_records = self.predict_ref(&records);
+        let mut new_records = Array2::default((
+            records.nrows(),
+            PredictInplace::<ArrayBase<D, Ix2>, Array2<F>>::num_target_variables_hint(self),
+        ));
+        self.predict_inplace(&records, &mut new_records);
 
         DatasetBase::new(new_records, targets).with_weights(weights)
     }

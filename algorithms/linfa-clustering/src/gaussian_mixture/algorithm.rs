@@ -56,7 +56,7 @@ use serde_crate::{Deserialize, Serialize};
 ///
 /// ```rust, ignore
 /// use linfa::DatasetBase;
-/// use linfa::traits::{Fit, PredictRef};
+/// use linfa::traits::{Fit, PredictInplace};
 /// use linfa_clustering::{GmmHyperParams, GaussianMixtureModel, generate_blobs};
 /// use ndarray::{Axis, array, s, Zip};
 /// use ndarray_rand::rand::SeedableRng;
