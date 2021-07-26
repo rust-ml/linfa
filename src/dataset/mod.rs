@@ -576,7 +576,10 @@ mod tests {
         fn predict_inplace<'a>(&'a self, x: &'a ArrayView2<'b, f64>, y: &mut Array2<f64>) {
             assert_eq!(
                 y.shape(),
-                &[x.nrows(), PredictInplace::<_, Array2<_>>::num_target_variables_hint(self)],
+                &[
+                    x.nrows(),
+                    PredictInplace::<_, Array2<_>>::num_target_variables_hint(self)
+                ],
                 "The number of data points must match the number of output targets."
             );
             *y = array![[0., 0.]];

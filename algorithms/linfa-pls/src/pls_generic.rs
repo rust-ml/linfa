@@ -140,7 +140,10 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array2<F>> f
     fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array2<F>) {
         assert_eq!(
             y.shape(),
-            &[x.nrows(), PredictInplace::<ArrayBase<D, _>, _>::num_target_variables_hint(self)],
+            &[
+                x.nrows(),
+                PredictInplace::<ArrayBase<D, _>, _>::num_target_variables_hint(self)
+            ],
             "The number of data points must match the number of output targets."
         );
 
