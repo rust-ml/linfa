@@ -174,8 +174,8 @@ impl Pca<f64> {
 impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array2<F>> for Pca<F> {
     fn predict_inplace(&self, records: &ArrayBase<D, Ix2>, targets: &mut Array2<F>) {
         assert_eq!(
-            records.nrows(),
-            targets.nrows(),
+            targets.shape(),
+            &[records.nrows(), PredictInplace::<ArrayBase<D, _>, _>::num_target_variables_hint(self)],
             "The number of data points must match the number of output targets."
         );
         *targets = (records - &self.mean).dot(&self.embedding.t());

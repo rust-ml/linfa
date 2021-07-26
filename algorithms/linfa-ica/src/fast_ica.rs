@@ -239,8 +239,8 @@ impl<F: Float> PredictInplace<Array2<F>, Array2<F>> for FittedFastIca<F> {
     /// Recover the sources
     fn predict_inplace(&self, x: &Array2<F>, y: &mut Array2<F>) {
         assert_eq!(
-            x.nrows(),
-            y.nrows(),
+            y.shape(),
+            &[x.nrows(), PredictInplace::<Array2<_>, _>::num_target_variables_hint(self)],
             "The number of data points must match the number of output targets."
         );
 

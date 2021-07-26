@@ -162,7 +162,11 @@ macro_rules! pls_algo { ($name:ident) => {
             /// `predict` returns the target variable according to [<Pls $name>] method
             /// learned from the training data distribution.
             fn predict_inplace<'a>(&'a self, x: &ArrayBase<D, Ix2>, y: &mut Array2<F>) {
-                assert_eq!(x.nrows(), y.nrows(), "The number of data points must match the number of output targets.");
+                assert_eq!(
+                    y.shape(),
+                    &[x.nrows(), PredictInplace::<Array2<_>, _>::num_target_variables_hint(self)],
+                    "The number of data points must match the number of output targets."
+                );
 
                 self.0.predict_inplace(x, y);
             }
