@@ -150,7 +150,7 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array2<F>> f
     }
 
     fn num_target_variables_hint(&self) -> usize {
-        todo!()
+        self.coefficients.ncols()
     }
 }
 
