@@ -13,13 +13,14 @@ use crate::{
 ///
 /// The hyperparameter validation done in `check_ref()` and `check()` should be identical.
 pub trait ParameterCheck {
-    type Checked: IsChecked<true>;
+    type Checked;
+    type Error: Error;
 
     /// Check the parameter set and returns an error if an invalid value is encountered
-    fn is_valid(&self) -> Result<(), <Self::Checked as IsChecked<true>>::Error>;
+    fn is_valid(&self) -> Result<(), Self::Error>;
 
     /// Checks the hyperparameters and returns the checked hyperparameters if successful
-    fn check(self) -> Result<Self::Checked, <Self::Checked as IsChecked<true>>::Error>;
+    fn check(self) -> Result<Self::Checked, Self::Error>;
 
     /// Calls `check()` and unwraps the result
     fn check_unwrap(self) -> Self::Checked
@@ -27,22 +28,6 @@ pub trait ParameterCheck {
         Self: Sized,
     {
         self.check().unwrap()
-    }
-}
-
-pub trait IsChecked<const C: bool> {
-    type Error: Error;
-}
-
-impl<T> ParameterCheck for T where T: IsChecked<true> {
-    type Checked = Self;
-
-    fn is_valid(&self) -> Result<(), <Self::Checked as IsChecked<true>>::Error> {
-        Ok(())
-    }
-
-    fn check(self) -> Result<Self::Checked, <Self::Checked as IsChecked<true>>::Error> {
-        Ok(self)
     }
 }
 

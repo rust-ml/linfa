@@ -19,7 +19,7 @@ use std::marker::PhantomData;
 
 use crate::dataset::{DatasetBase, Pr};
 use crate::traits::{Predict, PredictRef};
-use crate::hyperparams::{ParameterCheck, IsChecked};
+use crate::hyperparams::ParameterCheck;
 use crate::Float;
 
 use ndarray::{Array1, Array2, ArrayBase, ArrayView1, Data, Ix1, Ix2};
@@ -106,12 +106,9 @@ impl<F: Float, O, const C: bool> PlattParams<F, O, C> {
 
 }
 
-impl<F, O, const C: bool> IsChecked<C> for PlattParams<F, O, C> {
-    type Error = PlattNewtonResult;
-}
-
 impl<F: Float, O> ParameterCheck for PlattParams<F, O, false> {
     type Checked = PlattParams<F, O, true>;
+    type Error = PlattNewtonResult;
 
     fn is_valid(&self) -> Result<(), PlattNewtonResult> {
         if self.maxiter == 0 {
