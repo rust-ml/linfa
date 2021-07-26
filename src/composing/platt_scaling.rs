@@ -63,15 +63,8 @@ impl<F: Float, O> Default for PlattParams<F, O, false> {
 }
 
 impl<F: Float, O, const C: bool> PlattParams<F, O, C> {
-    fn unchecked(other: Self) -> PlattParams<F, O, false> {
-        let PlattParams { maxiter, minstep, sigma, phantom } = other;
-
-        PlattParams {
-            maxiter, minstep, sigma, phantom
-        }
-    }
-    fn checked(other: Self) -> PlattParams<F, O, true> {
-        let PlattParams { maxiter, minstep, sigma, phantom } = other;
+    fn change_check_flag<const C2: bool>(self) -> PlattParams<F, O, C2> {
+        let PlattParams { maxiter, minstep, sigma, phantom } = self;
 
         PlattParams {
             maxiter, minstep, sigma, phantom
@@ -86,7 +79,7 @@ impl<F: Float, O, const C: bool> PlattParams<F, O, C> {
     pub fn maxiter(mut self, maxiter: usize) -> PlattParams<F, O, false> {
         self.maxiter = maxiter;
 
-        Self::unchecked(self)
+        self.change_check_flag()
     }
 
     /// Set the minimum stepsize in the line search
@@ -98,7 +91,7 @@ impl<F: Float, O, const C: bool> PlattParams<F, O, C> {
     pub fn minstep(mut self, minstep: F) -> PlattParams<F, O, false> {
         self.minstep = minstep;
 
-        Self::unchecked(self)
+        self.change_check_flag()
     }
 
     /// Set the Hessian's sigma value
@@ -108,7 +101,7 @@ impl<F: Float, O, const C: bool> PlattParams<F, O, C> {
     pub fn sigma(mut self, sigma: F) -> PlattParams<F, O, false> {
         self.sigma = sigma;
 
-        Self::unchecked(self)
+        self.change_check_flag()
     }
 
 }
@@ -141,23 +134,9 @@ impl<F: Float, O> ParameterCheck for PlattParams<F, O, false> {
     fn check(self) -> Result<Self::Checked, PlattNewtonResult> {
         self.is_valid()?;
 
-        Ok(Self::checked(self))
+        Ok(self.change_check_flag())
     }
 }
-
-/*
-impl<F: Float, O> ParameterCheck<true> for PlattParams<F, O, true> {
-    type Checked = PlattParams<F, O, true>;
-    type Error = PlattNewtonResult;
-
-    fn is_valid(&self) -> Result<(), Self::Error> {
-        Ok(())
-    }
-
-    fn check(self) -> Result<Self::Checked, Self::Error> {
-        Ok(self)
-    }
-}*/
 
 #[cfg_attr(
     feature = "serde",
@@ -209,7 +188,24 @@ where
         ds: &DatasetBase<Array2<F>, Array1<bool>>,
     ) -> Result<Platt<F, O>, PlattNewtonResult> {
         let predicted = obj.predict(ds);
+        let (a, b) = platt_newton_method(predicted.view(), ds.targets().view(), self)?;
 
+        Ok(Platt { a, b, obj })
+    }
+}
+
+impl<F: Float, O> PlattParams<F, O, false>
+where
+    O: PredictRef<Array2<F>, Array1<F>>,
+{
+    pub fn calibrate(
+        &self,
+        obj: O,
+        ds: &DatasetBase<Array2<F>, Array1<bool>>,
+    ) -> Result<Platt<F, O>, PlattNewtonResult> {
+        self.is_valid()?;
+
+        let predicted = obj.predict(ds);
         let (a, b) = platt_newton_method(predicted.view(), ds.targets().view(), self)?;
 
         Ok(Platt { a, b, obj })
@@ -257,14 +253,11 @@ pub fn platt_predict<F: Float>(x: F, a: F, b: F) -> Pr {
 /// gradient vectors are calculated. Then a line-search tries to find the optimal learning rate
 /// for each step.
 //#[allow(clippy::suspicious_operation_groupings)]
-pub fn platt_newton_method<'a, F: Float, O>(
+pub fn platt_newton_method<'a, F: Float, O, const C: bool>(
     reg_values: ArrayView1<'a, F>,
     labels: ArrayView1<'a, bool>,
-    params: &PlattParams<F, O, true>,
+    params: &PlattParams<F, O, C>,
 ) -> Result<(F, F), PlattNewtonResult> {
-    // check that algorithm's parameters are valid
-    params.is_valid()?;
-
     let (num_pos, num_neg) = labels.iter().fold((0, 0), |mut val, x| {
         match x {
             true => val.0 += 1,
@@ -388,7 +381,7 @@ mod tests {
     use ndarray::{Array1, Array2};
     use rand::{rngs::SmallRng, Rng, SeedableRng};
 
-    use super::{platt_newton_method, Platt, PlattParams};
+    use super::{platt_newton_method, Platt, PlattParams, ParameterCheck};
     use crate::{
         traits::{Predict, PredictRef},
         DatasetBase, Float,
@@ -431,7 +424,7 @@ mod tests {
             fn $fnc() {
                 let mut rng = SmallRng::seed_from_u64(42);
 
-                let params: PlattParams<f32, ()> = PlattParams {
+                let params: PlattParams<f32, (), false> = PlattParams {
                     maxiter: 100,
                     minstep: 1e-10,
                     sigma: 1e-12,
@@ -497,18 +490,18 @@ mod tests {
     #[test]
     #[should_panic]
     fn panic_maxiter_zero() {
-        Platt::<f32, ()>::params().maxiter(0).validate().unwrap();
+        Platt::<f32, ()>::params().maxiter(0).check().unwrap();
     }
 
     #[test]
     #[should_panic]
     fn panic_minstep_negative() {
-        Platt::<f32, ()>::params().minstep(-5.0).validate().unwrap();
+        Platt::<f32, ()>::params().minstep(-5.0).check().unwrap();
     }
 
     #[test]
     #[should_panic]
     fn panic_sigma_negative() {
-        Platt::<f32, ()>::params().sigma(-1.0).validate().unwrap();
+        Platt::<f32, ()>::params().sigma(-1.0).check().unwrap();
     }
 }
