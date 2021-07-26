@@ -5,7 +5,6 @@ use ndarray::{array, Array, Array2};
 use ndarray_npy::write_npy;
 use ndarray_rand::rand::SeedableRng;
 use rand_isaac::Isaac64Rng;
-use std::iter::FromIterator;
 
 // A routine DBScan task: build a synthetic dataset, predict clusters for it
 // and save both training data and predictions to disk.
@@ -44,16 +43,18 @@ fn main() {
     write_npy("dataset.npy", &dataset).expect("Failed to write .npy file");
     write_npy(
         "reachability.npy",
-        &Array::from_iter(
-            analysis
-                .iter()
-                .map(|&x| x.reachability_distance().unwrap_or(f64::INFINITY)),
-        ),
+        &analysis
+            .iter()
+            .map(|&x| x.reachability_distance().unwrap_or(f64::INFINITY))
+            .collect::<Array<_, _>>(),
     )
     .expect("Failed to write .npy file");
     write_npy(
         "indexes.npy",
-        &Array::from_iter(analysis.iter().map(|&x| x.index() as u32)),
+        &analysis
+            .iter()
+            .map(|&x| x.index() as u32)
+            .collect::<Array<_, _>>(),
     )
     .expect("Failed to write .npy file");
 }
