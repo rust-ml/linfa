@@ -18,8 +18,8 @@
 use std::marker::PhantomData;
 
 use crate::dataset::{DatasetBase, Pr};
+use crate::param_guard::{ParamGuard, ParamIntoCheckedConst};
 use crate::traits::{Predict, PredictRef};
-use crate::hyperparams::ParameterCheck;
 use crate::Float;
 
 use ndarray::{Array1, Array2, ArrayBase, ArrayView1, Data, Ix1, Ix2};
@@ -44,6 +44,7 @@ pub struct Platt<F, O> {
 }
 
 /// Parameters for Platt's Newton method
+#[derive(Clone, Debug)]
 pub struct PlattParams<F, O, const C: bool> {
     maxiter: usize,
     minstep: F,
@@ -64,10 +65,18 @@ impl<F: Float, O> Default for PlattParams<F, O, false> {
 
 impl<F: Float, O, const C: bool> PlattParams<F, O, C> {
     fn change_check_flag<const C2: bool>(self) -> PlattParams<F, O, C2> {
-        let PlattParams { maxiter, minstep, sigma, phantom } = self;
+        let PlattParams {
+            maxiter,
+            minstep,
+            sigma,
+            phantom,
+        } = self;
 
         PlattParams {
-            maxiter, minstep, sigma, phantom
+            maxiter,
+            minstep,
+            sigma,
+            phantom,
         }
     }
 
@@ -103,36 +112,28 @@ impl<F: Float, O, const C: bool> PlattParams<F, O, C> {
 
         self.change_check_flag()
     }
-
 }
 
-impl<F: Float, O> ParameterCheck for PlattParams<F, O, false> {
-    type Checked = PlattParams<F, O, true>;
-    type Error = PlattNewtonResult;
+impl<F: Float, O: Clone> ParamGuard for PlattParams<F, O, false> {
+    type Error = PlattError;
 
-    fn is_valid(&self) -> Result<(), PlattNewtonResult> {
+    fn is_valid(&self) -> Result<(), PlattError> {
         if self.maxiter == 0 {
-            return Err(PlattNewtonResult::MaxIterReached);
+            return Err(PlattError::MaxIterReached);
         }
         if self.minstep.is_negative() {
-            return Err(PlattNewtonResult::MinStepNegative(
-                self.minstep.to_f32().unwrap(),
-            ));
+            return Err(PlattError::MinStepNegative(self.minstep.to_f32().unwrap()));
         }
         if self.sigma.is_negative() {
-            return Err(PlattNewtonResult::SigmaNegative(
-                self.sigma.to_f32().unwrap(),
-            ));
+            return Err(PlattError::SigmaNegative(self.sigma.to_f32().unwrap()));
         }
 
         Ok(())
     }
+}
 
-    fn check(self) -> Result<Self::Checked, PlattNewtonResult> {
-        self.is_valid()?;
-
-        Ok(self.change_check_flag())
-    }
+unsafe impl<F: Float, O: Clone> ParamIntoCheckedConst for PlattParams<F, O, false> {
+    type Checked = PlattParams<F, O, true>;
 }
 
 #[cfg_attr(
@@ -144,7 +145,7 @@ impl<F: Float, O> ParameterCheck for PlattParams<F, O, false> {
 /// Platt Newton's method errors
 ///
 /// Errors occur when setting invalid parameters or the optimization process fails.
-pub enum PlattNewtonResult {
+pub enum PlattError {
     #[error("line search did not converge")]
     LineSearchNotConverged,
     #[error("platt scaling did not converge")]
@@ -155,6 +156,8 @@ pub enum PlattNewtonResult {
     MinStepNegative(f32),
     #[error("sigma should be positive, is {0}")]
     SigmaNegative(f32),
+    #[error(transparent)]
+    LinfaError(#[from] crate::error::Error),
 }
 
 impl<F: Float, O> Platt<F, O> {
@@ -170,7 +173,7 @@ impl<F: Float, O> Platt<F, O> {
     }
 }
 
-impl<F: Float, O> PlattParams<F, O, true>
+/*impl<F: Float, O> PlattParams<F, O, true>
 where
     O: PredictRef<Array2<F>, Array1<F>>,
 {
@@ -183,29 +186,34 @@ where
         &self,
         obj: O,
         ds: &DatasetBase<Array2<F>, Array1<bool>>,
-    ) -> Result<Platt<F, O>, PlattNewtonResult> {
+    ) -> Result<Platt<F, O>, PlattError> {
         let predicted = obj.predict(ds);
         let (a, b) = platt_newton_method(predicted.view(), ds.targets().view(), self)?;
 
         Ok(Platt { a, b, obj })
     }
-}
+}*/
 
-impl<F: Float, O> PlattParams<F, O, false>
+use crate::traits::IncrementalFit;
+impl<'a, F: Float, O: 'a> IncrementalFit<'a, Array2<F>, Array1<bool>, PlattError>
+    for PlattParams<F, O, true>
 where
     O: PredictRef<Array2<F>, Array1<F>>,
 {
-    pub fn calibrate(
+    type ObjectIn = O;
+    type ObjectOut = Platt<F, O>;
+
+    fn fit_with(
         &self,
         obj: O,
         ds: &DatasetBase<Array2<F>, Array1<bool>>,
-    ) -> Result<Platt<F, O>, PlattNewtonResult> {
-        self.is_valid()?;
-
+    ) -> Result<Self::ObjectOut, PlattError> {
         let predicted = obj.predict(ds);
-        let (a, b) = platt_newton_method(predicted.view(), ds.targets().view(), self)?;
-
-        Ok(Platt { a, b, obj })
+        platt_newton_method(predicted.view(), ds.targets().view(), self).map(|(a, b)| Platt {
+            a,
+            b,
+            obj,
+        })
     }
 }
 
@@ -254,7 +262,7 @@ pub fn platt_newton_method<'a, F: Float, O, const C: bool>(
     reg_values: ArrayView1<'a, F>,
     labels: ArrayView1<'a, bool>,
     params: &PlattParams<F, O, C>,
-) -> Result<(F, F), PlattNewtonResult> {
+) -> Result<(F, F), PlattError> {
     let (num_pos, num_neg) = labels.iter().fold((0, 0), |mut val, x| {
         match x {
             true => val.0 += 1,
@@ -358,7 +366,7 @@ pub fn platt_newton_method<'a, F: Float, O, const C: bool>(
             }
 
             if stepsize < params.minstep {
-                return Err(PlattNewtonResult::LineSearchNotConverged);
+                return Err(PlattError::LineSearchNotConverged);
             }
         }
 
@@ -366,7 +374,7 @@ pub fn platt_newton_method<'a, F: Float, O, const C: bool>(
     }
 
     if params.maxiter == idx {
-        return Err(PlattNewtonResult::MaxIterReached);
+        return Err(PlattError::MaxIterReached);
     }
 
     Ok((a, b))
@@ -378,9 +386,9 @@ mod tests {
     use ndarray::{Array1, Array2};
     use rand::{rngs::SmallRng, Rng, SeedableRng};
 
-    use super::{platt_newton_method, Platt, PlattParams, ParameterCheck};
+    use super::{platt_newton_method, ParamGuard, Platt, PlattParams};
     use crate::{
-        traits::{Predict, PredictRef},
+        traits::{IncrementalFit, Predict, PredictRef},
         DatasetBase, Float,
     };
 
@@ -452,6 +460,7 @@ mod tests {
         newton_solver_5, 5
     );
 
+    #[derive(Clone)]
     struct DummyModel {
         reg_vals: Array1<f32>,
     }
@@ -473,7 +482,7 @@ mod tests {
 
         let model = DummyModel { reg_vals };
 
-        let platt = Platt::params().calibrate(model, &dataset).unwrap();
+        let platt = Platt::params().fit_with(model, &dataset).unwrap();
 
         let pred_probabilities = platt.predict(&dataset).to_vec();
 

@@ -46,7 +46,7 @@ pub mod composing;
 pub mod correlation;
 pub mod dataset;
 pub mod error;
-pub mod hyperparams;
+pub mod param_guard;
 mod metrics_classification;
 mod metrics_clustering;
 mod metrics_regression;
