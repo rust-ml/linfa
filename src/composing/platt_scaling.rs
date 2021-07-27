@@ -367,7 +367,7 @@ mod tests {
         let prob_values = Array1::linspace(
             F::one() / F::from(n).unwrap(),
             F::one() - F::one() / F::from(n).unwrap(),
-            n,
+            n - 2,
         );
 
         // generate regression values with inverse function
@@ -448,7 +448,7 @@ mod tests {
     fn ordered_probabilities() {
         let mut rng = SmallRng::seed_from_u64(42);
 
-        let (reg_vals, dec_vals) = generate_dummy_values(1.0, 0.5, 100, &mut rng);
+        let (reg_vals, dec_vals) = generate_dummy_values(1.0, 0.5, 102, &mut rng);
         let records = Array2::zeros((100, 3));
         let dataset = DatasetBase::new(records, dec_vals);
 
