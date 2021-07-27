@@ -185,16 +185,6 @@ where
         for (x, target) in self.obj.predict(data).iter().zip(targets.iter_mut()) {
             *target = platt_predict(*x, self.a, self.b);
         }
-
-        // TODO: why did we return a len 98 array when data had 100 rows??
-        let before: Array1<Pr> = self
-            .obj
-            .predict(data)
-            .iter()
-            .map(|x| platt_predict(*x, self.a, self.b))
-            .collect();
-
-        assert_eq!(targets, &before);
     }
 
     fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<Pr> {
@@ -377,7 +367,7 @@ mod tests {
         let prob_values = Array1::linspace(
             F::one() / F::from(n).unwrap(),
             F::one() - F::one() / F::from(n).unwrap(),
-            n - 2,
+            n,
         );
 
         // generate regression values with inverse function
