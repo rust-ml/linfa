@@ -19,7 +19,7 @@ use std::marker::PhantomData;
 
 use crate::dataset::{DatasetBase, Pr};
 use crate::param_guard::{ParamGuard, ParamIntoCheckedConst};
-use crate::traits::{Predict, PredictRef};
+use crate::traits::{Predict, PredictRef, FitWith};
 use crate::Float;
 
 use ndarray::{Array1, Array2, ArrayBase, ArrayView1, Data, Ix1, Ix2};
@@ -173,29 +173,7 @@ impl<F: Float, O> Platt<F, O> {
     }
 }
 
-/*impl<F: Float, O> PlattParams<F, O, true>
-where
-    O: PredictRef<Array2<F>, Array1<F>>,
-{
-    /// Calibrate another model with Platt scaling
-    ///
-    /// This function takes another model and binary decision dataset and calibrates it to produce
-    /// probability values. The returned model therefore implements the prediction trait for
-    /// probability targets.
-    pub fn calibrate(
-        &self,
-        obj: O,
-        ds: &DatasetBase<Array2<F>, Array1<bool>>,
-    ) -> Result<Platt<F, O>, PlattError> {
-        let predicted = obj.predict(ds);
-        let (a, b) = platt_newton_method(predicted.view(), ds.targets().view(), self)?;
-
-        Ok(Platt { a, b, obj })
-    }
-}*/
-
-use crate::traits::IncrementalFit;
-impl<'a, F: Float, O: 'a> IncrementalFit<'a, Array2<F>, Array1<bool>, PlattError>
+impl<'a, F: Float, O: 'a> FitWith<'a, Array2<F>, Array1<bool>, PlattError>
     for PlattParams<F, O, true>
 where
     O: PredictRef<Array2<F>, Array1<F>>,
@@ -388,7 +366,7 @@ mod tests {
 
     use super::{platt_newton_method, ParamGuard, Platt, PlattParams};
     use crate::{
-        traits::{IncrementalFit, Predict, PredictRef},
+        traits::{FitWith, Predict, PredictRef},
         DatasetBase, Float,
     };
 

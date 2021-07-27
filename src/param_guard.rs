@@ -3,12 +3,12 @@ use std::error::Error;
 
 use crate::{
     prelude::Records,
-    traits::{Fit, IncrementalFit, Transformer},
+    traits::{Fit, FitWith, Transformer},
 };
 
 /// A set of parameters whose values have not been checked for validity. A reference to the
 /// checked hyperparameters can only be obtained after checking has completed. If the
-/// `Transformer`, `Fit`, or `IncrementalFit` traits have been implemented on the checked
+/// `Transformer`, `Fit`, or `FitWith` traits have been implemented on the checked
 /// hyperparameters, they will also be implemented on the unchecked hyperparameters with the
 /// checking step done automatically.
 ///
@@ -93,14 +93,14 @@ where
 }
 
 /// Performs checking step and calls `fit_with` on the checked hyperparameters. If checking failed,
-/// the checking error is converted to the original error type of `IncrementalFit` and returned.
-impl<'a, R: Records, T, E, P: ParamGuard> IncrementalFit<'a, R, T, E> for P
+/// the checking error is converted to the original error type of `FitWith` and returned.
+impl<'a, R: Records, T, E, P: ParamGuard> FitWith<'a, R, T, E> for P
 where
-    P::Checked: IncrementalFit<'a, R, T, E>,
+    P::Checked: FitWith<'a, R, T, E>,
     E: Error + From<crate::error::Error> + From<P::Error>,
 {
-    type ObjectIn = <<P as ParamIntoChecked>::Checked as IncrementalFit<'a, R, T, E>>::ObjectIn;
-    type ObjectOut = <<P as ParamIntoChecked>::Checked as IncrementalFit<'a, R, T, E>>::ObjectOut;
+    type ObjectIn = <<P as ParamIntoChecked>::Checked as FitWith<'a, R, T, E>>::ObjectIn;
+    type ObjectOut = <<P as ParamIntoChecked>::Checked as FitWith<'a, R, T, E>>::ObjectOut;
 
     fn fit_with(
         &self,
