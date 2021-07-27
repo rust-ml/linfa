@@ -58,7 +58,7 @@ fn div_capped<F: Float>(num: F) {
 
 ## Implement prediction traits
 
-There are three different traits for predictions, `Predict` and `PredictInplace`. `PredictInplace` takes a reference to the records and writes them into targets. This should be implemented by a new algorithms, for example:
+There are two different traits for predictions, `Predict` and `PredictInplace`. `PredictInplace` takes a reference to the records and writes the prediction into a target parameter. This should be implemented by a new algorithms, for example:
 ```rust
 impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<F>> for Svm<F, F> {
     fn predict_inplace(&self, data: &ArrayBase<D, Ix2>, targets: &mut Array1<F>) {
