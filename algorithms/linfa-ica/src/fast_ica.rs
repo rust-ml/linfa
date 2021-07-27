@@ -240,10 +240,7 @@ impl<F: Float> PredictInplace<Array2<F>, Array2<F>> for FittedFastIca<F> {
     fn predict_inplace(&self, x: &Array2<F>, y: &mut Array2<F>) {
         assert_eq!(
             y.shape(),
-            &[
-                x.nrows(),
-                PredictInplace::<Array2<_>, _>::num_target_variables_hint(self)
-            ],
+            &[x.nrows(), self.components.nrows()],
             "The number of data points must match the number of output targets."
         );
 
@@ -251,8 +248,8 @@ impl<F: Float> PredictInplace<Array2<F>, Array2<F>> for FittedFastIca<F> {
         *y = xcentered.dot(&self.components.t());
     }
 
-    fn num_target_variables_hint(&self) -> usize {
-        self.components.nrows()
+    fn default_target(&self, x: &Array2<F>) -> Array2<F> {
+        Array2::zeros((x.nrows(), self.components.nrows()))
     }
 }
 

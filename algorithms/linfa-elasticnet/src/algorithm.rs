@@ -70,6 +70,10 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<F>> f
 
         *y = x.dot(&self.parameters) + self.intercept;
     }
+
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<F> {
+        Array1::zeros(x.nrows())
+    }
 }
 
 /// View the fitted parameters and make predictions with a fitted

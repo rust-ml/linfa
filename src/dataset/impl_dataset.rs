@@ -1057,7 +1057,7 @@ where
     O: PredictInplace<ArrayBase<D, Ix2>, T>,
 {
     fn predict(&self, records: ArrayBase<D, Ix2>) -> DatasetBase<ArrayBase<D, Ix2>, T> {
-        let mut targets = todo!();
+        let mut targets = self.default_target(&records);
         self.predict_inplace(&records, &mut targets);
         DatasetBase::new(records, targets)
     }
@@ -1070,7 +1070,7 @@ where
     O: PredictInplace<R, S>,
 {
     fn predict(&self, ds: DatasetBase<R, T>) -> DatasetBase<R, S> {
-        let mut targets = todo!();
+        let mut targets = self.default_target(&ds.records);
         self.predict_inplace(&ds.records, &mut targets);
         DatasetBase::new(ds.records, targets)
     }
@@ -1082,7 +1082,7 @@ where
     O: PredictInplace<R, S>,
 {
     fn predict(&self, ds: &'a DatasetBase<R, T>) -> S {
-        let mut targets = todo!();
+        let mut targets = self.default_target(&ds.records);
         self.predict_inplace(&ds.records, &mut targets);
         targets
     }
@@ -1094,7 +1094,7 @@ where
     O: PredictInplace<ArrayBase<D, Ix2>, T>,
 {
     fn predict(&self, records: &'a ArrayBase<D, Ix2>) -> T {
-        let mut targets = todo!();
+        let mut targets = self.default_target(records);
         self.predict_inplace(records, &mut targets);
         targets
     }

@@ -191,6 +191,10 @@ macro_rules! impl_predict {
                     })
                     .collect();
             }
+
+            fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<$t> {
+                Array1::zeros(x.nrows())
+            }
         }
 
     ) *

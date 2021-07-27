@@ -239,6 +239,10 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<F>>
 
         *y = x.dot(&self.params) + self.intercept;
     }
+
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<F> {
+        Array1::zeros(x.nrows())
+    }
 }
 
 #[cfg(test)]

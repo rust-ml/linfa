@@ -489,7 +489,7 @@ pub struct DecisionTree<F: Float, L: Label> {
     num_features: usize,
 }
 
-impl<F: Float, L: Label, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<L>>
+impl<F: Float, L: Label + Default, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<L>>
     for DecisionTree<F, L>
 {
     /// Make predictions for each row of a matrix of features `x`.
@@ -504,6 +504,10 @@ impl<F: Float, L: Label, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Ar
             .into_iter()
             .map(|row| make_prediction(&row, &self.root_node))
             .collect();
+    }
+
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<L> {
+        Array1::default(x.nrows())
     }
 }
 

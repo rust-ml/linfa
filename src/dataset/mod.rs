@@ -570,23 +570,24 @@ mod tests {
             );
             *y = array![0.];
         }
+
+        fn default_target(&self, x: &ArrayView2<f64>) -> Array1<f64> {
+            Array1::zeros(x.nrows())
+        }
     }
 
     impl<'b> PredictInplace<ArrayView2<'b, f64>, Array2<f64>> for MockFittableResult {
         fn predict_inplace<'a>(&'a self, x: &'a ArrayView2<'b, f64>, y: &mut Array2<f64>) {
             assert_eq!(
                 y.shape(),
-                &[
-                    x.nrows(),
-                    PredictInplace::<_, Array2<_>>::num_target_variables_hint(self)
-                ],
+                &[x.nrows(), 2],
                 "The number of data points must match the number of output targets."
             );
             *y = array![[0., 0.]];
         }
 
-        fn num_target_variables_hint(&self) -> usize {
-            2
+        fn default_target(&self, x: &ArrayView2<f64>) -> Array2<f64> {
+            Array2::zeros((x.nrows(), 2))
         }
     }
 

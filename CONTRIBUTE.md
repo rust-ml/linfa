@@ -61,12 +61,16 @@ fn div_capped<F: Float>(num: F) {
 There are three different traits for predictions, `Predict` and `PredictInplace`. `PredictInplace` takes a reference to the records and writes them into targets. This should be implemented by a new algorithms, for example:
 ```rust
 impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<F>> for Svm<F, F> {
-    fn predict_inplace<'a>(&'a self, data: &ArrayBase<D; Ix2>, targets: &mut Array1<F>) {
+    fn predict_inplace(&self, data: &ArrayBase<D, Ix2>, targets: &mut Array1<F>) {
         assert_eq!(data.n_rows(), targets.len(), "The number of data points must match the number of output targets.");
 
         for (data, target) in data.outer_iter().zip(targets.iter_mut()) {
             *target = self.normal.dot(&data) - self.rho;
         }
+    }
+
+    fn default_target(&self, data: &ArrayBase<D, Ix2>) -> Array1<F> {
+        Array1::zeros(data.nrows())
     }
 }
 ```

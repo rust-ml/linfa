@@ -314,6 +314,10 @@ impl<A: Float, D: Data<Elem = A>> PredictInplace<ArrayBase<D, Ix2>, Array1<A>>
         let ypred = x.dot(&self.coef) + self.intercept;
         *y = self.link.inverse(&ypred);
     }
+
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<A> {
+        Array1::zeros(x.nrows())
+    }
 }
 
 #[cfg(test)]

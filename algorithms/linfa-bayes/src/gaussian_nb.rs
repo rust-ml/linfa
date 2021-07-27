@@ -333,6 +333,10 @@ where
             *classes.get(i).unwrap()
         });
     }
+
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<usize> {
+        Array1::zeros(x.nrows())
+    }
 }
 
 impl<A: Float> GaussianNb<A> {

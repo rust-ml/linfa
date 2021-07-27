@@ -364,6 +364,10 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<Pr>> 
             })
             .collect();
     }
+
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<Pr> {
+        Array1::default(x.nrows())
+    }
 }
 
 /// Classify observations
@@ -387,7 +391,12 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<bool>
             })
             .collect();
     }
+
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<bool> {
+        Array1::default(x.nrows())
+    }
 }
+
 #[cfg(test)]
 mod tests {
     use super::Svm;

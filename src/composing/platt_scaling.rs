@@ -189,6 +189,10 @@ where
             .map(|x| platt_predict(*x, self.a, self.b))
             .collect();
     }
+
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<Pr> {
+        Array1::default(x.nrows())
+    }
 }
 
 /// Predict a probability with the sigmoid function
@@ -435,6 +439,10 @@ mod tests {
                 "The number of data points must match the number of output targets."
             );
             *y = self.reg_vals.clone();
+        }
+
+        fn default_target(&self, x: &Array2<f32>) -> Array1<f32> {
+            Array1::zeros(x.nrows())
         }
     }
 
