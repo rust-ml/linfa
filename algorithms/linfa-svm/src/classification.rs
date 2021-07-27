@@ -356,13 +356,10 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<Pr>> 
 
         let (a, b) = self.probability_coeffs.unwrap();
 
-        *targets = data
-            .outer_iter()
-            .map(|data| {
-                let val = self.weighted_sum(&data) - self.rho;
-                platt_predict(val, a, b)
-            })
-            .collect();
+        for (data, target) in data.outer_iter().zip(targets.iter_mut()) {
+            let val = self.weighted_sum(&data) - self.rho;
+            *target = platt_predict(val, a, b);
+        }
     }
 
     fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<Pr> {
@@ -382,14 +379,10 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<bool>
             "The number of data points must match the number of output targets."
         );
 
-        *targets = data
-            .outer_iter()
-            .map(|data| {
-                let val = self.weighted_sum(&data) - self.rho;
-
-                val >= F::zero()
-            })
-            .collect();
+        for (data, target) in data.outer_iter().zip(targets.iter_mut()) {
+            let val = self.weighted_sum(&data) - self.rho;
+            *target = val >= F::zero();
+        }
     }
 
     fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<bool> {

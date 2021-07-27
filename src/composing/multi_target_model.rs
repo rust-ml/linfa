@@ -94,7 +94,7 @@ mod tests {
                 targets.len(),
                 "The number of data points must match the number of output targets."
             );
-            *targets = Array1::from_elem(arr.len_of(Axis(0)), self.val);
+            targets.fill(self.val);
         }
 
         fn default_target(&self, x: &Array2<f32>) -> Array1<f32> {

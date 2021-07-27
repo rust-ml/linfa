@@ -22,10 +22,10 @@ impl<R: Records, L> MultiClassModel<R, L> {
 impl<L: Clone + Default, F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<L>>
     for MultiClassModel<ArrayBase<D, Ix2>, L>
 {
-    fn predict_inplace(&self, arr: &ArrayBase<D, Ix2>, targets: &mut Array1<L>) {
+    fn predict_inplace(&self, arr: &ArrayBase<D, Ix2>, y: &mut Array1<L>) {
         assert_eq!(
             arr.nrows(),
-            targets.len(),
+            y.len(),
             "The number of data points must match the number of output targets."
         );
 
@@ -53,7 +53,9 @@ impl<L: Clone + Default, F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D
         }
 
         // remove probabilities from array and convert to `Array1`
-        *targets = res.into_iter().map(|x| x.0).collect();
+        for (r, target) in res.into_iter().zip(y.iter_mut()) {
+            *target = r.0;
+        }
     }
 
     fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<L> {

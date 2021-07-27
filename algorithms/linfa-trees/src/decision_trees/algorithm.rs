@@ -499,11 +499,10 @@ impl<F: Float, L: Label + Default, D: Data<Elem = F>> PredictInplace<ArrayBase<D
             y.len(),
             "The number of data points must match the number of output targets."
         );
-        *y = x
-            .genrows()
-            .into_iter()
-            .map(|row| make_prediction(&row, &self.root_node))
-            .collect();
+
+        for (row, target) in x.genrows().into_iter().zip(y.iter_mut()) {
+            *target = make_prediction(&row, &self.root_node);
+        }
     }
 
     fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<L> {

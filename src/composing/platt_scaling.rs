@@ -182,12 +182,19 @@ where
             targets.len(),
             "The number of data points must match the number of output targets."
         );
-        *targets = self
+        for (x, target) in self.obj.predict(data).iter().zip(targets.iter_mut()) {
+            *target = platt_predict(*x, self.a, self.b);
+        }
+
+        // TODO: why did we return a len 98 array when data had 100 rows??
+        let before: Array1<Pr> = self
             .obj
             .predict(data)
             .iter()
             .map(|x| platt_predict(*x, self.a, self.b))
             .collect();
+
+        assert_eq!(targets, &before);
     }
 
     fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<Pr> {
