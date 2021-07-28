@@ -1088,12 +1088,13 @@ where
     }
 }
 
-impl<'a, F: Float, D, T, O> Predict<&'a ArrayBase<D, Ix2>, T> for O
+impl<'a, F: Float, D, DM, T, O> Predict<&'a ArrayBase<D, DM>, T> for O
 where
     D: Data<Elem = F>,
-    O: PredictInplace<ArrayBase<D, Ix2>, T>,
+    DM: Dimension,
+    O: PredictInplace<ArrayBase<D, DM>, T>,
 {
-    fn predict(&self, records: &'a ArrayBase<D, Ix2>) -> T {
+    fn predict(&self, records: &'a ArrayBase<D, DM>) -> T {
         let mut targets = self.default_target(records);
         self.predict_inplace(records, &mut targets);
         targets
