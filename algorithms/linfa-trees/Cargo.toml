@@ -31,7 +31,7 @@ linfa = { version = "0.4.0", path = "../.." }
 
 [dev-dependencies]
 rand = { version = "0.8", features = ["small_rng"] }
-criterion = "0.3"
+criterion = "0.3.5"
 approx = "0.4"
 
 linfa-datasets = { version = "0.4.0", path = "../../datasets/", features = ["iris"] }
