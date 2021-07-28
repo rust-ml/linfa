@@ -458,8 +458,6 @@ impl<F: Float, DA: Data<Elem = F>, D: Distance<F>> PredictInplace<ArrayBase<DA, 
     /// You can retrieve the centroid associated to an index using the
     /// [`centroids` method](#method.centroids).
     fn predict_inplace(&self, observation: &ArrayBase<DA, Ix1>, membership: &mut usize) {
-        assert_eq!(observation.len(), 1, "The number of data points must be 1.");
-
         *membership = closest_centroid(&self.dist_fn, &self.centroids, observation).0;
     }
 
@@ -681,6 +679,9 @@ mod tests {
             );
             let total_dist = model.transform(&clusters.records.view()).sum();
             assert_abs_diff_eq!(inertia, total_dist, epsilon = 1e-5);
+
+            let single_cluster: usize = model.predict(&data.row(0));
+            assert_abs_diff_eq!(single_cluster, clusters.targets[0]);
 
             // Second clustering with 10 iterations (default)
             let dataset2 = DatasetBase::from(clusters.records().clone());
