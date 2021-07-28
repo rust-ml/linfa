@@ -2,7 +2,7 @@ use approx::{abs_diff_eq, abs_diff_ne};
 use ndarray::{s, Array1, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
 use ndarray_linalg::{Inverse, Lapack};
 
-use linfa::traits::{Fit, PredictRef};
+use linfa::traits::{Fit, PredictInplace};
 use linfa::{
     dataset::{AsTargets, Records},
     DatasetBase, Float,
@@ -45,11 +45,11 @@ where
         let y_est = dataset.records().dot(&parameters) + intercept;
 
         // try to calculate the variance
-        let variance = variance_params(&dataset, y_est);
+        let variance = variance_params(dataset, y_est);
 
         Ok(ElasticNet {
-            intercept,
             parameters,
+            intercept,
             duality_gap,
             n_steps,
             variance,
@@ -57,12 +57,22 @@ where
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<F>> for ElasticNet<F> {
+impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<F>> for ElasticNet<F> {
     /// Given an input matrix `X`, with shape `(n_samples, n_features)`,
     /// `predict` returns the target variable according to elastic net
     /// learned from the training data distribution.
-    fn predict_ref<'a>(&'a self, x: &ArrayBase<D, Ix2>) -> Array1<F> {
-        x.dot(&self.parameters) + self.intercept
+    fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<F>) {
+        assert_eq!(
+            x.nrows(),
+            y.len(),
+            "The number of data points must match the number of output targets."
+        );
+
+        *y = x.dot(&self.parameters) + self.intercept;
+    }
+
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<F> {
+        Array1::zeros(x.nrows())
     }
 }
 
@@ -208,7 +218,7 @@ fn duality_gap<'a, F: Float>(
     gap
 }
 
-fn variance_params<'a, F: Float + Lapack, T: AsTargets<Elem = F>, D: Data<Elem = F>>(
+fn variance_params<F: Float + Lapack, T: AsTargets<Elem = F>, D: Data<Elem = F>>(
     ds: &DatasetBase<ArrayBase<D, Ix2>, T>,
     y_est: Array1<F>,
 ) -> Result<Array1<F>> {

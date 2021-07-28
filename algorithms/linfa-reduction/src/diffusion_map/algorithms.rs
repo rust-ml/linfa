@@ -112,8 +112,8 @@ impl<F: Float> DiffusionMap<F> {
     }
 }
 
-fn compute_diffusion_map<'b, F: Float>(
-    kernel: &'b Kernel<F>,
+fn compute_diffusion_map<F: Float>(
+    kernel: &Kernel<F>,
     steps: usize,
     alpha: f32,
     embedding_size: usize,
@@ -149,7 +149,7 @@ fn compute_diffusion_map<'b, F: Float>(
                     (kernel.size(), embedding_size + 1),
                     Uniform::new(0.0f64, 1.0),
                 )
-                .mapv(|x| F::cast(x))
+                .mapv(F::cast)
             })
             .with_lapack();
 

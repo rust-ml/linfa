@@ -35,7 +35,7 @@ impl<F: Float> CellsGrid<F> {
     /// the non empty ones in a `CellTable`
     pub fn populate(&mut self, points: &ArrayView2<F>, params: &AppxDbscanHyperParams<F>) {
         for (p_i, curr_point) in points.axis_iter(Axis(0)).enumerate() {
-            self.insert_point(&curr_point, p_i, &params);
+            self.insert_point(&curr_point, p_i, params);
         }
         self.populate_neighbours();
     }

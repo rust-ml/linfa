@@ -359,8 +359,8 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
             Some(Box::new(TreeNode::fit(
                 data,
                 &left_mask,
-                &hyperparameters,
-                &sorted_indices,
+                hyperparameters,
+                sorted_indices,
                 depth + 1,
             )?))
         } else {
@@ -371,8 +371,8 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
             Some(Box::new(TreeNode::fit(
                 data,
                 &right_mask,
-                &hyperparameters,
-                &sorted_indices,
+                hyperparameters,
+                sorted_indices,
                 depth + 1,
             )?))
         } else {
@@ -489,15 +489,24 @@ pub struct DecisionTree<F: Float, L: Label> {
     num_features: usize,
 }
 
-impl<F: Float, L: Label, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<L>>
+impl<F: Float, L: Label + Default, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<L>>
     for DecisionTree<F, L>
 {
     /// Make predictions for each row of a matrix of features `x`.
-    fn predict_ref(&self, x: &ArrayBase<D, Ix2>) -> Array1<L> {
-        x.genrows()
-            .into_iter()
-            .map(|row| make_prediction(&row, &self.root_node))
-            .collect()
+    fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<L>) {
+        assert_eq!(
+            x.nrows(),
+            y.len(),
+            "The number of data points must match the number of output targets."
+        );
+
+        for (row, target) in x.genrows().into_iter().zip(y.iter_mut()) {
+            *target = make_prediction(&row, &self.root_node);
+        }
+    }
+
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<L> {
+        Array1::default(x.nrows())
     }
 }
 
@@ -519,11 +528,11 @@ where
         let all_idxs = RowMask::all(x.nrows());
         let sorted_indices: Vec<_> = (0..(x.ncols()))
             .map(|feature_idx| {
-                SortedIndex::of_array_column(&x, feature_idx, &feature_names[feature_idx])
+                SortedIndex::of_array_column(x, feature_idx, &feature_names[feature_idx])
             })
             .collect();
 
-        let mut root_node = TreeNode::fit(&dataset, &all_idxs, &self, &sorted_indices, 0)?;
+        let mut root_node = TreeNode::fit(dataset, &all_idxs, self, &sorted_indices, 0)?;
         root_node.prune();
 
         Ok(DecisionTree {
@@ -633,7 +642,7 @@ impl<F: Float, L: Label + std::fmt::Debug> DecisionTree<F, L> {
     /// * `complete=true`
     ///
     pub fn export_to_tikz(&self) -> Tikz<F, L> {
-        Tikz::new(&self)
+        Tikz::new(self)
     }
 }
 

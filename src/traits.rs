@@ -32,16 +32,20 @@ pub trait Fit<R: Records, T, E: std::error::Error + From<crate::error::Error>> {
 /// An incremental algorithm takes a former model and dataset and returns a new model with updated
 /// parameters. If the former model is `None`, then the function acts like `Fit::fit` and
 /// initializes the model first.
-pub trait IncrementalFit<'a, R: Records, T> {
+pub trait IncrementalFit<'a, R: Records, T, E: std::error::Error + From<crate::error::Error>> {
     type ObjectIn: 'a;
     type ObjectOut: 'a;
 
-    fn fit_with(&self, model: Self::ObjectIn, dataset: &'a DatasetBase<R, T>) -> Self::ObjectOut;
+    fn fit_with(
+        &self,
+        model: Self::ObjectIn,
+        dataset: &'a DatasetBase<R, T>,
+    ) -> Result<Self::ObjectOut, E>;
 }
 
 /// Predict with model
 ///
-/// This trait assumes the `PredictRef` implementation and provides additional input/output
+/// This trait assumes the `PredictInplace` implementation and provides additional input/output
 /// combinations.
 ///
 /// # Provided implementation
@@ -53,7 +57,10 @@ pub trait Predict<R: Records, T> {
     fn predict(&self, x: R) -> T;
 }
 
-/// Predict with model for reference of dataset
-pub trait PredictRef<R: Records, T> {
-    fn predict_ref<'a>(&'a self, x: &'a R) -> T;
+/// Predict with model into a mutable reference of targets.
+pub trait PredictInplace<R: Records, T> {
+    fn predict_inplace<'a>(&'a self, x: &'a R, y: &mut T);
+
+    /// Create targets that `predict_inplace` works with.
+    fn default_target(&self, x: &R) -> T;
 }

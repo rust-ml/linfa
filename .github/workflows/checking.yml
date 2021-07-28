@@ -8,12 +8,16 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
     strategy:
+      fail-fast: false
       matrix:
         toolchain:
-          - 1.42.0
-          - nightly-2021-03-24
-          - beta
+          - 1.51.0
           - stable
+        experimental: [false]
+        include:
+          - toolchain: nightly
+            experimental: true
+    continue-on-error: ${{ matrix.experimental }}
 
     steps:
       - name: Checkout sources
@@ -26,8 +30,15 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           override: true
 
-      - name: Run cargo check
+      - name: Run cargo check (no features)
         uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --all
+          args: --workspace
+
+      - name: Run cargo check (with serde)
+        if: ${{ matrix.toolchain != '1.51.0' }} # The following args don't work on older versions of Cargo
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --workspace --features "linfa-clustering/serde linfa-ica/serde linfa-kernel/serde linfa-reduction/serde linfa-svm/serde linfa-elasticnet/serde linfa-pls/serde linfa-trees/serde linfa-nn/serde"

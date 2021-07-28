@@ -3,7 +3,7 @@ use crate::gaussian_mixture::hyperparameters::{GmmCovarType, GmmHyperParams, Gmm
 use crate::k_means::KMeans;
 use linfa::{
     dataset::{WithLapack, WithoutLapack},
-    traits::*,
+    prelude::*,
     DatasetBase, Float,
 };
 use ndarray::{s, Array, Array1, Array2, Array3, ArrayBase, Axis, Data, Ix2, Ix3, Zip};
@@ -56,7 +56,7 @@ use serde_crate::{Deserialize, Serialize};
 ///
 /// ```rust, ignore
 /// use linfa::DatasetBase;
-/// use linfa::traits::{Fit, PredictRef};
+/// use linfa::traits::{Fit, PredictInplace};
 /// use linfa_clustering::{GmmHyperParams, GaussianMixtureModel, generate_blobs};
 /// use ndarray::{Axis, array, s, Zip};
 /// use ndarray_rand::rand::SeedableRng;
@@ -138,8 +138,9 @@ impl<F: Float> GaussianMixtureModel<F> {
         let resp = match hyperparameters.init_method() {
             GmmInitMethod::KMeans => {
                 let model = KMeans::params_with_rng(hyperparameters.n_clusters(), rng)
-                    .build()
-                    .fit(&dataset)?;
+                    .check()
+                    .unwrap()
+                    .fit(dataset)?;
                 let mut resp = Array::<F, Ix2>::zeros((n_samples, hyperparameters.n_clusters()));
                 for (k, idx) in model.predict(dataset.records()).iter().enumerate() {
                     resp[[k, *idx]] = F::cast(1.);
@@ -226,7 +227,7 @@ impl<F: Float> GaussianMixtureModel<F> {
         let means = resp.t().dot(observations) / nk2;
         // GmmCovarType = Full
         let covariances =
-            Self::estimate_gaussian_covariances_full(&observations, resp, &nk, &means, reg_covar);
+            Self::estimate_gaussian_covariances_full(observations, resp, &nk, &means, reg_covar);
         Ok((nk, means, covariances))
     }
 
@@ -288,8 +289,8 @@ impl<F: Float> GaussianMixtureModel<F> {
         &self,
         observations: &ArrayBase<D, Ix2>,
     ) -> Result<(F, Array2<F>)> {
-        let (log_prob_norm, log_resp) = self.estimate_log_prob_resp(&observations);
-        let log_mean = log_prob_norm.mean().ok_or(linfa::Error::NotEnoughSamples)?;
+        let (log_prob_norm, log_resp) = self.estimate_log_prob_resp(observations);
+        let log_mean = log_prob_norm.mean().unwrap();
         Ok((log_mean, log_resp))
     }
 
@@ -301,7 +302,7 @@ impl<F: Float> GaussianMixtureModel<F> {
     ) -> Result<()> {
         let n_samples = observations.nrows();
         let (weights, means, covariances) = Self::estimate_gaussian_parameters(
-            &observations,
+            observations,
             &log_resp.mapv(|x| x.exp()),
             &self.covar_type,
             reg_covar,
@@ -329,7 +330,7 @@ impl<F: Float> GaussianMixtureModel<F> {
         &self,
         observations: &ArrayBase<D, Ix2>,
     ) -> (Array1<F>, Array2<F>) {
-        let weighted_log_prob = self.estimate_weighted_log_prob(&observations);
+        let weighted_log_prob = self.estimate_weighted_log_prob(observations);
         let log_prob_norm = weighted_log_prob
             .mapv(|x| x.exp())
             .sum_axis(Axis(1))
@@ -343,12 +344,12 @@ impl<F: Float> GaussianMixtureModel<F> {
         &self,
         observations: &ArrayBase<D, Ix2>,
     ) -> Array2<F> {
-        self.estimate_log_prob(&observations) + self.estimate_log_weights()
+        self.estimate_log_prob(observations) + self.estimate_log_weights()
     }
 
     // Compute log probabilities for each samples wrt to the model which is gaussian
     fn estimate_log_prob<D: Data<Elem = F>>(&self, observations: &ArrayBase<D, Ix2>) -> Array2<F> {
-        self.estimate_log_gaussian_prob(&observations)
+        self.estimate_log_gaussian_prob(observations)
     }
 
     // Compute the log likelihood in case of the gaussian probabilities
@@ -455,14 +456,24 @@ impl<F: Float, R: Rng + SeedableRng + Clone, D: Data<Elem = F>, T>
     }
 }
 
-impl<F: Float + Lapack + Scalar, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<usize>>
+impl<F: Float + Lapack + Scalar, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<usize>>
     for GaussianMixtureModel<F>
 {
-    fn predict_ref<'a>(&'_ self, observations: &ArrayBase<D, Ix2>) -> Array1<usize> {
-        let (_, log_resp) = self.estimate_log_prob_resp(&observations);
-        log_resp
+    fn predict_inplace(&self, observations: &ArrayBase<D, Ix2>, targets: &mut Array1<usize>) {
+        assert_eq!(
+            observations.nrows(),
+            targets.len(),
+            "The number of data points must match the number of output targets."
+        );
+
+        let (_, log_resp) = self.estimate_log_prob_resp(observations);
+        *targets = log_resp
             .mapv(Scalar::exp)
-            .map_axis(Axis(1), |row| row.argmax().unwrap())
+            .map_axis(Axis(1), |row| row.argmax().unwrap());
+    }
+
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<usize> {
+        Array1::zeros(x.nrows())
     }
 }
 
@@ -552,7 +563,7 @@ mod tests {
         Zip::from(&mut y).and(x).apply(|yi, &xi| {
             if xi < 0.4 {
                 *yi = xi * xi;
-            } else if xi >= 0.4 && xi < 0.8 {
+            } else if (0.4..0.8).contains(&xi) {
                 *yi = 3. * xi + 1.;
             } else {
                 *yi = f64::sin(10. * xi);

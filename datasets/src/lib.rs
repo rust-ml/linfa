@@ -178,12 +178,12 @@ mod tests {
         );
 
         // check label frequency
-        assert_eq!(
+        assert_abs_diff_eq!(
             ds.label_frequencies()
                 .into_iter()
                 .map(|b| b.1)
-                .collect::<Vec<_>>(),
-            &[50., 50., 50.]
+                .collect::<Array1<_>>(),
+            array![50., 50., 50.]
         );
 
         // perform correlation analysis and assert that petal length and width are correlated
@@ -221,6 +221,8 @@ mod tests {
     #[cfg(feature = "winequality")]
     #[test]
     fn test_winequality() {
+        use approx::abs_diff_eq;
+
         let ds = winequality();
 
         // check that we have the right amount of data
@@ -256,9 +258,12 @@ mod tests {
         ];
 
         let freqs = ds.label_frequencies();
-        assert!(compare_to
-            .into_iter()
-            .all(|(key, val)| { freqs.get(&key).map(|x| *x == val).unwrap_or(false) }));
+        assert!(compare_to.into_iter().all(|(key, val)| {
+            freqs
+                .get(&key)
+                .map(|x| abs_diff_eq!(*x, val))
+                .unwrap_or(false)
+        }));
 
         // perform correlation analysis and assert that fixed acidity and citric acid are
         // correlated

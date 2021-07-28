@@ -4,13 +4,15 @@ use crate::utils;
 use linfa::{
     dataset::{Records, WithLapack, WithoutLapack},
     traits::Fit,
-    traits::PredictRef,
+    traits::PredictInplace,
     traits::Transformer,
     Dataset, DatasetBase, Float,
 };
 use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
 use ndarray_linalg::svd::*;
 use ndarray_stats::QuantileExt;
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 #[cfg_attr(
     feature = "serde",
@@ -134,11 +136,21 @@ impl<F: Float, D: Data<Elem = F>>
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array2<F>> for Pls<F> {
-    fn predict_ref(&self, x: &ArrayBase<D, Ix2>) -> Array2<F> {
+impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array2<F>> for Pls<F> {
+    fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array2<F>) {
+        assert_eq!(
+            y.shape(),
+            &[x.nrows(), self.coefficients.ncols()],
+            "The number of data points must match the number of output targets."
+        );
+
         let mut x = x - &self.x_mean;
         x /= &self.x_std;
-        x.dot(&self.coefficients) + &self.y_mean
+        *y = x.dot(&self.coefficients) + &self.y_mean;
+    }
+
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array2<F> {
+        Array2::zeros((x.nrows(), self.coefficients.ncols()))
     }
 }
 
@@ -246,7 +258,7 @@ impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsE
         }
         let norm_y_weights = self.deflation_mode == DeflationMode::Canonical;
         let (mut xk, mut yk, x_mean, y_mean, x_std, y_std) =
-            utils::center_scale_dataset(&dataset, self.scale);
+            utils::center_scale_dataset(dataset, self.scale);
 
         let mut x_weights = Array2::<F>::zeros((p, n_components)); // U
         let mut y_weights = Array2::<F>::zeros((q, n_components)); // V

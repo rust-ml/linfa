@@ -3,6 +3,8 @@ use crate::{utils, Float};
 use linfa::{dataset::Records, traits::Fit, traits::Transformer, DatasetBase};
 use ndarray::{s, Array1, Array2, ArrayBase, Data, Ix2};
 use ndarray_linalg::svd::*;
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 #[cfg_attr(
     feature = "serde",
@@ -65,8 +67,7 @@ impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsE
                 rank_upper_bound, self.n_components
             )));
         }
-        let (x, y, x_mean, y_mean, x_std, y_std) =
-            utils::center_scale_dataset(&dataset, self.scale);
+        let (x, y, x_mean, y_mean, x_std, y_std) = utils::center_scale_dataset(dataset, self.scale);
 
         // Compute SVD of cross-covariance matrix
         let c = x.t().dot(&y);

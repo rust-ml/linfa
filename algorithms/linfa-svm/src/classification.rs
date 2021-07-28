@@ -3,7 +3,7 @@ use linfa::{
     composing::platt_scaling::{platt_newton_method, platt_predict, PlattParams},
     dataset::{AsTargets, CountedTargets, DatasetBase, Pr},
     traits::Fit,
-    traits::{Predict, PredictRef},
+    traits::{Predict, PredictInplace},
 };
 use ndarray::{Array1, Array2, ArrayBase, ArrayView2, Data, Ix1, Ix2};
 use std::cmp::Ordering;
@@ -195,9 +195,7 @@ pub fn fit_one_class<F: Float + num_traits::ToPrimitive>(
         false,
     );
 
-    let res = solver.solve();
-
-    res
+    solver.solve()
 }
 
 /// Fit binary classification problem
@@ -310,7 +308,7 @@ impl_oneclass!(Array2<F>, CountedTargets<(), ArrayView2<'_, ()>>);
 impl<F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix1>, Pr> for Svm<F, Pr> {
     fn predict(&self, data: ArrayBase<D, Ix1>) -> Pr {
         let val = self.weighted_sum(&data) - self.rho;
-        let (a, b) = self.probability_coeffs.clone().unwrap();
+        let (a, b) = self.probability_coeffs.unwrap();
 
         platt_predict(val, a, b)
     }
@@ -348,16 +346,24 @@ impl<F: Float> Predict<Array1<F>, bool> for Svm<F, bool> {
 ///
 /// This function takes a number of features and predicts target probabilities that they belong to
 /// the positive class.
-impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<Pr>> for Svm<F, Pr> {
-    fn predict_ref<'a>(&'a self, data: &ArrayBase<D, Ix2>) -> Array1<Pr> {
-        let (a, b) = self.probability_coeffs.clone().unwrap();
+impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<Pr>> for Svm<F, Pr> {
+    fn predict_inplace(&self, data: &ArrayBase<D, Ix2>, targets: &mut Array1<Pr>) {
+        assert_eq!(
+            data.nrows(),
+            targets.len(),
+            "The number of data points must match the number of output targets."
+        );
 
-        data.outer_iter()
-            .map(|data| {
-                let val = self.weighted_sum(&data) - self.rho;
-                platt_predict(val, a, b)
-            })
-            .collect()
+        let (a, b) = self.probability_coeffs.unwrap();
+
+        for (data, target) in data.outer_iter().zip(targets.iter_mut()) {
+            let val = self.weighted_sum(&data) - self.rho;
+            *target = platt_predict(val, a, b);
+        }
+    }
+
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<Pr> {
+        Array1::default(x.nrows())
     }
 }
 
@@ -365,21 +371,30 @@ impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<Pr>> for 
 ///
 /// This function takes a number of features and predicts target probabilities that they belong to
 /// the positive class.
-impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<bool>> for Svm<F, bool> {
-    fn predict_ref<'a>(&'a self, data: &ArrayBase<D, Ix2>) -> Array1<bool> {
-        data.outer_iter()
-            .map(|data| {
-                let val = self.weighted_sum(&data) - self.rho;
+impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<bool>> for Svm<F, bool> {
+    fn predict_inplace(&self, data: &ArrayBase<D, Ix2>, targets: &mut Array1<bool>) {
+        assert_eq!(
+            data.nrows(),
+            targets.len(),
+            "The number of data points must match the number of output targets."
+        );
 
-                val >= F::zero()
-            })
-            .collect()
+        for (data, target) in data.outer_iter().zip(targets.iter_mut()) {
+            let val = self.weighted_sum(&data) - self.rho;
+            *target = val >= F::zero();
+        }
+    }
+
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<bool> {
+        Array1::default(x.nrows())
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::Svm;
     use crate::error::Result;
+    use approx::assert_abs_diff_eq;
     use linfa::dataset::{Dataset, DatasetBase};
     use linfa::prelude::ToConfusionMatrix;
     use linfa::traits::{Fit, Predict};
@@ -420,7 +435,7 @@ mod tests {
         )
         .unwrap();
         let targets = (0..20).map(|x| x < 10).collect::<Array1<_>>();
-        let dataset = Dataset::new(entries.clone(), targets);
+        let dataset = Dataset::new(entries, targets);
 
         // train model with positive and negative weight
         let model = Svm::<_, bool>::params()
@@ -431,7 +446,7 @@ mod tests {
         let y_est = model.predict(&dataset);
 
         let cm = y_est.confusion_matrix(&dataset)?;
-        assert_eq!(cm.accuracy(), 1.0);
+        assert_abs_diff_eq!(cm.accuracy(), 1.0);
 
         // train model with Nu parameter
         let model = Svm::<_, bool>::params()
@@ -442,7 +457,7 @@ mod tests {
         let valid = model.predict(&dataset);
 
         let cm = valid.confusion_matrix(&dataset)?;
-        assert_eq!(cm.accuracy(), 1.0);
+        assert_abs_diff_eq!(cm.accuracy(), 1.0);
 
         Ok(())
     }
@@ -453,7 +468,7 @@ mod tests {
         // construct parabolica and classify middle area as positive and borders as negative
         let records = Array::random_using((40, 1), Uniform::new(-2f64, 2.), &mut rng);
         let targets = records.map_axis(Axis(1), |x| x[0] * x[0] < 0.5);
-        let dataset = Dataset::new(records.clone(), targets);
+        let dataset = Dataset::new(records, targets);
 
         // train model with positive and negative weight
         let model = Svm::<_, bool>::params()
@@ -511,7 +526,7 @@ mod tests {
         // perform cross-validation with the MCC
         let acc_runs = linfa_datasets::winequality()
             .map_targets(|x| *x > 6)
-            .iter_fold(1, |v| params.fit(&v).unwrap())
+            .iter_fold(1, |v| params.fit(v).unwrap())
             .map(|(model, valid)| {
                 let cm = model.predict(&valid).confusion_matrix(&valid).unwrap();
 

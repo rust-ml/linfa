@@ -6,7 +6,7 @@
 //!
 //!
 use crate::dataset::Records;
-use crate::traits::PredictRef;
+use crate::traits::PredictInplace;
 use crate::Float;
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2};
 use std::iter::FromIterator;
@@ -17,7 +17,7 @@ use std::iter::FromIterator;
 /// single target variable. This wrapper allows the user to merge multiple models with only a
 /// single-target variable into a multi-target model.
 pub struct MultiTargetModel<R: Records, L> {
-    models: Vec<Box<dyn PredictRef<R, Array1<L>>>>,
+    models: Vec<Box<dyn PredictInplace<R, Array1<L>>>>,
 }
 
 impl<R: Records, L> MultiTargetModel<R, L> {
@@ -27,32 +27,46 @@ impl<R: Records, L> MultiTargetModel<R, L> {
     /// prediction trait and can otherwise contain any object. This allows the mixture of different
     /// models into the same wrapper. If you want to use the same model for all predictions, just
     /// use the `FromIterator` implementation.
-    pub fn new(models: Vec<Box<dyn PredictRef<R, Array1<L>>>>) -> Self {
+    pub fn new(models: Vec<Box<dyn PredictInplace<R, Array1<L>>>>) -> Self {
         MultiTargetModel { models }
     }
 }
 
-impl<L, F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array2<L>>
+impl<L: Default, F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array2<L>>
     for MultiTargetModel<ArrayBase<D, Ix2>, L>
 {
-    fn predict_ref(&self, arr: &ArrayBase<D, Ix2>) -> Array2<L> {
-        self.models
+    fn predict_inplace(&self, arr: &ArrayBase<D, Ix2>, targets: &mut Array2<L>) {
+        assert_eq!(
+            targets.shape(),
+            &[arr.nrows(), self.models.len()],
+            "The number of data points must match the number of output targets."
+        );
+        *targets = self
+            .models
             .iter()
-            .flat_map(|model| model.predict_ref(arr).into_raw_vec())
+            .flat_map(|model| {
+                let mut targets = Array1::default(arr.nrows());
+                model.predict_inplace(arr, &mut targets);
+                targets.into_raw_vec()
+            })
             .collect::<Array1<L>>()
             .into_shape((self.models.len(), arr.len_of(Axis(0))))
             .unwrap()
-            .reversed_axes()
+            .reversed_axes();
+    }
+
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array2<L> {
+        Array2::default((x.nrows(), self.models.len()))
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, L, P: PredictRef<ArrayBase<D, Ix2>, Array1<L>> + 'static>
+impl<F: Float, D: Data<Elem = F>, L, P: PredictInplace<ArrayBase<D, Ix2>, Array1<L>> + 'static>
     FromIterator<P> for MultiTargetModel<ArrayBase<D, Ix2>, L>
 {
     fn from_iter<I: IntoIterator<Item = P>>(iter: I) -> Self {
         let models = iter
             .into_iter()
-            .map(|x| Box::new(x) as Box<dyn PredictRef<ArrayBase<D, Ix2>, Array1<L>>>)
+            .map(|x| Box::new(x) as Box<dyn PredictInplace<ArrayBase<D, Ix2>, Array1<L>>>)
             .collect();
 
         MultiTargetModel { models }
@@ -62,7 +76,7 @@ impl<F: Float, D: Data<Elem = F>, L, P: PredictRef<ArrayBase<D, Ix2>, Array1<L>>
 #[cfg(test)]
 mod tests {
     use crate::{
-        traits::{Predict, PredictRef},
+        traits::{Predict, PredictInplace},
         MultiTargetModel,
     };
     use approx::assert_abs_diff_eq;
@@ -73,9 +87,18 @@ mod tests {
         val: f32,
     }
 
-    impl PredictRef<Array2<f32>, Array1<f32>> for DummyModel {
-        fn predict_ref(&self, arr: &Array2<f32>) -> Array1<f32> {
-            Array1::from_elem(arr.len_of(Axis(0)), self.val)
+    impl PredictInplace<Array2<f32>, Array1<f32>> for DummyModel {
+        fn predict_inplace(&self, arr: &Array2<f32>, targets: &mut Array1<f32>) {
+            assert_eq!(
+                arr.nrows(),
+                targets.len(),
+                "The number of data points must match the number of output targets."
+            );
+            targets.fill(self.val);
+        }
+
+        fn default_target(&self, x: &Array2<f32>) -> Array1<f32> {
+            Array1::zeros(x.nrows())
         }
     }
 
@@ -84,13 +107,22 @@ mod tests {
         val: f32,
     }
 
-    impl PredictRef<Array2<f32>, Array1<f32>> for DummyModel2 {
-        fn predict_ref(&self, arr: &Array2<f32>) -> Array1<f32> {
-            Array1::linspace(
+    impl PredictInplace<Array2<f32>, Array1<f32>> for DummyModel2 {
+        fn predict_inplace(&self, arr: &Array2<f32>, targets: &mut Array1<f32>) {
+            assert_eq!(
+                arr.nrows(),
+                targets.len(),
+                "The number of data points must match the number of output targets."
+            );
+            *targets = Array1::linspace(
                 self.val,
                 self.val + arr.len_of(Axis(0)) as f32 - 1.0,
                 arr.len_of(Axis(0)),
-            )
+            );
+        }
+
+        fn default_target(&self, x: &Array2<f32>) -> Array1<f32> {
+            Array1::zeros(x.nrows())
         }
     }
 

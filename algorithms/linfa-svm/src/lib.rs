@@ -250,7 +250,6 @@ pub enum ExitReason {
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-
 pub struct Svm<F: Float, T> {
     pub alpha: Vec<F>,
     pub rho: F,
@@ -261,8 +260,8 @@ pub struct Svm<F: Float, T> {
     #[cfg_attr(
         feature = "serde",
         serde(bound(
-            serialize = "&'a Kernel<'a, F>: Serialize",
-            deserialize = "&'a Kernel<'a, F>: Deserialize<'de>"
+            serialize = "KernelMethod<F>: Serialize",
+            deserialize = "KernelMethod<F>: Deserialize<'de>"
         ))
     )]
     // the only thing I need the kernel for after the training is to
@@ -390,7 +389,7 @@ mod tests {
             .gaussian_kernel(80.0);
 
         let avg_acc = dataset
-            .iter_fold(4, |training_set| params.fit(&training_set).unwrap())
+            .iter_fold(4, |training_set| params.fit(training_set).unwrap())
             .map(|(model, valid)| {
                 model
                     .predict(valid.view())

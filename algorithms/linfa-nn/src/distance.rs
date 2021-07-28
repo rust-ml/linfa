@@ -1,23 +1,21 @@
 use linfa::Float;
-use ndarray::Zip;
+use ndarray::{ArrayView, Dimension, Zip};
 use ndarray_stats::DeviationExt;
 
-use crate::Point;
-
 /// A distance function that can be used in spatial algorithms such as nearest neighbour.
-pub trait Distance<F: Float>: Clone {
+pub trait Distance<F: Float>: Clone + Send + Sync {
     /// Computes the distance between two points. For most spatial algorithms to work correctly,
     /// **this metric must satisfy the Triangle Inequality.**
     ///
     /// Panics if the points have different dimensions.
-    fn distance(&self, a: Point<F>, b: Point<F>) -> F;
+    fn distance<D: Dimension>(&self, a: ArrayView<F, D>, b: ArrayView<F, D>) -> F;
 
     /// A faster version of the distance metric that keeps the order of the distance function. That
     /// is, `dist(a, b) > dist(c, d)` implies `rdist(a, b) > rdist(c, d)`. For most algorithms this
     /// is the same as `distance`. Unlike `distance`, this function does **not** need to satisfy
     /// the Triangle Inequality.
     #[inline]
-    fn rdistance(&self, a: Point<F>, b: Point<F>) -> F {
+    fn rdistance<D: Dimension>(&self, a: ArrayView<F, D>, b: ArrayView<F, D>) -> F {
         self.distance(a, b)
     }
 
@@ -35,26 +33,26 @@ pub trait Distance<F: Float>: Clone {
 }
 
 /// L1 or [Manhattan](https://en.wikipedia.org/wiki/Taxicab_geometry) distance
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct L1Dist;
 impl<F: Float> Distance<F> for L1Dist {
     #[inline]
-    fn distance(&self, a: Point<F>, b: Point<F>) -> F {
+    fn distance<D: Dimension>(&self, a: ArrayView<F, D>, b: ArrayView<F, D>) -> F {
         a.l1_dist(&b).unwrap()
     }
 }
 
 /// L2 or [Euclidean](https://en.wikipedia.org/wiki/Euclidean_distance) distance
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct L2Dist;
 impl<F: Float> Distance<F> for L2Dist {
     #[inline]
-    fn distance(&self, a: Point<F>, b: Point<F>) -> F {
+    fn distance<D: Dimension>(&self, a: ArrayView<F, D>, b: ArrayView<F, D>) -> F {
         F::from(a.l2_dist(&b).unwrap()).unwrap()
     }
 
     #[inline]
-    fn rdistance(&self, a: Point<F>, b: Point<F>) -> F {
+    fn rdistance<D: Dimension>(&self, a: ArrayView<F, D>, b: ArrayView<F, D>) -> F {
         F::from(a.sq_l2_dist(&b).unwrap()).unwrap()
     }
 
@@ -70,21 +68,21 @@ impl<F: Float> Distance<F> for L2Dist {
 }
 
 /// L-infinte or [Chebyshev](https://en.wikipedia.org/wiki/Chebyshev_distance) distance
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct LInfDist;
 impl<F: Float> Distance<F> for LInfDist {
     #[inline]
-    fn distance(&self, a: Point<F>, b: Point<F>) -> F {
+    fn distance<D: Dimension>(&self, a: ArrayView<F, D>, b: ArrayView<F, D>) -> F {
         a.linf_dist(&b).unwrap()
     }
 }
 
 /// L-p or [Minkowsky](https://en.wikipedia.org/wiki/Minkowski_distance) distance
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct LpDist<F: Float>(F);
 impl<F: Float> Distance<F> for LpDist<F> {
     #[inline]
-    fn distance(&self, a: Point<F>, b: Point<F>) -> F {
+    fn distance<D: Dimension>(&self, a: ArrayView<F, D>, b: ArrayView<F, D>) -> F {
         Zip::from(&a)
             .and(&b)
             .fold(F::zero(), |acc, &a, &b| acc + (a - b).abs().powf(self.0))

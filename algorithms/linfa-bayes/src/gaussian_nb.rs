@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use crate::error::{BayesError, Result};
 use linfa::dataset::{AsTargets, DatasetBase, Labels};
-use linfa::traits::{Fit, IncrementalFit, PredictRef};
+use linfa::traits::{Fit, IncrementalFit, PredictInplace};
 use linfa::Float;
 
 /// Gaussian Naive Bayes (GaussianNB)
@@ -91,14 +91,14 @@ where
     }
 }
 
-impl<F, D, L> IncrementalFit<'_, ArrayBase<D, Ix2>, L> for GaussianNbParams
+impl<F, D, L> IncrementalFit<'_, ArrayBase<D, Ix2>, L, BayesError> for GaussianNbParams
 where
     F: Float,
     D: Data<Elem = F>,
     L: AsTargets<Elem = usize> + Labels<Elem = usize>,
 {
     type ObjectIn = Option<GaussianNb<F>>;
-    type ObjectOut = Result<Option<GaussianNb<F>>>;
+    type ObjectOut = Option<GaussianNb<F>>;
 
     /// Incrementally fit on a batch of samples
     ///
@@ -141,7 +141,7 @@ where
         &self,
         model_in: Self::ObjectIn,
         dataset: &DatasetBase<ArrayBase<D, Ix2>, L>,
-    ) -> Self::ObjectOut {
+    ) -> Result<Self::ObjectOut> {
         let x = dataset.records();
         let y = dataset.try_single_target()?;
 
@@ -295,7 +295,7 @@ struct ClassInfo<A> {
     sigma: Array1<A>,
 }
 
-impl<F: Float, D> PredictRef<ArrayBase<D, Ix2>, Array1<usize>> for GaussianNb<F>
+impl<F: Float, D> PredictInplace<ArrayBase<D, Ix2>, Array1<usize>> for GaussianNb<F>
 where
     D: Data<Elem = F>,
 {
@@ -303,7 +303,13 @@ where
     ///
     /// __Panics__ if the input is empty or if pairwise orderings are undefined
     /// (this occurs in presence of NaN values)
-    fn predict_ref(&self, x: &ArrayBase<D, Ix2>) -> Array1<usize> {
+    fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<usize>) {
+        assert_eq!(
+            x.nrows(),
+            y.len(),
+            "The number of data points must match the number of output targets."
+        );
+
         let joint_log_likelihood = self.joint_log_likelihood(x.view());
 
         // We store the classes and likelihood info in an vec and matrix
@@ -322,10 +328,14 @@ where
             });
 
         // Identify the class with the maximum log likelihood
-        likelihood.map_axis(Axis(0), |x| {
+        *y = likelihood.map_axis(Axis(0), |x| {
             let i = x.argmax().unwrap();
             *classes.get(i).unwrap()
-        })
+        });
+    }
+
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<usize> {
+        Array1::zeros(x.nrows())
     }
 }
 

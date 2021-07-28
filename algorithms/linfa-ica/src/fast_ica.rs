@@ -124,7 +124,7 @@ impl<F: Float, D: Data<Elem = F>, T> Fit<ArrayBase<D, Ix2>, T, FastIcaError> for
         let xcentered = xcentered.with_lapack();
         let k = match xcentered.svd(true, false)? {
             (Some(u), s, _) => {
-                let s = s.mapv(|x| F::Lapack::cast(x));
+                let s = s.mapv(F::Lapack::cast);
                 (u.slice_move(s![.., ..nsamples.min(nfeatures)]) / s)
                     .t()
                     .slice(s![..ncomponents, ..])
@@ -148,7 +148,7 @@ impl<F: Float, D: Data<Elem = F>, T> Fit<ArrayBase<D, Ix2>, T, FastIcaError> for
         } else {
             w = Array::random((ncomponents, ncomponents), Uniform::new(0., 1.));
         }
-        let mut w = w.mapv(|x| F::cast(x));
+        let mut w = w.mapv(F::cast);
 
         // We find the optimized de-mixing matrix
         w = self.ica_parallel(&xwhitened, &w)?;
@@ -166,7 +166,7 @@ impl<F: Float, D: Data<Elem = F>, T> Fit<ArrayBase<D, Ix2>, T, FastIcaError> for
 impl<F: Float> FastIca<F> {
     // Parallel FastICA, Optimization step
     fn ica_parallel(&self, x: &Array2<F>, w: &Array2<F>) -> Result<Array2<F>> {
-        let mut w = Self::sym_decorrelation(&w)?;
+        let mut w = Self::sym_decorrelation(w)?;
 
         let p = x.ncols() as f64;
 
@@ -205,7 +205,7 @@ impl<F: Float> FastIca<F> {
     // W <- (W * W.T)^{-1/2} * W
     fn sym_decorrelation(w: &Array2<F>) -> Result<Array2<F>> {
         let (eig_val, eig_vec) = w.dot(&w.t()).with_lapack().eigh(UPLO::Upper)?;
-        let eig_val = eig_val.mapv(|x| F::cast(x));
+        let eig_val = eig_val.mapv(F::cast);
         let eig_vec = eig_vec.without_lapack();
 
         let tmp = &eig_vec
@@ -235,11 +235,21 @@ pub struct FittedFastIca<F> {
     components: Array2<F>,
 }
 
-impl<F: Float> PredictRef<Array2<F>, Array2<F>> for FittedFastIca<F> {
+impl<F: Float> PredictInplace<Array2<F>, Array2<F>> for FittedFastIca<F> {
     /// Recover the sources
-    fn predict_ref<'a>(&'a self, x: &Array2<F>) -> Array2<F> {
+    fn predict_inplace(&self, x: &Array2<F>, y: &mut Array2<F>) {
+        assert_eq!(
+            y.shape(),
+            &[x.nrows(), self.components.nrows()],
+            "The number of data points must match the number of output targets."
+        );
+
         let xcentered = x - &self.mean.view().insert_axis(Axis(0));
-        xcentered.dot(&self.components.t())
+        *y = xcentered.dot(&self.components.t());
+    }
+
+    fn default_target(&self, x: &Array2<F>) -> Array2<F> {
+        Array2::zeros((x.nrows(), self.components.nrows()))
     }
 }
 

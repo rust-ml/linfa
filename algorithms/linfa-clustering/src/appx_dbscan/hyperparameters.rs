@@ -1,6 +1,9 @@
+use linfa::prelude::*;
 use linfa::Float;
+
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
+use thiserror::Error;
 
 #[cfg_attr(
     feature = "serde",
@@ -11,110 +14,95 @@ use serde_crate::{Deserialize, Serialize};
 /// The set of hyperparameters that can be specified for the execution of
 /// the [Approximated DBSCAN algorithm](struct.AppxDbscan.html).
 pub struct AppxDbscanHyperParams<F: Float> {
-    /// Distance between points for them to be considered neighbours.
-    tolerance: F,
-    /// Minimum number of neighboring points a point needs to have to be a core
-    /// point and not a noise point.
-    min_points: usize,
-    /// Approximation factor, allows the distance between two points
-    /// for them to be considered neighbours to reach
-    /// `tolerance * (1 + slack)`
-    slack: F,
-    appx_tolerance: F,
+    pub(crate) tolerance: F,
+    pub(crate) min_points: usize,
+    pub(crate) slack: F,
 }
 
-/// Helper struct used to construct a set of hyperparameters for the approximated DBSCAN algorithm
-pub struct AppxDbscanHyperParamsBuilder<F: Float> {
-    tolerance: F,
-    min_points: usize,
-    slack: F,
+#[derive(Debug)]
+/// Helper struct for building a set of [Approximated DBSCAN
+/// hyperparameters](struct.AppxDbscanHyperParams.html)
+pub struct UncheckedAppxDbscanHyperParams<F: Float>(AppxDbscanHyperParams<F>);
+
+#[derive(Debug, Error)]
+pub enum AppxDbscanParamsError {
+    #[error("tolerance must be greater than 0")]
+    Tolerance,
+    #[error("min_points must be greater than 1")]
+    MinPoints,
+    #[error("slack must be greater than 0")]
+    Slack,
 }
 
-impl<F: Float> AppxDbscanHyperParamsBuilder<F> {
-    /// Distance between points for them to be considered neighbours.
+impl<F: Float> UncheckedAppxDbscanHyperParams<F> {
+    pub(crate) fn new(min_points: usize) -> Self {
+        let default_slack = F::cast(1e-2);
+        let default_tolerance = F::cast(1e-4);
+
+        Self(AppxDbscanHyperParams {
+            min_points,
+            tolerance: default_tolerance,
+            slack: default_slack,
+        })
+    }
+
+    /// Set the tolerance
     pub fn tolerance(mut self, tolerance: F) -> Self {
-        self.tolerance = tolerance;
+        self.0.tolerance = tolerance;
         self
     }
 
-    /// Approximation factor, allows the distance between two points
-    /// for them to be considered neighbours to reach
-    /// `tolerance * (1 + slack)`
+    /// Set the slack
     pub fn slack(mut self, slack: F) -> Self {
-        self.slack = slack;
+        self.0.slack = slack;
         self
     }
+}
 
-    /// Return an instance of `AppxDbscanHyperParams` after having performed
-    /// validation checks on all hyperparameters.
-    ///
-    /// **Panics** if any of the validation checks fail.
-    pub fn build(&self) -> AppxDbscanHyperParams<F> {
-        AppxDbscanHyperParams::build(self.tolerance, self.min_points, self.slack)
+impl<F: Float> UncheckedHyperParams for UncheckedAppxDbscanHyperParams<F> {
+    type Checked = AppxDbscanHyperParams<F>;
+    type Error = AppxDbscanParamsError;
+
+    fn check_ref(&self) -> Result<&Self::Checked, Self::Error> {
+        if self.0.min_points <= 1 {
+            Err(AppxDbscanParamsError::MinPoints)
+        } else if self.0.tolerance <= F::zero() {
+            Err(AppxDbscanParamsError::Tolerance)
+        } else if self.0.slack <= F::zero() {
+            Err(AppxDbscanParamsError::Slack)
+        } else {
+            Ok(&self.0)
+        }
+    }
+
+    fn check(self) -> Result<Self::Checked, Self::Error> {
+        self.check_ref()?;
+        Ok(self.0)
     }
 }
 
 impl<F: Float> AppxDbscanHyperParams<F> {
-    /// Minimum number of neighboring points a point needs to have to be a core
-    /// point and not a noise point.
-    ///
-    /// Defaults are provided if the optional parameters are not specified:
-    /// * `tolerance = 1e-4`
-    /// * `slack = 1e-2`
-    // Violates the convention that new should return a value of type `Self`
-    #[allow(clippy::new_ret_no_self)]
-    pub fn new(min_points: usize) -> AppxDbscanHyperParamsBuilder<F> {
-        let default_slack = F::cast(1e-2);
-        let default_tolerance = F::cast(1e-4);
-
-        AppxDbscanHyperParamsBuilder {
-            min_points,
-            tolerance: default_tolerance,
-            slack: default_slack,
-        }
-    }
-
-    /// Two points are considered neighbors if the euclidean distance between
-    /// them is below the tolerance
+    /// Distance between points for them to be considered neighbours.
     pub fn tolerance(&self) -> F {
         self.tolerance
     }
 
-    /// Minimum number of a points in a neighborhood around a point for it to
-    /// not be considered noise
+    /// Distance between points for them to be considered neighbours.
     pub fn minimum_points(&self) -> usize {
         self.min_points
     }
 
-    /// Approximation factor, allows the distance between two points
-    /// for them to be considered neighbours to reach
-    /// `tolerance * (1 + slack)`
+    /// Minimum number of neighboring points a point needs to have to be a core
+    /// point and not a noise point.
     pub fn slack(&self) -> F {
         self.slack
     }
 
-    /// Maximum approximated radius, equal to `tolerance * (1 + slack)`
+    /// Get the approximate tolerance (`tolerance * (1 + slack)`)
+    /// Approximation factor, allows the distance between two points
+    /// for them to be considered neighbours to reach
+    /// `tolerance * (1 + slack)`
     pub fn appx_tolerance(&self) -> F {
-        self.appx_tolerance
-    }
-
-    fn build(tolerance: F, min_points: usize, slack: F) -> Self {
-        if tolerance <= F::zero() {
-            panic!("`tolerance` must be greater than 0!");
-        }
-        // There is always at least one neighbor to a point (itself)
-        if min_points <= 1 {
-            panic!("`min_points` must be greater than 1!");
-        }
-
-        if slack <= F::zero() {
-            panic!("`slack` must be greater than 0!");
-        }
-        Self {
-            tolerance,
-            min_points,
-            slack,
-            appx_tolerance: tolerance * (F::one() + slack),
-        }
+        self.tolerance * (F::one() + self.slack)
     }
 }

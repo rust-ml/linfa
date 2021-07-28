@@ -39,11 +39,12 @@ impl AppxDbscanLabeler {
     /// ```rust
     ///
     /// use ndarray::{array, Axis};
-    /// use linfa_clustering::{AppxDbscanLabeler, AppxDbscanHyperParams};
+    /// use linfa::prelude::*;
+    /// use linfa_clustering::{AppxDbscanLabeler, AppxDbscan};
     ///
     /// // Let's define some observations and set the desired params
     /// let observations = array![[0.,0.], [1., 0.], [0., 1.]];
-    /// let params = AppxDbscanHyperParams::new(2).build();
+    /// let params = AppxDbscan::params(2).check().unwrap();
     /// // Now we build the labels for each observation using the Labeler struct
     /// let labeler = AppxDbscanLabeler::new(&observations.view(),&params);
     /// // Here we can access the labels for each point `observations`
@@ -54,6 +55,10 @@ impl AppxDbscanLabeler {
     ///
     pub fn labels(&self) -> &Array1<Option<usize>> {
         &self.labels
+    }
+
+    pub(crate) fn into_labels(self) -> Array1<Option<usize>> {
+        self.labels
     }
 
     fn label<F: Float>(
@@ -111,7 +116,7 @@ impl AppxDbscanLabeler {
                 'nbrs: for neighbour_i in cell.neighbours_indexes() {
                     // indexes are added to neighbours only if tthey are in the table
                     let neighbour = grid.cells().get(*neighbour_i).unwrap();
-                    if neighbour.approximate_range_counting(curr_point, &params) > 0 {
+                    if neighbour.approximate_range_counting(curr_point, params) > 0 {
                         clusters[cp_index] = Some(neighbour.cluster_i().unwrap_or_else(|| {
                             panic!("Attempted to get cluster index of a non core cell")
                         }));

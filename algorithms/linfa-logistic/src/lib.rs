@@ -23,7 +23,7 @@ use argmin::prelude::*;
 use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::lbfgs::LBFGS;
 use linfa::prelude::{AsTargets, DatasetBase};
-use linfa::traits::{Fit, PredictRef};
+use linfa::traits::{Fit, PredictInplace};
 use ndarray::{s, Array, Array1, ArrayBase, Data, Ix1, Ix2};
 use std::default::Default;
 
@@ -415,7 +415,7 @@ fn logistic_loss<F: Float, A: Data<Elem = F>>(
     w: &Array1<F>,
 ) -> F {
     let n_features = x.shape()[1];
-    let (params, intercept) = convert_params(n_features, &w);
+    let (params, intercept) = convert_params(n_features, w);
     let mut yz = (x.dot(&params) + intercept) * y;
     yz.mapv_inplace(log_logistic);
     -yz.sum() + F::cast(0.5) * alpha * params.dot(&params)
@@ -429,7 +429,7 @@ fn logistic_grad<F: Float, A: Data<Elem = F>>(
     w: &Array1<F>,
 ) -> Array1<F> {
     let n_features = x.shape()[1];
-    let (params, intercept) = convert_params(n_features, &w);
+    let (params, intercept) = convert_params(n_features, w);
     let mut yz = (x.dot(&params) + intercept) * y;
     yz.mapv_inplace(logistic);
     yz -= F::one();
@@ -510,13 +510,23 @@ impl<F: Float, C: PartialOrd + Clone> FittedLogisticRegression<F, C> {
     }
 }
 
-impl<C: PartialOrd + Clone, F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<C>>
-    for FittedLogisticRegression<F, C>
+impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
+    PredictInplace<ArrayBase<D, Ix2>, Array1<C>> for FittedLogisticRegression<F, C>
 {
     /// Given a feature matrix, predict the classes learned when the model was
     /// fitted.
-    fn predict_ref<'a>(&'a self, x: &ArrayBase<D, Ix2>) -> Array1<C> {
-        self.predict(x)
+    fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<C>) {
+        assert_eq!(
+            x.nrows(),
+            y.len(),
+            "The number of data points must match the number of output targets."
+        );
+
+        *y = self.predict(x);
+    }
+
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<C> {
+        Array1::default(x.nrows())
     }
 }
 
@@ -580,7 +590,7 @@ mod test {
     extern crate linfa;
 
     use super::*;
-    use approx::AbsDiffEq;
+    use approx::{assert_abs_diff_eq, AbsDiffEq};
     use ndarray::{array, Array2};
 
     /// Test that the logistic loss function works as expected.
@@ -640,7 +650,7 @@ mod test {
             .flat_map(|w| alphas.iter().map(move |&alpha| (w, alpha)))
             .zip(&expecteds)
         {
-            assert_eq!(logistic_loss(&x, &y, alpha, &w), *exp);
+            assert_abs_diff_eq!(logistic_loss(&x, &y, alpha, w), *exp);
         }
     }
 
@@ -701,7 +711,7 @@ mod test {
             .flat_map(|w| alphas.iter().map(move |&alpha| (w, alpha)))
             .zip(&expecteds)
         {
-            let actual = logistic_grad(&x, &y, alpha, &w);
+            let actual = logistic_grad(&x, &y, alpha, w);
             assert!(actual.abs_diff_eq(exp, 1e-8));
         }
     }
@@ -712,7 +722,7 @@ mod test {
         let x = array![[-1.0], [-0.01], [0.01], [1.0]];
         let y = array![0.0, 0.0, 1.0, 1.0];
         let res = log_reg.fit(&x, &y).unwrap();
-        assert_eq!(res.intercept(), 0.0);
+        assert_abs_diff_eq!(res.intercept(), 0.0);
         assert!(res.params().abs_diff_eq(&array![0.681], 1e-3));
         assert_eq!(res.predict(&x), y);
     }
@@ -723,7 +733,7 @@ mod test {
         let x = array![[0.01], [1.0], [-1.0], [-0.01]];
         let y = array!["dog", "dog", "cat", "cat"];
         let res = log_reg.fit(&x, &y).unwrap();
-        assert_eq!(res.intercept(), 0.0);
+        assert_abs_diff_eq!(res.intercept(), 0.0);
         assert!(res.params().abs_diff_eq(&array![0.681], 1e-3));
         assert!(res
             .predict_probabilities(&x)
@@ -794,7 +804,7 @@ mod test {
             let res = log_reg.fit(&normal_x, &y);
             assert_eq!(res.unwrap_err().to_string(), expected);
         }
-        let mut non_positives = infs.clone();
+        let mut non_positives = infs;
         non_positives.push(-1.0);
         non_positives.push(0.0);
         for inf in &non_positives {
@@ -861,8 +871,8 @@ mod test {
         let x: Array2<f32> = array![[-1.0], [-0.01], [0.01], [1.0]];
         let y: Array1<f32> = array![0.0, 0.0, 1.0, 1.0];
         let res = log_reg.fit(&x, &y).unwrap();
-        assert_eq!(res.intercept(), 0.0 as f32);
-        assert!(res.params().abs_diff_eq(&array![0.682 as f32], 1e-3));
+        assert_abs_diff_eq!(res.intercept(), 0.0_f32);
+        assert!(res.params().abs_diff_eq(&array![0.682_f32], 1e-3));
         assert_eq!(res.predict(&x), y);
     }
 }

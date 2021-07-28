@@ -31,7 +31,8 @@ fn main() {
     let cluster_memberships = AppxDbscan::params(min_points)
         .tolerance(1.)
         .slack(1e-2)
-        .transform(dataset);
+        .transform(dataset)
+        .unwrap();
 
     // sigle target dataset
     let label_count = cluster_memberships.label_count().remove(0);

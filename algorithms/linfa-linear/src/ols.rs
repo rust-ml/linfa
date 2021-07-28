@@ -7,7 +7,7 @@ use ndarray_stats::SummaryStatisticsExt;
 use serde::{Deserialize, Serialize};
 
 use linfa::dataset::{AsTargets, DatasetBase};
-use linfa::traits::{Fit, PredictRef};
+use linfa::traits::{Fit, PredictInplace};
 
 pub trait Float: linfa::Float + Lapack + Scalar {}
 impl Float for f32 {}
@@ -147,11 +147,9 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> Fit<ArrayBase<D, Ix2>,
             // compute the models parameters based on the centered X and y
             // and the intercept as the residual of fitted parameters applied
             // to the X_offset and y_offset
-            let X_offset: Array1<F> = X
-                .mean_axis(Axis(0))
-                .ok_or_else(|| LinearError::NotEnoughSamples)?;
+            let X_offset: Array1<F> = X.mean_axis(Axis(0)).ok_or(LinearError::NotEnoughSamples)?;
             let X_centered: Array2<F> = X - &X_offset;
-            let y_offset: F = y.mean().ok_or_else(|| LinearError::NotEnoughTargets)?;
+            let y_offset: F = y.mean().ok_or(LinearError::NotEnoughTargets)?;
             let y_centered: Array1<F> = &y - y_offset;
             let params: Array1<F> =
                 compute_params(X_centered, y_centered, self.options.should_normalize())?;
@@ -226,14 +224,24 @@ impl<F: Float> FittedLinearRegression<F> {
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<F>>
+impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<F>>
     for FittedLinearRegression<F>
 {
     /// Given an input matrix `X`, with shape `(n_samples, n_features)`,
     /// `predict` returns the target variable according to linear model
     /// learned from the training data distribution.
-    fn predict_ref<'a>(&'a self, x: &ArrayBase<D, Ix2>) -> Array1<F> {
-        x.dot(&self.params) + self.intercept
+    fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<F>) {
+        assert_eq!(
+            x.nrows(),
+            y.len(),
+            "The number of data points must match the number of output targets."
+        );
+
+        *y = x.dot(&self.params) + self.intercept;
+    }
+
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<F> {
+        Array1::zeros(x.nrows())
     }
 }
 
