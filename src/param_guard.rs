@@ -13,14 +13,14 @@ use crate::{
 /// checking step done automatically.
 ///
 /// The hyperparameter validation done in `check_ref()` and `check()` should be identical.
-pub trait Verify: ParamIntoChecked {
+pub trait Verify<'a>: ParamIntoChecked {
     type Error: Error;
     type Parameter;
 
     fn is_valid(&self) -> Result<(), Self::Error>;
 
     /// Check the parameter set and returns an error if an invalid value is encountered
-    fn check_ref<'a>(&'a self) -> Result<&'a Self::Parameter, Self::Error>;
+    fn check_ref(&'a self) -> Result<Self::Parameter, Self::Error>;
 
     /// Checks the hyperparameters and returns the checked hyperparameters if successful
     fn check(self) -> Result<Self::Checked, Self::Error>
@@ -55,15 +55,15 @@ impl<T> ParamIntoChecked for Guarded<T> {
     }
 }
 
-impl<T: Verify> Verify for Guarded<T> {
+impl<'a, T: Verify<'a> + 'a> Verify<'a> for Guarded<T> {
     type Error = T::Error;
-    type Parameter = T;
+    type Parameter = &'a T;
 
     fn is_valid(&self) -> Result<(), T::Error> {
         Ok(())
     }
 
-    fn check_ref(&self) -> Result<&T, T::Error> {
+    fn check_ref(&'a self) -> Result<&'a T, T::Error> {
         Ok(&self.0)
     }
 }
@@ -94,16 +94,20 @@ where
         checked.fit(dataset)
     }
 }
+*/
 
 /// Performs checking step and calls `fit_with` on the checked hyperparameters. If checking failed,
 /// the checking error is converted to the original error type of `FitWith` and returned.
-impl<'a, R: Records, T, E, P: Verify> FitWith<'a, R, T, E> for P
+impl<'a, R: Records, T, E, P> FitWith<'a, R, T, E> for P
 where
-    P::Checked: FitWith<'a, R, T, E>,
-    E: Error + From<crate::error::Error> + From<P::Error>,
+    //P::Checked: FitWith<'a, R, T, E>,
+    for<'b> P: Verify<'b>,
+    for<'b> <P as Verify<'b>>::Parameter: FitWith<'b, R, T, E>,
+    
+    for<'b> E: Error + From<crate::error::Error> + From<<P as Verify<'b>>::Error>,
 {
-    type ObjectIn = <<P as ParamIntoChecked>::Checked as FitWith<'a, R, T, E>>::ObjectIn;
-    type ObjectOut = <<P as ParamIntoChecked>::Checked as FitWith<'a, R, T, E>>::ObjectOut;
+    type ObjectIn = <<P as Verify<'a>>::Parameter as FitWith<'a, R, T, E>>::ObjectIn;
+    type ObjectOut = <<P as Verify<'a>>::Parameter as FitWith<'a, R, T, E>>::ObjectOut;
 
     fn fit_with(
         &self,
@@ -111,6 +115,7 @@ where
         dataset: &'a crate::DatasetBase<R, T>,
     ) -> Result<Self::ObjectOut, E> {
         let checked = self.check_ref()?;
+        panic!("");
         checked.fit_with(model, dataset)
     }
-}*/
+}

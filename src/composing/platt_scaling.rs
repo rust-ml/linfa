@@ -98,9 +98,9 @@ impl<F: Float, O> PlattParams<F, O> {
     }
 }
 
-impl<F: Float, O> Verify for PlattParams<F, O> {
+impl<'a, F: Float, O: 'a> Verify<'a> for PlattParams<F, O> {
     type Error = PlattError;
-    type Parameter = PlattParams<F, O>;
+    type Parameter = G<&'a PlattParams<F, O>>;
 
     fn is_valid(&self) -> Result<(), PlattError> {
         if self.maxiter == 0 {
@@ -116,18 +116,20 @@ impl<F: Float, O> Verify for PlattParams<F, O> {
         Ok(())
     }
 
-    fn check_ref(&self) -> Result<&Self, PlattError> {
+    fn check_ref(&'a self) -> Result<G<&'a PlattParams<F, O>>, PlattError> {
         self.is_valid()?;
 
-        Ok(self)
+        Ok(G(self))
     }
 }
 
+pub struct G<T>(T);
+
 impl<F: Float, O> ParamIntoChecked for PlattParams<F, O> {
-    type Checked = Guarded<PlattParams<F, O>>;
+    type Checked = G<PlattParams<F, O>>;
 
     fn into_checked(self) -> Self::Checked {
-        Guarded(self)
+        G(self)
     }
 }
 
@@ -168,10 +170,9 @@ impl<F: Float, O> Platt<F, O> {
     }
 }
 
-impl<'a, F: Float, O: 'a, P> FitWith<'a, Array2<F>, Array1<bool>, PlattError>
-    for P
+impl<'a, F: Float, O: 'a> FitWith<'a, Array2<F>, Array1<bool>, PlattError>
+    for G<PlattParams<F, O>>
 where
-    P: Verify<Parameter = PlattParams<F, O>, Error = PlattError>,
     O: PredictRef<Array2<F>, Array1<F>>,
 {
     type ObjectIn = O;
@@ -183,7 +184,7 @@ where
         ds: &DatasetBase<Array2<F>, Array1<bool>>,
     ) -> Result<Self::ObjectOut, PlattError> {
         let predicted = obj.predict(ds);
-        platt_newton_method(predicted.view(), ds.targets().view(), self.check_ref()?).map(|(a, b)| Platt {
+        platt_newton_method(predicted.view(), ds.targets().view(), &self.0).map(|(a, b)| Platt {
             a,
             b,
             obj,
@@ -191,6 +192,24 @@ where
     }
 }
 
+impl<'a, F: Float, O: 'a> FitWith<'a, Array2<F>, Array1<bool>, PlattError>
+    for PlattParams<F, O>
+where
+    O: PredictRef<Array2<F>, Array1<F>>,
+{
+    type ObjectIn = O;
+    type ObjectOut = Platt<F, O>;
+
+    fn fit_with(
+        &self,
+        obj: O,
+        ds: &DatasetBase<Array2<F>, Array1<bool>>,
+    ) -> Result<Self::ObjectOut, PlattError> {
+        let blub = &self.check_ref()?;
+
+        blub.fit_with(obj, ds)
+    }
+}
 impl<F: Float, D, O> PredictRef<ArrayBase<D, Ix2>, Array1<Pr>> for Platt<F, O>
 where
     D: Data<Elem = F>,
