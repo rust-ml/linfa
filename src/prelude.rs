@@ -26,4 +26,4 @@ pub use crate::metrics_clustering::SilhouetteScore;
 pub use crate::correlation::PearsonCorrelation;
 
 #[doc(no_inline)]
-pub use crate::param_guard::ParamGuard;
+pub use crate::param_guard::Verify;

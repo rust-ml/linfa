@@ -18,7 +18,7 @@
 use std::marker::PhantomData;
 
 use crate::dataset::{DatasetBase, Pr};
-use crate::param_guard::{ParamGuard, ParamIntoCheckedConst};
+use crate::param_guard::{Verify, ParamIntoChecked, Guarded};
 use crate::traits::{Predict, PredictRef, FitWith};
 use crate::Float;
 
@@ -45,14 +45,14 @@ pub struct Platt<F, O> {
 
 /// Parameters for Platt's Newton method
 #[derive(Clone, Debug)]
-pub struct PlattParams<F, O, const C: bool> {
+pub struct PlattParams<F, O> {
     maxiter: usize,
     minstep: F,
     sigma: F,
     phantom: PhantomData<O>,
 }
 
-impl<F: Float, O> Default for PlattParams<F, O, false> {
+impl<F: Float, O> Default for PlattParams<F, O> {
     fn default() -> Self {
         PlattParams {
             maxiter: 100,
@@ -63,32 +63,16 @@ impl<F: Float, O> Default for PlattParams<F, O, false> {
     }
 }
 
-impl<F: Float, O, const C: bool> PlattParams<F, O, C> {
-    fn change_check_flag<const C2: bool>(self) -> PlattParams<F, O, C2> {
-        let PlattParams {
-            maxiter,
-            minstep,
-            sigma,
-            phantom,
-        } = self;
-
-        PlattParams {
-            maxiter,
-            minstep,
-            sigma,
-            phantom,
-        }
-    }
-
+impl<F: Float, O> PlattParams<F, O> {
     /// Set the maximum number of iterations in the optimization process
     ///
     /// The Newton's method is an iterative optimization process, which uses the first and second
     /// order gradients to find optimal `A` and `B`. This function caps the maximal number of
     /// iterations.
-    pub fn maxiter(mut self, maxiter: usize) -> PlattParams<F, O, false> {
+    pub fn maxiter(mut self, maxiter: usize) -> PlattParams<F, O> {
         self.maxiter = maxiter;
 
-        self.change_check_flag()
+        self
     }
 
     /// Set the minimum stepsize in the line search
@@ -97,25 +81,26 @@ impl<F: Float, O, const C: bool> PlattParams<F, O, C> {
     /// size in each optimization step. In each attempt the stepsize is halfed until this threshold
     /// is reached. After reaching the threshold the algorithm fails because the desired precision
     /// could not be achieved.
-    pub fn minstep(mut self, minstep: F) -> PlattParams<F, O, false> {
+    pub fn minstep(mut self, minstep: F) -> PlattParams<F, O> {
         self.minstep = minstep;
 
-        self.change_check_flag()
+        self
     }
 
     /// Set the Hessian's sigma value
     ///
     /// The Hessian matrix is regularized with H' = H + sigma I to avoid numerical issues. This
     /// function set the amount of regularization.
-    pub fn sigma(mut self, sigma: F) -> PlattParams<F, O, false> {
+    pub fn sigma(mut self, sigma: F) -> PlattParams<F, O> {
         self.sigma = sigma;
 
-        self.change_check_flag()
+        self
     }
 }
 
-impl<F: Float, O: Clone> ParamGuard for PlattParams<F, O, false> {
+impl<F: Float, O> Verify for PlattParams<F, O> {
     type Error = PlattError;
+    type Parameter = PlattParams<F, O>;
 
     fn is_valid(&self) -> Result<(), PlattError> {
         if self.maxiter == 0 {
@@ -130,10 +115,20 @@ impl<F: Float, O: Clone> ParamGuard for PlattParams<F, O, false> {
 
         Ok(())
     }
+
+    fn check_ref(&self) -> Result<&Self, PlattError> {
+        self.is_valid()?;
+
+        Ok(self)
+    }
 }
 
-unsafe impl<F: Float, O: Clone> ParamIntoCheckedConst for PlattParams<F, O, false> {
-    type Checked = PlattParams<F, O, true>;
+impl<F: Float, O> ParamIntoChecked for PlattParams<F, O> {
+    type Checked = Guarded<PlattParams<F, O>>;
+
+    fn into_checked(self) -> Self::Checked {
+        Guarded(self)
+    }
 }
 
 #[cfg_attr(
@@ -168,14 +163,15 @@ impl<F: Float, O> Platt<F, O> {
     /// * `minstep`: 1e-10,
     /// * `sigma`: 1e-12
     ///
-    pub fn params() -> PlattParams<F, O, false> {
+    pub fn params() -> PlattParams<F, O> {
         PlattParams::default()
     }
 }
 
-impl<'a, F: Float, O: 'a> FitWith<'a, Array2<F>, Array1<bool>, PlattError>
-    for PlattParams<F, O, true>
+impl<'a, F: Float, O: 'a, P> FitWith<'a, Array2<F>, Array1<bool>, PlattError>
+    for P
 where
+    P: Verify<Parameter = PlattParams<F, O>, Error = PlattError>,
     O: PredictRef<Array2<F>, Array1<F>>,
 {
     type ObjectIn = O;
@@ -187,7 +183,7 @@ where
         ds: &DatasetBase<Array2<F>, Array1<bool>>,
     ) -> Result<Self::ObjectOut, PlattError> {
         let predicted = obj.predict(ds);
-        platt_newton_method(predicted.view(), ds.targets().view(), self).map(|(a, b)| Platt {
+        platt_newton_method(predicted.view(), ds.targets().view(), self.check_ref()?).map(|(a, b)| Platt {
             a,
             b,
             obj,
@@ -236,10 +232,10 @@ pub fn platt_predict<F: Float>(x: F, a: F, b: F) -> Pr {
 /// gradient vectors are calculated. Then a line-search tries to find the optimal learning rate
 /// for each step.
 //#[allow(clippy::suspicious_operation_groupings)]
-pub fn platt_newton_method<'a, F: Float, O, const C: bool>(
+pub fn platt_newton_method<'a, F: Float, O>(
     reg_values: ArrayView1<'a, F>,
     labels: ArrayView1<'a, bool>,
-    params: &PlattParams<F, O, C>,
+    params: &PlattParams<F, O>,
 ) -> Result<(F, F), PlattError> {
     let (num_pos, num_neg) = labels.iter().fold((0, 0), |mut val, x| {
         match x {
@@ -364,7 +360,7 @@ mod tests {
     use ndarray::{Array1, Array2};
     use rand::{rngs::SmallRng, Rng, SeedableRng};
 
-    use super::{platt_newton_method, ParamGuard, Platt, PlattParams};
+    use super::{platt_newton_method, Verify, Platt, PlattParams};
     use crate::{
         traits::{FitWith, Predict, PredictRef},
         DatasetBase, Float,
@@ -407,7 +403,7 @@ mod tests {
             fn $fnc() {
                 let mut rng = SmallRng::seed_from_u64(42);
 
-                let params: PlattParams<f32, (), false> = PlattParams {
+                let params: PlattParams<f32, ()> = PlattParams {
                     maxiter: 100,
                     minstep: 1e-10,
                     sigma: 1e-12,
