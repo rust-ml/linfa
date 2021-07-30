@@ -13,21 +13,17 @@ use crate::{
 /// checking step done automatically.
 ///
 /// The hyperparameter validation done in `check_ref()` and `check()` should be identical.
-pub trait Verify<'a>: ParamIntoChecked {
+pub trait Verify: ParamIntoChecked {
     type Error: Error;
-    type Parameter;
 
-    fn is_valid(&self) -> Result<(), Self::Error>;
-
-    /// Check the parameter set and returns an error if an invalid value is encountered
-    fn check_ref(&'a self) -> Result<Self::Parameter, Self::Error>;
+    fn verify(&self) -> Result<(), Self::Error>;
 
     /// Checks the hyperparameters and returns the checked hyperparameters if successful
     fn check(self) -> Result<Self::Checked, Self::Error>
     where
         Self: Sized,
     {
-        self.is_valid().map(|_| self.into_checked())
+        self.verify().map(|_| self.into_checked())
     }
 
     /// Calls `check()` and unwraps the result
@@ -43,79 +39,4 @@ pub trait ParamIntoChecked {
     type Checked;
 
     fn into_checked(self) -> Self::Checked;
-}
-
-pub struct Guarded<T>(pub(crate) T);
-
-impl<T> ParamIntoChecked for Guarded<T> {
-    type Checked = T;
-
-    fn into_checked(self) -> T {
-        self.0
-    }
-}
-
-impl<'a, T: Verify<'a> + 'a> Verify<'a> for Guarded<T> {
-    type Error = T::Error;
-    type Parameter = &'a T;
-
-    fn is_valid(&self) -> Result<(), T::Error> {
-        Ok(())
-    }
-
-    fn check_ref(&'a self) -> Result<&'a T, T::Error> {
-        Ok(&self.0)
-    }
-}
-
-/*
-/// Performs the checking step and calls `transform` on the checked hyperparameters. Returns error
-/// if checking was unsuccessful.
-impl<R: Records, T, P: Verify> Transformer<R, Result<T, P::Error>> for P
-where
-    P::Checked: Transformer<R, T>,
-{
-    fn transform(&self, x: R) -> Result<T, P::Error> {
-        self.check_ref().map(|p| p.transform(x))
-    }
-}
-
-/// Performs checking step and calls `fit` on the checked hyperparameters. If checking failed, the
-/// checking error is converted to the original error type of `Fit` and returned.
-impl<R: Records, T, E, P: Verify> Fit<R, T, E> for P
-where
-    P::Checked: Fit<R, T, E>,
-    E: Error + From<crate::error::Error> + From<P::Error>,
-{
-    type Object = <<P as ParamIntoChecked>::Checked as Fit<R, T, E>>::Object;
-
-    fn fit(&self, dataset: &crate::DatasetBase<R, T>) -> Result<Self::Object, E> {
-        let checked = self.check_ref()?;
-        checked.fit(dataset)
-    }
-}
-*/
-
-/// Performs checking step and calls `fit_with` on the checked hyperparameters. If checking failed,
-/// the checking error is converted to the original error type of `FitWith` and returned.
-impl<'a, R: Records, T, E, P> FitWith<'a, R, T, E> for P
-where
-    //P::Checked: FitWith<'a, R, T, E>,
-    for<'b> P: Verify<'b>,
-    for<'b> <P as Verify<'b>>::Parameter: FitWith<'b, R, T, E>,
-    
-    for<'b> E: Error + From<crate::error::Error> + From<<P as Verify<'b>>::Error>,
-{
-    type ObjectIn = <<P as Verify<'a>>::Parameter as FitWith<'a, R, T, E>>::ObjectIn;
-    type ObjectOut = <<P as Verify<'a>>::Parameter as FitWith<'a, R, T, E>>::ObjectOut;
-
-    fn fit_with(
-        &self,
-        model: Self::ObjectIn,
-        dataset: &'a crate::DatasetBase<R, T>,
-    ) -> Result<Self::ObjectOut, E> {
-        let checked = self.check_ref()?;
-        panic!("");
-        checked.fit_with(model, dataset)
-    }
 }
