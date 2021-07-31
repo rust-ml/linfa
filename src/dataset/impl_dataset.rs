@@ -964,9 +964,9 @@ where
                             predicted.into_shape((nsamples, ntargets)).unwrap();
 
                         predicted
-                            .gencolumns()
+                            .columns()
                             .into_iter()
-                            .zip(targets.gencolumns().into_iter())
+                            .zip(targets.columns().into_iter())
                             .map(|(p, t)| eval(&p.view(), &t).map_err(ER::from))
                             .collect()
                     })

@@ -27,7 +27,7 @@ impl<'a, F: Float, D: Distance<F>> KdTreeIndex<'a, F, D> {
             Err(BuildError::ZeroDimension)
         } else {
             let mut tree = kdtree::KdTree::with_capacity(batch.ncols().max(1), leaf_size);
-            for (i, point) in batch.genrows().into_iter().enumerate() {
+            for (i, point) in batch.rows().into_iter().enumerate() {
                 tree.add(
                     point.to_slice().expect("views should be contiguous"),
                     (point, i),

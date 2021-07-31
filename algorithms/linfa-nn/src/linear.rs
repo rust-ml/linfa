@@ -39,7 +39,7 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for LinearSearchInde
             Err(NnError::WrongDimension)
         } else {
             let mut heap = BinaryHeap::with_capacity(self.0.nrows());
-            for (i, pt) in self.0.genrows().into_iter().enumerate() {
+            for (i, pt) in self.0.rows().into_iter().enumerate() {
                 let dist = self.1.rdistance(point.reborrow(), pt.reborrow());
                 heap.push(MinHeapElem {
                     elem: (pt.reborrow(), i),
@@ -64,7 +64,7 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for LinearSearchInde
             let range = self.1.dist_to_rdist(range);
             Ok(self
                 .0
-                .genrows()
+                .rows()
                 .into_iter()
                 .enumerate()
                 .filter(|(_, pt)| self.1.rdistance(point.reborrow(), pt.reborrow()) < range)

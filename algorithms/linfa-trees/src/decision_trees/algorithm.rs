@@ -500,7 +500,7 @@ impl<F: Float, L: Label + Default, D: Data<Elem = F>> PredictInplace<ArrayBase<D
             "The number of data points must match the number of output targets."
         );
 
-        for (row, target) in x.genrows().into_iter().zip(y.iter_mut()) {
+        for (row, target) in x.rows().into_iter().zip(y.iter_mut()) {
             *target = make_prediction(&row, &self.root_node);
         }
     }

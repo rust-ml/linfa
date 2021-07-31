@@ -136,7 +136,7 @@ impl<L: Label, S: Data<Elem = L>, I: Dimension> Labels for ArrayBase<S, I> {
     type Elem = L;
 
     fn label_count(&self) -> Vec<HashMap<L, usize>> {
-        self.gencolumns()
+        self.columns()
             .into_iter()
             .map(|x| {
                 let mut map = HashMap::new();
@@ -185,9 +185,9 @@ where
 
         for (i, (r, t)) in self
             .records()
-            .genrows()
+            .rows()
             .into_iter()
-            .zip(targets.genrows().into_iter())
+            .zip(targets.rows().into_iter())
             .enumerate()
         {
             let any_exists = t.iter().any(|a| labels.contains(a));

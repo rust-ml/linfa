@@ -279,7 +279,7 @@ impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsE
             let (mut x_weights_k, mut y_weights_k) = match self.algorithm {
                 Algorithm::Nipals => {
                     // Replace columns that are all close to zero with zeros
-                    for mut yj in yk.gencolumns_mut() {
+                    for mut yj in yk.columns_mut() {
                         if *(yj.mapv(|y| y.abs()).max()?) < F::cast(10.) * eps {
                             yj.assign(&Array1::zeros(yj.len()));
                         }
@@ -372,7 +372,7 @@ impl<F: Float> PlsParams<F> {
         let eps = F::epsilon();
 
         let mut y_score = Array1::ones(y.ncols());
-        for col in y.t().genrows() {
+        for col in y.t().rows() {
             if *col.mapv(|v| v.abs()).max().unwrap() > eps {
                 y_score = col.to_owned();
                 break;
