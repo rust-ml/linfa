@@ -292,7 +292,7 @@ mod tests {
 
         // estimate density empirical and compare with Marchenko-Pastur law
         let mut i = 0;
-        'outer: for th in Array1::linspace(0.1, 2.8, 28).into_iter().rev() {
+        'outer: for th in Array1::linspace(0.1, 2.8, 28).iter().rev() {
             let mut count = 0;
             while sv[i] >= *th {
                 count += 1;
