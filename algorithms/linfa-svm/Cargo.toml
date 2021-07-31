@@ -35,4 +35,4 @@ linfa-kernel = { version = "0.4.0", path = "../linfa-kernel" }
 [dev-dependencies]
 linfa-datasets = { version = "0.4.0", path = "../../datasets", features = ["winequality", "diabetes"] }
 rand_isaac = "0.3"
-approx = "0.5"
+approx = "0.4"

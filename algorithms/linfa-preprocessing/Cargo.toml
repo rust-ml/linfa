@@ -22,7 +22,7 @@ ndarray = { version = "0.15", default-features = false, features = ["approx", "b
 ndarray-linalg = { version = "0.14" }
 ndarray-stats = "0.5"
 thiserror = "=1.0.25"
-approx = { version = "0.5", default-features = false, features = ["std"] }
+approx = { version = "0.4", default-features = false, features = ["std"] }
 ndarray-rand = { version = "0.14" }
 unicode-normalization = "0.1.8"
 regex = "1.4.5"

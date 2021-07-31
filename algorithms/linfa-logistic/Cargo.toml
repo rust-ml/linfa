@@ -24,5 +24,5 @@ thiserror = "=1.0.25"
 linfa = { version = "0.4.0", path = "../..", features=["serde"] }
 
 [dev-dependencies]
-approx = "0.5"
+approx = "0.4"
 linfa-datasets = { version = "0.4.0", path = "../../datasets", features = ["winequality"] }

@@ -38,4 +38,4 @@ linfa-kernel = { version = "0.4.0", path = "../linfa-kernel" }
 rand = { version = "0.8", features = ["small_rng"] }
 ndarray-npy = { version = "0.8", default-features = false }
 linfa-datasets = { version = "0.4.0", path = "../../datasets", features = ["iris"] }
-approx = { version = "0.5", default-features = false, features = ["std"] }
+approx = { version = "0.4", default-features = false, features = ["std"] }

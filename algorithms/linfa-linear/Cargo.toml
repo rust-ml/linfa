@@ -29,4 +29,4 @@ linfa = { version = "0.4.0", path = "../..", features=["serde"] }
 
 [dev-dependencies]
 linfa-datasets = { version = "0.4.0", path = "../../datasets", features = ["diabetes"] }
-approx = "0.5"
+approx = "0.4"

@@ -32,7 +32,7 @@ ndarray = { version = "0.15", features = ["blas", "approx"]}
 ndarray-linalg = "0.14"
 
 num-traits = "0.2"
-approx = "0.5"
+approx = "0.4"
 thiserror = "=1.0.25"
 
 linfa = { version = "0.4.0", path = "../.." }
