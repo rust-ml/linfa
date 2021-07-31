@@ -387,9 +387,9 @@ impl FittedCountVectorizer {
         for (i, freq) in term_frequencies
             .into_iter()
             .enumerate()
-            .filter(|(_, f)| **f > 0)
+            .filter(|(_, f)| *f > 0)
         {
-            sprs_term_frequencies.append(i, *freq);
+            sprs_term_frequencies.append(i, freq);
             doc_freqs[i] += 1;
         }
         sprs_term_frequencies
