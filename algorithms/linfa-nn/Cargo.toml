@@ -24,8 +24,8 @@ default-features = false
 features = ["std", "derive"]
 
 [dependencies]
-ndarray = { version = "0.14", features = ["approx"]}
-ndarray-stats = "0.4"
+ndarray = { version = "0.15", features = ["approx"]}
+ndarray-stats = "0.5"
 num-traits = "0.2.0"
 noisy_float = "0.2.0"
 order-stat = "0.1.3"
@@ -36,10 +36,10 @@ kdtree = "0.6.0"
 linfa = { version = "0.4.0", path = "../.." }
 
 [dev-dependencies]
-approx = "0.4"
+approx = "0.5"
 criterion = "0.3.5"
 rand_isaac = "0.3"
-ndarray-rand = "0.13"
+ndarray-rand = "0.14"
 
 [[bench]]
 name = "nn"

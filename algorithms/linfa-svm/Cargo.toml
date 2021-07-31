@@ -24,8 +24,8 @@ default-features = false
 features = ["std", "derive"]
 
 [dependencies]
-ndarray = { version = "0.14", default-features=false }
-ndarray-rand = "0.13"
+ndarray = { version = "0.15", default-features=false }
+ndarray-rand = "0.14"
 num-traits = "0.2"
 thiserror = "=1.0.25"
 
@@ -35,4 +35,4 @@ linfa-kernel = { version = "0.4.0", path = "../linfa-kernel" }
 [dev-dependencies]
 linfa-datasets = { version = "0.4.0", path = "../../datasets", features = ["winequality", "diabetes"] }
 rand_isaac = "0.3"
-approx = "0.4"
+approx = "0.5"

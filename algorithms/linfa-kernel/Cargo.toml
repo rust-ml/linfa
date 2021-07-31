@@ -24,9 +24,9 @@ default-features = false
 features = ["std", "derive"]
 
 [dependencies]
-ndarray = "0.14"
+ndarray = "0.15"
 num-traits = "0.2"
-sprs = { version="0.9.4", default-features = false }
+sprs = { version="0.11.0", default-features = false }
 hnsw = "0.6"
 space = "0.10"
 
