@@ -82,8 +82,9 @@ pub fn adjacency_matrix<F: Float, D: Data<Elem = F>>(
     }
 
     // create CSR matrix from data, indptr and indices
-    let mat = CsMatBase::new((n_points, n_points), indptr, indices, data);
-    let mut mat = &mat.view() + &mat.transpose_view();
+    let mat = CsMatBase::new_from_unsorted((n_points, n_points), indptr, indices, data).unwrap();
+    let transpose = mat.transpose_view().to_other_storage();
+    let mut mat = sprs::binop::csmat_binop(mat.view(), transpose.view(), |x, y| x.add(*y));
 
     // ensure that all values are one
     let val: F = F::one();
