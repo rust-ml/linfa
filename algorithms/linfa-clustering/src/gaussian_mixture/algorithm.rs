@@ -564,7 +564,7 @@ mod tests {
             if xi < 0.4 {
                 *yi = xi * xi;
             } else if (0.4..0.8).contains(&xi) {
-                *yi = 3. * xi + 1.;
+                *yi = 10. * xi + 1.;
             } else {
                 *yi = f64::sin(10. * xi);
             }
@@ -575,7 +575,7 @@ mod tests {
     #[test]
     fn test_zeroed_reg_covar_failure() {
         let mut rng = Isaac64Rng::seed_from_u64(42);
-        let xt = Array2::random_using((50, 1), Uniform::new(0., 1.), &mut rng);
+        let xt = Array2::random_using((50, 1), Uniform::new(0., 1.0), &mut rng);
         let yt = function_test_1d(&xt);
         let data = concatenate(Axis(1), &[xt.view(), yt.view()]).unwrap();
         let dataset = DatasetBase::from(data);
@@ -585,6 +585,7 @@ mod tests {
             .with_reg_covariance(0.)
             .with_rng(rng.clone())
             .fit(&dataset);
+
         assert!(
             match gmm.expect_err("should generate an error with reg_covar being nul") {
                 GmmError::LinalgError(e) => match e {
