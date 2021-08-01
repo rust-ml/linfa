@@ -23,7 +23,7 @@ use argmin::prelude::*;
 use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::lbfgs::LBFGS;
 use linfa::prelude::{AsTargets, DatasetBase};
-use linfa::traits::{Fit, PredictRef};
+use linfa::traits::{Fit, PredictInplace};
 use ndarray::{s, Array, Array1, ArrayBase, Data, Ix1, Ix2};
 use std::default::Default;
 
@@ -510,13 +510,23 @@ impl<F: Float, C: PartialOrd + Clone> FittedLogisticRegression<F, C> {
     }
 }
 
-impl<C: PartialOrd + Clone, F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array1<C>>
-    for FittedLogisticRegression<F, C>
+impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
+    PredictInplace<ArrayBase<D, Ix2>, Array1<C>> for FittedLogisticRegression<F, C>
 {
     /// Given a feature matrix, predict the classes learned when the model was
     /// fitted.
-    fn predict_ref(&self, x: &ArrayBase<D, Ix2>) -> Array1<C> {
-        self.predict(x)
+    fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<C>) {
+        assert_eq!(
+            x.nrows(),
+            y.len(),
+            "The number of data points must match the number of output targets."
+        );
+
+        *y = self.predict(x);
+    }
+
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<C> {
+        Array1::default(x.nrows())
     }
 }
 

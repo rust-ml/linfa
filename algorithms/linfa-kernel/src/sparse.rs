@@ -38,7 +38,7 @@ pub fn adjacency_matrix<F: Float, D: Data<Elem = F>>(
     let mut hnsw: HNSW<Euclidean<F>> = HNSW::new_params(params);
 
     // insert all rows as data points into HNSW graph
-    for feature in dataset.genrows().into_iter() {
+    for feature in dataset.rows().into_iter() {
         hnsw.insert(Euclidean(feature), &mut searcher);
     }
 
@@ -57,7 +57,7 @@ pub fn adjacency_matrix<F: Float, D: Data<Elem = F>>(
 
     // find neighbours for each data point
     let mut added = 0;
-    for (m, feature) in dataset.genrows().into_iter().enumerate() {
+    for (m, feature) in dataset.rows().into_iter().enumerate() {
         hnsw.nearest(&Euclidean(feature), 3 * k, &mut searcher, &mut neighbours);
 
         //dbg!(&neighbours);
@@ -82,8 +82,9 @@ pub fn adjacency_matrix<F: Float, D: Data<Elem = F>>(
     }
 
     // create CSR matrix from data, indptr and indices
-    let mat = CsMatBase::new((n_points, n_points), indptr, indices, data);
-    let mut mat = &mat + &mat.transpose_view();
+    let mat = CsMatBase::new_from_unsorted((n_points, n_points), indptr, indices, data).unwrap();
+    let transpose = mat.transpose_view().to_other_storage();
+    let mut mat = sprs::binop::csmat_binop(mat.view(), transpose.view(), |x, y| x.add(*y));
 
     // ensure that all values are one
     let val: F = F::one();

@@ -1,5 +1,5 @@
 use super::{
-    super::traits::{Predict, PredictRef},
+    super::traits::{Predict, PredictInplace},
     iter::{ChunksIter, DatasetIter, Iter},
     AsTargets, AsTargetsMut, CountedTargets, Dataset, DatasetBase, DatasetView, Float,
     FromTargetArray, Label, Labels, Records, Result,
@@ -832,7 +832,7 @@ where
     where
         ER: std::error::Error + std::convert::From<crate::error::Error>,
         M: for<'c> Fit<ArrayView2<'c, F>, ArrayView2<'c, E>, ER, Object = O>,
-        O: for<'d> PredictRef<ArrayView2<'a, F>, Array2<E>>,
+        O: for<'d> PredictInplace<ArrayView2<'a, F>, Array2<E>>,
         FACC: Float,
         C: Fn(&Array2<E>, &ArrayView2<E>) -> std::result::Result<Array1<FACC>, crate::error::Error>,
     {
@@ -917,7 +917,7 @@ where
     where
         ER: std::error::Error + std::convert::From<crate::error::Error>,
         M: for<'c> Fit<ArrayView2<'c, F>, ArrayView2<'c, E>, ER, Object = O>,
-        O: for<'d> PredictRef<ArrayView2<'a, F>, ArrayBase<OwnedRepr<E>, I>>,
+        O: for<'d> PredictInplace<ArrayView2<'a, F>, ArrayBase<OwnedRepr<E>, I>>,
         FACC: Float,
         C: Fn(&ArrayView1<E>, &ArrayView1<E>) -> std::result::Result<FACC, crate::error::Error>,
         I: Dimension,
@@ -964,9 +964,9 @@ where
                             predicted.into_shape((nsamples, ntargets)).unwrap();
 
                         predicted
-                            .gencolumns()
+                            .columns()
                             .into_iter()
-                            .zip(targets.gencolumns().into_iter())
+                            .zip(targets.columns().into_iter())
                             .map(|(p, t)| eval(&p.view(), &t).map_err(ER::from))
                             .collect()
                     })
@@ -1054,11 +1054,12 @@ impl<F: Float, D, E, T, O> Predict<ArrayBase<D, Ix2>, DatasetBase<ArrayBase<D, I
 where
     D: Data<Elem = F>,
     T: AsTargets<Elem = E>,
-    O: PredictRef<ArrayBase<D, Ix2>, T>,
+    O: PredictInplace<ArrayBase<D, Ix2>, T>,
 {
     fn predict(&self, records: ArrayBase<D, Ix2>) -> DatasetBase<ArrayBase<D, Ix2>, T> {
-        let new_targets = self.predict_ref(&records);
-        DatasetBase::new(records, new_targets)
+        let mut targets = self.default_target(&records);
+        self.predict_inplace(&records, &mut targets);
+        DatasetBase::new(records, targets)
     }
 }
 
@@ -1066,31 +1067,37 @@ impl<F: Float, R, T, E, S, O> Predict<DatasetBase<R, T>, DatasetBase<R, S>> for 
 where
     R: Records<Elem = F>,
     S: AsTargets<Elem = E>,
-    O: PredictRef<R, S>,
+    O: PredictInplace<R, S>,
 {
     fn predict(&self, ds: DatasetBase<R, T>) -> DatasetBase<R, S> {
-        let new_targets = self.predict_ref(&ds.records);
-        DatasetBase::new(ds.records, new_targets)
+        let mut targets = self.default_target(&ds.records);
+        self.predict_inplace(&ds.records, &mut targets);
+        DatasetBase::new(ds.records, targets)
     }
 }
 
 impl<'a, F: Float, R, T, S, O> Predict<&'a DatasetBase<R, T>, S> for O
 where
     R: Records<Elem = F>,
-    O: PredictRef<R, S>,
+    O: PredictInplace<R, S>,
 {
     fn predict(&self, ds: &'a DatasetBase<R, T>) -> S {
-        self.predict_ref(&ds.records)
+        let mut targets = self.default_target(&ds.records);
+        self.predict_inplace(&ds.records, &mut targets);
+        targets
     }
 }
 
-impl<'a, F: Float, D, T, O> Predict<&'a ArrayBase<D, Ix2>, T> for O
+impl<'a, F: Float, D, DM, T, O> Predict<&'a ArrayBase<D, DM>, T> for O
 where
     D: Data<Elem = F>,
-    O: PredictRef<ArrayBase<D, Ix2>, T>,
+    DM: Dimension,
+    O: PredictInplace<ArrayBase<D, DM>, T>,
 {
-    fn predict(&self, records: &'a ArrayBase<D, Ix2>) -> T {
-        self.predict_ref(records)
+    fn predict(&self, records: &'a ArrayBase<D, DM>) -> T {
+        let mut targets = self.default_target(records);
+        self.predict_inplace(records, &mut targets);
+        targets
     }
 }
 

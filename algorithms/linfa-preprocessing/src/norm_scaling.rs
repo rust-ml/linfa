@@ -62,9 +62,9 @@ impl<F: Float> Transformer<Array2<F>, Array2<F>> for NormScaler {
         // remove Lapack trait bound
         let mut x = x.without_lapack();
 
-        Zip::from(x.genrows_mut())
+        Zip::from(x.rows_mut())
             .and(&norms)
-            .apply(|mut row, &norm| {
+            .for_each(|mut row, &norm| {
                 row.mapv_inplace(|el| el / norm);
             });
         x

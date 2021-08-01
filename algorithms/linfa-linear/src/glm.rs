@@ -300,13 +300,23 @@ pub struct FittedTweedieRegressor<A> {
     link: Link,
 }
 
-impl<A: Float, D: Data<Elem = A>> PredictRef<ArrayBase<D, Ix2>, Array1<A>>
+impl<A: Float, D: Data<Elem = A>> PredictInplace<ArrayBase<D, Ix2>, Array1<A>>
     for FittedTweedieRegressor<A>
 {
     /// Predict the target
-    fn predict_ref(&self, x: &ArrayBase<D, Ix2>) -> Array1<A> {
+    fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<A>) {
+        assert_eq!(
+            x.nrows(),
+            y.len(),
+            "The number of data points must match the number of output targets."
+        );
+
         let ypred = x.dot(&self.coef) + self.intercept;
-        self.link.inverse(&ypred)
+        *y = self.link.inverse(&ypred);
+    }
+
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<A> {
+        Array1::zeros(x.nrows())
     }
 }
 

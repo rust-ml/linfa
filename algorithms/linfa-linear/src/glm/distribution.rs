@@ -91,7 +91,7 @@ impl TweedieDistribution {
             // 2 * (y * log(y / ypred) - y + ypred)
             power if (power - 1.).abs() < 1e-6 => {
                 let mut div = &y / &ypred;
-                Zip::from(&mut div).and(y).apply(|y, &x| {
+                Zip::from(&mut div).and(y).for_each(|y, &x| {
                     if x == F::zero() {
                         *y = F::zero();
                     } else {

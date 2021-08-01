@@ -19,7 +19,7 @@ use std::marker::PhantomData;
 
 use crate::dataset::{DatasetBase, Pr};
 use crate::param_guard::{Verify, ParamIntoChecked};
-use crate::traits::{Predict, PredictRef, FitWith};
+use crate::traits::{Predict, PredictInplace, FitWith};
 use crate::Float;
 
 use ndarray::{Array1, Array2, ArrayBase, ArrayView1, Data, Ix1, Ix2};
@@ -175,7 +175,7 @@ impl<F: Float, O> Platt<F, O> {
 impl<'a, F: Float, O: 'a, const CHECKED: bool> FitWith<'a, Array2<F>, Array1<bool>, PlattError>
     for PlattParams<F, O, CHECKED>
 where
-    O: PredictRef<Array2<F>, Array1<F>>,
+    O: PredictInplace<Array2<F>, Array1<F>>,
 {
     type ObjectIn = O;
     type ObjectOut = Platt<F, O>;
@@ -196,17 +196,24 @@ where
     }
 }
 
-impl<F: Float, D, O> PredictRef<ArrayBase<D, Ix2>, Array1<Pr>> for Platt<F, O>
+impl<F: Float, D, O> PredictInplace<ArrayBase<D, Ix2>, Array1<Pr>> for Platt<F, O>
 where
     D: Data<Elem = F>,
-    O: PredictRef<ArrayBase<D, Ix2>, ArrayBase<D, Ix1>>,
+    O: PredictInplace<ArrayBase<D, Ix2>, ArrayBase<D, Ix1>>,
 {
-    fn predict_ref(&self, data: &ArrayBase<D, Ix2>) -> Array1<Pr> {
-        self.obj
-            .predict(data)
-            .iter()
-            .map(|x| platt_predict(*x, self.a, self.b))
-            .collect()
+    fn predict_inplace(&self, data: &ArrayBase<D, Ix2>, targets: &mut Array1<Pr>) {
+        assert_eq!(
+            data.nrows(),
+            targets.len(),
+            "The number of data points must match the number of output targets."
+        );
+        for (x, target) in self.obj.predict(data).iter().zip(targets.iter_mut()) {
+            *target = platt_predict(*x, self.a, self.b);
+        }
+    }
+
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<Pr> {
+        Array1::default(x.nrows())
     }
 }
 
@@ -367,7 +374,7 @@ mod tests {
 
     use super::{platt_newton_method, Verify, Platt, PlattParams};
     use crate::{
-        traits::{FitWith, Predict, PredictRef},
+        traits::{Predict, PredictInplace},
         DatasetBase, Float,
     };
 
@@ -444,9 +451,18 @@ mod tests {
         reg_vals: Array1<f32>,
     }
 
-    impl PredictRef<Array2<f32>, Array1<f32>> for DummyModel {
-        fn predict_ref(&self, _: &Array2<f32>) -> Array1<f32> {
-            self.reg_vals.clone()
+    impl PredictInplace<Array2<f32>, Array1<f32>> for DummyModel {
+        fn predict_inplace(&self, x: &Array2<f32>, y: &mut Array1<f32>) {
+            assert_eq!(
+                x.nrows(),
+                y.len(),
+                "The number of data points must match the number of output targets."
+            );
+            *y = self.reg_vals.clone();
+        }
+
+        fn default_target(&self, x: &Array2<f32>) -> Array1<f32> {
+            Array1::zeros(x.nrows())
         }
     }
 
@@ -455,7 +471,7 @@ mod tests {
     fn ordered_probabilities() {
         let mut rng = SmallRng::seed_from_u64(42);
 
-        let (reg_vals, dec_vals) = generate_dummy_values(1.0, 0.5, 100, &mut rng);
+        let (reg_vals, dec_vals) = generate_dummy_values(1.0, 0.5, 102, &mut rng);
         let records = Array2::zeros((100, 3));
         let dataset = DatasetBase::new(records, dec_vals);
 

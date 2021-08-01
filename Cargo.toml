@@ -39,8 +39,8 @@ num-traits = "0.2"
 rand = { version = "0.8", features = ["small_rng"] }
 approx = "0.4"
 
-ndarray = { version = "0.14", default-features = false, features = ["approx"] }
-ndarray-linalg = { version = "0.13", optional = true }
+ndarray = { version = "0.15", default-features = false, features = ["approx"] }
+ndarray-linalg = { version = "0.14", optional = true }
 
 thiserror = "=1.0.25"
 
@@ -69,7 +69,7 @@ default-features = false
 features = ["cblas"]
 
 [dev-dependencies]
-ndarray-rand = "0.13"
+ndarray-rand = "0.14"
 linfa-datasets = { path = "datasets", features = ["winequality", "iris", "diabetes"] }
 
 [workspace]

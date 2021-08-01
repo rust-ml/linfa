@@ -29,7 +29,7 @@ use serde_crate::{Deserialize, Serialize};
 
 use linfa::{
     dataset::Records,
-    traits::{Fit, PredictRef, Transformer},
+    traits::{Fit, PredictInplace, Transformer},
     DatasetBase, Float,
 };
 
@@ -171,9 +171,18 @@ impl Pca<f64> {
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> PredictRef<ArrayBase<D, Ix2>, Array2<F>> for Pca<F> {
-    fn predict_ref(&self, records: &ArrayBase<D, Ix2>) -> Array2<F> {
-        (records - &self.mean).dot(&self.embedding.t())
+impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array2<F>> for Pca<F> {
+    fn predict_inplace(&self, records: &ArrayBase<D, Ix2>, targets: &mut Array2<F>) {
+        assert_eq!(
+            targets.shape(),
+            &[records.nrows(), self.embedding.nrows()],
+            "The number of data points must match the number of output targets."
+        );
+        *targets = (records - &self.mean).dot(&self.embedding.t());
+    }
+
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array2<F> {
+        Array2::zeros((x.nrows(), self.embedding.nrows()))
     }
 }
 
@@ -188,7 +197,8 @@ impl<F: Float, D: Data<Elem = F>, T>
             ..
         } = ds;
 
-        let new_records = self.predict_ref(&records);
+        let mut new_records = self.default_target(&records);
+        self.predict_inplace(&records, &mut new_records);
 
         DatasetBase::new(new_records, targets).with_weights(weights)
     }
@@ -282,7 +292,7 @@ mod tests {
 
         // estimate density empirical and compare with Marchenko-Pastur law
         let mut i = 0;
-        'outer: for th in Array1::linspace(0.1, 2.8, 28).into_iter().rev() {
+        'outer: for th in Array1::linspace(0.1, 2.8, 28).iter().rev() {
             let mut count = 0;
             while sv[i] >= *th {
                 count += 1;

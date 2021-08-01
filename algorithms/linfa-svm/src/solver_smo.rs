@@ -898,7 +898,7 @@ impl<'a, F: Float, K: 'a + Permutable<F>> SolverState<'a, F, K> {
             obj,
             iterations: iter,
             sep_hyperplane,
-            kernel_method: self.kernel.to_inner().method,
+            kernel_method: self.kernel.into_inner().method,
             probability_coeffs: None,
             phantom: PhantomData,
         }

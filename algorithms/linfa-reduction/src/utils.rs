@@ -127,7 +127,7 @@ pub fn generate_blobs(
     let (n_centroids, n_features) = blob_centroids.dim();
     let mut blobs: Array2<f64> = Array2::zeros((n_centroids * blob_size, n_features));
 
-    for (blob_index, blob_centroid) in blob_centroids.genrows().into_iter().enumerate() {
+    for (blob_index, blob_centroid) in blob_centroids.rows().into_iter().enumerate() {
         let blob = generate_blob(blob_size, &blob_centroid, rng);
 
         let indexes = s![blob_index * blob_size..(blob_index + 1) * blob_size, ..];

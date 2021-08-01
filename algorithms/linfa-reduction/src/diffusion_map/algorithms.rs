@@ -128,7 +128,7 @@ fn compute_diffusion_map<F: Float>(
     let (vals, vecs) = if kernel.size() < 5 * embedding_size + 1 {
         let mut matrix = kernel.dot(&Array2::from_diag(&d).view());
         matrix
-            .gencolumns_mut()
+            .columns_mut()
             .into_iter()
             .zip(d.iter())
             .for_each(|(mut a, b)| a *= *b);
@@ -156,13 +156,13 @@ fn compute_diffusion_map<F: Float>(
         let result = lobpcg::lobpcg(
             |y| {
                 let mut y = y.to_owned().without_lapack();
-                y.genrows_mut()
+                y.rows_mut()
                     .into_iter()
                     .zip(d2.iter())
                     .for_each(|(mut a, b)| a *= *b);
                 let mut y = kernel.dot(&y.view());
 
-                y.genrows_mut()
+                y.rows_mut()
                     .into_iter()
                     .zip(d2.iter())
                     .for_each(|(mut a, b)| a *= *b);
@@ -189,12 +189,12 @@ fn compute_diffusion_map<F: Float>(
     let (vals, mut vecs): (Array1<F>, _) = (vals.without_lapack(), vecs.without_lapack());
     let d = d.mapv(|x| x.sqrt());
 
-    for (mut col, val) in vecs.genrows_mut().into_iter().zip(d.iter()) {
+    for (mut col, val) in vecs.rows_mut().into_iter().zip(d.iter()) {
         col *= *val;
     }
 
     let steps = F::cast(steps);
-    for (mut vec, val) in vecs.gencolumns_mut().into_iter().zip(vals.iter()) {
+    for (mut vec, val) in vecs.columns_mut().into_iter().zip(vals.iter()) {
         vec *= val.powf(steps);
     }
 

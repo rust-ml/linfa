@@ -246,7 +246,7 @@ fn find_neighbors<F: Float>(
     let mut hnsw: Hnsw<Euclidean<F>, Pcg64, 12, 24> = Hnsw::new_params(params);
 
     // insert all rows as data points into HNSW graph
-    for feature in observations.genrows().into_iter() {
+    for feature in observations.rows().into_iter() {
         hnsw.insert(Euclidean(feature), &mut searcher);
     }
     let mut neighbours = vec![space::Neighbor::invalid(); observations.nrows()];
