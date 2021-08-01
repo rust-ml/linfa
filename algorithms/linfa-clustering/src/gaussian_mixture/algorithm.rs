@@ -366,9 +366,9 @@ impl<F: Float> GaussianMixtureModel<F> {
         // det(precision_chol) is half of det(precision)
         let log_det = Self::compute_log_det_cholesky_full(&self.precisions_chol, n_features);
         let mut log_prob: Array2<F> = Array::zeros((n_samples, n_clusters));
-        Zip::indexed(means.genrows())
+        Zip::indexed(means.rows())
             .and(self.precisions_chol.outer_iter())
-            .apply(|k, mu, prec_chol| {
+            .for_each(|k, mu, prec_chol| {
                 let diff = (&observations.to_owned() - &mu).dot(&prec_chol);
                 log_prob
                     .slice_mut(s![.., k])
@@ -527,7 +527,7 @@ mod tests {
 
         let n = 500;
         let mut observations = Array2::zeros((2 * n, means.ncols()));
-        for (i, mut row) in observations.genrows_mut().into_iter().enumerate() {
+        for (i, mut row) in observations.rows_mut().into_iter().enumerate() {
             let sample = if i < n {
                 mvn1.sample(&mut rng)
             } else {
@@ -560,11 +560,11 @@ mod tests {
 
     fn function_test_1d(x: &Array2<f64>) -> Array2<f64> {
         let mut y = Array2::zeros(x.dim());
-        Zip::from(&mut y).and(x).apply(|yi, &xi| {
+        Zip::from(&mut y).and(x).for_each(|yi, &xi| {
             if xi < 0.4 {
                 *yi = xi * xi;
             } else if (0.4..0.8).contains(&xi) {
-                *yi = 3. * xi + 1.;
+                *yi = 10. * xi + 1.;
             } else {
                 *yi = f64::sin(10. * xi);
             }
@@ -575,7 +575,7 @@ mod tests {
     #[test]
     fn test_zeroed_reg_covar_failure() {
         let mut rng = Isaac64Rng::seed_from_u64(42);
-        let xt = Array2::random_using((50, 1), Uniform::new(0., 1.), &mut rng);
+        let xt = Array2::random_using((50, 1), Uniform::new(0., 1.0), &mut rng);
         let yt = function_test_1d(&xt);
         let data = concatenate(Axis(1), &[xt.view(), yt.view()]).unwrap();
         let dataset = DatasetBase::from(data);
@@ -585,6 +585,7 @@ mod tests {
             .with_reg_covariance(0.)
             .with_rng(rng.clone())
             .fit(&dataset);
+
         assert!(
             match gmm.expect_err("should generate an error with reg_covar being nul") {
                 GmmError::LinalgError(e) => match e {
@@ -650,7 +651,7 @@ mod tests {
             let closest_c = gmm_centroids.index_axis(Axis(0), memberships[i]);
             Zip::from(&closest_c)
                 .and(&expected_c)
-                .apply(|a, b| assert_abs_diff_eq!(a, b, epsilon = 1.))
+                .for_each(|a, b| assert_abs_diff_eq!(a, b, epsilon = 1.))
         }
     }
 

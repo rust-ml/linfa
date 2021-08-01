@@ -336,7 +336,7 @@ mod tests {
         // Look for the right number of centroids
         let out = init.run(&dist_fn, centroids.len(), obs.view(), &mut rng);
         let mut cluster_ids = HashSet::new();
-        for row in out.genrows() {
+        for row in out.rows() {
             // Centroid should not be 0
             assert_abs_diff_ne!(row, Array1::zeros(row.len()), epsilon = 1e-1);
             // Find the resultant centroid in 1 of the 3 clusters
@@ -344,7 +344,7 @@ mod tests {
                 .iter()
                 .enumerate()
                 .find_map(|(i, c)| {
-                    if c.genrows().into_iter().any(|cl| abs_diff_eq!(row, cl)) {
+                    if c.rows().into_iter().any(|cl| abs_diff_eq!(row, cl)) {
                         Some(i)
                     } else {
                         None

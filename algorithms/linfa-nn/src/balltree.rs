@@ -182,7 +182,7 @@ impl<'a, F: Float, D: Distance<F>> BallTreeIndex<'a, F, D> {
             Err(BuildError::ZeroDimension)
         } else {
             let points: Vec<_> = batch
-                .genrows()
+                .rows()
                 .into_iter()
                 .enumerate()
                 .map(|(i, pt)| (pt, i))
@@ -330,7 +330,7 @@ mod test {
         exp_rad: f64,
     ) {
         let vec: Vec<_> = input
-            .genrows()
+            .rows()
             .into_iter()
             .enumerate()
             .map(|(i, p)| (p, i))

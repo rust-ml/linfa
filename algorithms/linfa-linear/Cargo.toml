@@ -17,11 +17,11 @@ keywords = ["machine-learning", "linfa", "ai", "ml", "linear"]
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
-ndarray = { version = "0.14", features = ["blas", "approx"] }
-ndarray-linalg = "0.13"
-ndarray-stats = "0.4"
+ndarray = { version = "0.15", features = ["blas", "approx"] }
+ndarray-linalg = "0.14"
+ndarray-stats = "0.5"
 num-traits = "0.2"
-argmin = { version = "0.4", features = ["ndarrayl"] }
+argmin = { version = "0.4.6", features = ["ndarrayl"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 thiserror = "=1.0.25"
 

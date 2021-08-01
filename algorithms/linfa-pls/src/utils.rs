@@ -12,7 +12,7 @@ pub fn outer<F: Float>(
     b: &ArrayBase<impl Data<Elem = F>, Ix1>,
 ) -> Array2<F> {
     let mut outer = Array2::zeros((a.len(), b.len()));
-    Zip::from(outer.genrows_mut()).and(a).apply(|mut out, ai| {
+    Zip::from(outer.rows_mut()).and(a).for_each(|mut out, ai| {
         out.assign(&b.mapv(|v| *ai * v));
     });
     outer
@@ -100,7 +100,7 @@ pub fn svd_flip<F: Float>(
     Zip::from(&mut signs)
         .and(&max_abs_val_indices)
         .and(&range)
-        .apply(|s, &i, &j| *s = u[[i, j]].signum());
+        .for_each(|s, &i, &j| *s = u[[i, j]].signum());
     (&u * &signs, &v * &signs.insert_axis(Axis(1)))
 }
 

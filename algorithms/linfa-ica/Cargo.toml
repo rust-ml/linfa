@@ -24,10 +24,10 @@ default-features = false
 features = ["std", "derive"]
 
 [dependencies]
-ndarray = { version = "0.14", default-features = false }
-ndarray-linalg = "0.13"
-ndarray-rand = "0.13"
-ndarray-stats = "0.4"
+ndarray = { version = "0.15", default-features = false }
+ndarray-linalg = "0.14"
+ndarray-rand = "0.14"
+ndarray-stats = "0.5"
 num-traits = "0.2"
 rand_isaac = "0.3"
 thiserror = "=1.0.25"
@@ -35,5 +35,5 @@ thiserror = "=1.0.25"
 linfa = { version = "0.4.0", path = "../..", features = ["ndarray-linalg"] }
 
 [dev-dependencies]
-ndarray-npy = { version = "0.7", default-features = false }
+ndarray-npy = { version = "0.8", default-features = false }
 paste = "1.0"

@@ -7,7 +7,7 @@ pub trait Permutable<F: Float> {
     fn distances(&self, idx: usize, length: usize) -> Vec<F>;
     fn self_distance(&self, idx: usize) -> F;
     fn inner(&self) -> &Kernel<F>;
-    fn to_inner(self) -> Kernel<F>;
+    fn into_inner(self) -> Kernel<F>;
 }
 
 /// KernelView matrix with permutable columns
@@ -69,7 +69,7 @@ impl<F: Float> Permutable<F> for PermutableKernel<F> {
     }
 
     /// Return internal kernel
-    fn to_inner(self) -> Kernel<F> {
+    fn into_inner(self) -> Kernel<F> {
         self.kernel
     }
 
@@ -124,7 +124,7 @@ impl<F: Float> Permutable<F> for PermutableKernelOneClass<F> {
     }
 
     /// Return internal kernel
-    fn to_inner(self) -> Kernel<F> {
+    fn into_inner(self) -> Kernel<F> {
         self.kernel
     }
 
@@ -201,7 +201,7 @@ impl<'a, F: Float> Permutable<F> for PermutableKernelRegression<F> {
     }
 
     /// Return internal kernel
-    fn to_inner(self) -> Kernel<F> {
+    fn into_inner(self) -> Kernel<F> {
         self.kernel
     }
 

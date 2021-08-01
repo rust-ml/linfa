@@ -192,7 +192,7 @@ impl<F: Float> FittedLinearScaler<F> {
                 F::neg_infinity(),
                 |&x, &prev| if x > prev { x } else { prev },
             );
-        Zip::from(&mut scales).and(&mins).apply(|max, min| {
+        Zip::from(&mut scales).and(&mins).for_each(|max, min| {
             if abs_diff_eq!(*max - *min, F::zero()) {
                 // if feature is constant then don't scale
                 *max = F::one();
@@ -253,10 +253,10 @@ impl<F: Float> Transformer<Array2<F>, Array2<F>> for FittedLinearScaler<F> {
             return x;
         }
         let mut x = x;
-        Zip::from(x.gencolumns_mut())
+        Zip::from(x.columns_mut())
             .and(self.offsets())
             .and(self.scales())
-            .apply(|mut col, &offset, &scale| {
+            .for_each(|mut col, &offset, &scale| {
                 if let ScalingMethod::Standard(false, _) = self.method {
                     col.mapv_inplace(|el| (el - offset) * scale + offset);
                 } else {
