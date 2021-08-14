@@ -1,6 +1,6 @@
 use crate::argmin_param::ArgminParam;
 use argmin::prelude::{ArgminFloat, ArgminMul};
-use ndarray::NdFloat;
+use ndarray::{Dimension, NdFloat};
 use ndarray_linalg::Lapack;
 use num_traits::FromPrimitive;
 
@@ -13,21 +13,21 @@ pub trait Float:
     + Default
     + Clone
     + FromPrimitive
-    + ArgminMul<ArgminParam<Self>, ArgminParam<Self>>
+    //+ ArgminMul<ArgminParam<Self>, ArgminParam<Self>>
     + linfa::Float
 {
     const POSITIVE_LABEL: Self;
     const NEGATIVE_LABEL: Self;
 }
 
-impl ArgminMul<ArgminParam<Self>, ArgminParam<Self>> for f64 {
-    fn mul(&self, other: &ArgminParam<Self>) -> ArgminParam<Self> {
+impl<D: Dimension> ArgminMul<ArgminParam<Self, D>, ArgminParam<Self, D>> for f64 {
+    fn mul(&self, other: &ArgminParam<Self, D>) -> ArgminParam<Self, D> {
         ArgminParam(&other.0 * *self)
     }
 }
 
-impl ArgminMul<ArgminParam<Self>, ArgminParam<Self>> for f32 {
-    fn mul(&self, other: &ArgminParam<Self>) -> ArgminParam<Self> {
+impl<D: Dimension> ArgminMul<ArgminParam<Self, D>, ArgminParam<Self, D>> for f32 {
+    fn mul(&self, other: &ArgminParam<Self, D>) -> ArgminParam<Self, D> {
         ArgminParam(&other.0 * *self)
     }
 }

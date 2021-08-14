@@ -1,4 +1,4 @@
-//! This module defines newtypes for ndarray's Array1.
+//! This module defines newtypes for ndarray's Array.
 //!
 //! This is necessary to be able to abstract over floats (f32 and f64) so that
 //! the logistic regression code can be abstract in the float type it works
@@ -8,51 +8,51 @@
 
 use crate::float::Float;
 use argmin::prelude::*;
-use ndarray::Array1;
+use ndarray::{Array, Dimension};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Clone, Deserialize, Debug, Default)]
-pub struct ArgminParam<F>(pub Array1<F>);
+pub struct ArgminParam<F, D>(pub Array<F, D>);
 
-impl<F> ArgminParam<F> {
+impl<F, D> ArgminParam<F, D> {
     #[inline]
-    pub fn as_array(&self) -> &Array1<F> {
+    pub fn as_array(&self) -> &Array<F, D> {
         &self.0
     }
 }
 
-impl<F: Float> ArgminSub<ArgminParam<F>, ArgminParam<F>> for ArgminParam<F> {
-    fn sub(&self, other: &ArgminParam<F>) -> ArgminParam<F> {
+impl<F: Float, D: Dimension> ArgminSub<ArgminParam<F, D>, ArgminParam<F, D>> for ArgminParam<F, D> {
+    fn sub(&self, other: &ArgminParam<F, D>) -> ArgminParam<F, D> {
         ArgminParam(&self.0 - &other.0)
     }
 }
 
-impl<F: Float> ArgminAdd<ArgminParam<F>, ArgminParam<F>> for ArgminParam<F> {
-    fn add(&self, other: &ArgminParam<F>) -> ArgminParam<F> {
-        ArgminParam(&self.0 + &other.0)
+impl<F: Float, D: Dimension> ArgminAdd<ArgminParam<F, D>, ArgminParam<F, D>> for ArgminParam<F, D> {
+    fn add(&self, other: &ArgminParam<F, D>) -> ArgminParam<F, D> {
+        ArgminParam(&self.0 - &other.0)
     }
 }
 
-impl<F: Float> ArgminDot<ArgminParam<F>, F> for ArgminParam<F> {
-    fn dot(&self, other: &ArgminParam<F>) -> F {
+impl<F: Float, D: Dimension> ArgminDot<ArgminParam<F, D>, F> for ArgminParam<F, D> {
+    fn dot(&self, other: &ArgminParam<F, D>) -> F {
         self.0.dot(&other.0)
     }
 }
 
-impl<F: Float> ArgminNorm<F> for ArgminParam<F> {
+impl<F: Float, D: Dimension> ArgminNorm<F> for ArgminParam<F, D> {
     fn norm(&self) -> F {
         self.0.dot(&self.0)
     }
 }
 
-impl<F: Float> ArgminMul<F, ArgminParam<F>> for ArgminParam<F> {
-    fn mul(&self, other: &F) -> ArgminParam<F> {
+impl<F: Float, D: Dimension> ArgminMul<F, ArgminParam<F, D>> for ArgminParam<F, D> {
+    fn mul(&self, other: &F) -> ArgminParam<F, D> {
         ArgminParam(&self.0 * *other)
     }
 }
 
-impl<F: Float> ArgminMul<ArgminParam<F>, ArgminParam<F>> for ArgminParam<F> {
-    fn mul(&self, other: &ArgminParam<F>) -> ArgminParam<F> {
+impl<F: Float, D: Dimension> ArgminMul<ArgminParam<F, D>, ArgminParam<F, D>> for ArgminParam<F, D> {
+    fn mul(&self, other: &ArgminParam<F, D>) -> ArgminParam<F, D> {
         ArgminParam(&self.0 * &other.0)
     }
 }
