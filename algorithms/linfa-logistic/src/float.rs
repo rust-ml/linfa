@@ -1,6 +1,7 @@
 use crate::argmin_param::ArgminParam;
 use argmin::prelude::{ArgminFloat, ArgminMul};
 use ndarray::{Dimension, Ix1, Ix2, NdFloat};
+use ndarray_linalg::Lapack;
 use num_traits::FromPrimitive;
 
 /// A Float trait that captures the requirements we need for the various
@@ -8,6 +9,7 @@ use num_traits::FromPrimitive;
 pub trait Float:
     ArgminFloat
     + NdFloat
+    + Lapack
     + Default
     + Clone
     + FromPrimitive

@@ -15,6 +15,7 @@ categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
 ndarray = { version = "0.15", features = ["approx", "blas"] }
+ndarray-linalg = "0.14"
 ndarray-stats = "0.5.0"
 num-traits = "0.2"
 argmin = { version = "0.4.6", features = ["ndarrayl"] }
