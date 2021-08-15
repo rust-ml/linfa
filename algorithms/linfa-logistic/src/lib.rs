@@ -25,8 +25,8 @@ use argmin::solver::quasinewton::lbfgs::LBFGS;
 use linfa::prelude::{AsTargets, DatasetBase};
 use linfa::traits::{Fit, PredictInplace};
 use ndarray::{
-    s, Array, Array1, Array2, ArrayBase, Axis, Data, DataMut, Dimension, Ix1, Ix2, RemoveAxis,
-    Slice, Zip,
+    s, Array, Array1, Array2, ArrayBase, Axis, Data, DataMut, Dimension, IntoDimension, Ix1, Ix2,
+    RemoveAxis, Slice, Zip,
 };
 use ndarray_stats::QuantileExt;
 use std::default::Default;
@@ -85,77 +85,6 @@ type LBFGSType<F, D> = LBFGS<MoreThuenteLineSearch<ArgminParam<F, D>, F>, Argmin
 type LBFGSType1<F> = LBFGSType<F, Ix1>;
 type LBFGSType2<F> = LBFGSType<F, Ix2>;
 
-impl<F: Float> LogisticRegression<F, Ix1> {
-    /// Given a 2-dimensional feature matrix array `x` with shape
-    /// (n_samples, n_features) and an iterable of target classes to predict,
-    /// create a `FittedLinearRegression` object which allows making
-    /// predictions.
-    ///
-    /// The iterable of target classes `y` must have exactly two distinct
-    /// values, (e.g. 0.0 and 1.0, 0 and 1, "cat" and "dog", ...), which
-    /// represent the two different classes the model is supposed to predict.
-    ///
-    /// The iterable `y` must also produces exactly `n_samples` items, i.e.
-    /// exactly as many items as there are rows in the feature matrix `x`.
-    ///
-    /// This method returns an error if any of the preconditions are violated,
-    /// i.e. any values are `Inf` or `NaN`, `y` doesn't have as many items as
-    /// `x` has rows, or if other parameters (gradient_tolerance, alpha) have
-    /// been set to inalid values.
-    fn fit<A, T, C>(&self, x: &ArrayBase<A, Ix2>, y: T) -> Result<FittedLogisticRegression<F, C>>
-    where
-        A: Data<Elem = F>,
-        T: AsTargets<Elem = C>,
-        C: PartialOrd + Clone,
-    {
-        let (labels, target) = label_classes(y)?;
-        self.validate_data(x, &target)?;
-        let problem = self.setup_problem(x, target);
-        let solver = self.setup_solver();
-        let init_params = self.setup_init_params(x.ncols());
-        let result = self.run_solver(problem, solver, ArgminParam(init_params))?;
-        self.convert_result(labels, &result)
-    }
-
-    /// Create the initial parameters, either from a user supplied guess
-    /// or a 1-d array of `0`s.
-    fn setup_init_params(&self, n_features: usize) -> Array1<F> {
-        if let Some(params) = self.initial_params.as_ref() {
-            params.clone()
-        } else {
-            Array::zeros(n_features + self.fit_intercept as usize)
-        }
-    }
-}
-
-impl<F: Float> LogisticRegression<F, Ix2> {
-    fn fit<A, T, C>(&self, x: &ArrayBase<A, Ix2>, y: T) -> Result<FittedLogisticRegression<F, C>>
-    where
-        A: Data<Elem = F>,
-        T: AsTargets<Elem = C>,
-        C: PartialOrd + Clone,
-    {
-        let (labels, target) = label_classes_multi(y)?;
-        self.validate_data(x, &target)?;
-        let problem = self.setup_problem(x, target);
-        let solver = self.setup_solver();
-        let init_params = self.setup_init_params(x.ncols(), target.ncols());
-        let result = self.run_solver(problem, solver, ArgminParam(init_params))?;
-        self.convert_result(labels, &result)
-    }
-
-    /// Create the initial parameters, either from a user supplied guess
-    /// or a 1-d array of `0`s.
-    fn setup_init_params(&self, n_features: usize, n_classes: usize) -> Array2<F> {
-        if let Some(params) = self.initial_params.as_ref() {
-            params.clone()
-        } else {
-            n_features + self.fit_intercept as usize;
-            Array::zeros((n_features + self.fit_intercept as usize, n_classes))
-        }
-    }
-}
-
 impl<F: Float, D: Dimension> LogisticRegression<F, D> {
     /// Creates a new LogisticRegression with default configuration.
     pub fn new() -> Self {
@@ -201,6 +130,18 @@ impl<F: Float, D: Dimension> LogisticRegression<F, D> {
     pub fn initial_params(mut self, params: Array<F, D>) -> Self {
         self.initial_params = Some(params);
         self
+    }
+
+    /// Create the initial parameters, either from a user supplied guess
+    /// or a 1-d array of `0`s.
+    fn setup_init_params(&self, dims: D::Pattern) -> Array<F, D> {
+        if let Some(params) = self.initial_params.as_ref() {
+            params.clone()
+        } else {
+            let mut dims = dims.into_dimension();
+            dims.as_array_view_mut()[0] += self.fit_intercept as usize;
+            Array::zeros(dims)
+        }
     }
 
     /// Ensure that `x` and `y` have the right shape and that all data and
@@ -272,30 +213,9 @@ impl<F: Float, D: Dimension> LogisticRegression<F, D> {
             .run()
             .map_err(|err| err.into())
     }
-
-    /// Take an ArgminResult and return a FittedLogisticRegression.
-    fn convert_result<'a, A, C>(
-        &self,
-        labels: ClassLabels<F, C>,
-        result: &ArgminResult<LogisticRegressionProblem<'a, F, A, D>>,
-    ) -> Result<FittedLogisticRegression<F, C>>
-    where
-        A: Data<Elem = F>,
-        C: PartialOrd + Clone,
-        LogisticRegressionProblem<'a, F, A, D>: SolvableProblem,
-    {
-        let params = result.state().best_param.as_array();
-        let n_features = if self.fit_intercept {
-            params.shape()[0] - 1
-        } else {
-            params.shape()[0]
-        };
-        let (w, intercept) = convert_params(n_features, params);
-        Ok(FittedLogisticRegression::new(intercept, params, labels))
-    }
 }
 
-impl<'a, C: 'a + PartialOrd + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C>>
+impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C>>
     Fit<ArrayBase<D, Ix2>, T, Error> for LogisticRegression<F, Ix1>
 {
     type Object = FittedLogisticRegression<F, C>;
@@ -317,17 +237,41 @@ impl<'a, C: 'a + PartialOrd + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<E
     /// `x` has rows, or if other parameters (gradient_tolerance, alpha) have
     /// been set to inalid values.
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
-        self.fit(dataset.records(), dataset.targets())
+        let (x, y) = (dataset.records(), dataset.targets());
+        let (labels, target) = label_classes(y)?;
+        self.validate_data(x, &target)?;
+        let problem = self.setup_problem(x, target);
+        let solver = self.setup_solver();
+        let init_params = self.setup_init_params(x.ncols());
+        let result = self.run_solver(problem, solver, ArgminParam(init_params))?;
+
+        let params = result.state().best_param.as_array();
+        let (w, intercept) = convert_params(x.nrows(), params);
+        Ok(FittedLogisticRegression::new(
+            intercept.into_scalar(),
+            w,
+            labels,
+        ))
     }
 }
 
-impl<'a, C: 'a + PartialOrd + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C>>
+impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C>>
     Fit<ArrayBase<D, Ix2>, T, Error> for LogisticRegression<F, Ix2>
 {
     type Object = MultiFittedLogisticRegression<F, C>;
 
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
-        self.fit(dataset.records(), dataset.targets())
+        let (x, y) = (dataset.records(), dataset.targets());
+        let (classes, target) = label_classes_multi(y)?;
+        self.validate_data(x, &target)?;
+        let problem = self.setup_problem(x, target);
+        let solver = self.setup_solver();
+        let init_params = self.setup_init_params((x.ncols(), classes.len()));
+        let result = self.run_solver(problem, solver, ArgminParam(init_params))?;
+
+        let params = result.state().best_param.as_array();
+        let (w, intercept) = convert_params(x.nrows(), params);
+        Ok(MultiFittedLogisticRegression::new(intercept, w, classes))
     }
 }
 
@@ -341,7 +285,7 @@ fn label_classes<F, T, C>(y: T) -> Result<(ClassLabels<F, C>, Array1<F>)>
 where
     F: Float,
     T: AsTargets<Elem = C>,
-    C: PartialOrd + Clone,
+    C: Ord + Clone,
 {
     let y_single_target = y.try_single_target()?;
     let mut classes: Vec<&C> = vec![];
@@ -390,13 +334,26 @@ where
     ))
 }
 
-fn label_classes_multi<F, T, C>(y: T) -> Result<(ClassLabels<F, C>, Array2<F>)>
+fn label_classes_multi<F, T, C>(y: T) -> Result<(Vec<C>, Array2<F>)>
 where
     F: Float,
     T: AsTargets<Elem = C>,
-    C: PartialOrd + Clone,
+    C: Ord + Clone,
 {
-    todo!()
+    let y_single_target = y.try_single_target()?;
+    let mut classes = y_single_target.to_vec();
+    // Dedup the list of classes
+    classes.sort();
+    classes.dedup();
+
+    let mut onehot = Array2::zeros((y_single_target.len(), classes.len()));
+    Zip::from(onehot.rows_mut())
+        .and(&y_single_target)
+        .for_each(|mut oh_row, cls| {
+            let idx = classes.binary_search(cls).unwrap();
+            oh_row[idx] = F::one();
+        });
+    Ok((classes, onehot))
 }
 
 /// Conditionally split the feature vector `w` into parameter vector and
@@ -465,7 +422,7 @@ fn softmax_inplace<F: linfa::Float, A: DataMut<Elem = F>>(v: &mut ArrayBase<A, I
     let max = v.iter().copied().reduce(F::max).unwrap();
     v.mapv_inplace(|n| (n - max).exp());
     let sum = v.sum();
-    v.mapv_inplace(|n| n / max);
+    v.mapv_inplace(|n| n / sum);
 }
 
 /// Computes the logistic loss assuming the training labels $y \in {-1, 1}$
@@ -664,13 +621,13 @@ impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
 #[derive(PartialEq, Debug)]
 pub struct MultiFittedLogisticRegression<F: Float, C: PartialOrd + Clone> {
     threshold: F,
-    intercept: F,
+    intercept: Array1<F>,
     params: Array2<F>,
     classes: Vec<C>,
 }
 
 impl<F: Float, C: PartialOrd + Clone> MultiFittedLogisticRegression<F, C> {
-    fn new(intercept: F, params: Array2<F>, classes: Vec<C>) -> Self {
+    fn new(intercept: Array1<F>, params: Array2<F>, classes: Vec<C>) -> Self {
         Self {
             threshold: F::cast(0.5),
             intercept,
@@ -689,8 +646,8 @@ impl<F: Float, C: PartialOrd + Clone> MultiFittedLogisticRegression<F, C> {
         self
     }
 
-    pub fn intercept(&self) -> F {
-        self.intercept
+    pub fn intercept(&self) -> &Array1<F> {
+        &self.intercept
     }
 
     pub fn params(&self) -> &Array2<F> {
@@ -699,8 +656,7 @@ impl<F: Float, C: PartialOrd + Clone> MultiFittedLogisticRegression<F, C> {
 
     /// Return non-normalized probabilities (n_samples * n_classes)
     fn predict_nonorm_probabilities<A: Data<Elem = F>>(&self, x: &ArrayBase<A, Ix2>) -> Array2<F> {
-        let mut probs = x.dot(&self.params) + self.intercept;
-        probs
+        x.dot(&self.params) + &self.intercept
     }
 
     /// Return normalized probabilities for each output class. The output dimensions are (n_samples
@@ -710,7 +666,7 @@ impl<F: Float, C: PartialOrd + Clone> MultiFittedLogisticRegression<F, C> {
         probs
             .rows_mut()
             .into_iter()
-            .for_each(|row| softmax_inplace(&mut row));
+            .for_each(|mut row| softmax_inplace(&mut row));
         probs
     }
 }
@@ -734,7 +690,8 @@ impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
 
         let probs = self.predict_nonorm_probabilities(x);
         Zip::from(probs.rows()).and(y).for_each(|prob_row, out| {
-            *out = prob_row.argmax_skipnan().unwrap();
+            let idx = prob_row.argmax().unwrap();
+            *out = self.classes[idx].clone();
         });
     }
 
