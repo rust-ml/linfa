@@ -24,13 +24,15 @@ use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::lbfgs::LBFGS;
 use linfa::prelude::{AsTargets, DatasetBase};
 use linfa::traits::{Fit, PredictInplace};
-use ndarray::{s, Array, Array1, ArrayBase, Data, Ix1, Ix2};
+use ndarray::{
+    s, Array, Array1, Array2, ArrayBase, Axis, Data, Dimension, Ix1, Ix2, RemoveAxis, Slice,
+};
 use std::default::Default;
 
 mod argmin_param;
 mod float;
 
-use argmin_param::ArgminParam;
+use argmin_param::{elem_dot, ArgminParam};
 use float::Float;
 
 /// A two-class logistic regression model.
@@ -77,7 +79,8 @@ impl<F: Float> Default for LogisticRegression<F> {
     }
 }
 
-type LBFGSType<F> = LBFGS<MoreThuenteLineSearch<ArgminParam<F>, F>, ArgminParam<F>, F>;
+type LBFGSType1<F> = LBFGS<MoreThuenteLineSearch<ArgminParam<F, Ix1>, F>, ArgminParam<F, Ix1>, F>;
+type LBFGSType2<F> = LBFGS<MoreThuenteLineSearch<ArgminParam<F, Ix2>, F>, ArgminParam<F, Ix2>, F>;
 
 impl<F: Float> LogisticRegression<F> {
     /// Creates a new LogisticRegression with default configuration.
@@ -201,8 +204,8 @@ impl<F: Float> LogisticRegression<F> {
         &self,
         x: &'a ArrayBase<A, Ix2>,
         target: Array1<F>,
-    ) -> LogisticRegressionProblem<'a, F, A> {
-        LogisticRegressionProblem {
+    ) -> LogisticRegressionProblem1<'a, F, A> {
+        LogisticRegressionProblem1 {
             x,
             target,
             alpha: self.alpha,
@@ -236,7 +239,7 @@ impl<F: Float> LogisticRegression<F> {
 
     /// Create the LBFGS solver using MoreThuenteLineSearch and set gradient
     /// tolerance.
-    fn setup_solver(&self) -> LBFGSType<F> {
+    fn setup_solver(&self) -> LBFGSType1<F> {
         let linesearch = MoreThuenteLineSearch::new();
         LBFGS::new(linesearch, 10).with_tol_grad(self.gradient_tolerance)
     }
@@ -244,10 +247,10 @@ impl<F: Float> LogisticRegression<F> {
     /// Run the LBFGS solver until it converges or runs out of iterations.
     fn run_solver<'a, A>(
         &self,
-        problem: LogisticRegressionProblem<'a, F, A>,
-        solver: LBFGSType<F>,
+        problem: LogisticRegressionProblem1<'a, F, A>,
+        solver: LBFGSType1<F>,
         init_params: Array1<F>,
-    ) -> Result<ArgminResult<LogisticRegressionProblem<'a, F, A>>>
+    ) -> Result<ArgminResult<LogisticRegressionProblem1<'a, F, A>>>
     where
         A: Data<Elem = F>,
     {
@@ -261,7 +264,7 @@ impl<F: Float> LogisticRegression<F> {
     fn convert_result<A, C>(
         &self,
         labels: ClassLabels<F, C>,
-        result: &ArgminResult<LogisticRegressionProblem<F, A>>,
+        result: &ArgminResult<LogisticRegressionProblem1<F, A>>,
     ) -> Result<FittedLogisticRegression<F, C>>
     where
         A: Data<Elem = F>,
@@ -364,17 +367,25 @@ where
 
 /// Conditionally split the feature vector `w` into parameter vector and
 /// intercept parameter.
-fn convert_params<F: Float>(n_features: usize, w: &Array1<F>) -> (Array1<F>, F) {
-    if n_features == w.len() {
-        (w.to_owned(), F::zero())
-    } else if n_features + 1 == w.len() {
-        (w.slice(s![..w.len() - 1]).to_owned(), w[w.len() - 1])
+/// Dimensions of `w` are either (f) or (f, n_classes)
+fn convert_params<F: Float, D: Dimension + RemoveAxis>(
+    n_features: usize,
+    w: &Array<F, D>,
+) -> (Array<F, D>, Array<F, D::Smaller>) {
+    let nrows = w.shape()[0];
+    if n_features == nrows {
+        (w.to_owned(), Array::zeros(w.raw_dim().remove_axis(Axis(0))))
+    } else if n_features + 1 == nrows {
+        (
+            w.slice_axis(Axis(0), Slice::from(..n_features)).to_owned(),
+            w.index_axis(Axis(0), n_features).to_owned(),
+        )
     } else {
         panic!(
             "Unexpected length of parameter vector `w`, exected {} or {}, found {}",
             n_features,
             n_features + 1,
-            w.len()
+            nrows
         );
     }
 }
@@ -399,6 +410,22 @@ fn log_logistic<F: linfa::Float>(x: F) -> F {
     }
 }
 
+/// Finds the log of the sum of exponents across a specific axis in a numerically stable way. More
+/// specifically, computes `ln(exp(x1) + exp(x2) + exp(e3) + ...)` across an axis.
+///
+/// Based off this implementation: https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.logsumexp.html
+fn log_sum_exp<F: linfa::Float, A: Data<Elem = F>>(
+    m: &ArrayBase<A, Ix2>,
+    axis: Axis,
+) -> Array<F, Ix1> {
+    // Find max value of the array
+    let max = m.iter().copied().reduce(F::max).unwrap();
+    // Computes `max + ln(exp(x1-max) + exp(x2-max) + exp(x3-max) + ...)`, which is equal to the
+    // log_sum_exp formula
+    let reduced = m.fold_axis(axis, F::zero(), |acc, elem| *acc + (*elem - max).exp());
+    reduced.mapv_into(|e| e.ln() + max)
+}
+
 /// Computes the logistic loss assuming the training labels $y \in {-1, 1}$
 ///
 /// Because the logistic function fullfills $\sigma(-z) = 1 - \sigma(z)$
@@ -419,6 +446,38 @@ fn logistic_loss<F: Float, A: Data<Elem = F>>(
     let mut yz = (x.dot(&params) + intercept) * y;
     yz.mapv_inplace(log_logistic);
     -yz.sum() + F::cast(0.5) * alpha * params.dot(&params)
+}
+
+/// Computes loss function of `-sum(Y * log(softmax(H))) + alpha/2 * norm(W)`, where H is `X . W + b`.
+/// Also returns the log of the probabilities, which is `log(softmax(H))`, along with `W`.
+/// `Y` is the output (n_samples * n_classes), `X` is the input (n_samples * n_features), `W` is the
+/// params (n_features * n_classes), `b` is the intercept vector (n_classes).
+fn multi_logistic_loss_prob_params<F: Float, A: Data<Elem = F>>(
+    x: &ArrayBase<A, Ix2>,
+    y: &Array2<F>,
+    alpha: F,
+    w: &Array2<F>, // This parameter includes `W` and `b`
+) -> (F, Array2<F>, Array2<F>) {
+    let n_features = x.shape()[1];
+    let (params, intercept) = convert_params(n_features, w);
+    // Compute H
+    let h = x.dot(&params) + intercept;
+    // This computes `H - log(sum(exp(H)))`, which is equal to
+    // `log(softmax(H)) = log(exp(H) / sum(exp(H)))`
+    let log_prob = h - log_sum_exp(&h, Axis(1));
+    // Calculate loss
+    // XXX Should we divide cost by n_samples???
+    let loss = -elem_dot(&log_prob, y) + F::cast(0.5) * alpha * elem_dot(&params, &params);
+    (loss, log_prob, params)
+}
+
+fn multi_logistic_loss<F: Float, A: Data<Elem = F>>(
+    x: &ArrayBase<A, Ix2>,
+    y: &Array2<F>,
+    alpha: F,
+    w: &Array2<F>,
+) -> F {
+    multi_logistic_loss_prob_params(x, y, alpha, w).0
 }
 
 /// Computes the gradient of the logistic loss function
@@ -443,6 +502,36 @@ fn logistic_grad<F: Float, A: Data<Elem = F>>(
     } else {
         x.t().dot(&yz) + &(params * alpha)
     }
+}
+
+/// Computes multinomial gradients for `W` and `b`, combine them, and flatten the result.
+/// Gradient for `W` is `Xt . (softmax(H) - Y) + alpha * W`.
+/// Gradient for `b` is `sum(softmax(H) - Y)`.
+fn multi_logistic_grad<F: Float, A: Data<Elem = F>>(
+    x: &ArrayBase<A, Ix2>,
+    y: &Array2<F>,
+    alpha: F,
+    w: &Array2<F>,
+) -> Array1<F> {
+    let (loss, log_prob, params) = multi_logistic_loss_prob_params(x, y, alpha, w);
+    let (n_features, n_classes) = params.dim();
+    let intercept = x.ncols() > n_features;
+    let mut grad = Array::zeros((n_features + intercept as usize, n_classes));
+
+    // This value is `softmax(H)`
+    let prob = log_prob.mapv_into(num_traits::Float::exp);
+    let diff = prob - y;
+    // Compute gradient for `W` and place it at start of the grad matrix
+    let mut dw = x.t().dot(&diff);
+    params *= alpha;
+    dw += &params;
+    grad.slice_mut(s![..n_features, ..]).assign(&dw);
+    // Compute gradient for `b` and place it at end of grad matrix
+    if intercept {
+        grad.row_mut(n_features).assign(&diff.sum_axis(Axis(0)));
+    }
+    // XXX should we divide by n_samples??
+    grad.into_shape(grad.len()).unwrap()
 }
 
 /// A fitted logistic regression which can make predictions
@@ -549,15 +638,15 @@ fn class_from_label<F: Float, C: PartialOrd + Clone>(labels: &[ClassLabel<F, C>]
 
 /// Internal representation of a logistic regression problem.
 /// This data structure exists to be handed to Argmin.
-struct LogisticRegressionProblem<'a, F: Float, A: Data<Elem = F>> {
+struct LogisticRegressionProblem1<'a, F: Float, A: Data<Elem = F>> {
     x: &'a ArrayBase<A, Ix2>,
     target: Array1<F>,
     alpha: F,
 }
 
-impl<'a, F: Float, A: Data<Elem = F>> ArgminOp for LogisticRegressionProblem<'a, F, A> {
+impl<'a, F: Float, A: Data<Elem = F>> ArgminOp for LogisticRegressionProblem1<'a, F, A> {
     /// Type of the parameter vector
-    type Param = ArgminParam<F>;
+    type Param = ArgminParam<F, Ix1>;
     /// Type of the return value computed by the cost function
     type Output = F;
     /// Type of the Hessian. Can be `()` if not needed.
@@ -577,6 +666,42 @@ impl<'a, F: Float, A: Data<Elem = F>> ArgminOp for LogisticRegressionProblem<'a,
     fn gradient(&self, p: &Self::Param) -> std::result::Result<Self::Param, argmin::core::Error> {
         let w = p.as_array();
         Ok(ArgminParam(logistic_grad(
+            self.x,
+            &self.target,
+            self.alpha,
+            w,
+        )))
+    }
+}
+
+struct LogisticRegressionProblem2<'a, F: Float, A: Data<Elem = F>> {
+    x: &'a ArrayBase<A, Ix2>,
+    target: Array2<F>,
+    alpha: F,
+}
+
+impl<'a, F: Float, A: Data<Elem = F>> ArgminOp for LogisticRegressionProblem2<'a, F, A> {
+    /// Type of the parameter vector
+    type Param = ArgminParam<F, Ix2>;
+    /// Type of the return value computed by the cost function
+    type Output = F;
+    /// Type of the Hessian. Can be `()` if not needed.
+    type Hessian = ();
+    /// Type of the Jacobian. Can be `()` if not needed.
+    type Jacobian = Array1<F>;
+    /// Floating point precision
+    type Float = F;
+
+    /// Apply the cost function to a parameter `p`
+    fn apply(&self, p: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
+        let w = p.as_array();
+        Ok(multi_logistic_loss(self.x, &self.target, self.alpha, w))
+    }
+
+    /// Compute the gradient at parameter `p`.
+    fn gradient(&self, p: &Self::Param) -> std::result::Result<Self::Param, argmin::core::Error> {
+        let w = p.as_array();
+        Ok(ArgminParam(multi_logistic_grad(
             self.x,
             &self.target,
             self.alpha,

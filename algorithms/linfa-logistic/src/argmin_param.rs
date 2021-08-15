@@ -8,13 +8,22 @@
 
 use crate::float::Float;
 use argmin::prelude::*;
-use ndarray::{Array, Dimension};
+use ndarray::{Array, ArrayBase, Data, Dimension, Zip};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Clone, Deserialize, Debug, Default)]
-pub struct ArgminParam<F, D>(pub Array<F, D>);
+pub fn elem_dot<F: linfa::Float, A1: Data<Elem = F>, A2: Data<Elem = F>, D: Dimension>(
+    a: &ArrayBase<A1, D>,
+    b: &ArrayBase<A2, D>,
+) -> F {
+    Zip::from(a)
+        .and(b)
+        .fold(F::zero(), |acc, &a, &b| acc + a * b)
+}
 
-impl<F, D> ArgminParam<F, D> {
+#[derive(Serialize, Clone, Deserialize, Debug, Default)]
+pub struct ArgminParam<F, D: Dimension>(pub Array<F, D>);
+
+impl<F, D: Dimension> ArgminParam<F, D> {
     #[inline]
     pub fn as_array(&self) -> &Array<F, D> {
         &self.0
@@ -35,13 +44,15 @@ impl<F: Float, D: Dimension> ArgminAdd<ArgminParam<F, D>, ArgminParam<F, D>> for
 
 impl<F: Float, D: Dimension> ArgminDot<ArgminParam<F, D>, F> for ArgminParam<F, D> {
     fn dot(&self, other: &ArgminParam<F, D>) -> F {
-        self.0.dot(&other.0)
+        //self.0.dot(&other.0)
+        todo!()
     }
 }
 
 impl<F: Float, D: Dimension> ArgminNorm<F> for ArgminParam<F, D> {
     fn norm(&self) -> F {
-        self.0.dot(&self.0)
+        //self.0.dot(&self.0)
+        todo!()
     }
 }
 

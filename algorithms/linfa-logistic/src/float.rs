@@ -1,6 +1,6 @@
 use crate::argmin_param::ArgminParam;
 use argmin::prelude::{ArgminFloat, ArgminMul};
-use ndarray::{Dimension, NdFloat};
+use ndarray::{Dimension, Ix1, Ix2, NdFloat};
 use ndarray_linalg::Lapack;
 use num_traits::FromPrimitive;
 
@@ -13,7 +13,8 @@ pub trait Float:
     + Default
     + Clone
     + FromPrimitive
-    //+ ArgminMul<ArgminParam<Self>, ArgminParam<Self>>
+    + ArgminMul<ArgminParam<Self, Ix1>, ArgminParam<Self, Ix1>>
+    + ArgminMul<ArgminParam<Self, Ix2>, ArgminParam<Self, Ix2>>
     + linfa::Float
 {
     const POSITIVE_LABEL: Self;
