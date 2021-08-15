@@ -25,8 +25,10 @@ use argmin::solver::quasinewton::lbfgs::LBFGS;
 use linfa::prelude::{AsTargets, DatasetBase};
 use linfa::traits::{Fit, PredictInplace};
 use ndarray::{
-    s, Array, Array1, Array2, ArrayBase, Axis, Data, Dimension, Ix1, Ix2, RemoveAxis, Slice,
+    s, Array, Array1, Array2, ArrayBase, Axis, Data, DataMut, Dimension, Ix1, Ix2, RemoveAxis,
+    Slice, Zip,
 };
+use ndarray_stats::QuantileExt;
 use std::default::Default;
 
 mod argmin_param;
@@ -272,27 +274,29 @@ impl<F: Float, D: Dimension> LogisticRegression<F, D> {
     }
 
     /// Take an ArgminResult and return a FittedLogisticRegression.
-    fn convert_result<A, C>(
+    fn convert_result<'a, A, C>(
         &self,
         labels: ClassLabels<F, C>,
-        result: &ArgminResult<LogisticRegressionProblem1<F, A>>,
+        result: &ArgminResult<LogisticRegressionProblem<'a, F, A, D>>,
     ) -> Result<FittedLogisticRegression<F, C>>
     where
         A: Data<Elem = F>,
         C: PartialOrd + Clone,
+        LogisticRegressionProblem<'a, F, A, D>: SolvableProblem,
     {
-        let mut intercept = F::cast(0.0);
-        let mut params = result.state().best_param.as_array().clone();
-        if self.fit_intercept {
-            intercept = params[params.len() - 1];
-            params = params.slice(s![..params.len() - 1]).to_owned();
-        }
+        let params = result.state().best_param.as_array();
+        let n_features = if self.fit_intercept {
+            params.shape()[0] - 1
+        } else {
+            params.shape()[0]
+        };
+        let (w, intercept) = convert_params(n_features, params);
         Ok(FittedLogisticRegression::new(intercept, params, labels))
     }
 }
 
 impl<'a, C: 'a + PartialOrd + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C>>
-    Fit<ArrayBase<D, Ix2>, T, Error> for LogisticRegression<F>
+    Fit<ArrayBase<D, Ix2>, T, Error> for LogisticRegression<F, Ix1>
 {
     type Object = FittedLogisticRegression<F, C>;
 
@@ -312,6 +316,16 @@ impl<'a, C: 'a + PartialOrd + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<E
     /// i.e. any values are `Inf` or `NaN`, `y` doesn't have as many items as
     /// `x` has rows, or if other parameters (gradient_tolerance, alpha) have
     /// been set to inalid values.
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
+        self.fit(dataset.records(), dataset.targets())
+    }
+}
+
+impl<'a, C: 'a + PartialOrd + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C>>
+    Fit<ArrayBase<D, Ix2>, T, Error> for LogisticRegression<F, Ix2>
+{
+    type Object = MultiFittedLogisticRegression<F, C>;
+
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
         self.fit(dataset.records(), dataset.targets())
     }
@@ -444,6 +458,14 @@ fn log_sum_exp<F: linfa::Float, A: Data<Elem = F>>(
     // log_sum_exp formula
     let reduced = m.fold_axis(axis, F::zero(), |acc, elem| *acc + (*elem - max).exp());
     reduced.mapv_into(|e| e.ln() + max)
+}
+
+/// Computes `exp(n - max) / sum(exp(n- max))`, which is a numerically stable version of softmax
+fn softmax_inplace<F: linfa::Float, A: DataMut<Elem = F>>(v: &mut ArrayBase<A, Ix1>) {
+    let max = v.iter().copied().reduce(F::max).unwrap();
+    v.mapv_inplace(|n| (n - max).exp());
+    let sum = v.sum();
+    v.mapv_inplace(|n| n / max);
 }
 
 /// Computes the logistic loss assuming the training labels $y \in {-1, 1}$
@@ -601,20 +623,6 @@ impl<F: Float, C: PartialOrd + Clone> FittedLogisticRegression<F, C> {
         probs.mapv_inplace(logistic);
         probs
     }
-
-    /// Given a feature matrix, predict the classes learned when the model was
-    /// fitted.
-    fn predict<A: Data<Elem = F>>(&self, x: &ArrayBase<A, Ix2>) -> Array1<C> {
-        let pos_class = class_from_label(&self.labels, F::POSITIVE_LABEL);
-        let neg_class = class_from_label(&self.labels, F::NEGATIVE_LABEL);
-        self.predict_probabilities(x).mapv(|probability| {
-            if probability >= self.threshold {
-                pos_class.clone()
-            } else {
-                neg_class.clone()
-            }
-        })
-    }
 }
 
 impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
@@ -628,8 +636,106 @@ impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
             y.len(),
             "The number of data points must match the number of output targets."
         );
+        assert_eq!(
+            x.ncols(),
+            self.params.len(),
+            "Number of data features must match the number of features the model was trained with."
+        );
 
-        *y = self.predict(x);
+        let pos_class = class_from_label(&self.labels, F::POSITIVE_LABEL);
+        let neg_class = class_from_label(&self.labels, F::NEGATIVE_LABEL);
+        Zip::from(&self.predict_probabilities(x))
+            .and(y)
+            .for_each(|prob, out| {
+                *out = if *prob >= self.threshold {
+                    pos_class.clone()
+                } else {
+                    neg_class.clone()
+                }
+            });
+    }
+
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<C> {
+        Array1::default(x.nrows())
+    }
+}
+
+/// A fitted logistic regression which can make predictions
+#[derive(PartialEq, Debug)]
+pub struct MultiFittedLogisticRegression<F: Float, C: PartialOrd + Clone> {
+    threshold: F,
+    intercept: F,
+    params: Array2<F>,
+    classes: Vec<C>,
+}
+
+impl<F: Float, C: PartialOrd + Clone> MultiFittedLogisticRegression<F, C> {
+    fn new(intercept: F, params: Array2<F>, classes: Vec<C>) -> Self {
+        Self {
+            threshold: F::cast(0.5),
+            intercept,
+            params,
+            classes,
+        }
+    }
+
+    /// Set the probability threshold for which the 'positive' class will be
+    /// predicted. Defaults to 0.5.
+    pub fn set_threshold(mut self, threshold: F) -> Self {
+        if threshold < F::zero() || threshold > F::one() {
+            panic!("FittedLogisticRegression::set_threshold: threshold needs to be between 0.0 and 1.0");
+        }
+        self.threshold = threshold;
+        self
+    }
+
+    pub fn intercept(&self) -> F {
+        self.intercept
+    }
+
+    pub fn params(&self) -> &Array2<F> {
+        &self.params
+    }
+
+    /// Return non-normalized probabilities (n_samples * n_classes)
+    fn predict_nonorm_probabilities<A: Data<Elem = F>>(&self, x: &ArrayBase<A, Ix2>) -> Array2<F> {
+        let mut probs = x.dot(&self.params) + self.intercept;
+        probs
+    }
+
+    /// Return normalized probabilities for each output class. The output dimensions are (n_samples
+    /// * n_classes).
+    pub fn predict_probabilities<A: Data<Elem = F>>(&self, x: &ArrayBase<A, Ix2>) -> Array2<F> {
+        let mut probs = self.predict_nonorm_probabilities(x);
+        probs
+            .rows_mut()
+            .into_iter()
+            .for_each(|row| softmax_inplace(&mut row));
+        probs
+    }
+}
+
+impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
+    PredictInplace<ArrayBase<D, Ix2>, Array1<C>> for MultiFittedLogisticRegression<F, C>
+{
+    /// Given a feature matrix, predict the classes learned when the model was
+    /// fitted.
+    fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<C>) {
+        assert_eq!(
+            x.nrows(),
+            y.len(),
+            "The number of data points must match the number of output targets."
+        );
+        assert_eq!(
+            x.ncols(),
+            self.params.nrows(),
+            "Number of data features must match the number of features the model was trained with."
+        );
+
+        let probs = self.predict_nonorm_probabilities(x);
+        Zip::from(probs.rows()).and(y).for_each(|prob_row, out| {
+            *out = prob_row.argmax_skipnan().unwrap();
+        });
     }
 
     fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<C> {
