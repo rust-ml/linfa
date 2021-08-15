@@ -67,7 +67,7 @@ use float::Float;
 /// let model = LogisticRegression::default().fit(&dataset).unwrap();
 /// let prediction = model.predict(&dataset);
 /// ```
-pub struct LogisticRegression<F: Float, D: Dimension> {
+pub struct LogisticRegressionBase<F: Float, D: Dimension> {
     alpha: F,
     fit_intercept: bool,
     max_iterations: u64,
@@ -75,9 +75,12 @@ pub struct LogisticRegression<F: Float, D: Dimension> {
     initial_params: Option<Array<F, D>>,
 }
 
-impl<F: Float, D: Dimension> Default for LogisticRegression<F, D> {
+pub type LogisticRegression<F> = LogisticRegressionBase<F, Ix1>;
+pub type MultiLogisticRegression<F> = LogisticRegressionBase<F, Ix2>;
+
+impl<F: Float, D: Dimension> Default for LogisticRegressionBase<F, D> {
     fn default() -> Self {
-        LogisticRegression::new()
+        LogisticRegressionBase::new()
     }
 }
 
@@ -85,10 +88,10 @@ type LBFGSType<F, D> = LBFGS<MoreThuenteLineSearch<ArgminParam<F, D>, F>, Argmin
 type LBFGSType1<F> = LBFGSType<F, Ix1>;
 type LBFGSType2<F> = LBFGSType<F, Ix2>;
 
-impl<F: Float, D: Dimension> LogisticRegression<F, D> {
+impl<F: Float, D: Dimension> LogisticRegressionBase<F, D> {
     /// Creates a new LogisticRegression with default configuration.
     pub fn new() -> Self {
-        LogisticRegression {
+        LogisticRegressionBase {
             alpha: F::cast(1.0),
             fit_intercept: true,
             max_iterations: 100,
@@ -216,7 +219,7 @@ impl<F: Float, D: Dimension> LogisticRegression<F, D> {
 }
 
 impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C>>
-    Fit<ArrayBase<D, Ix2>, T, Error> for LogisticRegression<F, Ix1>
+    Fit<ArrayBase<D, Ix2>, T, Error> for LogisticRegression<F>
 {
     type Object = FittedLogisticRegression<F, C>;
 
@@ -256,7 +259,7 @@ impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C
 }
 
 impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C>>
-    Fit<ArrayBase<D, Ix2>, T, Error> for LogisticRegression<F, Ix2>
+    Fit<ArrayBase<D, Ix2>, T, Error> for MultiLogisticRegression<F>
 {
     type Object = MultiFittedLogisticRegression<F, C>;
 
@@ -796,6 +799,7 @@ mod test {
 
     use super::*;
     use approx::{assert_abs_diff_eq, AbsDiffEq};
+    use linfa::prelude::*;
     use ndarray::{array, Array2};
 
     /// Test that the logistic loss function works as expected.
@@ -925,11 +929,15 @@ mod test {
     fn simple_example_1() {
         let log_reg = LogisticRegression::default();
         let x = array![[-1.0], [-0.01], [0.01], [1.0]];
-        let y = array![0.0, 0.0, 1.0, 1.0];
-        let res = log_reg.fit(&x, &y).unwrap();
+        let y = array![0, 0, 1, 1];
+        let dataset = Dataset::new(x, y);
+        let res = log_reg.fit(&dataset).unwrap();
         assert_abs_diff_eq!(res.intercept(), 0.0);
         assert!(res.params().abs_diff_eq(&array![0.681], 1e-3));
-        assert_eq!(res.predict(&x), y);
+        assert_eq!(
+            &res.predict(dataset.records()),
+            dataset.targets().try_single_target().unwrap()
+        );
     }
 
     #[test]
@@ -937,13 +945,17 @@ mod test {
         let log_reg = LogisticRegression::default();
         let x = array![[0.01], [1.0], [-1.0], [-0.01]];
         let y = array!["dog", "dog", "cat", "cat"];
-        let res = log_reg.fit(&x, &y).unwrap();
+        let dataset = Dataset::new(x, y);
+        let res = log_reg.fit(&dataset).unwrap();
         assert_abs_diff_eq!(res.intercept(), 0.0);
         assert!(res.params().abs_diff_eq(&array![0.681], 1e-3));
         assert!(res
-            .predict_probabilities(&x)
+            .predict_probabilities(dataset.records())
             .abs_diff_eq(&array![0.501, 0.664, 0.335, 0.498], 1e-3));
-        assert_eq!(res.predict(&x), y);
+        assert_eq!(
+            &res.predict(dataset.records()),
+            dataset.targets().try_single_target().unwrap()
+        );
     }
 
     #[test]
@@ -961,11 +973,15 @@ mod test {
             [8.0],
             [9.0]
         ];
-        let y = array![0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
-        let res = log_reg.fit(&x, &y).unwrap();
+        let y = array![0, 0, 0, 0, 1, 1, 1, 1, 1, 1];
+        let dataset = Dataset::new(x, y);
+        let res = log_reg.fit(&dataset).unwrap();
         assert!(res.intercept().abs_diff_eq(&-4.124, 1e-3));
         assert!(res.params().abs_diff_eq(&array![1.181], 1e-3));
-        assert_eq!(res.predict(&x), y);
+        assert_eq!(
+            &res.predict(dataset.records()),
+            dataset.targets().try_single_target().unwrap()
+        );
     }
 
     #[test]
@@ -973,7 +989,7 @@ mod test {
         let log_reg = LogisticRegression::default();
         let x = array![[0.01], [1.0], [-1.0], [-0.01]];
         let y = array![[0, 0], [0, 0], [0, 0], [0, 0]];
-        let res = log_reg.fit(&x, &y);
+        let res = log_reg.fit(&Dataset::new(x, y));
         assert_eq!(
             res.unwrap_err().to_string(),
             "multiple targets not supported".to_string()
@@ -984,8 +1000,8 @@ mod test {
     fn rejects_mismatching_x_y() {
         let log_reg = LogisticRegression::default();
         let x = array![[-1.0], [-0.01], [0.01]];
-        let y = array![0.0, 0.0, 1.0, 1.0];
-        let res = log_reg.fit(&x, &y);
+        let y = array![0, 0, 1, 1];
+        let res = log_reg.fit(&Dataset::new(x, y));
         assert_eq!(
             res.unwrap_err().to_string(),
             "Expected `x` and `y` to have same number of rows, got 3 != 4".to_string()
@@ -998,15 +1014,15 @@ mod test {
         let inf_xs: Vec<_> = infs.iter().map(|&inf| array![[1.0], [inf]]).collect();
         let log_reg = LogisticRegression::default();
         let normal_x = array![[-1.0], [1.0]];
-        let y = array![0.0, 1.0];
+        let y = array![0, 1];
         let expected = "Values must be finite and not `Inf`, `-Inf` or `NaN`".to_string();
         for inf_x in &inf_xs {
-            let res = log_reg.fit(inf_x, &y);
+            let res = log_reg.fit(&Dataset::new(inf_x.to_owned(), y.to_owned()));
             assert_eq!(res.unwrap_err().to_string(), expected);
         }
         for inf in &infs {
             let log_reg = LogisticRegression::default().alpha(*inf);
-            let res = log_reg.fit(&normal_x, &y);
+            let res = log_reg.fit(&Dataset::new(normal_x.to_owned(), y.to_owned()));
             assert_eq!(res.unwrap_err().to_string(), expected);
         }
         let mut non_positives = infs;
@@ -1014,7 +1030,7 @@ mod test {
         non_positives.push(0.0);
         for inf in &non_positives {
             let log_reg = LogisticRegression::default().gradient_tolerance(*inf);
-            let res = log_reg.fit(&normal_x, &y);
+            let res = log_reg.fit(&Dataset::new(normal_x.to_owned(), y.to_owned()));
             assert_eq!(
                 res.unwrap_err().to_string(),
                 "gradient_tolerance must be a positive, finite number"
@@ -1026,30 +1042,36 @@ mod test {
     fn validates_initial_params() {
         let infs = vec![std::f64::INFINITY, std::f64::NEG_INFINITY, std::f64::NAN];
         let normal_x = array![[-1.0], [1.0]];
-        let normal_y = array![0.0, 1.0];
+        let normal_y = array![0, 1];
+        let dataset = Dataset::new(normal_x, normal_y);
         let expected = "Initial parameter guess must be finite".to_string();
         for inf in &infs {
-            let log_reg = LogisticRegression::default().initial_params(array![*inf], 0.0);
-            let res = log_reg.fit(&normal_x, &normal_y);
-            assert_eq!(res.unwrap_err().to_string(), expected);
-        }
-        for inf in &infs {
-            let log_reg = LogisticRegression::default().initial_params(array![0.0], *inf);
-            let res = log_reg.fit(&normal_x, &normal_y);
+            let log_reg = LogisticRegression::default().initial_params(array![*inf]);
+            let res = log_reg.fit(&dataset);
             assert_eq!(res.unwrap_err().to_string(), expected);
         }
         {
-            let log_reg = LogisticRegression::default().initial_params(array![0.0, 0.0], 0.0);
-            let res = log_reg.fit(&normal_x, &normal_y);
+            let log_reg = LogisticRegression::default().initial_params(array![0.0, 0.0]);
+            let res = log_reg.fit(&dataset);
             assert_eq!(res.unwrap_err().to_string(), "Size of initial parameter guess must be the same as the number of columns in the feature matrix `x`".to_string());
+        }
+        {
+            let log_reg = LogisticRegression::default()
+                .with_intercept(false)
+                .initial_params(array![0.0, 0.0]);
+            let res = log_reg.fit(&dataset);
+            assert_eq!(
+                res.unwrap_err().to_string(),
+                "Initial parameter should be smaller when there's no intercept".to_string()
+            );
         }
     }
 
     #[test]
     fn uses_initial_params() {
-        let (params, intercept) = (array![1.2], -4.12);
+        let params = array![1.2, -4.12];
         let log_reg = LogisticRegression::default()
-            .initial_params(params, intercept)
+            .initial_params(params)
             .max_iterations(5);
         let x = array![
             [0.0],
@@ -1063,21 +1085,29 @@ mod test {
             [8.0],
             [9.0]
         ];
-        let y = array![0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
-        let res = log_reg.fit(&x, &y).unwrap();
+        let y = array![0, 0, 0, 0, 1, 1, 1, 1, 1, 1];
+        let dataset = Dataset::new(x, y);
+        let res = log_reg.fit(&dataset).unwrap();
         assert!(res.intercept().abs_diff_eq(&-4.124, 1e-3));
         assert!(res.params().abs_diff_eq(&array![1.181], 1e-3));
-        assert_eq!(res.predict(&x), y);
+        assert_eq!(
+            &res.predict(dataset.records()),
+            dataset.targets().try_single_target().unwrap()
+        );
     }
 
     #[test]
     fn works_with_f32() {
         let log_reg = LogisticRegression::default();
         let x: Array2<f32> = array![[-1.0], [-0.01], [0.01], [1.0]];
-        let y: Array1<f32> = array![0.0, 0.0, 1.0, 1.0];
-        let res = log_reg.fit(&x, &y).unwrap();
+        let y = array![0, 0, 1, 1];
+        let dataset = Dataset::new(x, y);
+        let res = log_reg.fit(&dataset).unwrap();
         assert_abs_diff_eq!(res.intercept(), 0.0_f32);
         assert!(res.params().abs_diff_eq(&array![0.682_f32], 1e-3));
-        assert_eq!(res.predict(&x), y);
+        assert_eq!(
+            &res.predict(dataset.records()),
+            dataset.targets().try_single_target().unwrap()
+        );
     }
 }
