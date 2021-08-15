@@ -44,15 +44,13 @@ impl<F: Float, D: Dimension> ArgminAdd<ArgminParam<F, D>, ArgminParam<F, D>> for
 
 impl<F: Float, D: Dimension> ArgminDot<ArgminParam<F, D>, F> for ArgminParam<F, D> {
     fn dot(&self, other: &ArgminParam<F, D>) -> F {
-        //self.0.dot(&other.0)
-        todo!()
+        elem_dot(&self.0, &other.0)
     }
 }
 
 impl<F: Float, D: Dimension> ArgminNorm<F> for ArgminParam<F, D> {
     fn norm(&self) -> F {
-        //self.0.dot(&self.0)
-        todo!()
+        elem_dot(&self.0, &self.0)
     }
 }
 
