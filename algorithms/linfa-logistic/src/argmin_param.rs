@@ -38,7 +38,7 @@ impl<F: Float, D: Dimension> ArgminSub<ArgminParam<F, D>, ArgminParam<F, D>> for
 
 impl<F: Float, D: Dimension> ArgminAdd<ArgminParam<F, D>, ArgminParam<F, D>> for ArgminParam<F, D> {
     fn add(&self, other: &ArgminParam<F, D>) -> ArgminParam<F, D> {
-        ArgminParam(&self.0 - &other.0)
+        ArgminParam(&self.0 + &other.0)
     }
 }
 

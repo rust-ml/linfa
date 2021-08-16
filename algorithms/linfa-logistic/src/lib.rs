@@ -249,7 +249,7 @@ impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C
         let result = self.run_solver(problem, solver, ArgminParam(init_params))?;
 
         let params = result.state().best_param.as_array();
-        let (w, intercept) = convert_params(x.nrows(), params);
+        let (w, intercept) = convert_params(x.ncols(), params);
         Ok(FittedLogisticRegression::new(
             intercept.into_scalar(),
             w,
@@ -273,7 +273,7 @@ impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C
         let result = self.run_solver(problem, solver, ArgminParam(init_params))?;
 
         let params = result.state().best_param.as_array();
-        let (w, intercept) = convert_params(x.nrows(), params);
+        let (w, intercept) = convert_params(x.ncols(), params);
         Ok(MultiFittedLogisticRegression::new(intercept, w, classes))
     }
 }
@@ -741,18 +741,17 @@ impl<'a, F: Float, A: Data<Elem = F>> ArgminOp for LogisticRegressionProblem1<'a
     /// Apply the cost function to a parameter `p`
     fn apply(&self, p: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
         let w = p.as_array();
-        Ok(logistic_loss(self.x, &self.target, self.alpha, w))
+        let cost = logistic_loss(self.x, &self.target, self.alpha, w);
+        println!("apply: {} {}", w, cost);
+        Ok(cost)
     }
 
     /// Compute the gradient at parameter `p`.
     fn gradient(&self, p: &Self::Param) -> std::result::Result<Self::Param, argmin::core::Error> {
         let w = p.as_array();
-        Ok(ArgminParam(logistic_grad(
-            self.x,
-            &self.target,
-            self.alpha,
-            w,
-        )))
+        let grad = ArgminParam(logistic_grad(self.x, &self.target, self.alpha, w));
+        println!("grad: {} {}", w, grad.as_array());
+        Ok(grad)
     }
 }
 
@@ -797,6 +796,7 @@ impl<'a, F: Float, A: Data<Elem = F>> SolvableProblem for LogisticRegressionProb
 mod test {
     extern crate linfa;
 
+    use super::Error;
     use super::*;
     use approx::{assert_abs_diff_eq, AbsDiffEq};
     use linfa::prelude::*;
@@ -990,10 +990,10 @@ mod test {
         let x = array![[0.01], [1.0], [-1.0], [-0.01]];
         let y = array![[0, 0], [0, 0], [0, 0], [0, 0]];
         let res = log_reg.fit(&Dataset::new(x, y));
-        assert_eq!(
-            res.unwrap_err().to_string(),
-            "multiple targets not supported".to_string()
-        );
+        assert!(matches!(
+            res.unwrap_err(),
+            Error::LinfaError(linfa::Error::MultipleTargets)
+        ));
     }
 
     #[test]
@@ -1002,10 +1002,7 @@ mod test {
         let x = array![[-1.0], [-0.01], [0.01]];
         let y = array![0, 0, 1, 1];
         let res = log_reg.fit(&Dataset::new(x, y));
-        assert_eq!(
-            res.unwrap_err().to_string(),
-            "Expected `x` and `y` to have same number of rows, got 3 != 4".to_string()
-        );
+        assert!(matches!(res.unwrap_err(), Error::MismatchedShapes(3, 4)));
     }
 
     #[test]
@@ -1015,15 +1012,14 @@ mod test {
         let log_reg = LogisticRegression::default();
         let normal_x = array![[-1.0], [1.0]];
         let y = array![0, 1];
-        let expected = "Values must be finite and not `Inf`, `-Inf` or `NaN`".to_string();
         for inf_x in &inf_xs {
             let res = log_reg.fit(&Dataset::new(inf_x.to_owned(), y.to_owned()));
-            assert_eq!(res.unwrap_err().to_string(), expected);
+            assert!(matches!(res.unwrap_err(), Error::InvalidValues));
         }
         for inf in &infs {
             let log_reg = LogisticRegression::default().alpha(*inf);
             let res = log_reg.fit(&Dataset::new(normal_x.to_owned(), y.to_owned()));
-            assert_eq!(res.unwrap_err().to_string(), expected);
+            assert!(matches!(res.unwrap_err(), Error::InvalidValues));
         }
         let mut non_positives = infs;
         non_positives.push(-1.0);
@@ -1031,10 +1027,7 @@ mod test {
         for inf in &non_positives {
             let log_reg = LogisticRegression::default().gradient_tolerance(*inf);
             let res = log_reg.fit(&Dataset::new(normal_x.to_owned(), y.to_owned()));
-            assert_eq!(
-                res.unwrap_err().to_string(),
-                "gradient_tolerance must be a positive, finite number"
-            );
+            assert!(matches!(res.unwrap_err(), Error::InvalidGradientTolerance));
         }
     }
 
@@ -1044,26 +1037,31 @@ mod test {
         let normal_x = array![[-1.0], [1.0]];
         let normal_y = array![0, 1];
         let dataset = Dataset::new(normal_x, normal_y);
-        let expected = "Initial parameter guess must be finite".to_string();
         for inf in &infs {
-            let log_reg = LogisticRegression::default().initial_params(array![*inf]);
+            let log_reg = LogisticRegression::default().initial_params(array![*inf, 0.0]);
             let res = log_reg.fit(&dataset);
-            assert_eq!(res.unwrap_err().to_string(), expected);
+            assert!(matches!(
+                res.unwrap_err(),
+                Error::InvalidInitialParametersGuess
+            ));
         }
         {
-            let log_reg = LogisticRegression::default().initial_params(array![0.0, 0.0]);
+            let log_reg = LogisticRegression::default().initial_params(array![0.0, 0.0, 0.0]);
             let res = log_reg.fit(&dataset);
-            assert_eq!(res.unwrap_err().to_string(), "Size of initial parameter guess must be the same as the number of columns in the feature matrix `x`".to_string());
+            assert!(matches!(
+                res.unwrap_err(),
+                Error::InvalidInitialParametersGuessSize
+            ));
         }
         {
             let log_reg = LogisticRegression::default()
                 .with_intercept(false)
                 .initial_params(array![0.0, 0.0]);
             let res = log_reg.fit(&dataset);
-            assert_eq!(
-                res.unwrap_err().to_string(),
-                "Initial parameter should be smaller when there's no intercept".to_string()
-            );
+            assert!(matches!(
+                res.unwrap_err(),
+                Error::InvalidInitialParametersGuessSize
+            ));
         }
     }
 
