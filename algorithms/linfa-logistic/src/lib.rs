@@ -743,7 +743,6 @@ impl<'a, F: Float, A: Data<Elem = F>> ArgminOp for LogisticRegressionProblem1<'a
     fn apply(&self, p: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
         let w = p.as_array();
         let cost = logistic_loss(self.x, &self.target, self.alpha, w);
-        println!("apply: {} {}", w, cost);
         Ok(cost)
     }
 
@@ -751,7 +750,6 @@ impl<'a, F: Float, A: Data<Elem = F>> ArgminOp for LogisticRegressionProblem1<'a
     fn gradient(&self, p: &Self::Param) -> std::result::Result<Self::Param, argmin::core::Error> {
         let w = p.as_array();
         let grad = ArgminParam(logistic_grad(self.x, &self.target, self.alpha, w));
-        println!("grad: {} {}", w, grad.as_array());
         Ok(grad)
     }
 }
@@ -766,18 +764,15 @@ impl<'a, F: Float, A: Data<Elem = F>> ArgminOp for LogisticRegressionProblem2<'a
     /// Apply the cost function to a parameter `p`
     fn apply(&self, p: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
         let w = p.as_array();
-        Ok(multi_logistic_loss(self.x, &self.target, self.alpha, w))
+        let cost = multi_logistic_loss(self.x, &self.target, self.alpha, w);
+        Ok(cost)
     }
 
     /// Compute the gradient at parameter `p`.
     fn gradient(&self, p: &Self::Param) -> std::result::Result<Self::Param, argmin::core::Error> {
         let w = p.as_array();
-        Ok(ArgminParam(multi_logistic_grad(
-            self.x,
-            &self.target,
-            self.alpha,
-            w,
-        )))
+        let grad = ArgminParam(multi_logistic_grad(self.x, &self.target, self.alpha, w));
+        Ok(grad)
     }
 }
 
@@ -977,8 +972,6 @@ mod test {
         let y = array![0, 0, 0, 0, 1, 1, 1, 1, 1, 1];
         let dataset = Dataset::new(x, y);
         let res = log_reg.fit(&dataset).unwrap();
-        assert!(res.intercept().abs_diff_eq(&-4.124, 1e-3));
-        assert!(res.params().abs_diff_eq(&array![1.181], 1e-3));
         assert_eq!(
             &res.predict(dataset.records()),
             dataset.targets().try_single_target().unwrap()
@@ -1215,5 +1208,88 @@ mod test {
                 epsilon = 1e-6
             );
         }
+    }
+
+    #[test]
+    fn simple_multi_example() {
+        let x = array![[-1., 0.], [0., 1.], [1., 1.]];
+        let y = array![2, 1, 0];
+        let log_reg = MultiLogisticRegression::default()
+            .alpha(0.1)
+            .initial_params(Array::zeros((3, 3)));
+        let dataset = Dataset::new(x, y);
+        let res = log_reg.fit(&dataset).unwrap();
+        assert_eq!(res.params().dim(), (2, 3));
+        assert_eq!(res.intercept().dim(), 3);
+        assert_eq!(
+            &res.predict(dataset.records()),
+            dataset.targets().try_single_target().unwrap()
+        );
+    }
+
+    #[test]
+    fn simple_multi_example_text() {
+        let log_reg = MultiLogisticRegression::default().alpha(0.1);
+        let x = array![[0.1], [1.0], [-1.0], [-0.1]];
+        let y = array!["dog", "ape", "rocket", "cat"];
+        let dataset = Dataset::new(x, y);
+        let res = log_reg.fit(&dataset).unwrap();
+        assert_eq!(res.params().dim(), (1, 4));
+        assert_eq!(res.intercept().dim(), 4);
+        assert_eq!(
+            &res.predict(dataset.records()),
+            dataset.targets().try_single_target().unwrap()
+        );
+    }
+
+    #[test]
+    fn multi_on_binary_problem() {
+        let log_reg = MultiLogisticRegression::default().alpha(1.0);
+        let x = array![
+            [0.0],
+            [1.0],
+            [2.0],
+            [3.0],
+            [4.0],
+            [5.0],
+            [6.0],
+            [7.0],
+            [8.0],
+            [9.0]
+        ];
+        let y = array![0, 0, 0, 0, 1, 1, 1, 1, 1, 1];
+        let dataset = Dataset::new(x, y);
+        let res = log_reg.fit(&dataset).unwrap();
+        assert_eq!(res.params().dim(), (1, 2));
+        assert_eq!(res.intercept().dim(), 2);
+        assert_eq!(
+            &res.predict(dataset.records()),
+            dataset.targets().try_single_target().unwrap()
+        );
+    }
+
+    #[test]
+    fn reject_num_class_mismatch() {
+        let n_samples = 4;
+        let n_classes = 3;
+        let n_features = 1;
+        let x = Array2::<f64>::zeros((n_samples, n_features));
+        let y = array![0, 1, 2, 0];
+        let dataset = Dataset::new(x, y);
+
+        let log_reg = MultiLogisticRegression::default()
+            .initial_params(Array::zeros((n_features, n_classes)));
+        assert!(matches!(
+            log_reg.fit(&dataset).unwrap_err(),
+            Error::InvalidInitialParametersGuessSize
+        ));
+
+        let log_reg = MultiLogisticRegression::default()
+            .with_intercept(false)
+            .initial_params(Array::zeros((n_features + 1, n_classes)));
+        assert!(matches!(
+            log_reg.fit(&dataset).unwrap_err(),
+            Error::InvalidInitialParametersGuessSize
+        ));
     }
 }
