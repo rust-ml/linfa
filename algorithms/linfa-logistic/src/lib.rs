@@ -450,7 +450,8 @@ fn logistic_loss<F: Float, A: Data<Elem = F>>(
     -yz.sum() + F::cast(0.5) * alpha * params.dot(&params)
 }
 
-/// Compute the log of probabilities, which is `log(softmax(H))`, along with `W`.
+/// Compute the log of probabilities, which is `log(softmax(H))`, where H is `X . W + b`. Also
+/// returns `W` without the intercept.
 /// `Y` is the output (n_samples * n_classes), `X` is the input (n_samples * n_features), `W` is the
 /// params (n_features * n_classes), `b` is the intercept vector (n_classes).
 fn multi_logistic_prob_params<F: Float, A: Data<Elem = F>>(
@@ -463,11 +464,11 @@ fn multi_logistic_prob_params<F: Float, A: Data<Elem = F>>(
     let h = x.dot(&params) + intercept;
     // This computes `H - log(sum(exp(H)))`, which is equal to
     // `log(softmax(H)) = log(exp(H) / sum(exp(H)))`
-    let log_prob = &h - log_sum_exp(&h, Axis(1));
+    let log_prob = &h - log_sum_exp(&h, Axis(1)).into_shape((h.nrows(), 1)).unwrap();
     (log_prob, params)
 }
 
-/// Computes loss function of `-sum(Y * log(softmax(H))) + alpha/2 * norm(W)`, where H is `X . W + b`.
+/// Computes loss function of `-sum(Y * log(softmax(H))) + alpha/2 * norm(W)`
 fn multi_logistic_loss<F: Float, A: Data<Elem = F>>(
     x: &ArrayBase<A, Ix2>,
     y: &Array2<F>,
@@ -515,7 +516,7 @@ fn multi_logistic_grad<F: Float, A: Data<Elem = F>>(
 ) -> Array2<F> {
     let (log_prob, mut params) = multi_logistic_prob_params(x, w);
     let (n_features, n_classes) = params.dim();
-    let intercept = x.ncols() > n_features;
+    let intercept = w.nrows() > n_features;
     let mut grad = Array::zeros((n_features + intercept as usize, n_classes));
 
     // This value is `softmax(H)`
@@ -798,7 +799,7 @@ mod test {
 
     use super::Error;
     use super::*;
-    use approx::{assert_abs_diff_eq, AbsDiffEq};
+    use approx::{assert_abs_diff_eq, assert_relative_eq, AbsDiffEq};
     use linfa::prelude::*;
     use ndarray::{array, Array2};
 
@@ -1107,5 +1108,112 @@ mod test {
             &res.predict(dataset.records()),
             dataset.targets().try_single_target().unwrap()
         );
+    }
+
+    #[test]
+    fn test_log_sum_exp() {
+        let data = array![[3.3, 0.4, -2.1], [0.4, 2.2, -0.1], [1., 0., -1.]];
+        let out = log_sum_exp(&data, Axis(1));
+        assert_abs_diff_eq!(out, array![3.35783, 2.43551, 1.40761], epsilon = 1e-5);
+    }
+
+    #[test]
+    fn test_softmax() {
+        let mut data = array![3.3, 5.5, 0.1, -4.4, 8.0];
+        softmax_inplace(&mut data);
+        assert_relative_eq!(
+            data,
+            array![0.0083324, 0.075200047, 0.000339647, 0.000003773, 0.91612413],
+            epsilon = 1e-8
+        );
+        assert_abs_diff_eq!(data.sum(), 1.0);
+    }
+
+    #[test]
+    fn test_multi_logistic_loss_grad() {
+        let x = array![
+            [0.0, 0.5],
+            [1.0, -1.0],
+            [2.0, -2.0],
+            [3.0, -3.0],
+            [4.0, -4.0],
+            [5.0, -5.0],
+            [6.0, -6.0],
+            [7.0, -7.0],
+        ];
+        let y = array![
+            [1.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [0.0, 0.0, 1.0],
+            [0.0, 0.0, 1.0],
+        ];
+        let params1 = array![[4.4, -1.2, 3.3], [3.4, 0.1, 0.0]];
+        let params2 = array![[0.001, -3.2, 2.9], [0.1, 4.5, 5.7], [4.5, 2.2, 1.7]];
+        let alpha = 0.6;
+
+        {
+            let (log_prob, w) = multi_logistic_prob_params(&x, &params1);
+            assert_abs_diff_eq!(
+                log_prob,
+                array![
+                    [-3.18259845e-01, -1.96825985e+00, -2.01825985e+00],
+                    [-2.40463987e+00, -4.70463987e+00, -1.04639868e-01],
+                    [-4.61010168e+00, -9.21010168e+00, -1.01016809e-02],
+                    [-6.90100829e+00, -1.38010083e+01, -1.00829256e-03],
+                    [-9.20010104e+00, -1.84001010e+01, -1.01044506e-04],
+                    [-1.15000101e+01, -2.30000101e+01, -1.01301449e-05],
+                    [-1.38000010e+01, -2.76000010e+01, -1.01563199e-06],
+                    [-1.61000001e+01, -3.22000001e+01, -1.01826043e-07],
+                ],
+                epsilon = 1e-6
+            );
+            assert_abs_diff_eq!(w, params1);
+            let loss = multi_logistic_loss(&x, &y, alpha, &params1);
+            assert_abs_diff_eq!(loss, 57.11212197835295, epsilon = 1e-6);
+            let grad = multi_logistic_grad(&x, &y, alpha, &params1);
+            assert_abs_diff_eq!(
+                grad,
+                array![
+                    [1.7536815, -9.71074369, 11.85706219],
+                    [2.79002537, 9.12059357, -9.81061893]
+                ],
+                epsilon = 1e-6
+            );
+        }
+
+        {
+            let (log_prob, w) = multi_logistic_prob_params(&x, &params2);
+            assert_abs_diff_eq!(
+                log_prob,
+                array![
+                    [-1.06637742e+00, -1.16637742e+00, -1.06637742e+00],
+                    [-4.12429463e-03, -9.90512429e+00, -5.50512429e+00],
+                    [-2.74092305e-04, -1.75022741e+01, -8.20227409e+00],
+                    [-1.84027855e-05, -2.51030184e+01, -1.09030184e+01],
+                    [-1.23554225e-06, -3.27040012e+01, -1.36040012e+01],
+                    [-8.29523046e-08, -4.03050001e+01, -1.63050001e+01],
+                    [-5.56928016e-09, -4.79060000e+01, -1.90060000e+01],
+                    [-3.73912013e-10, -5.55070000e+01, -2.17070000e+01]
+                ],
+                epsilon = 1e-6
+            );
+            assert_abs_diff_eq!(w, params2.slice(s![..params2.nrows() - 1, ..]));
+            let loss = multi_logistic_loss(&x, &y, alpha, &params2);
+            assert_abs_diff_eq!(loss, 154.8177958366479, epsilon = 1e-6);
+            let grad = multi_logistic_grad(&x, &y, alpha, &params2);
+            assert_abs_diff_eq!(
+                grad,
+                array![
+                    [26.99587549, -10.91995003, -16.25532546],
+                    [-27.26314882, 11.85569669, 21.58745213],
+                    [5.33984376, -2.68845675, -2.65138701]
+                ],
+                epsilon = 1e-6
+            );
+        }
     }
 }
