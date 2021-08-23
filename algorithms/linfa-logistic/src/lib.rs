@@ -5,7 +5,7 @@
 //! `linfa-logistic` is a crate in the [`linfa`](https://crates.io/crates/linfa) ecosystem, an effort to create a toolkit for classical Machine Learning implemented in pure Rust, akin to Python's `scikit-learn`.
 //!
 //! ## Current state
-//! `linfa-logistic` provides a pure Rust implementation of a two class [logistic regression model](struct.LogisticRegression.html).
+//! `linfa-logistic` provides a pure Rust implementation of a [binomial logistic regression model](struct.LogisticRegression.html) and a [multinomial logistic regression model](struct.MultiLogisticRegression).
 //!
 //! ## Examples
 //!
@@ -37,6 +37,16 @@ mod float;
 use argmin_param::{elem_dot, ArgminParam};
 use float::Float;
 
+/// A generalized logistic regression type that specializes as either binomial logistic regression
+/// or multinomial logistic regression.
+pub struct LogisticRegressionBase<F: Float, D: Dimension> {
+    alpha: F,
+    fit_intercept: bool,
+    max_iterations: u64,
+    gradient_tolerance: F,
+    initial_params: Option<Array<F, D>>,
+}
+
 /// A two-class logistic regression model.
 ///
 /// Logistic regression combines linear models with
@@ -67,15 +77,18 @@ use float::Float;
 /// let model = LogisticRegression::default().fit(&dataset).unwrap();
 /// let prediction = model.predict(&dataset);
 /// ```
-pub struct LogisticRegressionBase<F: Float, D: Dimension> {
-    alpha: F,
-    fit_intercept: bool,
-    max_iterations: u64,
-    gradient_tolerance: F,
-    initial_params: Option<Array<F, D>>,
-}
-
 pub type LogisticRegression<F> = LogisticRegressionBase<F, Ix1>;
+
+/// A multinomial class logistic regression model.
+///
+/// The output labels can map to any discrete feature space, since the algorithm calculates the
+/// likelihood of a feature vector corresponding to any given outcome using the softmax function
+/// `softmax(x) = exp(x) / sum(exp(xi))`
+///
+/// l2 regularization is used by this algorithm and is weighted by parameter `alpha`. Setting `alpha`
+/// close to zero removes regularization and the problem solved minimizes only the
+/// empirical risk. On the other hand, setting `alpha` to a high value increases
+/// the weight of the l2 norm of the linear model coefficients in the cost function.
 pub type MultiLogisticRegression<F> = LogisticRegressionBase<F, Ix2>;
 
 impl<F: Float, D: Dimension> Default for LogisticRegressionBase<F, D> {
@@ -228,9 +241,9 @@ impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C
     /// create a `FittedLinearRegression` object which allows making
     /// predictions.
     ///
-    /// The array of target classes `y` must have exactly two distinct
-    /// values, (e.g. 0.0 and 1.0, 0 and 1, "cat" and "dog", ...), which
-    /// represent the two different classes the model is supposed to predict.
+    /// The array of target classes `y` must have exactly two discrete values, (e.g. 0 and 1, "cat"
+    /// and "dog", ...), which represent the two different classes the model is supposed to
+    /// predict.
     ///
     /// The array `y` must also have exactly `n_samples` items, i.e.
     /// exactly as many items as there are rows in the feature matrix `x`.
@@ -263,6 +276,16 @@ impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C
 {
     type Object = MultiFittedLogisticRegression<F, C>;
 
+    /// Given a 2-dimensional feature matrix array `x` with shape
+    /// (n_samples, n_features) and an array of target classes to predict,
+    /// create a `MultiFittedLogisticRegression` object which allows making
+    /// predictions. The target classes can have any number of discrete values.
+    ///
+    /// This method returns an error if any of the preconditions are violated,
+    /// i.e. any values are `Inf` or `NaN`, `y` doesn't have as many items as
+    /// `x` has rows, or if other parameters (gradient_tolerance, alpha) have
+    /// been set to inalid values. The input features are also strongly recommended to be
+    /// normalized to ensure numerical stability.
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
         let (x, y) = (dataset.records(), dataset.targets());
         let (classes, target) = label_classes_multi(y)?;
@@ -337,6 +360,9 @@ where
     ))
 }
 
+/// Identify the distinct values of the classes in `y` and map each value to an integer. Smaller
+/// classes (by `PartialOrd`) map to smaller integers. Returns the mapping along with a one-hot
+/// encoding of the numerical labels corresponding to `y`.
 fn label_classes_multi<F, T, C>(y: T) -> Result<(Vec<C>, Array2<F>)>
 where
     F: Float,
@@ -621,10 +647,9 @@ impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
     }
 }
 
-/// A fitted logistic regression which can make predictions
+/// A fitted multinomial logistic regression which can make predictions
 #[derive(PartialEq, Debug)]
 pub struct MultiFittedLogisticRegression<F: Float, C: PartialOrd + Clone> {
-    threshold: F,
     intercept: Array1<F>,
     params: Array2<F>,
     classes: Vec<C>,
@@ -633,21 +658,10 @@ pub struct MultiFittedLogisticRegression<F: Float, C: PartialOrd + Clone> {
 impl<F: Float, C: PartialOrd + Clone> MultiFittedLogisticRegression<F, C> {
     fn new(intercept: Array1<F>, params: Array2<F>, classes: Vec<C>) -> Self {
         Self {
-            threshold: F::cast(0.5),
             intercept,
             params,
             classes,
         }
-    }
-
-    /// Set the probability threshold for which the 'positive' class will be
-    /// predicted. Defaults to 0.5.
-    pub fn set_threshold(mut self, threshold: F) -> Self {
-        if threshold < F::zero() || threshold > F::one() {
-            panic!("FittedLogisticRegression::set_threshold: threshold needs to be between 0.0 and 1.0");
-        }
-        self.threshold = threshold;
-        self
     }
 
     pub fn intercept(&self) -> &Array1<F> {
