@@ -1021,12 +1021,12 @@ mod test {
         let normal_x = array![[-1.0], [1.0]];
         let y = array![0, 1];
         for inf_x in &inf_xs {
-            let res = log_reg.fit(&Dataset::new(inf_x.to_owned(), y.to_owned()));
+            let res = log_reg.fit(&DatasetBase::new(inf_x.view(), &y));
             assert!(matches!(res.unwrap_err(), Error::InvalidValues));
         }
         for inf in &infs {
             let log_reg = LogisticRegression::default().alpha(*inf);
-            let res = log_reg.fit(&Dataset::new(normal_x.to_owned(), y.to_owned()));
+            let res = log_reg.fit(&DatasetBase::new(normal_x.view(), &y));
             assert!(matches!(res.unwrap_err(), Error::InvalidValues));
         }
         let mut non_positives = infs;
