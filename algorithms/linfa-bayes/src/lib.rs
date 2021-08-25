@@ -1,22 +1,9 @@
-//! # Naive Bayes
-//!
-//! `linfa-bayes` aims to provide pure Rust implementations of Naive Bayes algorithms.
-//!
-//!
-//! ## The Big Picture
-//!
-//! `linfa-bayes` is a crate in the [`linfa`](https://crates.io/crates/linfa) ecosystem,
-//! an effort to create a toolkit for classical Machine Learning implemented in pure Rust,
-//! akin to Python's `scikit-learn`.
-//!
-//! ## Current state
-//!
-//! `linfa-bayes` currently provides an implementation of the following methods:
-//!
-//! - Gaussian Naive Bayes (GaussianNB)
+#![doc = include_str!("../README.md")]
 
 mod error;
 mod gaussian_nb;
+mod hyperparams;
 
-pub use error::{BayesError, Result};
-pub use gaussian_nb::GaussianNbParams;
+pub use error::{NaiveBayesError, Result};
+pub use gaussian_nb::GaussianNb;
+pub use hyperparams::{GaussianNbParams, GaussianNbValidParams};

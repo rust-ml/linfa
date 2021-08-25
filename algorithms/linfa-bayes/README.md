@@ -1,6 +1,6 @@
 # Naive Bayes
 
-`linfa-bayes` aims to provide pure Rust implementations of Naive Bayes algorithms. 
+`linfa-bayes` provides pure Rust implementations of Naive Bayes algorithms for the Linfa toolkit.
 
 ## The Big Picture
 
@@ -14,14 +14,38 @@
 
 ## Examples
 
-There is an usage example in the `examples/` directory. To run, use:
+You can find an example in the `examples/` directory. To run, use:
 
 ```bash
-$ cargo run --example winequality 
+$ cargo run --example winequality --release
 ```
 
-## License
-Dual-licensed to be compatible with the Rust project.
+<details>
+<summary style="cursor: pointer; display:list-item;">
+Show source code
+</summary>
 
-Licensed under the Apache License, Version 2.0 <http://www.apache.org/licenses/LICENSE-2.0> or the MIT license <http://opensource.org/licenses/MIT>, at your option. This file may not be copied, modified, or distributed except according to those terms.
+```rust,ignore
+// Read in the dataset and convert targets to binary data
+let (train, valid) = linfa_datasets::winequality()
+    .map_targets(|x| if *x > 6 { "good" } else { "bad" })
+    .split_with_ratio(0.9);
 
+// Train the model
+let model = GaussianNb::params().fit(&train)?;
+
+// Predict the validation dataset
+let pred = model.predict(&valid);
+
+// Construct confusion matrix
+let cm = pred.confusion_matrix(&valid)?;
+
+// classes    | bad        | good      
+// bad        | 130        | 12        
+// good       | 7          | 10    
+//
+// accuracy 0.8805031, MCC 0.45080978
+println!("{:?}", cm);
+println!("accuracy {}, MCC {}", cm.accuracy(), cm.mcc());
+```
+</details>
