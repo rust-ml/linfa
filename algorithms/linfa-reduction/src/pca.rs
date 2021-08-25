@@ -21,7 +21,7 @@
 //! let dataset = embedding.predict(dataset);
 //! ```
 //!
-use crate::error::{Error, Result};
+use crate::error::{ReductionError, Result};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2};
 use ndarray_linalg::{TruncatedOrder, TruncatedSvd};
 #[cfg(feature = "serde")]
@@ -68,13 +68,16 @@ impl PcaParams {
 /// # Returns
 ///
 /// A fitted PCA model with origin and hyperplane
-impl<T, D: Data<Elem = f64>> Fit<ArrayBase<D, Ix2>, T, Error> for PcaParams {
+impl<T, D: Data<Elem = f64>> Fit<ArrayBase<D, Ix2>, T, ReductionError> for PcaParams {
     type Object = Pca<f64>;
 
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Pca<f64>> {
         if dataset.nsamples() == 0 {
-            return Err(Error::NotEnoughSamples);
+            return Err(ReductionError::NotEnoughSamples);
+        } else if dataset.nfeatures() < self.embedding_size || self.embedding_size == 0 {
+            return Err(ReductionError::EmbeddingTooSmall(self.embedding_size));
         }
+
         let x = dataset.records();
         // calculate mean of data and subtract it
         // safe because of above 0 samples check

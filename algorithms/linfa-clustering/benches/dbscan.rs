@@ -2,7 +2,7 @@ use criterion::{
     black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
     PlotConfiguration,
 };
-use linfa::prelude::{Transformer, UncheckedHyperParams};
+use linfa::prelude::{ParamGuard, Transformer};
 use linfa_clustering::{generate_blobs, Dbscan};
 use ndarray::Array2;
 use ndarray_rand::rand::SeedableRng;

@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let kernel = HierarchicalCluster::default()
         .num_clusters(3)
-        .transform(kernel);
+        .transform(kernel)?;
 
     for (id, target) in kernel.targets().iter().zip(dataset.targets().into_iter()) {
         let name = match *target as usize {

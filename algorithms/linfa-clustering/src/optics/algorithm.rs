@@ -1,6 +1,5 @@
 use crate::optics::analysis::*;
-use crate::optics::errors::Result;
-use crate::optics::hyperparameters::OpticsHyperParams;
+use crate::optics::hyperparams::{OpticsParams, OpticsValidParams};
 use hnsw::{Hnsw, Params, Searcher};
 use linfa::traits::Transformer;
 use linfa::Float;
@@ -110,14 +109,13 @@ impl Ord for Neighbor {
 }
 
 impl Optics {
-    pub fn params(min_points: usize) -> OpticsHyperParams {
-        OpticsHyperParams::new(min_points)
+    pub fn params(min_points: usize) -> OpticsParams {
+        OpticsParams::new(min_points)
     }
 }
 
-impl<F: Float> Transformer<ArrayView<'_, F, Ix2>, Result<OpticsAnalysis>> for OpticsHyperParams {
-    fn transform(&self, observations: ArrayView<F, Ix2>) -> Result<OpticsAnalysis> {
-        self.validate()?;
+impl<F: Float> Transformer<ArrayView<'_, F, Ix2>, OpticsAnalysis> for OpticsValidParams {
+    fn transform(&self, observations: ArrayView<F, Ix2>) -> OpticsAnalysis {
         let mut result = OpticsAnalysis { orderings: vec![] };
 
         let mut points = (0..observations.nrows())
@@ -150,10 +148,10 @@ impl<F: Float> Transformer<ArrayView<'_, F, Ix2>, Result<OpticsAnalysis>> for Op
             let neighbors = find_neighbors(
                 observations.row(points_index),
                 observations,
-                self.get_tolerance(),
+                self.tolerance(),
             );
             let n = &mut points[points_index];
-            n.set_core_distance(self.get_minimum_points(), &neighbors, observations);
+            n.set_core_distance(self.minimum_points(), &neighbors, observations);
             if n.c_distance.is_some() {
                 seeds.clear();
                 // Here we get a list of "density reachable" samples that haven't been processed
@@ -176,13 +174,10 @@ impl<F: Float> Transformer<ArrayView<'_, F, Ix2>, Result<OpticsAnalysis>> for Op
                     let n = &mut points[*min_point];
                     seeds.remove(i);
                     processed.insert(n.index);
-                    let neighbors = find_neighbors(
-                        observations.row(n.index),
-                        observations,
-                        self.get_tolerance(),
-                    );
+                    let neighbors =
+                        find_neighbors(observations.row(n.index), observations, self.tolerance());
 
-                    n.set_core_distance(self.get_minimum_points(), &neighbors, observations);
+                    n.set_core_distance(self.minimum_points(), &neighbors, observations);
                     result.orderings.push(n.sample());
                     if n.c_distance.is_some() {
                         get_seeds(
@@ -202,7 +197,7 @@ impl<F: Float> Transformer<ArrayView<'_, F, Ix2>, Result<OpticsAnalysis>> for Op
                 processed.insert(n.index);
             }
         }
-        Ok(result)
+        result
     }
 }
 

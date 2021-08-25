@@ -1,6 +1,6 @@
 //! Term frequency - inverse document frequency vectorization methods
 
-use crate::count_vectorization::{CountVectorizer, FittedCountVectorizer};
+use crate::countgrams::{CountVectorizer, CountVectorizerParams};
 use crate::error::Result;
 use encoding::types::EncodingRef;
 use encoding::DecoderTrap;
@@ -39,14 +39,14 @@ impl TfIdfMethod {
 /// by setting the appropriate [method](enum.TfIdfMethod.html). This struct provides the same string  
 /// processing customizations described in [`CountVectorizer`](studct.CountVectorizer.html).
 pub struct TfIdfVectorizer {
-    count_vectorizer: CountVectorizer,
+    count_vectorizer: CountVectorizerParams,
     method: TfIdfMethod,
 }
 
 impl std::default::Default for TfIdfVectorizer {
     fn default() -> Self {
         Self {
-            count_vectorizer: CountVectorizer::default(),
+            count_vectorizer: CountVectorizerParams::default(),
             method: TfIdfMethod::Smooth,
         }
     }
@@ -155,7 +155,7 @@ impl TfIdfVectorizer {
 /// document frequency defined by the [method](enum.TfIdfMethod.html). Each vocabulary entry is mapped
 /// to an integer value that is used to index the count in the result.
 pub struct FittedTfIdfVectorizer {
-    fitted_vectorizer: FittedCountVectorizer,
+    fitted_vectorizer: CountVectorizer,
     method: TfIdfMethod,
 }
 

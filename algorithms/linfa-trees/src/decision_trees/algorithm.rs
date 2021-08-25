@@ -2,13 +2,12 @@
 //!
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
-use std::marker::PhantomData;
 
 use ndarray::{Array1, ArrayBase, Axis, Data, Ix1, Ix2};
 
-use super::hyperparameters::{DecisionTreeParams, SplitQuality};
 use super::NodeIter;
 use super::Tikz;
+use super::{DecisionTreeValidParams, SplitQuality};
 use linfa::{
     dataset::{AsTargets, Labels, Records},
     error::Error,
@@ -200,7 +199,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
     fn fit<D: Data<Elem = F>, T: AsTargets<Elem = L> + Labels<Elem = L>>(
         data: &DatasetBase<ArrayBase<D, Ix2>, T>,
         mask: &RowMask,
-        hyperparameters: &DecisionTreeParams<F, L>,
+        hyperparameters: &DecisionTreeValidParams<F, L>,
         sorted_indices: &[SortedIndex<F>],
         depth: usize,
     ) -> Result<Self> {
@@ -212,9 +211,9 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
         let target = data.try_single_target()?;
 
         // return empty leaf when we don't have enough samples or the maximal depth is reached
-        if (mask.nsamples as f32) < hyperparameters.min_weight_split
+        if (mask.nsamples as f32) < hyperparameters.min_weight_split()
             || hyperparameters
-                .max_depth
+                .max_depth()
                 .map(|max_depth| depth >= max_depth)
                 .unwrap_or(false)
         {
@@ -277,14 +276,14 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
 
                 // If the split would result in too few samples in a leaf
                 // then skip computing the quality
-                if weight_on_right_side < hyperparameters.min_weight_leaf
-                    || weight_on_left_side < hyperparameters.min_weight_leaf
+                if weight_on_right_side < hyperparameters.min_weight_leaf()
+                    || weight_on_left_side < hyperparameters.min_weight_leaf()
                 {
                     continue;
                 }
 
                 // Calculate the quality of each resulting subset of the dataset
-                let (left_score, right_score) = match hyperparameters.split_quality {
+                let (left_score, right_score) = match hyperparameters.split_quality() {
                     SplitQuality::Gini => (
                         gini_impurity(&right_class_freq),
                         gini_impurity(&left_class_freq),
@@ -321,7 +320,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
         // a leaf node that predicts the most common label in the available observations.
 
         let impurity_decrease = if let Some((_, _, best_score)) = best {
-            let parent_score = match hyperparameters.split_quality {
+            let parent_score = match hyperparameters.split_quality() {
                 SplitQuality::Gini => gini_impurity(&parent_class_freq),
                 SplitQuality::Entropy => entropy(&parent_class_freq),
             };
@@ -334,7 +333,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
             F::zero()
         };
 
-        if impurity_decrease < hyperparameters.min_impurity_decrease {
+        if impurity_decrease < hyperparameters.min_impurity_decrease() {
             return Ok(Self::empty_leaf(prediction, depth));
         }
 
@@ -511,7 +510,7 @@ impl<F: Float, L: Label + Default, D: Data<Elem = F>> PredictInplace<ArrayBase<D
 }
 
 impl<'a, F: Float, L: Label + 'a + std::fmt::Debug, D, T> Fit<ArrayBase<D, Ix2>, T, Error>
-    for DecisionTreeParams<F, L>
+    for DecisionTreeValidParams<F, L>
 where
     D: Data<Elem = F>,
     T: AsTargets<Elem = L> + Labels<Elem = L>,
@@ -521,8 +520,6 @@ where
     /// Fit a decision tree using `hyperparamters` on the dataset consisting of
     /// a matrix of features `x` and an array of labels `y`.
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
-        self.validate()?;
-
         let x = dataset.records();
         let feature_names = dataset.feature_names();
         let all_idxs = RowMask::all(x.nrows());
@@ -542,26 +539,7 @@ where
     }
 }
 
-impl<F: Float, L: Label + std::fmt::Debug> DecisionTree<F, L> {
-    /// Defaults are provided if the optional parameters are not specified:
-    /// * `split_quality = SplitQuality::Gini`
-    /// * `max_depth = None`
-    /// * `min_weight_split = 2.0`
-    /// * `min_weight_leaf = 1.0`
-    /// * `min_impurity_decrease = 0.00001`
-    // Violates the convention that new should return a value of type `Self`
-    #[allow(clippy::new_ret_no_self)]
-    pub fn params() -> DecisionTreeParams<F, L> {
-        DecisionTreeParams {
-            split_quality: SplitQuality::Gini,
-            max_depth: None,
-            min_weight_split: 2.0,
-            min_weight_leaf: 1.0,
-            min_impurity_decrease: F::cast(0.00001),
-            phantom: PhantomData,
-        }
-    }
-
+impl<F: Float, L: Label> DecisionTree<F, L> {
     /// Create a node iterator in level-order (BFT)
     pub fn iter_nodes(&self) -> NodeIter<F, L> {
         // queue of nodes yet to explore
@@ -715,7 +693,7 @@ mod tests {
     use super::*;
 
     use approx::assert_abs_diff_eq;
-    use linfa::{error::Result, metrics::ToConfusionMatrix, Dataset};
+    use linfa::{error::Result, metrics::ToConfusionMatrix, Dataset, ParamGuard};
     use ndarray::{array, concatenate, s, Array, Array1, Array2, Axis};
     use rand::rngs::SmallRng;
 
@@ -925,7 +903,7 @@ mod tests {
     fn panic_min_impurity_decrease() {
         DecisionTree::<f64, bool>::params()
             .min_impurity_decrease(0.0)
-            .validate()
+            .check()
             .unwrap();
     }
 }

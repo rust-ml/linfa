@@ -1,4 +1,4 @@
-use crate::appx_dbscan::hyperparameters::AppxDbscanHyperParams;
+use crate::appx_dbscan::AppxDbscanValidParams;
 use linfa::Float;
 use ndarray::{Array1, Array2, ArrayView1, Axis};
 use ndarray_stats::DeviationExt;
@@ -50,7 +50,7 @@ impl<F: Float> TreeStructure<F> {
     /// equal to `tolerance/sqrt(D)`. This is assumed true during the construction.
     pub fn build_structure(
         points: Vec<ArrayView1<F>>,
-        params: &AppxDbscanHyperParams<F>,
+        params: &AppxDbscanValidParams<F>,
     ) -> TreeStructure<F> {
         if points.is_empty() {
             panic!("AppxDbscan::build structure internal error: attempting to initialize counting tree with no points");
@@ -96,7 +96,7 @@ impl<F: Float> TreeStructure<F> {
     pub fn approximate_range_counting(
         &self,
         q: &ArrayView1<F>,
-        params: &AppxDbscanHyperParams<F>,
+        params: &AppxDbscanValidParams<F>,
     ) -> usize {
         let mut ans: usize = 0;
         let intersection_type =
@@ -146,7 +146,7 @@ pub fn get_cell_index<F: Float>(p: &ArrayView1<F>, side_size: F) -> Array1<i64> 
 /// size equal to `epsilon/sqrt(D)` that contains point `p`
 pub fn get_base_cell_index<F: Float>(
     p: &ArrayView1<F>,
-    params: &AppxDbscanHyperParams<F>,
+    params: &AppxDbscanValidParams<F>,
 ) -> Array1<i64> {
     let dimensionality = p.dim();
     get_cell_index(p, params.tolerance / (F::cast(dimensionality)).sqrt())
@@ -160,7 +160,7 @@ pub fn get_base_cell_index<F: Float>(
 ///  * IntersectionType::Intersecting otherwise;
 pub fn determine_intersection<F: Float>(
     q: &ArrayView1<F>,
-    params: &AppxDbscanHyperParams<F>,
+    params: &AppxDbscanValidParams<F>,
     cell_center: &Array1<F>,
     side_size: F,
 ) -> IntersectionType {

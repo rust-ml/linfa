@@ -1,7 +1,7 @@
 use linfa::traits::{Fit, Transformer};
 use linfa::Dataset;
 use linfa_reduction::Pca;
-use linfa_tsne::{Result, TSne};
+use linfa_tsne::{Result, TSneParams};
 use mnist::{Mnist, MnistBuilder};
 use ndarray::Array;
 use std::{io::Write, process::Command};
@@ -33,11 +33,11 @@ fn main() -> Result<()> {
         .transform(ds);
 
     // calculate a two-dimensional embedding with Barnes-Hut t-SNE
-    let ds = TSne::embedding_size(2)
+    let ds = TSneParams::embedding_size(2)
         .perplexity(50.0)
         .approx_threshold(0.5)
         .max_iter(1000)
-        .transform(ds)?;
+        .transform(ds)??;
 
     // write out
     let mut f = std::fs::File::create("examples/mnist.dat").unwrap();

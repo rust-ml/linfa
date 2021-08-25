@@ -1,4 +1,4 @@
-use crate::{dbscan::hyperparameters::DbscanHyperParams, UncheckedDbscanHyperParams};
+use crate::dbscan::{DbscanParams, DbscanValidParams};
 use linfa_nn::{
     distance::{Distance, L2Dist},
     CommonNearestNeighbour, NearestNeighbour, NearestNeighbourIndex,
@@ -42,7 +42,7 @@ use linfa::{traits::Transformer, DatasetBase};
 ///
 /// ```rust
 /// use linfa::traits::Transformer;
-/// use linfa_clustering::{DbscanHyperParams, Dbscan, generate_blobs};
+/// use linfa_clustering::{DbscanParams, Dbscan, generate_blobs};
 /// use ndarray::{Axis, array, s};
 /// use ndarray_rand::rand::SeedableRng;
 /// use rand_isaac::Isaac64Rng;
@@ -81,9 +81,7 @@ impl Dbscan {
     /// * `tolerance = 1e-4`
     /// * `dist_fn = L2Dist` (Euclidean distance)
     /// * `nn_algo = KdTree`
-    pub fn params<F: Float>(
-        min_points: usize,
-    ) -> UncheckedDbscanHyperParams<F, L2Dist, CommonNearestNeighbour> {
+    pub fn params<F: Float>(min_points: usize) -> DbscanParams<F, L2Dist, CommonNearestNeighbour> {
         Self::params_with(min_points, L2Dist, CommonNearestNeighbour::KdTree)
     }
 
@@ -93,13 +91,13 @@ impl Dbscan {
         min_points: usize,
         dist_fn: D,
         nn_algo: N,
-    ) -> UncheckedDbscanHyperParams<F, D, N> {
-        UncheckedDbscanHyperParams::new(min_points, dist_fn, nn_algo)
+    ) -> DbscanParams<F, D, N> {
+        DbscanParams::new(min_points, dist_fn, nn_algo)
     }
 }
 
 impl<F: Float, D: Data<Elem = F>, DF: Distance<F>, N: NearestNeighbour>
-    Transformer<&ArrayBase<D, Ix2>, Array1<Option<usize>>> for DbscanHyperParams<F, DF, N>
+    Transformer<&ArrayBase<D, Ix2>, Array1<Option<usize>>> for DbscanValidParams<F, DF, N>
 {
     fn transform(&self, observations: &ArrayBase<D, Ix2>) -> Array1<Option<usize>> {
         let mut cluster_memberships = Array1::from_elem(observations.nrows(), None);
@@ -163,7 +161,7 @@ impl<F: Float, D: Data<Elem = F>, DF: Distance<F>, N: NearestNeighbour, T>
     Transformer<
         DatasetBase<ArrayBase<D, Ix2>, T>,
         DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>,
-    > for DbscanHyperParams<F, DF, N>
+    > for DbscanValidParams<F, DF, N>
 {
     fn transform(
         &self,
@@ -174,7 +172,7 @@ impl<F: Float, D: Data<Elem = F>, DF: Distance<F>, N: NearestNeighbour, T>
     }
 }
 
-impl<F: Float, D: Distance<F>, N: NearestNeighbour> DbscanHyperParams<F, D, N> {
+impl<F: Float, D: Distance<F>, N: NearestNeighbour> DbscanValidParams<F, D, N> {
     fn find_neighbors(
         &self,
         nn: &dyn NearestNeighbourIndex<F>,
@@ -202,7 +200,7 @@ impl<F: Float, D: Distance<F>, N: NearestNeighbour> DbscanHyperParams<F, D, N> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use linfa::prelude::UncheckedHyperParams;
+    use linfa::ParamGuard;
     use ndarray::{arr1, arr2, s, Array2};
 
     #[test]

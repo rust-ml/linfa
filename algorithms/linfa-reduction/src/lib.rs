@@ -1,21 +1,14 @@
-//! Dimensionality reduction techniques
-//!
-//! This crate provides algorithms for dimensionality reduction in data analysis. They can be used
-//! to transform data from a high-dimensional space into a lower dimensional space such that some
-//! property of the data is retained.
-//!
-//! The following implementations are available:
-//!  * Principal Component Analysis - projects data linearily and retains the largest variance
-//!  * Diffusion Map - applies kernel methods and projects close regions together
-//!
+#![doc = include_str!("../README.md")]
+
 #[macro_use]
 extern crate ndarray;
 
-pub mod diffusion_map;
-pub mod error;
-pub mod pca;
+mod diffusion_map;
+mod error;
+mod pca;
 pub mod utils;
 
-pub use diffusion_map::DiffusionMap;
-pub use pca::Pca;
+pub use diffusion_map::{DiffusionMap, DiffusionMapParams, DiffusionMapValidParams};
+pub use error::{ReductionError, Result};
+pub use pca::{Pca, PcaParams};
 pub use utils::to_gaussian_similarity;

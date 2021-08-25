@@ -1,11 +1,13 @@
 use linfa::{
     error::{Error, Result},
-    Float, Label,
+    Float, Label, ParamGuard,
 };
 use std::marker::PhantomData;
 
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
+
+use crate::DecisionTree;
 
 /// The metric used to determine the feature by which a node is split
 #[cfg_attr(
@@ -57,26 +59,67 @@ pub enum SplitQuality {
     serde(crate = "serde_crate")
 )]
 #[derive(Clone, Copy, Debug)]
-pub struct DecisionTreeParams<F, L> {
-    pub split_quality: SplitQuality,
-    pub max_depth: Option<usize>,
-    pub min_weight_split: f32,
-    pub min_weight_leaf: f32,
-    pub min_impurity_decrease: F,
+pub struct DecisionTreeValidParams<F, L> {
+    split_quality: SplitQuality,
+    max_depth: Option<usize>,
+    min_weight_split: f32,
+    min_weight_leaf: f32,
+    min_impurity_decrease: F,
 
-    pub phantom: PhantomData<L>,
+    label_marker: PhantomData<L>,
 }
 
+impl<F: Float, L> DecisionTreeValidParams<F, L> {
+    pub fn split_quality(&self) -> SplitQuality {
+        self.split_quality
+    }
+
+    pub fn max_depth(&self) -> Option<usize> {
+        self.max_depth
+    }
+
+    pub fn min_weight_split(&self) -> f32 {
+        self.min_weight_split
+    }
+
+    pub fn min_weight_leaf(&self) -> f32 {
+        self.min_weight_leaf
+    }
+
+    pub fn min_impurity_decrease(&self) -> F {
+        self.min_impurity_decrease
+    }
+}
+
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
+#[derive(Clone, Copy, Debug)]
+pub struct DecisionTreeParams<F, L>(DecisionTreeValidParams<F, L>);
+
 impl<F: Float, L: Label> DecisionTreeParams<F, L> {
+    pub fn new() -> Self {
+        Self(DecisionTreeValidParams {
+            split_quality: SplitQuality::Gini,
+            max_depth: None,
+            min_weight_split: 2.0,
+            min_weight_leaf: 1.0,
+            min_impurity_decrease: F::cast(0.00001),
+            label_marker: PhantomData,
+        })
+    }
+
     /// Sets the metric used to decide the feature on which to split a node
     pub fn split_quality(mut self, split_quality: SplitQuality) -> Self {
-        self.split_quality = split_quality;
+        self.0.split_quality = split_quality;
         self
     }
 
     /// Sets the optional limit to the depth of the decision tree
     pub fn max_depth(mut self, max_depth: Option<usize>) -> Self {
-        self.max_depth = max_depth;
+        self.0.max_depth = max_depth;
         self
     }
 
@@ -85,7 +128,7 @@ impl<F: Float, L: Label> DecisionTreeParams<F, L> {
     /// If the observations do not have associated weights, this value represents
     /// the minimum number of samples required to split a node.
     pub fn min_weight_split(mut self, min_weight_split: f32) -> Self {
-        self.min_weight_split = min_weight_split;
+        self.0.min_weight_split = min_weight_split;
         self
     }
 
@@ -94,29 +137,54 @@ impl<F: Float, L: Label> DecisionTreeParams<F, L> {
     /// If the observations do not have associated weights, this value represents
     /// the minimum number of samples that a split has to place in each leaf.
     pub fn min_weight_leaf(mut self, min_weight_leaf: f32) -> Self {
-        self.min_weight_leaf = min_weight_leaf;
+        self.0.min_weight_leaf = min_weight_leaf;
         self
     }
 
     /// Sets the minimum decrease in impurity that a split needs to bring in order for it to be applied
     pub fn min_impurity_decrease(mut self, min_impurity_decrease: F) -> Self {
-        self.min_impurity_decrease = min_impurity_decrease;
+        self.0.min_impurity_decrease = min_impurity_decrease;
         self
     }
+}
 
-    /// Checks the correctness of the hyperparameters
-    ///
-    /// ### Panics
-    ///
-    /// If the minimum impurity increase is not greater than zero
-    pub fn validate(&self) -> Result<()> {
-        if self.min_impurity_decrease < F::epsilon() {
-            return Err(Error::Parameters(format!(
+impl<F: Float, L: Label> Default for DecisionTreeParams<F, L> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<F: Float, L: Label> DecisionTree<F, L> {
+    /// Defaults are provided if the optional parameters are not specified:
+    /// * `split_quality = SplitQuality::Gini`
+    /// * `max_depth = None`
+    /// * `min_weight_split = 2.0`
+    /// * `min_weight_leaf = 1.0`
+    /// * `min_impurity_decrease = 0.00001`
+    // Violates the convention that new should return a value of type `Self`
+    #[allow(clippy::new_ret_no_self)]
+    pub fn params() -> DecisionTreeParams<F, L> {
+        DecisionTreeParams::new()
+    }
+}
+
+impl<F: Float, L> ParamGuard for DecisionTreeParams<F, L> {
+    type Checked = DecisionTreeValidParams<F, L>;
+    type Error = Error;
+
+    fn check_ref(&self) -> Result<&Self::Checked> {
+        if self.0.min_impurity_decrease < F::epsilon() {
+            Err(Error::Parameters(format!(
                 "Minimum impurity decrease should be greater than zero, but was {}",
-                self.min_impurity_decrease
-            )));
+                self.0.min_impurity_decrease
+            )))
+        } else {
+            Ok(&self.0)
         }
+    }
 
-        Ok(())
+    fn check(self) -> Result<Self::Checked> {
+        self.check_ref()?;
+        Ok(self.0)
     }
 }

@@ -1,7 +1,7 @@
-use linfa::{error::Result, traits::Transformer};
+use linfa::traits::Transformer;
 use linfa_kernel::{Kernel, KernelMethod, KernelType};
 use linfa_reduction::utils::generate_convoluted_rings2d;
-use linfa_reduction::DiffusionMap;
+use linfa_reduction::{DiffusionMap, Result};
 
 use ndarray_npy::write_npy;
 use rand::{rngs::SmallRng, SeedableRng};
@@ -25,7 +25,9 @@ fn main() -> Result<()> {
         //.kind(KernelType::Dense)
         .transform(dataset.view());
 
-    let embedding = DiffusionMap::<f64>::params(2).steps(1).transform(&kernel)?;
+    let embedding = DiffusionMap::<f64>::params(2)
+        .steps(1)
+        .transform(&kernel)??;
 
     // get embedding
     let embedding = embedding.embedding();

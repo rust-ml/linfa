@@ -8,6 +8,10 @@ pub enum PlsError {
     NotEnoughSamplesError(String),
     #[error("Bad component number: {0}")]
     BadComponentNumberError(String),
+    #[error("The tolerance is should not be negative, NaN or inf but is {0}")]
+    InvalidTolerance(f32),
+    #[error("The maximal number of iterations should be positive")]
+    ZeroMaxIter,
     #[error("Power method not converged: {0}")]
     PowerMethodNotConvergedError(String),
     #[error(transparent)]

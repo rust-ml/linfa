@@ -71,7 +71,7 @@
 //! // with its alpha value as 1
 //! // `ncomponents` is not set, it will be automatically be assigned 2 from
 //! // the input
-//! let ica = FastIca::new().gfunc(GFunc::Logcosh(1.0));
+//! let ica = FastIca::params().gfunc(GFunc::Logcosh(1.0));
 //! let ica = ica.fit(&DatasetBase::from(sources_mixed.view())).unwrap();
 //!
 //! // Here we unmix the data to recover back the original signals
@@ -83,3 +83,4 @@ extern crate ndarray;
 
 pub mod error;
 pub mod fast_ica;
+pub mod hyperparams;

@@ -1,9 +1,9 @@
 use std::cmp::Ordering;
 use std::fmt::Debug;
 
-use crate::k_means::hyperparameters::KMeansHyperParams;
+use crate::k_means::{KMeansParams, KMeansValidParams};
+use crate::IncrKMeansError;
 use crate::{k_means::errors::KMeansError, KMeansInit};
-use crate::{IncrKMeansError, UncheckedKMeansHyperParams};
 use linfa::{prelude::*, DatasetBase, Float};
 use linfa_nn::distance::{Distance, L2Dist};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
@@ -88,8 +88,8 @@ use serde_crate::{Deserialize, Serialize};
 ///
 /// ```
 /// use linfa::DatasetBase;
-/// use linfa::traits::{Fit, IncrementalFit, Predict};
-/// use linfa_clustering::{KMeansHyperParams, KMeans, generate_blobs, IncrKMeansError};
+/// use linfa::traits::{Fit, FitWith, Predict};
+/// use linfa_clustering::{KMeansParams, KMeans, generate_blobs, IncrKMeansError};
 /// use ndarray::{Axis, array, s};
 /// use ndarray_rand::rand::SeedableRng;
 /// use rand_isaac::Isaac64Rng;
@@ -183,25 +183,18 @@ pub struct KMeans<F: Float, D: Distance<F>> {
 }
 
 impl<F: Float> KMeans<F, L2Dist> {
-    pub fn params(nclusters: usize) -> UncheckedKMeansHyperParams<F, Isaac64Rng, L2Dist> {
-        UncheckedKMeansHyperParams::new(nclusters, Isaac64Rng::seed_from_u64(42), L2Dist)
+    pub fn params(nclusters: usize) -> KMeansParams<F, Isaac64Rng, L2Dist> {
+        KMeansParams::new(nclusters, Isaac64Rng::seed_from_u64(42), L2Dist)
     }
 
-    pub fn params_with_rng<R: Rng>(
-        nclusters: usize,
-        rng: R,
-    ) -> UncheckedKMeansHyperParams<F, R, L2Dist> {
-        UncheckedKMeansHyperParams::new(nclusters, rng, L2Dist)
+    pub fn params_with_rng<R: Rng>(nclusters: usize, rng: R) -> KMeansParams<F, R, L2Dist> {
+        KMeansParams::new(nclusters, rng, L2Dist)
     }
 }
 
 impl<F: Float, D: Distance<F>> KMeans<F, D> {
-    pub fn params_with<R: Rng>(
-        nclusters: usize,
-        rng: R,
-        dist_fn: D,
-    ) -> UncheckedKMeansHyperParams<F, R, D> {
-        UncheckedKMeansHyperParams::new(nclusters, rng, dist_fn)
+    pub fn params_with<R: Rng>(nclusters: usize, rng: R, dist_fn: D) -> KMeansParams<F, R, D> {
+        KMeansParams::new(nclusters, rng, dist_fn)
     }
 
     /// Return the set of centroids as a 2-dimensional matrix with shape
@@ -224,7 +217,7 @@ impl<F: Float, D: Distance<F>> KMeans<F, D> {
 }
 
 impl<F: Float, R: Rng + SeedableRng + Clone, DA: Data<Elem = F>, T, D: Distance<F>>
-    Fit<ArrayBase<DA, Ix2>, T, KMeansError> for KMeansHyperParams<F, R, D>
+    Fit<ArrayBase<DA, Ix2>, T, KMeansError> for KMeansValidParams<F, R, D>
 {
     type Object = KMeans<F, D>;
 
@@ -313,8 +306,8 @@ impl<
         DA: Data<Elem = F>,
         T,
         D: 'a + Distance<F> + Debug,
-    > IncrementalFit<'a, ArrayBase<DA, Ix2>, T, IncrKMeansError<KMeans<F, D>>>
-    for KMeansHyperParams<F, R, D>
+    > FitWith<'a, ArrayBase<DA, Ix2>, T, IncrKMeansError<KMeans<F, D>>>
+    for KMeansValidParams<F, R, D>
 {
     type ObjectIn = Option<KMeans<F, D>>;
     type ObjectOut = KMeans<F, D>;

@@ -1,5 +1,7 @@
 use crate::gaussian_mixture::errors::{GmmError, Result};
-use crate::gaussian_mixture::hyperparameters::{GmmCovarType, GmmHyperParams, GmmInitMethod};
+use crate::gaussian_mixture::hyperparams::{
+    GmmCovarType, GmmInitMethod, GmmParams, GmmValidParams,
+};
 use crate::k_means::KMeans;
 use linfa::{
     dataset::{WithLapack, WithoutLapack},
@@ -57,7 +59,7 @@ use serde_crate::{Deserialize, Serialize};
 /// ```rust, ignore
 /// use linfa::DatasetBase;
 /// use linfa::traits::{Fit, PredictInplace};
-/// use linfa_clustering::{GmmHyperParams, GaussianMixtureModel, generate_blobs};
+/// use linfa_clustering::{GmmValidParams, GaussianMixtureModel, generate_blobs};
 /// use ndarray::{Axis, array, s, Zip};
 /// use ndarray_rand::rand::SeedableRng;
 /// use rand_isaac::Isaac64Rng;
@@ -76,8 +78,8 @@ use serde_crate::{Deserialize, Serialize};
 ///
 /// // We fit the model from the dataset setting some options
 /// let gmm = GaussianMixtureModel::params(n_clusters)
-///             .with_n_runs(10)
-///             .with_tolerance(1e-4)
+///             .n_runs(10)
+///             .tolerance(1e-4)
 ///             .with_rng(rng)
 ///             .fit(&dataset).expect("GMM fitting");
 ///
@@ -125,7 +127,7 @@ impl<F: Float> Clone for GaussianMixtureModel<F> {
 
 impl<F: Float> GaussianMixtureModel<F> {
     fn new<D: Data<Elem = F>, R: Rng + SeedableRng + Clone, T>(
-        hyperparameters: &GmmHyperParams<F, R>,
+        hyperparameters: &GmmValidParams<F, R>,
         dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
         mut rng: R,
     ) -> Result<GaussianMixtureModel<F>> {
@@ -185,8 +187,8 @@ impl<F: Float> GaussianMixtureModel<F> {
 }
 
 impl<F: Float> GaussianMixtureModel<F> {
-    pub fn params(n_clusters: usize) -> GmmHyperParams<F, Isaac64Rng> {
-        GmmHyperParams::new(n_clusters)
+    pub fn params(n_clusters: usize) -> GmmParams<F, Isaac64Rng> {
+        GmmParams::new(n_clusters)
     }
 
     pub fn weights(&self) -> &Array1<F> {
@@ -400,12 +402,11 @@ impl<F: Float> GaussianMixtureModel<F> {
 }
 
 impl<F: Float, R: Rng + SeedableRng + Clone, D: Data<Elem = F>, T>
-    Fit<ArrayBase<D, Ix2>, T, GmmError> for GmmHyperParams<F, R>
+    Fit<ArrayBase<D, Ix2>, T, GmmError> for GmmValidParams<F, R>
 {
     type Object = GaussianMixtureModel<F>;
 
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
-        self.validate()?;
         let observations = dataset.records().view();
         let mut gmm = GaussianMixtureModel::<F>::new(self, dataset, self.rng())?;
 
@@ -582,7 +583,7 @@ mod tests {
 
         // Test that cholesky decomposition fails when reg_covariance is zero
         let gmm = GaussianMixtureModel::params(3)
-            .with_reg_covariance(0.)
+            .reg_covariance(0.)
             .with_rng(rng.clone())
             .fit(&dataset);
 
@@ -612,7 +613,7 @@ mod tests {
 
         // Test that cholesky decomposition fails when reg_covariance is zero
         let gmm = GaussianMixtureModel::params(1)
-            .with_reg_covariance(0.)
+            .reg_covariance(0.)
             .fit(&dataset);
 
         assert!(
@@ -659,7 +660,7 @@ mod tests {
     fn test_invalid_n_runs() {
         assert!(
             GaussianMixtureModel::params(1)
-                .with_n_runs(0)
+                .n_runs(0)
                 .fit(&DatasetBase::from(array![[0.]]))
                 .is_err(),
             "n_runs must be strictly positive"
@@ -670,7 +671,7 @@ mod tests {
     fn test_invalid_tolerance() {
         assert!(
             GaussianMixtureModel::params(1)
-                .with_tolerance(0.)
+                .tolerance(0.)
                 .fit(&DatasetBase::from(array![[0.]]))
                 .is_err(),
             "tolerance must be strictly positive"
@@ -691,7 +692,7 @@ mod tests {
     fn test_invalid_reg_covariance() {
         assert!(
             GaussianMixtureModel::params(1)
-                .with_reg_covariance(-1e-6)
+                .reg_covariance(-1e-6)
                 .fit(&DatasetBase::from(array![[0.]]))
                 .is_err(),
             "reg_covariance must be positive"
@@ -702,7 +703,7 @@ mod tests {
     fn test_invalid_max_n_iterations() {
         assert!(
             GaussianMixtureModel::params(1)
-                .with_max_n_iterations(0)
+                .max_n_iterations(0)
                 .fit(&DatasetBase::from(array![[0.]]))
                 .is_err(),
             "max_n_iterations must be stricly positive"

@@ -1,7 +1,7 @@
 mod algorithm;
 mod errors;
-mod hyperparameters;
+mod hyperparams;
 
 pub use algorithm::*;
 pub use errors::*;
-pub use hyperparameters::*;
+pub use hyperparams::*;

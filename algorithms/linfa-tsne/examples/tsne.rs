@@ -1,16 +1,16 @@
 use linfa::traits::{Fit, Transformer};
 use linfa_reduction::Pca;
-use linfa_tsne::{Result, TSne};
+use linfa_tsne::{Result, TSneParams};
 use std::{io::Write, process::Command};
 
 fn main() -> Result<()> {
     let ds = linfa_datasets::iris();
     let ds = Pca::params(3).whiten(true).fit(&ds).unwrap().transform(ds);
 
-    let ds = TSne::embedding_size(2)
+    let ds = TSneParams::embedding_size(2)
         .perplexity(10.0)
         .approx_threshold(0.1)
-        .transform(ds)?;
+        .transform(ds)??;
 
     let mut f = std::fs::File::create("examples/iris.dat").unwrap();
 

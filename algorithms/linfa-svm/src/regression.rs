@@ -8,11 +8,11 @@ use linfa::{
 use linfa_kernel::Kernel;
 use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix2};
 
-use super::error::{Result, SvmResult};
+use super::error::{Result, SvmError};
 use super::permutable_kernel::PermutableKernelRegression;
 use super::solver_smo::SolverState;
 use super::SolverParams;
-use super::{Float, Svm, SvmParams};
+use super::{Float, Svm, SvmValidParams};
 
 /// Support Vector Regression with epsilon tolerance
 ///
@@ -119,17 +119,17 @@ pub fn fit_nu<F: Float>(
 /// Take a number of observations and project them to optimal continuous targets.
 macro_rules! impl_regression {
     ($records:ty, $targets:ty, $f:ty) => {
-        impl Fit<$records, $targets, SvmResult> for SvmParams<$f, $f> {
+        impl Fit<$records, $targets, SvmError> for SvmValidParams<$f, $f> {
             type Object = Svm<$f, $f>;
 
             fn fit(&self, dataset: &DatasetBase<$records, $targets>) -> Result<Self::Object> {
-                let kernel = self.kernel.transform(dataset.records());
+                let kernel = self.kernel_params().transform(dataset.records());
                 let target = dataset.try_single_target()?;
                 let target = target.as_slice().unwrap();
 
-                let ret = match (self.c, self.nu) {
+                let ret = match (self.c(), self.nu()) {
                     (Some((c, eps)), _) => fit_epsilon(
-                        self.solver_params.clone(),
+                        self.solver_params().clone(),
                         dataset.records().view(),
                         kernel,
                         target,
@@ -137,7 +137,7 @@ macro_rules! impl_regression {
                         eps,
                     ),
                     (None, Some((nu, eps))) => fit_nu(
-                        self.solver_params.clone(),
+                        self.solver_params().clone(),
                         dataset.records().view(),
                         kernel,
                         target,

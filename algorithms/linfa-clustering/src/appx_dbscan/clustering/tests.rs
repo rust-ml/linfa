@@ -1,12 +1,12 @@
-use crate::UncheckedAppxDbscanHyperParams;
+use crate::AppxDbscanParams;
 
 use super::*;
-use linfa::prelude::UncheckedHyperParams;
+use linfa::ParamGuard;
 use ndarray::Array2;
 
 #[test]
 fn clustering_test() {
-    let params = UncheckedAppxDbscanHyperParams::new(2)
+    let params = AppxDbscanParams::new(2)
         .tolerance(2.0)
         .slack(0.1)
         .check()

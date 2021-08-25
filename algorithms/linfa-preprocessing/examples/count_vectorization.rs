@@ -5,8 +5,8 @@ use flate2::read::GzDecoder;
 use linfa::metrics::ToConfusionMatrix;
 use linfa::traits::{Fit, Predict};
 use linfa::Dataset;
-use linfa_bayes::GaussianNbParams;
-use linfa_preprocessing::count_vectorization::CountVectorizer;
+use linfa_bayes::GaussianNb;
+use linfa_preprocessing::CountVectorizer;
 use ndarray::Array2;
 use std::collections::HashSet;
 use std::path::Path;
@@ -111,7 +111,7 @@ fn main() {
     // The 20news dataset's documents are stored in Latin1 encoding so we need to set the equivalent ISO
     // code as the encoding. Using a strict trap will stop the fitting, raising an error, if a file containing an invalid text sequence
     // is encountered
-    let vectorizer = CountVectorizer::default()
+    let vectorizer = CountVectorizer::params()
         .fit_files(&training_filenames, ISO_8859_1, Strict)
         .unwrap();
     println!(
@@ -141,7 +141,7 @@ fn main() {
 
     println!();
     println!("Let's try to fit a Naive Bayes model to this set");
-    let model = GaussianNbParams::params().fit(&training_dataset).unwrap();
+    let model = GaussianNb::params().fit(&training_dataset).unwrap();
     let training_prediction = model.predict(&training_dataset);
 
     let cm = training_prediction

@@ -1,6 +1,6 @@
 use linfa::metrics::ToConfusionMatrix;
 use linfa::traits::{Fit, Predict, Transformer};
-use linfa_bayes::GaussianNbParams;
+use linfa_bayes::GaussianNb;
 use linfa_preprocessing::linear_scaling::LinearScaler;
 
 fn main() {
@@ -17,7 +17,7 @@ fn main() {
     let valid = scaler.transform(valid);
 
     // Learn a naive bayes model from the training set
-    let model = GaussianNbParams::params().fit(&train).unwrap();
+    let model = GaussianNb::params().fit(&train).unwrap();
 
     // compute accuracies
     let train_acc = model

@@ -28,14 +28,33 @@ use linfa::traits::Transformer;
 use linfa::Float;
 use linfa_kernel::Kernel;
 
+pub use error::{HierarchicalError, Result};
+
+mod error;
+
 /// Criterion when to stop merging
 ///
 /// The criterion defines at which point the merging process should stop. This can be either, when
 /// a certain number of clusters is reached, or the distance becomes larger than a maximal
 /// distance.
-enum Criterion<T> {
+#[derive(Clone, Debug)]
+pub enum Criterion<F: Float> {
     NumClusters(usize),
-    Distance(T),
+    Distance(F),
+}
+
+impl<F: Float> Criterion<F> {
+    pub fn is_valid(&self) -> Result<(), F> {
+        match self {
+            Self::NumClusters(x) if *x == 0 => {
+                Err(HierarchicalError::InvalidStoppingCondition(self.clone()))
+            }
+            Self::Distance(x) if x.is_negative() || x.is_nan() || x.is_infinite() => {
+                Err(HierarchicalError::InvalidStoppingCondition(self.clone()))
+            }
+            _ => Ok(()),
+        }
+    }
 }
 
 /// Agglomerative hierarchical clustering
@@ -43,7 +62,7 @@ enum Criterion<T> {
 /// In this clustering algorithm, each point is first considered as a separate cluster. During each
 /// step, two points are merged into new clusters, until a stopping criterion is reached. The distance
 /// between the points is computed as the negative-log transform of the similarity kernel.
-pub struct HierarchicalCluster<T> {
+pub struct HierarchicalCluster<T: Float> {
     method: Method,
     stopping: Criterion<T>,
 }
@@ -77,13 +96,15 @@ impl<F: Float> HierarchicalCluster<F> {
     }
 }
 
-impl<F: Float> Transformer<Kernel<F>, DatasetBase<Kernel<F>, Vec<usize>>>
+impl<F: Float> Transformer<Kernel<F>, Result<DatasetBase<Kernel<F>, Vec<usize>>, F>>
     for HierarchicalCluster<F>
 {
     /// Perform hierarchical clustering of a similarity matrix
     ///
     /// Returns the class id for each data point
-    fn transform(&self, kernel: Kernel<F>) -> DatasetBase<Kernel<F>, Vec<usize>> {
+    fn transform(&self, kernel: Kernel<F>) -> Result<DatasetBase<Kernel<F>, Vec<usize>>, F> {
+        self.stopping.is_valid()?;
+
         // ignore all similarities below this value
         let threshold = F::cast(1e-6);
 
@@ -145,25 +166,28 @@ impl<F: Float> Transformer<Kernel<F>, DatasetBase<Kernel<F>, Vec<usize>>>
         }
 
         // return node_index -> cluster_index map
-        DatasetBase::new(kernel, tmp)
+        Ok(DatasetBase::new(kernel, tmp))
     }
 }
 
-impl<F: Float, T> Transformer<DatasetBase<Kernel<F>, T>, DatasetBase<Kernel<F>, Vec<usize>>>
+impl<F: Float, T>
+    Transformer<DatasetBase<Kernel<F>, T>, Result<DatasetBase<Kernel<F>, Vec<usize>>, F>>
     for HierarchicalCluster<F>
 {
     /// Perform hierarchical clustering of a similarity matrix
     ///
     /// Returns the class id for each data point
-    fn transform(&self, dataset: DatasetBase<Kernel<F>, T>) -> DatasetBase<Kernel<F>, Vec<usize>> {
-        //let Dataset { records, .. } = dataset;
+    fn transform(
+        &self,
+        dataset: DatasetBase<Kernel<F>, T>,
+    ) -> Result<DatasetBase<Kernel<F>, Vec<usize>>, F> {
         self.transform(dataset.records)
     }
 }
 
 /// Initialize hierarchical clustering, which averages in-cluster points and stops when two
 /// clusters are reached.
-impl<T> Default for HierarchicalCluster<T> {
+impl<T: Float> Default for HierarchicalCluster<T> {
     fn default() -> HierarchicalCluster<T> {
         HierarchicalCluster {
             method: Method::Average,
@@ -201,7 +225,8 @@ mod tests {
 
         let kernel = HierarchicalCluster::default()
             .max_distance(0.1)
-            .transform(kernel);
+            .transform(kernel)
+            .unwrap();
 
         // check that all assigned ids are equal for the first cluster
         let ids = kernel.targets();
@@ -224,7 +249,8 @@ mod tests {
         // perform hierarchical clustering until we have two clusters left
         let kernel = HierarchicalCluster::default()
             .num_clusters(2)
-            .transform(kernel);
+            .transform(kernel)
+            .unwrap();
 
         // check that all assigned ids are equal for the first cluster
         let ids = kernel.targets();
@@ -254,11 +280,10 @@ mod tests {
             .method(KernelMethod::Linear)
             .transform(data.view());
 
-        dbg!(&kernel.to_upper_triangle());
         let predictions = HierarchicalCluster::default()
-            //.num_clusters(3)
             .max_distance(3.0)
-            .transform(kernel);
+            .transform(kernel)
+            .unwrap();
 
         dbg!(&predictions.targets());
     }

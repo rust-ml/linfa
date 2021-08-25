@@ -16,6 +16,8 @@ pub enum FastIcaError {
     /// due to an Ill-Conditioned matrix
     #[error("SVD Decomposition failed, X could be an Ill-Conditioned matrix")]
     SvdDecomposition,
+    #[error("tolerance should be positive but is {0}")]
+    InvalidTolerance(f32),
     /// Errors encountered during linear algebra operations
     #[error("Linalg Error: {0}")]
     Linalg(#[from] LinalgError),

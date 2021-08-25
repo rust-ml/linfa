@@ -1,14 +1,14 @@
-use crate::UncheckedAppxDbscanHyperParams;
+use crate::AppxDbscanParams;
 
 use super::*;
 
 use approx::assert_abs_diff_eq;
-use linfa::prelude::UncheckedHyperParams;
+use linfa::ParamGuard;
 use ndarray::{arr1, ArrayView};
 
 #[test]
 fn counting_test() {
-    let params = UncheckedAppxDbscanHyperParams::new(2)
+    let params = AppxDbscanParams::new(2)
         .tolerance(2.0)
         .slack(0.1)
         .check()
@@ -57,7 +57,7 @@ fn counting_test() {
 fn edge_points_counting_test() {
     let epsilon: f64 = 1.0;
     let slack = 0.00001;
-    let params = UncheckedAppxDbscanHyperParams::new(2)
+    let params = AppxDbscanParams::new(2)
         .tolerance(epsilon)
         .slack(slack)
         .check()
@@ -134,7 +134,7 @@ fn get_corners_test() {
 
 #[test]
 fn determine_intersection_test() {
-    let params = UncheckedAppxDbscanHyperParams::new(2)
+    let params = AppxDbscanParams::new(2)
         .tolerance(2.0)
         .slack(0.1)
         .check()

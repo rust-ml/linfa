@@ -12,7 +12,7 @@ use thiserror::Error;
 #[derive(Debug)]
 /// The set of hyperparameters that can be specified for the execution of
 /// the [DBSCAN algorithm](struct.Dbscan.html).
-pub struct DbscanHyperParams<F: Float, D: Distance<F>, N: NearestNeighbour> {
+pub struct DbscanValidParams<F: Float, D: Distance<F>, N: NearestNeighbour> {
     pub(crate) tolerance: F,
     pub(crate) min_points: usize,
     pub(crate) dist_fn: D,
@@ -20,10 +20,8 @@ pub struct DbscanHyperParams<F: Float, D: Distance<F>, N: NearestNeighbour> {
 }
 
 #[derive(Debug)]
-/// Helper struct for building a set of [DBSCAN hyperparameters](struct.DbscanHyperParams.html)
-pub struct UncheckedDbscanHyperParams<F: Float, D: Distance<F>, N: NearestNeighbour>(
-    DbscanHyperParams<F, D, N>,
-);
+/// Helper struct for building a set of [DBSCAN hyperparameters](struct.DbscanParams.html)
+pub struct DbscanParams<F: Float, D: Distance<F>, N: NearestNeighbour>(DbscanValidParams<F, D, N>);
 
 #[derive(Error, Debug)]
 pub enum DbscanParamsError {
@@ -33,9 +31,9 @@ pub enum DbscanParamsError {
     Tolerance,
 }
 
-impl<F: Float, D: Distance<F>, N: NearestNeighbour> UncheckedDbscanHyperParams<F, D, N> {
+impl<F: Float, D: Distance<F>, N: NearestNeighbour> DbscanParams<F, D, N> {
     pub(crate) fn new(min_points: usize, dist_fn: D, nn_algo: N) -> Self {
-        Self(DbscanHyperParams {
+        Self(DbscanValidParams {
             min_points,
             tolerance: F::cast(1e-4),
             dist_fn,
@@ -62,10 +60,8 @@ impl<F: Float, D: Distance<F>, N: NearestNeighbour> UncheckedDbscanHyperParams<F
     }
 }
 
-impl<F: Float, D: Distance<F>, N: NearestNeighbour> UncheckedHyperParams
-    for UncheckedDbscanHyperParams<F, D, N>
-{
-    type Checked = DbscanHyperParams<F, D, N>;
+impl<F: Float, D: Distance<F>, N: NearestNeighbour> ParamGuard for DbscanParams<F, D, N> {
+    type Checked = DbscanValidParams<F, D, N>;
     type Error = DbscanParamsError;
 
     fn check_ref(&self) -> Result<&Self::Checked, Self::Error> {
@@ -84,7 +80,7 @@ impl<F: Float, D: Distance<F>, N: NearestNeighbour> UncheckedHyperParams
     }
 }
 
-impl<F: Float, D: Distance<F>, N: NearestNeighbour> DbscanHyperParams<F, D, N> {
+impl<F: Float, D: Distance<F>, N: NearestNeighbour> DbscanValidParams<F, D, N> {
     /// Nearest neighbour algorithm used for range queries
     pub fn tolerance(&self) -> F {
         self.tolerance
@@ -115,7 +111,7 @@ mod tests {
 
     #[test]
     fn tolerance_cannot_be_zero() {
-        let res = UncheckedDbscanHyperParams::new(2, L2Dist, CommonNearestNeighbour::KdTree)
+        let res = DbscanParams::new(2, L2Dist, CommonNearestNeighbour::KdTree)
             .tolerance(0.0)
             .check();
         assert!(matches!(res, Err(DbscanParamsError::Tolerance)));
@@ -123,7 +119,7 @@ mod tests {
 
     #[test]
     fn min_points_at_least_2() {
-        let res = UncheckedDbscanHyperParams::new(1, L2Dist, CommonNearestNeighbour::KdTree)
+        let res = DbscanParams::new(1, L2Dist, CommonNearestNeighbour::KdTree)
             .tolerance(3.3)
             .check();
         assert!(matches!(res, Err(DbscanParamsError::MinPoints)));

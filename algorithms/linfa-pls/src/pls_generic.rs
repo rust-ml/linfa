@@ -1,5 +1,6 @@
 use crate::errors::{PlsError, Result};
 use crate::utils;
+use crate::{PlsParams, PlsValidParams};
 
 use linfa::{
     dataset::{Records, WithLapack, WithoutLapack},
@@ -154,67 +155,8 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array2<F>> f
     }
 }
 
-#[derive(Debug, Clone)]
-pub(crate) struct PlsParams<F: Float> {
-    pub(crate) n_components: usize,
-    pub(crate) max_iter: usize,
-    pub(crate) tolerance: F,
-    pub(crate) scale: bool,
-    pub(crate) algorithm: Algorithm,
-    deflation_mode: DeflationMode,
-    mode: Mode,
-}
-
-impl<F: Float> PlsParams<F> {
-    pub fn new(n_components: usize) -> PlsParams<F> {
-        PlsParams {
-            n_components,
-            max_iter: 500,
-            tolerance: F::cast(1e-6),
-            scale: true,
-            algorithm: Algorithm::Nipals,
-            deflation_mode: DeflationMode::Regression,
-            mode: Mode::A,
-        }
-    }
-
-    #[cfg(test)]
-    pub fn max_iterations(mut self, max_iter: usize) -> Self {
-        self.max_iter = max_iter;
-        self
-    }
-
-    #[cfg(test)]
-    pub fn tolerance(mut self, tolerance: F) -> Self {
-        self.tolerance = tolerance;
-        self
-    }
-
-    #[cfg(test)]
-    pub fn scale(mut self, scale: bool) -> Self {
-        self.scale = scale;
-        self
-    }
-
-    #[cfg(test)]
-    pub fn algorithm(mut self, algorithm: Algorithm) -> Self {
-        self.algorithm = algorithm;
-        self
-    }
-
-    pub fn deflation_mode(mut self, deflation_mode: DeflationMode) -> Self {
-        self.deflation_mode = deflation_mode;
-        self
-    }
-
-    pub fn mode(mut self, mode: Mode) -> Self {
-        self.mode = mode;
-        self
-    }
-}
-
 impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsError>
-    for PlsParams<F>
+    for PlsValidParams<F>
 {
     type Object = Pls<F>;
 
@@ -236,8 +178,8 @@ impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsE
             )));
         }
 
-        let n_components = self.n_components;
-        let rank_upper_bound = match self.deflation_mode {
+        let n_components = self.n_components();
+        let rank_upper_bound = match self.deflation_mode() {
             DeflationMode::Regression => {
                 // With PLSRegression n_components is bounded by the rank of (x.T x)
                 // see Wegelin page 25
@@ -256,9 +198,9 @@ impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsE
                 rank_upper_bound, n_components
             )));
         }
-        let norm_y_weights = self.deflation_mode == DeflationMode::Canonical;
+        let norm_y_weights = self.deflation_mode() == DeflationMode::Canonical;
         let (mut xk, mut yk, x_mean, y_mean, x_std, y_std) =
-            utils::center_scale_dataset(dataset, self.scale);
+            utils::center_scale_dataset(dataset, self.scale());
 
         let mut x_weights = Array2::<F>::zeros((p, n_components)); // U
         let mut y_weights = Array2::<F>::zeros((q, n_components)); // V
@@ -276,7 +218,7 @@ impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsE
             // Find first left and right singular vectors of the x.T.dot(Y)
             // cross-covariance matrix.
 
-            let (mut x_weights_k, mut y_weights_k) = match self.algorithm {
+            let (mut x_weights_k, mut y_weights_k) = match self.algorithm() {
                 Algorithm::Nipals => {
                     // Replace columns that are all close to zero with zeros
                     for mut yj in yk.columns_mut() {
@@ -307,7 +249,7 @@ impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsE
             let x_loadings_k = x_scores_k.dot(&xk) / x_scores_k.dot(&x_scores_k);
             xk = xk - utils::outer(&x_scores_k, &x_loadings_k); // outer product
 
-            let y_loadings_k = match self.deflation_mode {
+            let y_loadings_k = match self.deflation_mode() {
                 DeflationMode::Canonical => {
                     // regress yk on y_score
                     let y_loadings_k = y_scores_k.dot(&yk) / y_scores_k.dot(&y_scores_k);
@@ -360,7 +302,7 @@ impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsE
     }
 }
 
-impl<F: Float> PlsParams<F> {
+impl<F: Float> PlsValidParams<F> {
     /// Return the first left and right singular vectors of x'Y.
     /// Provides an alternative to the svd(x'Y) and uses the power method instead.
     fn get_first_singular_vectors_power_method(
@@ -381,7 +323,7 @@ impl<F: Float> PlsParams<F> {
 
         let mut x_pinv = None;
         let mut y_pinv = None;
-        if self.mode == Mode::B {
+        if self.mode() == Mode::B {
             x_pinv = Some(utils::pinv2(x.view(), Some(F::cast(10.) * eps)));
             y_pinv = Some(utils::pinv2(y.view(), Some(F::cast(10.) * eps)));
         }
@@ -393,15 +335,15 @@ impl<F: Float> PlsParams<F> {
         let mut x_weights = Array1::<F>::ones(x.ncols());
         let mut y_weights = Array1::<F>::ones(y.ncols());
         let mut converged = false;
-        while n_iter < self.max_iter {
-            x_weights = match self.mode {
+        while n_iter < self.max_iter() {
+            x_weights = match self.mode() {
                 Mode::A => x.t().dot(&y_score) / y_score.dot(&y_score),
                 Mode::B => x_pinv.to_owned().unwrap().dot(&y_score),
             };
             x_weights /= x_weights.dot(&x_weights).sqrt() + eps;
             let x_score = x.dot(&x_weights);
 
-            y_weights = match self.mode {
+            y_weights = match self.mode() {
                 Mode::A => y.t().dot(&x_score) / x_score.dot(&x_score),
                 Mode::B => y_pinv.to_owned().unwrap().dot(&x_score),
             };
@@ -415,7 +357,7 @@ impl<F: Float> PlsParams<F> {
             y_score = ya.mapv(|v| v / yb);
 
             let x_weights_diff = &x_weights - &x_weights_old;
-            if x_weights_diff.dot(&x_weights_diff) < self.tolerance || y.ncols() == 1 {
+            if x_weights_diff.dot(&x_weights_diff) < self.tolerance() || y.ncols() == 1 {
                 converged = true;
                 break;
             } else {
@@ -423,10 +365,10 @@ impl<F: Float> PlsParams<F> {
                 n_iter += 1;
             }
         }
-        if n_iter == self.max_iter && !converged {
+        if n_iter == self.max_iter() && !converged {
             Err(PlsError::PowerMethodNotConvergedError(format!(
                 "Singular vector computation power method: max iterations ({}) reached",
-                self.max_iter
+                self.max_iter()
             )))
         } else {
             Ok((x_weights, y_weights, n_iter))
@@ -454,8 +396,7 @@ impl<F: Float> PlsParams<F> {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use linfa::dataset::Records;
-    use linfa::traits::Predict;
+    use linfa::{dataset::Records, traits::Predict, ParamGuard};
     use linfa_datasets::linnerud;
     use ndarray::{array, concatenate, Array, Axis};
     use ndarray_rand::rand::SeedableRng;
@@ -767,13 +708,12 @@ mod tests {
         // Make sure SVD and power method give approximately the same results
         let ds = linnerud();
 
-        let (mut u1, mut v1, _) = PlsParams::new(2).get_first_singular_vectors_power_method(
-            ds.records(),
-            ds.targets(),
-            true,
-        )?;
-        let (mut u2, mut v2) =
-            PlsParams::new(2).get_first_singular_vectors_svd(ds.records(), ds.targets())?;
+        let (mut u1, mut v1, _) = PlsParams::new(2)
+            .check()?
+            .get_first_singular_vectors_power_method(ds.records(), ds.targets(), true)?;
+        let (mut u2, mut v2) = PlsParams::new(2)
+            .check()?
+            .get_first_singular_vectors_svd(ds.records(), ds.targets())?;
 
         utils::svd_flip_1d(&mut u1, &mut v1);
         utils::svd_flip_1d(&mut u2, &mut v2);

@@ -33,8 +33,8 @@ fn gaussian_mixture_bench(c: &mut Criterion) {
                     black_box(
                         GaussianMixtureModel::params(n_clusters)
                             .with_rng(rng.clone())
-                            .with_tolerance(1e-3)
-                            .with_max_n_iterations(1000)
+                            .tolerance(1e-3)
+                            .max_n_iterations(1000)
                             .fit(&dataset)
                             .expect("GMM fitting fail"),
                     )

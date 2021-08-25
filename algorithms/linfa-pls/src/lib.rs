@@ -38,64 +38,27 @@
 //! let physio_measures = pls.predict(exercices);
 //! ```
 mod errors;
+mod hyperparams;
 mod pls_generic;
 mod pls_svd;
 mod utils;
 
 use crate::pls_generic::*;
 
-use linfa::{traits::Fit, traits::PredictInplace, traits::Transformer, DatasetBase};
+use linfa::{traits::Fit, traits::PredictInplace, traits::Transformer, DatasetBase, Float};
 use ndarray::{Array2, ArrayBase, Data, Ix2};
-use ndarray_linalg::{Lapack, Scalar};
 
 pub use errors::*;
+pub use hyperparams::*;
 pub use pls_svd::*;
-
-/// Add Scalar and Lapack trait bounds to the common Float trait
-pub trait Float: linfa::Float + Scalar + Lapack {}
-
-impl Float for f32 {}
-impl Float for f64 {}
 
 macro_rules! pls_algo { ($name:ident) => {
     paste::item! {
-
-        pub struct [<Pls $name Params>]<F: Float>(PlsParams<F>);
-
-        impl<F: Float> [<Pls $name Params>]<F> {
-            /// Set the maximum number of iterations of the power method when algorithm='Nipals'. Ignored otherwise.
-            pub fn max_iterations(mut self, max_iter: usize) -> Self {
-                self.0.max_iter = max_iter;
-                self
-            }
-
-            /// Set the tolerance used as convergence criteria in the power method: the algorithm
-            /// stops whenever the squared norm of u_i - u_{i-1} is less than tol, where u corresponds
-            /// to the left singular vector.
-            pub fn tolerance(mut self, tolerance: F) -> Self {
-                self.0.tolerance = tolerance;
-                self
-            }
-
-            /// Set whether to scale the dataset
-            pub fn scale(mut self, scale: bool) -> Self {
-                self.0.scale = scale;
-                self
-            }
-
-            /// Set the algorithm used to estimate the first singular vectors of the cross-covariance matrix.
-            /// `Nipals` uses the power method while `Svd` will compute the whole SVD.
-            pub fn algorithm(mut self, algorithm: Algorithm) -> Self {
-                self.0.algorithm = algorithm;
-                self
-            }
-        }
-
         pub struct [<Pls $name>]<F: Float>(Pls<F>);
         impl<F: Float> [<Pls $name>]<F> {
 
             pub fn params(n_components: usize) -> [<Pls $name Params>]<F> {
-                [<Pls $name Params>](Pls::[<$name:lower>](n_components))
+                [<Pls $name Params>]([<Pls $name ValidParams>](Pls::[<$name:lower>](n_components).0))
             }
 
             /// Singular vectors of the cross-covariance matrices
@@ -131,7 +94,7 @@ macro_rules! pls_algo { ($name:ident) => {
         }
 
         impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsError>
-            for [<Pls $name Params>]<F>
+            for [<Pls $name ValidParams>]<F>
         {
             type Object = [<Pls $name>]<F>;
             fn fit(

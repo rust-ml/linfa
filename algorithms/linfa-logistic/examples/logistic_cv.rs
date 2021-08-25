@@ -13,7 +13,7 @@ fn main() -> Result<()> {
     let models: Vec<_> = alphas
         .iter()
         .map(|alpha| {
-            LogisticRegression::default()
+            LogisticRegression::params()
                 .alpha(*alpha)
                 .max_iterations(150)
         })

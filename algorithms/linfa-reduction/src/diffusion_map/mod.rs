@@ -7,7 +7,7 @@
 //! j.
 //!
 mod algorithms;
-mod hyperparameters;
+mod hyperparams;
 
 pub use algorithms::*;
-pub use hyperparameters::*;
+pub use hyperparams::*;

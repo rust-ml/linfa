@@ -4,15 +4,16 @@ use linfa::{
     dataset::{AsTargets, CountedTargets, DatasetBase, Pr},
     traits::Fit,
     traits::{Predict, PredictInplace},
+    ParamGuard,
 };
 use ndarray::{Array1, Array2, ArrayBase, ArrayView2, Data, Ix1, Ix2};
 use std::cmp::Ordering;
 
-use super::error::{Result, SvmResult};
+use super::error::{Result, SvmError};
 use super::permutable_kernel::{PermutableKernel, PermutableKernelOneClass};
 use super::solver_smo::SolverState;
 use super::SolverParams;
-use super::{Float, Svm, SvmParams};
+use super::{Float, Svm, SvmValidParams};
 use linfa_kernel::Kernel;
 
 fn calibrate_with_platt<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = bool>>(
@@ -26,7 +27,11 @@ fn calibrate_with_platt<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = bool>>(
         .map(|x| obj.weighted_sum(&x) - obj.rho)
         .collect::<Array1<_>>();
 
-    let (a, b) = platt_newton_method(pred.view(), dataset.try_single_target()?, params)?;
+    let (a, b) = platt_newton_method(
+        pred.view(),
+        dataset.try_single_target()?,
+        params.check_ref()?,
+    )?;
     obj.probability_coeffs = Some((a, b));
 
     Ok(obj.with_phantom())
@@ -205,17 +210,17 @@ pub fn fit_one_class<F: Float + num_traits::ToPrimitive>(
 /// probabilities for whether a sample belongs to the first or second class.
 macro_rules! impl_classification {
     ($records:ty, $targets:ty) => {
-        impl<F: Float> Fit<$records, $targets, SvmResult> for SvmParams<F, Pr> {
+        impl<F: Float> Fit<$records, $targets, SvmError> for SvmValidParams<F, Pr> {
             type Object = Svm<F, Pr>;
 
             fn fit(&self, dataset: &DatasetBase<$records, $targets>) -> Result<Self::Object> {
-                let kernel = self.kernel.transform(dataset.records());
+                let kernel = self.kernel_params().transform(dataset.records());
                 let target = dataset.try_single_target()?;
                 let target = target.as_slice().unwrap();
 
-                let ret = match (self.c, self.nu) {
+                let ret = match (self.c(), self.nu()) {
                     (Some((c_p, c_n)), _) => fit_c(
-                        self.solver_params.clone(),
+                        self.solver_params().clone(),
                         dataset.records().view(),
                         kernel,
                         target,
@@ -223,7 +228,7 @@ macro_rules! impl_classification {
                         c_n,
                     ),
                     (None, Some((nu, _))) => fit_nu(
-                        self.solver_params.clone(),
+                        self.solver_params().clone(),
                         dataset.records().view(),
                         kernel,
                         target,
@@ -232,21 +237,21 @@ macro_rules! impl_classification {
                     _ => panic!("Set either C value or Nu value"),
                 };
 
-                calibrate_with_platt(ret, &self.platt, dataset)
+                calibrate_with_platt(ret, &self.platt_params(), dataset)
             }
         }
 
-        impl<F: Float> Fit<$records, $targets, SvmResult> for SvmParams<F, bool> {
+        impl<F: Float> Fit<$records, $targets, SvmError> for SvmValidParams<F, bool> {
             type Object = Svm<F, bool>;
 
             fn fit(&self, dataset: &DatasetBase<$records, $targets>) -> Result<Self::Object> {
-                let kernel = self.kernel.transform(dataset.records());
+                let kernel = self.kernel_params().transform(dataset.records());
                 let target = dataset.try_single_target()?;
                 let target = target.as_slice().unwrap();
 
-                let ret = match (self.c, self.nu) {
+                let ret = match (self.c(), self.nu()) {
                     (Some((c_p, c_n)), _) => fit_c(
-                        self.solver_params.clone(),
+                        self.solver_params().clone(),
                         dataset.records().view(),
                         kernel,
                         target,
@@ -254,7 +259,7 @@ macro_rules! impl_classification {
                         c_n,
                     ),
                     (None, Some((nu, _))) => fit_nu(
-                        self.solver_params.clone(),
+                        self.solver_params().clone(),
                         dataset.records().view(),
                         kernel,
                         target,
@@ -281,15 +286,17 @@ impl_classification!(ArrayView2<'_, F>, CountedTargets<bool, ArrayView2<'_, bool
 /// implementation of SVM.
 macro_rules! impl_oneclass {
     ($records:ty, $targets:ty) => {
-        impl<F: Float> Fit<$records, $targets, SvmResult> for SvmParams<F, Pr> {
+        impl<F: Float> Fit<$records, $targets, SvmError> for SvmValidParams<F, Pr> {
             type Object = Svm<F, bool>;
 
             fn fit(&self, dataset: &DatasetBase<$records, $targets>) -> Result<Self::Object> {
-                let kernel = self.kernel.transform(dataset.records());
+                let kernel = self.kernel_params().transform(dataset.records());
                 let records = dataset.records().view();
 
-                let ret = match self.nu {
-                    Some((nu, _)) => fit_one_class(self.solver_params.clone(), records, kernel, nu),
+                let ret = match self.nu() {
+                    Some((nu, _)) => {
+                        fit_one_class(self.solver_params().clone(), records, kernel, nu)
+                    }
                     None => panic!("One class needs Nu value"),
                 };
 
