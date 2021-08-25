@@ -12,7 +12,7 @@ fn main() -> Result<()> {
         .fit(&train)?;
 
     println!("intercept:  {}", model.intercept());
-    println!("params: {}", model.parameters());
+    println!("params: {}", model.hyperplane());
 
     println!("z score: {:?}", model.z_score());
 
