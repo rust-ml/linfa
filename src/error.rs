@@ -3,7 +3,6 @@
 
 use thiserror::Error;
 
-use crate::composing::PlattNewtonResult;
 use ndarray::ShapeError;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
@@ -32,8 +31,6 @@ pub enum Error {
     NotEnoughSamples,
     #[error("multiple targets not supported")]
     MultipleTargets,
-    #[error("platt scaling failed")]
-    Platt(PlattNewtonResult),
     #[error("The number of samples do not match: {0} - {1}")]
     MismatchedShapes(usize, usize),
 }
