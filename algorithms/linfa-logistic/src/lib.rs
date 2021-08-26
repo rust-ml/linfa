@@ -113,7 +113,7 @@ impl<F: Float, D: Dimension> LogisticRegressionBase<F, D> {
         }
     }
 
-    /// Set the normalization parameter `alpha` used for L2 normalization,
+    /// Set the regularization parameter `alpha` used for L2 regularization,
     /// defaults to `1.0`.
     pub fn alpha(mut self, alpha: F) -> Self {
         self.alpha = alpha;
@@ -503,7 +503,6 @@ fn multi_logistic_loss<F: Float, A: Data<Elem = F>>(
 ) -> F {
     let (log_prob, params) = multi_logistic_prob_params(x, w);
     // Calculate loss
-    // XXX Should we divide cost by n_samples???
     -elem_dot(&log_prob, y) + F::cast(0.5) * alpha * elem_dot(&params, &params)
 }
 
@@ -557,7 +556,6 @@ fn multi_logistic_grad<F: Float, A: Data<Elem = F>>(
     if intercept {
         grad.row_mut(n_features).assign(&diff.sum_axis(Axis(0)));
     }
-    // XXX should we divide by n_samples??
     grad
 }
 
