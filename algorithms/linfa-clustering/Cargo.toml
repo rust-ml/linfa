@@ -36,7 +36,7 @@ ndarray-stats = "0.5"
 num-traits = "0.2"
 rand_isaac = "0.3"
 space = "0.12"
-thiserror = "=1.0.25"
+thiserror = "1.0"
 partitions = "0.2.4"
 linfa = { version = "0.4.0", path = "../..", features = ["ndarray-linalg"] }
 linfa-nn = { version = "0.1.0", path = "../linfa-nn" }
