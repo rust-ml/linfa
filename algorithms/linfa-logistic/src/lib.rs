@@ -25,8 +25,8 @@ use argmin::solver::quasinewton::lbfgs::LBFGS;
 use linfa::prelude::{AsTargets, DatasetBase};
 use linfa::traits::{Fit, PredictInplace};
 use ndarray::{
-    s, Array, Array1, Array2, ArrayBase, Axis, Data, DataMut, Dimension, IntoDimension, Ix1, Ix2,
-    RemoveAxis, Slice, Zip,
+    s, Array, Array1, Array2, ArrayBase, ArrayView, ArrayView2, Axis, CowArray, Data, DataMut,
+    Dimension, IntoDimension, Ix1, Ix2, RemoveAxis, Slice, Zip,
 };
 use ndarray_stats::QuantileExt;
 use std::default::Default;
@@ -140,16 +140,18 @@ impl<F: Float, D: Dimension> LogisticRegressionBase<F, D> {
         self
     }
 
-    /// Configure the initial parameters from where the optimization starts.
-    /// The `params` array must have at least the same number of rows as there are columns on the
-    /// feature matrix `x` passed to the `fit` method
+    /// Configure the initial parameters from where the optimization starts.  The `params` array
+    /// must have the same number of rows as there are columns on the feature matrix `x` passed to
+    /// the `fit` method. If `with_intercept` is set, then it needs to have one more row. For
+    /// multinomial regression, `params` also must have the same number of columns as the number of
+    /// distinct classes in `y`.
     pub fn initial_params(mut self, params: Array<F, D>) -> Self {
         self.initial_params = Some(params);
         self
     }
 
-    /// Create the initial parameters, either from a user supplied guess
-    /// or a 1-d array of `0`s.
+    /// Create the initial parameters, either from a user supplied array
+    /// or an array of 0s
     fn setup_init_params(&self, dims: D::Pattern) -> Array<F, D> {
         if let Some(params) = self.initial_params.as_ref() {
             params.clone()
@@ -264,8 +266,8 @@ impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C
         let params = result.state().best_param.as_array();
         let (w, intercept) = convert_params(x.ncols(), params);
         Ok(FittedLogisticRegression::new(
-            intercept.into_scalar(),
-            w,
+            *intercept.view().into_scalar(),
+            w.to_owned(),
             labels,
         ))
     }
@@ -297,7 +299,11 @@ impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C
 
         let params = result.state().best_param.as_array();
         let (w, intercept) = convert_params(x.ncols(), params);
-        Ok(MultiFittedLogisticRegression::new(intercept, w, classes))
+        Ok(MultiFittedLogisticRegression::new(
+            intercept.to_owned(),
+            w.to_owned(),
+            classes,
+        ))
     }
 }
 
@@ -391,14 +397,17 @@ where
 fn convert_params<F: Float, D: Dimension + RemoveAxis>(
     n_features: usize,
     w: &Array<F, D>,
-) -> (Array<F, D>, Array<F, D::Smaller>) {
+) -> (ArrayView<F, D>, CowArray<F, D::Smaller>) {
     let nrows = w.shape()[0];
     if n_features == nrows {
-        (w.to_owned(), Array::zeros(w.raw_dim().remove_axis(Axis(0))))
+        (
+            w.view(),
+            Array::zeros(w.raw_dim().remove_axis(Axis(0))).into(),
+        )
     } else if n_features + 1 == nrows {
         (
-            w.slice_axis(Axis(0), Slice::from(..n_features)).to_owned(),
-            w.index_axis(Axis(0), n_features).to_owned(),
+            w.slice_axis(Axis(0), Slice::from(..n_features)),
+            w.index_axis(Axis(0), n_features).into(),
         )
     } else {
         panic!(
@@ -471,19 +480,47 @@ fn logistic_loss<F: Float, A: Data<Elem = F>>(
 ) -> F {
     let n_features = x.shape()[1];
     let (params, intercept) = convert_params(n_features, w);
-    let mut yz = (x.dot(&params) + intercept) * y;
+    let yz = x.dot(&params.into_shape((params.len(), 1)).unwrap()) + intercept;
+    let len = yz.len();
+    let mut yz = yz.into_shape(len).unwrap() * y;
     yz.mapv_inplace(log_logistic);
     -yz.sum() + F::cast(0.5) * alpha * params.dot(&params)
+}
+
+/// Computes the gradient of the logistic loss function
+fn logistic_grad<F: Float, A: Data<Elem = F>>(
+    x: &ArrayBase<A, Ix2>,
+    y: &Array1<F>,
+    alpha: F,
+    w: &Array1<F>,
+) -> Array1<F> {
+    let n_features = x.shape()[1];
+    let (params, intercept) = convert_params(n_features, w);
+    let yz = x.dot(&params.into_shape((params.len(), 1)).unwrap()) + intercept;
+    let len = yz.len();
+    let mut yz = yz.into_shape(len).unwrap() * y;
+    yz.mapv_inplace(logistic);
+    yz -= F::one();
+    yz *= y;
+    if w.len() == n_features + 1 {
+        let mut grad = Array::zeros(w.len());
+        grad.slice_mut(s![..n_features])
+            .assign(&(x.t().dot(&yz) + (&params * alpha)));
+        grad[n_features] = yz.sum();
+        grad
+    } else {
+        x.t().dot(&yz) + (&params * alpha)
+    }
 }
 
 /// Compute the log of probabilities, which is `log(softmax(H))`, where H is `X . W + b`. Also
 /// returns `W` without the intercept.
 /// `Y` is the output (n_samples * n_classes), `X` is the input (n_samples * n_features), `W` is the
 /// params (n_features * n_classes), `b` is the intercept vector (n_classes).
-fn multi_logistic_prob_params<F: Float, A: Data<Elem = F>>(
+fn multi_logistic_prob_params<'a, F: Float, A: Data<Elem = F>>(
     x: &ArrayBase<A, Ix2>,
-    w: &Array2<F>, // This parameter includes `W` and `b`
-) -> (Array2<F>, Array2<F>) {
+    w: &'a Array2<F>, // This parameter includes `W` and `b`
+) -> (Array2<F>, ArrayView2<'a, F>) {
     let n_features = x.shape()[1];
     let (params, intercept) = convert_params(n_features, w);
     // Compute H
@@ -506,30 +543,6 @@ fn multi_logistic_loss<F: Float, A: Data<Elem = F>>(
     -elem_dot(&log_prob, y) + F::cast(0.5) * alpha * elem_dot(&params, &params)
 }
 
-/// Computes the gradient of the logistic loss function
-fn logistic_grad<F: Float, A: Data<Elem = F>>(
-    x: &ArrayBase<A, Ix2>,
-    y: &Array1<F>,
-    alpha: F,
-    w: &Array1<F>,
-) -> Array1<F> {
-    let n_features = x.shape()[1];
-    let (params, intercept) = convert_params(n_features, w);
-    let mut yz = (x.dot(&params) + intercept) * y;
-    yz.mapv_inplace(logistic);
-    yz -= F::one();
-    yz *= y;
-    if w.len() == n_features + 1 {
-        let mut grad = Array::zeros(w.len());
-        grad.slice_mut(s![..n_features])
-            .assign(&(x.t().dot(&yz) + &(params * alpha)));
-        grad[n_features] = yz.sum();
-        grad
-    } else {
-        x.t().dot(&yz) + &(params * alpha)
-    }
-}
-
 /// Computes multinomial gradients for `W` and `b` and combine them.
 /// Gradient for `W` is `Xt . (softmax(H) - Y) + alpha * W`.
 /// Gradient for `b` is `sum(softmax(H) - Y)`.
@@ -539,7 +552,7 @@ fn multi_logistic_grad<F: Float, A: Data<Elem = F>>(
     alpha: F,
     w: &Array2<F>,
 ) -> Array2<F> {
-    let (log_prob, mut params) = multi_logistic_prob_params(x, w);
+    let (log_prob, params) = multi_logistic_prob_params(x, w);
     let (n_features, n_classes) = params.dim();
     let intercept = w.nrows() > n_features;
     let mut grad = Array::zeros((n_features + intercept as usize, n_classes));
@@ -548,9 +561,7 @@ fn multi_logistic_grad<F: Float, A: Data<Elem = F>>(
     let prob = log_prob.mapv_into(num_traits::Float::exp);
     let diff = prob - y;
     // Compute gradient for `W` and place it at start of the grad matrix
-    let mut dw = x.t().dot(&diff);
-    params *= alpha;
-    dw += &params;
+    let dw = x.t().dot(&diff) + (&params * alpha);
     grad.slice_mut(s![..n_features, ..]).assign(&dw);
     // Compute gradient for `b` and place it at end of grad matrix
     if intercept {
