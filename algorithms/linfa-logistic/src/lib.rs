@@ -696,6 +696,11 @@ impl<F: Float, C: PartialOrd + Clone> MultiFittedLogisticRegression<F, C> {
             .for_each(|mut row| softmax_inplace(&mut row));
         probs
     }
+
+    /// Get the list of class labels, which maps the numerical class indices to the labels
+    pub fn classes(&self) -> &[C] {
+        &self.classes
+    }
 }
 
 impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
