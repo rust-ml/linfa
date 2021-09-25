@@ -993,7 +993,7 @@ mod test {
         for inf in &infs {
             let log_reg = LogisticRegression::default().alpha(*inf);
             let res = log_reg.fit(&DatasetBase::new(normal_x.view(), &y));
-            assert!(matches!(res.unwrap_err(), Error::InvalidValues));
+            assert!(matches!(res.unwrap_err(), Error::InvalidAlpha));
         }
         let mut non_positives = infs;
         non_positives.push(-1.0);
@@ -1021,7 +1021,10 @@ mod test {
             let res = log_reg.fit(&dataset);
             assert!(matches!(
                 res.unwrap_err(),
-                Error::InvalidInitialParametersGuessSize
+                Error::InitialParameterFeaturesMismatch {
+                    rows: 3,
+                    n_features: 2
+                }
             ));
         }
         {
@@ -1031,7 +1034,10 @@ mod test {
             let res = log_reg.fit(&dataset);
             assert!(matches!(
                 res.unwrap_err(),
-                Error::InvalidInitialParametersGuessSize
+                Error::InitialParameterFeaturesMismatch {
+                    rows: 2,
+                    n_features: 1
+                }
             ));
         }
     }
@@ -1255,18 +1261,14 @@ mod test {
         let dataset = Dataset::new(x, y);
 
         let log_reg = MultiLogisticRegression::default()
-            .initial_params(Array::zeros((n_features, n_classes)));
-        assert!(matches!(
-            log_reg.fit(&dataset).unwrap_err(),
-            Error::InvalidInitialParametersGuessSize
-        ));
-
-        let log_reg = MultiLogisticRegression::default()
             .with_intercept(false)
-            .initial_params(Array::zeros((n_features + 1, n_classes)));
+            .initial_params(Array::zeros((n_features, n_classes - 1)));
         assert!(matches!(
             log_reg.fit(&dataset).unwrap_err(),
-            Error::InvalidInitialParametersGuessSize
+            Error::InitialParameterClassesMismatch {
+                cols: 2,
+                n_classes: 3,
+            }
         ));
     }
 }
