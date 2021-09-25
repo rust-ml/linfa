@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     // fit a Logistic regression model with 150 max iterations
-    let model = LogisticRegression::params()
+    let model = LogisticRegression::default()
         .max_iterations(150)
         .fit(&train)
         .unwrap();
