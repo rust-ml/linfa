@@ -48,7 +48,7 @@ impl<F: Float> ElasticNetValidParams<F> {
 /// A hyper-parameter set during construction
 ///
 /// Configures and minimizes the following objective function:
-/// ```
+/// ```ignore
 /// 1 / (2 * n_samples) * ||y - Xw||^2_2
 ///     + penalty * l1_ratio * ||w||_1
 ///     + 0.5 * penalty * (1 - l1_ratio) * ||w||^2_2
@@ -57,9 +57,8 @@ impl<F: Float> ElasticNetValidParams<F> {
 /// The parameter set can be verified into a
 /// [`ElasticNetValidParams`](crate::hyperparams::ElasticNetValidParams) by calling
 /// [ParamGuard::check](Self::check). It is also possible to directly fit a model with
-/// [Fit::fit](linfa::traits::Fit::fit) or
-/// [FitWith::fit_with](linfa::traits::FitWith::fit_with) which implicitely verifies the parameter set
-/// prior to the model estimation and forwards any error.
+/// [Fit::fit](linfa::traits::Fit::fit) which implicitely verifies the parameter set prior to the
+/// model estimation and forwards any error.
 ///
 /// # Parameters
 /// | Name | Default | Purpose | Range |
@@ -83,15 +82,16 @@ impl<F: Float> ElasticNetValidParams<F> {
 ///
 /// # Example
 ///
-/// ```rust, ignore
-/// use linfa_elasticnet::ElasticNet;
-/// use linfa::{Fit, FitWith};
+/// ```rust
+/// use linfa_elasticnet::{ElasticNetParams, ElasticNetError};
+/// use linfa::prelude::*;
+/// use ndarray::array;
 ///
-/// let ds = Dataset::new(.., ..);
+/// let ds = Dataset::new(array![[1.0, 0.0], [0.0, 1.0]], array![3.0, 2.0]);
 ///
-/// // create a new parameter set with variance smoothing equals `1e-5`
-/// let unchecked_params = ElasticNet::new()
-///     .var_smoothing(1e-5);
+/// // create a new parameter set with penalty equals `1e-5`
+/// let unchecked_params = ElasticNetParams::new()
+///     .penalty(1e-5);
 ///
 /// // fit model with unchecked parameter set
 /// let model = unchecked_params.fit(&ds)?;
@@ -99,11 +99,11 @@ impl<F: Float> ElasticNetValidParams<F> {
 /// // transform into a verified parameter set
 /// let checked_params = unchecked_params.check()?;
 ///
-/// // update model with the verified parameters, this only returns
+/// // Regenerate model with the verified parameters, this only returns
 /// // errors originating from the fitting process
-/// let model = checked_params.fit_with(model, &ds)?;
+/// let model = checked_params.fit(&ds)?;
+/// # Ok::<(), ElasticNetError>(())
 /// ```
-///
 pub struct ElasticNetParams<F>(ElasticNetValidParams<F>);
 
 impl<F: Float> Default for ElasticNetParams<F> {

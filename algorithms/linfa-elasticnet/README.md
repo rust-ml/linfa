@@ -28,7 +28,10 @@ $ cargo run --features linfa/intel-mkl-system --example elasticnet
 Show source code
 </summary>
 
-```rust,ignore
+```rust
+use linfa::prelude::*;
+use linfa_elasticnet::{ElasticNet, Result};
+
 // load Diabetes dataset
 let (train, valid) = linfa_datasets::diabetes().split_with_ratio(0.90);
 
@@ -39,12 +42,13 @@ let model = ElasticNet::params()
     .fit(&train)?;
 
 println!("intercept:  {}", model.intercept());
-println!("params: {}", model.parameters());
+println!("params: {}", model.hyperplane());
 
 println!("z score: {:?}", model.z_score());
 
 // validate
 let y_est = model.predict(&valid);
 println!("predicted variance: {}", valid.r2(&y_est)?);
+# Result::Ok(())
 ```
 </details>
