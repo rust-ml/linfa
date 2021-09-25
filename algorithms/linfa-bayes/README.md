@@ -25,7 +25,11 @@ $ cargo run --example winequality --release
 Show source code
 </summary>
 
-```rust,ignore
+```rust, no_run
+use linfa::metrics::ToConfusionMatrix;
+use linfa::traits::{Fit, Predict};
+use linfa_bayes::{GaussianNb, Result};
+
 // Read in the dataset and convert targets to binary data
 let (train, valid) = linfa_datasets::winequality()
     .map_targets(|x| if *x > 6 { "good" } else { "bad" })
@@ -47,5 +51,6 @@ let cm = pred.confusion_matrix(&valid)?;
 // accuracy 0.8805031, MCC 0.45080978
 println!("{:?}", cm);
 println!("accuracy {}, MCC {}", cm.accuracy(), cm.mcc());
+# Result::Ok(())
 ```
 </details>

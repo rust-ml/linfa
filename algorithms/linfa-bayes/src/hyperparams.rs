@@ -43,11 +43,21 @@ impl<F: Float, L> GaussianNbValidParams<F, L> {
 ///
 /// # Example
 ///
-/// ```rust, ignore
-/// use linfa_bayes::{GaussianNbParams, GaussianNbValidParams};
-/// use linfa::{Fit, FitWith};
+/// ```rust
+/// use linfa_bayes::{GaussianNbParams, GaussianNbValidParams, Result};
+/// use linfa::prelude::*;
+/// use ndarray::array;
 ///
-/// let ds = Dataset::new(.., ..);
+/// let x = array![
+///     [-2., -1.],
+///     [-1., -1.],
+///     [-1., -2.],
+///     [1., 1.],
+///     [1., 2.],
+///     [2., 1.]
+/// ];
+/// let y = array![1, 1, 1, 2, 2, 2];
+/// let ds = DatasetView::new(x.view(), y.view());
 ///
 /// // create a new parameter set with variance smoothing equals `1e-5`
 /// let unchecked_params = GaussianNbParams::new()
@@ -61,7 +71,8 @@ impl<F: Float, L> GaussianNbValidParams<F, L> {
 ///
 /// // update model with the verified parameters, this only returns
 /// // errors originating from the fitting process
-/// let model = checked_params.fit_with(model, &ds)?;
+/// let model = checked_params.fit_with(Some(model), &ds)?;
+/// # Result::Ok(())
 /// ```
 pub struct GaussianNbParams<F, L>(GaussianNbValidParams<F, L>);
 
