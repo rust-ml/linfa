@@ -18,13 +18,13 @@ use crate::TSneError;
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```no_run
 /// use linfa::traits::Transformer;
-/// use linfa_tsne::TSne;
+/// use linfa_tsne::TSneParams;
 ///
 /// let ds = linfa_datasets::iris();
 ///
-/// let ds = TSne::embedding_size(2)
+/// let ds = TSneParams::embedding_size(2)
 ///     .perplexity(10.0)
 ///     .approx_threshold(0.6)
 ///     .transform(ds);
