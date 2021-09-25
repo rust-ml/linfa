@@ -37,7 +37,7 @@ mod hyperparams;
 
 use argmin_param::{elem_dot, ArgminParam};
 use float::Float;
-pub use hyperparams::{LogisticRegressionParams, LogisticRegressionValidParams};
+use hyperparams::{LogisticRegressionParams, LogisticRegressionValidParams};
 
 /// A two-class logistic regression model.
 ///
@@ -125,11 +125,11 @@ impl<F: Float, D: Dimension> LogisticRegressionValidParams<F, D> {
         if x.iter().any(|x| !x.is_finite()) || y.iter().any(|y| !y.is_finite()) {
             return Err(Error::InvalidValues);
         }
-        self.validate_init_params(x.shape()[1], y.shape().get(1).copied())?;
+        self.validate_init_dims(x.shape()[1], y.shape().get(1).copied())?;
         Ok(())
     }
 
-    fn validate_init_params(&self, mut n_features: usize, n_classes: Option<usize>) -> Result<()> {
+    fn validate_init_dims(&self, mut n_features: usize, n_classes: Option<usize>) -> Result<()> {
         if let Some(params) = self.initial_params.as_ref() {
             let shape = params.shape();
             n_features += self.fit_intercept as usize;
