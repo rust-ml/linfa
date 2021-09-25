@@ -4,16 +4,16 @@ pub type Result<T> = std::result::Result<T, PlsError>;
 
 #[derive(Error, Debug)]
 pub enum PlsError {
-    #[error("Not enough samples: {0}")]
-    NotEnoughSamplesError(String),
-    #[error("Bad component number: {0}")]
-    BadComponentNumberError(String),
+    #[error("Number of samples should be greater than 1, got {0}")]
+    NotEnoughSamplesError(usize),
+    #[error("Number of components should be in [1, {upperbound}], got {actual}")]
+    BadComponentNumberError { upperbound: usize, actual: usize },
     #[error("The tolerance is should not be negative, NaN or inf but is {0}")]
     InvalidTolerance(f32),
     #[error("The maximal number of iterations should be positive")]
     ZeroMaxIter,
-    #[error("Power method not converged: {0}")]
-    PowerMethodNotConvergedError(String),
+    #[error("Singular vector computation power method: max iterations ({0}) reached")]
+    PowerMethodNotConvergedError(usize),
     #[error(transparent)]
     LinalgError(#[from] LinalgError),
     #[error(transparent)]

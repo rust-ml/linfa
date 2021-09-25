@@ -49,10 +49,9 @@ impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsE
         dataset: &DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>>,
     ) -> Result<Self::Object> {
         if dataset.nsamples() < 2 {
-            return Err(PlsError::NotEnoughSamplesError(format!(
-                "should be greater than 1, got {}",
-                dataset.records().nsamples()
-            )));
+            return Err(PlsError::NotEnoughSamplesError(
+                dataset.records().nsamples(),
+            ));
         }
         // we'll compute the SVD of the cross-covariance matrix = X.T.dot(Y)
         // This matrix rank is at most min(n_samples, n_features, n_targets) so
@@ -63,10 +62,10 @@ impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsE
             .min(dataset.nfeatures())
             .min(dataset.targets().ncols());
         if 1 > self.n_components || self.n_components > rank_upper_bound {
-            return Err(PlsError::BadComponentNumberError(format!(
-                "n_components should be in [1, {}], got {}",
-                rank_upper_bound, self.n_components
-            )));
+            return Err(PlsError::BadComponentNumberError {
+                upperbound: rank_upper_bound,
+                actual: self.n_components,
+            });
         }
         let (x, y, x_mean, y_mean, x_std, y_std) = utils::center_scale_dataset(dataset, self.scale);
 

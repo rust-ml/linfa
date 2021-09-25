@@ -172,10 +172,9 @@ impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsE
         let q = targets.ncols();
 
         if n < 2 {
-            return Err(PlsError::NotEnoughSamplesError(format!(
-                "should be greater than 1, got {}",
-                dataset.records().nsamples()
-            )));
+            return Err(PlsError::NotEnoughSamplesError(
+                dataset.records().nsamples(),
+            ));
         }
 
         let n_components = self.n_components();
@@ -193,10 +192,10 @@ impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsE
         };
 
         if 1 > n_components || n_components > rank_upper_bound {
-            return Err(PlsError::BadComponentNumberError(format!(
-                "n_components should be in [1, {}], got {}",
-                rank_upper_bound, n_components
-            )));
+            return Err(PlsError::BadComponentNumberError {
+                upperbound: rank_upper_bound,
+                actual: n_components,
+            });
         }
         let norm_y_weights = self.deflation_mode() == DeflationMode::Canonical;
         let (mut xk, mut yk, x_mean, y_mean, x_std, y_std) =
@@ -366,10 +365,7 @@ impl<F: Float> PlsValidParams<F> {
             }
         }
         if n_iter == self.max_iter() && !converged {
-            Err(PlsError::PowerMethodNotConvergedError(format!(
-                "Singular vector computation power method: max iterations ({}) reached",
-                self.max_iter()
-            )))
+            Err(PlsError::PowerMethodNotConvergedError(self.max_iter()))
         } else {
             Ok((x_weights, y_weights, n_iter))
         }
