@@ -56,9 +56,9 @@ use serde_crate::{Deserialize, Serialize};
 ///
 /// Let's do a walkthrough of a training-predict-save example.
 ///
-/// ```rust, ignore
+/// ```rust
 /// use linfa::DatasetBase;
-/// use linfa::traits::{Fit, PredictInplace};
+/// use linfa::prelude::*;
 /// use linfa_clustering::{GmmValidParams, GaussianMixtureModel, generate_blobs};
 /// use ndarray::{Axis, array, s, Zip};
 /// use ndarray_rand::rand::SeedableRng;
