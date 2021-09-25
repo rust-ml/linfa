@@ -72,7 +72,7 @@ impl<F: Float> TweedieDistribution<F> {
             // Normal distribution
             // (y - ypred)^2
             power if power == F::zero() => Ok((&y - &ypred).mapv(|x| x * x)),
-            power if power < F::one() => return Err(LinearError::InvalidTweediePower(power)),
+            power if power < F::one() => Err(LinearError::InvalidTweediePower(power)),
             // Poisson distribution
             // 2 * (y * log(y / ypred) - y + ypred)
             power if (power - F::one()).abs() < F::cast(1e-6) => {

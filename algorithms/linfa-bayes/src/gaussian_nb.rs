@@ -83,7 +83,7 @@ where
                 .entry(class)
                 .or_insert_with(ClassInfo::default);
 
-            let (theta_new, sigma_new) = Self::update_mean_variance(&class_info, xclass.view());
+            let (theta_new, sigma_new) = Self::update_mean_variance(class_info, xclass.view());
 
             // We now update the mean, variance and class count
             class_info.theta = theta_new;

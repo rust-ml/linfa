@@ -244,10 +244,10 @@ fn variance_params<F: Float + Lapack, T: AsTargets<Elem = F>, D: Data<Elem = F>>
 
 /// Compute the intercept as the mean of `y` and center `y` if an intercept should
 /// be used, use `0.0` as intercept and leave `y` unchanged otherwise.
-pub fn compute_intercept<'a, F: Float>(
+pub fn compute_intercept<F: Float>(
     with_intercept: bool,
-    y: ArrayView1<'a, F>,
-) -> (F, CowArray<'a, F, Ix1>) {
+    y: ArrayView1<F>,
+) -> (F, CowArray<F, Ix1>) {
     if with_intercept {
         let y_mean = y.mean().unwrap();
         let y_centered = &y - y_mean;

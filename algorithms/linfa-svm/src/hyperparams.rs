@@ -40,11 +40,11 @@ pub struct SvmValidParams<F: Float, T> {
 
 impl<F: Float, T> SvmValidParams<F, T> {
     pub fn c(&self) -> Option<(F, F)> {
-        self.c.clone()
+        self.c
     }
 
     pub fn nu(&self) -> Option<(F, F)> {
-        self.nu.clone()
+        self.nu
     }
 
     pub fn solver_params(&self) -> &SolverParams<F> {
