@@ -11,18 +11,22 @@ use std::marker::PhantomData;
 ///
 /// You can specify the expected return type with the turbofish syntax. If you want to enable
 /// Platt-Scaling for proper probability values, then use:
-/// ```ignore
-/// let model = Svm::<_, Pr>::params();
+/// ```no_run
+/// use linfa_svm::Svm;
+/// use linfa::dataset::Pr;
+/// let model = Svm::<f64, Pr>::params();
 /// ```
 /// or `bool` if you only wants to know the binary decision:
-/// ```ignore
-/// let model = Svm::<_, bool>::params();
+/// ```no_run
+/// use linfa_svm::Svm;
+/// let model = Svm::<f64, bool>::params();
 /// ```
 ///
 /// ## Example
 ///
 /// ```ignore
-/// let model = Svm::params()
+/// use linfa_svm::Svm;
+/// let model = Svm::<_, bool>::params()
 ///     .eps(0.1f64)
 ///     .shrinking(true)
 ///     .nu_weight(0.1)
@@ -99,7 +103,6 @@ impl<F: Float, T> SvmParams<F, T> {
     /// up the optimization process, but may degredade the solution performance.
     pub fn shrinking(mut self, shrinking: bool) -> Self {
         self.0.solver_params.shrinking = shrinking;
-
         self
     }
 
@@ -112,14 +115,12 @@ impl<F: Float, T> SvmParams<F, T> {
     /// this model. To use the "base" SVM model it suffices to choose a `Linear` kernel.
     pub fn with_kernel_params(mut self, kernel: KernelParams<F>) -> Self {
         self.0.kernel = kernel;
-
         self
     }
 
     /// Set the platt params for probability calibration
     pub fn with_platt_params(mut self, platt: PlattParams<F, ()>) -> Self {
         self.0.platt = platt;
-
         self
     }
 
@@ -127,7 +128,6 @@ impl<F: Float, T> SvmParams<F, T> {
     /// distance between two points is computed as: `d(x, x') = exp(-norm(x - x')/eps)`
     pub fn gaussian_kernel(mut self, eps: F) -> Self {
         self.0.kernel = Kernel::params().method(KernelMethod::Gaussian(eps));
-
         self
     }
 
@@ -135,7 +135,6 @@ impl<F: Float, T> SvmParams<F, T> {
     /// distance between two points is computed as: `d(x, x') = (<x, x'> + costant)^(degree)`
     pub fn polynomial_kernel(mut self, constant: F, degree: F) -> Self {
         self.0.kernel = Kernel::params().method(KernelMethod::Polynomial(constant, degree));
-
         self
     }
 
@@ -143,7 +142,6 @@ impl<F: Float, T> SvmParams<F, T> {
     /// distance between two points is computed as : `d(x, x') = <x, x'>`
     pub fn linear_kernel(mut self) -> Self {
         self.0.kernel = Kernel::params().method(KernelMethod::Linear);
-
         self
     }
 }
@@ -153,7 +151,6 @@ impl<F: Float, T> SvmParams<F, T> {
     pub fn pos_neg_weights(mut self, c_pos: F, c_neg: F) -> Self {
         self.0.c = Some((c_pos, c_neg));
         self.0.nu = None;
-
         self
     }
 
@@ -164,7 +161,6 @@ impl<F: Float, T> SvmParams<F, T> {
     pub fn nu_weight(mut self, nu: F) -> Self {
         self.0.nu = Some((nu, nu));
         self.0.c = None;
-
         self
     }
 }
@@ -174,7 +170,6 @@ impl<F: Float> SvmParams<F, F> {
     pub fn c_eps(mut self, c: F, eps: F) -> Self {
         self.0.c = Some((c, eps));
         self.0.nu = None;
-
         self
     }
 
@@ -182,7 +177,6 @@ impl<F: Float> SvmParams<F, F> {
     pub fn nu_eps(mut self, nu: F, eps: F) -> Self {
         self.0.nu = Some((nu, eps));
         self.0.c = None;
-
         self
     }
 }
