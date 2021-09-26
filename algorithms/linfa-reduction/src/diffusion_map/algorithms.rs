@@ -11,7 +11,7 @@ use ndarray_linalg::{eigh::EighInto, lobpcg, lobpcg::LobpcgResult, Scalar, Trunc
 use ndarray_rand::{rand_distr::Uniform, RandomExt};
 
 use linfa::dataset::{WithLapack, WithoutLapack};
-use linfa::{error::Result, traits::Transformer, Float};
+use linfa::{traits::Transformer, Float};
 use linfa_kernel::Kernel;
 
 use super::hyperparams::DiffusionMapValidParams;
@@ -47,7 +47,7 @@ use super::hyperparams::DiffusionMapValidParams;
 /// let mapped_kernel = DiffusionMap::<f64>::params(2)
 ///     .steps(1)
 ///     .transform(&kernel)
-///     .unwrap().unwrap();
+///     .unwrap();
 ///
 /// // get embedding from the transformed kernel matrix
 /// let embedding = mapped_kernel.embedding();
@@ -58,7 +58,7 @@ pub struct DiffusionMap<F> {
     eigvals: Array1<F>,
 }
 
-impl<'a, F: Float> Transformer<&'a Kernel<F>, Result<DiffusionMap<F>>> for DiffusionMapValidParams {
+impl<'a, F: Float> Transformer<&'a Kernel<F>, DiffusionMap<F>> for DiffusionMapValidParams {
     /// Project a kernel matrix to its embedding
     ///
     /// # Parameter
@@ -68,12 +68,12 @@ impl<'a, F: Float> Transformer<&'a Kernel<F>, Result<DiffusionMap<F>>> for Diffu
     /// # Returns
     ///
     /// Embedding for each observation in the kernel matrix
-    fn transform(&self, kernel: &'a Kernel<F>) -> Result<DiffusionMap<F>> {
+    fn transform(&self, kernel: &'a Kernel<F>) -> DiffusionMap<F> {
         // compute spectral embedding with diffusion map
         let (embedding, eigvals) =
             compute_diffusion_map(kernel, self.steps(), 0.0, self.embedding_size(), None);
 
-        Ok(DiffusionMap { embedding, eigvals })
+        DiffusionMap { embedding, eigvals }
     }
 }
 

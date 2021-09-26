@@ -25,9 +25,7 @@ fn main() -> Result<()> {
         //.kind(KernelType::Dense)
         .transform(dataset.view());
 
-    let embedding = DiffusionMap::<f64>::params(2)
-        .steps(1)
-        .transform(&kernel)??;
+    let embedding = DiffusionMap::<f64>::params(2).steps(1).transform(&kernel)?;
 
     // get embedding
     let embedding = embedding.embedding();
