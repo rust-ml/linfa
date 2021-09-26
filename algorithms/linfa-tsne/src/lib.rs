@@ -4,7 +4,7 @@ use ndarray::Array2;
 use ndarray_rand::rand::Rng;
 use ndarray_rand::rand_distr::Normal;
 
-use linfa::{dataset::DatasetBase, traits::Transformer, Float};
+use linfa::{dataset::DatasetBase, traits::Transformer, Float, ParamGuard};
 
 mod error;
 mod hyperparams;
@@ -59,6 +59,12 @@ impl<F: Float, R: Rng + Clone> Transformer<Array2<F>, Result<Array2<F>>> for TSn
     }
 }
 
+impl<F: Float, R: Rng + Clone> Transformer<Array2<F>, Result<Array2<F>>> for TSneParams<F, R> {
+    fn transform(&self, x: Array2<F>) -> Result<Array2<F>> {
+        self.check_ref()?.transform(x)
+    }
+}
+
 impl<T, F: Float, R: Rng + Clone>
     Transformer<DatasetBase<Array2<F>, T>, Result<DatasetBase<Array2<F>, T>>>
     for TSneValidParams<F, R>
@@ -73,6 +79,14 @@ impl<T, F: Float, R: Rng + Clone>
 
         self.transform(records)
             .map(|new_records| DatasetBase::new(new_records, targets).with_weights(weights))
+    }
+}
+
+impl<T, F: Float, R: Rng + Clone>
+    Transformer<DatasetBase<Array2<F>, T>, Result<DatasetBase<Array2<F>, T>>> for TSneParams<F, R>
+{
+    fn transform(&self, ds: DatasetBase<Array2<F>, T>) -> Result<DatasetBase<Array2<F>, T>> {
+        self.check_ref()?.transform(ds)
     }
 }
 
@@ -94,7 +108,7 @@ mod tests {
         let ds = TSneParams::embedding_size_with_rng(2, rng)
             .perplexity(10.0)
             .approx_threshold(0.0)
-            .transform(ds)??;
+            .transform(ds)?;
 
         assert!(ds.silhouette_score()? > 0.6);
 
@@ -118,7 +132,7 @@ mod tests {
         let ds = TSneParams::embedding_size_with_rng(2, rng)
             .perplexity(60.0)
             .approx_threshold(0.0)
-            .transform(dataset)??;
+            .transform(dataset)?;
 
         assert_abs_diff_eq!(ds.silhouette_score()?, 0.945, epsilon = 0.01);
 
@@ -133,7 +147,6 @@ mod tests {
         TSneParams::embedding_size(2)
             .perplexity(-10.0)
             .transform(ds)
-            .unwrap()
             .unwrap();
     }
 
@@ -145,7 +158,6 @@ mod tests {
         TSneParams::embedding_size(2)
             .approx_threshold(-10.0)
             .transform(ds)
-            .unwrap()
             .unwrap();
     }
     #[test]
@@ -153,9 +165,6 @@ mod tests {
     fn embedding_size_panic() {
         let ds = linfa_datasets::iris();
 
-        TSneParams::embedding_size(5)
-            .transform(ds)
-            .unwrap()
-            .unwrap();
+        TSneParams::embedding_size(5).transform(ds).unwrap();
     }
 }

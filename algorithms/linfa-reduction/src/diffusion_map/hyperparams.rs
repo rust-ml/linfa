@@ -1,5 +1,5 @@
 use crate::{DiffusionMap, ReductionError};
-use linfa::ParamGuard;
+use linfa::{param_guard::TransformGuard, ParamGuard};
 
 /// Diffusion map hyperparameters
 ///
@@ -98,3 +98,4 @@ impl ParamGuard for DiffusionMapParams {
         Ok(self.0)
     }
 }
+impl TransformGuard for DiffusionMapParams {}

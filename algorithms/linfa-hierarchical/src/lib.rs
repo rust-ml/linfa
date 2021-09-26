@@ -23,6 +23,7 @@ use std::collections::HashMap;
 use kodama::linkage;
 pub use kodama::Method;
 
+use linfa::param_guard::TransformGuard;
 use linfa::traits::Transformer;
 use linfa::Float;
 use linfa::{dataset::DatasetBase, ParamGuard};
@@ -78,6 +79,7 @@ impl<F: Float> ParamGuard for HierarchicalCluster<F> {
         Ok(self.0)
     }
 }
+impl<F: Float> TransformGuard for HierarchicalCluster<F> {}
 
 impl<F: Float> HierarchicalCluster<F> {
     /// Select a merging method

@@ -1,4 +1,4 @@
-use linfa::{prelude::*, Float};
+use linfa::{param_guard::TransformGuard, prelude::*, Float};
 use linfa_nn::{distance::Distance, NearestNeighbour};
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
@@ -79,6 +79,7 @@ impl<F: Float, D: Distance<F>, N: NearestNeighbour> ParamGuard for DbscanParams<
         Ok(self.0)
     }
 }
+impl<F: Float, D: Distance<F>, N: NearestNeighbour> TransformGuard for DbscanParams<F, D, N> {}
 
 impl<F: Float, D: Distance<F>, N: NearestNeighbour> DbscanValidParams<F, D, N> {
     /// Nearest neighbour algorithm used for range queries

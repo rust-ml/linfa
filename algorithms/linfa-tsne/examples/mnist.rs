@@ -37,7 +37,7 @@ fn main() -> Result<()> {
         .perplexity(50.0)
         .approx_threshold(0.5)
         .max_iter(1000)
-        .transform(ds)??;
+        .transform(ds)?;
 
     // write out
     let mut f = std::fs::File::create("examples/mnist.dat").unwrap();

@@ -1,3 +1,4 @@
+use linfa::param_guard::TransformGuard;
 use linfa::prelude::*;
 use linfa::Float;
 
@@ -80,6 +81,7 @@ impl<F: Float> ParamGuard for AppxDbscanParams<F> {
         Ok(self.0)
     }
 }
+impl<F: Float> TransformGuard for AppxDbscanParams<F> {}
 
 impl<F: Float> AppxDbscanValidParams<F> {
     /// Distance between points for them to be considered neighbours.

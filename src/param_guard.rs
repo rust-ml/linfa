@@ -34,9 +34,14 @@ pub trait ParamGuard {
     }
 }
 
+/// Implement this trait to opt into a blanket `Transformer` impl that wraps the output of the
+/// unchecked `transform` call in a `Result`. If the unchecked `transform` call returns a `Result`,
+/// the blanket impl will return double `Result`s, so this trait should be avoided in that case.
+pub trait TransformGuard: ParamGuard {}
+
 /// Performs the checking step and calls `transform` on the checked hyperparameters. Returns error
 /// if checking was unsuccessful.
-impl<R: Records, T, P: ParamGuard> Transformer<R, Result<T, P::Error>> for P
+impl<R: Records, T, P: TransformGuard> Transformer<R, Result<T, P::Error>> for P
 where
     P::Checked: Transformer<R, T>,
 {

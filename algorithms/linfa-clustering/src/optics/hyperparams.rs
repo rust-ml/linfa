@@ -1,5 +1,5 @@
 use crate::optics::errors::{OpticsError, Result};
-use linfa::ParamGuard;
+use linfa::{param_guard::TransformGuard, ParamGuard};
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 
@@ -82,3 +82,4 @@ impl ParamGuard for OpticsParams {
         Ok(self.0)
     }
 }
+impl TransformGuard for OpticsParams {}

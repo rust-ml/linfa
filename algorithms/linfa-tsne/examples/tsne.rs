@@ -10,7 +10,7 @@ fn main() -> Result<()> {
     let ds = TSneParams::embedding_size(2)
         .perplexity(10.0)
         .approx_threshold(0.1)
-        .transform(ds)??;
+        .transform(ds)?;
 
     let mut f = std::fs::File::create("examples/iris.dat").unwrap();
 
