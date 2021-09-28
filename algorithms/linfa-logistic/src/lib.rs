@@ -33,19 +33,11 @@ use std::default::Default;
 
 mod argmin_param;
 mod float;
+mod hyperparams;
 
 use argmin_param::{elem_dot, ArgminParam};
 use float::Float;
-
-/// A generalized logistic regression type that specializes as either binomial logistic regression
-/// or multinomial logistic regression.
-pub struct LogisticRegressionBase<F: Float, D: Dimension> {
-    alpha: F,
-    fit_intercept: bool,
-    max_iterations: u64,
-    gradient_tolerance: F,
-    initial_params: Option<Array<F, D>>,
-}
+use hyperparams::{LogisticRegressionParams, LogisticRegressionValidParams};
 
 /// A two-class logistic regression model.
 ///
@@ -77,7 +69,10 @@ pub struct LogisticRegressionBase<F: Float, D: Dimension> {
 /// let model = LogisticRegression::default().fit(&dataset).unwrap();
 /// let prediction = model.predict(&dataset);
 /// ```
-pub type LogisticRegression<F> = LogisticRegressionBase<F, Ix1>;
+pub type LogisticRegression<F> = LogisticRegressionParams<F, Ix1>;
+
+/// Validated version of `LogisticRegression`
+pub type ValidLogisticRegression<F> = LogisticRegressionValidParams<F, Ix1>;
 
 /// A multinomial class logistic regression model.
 ///
@@ -89,11 +84,14 @@ pub type LogisticRegression<F> = LogisticRegressionBase<F, Ix1>;
 /// close to zero removes regularization and the problem solved minimizes only the
 /// empirical risk. On the other hand, setting `alpha` to a high value increases
 /// the weight of the l2 norm of the linear model coefficients in the cost function.
-pub type MultiLogisticRegression<F> = LogisticRegressionBase<F, Ix2>;
+pub type MultiLogisticRegression<F> = LogisticRegressionParams<F, Ix2>;
 
-impl<F: Float, D: Dimension> Default for LogisticRegressionBase<F, D> {
+/// Validated version of `MultiLogisticRegression`
+pub type ValidMultiLogisticRegression<F> = LogisticRegressionValidParams<F, Ix2>;
+
+impl<F: Float, D: Dimension> Default for LogisticRegressionParams<F, D> {
     fn default() -> Self {
-        LogisticRegressionBase::new()
+        LogisticRegressionParams::new()
     }
 }
 
@@ -101,55 +99,7 @@ type LBFGSType<F, D> = LBFGS<MoreThuenteLineSearch<ArgminParam<F, D>, F>, Argmin
 type LBFGSType1<F> = LBFGSType<F, Ix1>;
 type LBFGSType2<F> = LBFGSType<F, Ix2>;
 
-impl<F: Float, D: Dimension> LogisticRegressionBase<F, D> {
-    /// Creates a new LogisticRegression with default configuration.
-    pub fn new() -> Self {
-        LogisticRegressionBase {
-            alpha: F::cast(1.0),
-            fit_intercept: true,
-            max_iterations: 100,
-            gradient_tolerance: F::cast(1e-4),
-            initial_params: None,
-        }
-    }
-
-    /// Set the regularization parameter `alpha` used for L2 regularization,
-    /// defaults to `1.0`.
-    pub fn alpha(mut self, alpha: F) -> Self {
-        self.alpha = alpha;
-        self
-    }
-
-    /// Configure if an intercept should be fitted, defaults to `true`.
-    pub fn with_intercept(mut self, fit_intercept: bool) -> Self {
-        self.fit_intercept = fit_intercept;
-        self
-    }
-
-    /// Configure the maximum number of iterations that the solver should perform,
-    /// defaults to `100`.
-    pub fn max_iterations(mut self, max_iterations: u64) -> Self {
-        self.max_iterations = max_iterations;
-        self
-    }
-
-    /// Configure the minimum change to the gradient to continue the solver,
-    /// defaults to `1e-4`.
-    pub fn gradient_tolerance(mut self, gradient_tolerance: F) -> Self {
-        self.gradient_tolerance = gradient_tolerance;
-        self
-    }
-
-    /// Configure the initial parameters from where the optimization starts.  The `params` array
-    /// must have the same number of rows as there are columns on the feature matrix `x` passed to
-    /// the `fit` method. If `with_intercept` is set, then it needs to have one more row. For
-    /// multinomial regression, `params` also must have the same number of columns as the number of
-    /// distinct classes in `y`.
-    pub fn initial_params(mut self, params: Array<F, D>) -> Self {
-        self.initial_params = Some(params);
-        self
-    }
-
+impl<F: Float, D: Dimension> LogisticRegressionValidParams<F, D> {
     /// Create the initial parameters, either from a user supplied array
     /// or an array of 0s
     fn setup_init_params(&self, dims: D::Pattern) -> Array<F, D> {
@@ -172,28 +122,30 @@ impl<F: Float, D: Dimension> LogisticRegressionBase<F, D> {
         if x.shape()[0] != y.shape()[0] {
             return Err(Error::MismatchedShapes(x.shape()[0], y.shape()[0]));
         }
-        if x.iter().any(|x| !x.is_finite())
-            || y.iter().any(|y| !y.is_finite())
-            || !self.alpha.is_finite()
-        {
+        if x.iter().any(|x| !x.is_finite()) || y.iter().any(|y| !y.is_finite()) {
             return Err(Error::InvalidValues);
         }
-        if !self.gradient_tolerance.is_finite() || self.gradient_tolerance <= F::zero() {
-            return Err(Error::InvalidGradientTolerance);
-        }
-        self.validate_init_params(x.shape()[1], y.shape().get(1).copied())?;
+        self.validate_init_dims(x.shape()[1], y.shape().get(1).copied())?;
         Ok(())
     }
 
-    fn validate_init_params(&self, mut n_features: usize, n_classes: Option<usize>) -> Result<()> {
+    fn validate_init_dims(&self, mut n_features: usize, n_classes: Option<usize>) -> Result<()> {
         if let Some(params) = self.initial_params.as_ref() {
             let shape = params.shape();
             n_features += self.fit_intercept as usize;
-            if n_features != shape[0] || n_classes != shape.get(1).copied() {
-                return Err(Error::InvalidInitialParametersGuessSize);
+            if n_features != shape[0] {
+                return Err(Error::InitialParameterFeaturesMismatch {
+                    n_features,
+                    rows: shape[0],
+                });
             }
-            if params.iter().any(|p| !p.is_finite()) {
-                return Err(Error::InvalidInitialParametersGuess);
+            if let Some(n_classes) = n_classes {
+                if n_classes != shape[1] {
+                    return Err(Error::InitialParameterClassesMismatch {
+                        n_classes,
+                        cols: shape[1],
+                    });
+                }
             }
         }
         Ok(())
@@ -234,7 +186,7 @@ impl<F: Float, D: Dimension> LogisticRegressionBase<F, D> {
 }
 
 impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C>>
-    Fit<ArrayBase<D, Ix2>, T, Error> for LogisticRegression<F>
+    Fit<ArrayBase<D, Ix2>, T, Error> for ValidLogisticRegression<F>
 {
     type Object = FittedLogisticRegression<F, C>;
 
@@ -274,7 +226,7 @@ impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C
 }
 
 impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C>>
-    Fit<ArrayBase<D, Ix2>, T, Error> for MultiLogisticRegression<F>
+    Fit<ArrayBase<D, Ix2>, T, Error> for ValidMultiLogisticRegression<F>
 {
     type Object = MultiFittedLogisticRegression<F, C>;
 
@@ -1041,7 +993,7 @@ mod test {
         for inf in &infs {
             let log_reg = LogisticRegression::default().alpha(*inf);
             let res = log_reg.fit(&DatasetBase::new(normal_x.view(), &y));
-            assert!(matches!(res.unwrap_err(), Error::InvalidValues));
+            assert!(matches!(res.unwrap_err(), Error::InvalidAlpha));
         }
         let mut non_positives = infs;
         non_positives.push(-1.0);
@@ -1062,17 +1014,17 @@ mod test {
         for inf in &infs {
             let log_reg = LogisticRegression::default().initial_params(array![*inf, 0.0]);
             let res = log_reg.fit(&dataset);
-            assert!(matches!(
-                res.unwrap_err(),
-                Error::InvalidInitialParametersGuess
-            ));
+            assert!(matches!(res.unwrap_err(), Error::InvalidInitialParameters));
         }
         {
             let log_reg = LogisticRegression::default().initial_params(array![0.0, 0.0, 0.0]);
             let res = log_reg.fit(&dataset);
             assert!(matches!(
                 res.unwrap_err(),
-                Error::InvalidInitialParametersGuessSize
+                Error::InitialParameterFeaturesMismatch {
+                    rows: 3,
+                    n_features: 2
+                }
             ));
         }
         {
@@ -1082,7 +1034,10 @@ mod test {
             let res = log_reg.fit(&dataset);
             assert!(matches!(
                 res.unwrap_err(),
-                Error::InvalidInitialParametersGuessSize
+                Error::InitialParameterFeaturesMismatch {
+                    rows: 2,
+                    n_features: 1
+                }
             ));
         }
     }
@@ -1306,18 +1261,14 @@ mod test {
         let dataset = Dataset::new(x, y);
 
         let log_reg = MultiLogisticRegression::default()
-            .initial_params(Array::zeros((n_features, n_classes)));
-        assert!(matches!(
-            log_reg.fit(&dataset).unwrap_err(),
-            Error::InvalidInitialParametersGuessSize
-        ));
-
-        let log_reg = MultiLogisticRegression::default()
             .with_intercept(false)
-            .initial_params(Array::zeros((n_features + 1, n_classes)));
+            .initial_params(Array::zeros((n_features, n_classes - 1)));
         assert!(matches!(
             log_reg.fit(&dataset).unwrap_err(),
-            Error::InvalidInitialParametersGuessSize
+            Error::InitialParameterClassesMismatch {
+                cols: 2,
+                n_classes: 3,
+            }
         ));
     }
 }

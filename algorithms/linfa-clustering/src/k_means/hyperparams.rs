@@ -16,7 +16,7 @@ use serde_crate::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq)]
 /// The set of hyperparameters that can be specified for the execution of
 /// the [K-means algorithm](struct.KMeans.html).
-pub struct KMeansHyperParams<F: Float, R: Rng, D: Distance<F>> {
+pub struct KMeansValidParams<F: Float, R: Rng, D: Distance<F>> {
     /// Number of time the k-means algorithm will be run with different centroid seeds.
     n_runs: usize,
     /// The training is considered complete if the euclidean distance
@@ -37,11 +37,11 @@ pub struct KMeansHyperParams<F: Float, R: Rng, D: Distance<F>> {
     dist_fn: D,
 }
 
-/// An helper struct used to construct a set of [valid hyperparameters](struct.KMeansHyperParams.html) for
+/// An helper struct used to construct a set of [valid hyperparameters](struct.KMeansParams.html) for
 /// the [K-means algorithm](struct.KMeans.html) (using the builder pattern).
-pub struct UncheckedKMeansHyperParams<F: Float, R: Rng, D: Distance<F>>(KMeansHyperParams<F, R, D>);
+pub struct KMeansParams<F: Float, R: Rng, D: Distance<F>>(KMeansValidParams<F, R, D>);
 
-impl<F: Float, R: Rng, D: Distance<F>> UncheckedKMeansHyperParams<F, R, D> {
+impl<F: Float, R: Rng, D: Distance<F>> KMeansParams<F, R, D> {
     /// `new` lets us configure our training algorithm parameters:
     /// * we will be looking for `n_clusters` in the training dataset;
     /// * the training is considered complete if the euclidean distance
@@ -61,7 +61,7 @@ impl<F: Float, R: Rng, D: Distance<F>> UncheckedKMeansHyperParams<F, R, D> {
     /// * `n_runs = 10`
     /// * `init = KMeansPlusPlus`
     pub fn new(n_clusters: usize, rng: R, dist_fn: D) -> Self {
-        Self(KMeansHyperParams {
+        Self(KMeansValidParams {
             n_runs: 10,
             tolerance: F::cast(1e-4),
             max_n_iterations: 300,
@@ -97,10 +97,8 @@ impl<F: Float, R: Rng, D: Distance<F>> UncheckedKMeansHyperParams<F, R, D> {
     }
 }
 
-impl<F: Float, R: Rng, D: Distance<F>> UncheckedHyperParams
-    for UncheckedKMeansHyperParams<F, R, D>
-{
-    type Checked = KMeansHyperParams<F, R, D>;
+impl<F: Float, R: Rng, D: Distance<F>> ParamGuard for KMeansParams<F, R, D> {
+    type Checked = KMeansValidParams<F, R, D>;
     type Error = KMeansParamsError;
 
     fn check_ref(&self) -> Result<&Self::Checked, Self::Error> {
@@ -123,7 +121,7 @@ impl<F: Float, R: Rng, D: Distance<F>> UncheckedHyperParams
     }
 }
 
-impl<F: Float, R: Rng, D: Distance<F>> KMeansHyperParams<F, R, D> {
+impl<F: Float, R: Rng, D: Distance<F>> KMeansValidParams<F, R, D> {
     /// The final results will be the best output of n_runs consecutive runs in terms of inertia.
     pub fn n_runs(&self) -> usize {
         self.n_runs
@@ -166,9 +164,8 @@ impl<F: Float, R: Rng, D: Distance<F>> KMeansHyperParams<F, R, D> {
 
 #[cfg(test)]
 mod tests {
-    use linfa::prelude::UncheckedHyperParams;
-
     use crate::{KMeans, KMeansParamsError};
+    use linfa::ParamGuard;
 
     #[test]
     fn n_clusters_cannot_be_zero() {

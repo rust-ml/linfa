@@ -1,7 +1,7 @@
 mod cell;
 
 use crate::appx_dbscan::counting_tree::get_base_cell_index;
-use crate::AppxDbscanHyperParams;
+use crate::AppxDbscanValidParams;
 use linfa::Float;
 use ndarray::{ArrayView1, ArrayView2, Axis};
 use partitions::PartitionVec;
@@ -18,7 +18,7 @@ pub struct CellsGrid<F: Float> {
 
 impl<F: Float> CellsGrid<F> {
     /// Partitions the euclidean space containing `points` in a grid of
-    pub fn new(points: &ArrayView2<F>, params: &AppxDbscanHyperParams<F>) -> CellsGrid<F> {
+    pub fn new(points: &ArrayView2<F>, params: &AppxDbscanValidParams<F>) -> CellsGrid<F> {
         let mut grid = CellsGrid {
             table: CellTable::with_capacity(points.dim().0),
             cells: PartitionVec::with_capacity(points.dim().0),
@@ -30,7 +30,7 @@ impl<F: Float> CellsGrid<F> {
 
     /// Divides the D dimensional euclidean space in a grid of cells with side length `epsilon\sqrt(D)` and memorizes
     /// the non empty ones in a `CellTable`
-    pub fn populate(&mut self, points: &ArrayView2<F>, params: &AppxDbscanHyperParams<F>) {
+    pub fn populate(&mut self, points: &ArrayView2<F>, params: &AppxDbscanValidParams<F>) {
         for (p_i, curr_point) in points.axis_iter(Axis(0)).enumerate() {
             self.insert_point(&curr_point, p_i, params);
         }
@@ -46,7 +46,7 @@ impl<F: Float> CellsGrid<F> {
     ///
     /// # Behavior
     /// At the end of this function all the possible unions between neighbouring cells in `self.cells` will have been made.
-    pub fn label_points(&mut self, points: &ArrayView2<F>, params: &AppxDbscanHyperParams<F>) {
+    pub fn label_points(&mut self, points: &ArrayView2<F>, params: &AppxDbscanValidParams<F>) {
         for cell_i in self.table.values() {
             let mut cloned_cell = self.cells[*cell_i].clone();
             cloned_cell.label(&self.cells, points, params);
@@ -78,7 +78,7 @@ impl<F: Float> CellsGrid<F> {
         &mut self,
         point: &ArrayView1<F>,
         p_i: usize,
-        params: &AppxDbscanHyperParams<F>,
+        params: &AppxDbscanValidParams<F>,
     ) {
         let cell_index = get_base_cell_index(point, params);
         let curr_cell_n = self.cells.len();
@@ -92,7 +92,7 @@ impl<F: Float> CellsGrid<F> {
     fn unite_neighbouring_cells(
         &mut self,
         points: &ArrayView2<F>,
-        params: &AppxDbscanHyperParams<F>,
+        params: &AppxDbscanValidParams<F>,
     ) {
         for cell_i in self.table.values() {
             if !self.cells[*cell_i].is_core() {

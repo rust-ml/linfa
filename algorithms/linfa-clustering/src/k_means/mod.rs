@@ -1,9 +1,9 @@
 mod algorithm;
 mod errors;
-mod hyperparameters;
+mod hyperparams;
 mod init;
 
 pub use algorithm::*;
 pub use errors::*;
-pub use hyperparameters::*;
+pub use hyperparams::*;
 pub use init::*;

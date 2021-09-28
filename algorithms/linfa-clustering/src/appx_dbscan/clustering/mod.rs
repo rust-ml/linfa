@@ -1,5 +1,5 @@
 use crate::appx_dbscan::cells_grid::CellsGrid;
-use crate::appx_dbscan::hyperparameters::AppxDbscanHyperParams;
+use crate::appx_dbscan::AppxDbscanValidParams;
 use linfa::Float;
 
 use ndarray::{Array1, ArrayView2};
@@ -24,7 +24,7 @@ impl AppxDbscanLabeler {
     ///
     pub fn new<F: Float>(
         observations: &ArrayView2<F>,
-        params: &AppxDbscanHyperParams<F>,
+        params: &AppxDbscanValidParams<F>,
     ) -> AppxDbscanLabeler {
         let mut grid = CellsGrid::new(observations, params);
         AppxDbscanLabeler {
@@ -64,7 +64,7 @@ impl AppxDbscanLabeler {
     fn label<F: Float>(
         grid: &mut CellsGrid<F>,
         points: &ArrayView2<F>,
-        params: &AppxDbscanHyperParams<F>,
+        params: &AppxDbscanValidParams<F>,
     ) -> Array1<Option<usize>> {
         let mut labels = Self::label_connected_components(grid, points, params);
         Self::label_border_noise_points(grid, points, &mut labels, params);
@@ -77,7 +77,7 @@ impl AppxDbscanLabeler {
     fn label_connected_components<F: Float>(
         grid: &mut CellsGrid<F>,
         observations: &ArrayView2<F>,
-        params: &AppxDbscanHyperParams<F>,
+        params: &AppxDbscanValidParams<F>,
     ) -> Array1<Option<usize>> {
         if !grid.labeled() {
             grid.label_points(observations, params);
@@ -103,7 +103,7 @@ impl AppxDbscanLabeler {
         grid: &CellsGrid<F>,
         observations: &ArrayView2<F>,
         clusters: &mut Array1<Option<usize>>,
-        params: &AppxDbscanHyperParams<F>,
+        params: &AppxDbscanValidParams<F>,
     ) {
         for cell in grid.cells() {
             for cp_index in cell

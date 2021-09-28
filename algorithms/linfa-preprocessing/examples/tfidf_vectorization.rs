@@ -5,7 +5,7 @@ use flate2::read::GzDecoder;
 use linfa::metrics::ToConfusionMatrix;
 use linfa::traits::{Fit, Predict};
 use linfa::Dataset;
-use linfa_bayes::GaussianNbParams;
+use linfa_bayes::GaussianNb;
 use linfa_preprocessing::tf_idf_vectorization::TfIdfVectorizer;
 use ndarray::Array2;
 use std::collections::HashSet;
@@ -139,7 +139,7 @@ fn main() {
 
     println!();
     println!("Let's try to fit a Naive Bayes model to this set");
-    let model = GaussianNbParams::params().fit(&training_dataset).unwrap();
+    let model = GaussianNb::params().fit(&training_dataset).unwrap();
     let training_prediction = model.predict(&training_dataset);
 
     let cm = training_prediction

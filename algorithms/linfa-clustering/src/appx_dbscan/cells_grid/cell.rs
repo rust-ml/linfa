@@ -1,5 +1,5 @@
 use crate::appx_dbscan::counting_tree::TreeStructure;
-use crate::AppxDbscanHyperParams;
+use crate::AppxDbscanValidParams;
 use linfa::Float;
 use ndarray::{Array1, ArrayView1, ArrayView2, ArrayViewMut1};
 use ndarray_stats::DeviationExt;
@@ -116,7 +116,7 @@ impl<F: Float> Cell<F> {
     pub fn approximate_range_counting(
         &self,
         point: &ArrayView1<F>,
-        params: &AppxDbscanHyperParams<F>,
+        params: &AppxDbscanValidParams<F>,
     ) -> usize {
         match self.is_core {
             true => self
@@ -211,7 +211,7 @@ impl<F: Float> Cell<F> {
         &mut self,
         cells: &PartitionVec<Cell<F>>,
         points: &ArrayView2<F>,
-        params: &AppxDbscanHyperParams<F>,
+        params: &AppxDbscanValidParams<F>,
     ) {
         if self.points.len() >= params.min_points {
             self.label_dense(points, params);
@@ -224,7 +224,7 @@ impl<F: Float> Cell<F> {
     /// all the points in the cell to 'core'.
     /// An approximate range counting structure is then built on the core points and
     /// memorized in the cell
-    fn label_dense(&mut self, points: &ArrayView2<F>, params: &AppxDbscanHyperParams<F>) {
+    fn label_dense(&mut self, points: &ArrayView2<F>, params: &AppxDbscanValidParams<F>) {
         self.is_core = true;
         let points: Vec<ArrayView1<F>> = self
             .points
@@ -245,7 +245,7 @@ impl<F: Float> Cell<F> {
         &mut self,
         cells: &PartitionVec<Cell<F>>,
         points: &ArrayView2<F>,
-        params: &AppxDbscanHyperParams<F>,
+        params: &AppxDbscanValidParams<F>,
     ) {
         let len = self.points.len();
         let mut core_points: Vec<ArrayView1<F>> = Vec::with_capacity(len);

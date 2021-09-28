@@ -74,21 +74,7 @@ linfa-datasets = { path = "datasets", features = ["winequality", "iris", "diabet
 
 [workspace]
 members = [
-    "algorithms/linfa-clustering",
-    "algorithms/linfa-reduction",
-    "algorithms/linfa-kernel",
-    "algorithms/linfa-linear",
-    "algorithms/linfa-logistic",
-    "algorithms/linfa-trees",
-    "algorithms/linfa-svm",
-    "algorithms/linfa-hierarchical",
-    "algorithms/linfa-ica",
-    "algorithms/linfa-bayes",
-    "algorithms/linfa-elasticnet",
-    "algorithms/linfa-pls",
-    "algorithms/linfa-tsne",
-    "algorithms/linfa-preprocessing",
-    "algorithms/linfa-nn",
+    "algorithms/*",
     "datasets",
 ]
 

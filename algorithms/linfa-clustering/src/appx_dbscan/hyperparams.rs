@@ -1,3 +1,4 @@
+use linfa::param_guard::TransformGuard;
 use linfa::prelude::*;
 use linfa::Float;
 
@@ -13,7 +14,7 @@ use thiserror::Error;
 #[derive(Clone, Debug, PartialEq)]
 /// The set of hyperparameters that can be specified for the execution of
 /// the [Approximated DBSCAN algorithm](struct.AppxDbscan.html).
-pub struct AppxDbscanHyperParams<F: Float> {
+pub struct AppxDbscanValidParams<F: Float> {
     pub(crate) tolerance: F,
     pub(crate) min_points: usize,
     pub(crate) slack: F,
@@ -21,8 +22,8 @@ pub struct AppxDbscanHyperParams<F: Float> {
 
 #[derive(Debug)]
 /// Helper struct for building a set of [Approximated DBSCAN
-/// hyperparameters](struct.AppxDbscanHyperParams.html)
-pub struct UncheckedAppxDbscanHyperParams<F: Float>(AppxDbscanHyperParams<F>);
+/// hyperparameters](struct.AppxDbscanParams.html)
+pub struct AppxDbscanParams<F: Float>(AppxDbscanValidParams<F>);
 
 #[derive(Debug, Error)]
 pub enum AppxDbscanParamsError {
@@ -34,12 +35,12 @@ pub enum AppxDbscanParamsError {
     Slack,
 }
 
-impl<F: Float> UncheckedAppxDbscanHyperParams<F> {
+impl<F: Float> AppxDbscanParams<F> {
     pub(crate) fn new(min_points: usize) -> Self {
         let default_slack = F::cast(1e-2);
         let default_tolerance = F::cast(1e-4);
 
-        Self(AppxDbscanHyperParams {
+        Self(AppxDbscanValidParams {
             min_points,
             tolerance: default_tolerance,
             slack: default_slack,
@@ -59,8 +60,8 @@ impl<F: Float> UncheckedAppxDbscanHyperParams<F> {
     }
 }
 
-impl<F: Float> UncheckedHyperParams for UncheckedAppxDbscanHyperParams<F> {
-    type Checked = AppxDbscanHyperParams<F>;
+impl<F: Float> ParamGuard for AppxDbscanParams<F> {
+    type Checked = AppxDbscanValidParams<F>;
     type Error = AppxDbscanParamsError;
 
     fn check_ref(&self) -> Result<&Self::Checked, Self::Error> {
@@ -80,8 +81,9 @@ impl<F: Float> UncheckedHyperParams for UncheckedAppxDbscanHyperParams<F> {
         Ok(self.0)
     }
 }
+impl<F: Float> TransformGuard for AppxDbscanParams<F> {}
 
-impl<F: Float> AppxDbscanHyperParams<F> {
+impl<F: Float> AppxDbscanValidParams<F> {
     /// Distance between points for them to be considered neighbours.
     pub fn tolerance(&self) -> F {
         self.tolerance

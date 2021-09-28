@@ -10,4 +10,4 @@ pub mod platt_scaling;
 
 pub use multi_class_model::MultiClassModel;
 pub use multi_target_model::MultiTargetModel;
-pub use platt_scaling::{Platt, PlattNewtonResult, PlattParams};
+pub use platt_scaling::{Platt, PlattError, PlattParams};

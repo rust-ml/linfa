@@ -46,10 +46,10 @@ pub mod composing;
 pub mod correlation;
 pub mod dataset;
 pub mod error;
-pub mod hyperparams;
 mod metrics_classification;
 mod metrics_clustering;
 mod metrics_regression;
+pub mod param_guard;
 pub mod prelude;
 pub mod traits;
 
@@ -57,6 +57,7 @@ pub use composing::*;
 pub use dataset::{Dataset, DatasetBase, DatasetPr, DatasetView, Float, Label};
 
 pub use error::Error;
+pub use param_guard::ParamGuard;
 
 #[cfg(feature = "ndarray-linalg")]
 pub use ndarray_linalg as linalg;

@@ -1,7 +1,7 @@
 use crate::{generate_blobs, AppxDbscanParamsError, Dbscan};
-use crate::{AppxDbscan, UncheckedAppxDbscanHyperParams};
-use linfa::prelude::UncheckedHyperParams;
+use crate::{AppxDbscan, AppxDbscanParams};
 use linfa::traits::Transformer;
+use linfa::ParamGuard;
 use ndarray::{arr2, s, Array1, Array2};
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::Uniform;
@@ -273,7 +273,7 @@ fn test_exp(){
     let mock_points = read_points_from_file::<&str,6>(&"./e_shop.txt",&mock_params);
     let points_vec : Vec<f64> = mock_points.iter().map(|x| x.to_vec()).flatten().collect();
     let dataset = Array2::from_shape_vec((mock_params.cardinality, 6), points_vec).unwrap();
-    let params = AppxDbscanHyperParams::new(15).tolerance(1.5).slack(0.0001).build();
+    let params = AppxDbscanParams::new(15).tolerance(1.5).slack(0.0001).build();
     let appx_res = AppxDbscan::predict(&params, &dataset);
     let appx_clusters: i64 = appx_res
         .iter()
@@ -289,45 +289,30 @@ fn test_exp(){
 
 #[test]
 fn tolerance_cannot_be_zero() {
-    let res = UncheckedAppxDbscanHyperParams::new(2)
-        .tolerance(0.0)
-        .slack(0.1)
-        .check();
+    let res = AppxDbscanParams::new(2).tolerance(0.0).slack(0.1).check();
     assert!(matches!(res, Err(AppxDbscanParamsError::Tolerance)));
 }
 
 #[test]
 fn slack_cannot_be_zero() {
-    let res = UncheckedAppxDbscanHyperParams::new(2)
-        .tolerance(0.1)
-        .slack(0.0)
-        .check();
+    let res = AppxDbscanParams::new(2).tolerance(0.1).slack(0.0).check();
     assert!(matches!(res, Err(AppxDbscanParamsError::Slack)));
 }
 
 #[test]
 fn min_points_at_least_2() {
-    let res = UncheckedAppxDbscanHyperParams::new(1)
-        .tolerance(0.1)
-        .slack(0.1)
-        .check();
+    let res = AppxDbscanParams::new(1).tolerance(0.1).slack(0.1).check();
     assert!(matches!(res, Err(AppxDbscanParamsError::MinPoints)));
 }
 
 #[test]
 fn tolerance_should_be_positive() {
-    let res = UncheckedAppxDbscanHyperParams::new(2)
-        .tolerance(-1.0)
-        .slack(0.1)
-        .check();
+    let res = AppxDbscanParams::new(2).tolerance(-1.0).slack(0.1).check();
     assert!(matches!(res, Err(AppxDbscanParamsError::Tolerance)));
 }
 
 #[test]
 fn slack_should_be_positive() {
-    let res = UncheckedAppxDbscanHyperParams::new(2)
-        .tolerance(0.1)
-        .slack(-1.0)
-        .check();
+    let res = AppxDbscanParams::new(2).tolerance(0.1).slack(-1.0).check();
     assert!(matches!(res, Err(AppxDbscanParamsError::Slack)));
 }

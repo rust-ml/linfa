@@ -1,7 +1,9 @@
 use thiserror::Error;
 
+/// Simplified `Result` using [`TSneError`](crate::TSneError) as error type
 pub type Result<T> = std::result::Result<T, TSneError>;
 
+/// Error variants from hyper-parameter construction or model estimation
 #[derive(Error, Debug)]
 pub enum TSneError {
     #[error("negative perplexity")]

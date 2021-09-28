@@ -1,15 +1,15 @@
 use linfa::metrics::ToConfusionMatrix;
 use linfa::traits::{Fit, Predict};
-use linfa_bayes::{GaussianNbParams, Result};
+use linfa_bayes::{GaussianNb, Result};
 
 fn main() -> Result<()> {
-    // Read in the dataset and convert continuous target into categorical
+    // Read in the dataset and convert targets to binary data
     let (train, valid) = linfa_datasets::winequality()
-        .map_targets(|x| if *x > 6 { 1 } else { 0 })
+        .map_targets(|x| if *x > 6 { "good" } else { "bad" })
         .split_with_ratio(0.9);
 
     // Train the model
-    let model = GaussianNbParams::params().fit(&train.view())?;
+    let model = GaussianNb::params().fit(&train)?;
 
     // Predict the validation dataset
     let pred = model.predict(&valid);
@@ -17,9 +17,9 @@ fn main() -> Result<()> {
     // Construct confusion matrix
     let cm = pred.confusion_matrix(&valid)?;
 
-    // classes    | 1          | 0
-    // 1          | 10         | 12
-    // 0          | 7          | 130
+    // classes    | bad        | good
+    // bad        | 130        | 12
+    // good       | 7          | 10
     //
     // accuracy 0.8805031, MCC 0.45080978
     println!("{:?}", cm);

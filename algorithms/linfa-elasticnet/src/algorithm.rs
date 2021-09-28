@@ -1,5 +1,5 @@
 use approx::{abs_diff_eq, abs_diff_ne};
-use ndarray::{s, Array1, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
+use ndarray::{s, Array1, ArrayBase, ArrayView1, ArrayView2, Axis, CowArray, Data, Ix1, Ix2};
 use ndarray_linalg::{Inverse, Lapack};
 
 use linfa::traits::{Fit, PredictInplace};
@@ -8,9 +8,9 @@ use linfa::{
     DatasetBase, Float,
 };
 
-use super::{ElasticNet, ElasticNetParams, Error, Result};
+use super::{hyperparams::ElasticNetValidParams, ElasticNet, ElasticNetError, Result};
 
-impl<F, D, T> Fit<ArrayBase<D, Ix2>, T, crate::error::Error> for ElasticNetParams<F>
+impl<F, D, T> Fit<ArrayBase<D, Ix2>, T, ElasticNetError> for ElasticNetValidParams<F>
 where
     F: Float + Lapack,
     D: Data<Elem = F>,
@@ -29,26 +29,25 @@ where
     /// parameters and can be used to `predict` values of the target variable
     /// for new feature values.
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
-        self.validate_params()?;
         let target = dataset.try_single_target()?;
 
-        let (intercept, y) = self.compute_intercept(target);
-        let (parameters, duality_gap, n_steps) = coordinate_descent(
+        let (intercept, y) = compute_intercept(self.with_intercept(), target);
+        let (hyperplane, duality_gap, n_steps) = coordinate_descent(
             dataset.records().view(),
             y.view(),
-            self.tolerance,
-            self.max_iterations,
-            self.l1_ratio,
-            self.penalty,
+            self.tolerance(),
+            self.max_iterations(),
+            self.l1_ratio(),
+            self.penalty(),
         );
 
-        let y_est = dataset.records().dot(&parameters) + intercept;
+        let y_est = dataset.records().dot(&hyperplane) + intercept;
 
         // try to calculate the variance
         let variance = variance_params(dataset, y_est);
 
         Ok(ElasticNet {
-            parameters,
+            hyperplane,
             intercept,
             duality_gap,
             n_steps,
@@ -68,7 +67,7 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<F>> f
             "The number of data points must match the number of output targets."
         );
 
-        *y = x.dot(&self.parameters) + self.intercept;
+        *y = x.dot(&self.hyperplane) + self.intercept;
     }
 
     fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<F> {
@@ -79,9 +78,9 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<F>> f
 /// View the fitted parameters and make predictions with a fitted
 /// elastic net model
 impl<F: Float> ElasticNet<F> {
-    /// Get the fitted parameters
-    pub fn parameters(&self) -> &Array1<F> {
-        &self.parameters
+    /// Get the fitted hyperplane
+    pub fn hyperplane(&self) -> &Array1<F> {
+        &self.hyperplane
     }
 
     /// Get the fitted intercept, 0. if no intercept was fitted
@@ -104,7 +103,7 @@ impl<F: Float> ElasticNet<F> {
         self.variance
             .as_ref()
             .map(|variance| {
-                self.parameters
+                self.hyperplane
                     .iter()
                     .zip(variance.iter())
                     .map(|(a, b)| *a / b.sqrt())
@@ -121,7 +120,7 @@ impl<F: Float> ElasticNet<F> {
         self.variance
             .as_ref()
             .map(|variance| {
-                self.parameters
+                self.hyperplane
                     .iter()
                     .zip(variance.iter())
                     .map(|(a, b)| (*a - p * b.sqrt(), *a + p * b.sqrt()))
@@ -230,7 +229,7 @@ fn variance_params<F: Float + Lapack, T: AsTargets<Elem = F>, D: Data<Elem = F>>
 
     // check that we have enough samples
     if nsamples < nfeatures + 1 {
-        return Err(Error::NotEnoughSamples);
+        return Err(ElasticNetError::NotEnoughSamples);
     }
 
     let var_target = (&target - &y_est).mapv(|x| x * x).sum() / F::cast(nsamples - nfeatures);
@@ -239,7 +238,22 @@ fn variance_params<F: Float + Lapack, T: AsTargets<Elem = F>, D: Data<Elem = F>>
 
     match inv_cov {
         Ok(inv_cov) => Ok(inv_cov.diag().mapv(|x| var_target * x)),
-        Err(_) => Err(Error::IllConditioned),
+        Err(_) => Err(ElasticNetError::IllConditioned),
+    }
+}
+
+/// Compute the intercept as the mean of `y` and center `y` if an intercept should
+/// be used, use `0.0` as intercept and leave `y` unchanged otherwise.
+pub fn compute_intercept<F: Float>(
+    with_intercept: bool,
+    y: ArrayView1<F>,
+) -> (F, CowArray<F, Ix1>) {
+    if with_intercept {
+        let y_mean = y.mean().unwrap();
+        let y_centered = &y - y_mean;
+        (y_mean, y_centered.into())
+    } else {
+        (F::zero(), y.into())
     }
 }
 
@@ -340,7 +354,7 @@ mod tests {
             .unwrap();
 
         assert_abs_diff_eq!(model.intercept(), 0.);
-        assert_abs_diff_eq!(model.parameters(), &array![0.]);
+        assert_abs_diff_eq!(model.hyperplane(), &array![0.]);
     }
 
     #[test]
@@ -354,25 +368,25 @@ mod tests {
         let t = array![[2.0], [3.0], [4.0]];
         let model = ElasticNet::lasso().penalty(1e-8).fit(&dataset).unwrap();
         assert_abs_diff_eq!(model.intercept(), 0.0);
-        assert_abs_diff_eq!(model.parameters(), &array![1.0], epsilon = 1e-6);
+        assert_abs_diff_eq!(model.hyperplane(), &array![1.0], epsilon = 1e-6);
         assert_abs_diff_eq!(model.predict(&t), array![2.0, 3.0, 4.0], epsilon = 1e-6);
         assert_abs_diff_eq!(model.duality_gap(), 0.0);
 
         let model = ElasticNet::lasso().penalty(0.1).fit(&dataset).unwrap();
         assert_abs_diff_eq!(model.intercept(), 0.0);
-        assert_abs_diff_eq!(model.parameters(), &array![0.85], epsilon = 1e-6);
+        assert_abs_diff_eq!(model.hyperplane(), &array![0.85], epsilon = 1e-6);
         assert_abs_diff_eq!(model.predict(&t), array![1.7, 2.55, 3.4], epsilon = 1e-6);
         assert_abs_diff_eq!(model.duality_gap(), 0.0);
 
         let model = ElasticNet::lasso().penalty(0.5).fit(&dataset).unwrap();
         assert_abs_diff_eq!(model.intercept(), 0.0);
-        assert_abs_diff_eq!(model.parameters(), &array![0.25], epsilon = 1e-6);
+        assert_abs_diff_eq!(model.hyperplane(), &array![0.25], epsilon = 1e-6);
         assert_abs_diff_eq!(model.predict(&t), array![0.5, 0.75, 1.0], epsilon = 1e-6);
         assert_abs_diff_eq!(model.duality_gap(), 0.0);
 
         let model = ElasticNet::lasso().penalty(1.0).fit(&dataset).unwrap();
         assert_abs_diff_eq!(model.intercept(), 0.0);
-        assert_abs_diff_eq!(model.parameters(), &array![0.0], epsilon = 1e-6);
+        assert_abs_diff_eq!(model.hyperplane(), &array![0.0], epsilon = 1e-6);
         assert_abs_diff_eq!(model.predict(&t), array![0.0, 0.0, 0.0], epsilon = 1e-6);
         assert_abs_diff_eq!(model.duality_gap(), 0.0);
     }
@@ -390,7 +404,7 @@ mod tests {
             .unwrap();
 
         assert_abs_diff_eq!(model.intercept(), 0.0);
-        assert_abs_diff_eq!(model.parameters(), &array![0.50819], epsilon = 1e-3);
+        assert_abs_diff_eq!(model.hyperplane(), &array![0.50819], epsilon = 1e-3);
         assert_abs_diff_eq!(
             model.predict(&t),
             array![1.0163, 1.5245, 2.0327],
@@ -405,7 +419,7 @@ mod tests {
             .unwrap();
 
         assert_abs_diff_eq!(model.intercept(), 0.0);
-        assert_abs_diff_eq!(model.parameters(), &array![0.45454], epsilon = 1e-3);
+        assert_abs_diff_eq!(model.hyperplane(), &array![0.45454], epsilon = 1e-3);
         assert_abs_diff_eq!(
             model.predict(&t),
             array![0.9090, 1.3636, 1.8181],
@@ -420,7 +434,7 @@ mod tests {
 
         let model = ElasticNet::params().penalty(0.0).fit(&dataset).unwrap();
         assert_abs_diff_eq!(model.intercept(), 2.5);
-        assert_abs_diff_eq!(model.parameters(), &array![0.5, -0.5], epsilon = 0.001);
+        assert_abs_diff_eq!(model.hyperplane(), &array![0.5, -0.5], epsilon = 0.001);
     }
 
     #[test]
@@ -461,7 +475,7 @@ mod tests {
             .unwrap();
 
         assert_abs_diff_eq!(
-            model.parameters(),
+            model.hyperplane(),
             &array![
                 -2.00558969,
                 -0.92208413,
@@ -521,7 +535,7 @@ mod tests {
             .unwrap();
 
         assert_abs_diff_eq!(
-            model.parameters(),
+            model.hyperplane(),
             &array![
                 0.19879313,
                 1.46970138,
@@ -561,7 +575,7 @@ mod tests {
 
         // check that we set the last 40 parameters to zero
         let num_zeros = model
-            .parameters()
+            .hyperplane()
             .into_iter()
             .filter(|x| **x < 1e-5)
             .count();

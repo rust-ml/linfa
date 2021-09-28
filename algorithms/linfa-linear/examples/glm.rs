@@ -2,7 +2,7 @@ use linfa::prelude::*;
 use linfa_linear::{Result, TweedieRegressor};
 use ndarray::Axis;
 
-fn main() -> Result<()> {
+fn main() -> Result<(), f64> {
     // load the Diabetes dataset
     let dataset = linfa_datasets::diabetes();
 
@@ -10,7 +10,7 @@ fn main() -> Result<()> {
     // Setting the power to 0 makes it a Normal Regressioon
     // Setting the alpha to 0 removes any regularization
     // In total this is the regular old Linear Regression
-    let lin_reg = TweedieRegressor::new().power(0.).alpha(0.);
+    let lin_reg = TweedieRegressor::params().power(0.).alpha(0.);
     let model = lin_reg.fit(&dataset)?;
 
     // We print the learnt parameters

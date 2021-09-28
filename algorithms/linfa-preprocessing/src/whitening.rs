@@ -6,7 +6,7 @@
 //! size as the input such that `Y` has
 //! unit diagonal (white) covariance matrix.
 
-use crate::error::{Error, Result};
+use crate::error::{PreprocessingError, Result};
 use linfa::dataset::{AsTargets, Records, WithLapack, WithoutLapack};
 use linfa::traits::{Fit, Transformer};
 use linfa::{DatasetBase, Float};
@@ -55,12 +55,14 @@ impl Whitener {
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T: AsTargets> Fit<ArrayBase<D, Ix2>, T, Error> for Whitener {
+impl<F: Float, D: Data<Elem = F>, T: AsTargets> Fit<ArrayBase<D, Ix2>, T, PreprocessingError>
+    for Whitener
+{
     type Object = FittedWhitener<F>;
 
     fn fit(&self, x: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
         if x.nsamples() == 0 {
-            return Err(Error::NotEnoughSamples);
+            return Err(PreprocessingError::NotEnoughSamples);
         }
         // safe because of above zero samples check
         let mean = x.records().mean_axis(Axis(0)).unwrap();

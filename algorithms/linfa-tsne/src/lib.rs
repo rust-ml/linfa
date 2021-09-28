@@ -1,155 +1,42 @@
-//! t-distributed stochastic neighbor embedding
-//!
+#![doc = include_str!("../README.md")]
+
 use ndarray::Array2;
-use ndarray_rand::rand::{rngs::SmallRng, Rng, SeedableRng};
+use ndarray_rand::rand::Rng;
 use ndarray_rand::rand_distr::Normal;
 
-use linfa::{dataset::DatasetBase, traits::Transformer, Float};
+use linfa::{dataset::DatasetBase, traits::Transformer, Float, ParamGuard};
 
 mod error;
+mod hyperparams;
+
 pub use error::{Result, TSneError};
+pub use hyperparams::{TSneParams, TSneValidParams};
 
-/// The t-SNE algorithm is a statistical method for visualizing high-dimensional data by
-/// giving each datapoint a location in a two or three-dimensional map.
-///
-/// The t-SNE algorithm comprises two main stages. First, t-SNE constructs a probability
-/// distribution over pairs of high-dimensional objects in such a way that similar objects
-/// are assigned a higher probability while dissimilar points are assigned a lower probability.
-/// Second, t-SNE defines a similar probability distribution over the points in the low-dimensional
-/// map, and it minimizes the Kullback–Leibler divergence (KL divergence) between the two
-/// distributions with respect to the locations of the points in the map.
-///
-/// This crate wraps the [bhtsne](https://github.com/frjnn/bhtsne) crate for the linfa project. It
-/// implements the exact t-SNE, as well as the Barnes-Hut approximation.
-///
-/// # Examples
-///
-/// ```ignore
-/// use linfa::traits::Transformer;
-/// use linfa_tsne::TSne;
-///
-/// let ds = linfa_datasets::iris();
-///
-/// let ds = TSne::embedding_size(2)
-///     .perplexity(10.0)
-///     .approx_threshold(0.6)
-///     .transform(ds);
-/// ```
-pub struct TSne<F: Float, R: Rng + Clone> {
-    embedding_size: usize,
-    approx_threshold: F,
-    perplexity: F,
-    max_iter: usize,
-    preliminary_iter: Option<usize>,
-    rng: R,
-}
+impl<F: Float, R: Rng + Clone> Transformer<Array2<F>, Result<Array2<F>>> for TSneValidParams<F, R> {
+    fn transform(&self, mut data: Array2<F>) -> Result<Array2<F>> {
+        let (nfeatures, nsamples) = (data.ncols(), data.nrows());
 
-impl<F: Float> TSne<F, SmallRng> {
-    /// Create a t-SNE param set with given embedding size
-    ///
-    /// # Defaults to:
-    ///  * `approx_threshold`: 0.5
-    ///  * `perplexity`: 5.0
-    ///  * `max_iter`: 2000
-    ///  * `rng`: SmallRng with seed 42
-    pub fn embedding_size(embedding_size: usize) -> TSne<F, SmallRng> {
-        Self::embedding_size_with_rng(embedding_size, SmallRng::seed_from_u64(42))
-    }
-}
-
-impl<F: Float, R: Rng + Clone> TSne<F, R> {
-    /// Create a t-SNE param set with given embedding size and random number generator
-    ///
-    /// # Defaults to:
-    ///  * `approx_threshold`: 0.5
-    ///  * `perplexity`: 5.0
-    ///  * `max_iter`: 2000
-    pub fn embedding_size_with_rng(embedding_size: usize, rng: R) -> TSne<F, R> {
-        TSne {
-            embedding_size,
-            rng,
-            approx_threshold: F::cast(0.5),
-            perplexity: F::cast(5.0),
-            max_iter: 2000,
-            preliminary_iter: None,
-        }
-    }
-
-    /// Set the approximation threshold of the Barnes Hut algorithm
-    ///
-    /// The threshold decides whether a cluster centroid can be used as a summary for the whole
-    /// area. This was proposed by Barnes and Hut and compares the ratio of cell radius and
-    /// distance to a factor theta. This threshold lies in range (0, inf) where a value of 0
-    /// disables approximation and a positive value approximates the gradient with the cell center.
-    pub fn approx_threshold(mut self, threshold: F) -> Self {
-        self.approx_threshold = threshold;
-
-        self
-    }
-
-    /// Set the perplexity of the t-SNE algorithm
-    pub fn perplexity(mut self, perplexity: F) -> Self {
-        self.perplexity = perplexity;
-
-        self
-    }
-
-    /// Set the maximal number of iterations
-    pub fn max_iter(mut self, max_iter: usize) -> Self {
-        self.max_iter = max_iter;
-
-        self
-    }
-
-    /// Set the number of iterations after which the true P distribution is used
-    ///
-    /// At the beginning of the training process it is useful to multiply the P distribution values
-    /// by a certain factor (here 12x) to get the global view right. After this number of iterations
-    /// the true P distribution value is used. If None the number is estimated.
-    pub fn preliminary_iter(mut self, num_iter: usize) -> Self {
-        self.preliminary_iter = Some(num_iter);
-
-        self
-    }
-
-    /// Validates parameters
-    pub fn validate(&self, nfeatures: usize, nsamples: usize) -> Result<()> {
-        if self.perplexity < F::zero() {
-            return Err(TSneError::NegativePerplexity);
-        }
-
-        if self.approx_threshold < F::zero() {
-            return Err(TSneError::NegativeApproximationThreshold);
-        }
-
-        if self.embedding_size > nfeatures {
+        // validate parameter-data constraints
+        if self.embedding_size() > nfeatures {
             return Err(TSneError::EmbeddingSizeTooLarge);
         }
 
-        if F::cast(nsamples - 1) < F::cast(3) * self.perplexity {
+        if F::cast(nsamples - 1) < F::cast(3) * self.perplexity() {
             return Err(TSneError::PerplexityTooLarge);
         }
 
-        Ok(())
-    }
-}
-
-impl<F: Float, R: Rng + Clone> Transformer<Array2<F>, Result<Array2<F>>> for TSne<F, R> {
-    fn transform(&self, mut data: Array2<F>) -> Result<Array2<F>> {
-        let (nfeatures, nsamples) = (data.ncols(), data.nrows());
-        self.validate(nfeatures, nsamples)?;
-
-        let preliminary_iter = match self.preliminary_iter {
-            Some(x) => x,
-            None => usize::min(self.max_iter / 2, 250),
+        // estimate number of preliminary iterations if not given
+        let preliminary_iter = match self.preliminary_iter() {
+            Some(x) => *x,
+            None => usize::min(self.max_iter() / 2, 250),
         };
 
         let mut data = data.as_slice_mut().unwrap();
 
-        let mut rng = self.rng.clone();
+        let mut rng = self.rng().clone();
         let normal = Normal::new(0.0, 1e-4 * 10e-4).unwrap();
 
-        let mut embedding: Vec<F> = (0..nsamples * self.embedding_size)
+        let mut embedding: Vec<F> = (0..nsamples * self.embedding_size())
             .map(|_| rng.sample(&normal))
             .map(F::cast)
             .collect();
@@ -159,21 +46,28 @@ impl<F: Float, R: Rng + Clone> Transformer<Array2<F>, Result<Array2<F>>> for TSn
             nsamples,
             nfeatures,
             &mut embedding,
-            self.embedding_size,
-            self.perplexity,
-            self.approx_threshold,
+            self.embedding_size(),
+            self.perplexity(),
+            self.approx_threshold(),
             true,
-            self.max_iter as u64,
+            self.max_iter() as u64,
             preliminary_iter as u64,
             preliminary_iter as u64,
         );
 
-        Array2::from_shape_vec((nsamples, self.embedding_size), embedding).map_err(|e| e.into())
+        Array2::from_shape_vec((nsamples, self.embedding_size()), embedding).map_err(|e| e.into())
+    }
+}
+
+impl<F: Float, R: Rng + Clone> Transformer<Array2<F>, Result<Array2<F>>> for TSneParams<F, R> {
+    fn transform(&self, x: Array2<F>) -> Result<Array2<F>> {
+        self.check_ref()?.transform(x)
     }
 }
 
 impl<T, F: Float, R: Rng + Clone>
-    Transformer<DatasetBase<Array2<F>, T>, Result<DatasetBase<Array2<F>, T>>> for TSne<F, R>
+    Transformer<DatasetBase<Array2<F>, T>, Result<DatasetBase<Array2<F>, T>>>
+    for TSneValidParams<F, R>
 {
     fn transform(&self, ds: DatasetBase<Array2<F>, T>) -> Result<DatasetBase<Array2<F>, T>> {
         let DatasetBase {
@@ -188,12 +82,21 @@ impl<T, F: Float, R: Rng + Clone>
     }
 }
 
+impl<T, F: Float, R: Rng + Clone>
+    Transformer<DatasetBase<Array2<F>, T>, Result<DatasetBase<Array2<F>, T>>> for TSneParams<F, R>
+{
+    fn transform(&self, ds: DatasetBase<Array2<F>, T>) -> Result<DatasetBase<Array2<F>, T>> {
+        self.check_ref()?.transform(ds)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
     use ndarray::{Array, Array1, Axis};
     use ndarray_rand::{rand_distr::Normal, RandomExt};
+    use rand::{rngs::SmallRng, SeedableRng};
 
     use linfa::{dataset::Dataset, metrics::SilhouetteScore};
 
@@ -202,7 +105,7 @@ mod tests {
         let ds = linfa_datasets::iris();
         let rng = SmallRng::seed_from_u64(42);
 
-        let ds = TSne::embedding_size_with_rng(2, rng)
+        let ds = TSneParams::embedding_size_with_rng(2, rng)
             .perplexity(10.0)
             .approx_threshold(0.0)
             .transform(ds)?;
@@ -226,7 +129,7 @@ mod tests {
         let targets = (0..200).map(|x| x < 100).collect::<Array1<_>>();
         let dataset = Dataset::new(entries, targets);
 
-        let ds = TSne::embedding_size_with_rng(2, rng)
+        let ds = TSneParams::embedding_size_with_rng(2, rng)
             .perplexity(60.0)
             .approx_threshold(0.0)
             .transform(dataset)?;
@@ -241,7 +144,7 @@ mod tests {
     fn perplexity_panic() {
         let ds = linfa_datasets::iris();
 
-        TSne::embedding_size(2)
+        TSneParams::embedding_size(2)
             .perplexity(-10.0)
             .transform(ds)
             .unwrap();
@@ -252,7 +155,7 @@ mod tests {
     fn approx_threshold_panic() {
         let ds = linfa_datasets::iris();
 
-        TSne::embedding_size(2)
+        TSneParams::embedding_size(2)
             .approx_threshold(-10.0)
             .transform(ds)
             .unwrap();
@@ -262,6 +165,6 @@ mod tests {
     fn embedding_size_panic() {
         let ds = linfa_datasets::iris();
 
-        TSne::embedding_size(5).transform(ds).unwrap();
+        TSneParams::embedding_size(5).transform(ds).unwrap();
     }
 }

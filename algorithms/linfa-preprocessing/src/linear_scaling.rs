@@ -1,6 +1,6 @@
 //! Linear Scaling methods
 
-use crate::error::{Error, Result};
+use crate::error::{PreprocessingError, Result};
 use approx::abs_diff_eq;
 use linfa::dataset::{AsTargets, DatasetBase, Float, WithLapack};
 use linfa::traits::{Fit, Transformer};
@@ -19,135 +19,25 @@ pub enum ScalingMethod<F: Float> {
     MaxAbs,
 }
 
-impl<F: Float> std::fmt::Display for ScalingMethod<F> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<F: Float> ScalingMethod<F> {
+    pub(crate) fn fit<D: Data<Elem = F>>(
+        &self,
+        records: &ArrayBase<D, Ix2>,
+    ) -> Result<LinearScaler<F>> {
         match self {
-            ScalingMethod::Standard(with_mean, with_std) => write!(
-                f,
-                "Standard scaler (with_mean = {}, with_std = {})",
-                with_mean, with_std
-            ),
-            ScalingMethod::MinMax(min, max) => {
-                write!(f, "Min-Max scaler (min = {}, max = {})", min, max)
-            }
-            ScalingMethod::MaxAbs => write!(f, "MaxAbs scaler"),
-        }
-    }
-}
-
-/// Linear Scaler: learns scaling parameters, according to the specified [method](enum.ScalingMethod.html), from a dataset, producing a [fitted linear scaler](struct.FittedLinearScaler.html)
-/// that can be used to scale different datasets using the same parameters.
-///
-///
-/// ### Example
-///
-/// ```rust
-/// use linfa::traits::{Fit, Transformer};
-/// use linfa_preprocessing::linear_scaling::LinearScaler;
-///
-/// // Load dataset
-/// let dataset = linfa_datasets::diabetes();
-/// // Learn scaling parameters
-/// let scaler = LinearScaler::standard().fit(&dataset).unwrap();
-/// // scale dataset according to parameters
-/// let dataset = scaler.transform(dataset);
-/// ```
-pub struct LinearScaler<F: Float> {
-    method: ScalingMethod<F>,
-}
-
-impl<F: Float> LinearScaler<F> {
-    /// Initializes the scaler with the specified method.
-    pub fn new(method: ScalingMethod<F>) -> Self {
-        Self { method }
-    }
-
-    /// Setter for the scaler method
-    pub fn method(mut self, method: ScalingMethod<F>) -> Self {
-        self.method = method;
-        self
-    }
-
-    /// Initializes a Standard scaler
-    pub fn standard() -> Self {
-        Self {
-            method: ScalingMethod::Standard(true, true),
+            ScalingMethod::Standard(a, b) => Self::standardize(records, *a, *b),
+            ScalingMethod::MinMax(a, b) => Self::min_max(records, *a, *b),
+            ScalingMethod::MaxAbs => Self::max_abs(records),
         }
     }
 
-    /// Initializes a Standard scaler that does not subract the mean to the features
-    pub fn standard_no_mean() -> Self {
-        Self {
-            method: ScalingMethod::Standard(false, true),
-        }
-    }
-
-    /// Initializes a Stadard scaler that does not scale the features by the inverse of the standard deviation
-    pub fn standard_no_std() -> Self {
-        Self {
-            method: ScalingMethod::Standard(true, false),
-        }
-    }
-
-    /// Initializes a MinMax scaler with range [0,1]
-    pub fn min_max() -> Self {
-        Self {
-            method: ScalingMethod::MinMax(F::zero(), F::one()),
-        }
-    }
-
-    /// Initializes a MinMax scaler with the specified minimum and maximum values for the range.
-    ///
-    /// If `min` is bigger than `max` then fitting will return an error on any input.
-    pub fn min_max_range(min: F, max: F) -> Self {
-        Self {
-            method: ScalingMethod::MinMax(min, max),
-        }
-    }
-
-    /// Initializes a MaxAbs scaler
-    pub fn max_abs() -> Self {
-        Self {
-            method: ScalingMethod::MaxAbs,
-        }
-    }
-}
-
-impl<F: Float, D: Data<Elem = F>, T: AsTargets> Fit<ArrayBase<D, Ix2>, T, Error>
-    for LinearScaler<F>
-{
-    type Object = FittedLinearScaler<F>;
-
-    /// Fits the input dataset accordng to the scaler [method](enum.ScalingMethod.html). Will return an error
-    /// if the dataset does not contain any samples or (in the case of MinMax scaling) if the specified range is not valid.
-    fn fit(&self, x: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
-        match &self.method {
-            ScalingMethod::Standard(with_mean, with_std) => {
-                FittedLinearScaler::standard(x.records(), *with_mean, *with_std)
-            }
-            ScalingMethod::MinMax(min, max) => FittedLinearScaler::min_max(x.records(), *min, *max),
-            ScalingMethod::MaxAbs => FittedLinearScaler::max_abs(x.records()),
-        }
-    }
-}
-
-#[derive(Debug)]
-/// The result of fitting a [linear scaler](struct.LinearScaler.html).
-/// Scales datasets with the parameters learned during fitting.
-pub struct FittedLinearScaler<F: Float> {
-    offsets: Array1<F>,
-    scales: Array1<F>,
-    method: ScalingMethod<F>,
-}
-
-impl<F: Float> FittedLinearScaler<F> {
-    pub(crate) fn standard<D: Data<Elem = F>>(
+    fn standardize<D: Data<Elem = F>>(
         records: &ArrayBase<D, Ix2>,
         with_mean: bool,
         with_std: bool,
-    ) -> Result<Self> {
+    ) -> Result<LinearScaler<F>> {
         if records.dim().0 == 0 {
-            return Err(Error::NotEnoughSamples);
+            return Err(PreprocessingError::NotEnoughSamples);
         }
         // safe unwrap because of above zero records check
         let means = records.mean_axis(Axis(0)).unwrap();
@@ -163,24 +53,24 @@ impl<F: Float> FittedLinearScaler<F> {
         } else {
             Array1::ones(records.dim().1)
         };
-        Ok(Self {
+        Ok(LinearScaler {
             offsets: means,
             scales: std_devs,
             method: ScalingMethod::Standard(with_mean, with_std),
         })
     }
 
-    pub(crate) fn min_max<D: Data<Elem = F>>(
+    fn min_max<D: Data<Elem = F>>(
         records: &ArrayBase<D, Ix2>,
         min: F,
         max: F,
-    ) -> Result<Self> {
+    ) -> Result<LinearScaler<F>> {
         if records.dim().0 == 0 {
-            return Err(Error::NotEnoughSamples);
+            return Err(PreprocessingError::NotEnoughSamples);
+        } else if min > max {
+            return Err(PreprocessingError::FlippedMinMaxRange);
         }
-        if min > max {
-            return Err(Error::FlippedMinMaxRange);
-        }
+
         let mins = records.fold_axis(
             Axis(0),
             F::infinity(),
@@ -200,16 +90,16 @@ impl<F: Float> FittedLinearScaler<F> {
                 *max = F::one() / (*max - *min);
             }
         });
-        Ok(Self {
+        Ok(LinearScaler {
             offsets: mins,
             scales,
             method: ScalingMethod::MinMax(min, max),
         })
     }
 
-    pub(crate) fn max_abs<D: Data<Elem = F>>(records: &ArrayBase<D, Ix2>) -> Result<Self> {
+    fn max_abs<D: Data<Elem = F>>(records: &ArrayBase<D, Ix2>) -> Result<LinearScaler<F>> {
         if records.dim().0 == 0 {
-            return Err(Error::NotEnoughSamples);
+            return Err(PreprocessingError::NotEnoughSamples);
         }
         let scales: Array1<F> = records.map_axis(Axis(0), |col| {
             let norm_max = F::cast(col.with_lapack().norm_max());
@@ -222,13 +112,132 @@ impl<F: Float> FittedLinearScaler<F> {
         });
 
         let offsets = Array1::zeros(records.dim().1);
-        Ok(Self {
+        Ok(LinearScaler {
             offsets,
             scales,
             method: ScalingMethod::MaxAbs,
         })
     }
+}
 
+impl<F: Float> std::fmt::Display for ScalingMethod<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ScalingMethod::Standard(with_mean, with_std) => write!(
+                f,
+                "Standard scaler (with_mean = {}, with_std = {})",
+                with_mean, with_std
+            ),
+            ScalingMethod::MinMax(min, max) => {
+                write!(f, "Min-Max scaler (min = {}, max = {})", min, max)
+            }
+            ScalingMethod::MaxAbs => write!(f, "MaxAbs scaler"),
+        }
+    }
+}
+
+/// Linear Scaler: learns scaling parameters, according to the specified [method](enum.ScalingMethod.html), from a dataset, producing a [fitted linear scaler](struct.LinearScaler.html)
+/// that can be used to scale different datasets using the same parameters.
+///
+///
+/// ### Example
+///
+/// ```rust
+/// use linfa::traits::{Fit, Transformer};
+/// use linfa_preprocessing::linear_scaling::LinearScaler;
+///
+/// // Load dataset
+/// let dataset = linfa_datasets::diabetes();
+/// // Learn scaling parameters
+/// let scaler = LinearScaler::standard().fit(&dataset).unwrap();
+/// // scale dataset according to parameters
+/// let dataset = scaler.transform(dataset);
+/// ```
+pub struct LinearScalerParams<F: Float> {
+    method: ScalingMethod<F>,
+}
+
+impl<F: Float> LinearScalerParams<F> {
+    /// Initializes the scaler with the specified method.
+    pub fn new(method: ScalingMethod<F>) -> Self {
+        Self { method }
+    }
+
+    /// Setter for the scaler method
+    pub fn method(mut self, method: ScalingMethod<F>) -> Self {
+        self.method = method;
+        self
+    }
+}
+
+impl<F: Float> LinearScaler<F> {
+    /// Initializes a Standard scaler
+    pub fn standard() -> LinearScalerParams<F> {
+        LinearScalerParams {
+            method: ScalingMethod::Standard(true, true),
+        }
+    }
+
+    /// Initializes a Standard scaler that does not subract the mean to the features
+    pub fn standard_no_mean() -> LinearScalerParams<F> {
+        LinearScalerParams {
+            method: ScalingMethod::Standard(false, true),
+        }
+    }
+
+    /// Initializes a Stadard scaler that does not scale the features by the inverse of the standard deviation
+    pub fn standard_no_std() -> LinearScalerParams<F> {
+        LinearScalerParams {
+            method: ScalingMethod::Standard(true, false),
+        }
+    }
+
+    /// Initializes a MinMax scaler with range [0,1]
+    pub fn min_max() -> LinearScalerParams<F> {
+        LinearScalerParams {
+            method: ScalingMethod::MinMax(F::zero(), F::one()),
+        }
+    }
+
+    /// Initializes a MinMax scaler with the specified minimum and maximum values for the range.
+    ///
+    /// If `min` is bigger than `max` then fitting will return an error on any input.
+    pub fn min_max_range(min: F, max: F) -> LinearScalerParams<F> {
+        LinearScalerParams {
+            method: ScalingMethod::MinMax(min, max),
+        }
+    }
+
+    /// Initializes a MaxAbs scaler
+    pub fn max_abs() -> LinearScalerParams<F> {
+        LinearScalerParams {
+            method: ScalingMethod::MaxAbs,
+        }
+    }
+}
+
+impl<F: Float, D: Data<Elem = F>, T: AsTargets> Fit<ArrayBase<D, Ix2>, T, PreprocessingError>
+    for LinearScalerParams<F>
+{
+    type Object = LinearScaler<F>;
+
+    /// Fits the input dataset accordng to the scaler [method](enum.ScalingMethod.html). Will return an error
+    /// if the dataset does not contain any samples or (in the case of MinMax scaling) if the specified range is not valid.
+    fn fit(&self, x: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
+        self.method.fit(x.records())
+    }
+}
+
+#[derive(Debug)]
+/// The result of fitting a [linear scaler](struct.LinearScalerParams.html).
+/// Scales datasets with the parameters learned during fitting.
+pub struct LinearScaler<F: Float> {
+    offsets: Array1<F>,
+    scales: Array1<F>,
+    method: ScalingMethod<F>,
+}
+
+impl<F: Float> LinearScaler<F> {
     /// Array of size `n_features` that contains the offset that will be subtracted to each feature
     pub fn offsets(&self) -> &Array1<F> {
         &self.offsets
@@ -245,7 +254,7 @@ impl<F: Float> FittedLinearScaler<F> {
     }
 }
 
-impl<F: Float> Transformer<Array2<F>, Array2<F>> for FittedLinearScaler<F> {
+impl<F: Float> Transformer<Array2<F>, Array2<F>> for LinearScaler<F> {
     /// Scales an array of size (nsamples, nfeatures) according to the scaler's `offsets` and `scales`.
     /// Panics if the shape of the input array is not compatible with the shape of the dataset used for fitting.
     fn transform(&self, x: Array2<F>) -> Array2<F> {
@@ -271,8 +280,7 @@ impl<F: Float> Transformer<Array2<F>, Array2<F>> for FittedLinearScaler<F> {
 }
 
 impl<F: Float, D: Data<Elem = F>, T: AsTargets>
-    Transformer<DatasetBase<ArrayBase<D, Ix2>, T>, DatasetBase<Array2<F>, T>>
-    for FittedLinearScaler<F>
+    Transformer<DatasetBase<ArrayBase<D, Ix2>, T>, DatasetBase<Array2<F>, T>> for LinearScaler<F>
 {
     /// Substitutes the records of the dataset with their scaled version.
     /// Panics if the shape of the records is not compatible with the shape of the dataset used for fitting.
@@ -288,8 +296,7 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets>
 
 #[cfg(test)]
 mod tests {
-
-    use crate::linear_scaling::LinearScaler;
+    use crate::linear_scaling::{LinearScaler, LinearScalerParams};
     use approx::assert_abs_diff_eq;
     use linfa::dataset::DatasetBase;
     use linfa::traits::{Fit, Transformer};
@@ -358,7 +365,7 @@ mod tests {
     #[test]
     fn test_standard_scaler_no_both() {
         let dataset = array![[1., -1., 2.], [2., 0., 0.], [0., 1., -1.]].into();
-        let scaler = LinearScaler::new(ScalingMethod::Standard(false, false))
+        let scaler = LinearScalerParams::new(ScalingMethod::Standard(false, false))
             .fit(&dataset)
             .unwrap();
 

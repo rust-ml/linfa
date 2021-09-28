@@ -1,6 +1,5 @@
-use linfa::traits::Fit;
-use linfa::traits::Transformer;
-use linfa_preprocessing::linear_scaling::LinearScaler;
+use linfa::traits::{Fit, Transformer};
+use linfa_preprocessing::linear_scaling::{LinearScaler, LinearScalerParams};
 use ndarray::Array2;
 use ndarray_rand::{
     rand::distributions::Uniform, rand::rngs::SmallRng, rand::SeedableRng, RandomExt,
@@ -28,7 +27,7 @@ fn iai_max_abs_scaler_bench() {
 }
 
 fn fit_transform_scaler(
-    scaler: LinearScaler<f64>,
+    scaler: LinearScalerParams<f64>,
     rng: &mut SmallRng,
     size: usize,
     nfeatures: usize,

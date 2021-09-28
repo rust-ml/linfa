@@ -1,9 +1,9 @@
 //! Error definitions for preprocessing
 use thiserror::Error;
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T> = std::result::Result<T, PreprocessingError>;
 
 #[derive(Error, Debug)]
-pub enum Error {
+pub enum PreprocessingError {
     #[error("wrong measure ({0}) for scaler: {1}")]
     WrongMeasureForScaler(String, String),
     #[error("subsamples greater than total samples: {0} > {1}")]

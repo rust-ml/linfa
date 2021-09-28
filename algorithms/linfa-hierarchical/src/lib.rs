@@ -23,19 +23,25 @@ use std::collections::HashMap;
 use kodama::linkage;
 pub use kodama::Method;
 
-use linfa::dataset::DatasetBase;
+use linfa::param_guard::TransformGuard;
 use linfa::traits::Transformer;
 use linfa::Float;
+use linfa::{dataset::DatasetBase, ParamGuard};
 use linfa_kernel::Kernel;
+
+pub use error::{HierarchicalError, Result};
+
+mod error;
 
 /// Criterion when to stop merging
 ///
 /// The criterion defines at which point the merging process should stop. This can be either, when
 /// a certain number of clusters is reached, or the distance becomes larger than a maximal
 /// distance.
-enum Criterion<T> {
+#[derive(Clone, Debug)]
+pub enum Criterion<F: Float> {
     NumClusters(usize),
-    Distance(T),
+    Distance(F),
 }
 
 /// Agglomerative hierarchical clustering
@@ -43,16 +49,42 @@ enum Criterion<T> {
 /// In this clustering algorithm, each point is first considered as a separate cluster. During each
 /// step, two points are merged into new clusters, until a stopping criterion is reached. The distance
 /// between the points is computed as the negative-log transform of the similarity kernel.
-pub struct HierarchicalCluster<T> {
+#[derive(Default)]
+pub struct HierarchicalCluster<T: Float>(ValidHierarchicalCluster<T>);
+
+/// Checked version of [`HierarchicalCluster`](`HierarchicalCluster`)
+pub struct ValidHierarchicalCluster<T: Float> {
     method: Method,
     stopping: Criterion<T>,
 }
 
+impl<F: Float> ParamGuard for HierarchicalCluster<F> {
+    type Checked = ValidHierarchicalCluster<F>;
+    type Error = HierarchicalError<F>;
+
+    fn check_ref(&self) -> std::result::Result<&Self::Checked, Self::Error> {
+        match self.0.stopping {
+            Criterion::NumClusters(x) if x == 0 => Err(
+                HierarchicalError::InvalidStoppingCondition(self.0.stopping.clone()),
+            ),
+            Criterion::Distance(x) if x.is_negative() || x.is_nan() || x.is_infinite() => Err(
+                HierarchicalError::InvalidStoppingCondition(self.0.stopping.clone()),
+            ),
+            _ => Ok(&self.0),
+        }
+    }
+
+    fn check(self) -> std::result::Result<Self::Checked, Self::Error> {
+        self.check_ref()?;
+        Ok(self.0)
+    }
+}
+impl<F: Float> TransformGuard for HierarchicalCluster<F> {}
+
 impl<F: Float> HierarchicalCluster<F> {
     /// Select a merging method
     pub fn with_method(mut self, method: Method) -> HierarchicalCluster<F> {
-        self.method = method;
-
+        self.0.method = method;
         self
     }
 
@@ -61,8 +93,7 @@ impl<F: Float> HierarchicalCluster<F> {
     /// In the fitting process points are merged until a certain criterion is reached. With this
     /// option the merging process will stop, when the number of clusters drops below this value.
     pub fn num_clusters(mut self, num_clusters: usize) -> HierarchicalCluster<F> {
-        self.stopping = Criterion::NumClusters(num_clusters);
-
+        self.0.stopping = Criterion::NumClusters(num_clusters);
         self
     }
 
@@ -71,14 +102,13 @@ impl<F: Float> HierarchicalCluster<F> {
     /// In the fitting process points are merged until a certain criterion is reached. With this
     /// option the merging process will stop, then the distance exceeds this value.
     pub fn max_distance(mut self, max_distance: F) -> HierarchicalCluster<F> {
-        self.stopping = Criterion::Distance(max_distance);
-
+        self.0.stopping = Criterion::Distance(max_distance);
         self
     }
 }
 
 impl<F: Float> Transformer<Kernel<F>, DatasetBase<Kernel<F>, Vec<usize>>>
-    for HierarchicalCluster<F>
+    for ValidHierarchicalCluster<F>
 {
     /// Perform hierarchical clustering of a similarity matrix
     ///
@@ -150,22 +180,21 @@ impl<F: Float> Transformer<Kernel<F>, DatasetBase<Kernel<F>, Vec<usize>>>
 }
 
 impl<F: Float, T> Transformer<DatasetBase<Kernel<F>, T>, DatasetBase<Kernel<F>, Vec<usize>>>
-    for HierarchicalCluster<F>
+    for ValidHierarchicalCluster<F>
 {
     /// Perform hierarchical clustering of a similarity matrix
     ///
     /// Returns the class id for each data point
     fn transform(&self, dataset: DatasetBase<Kernel<F>, T>) -> DatasetBase<Kernel<F>, Vec<usize>> {
-        //let Dataset { records, .. } = dataset;
         self.transform(dataset.records)
     }
 }
 
 /// Initialize hierarchical clustering, which averages in-cluster points and stops when two
 /// clusters are reached.
-impl<T> Default for HierarchicalCluster<T> {
-    fn default() -> HierarchicalCluster<T> {
-        HierarchicalCluster {
+impl<T: Float> Default for ValidHierarchicalCluster<T> {
+    fn default() -> Self {
+        Self {
             method: Method::Average,
             stopping: Criterion::NumClusters(2),
         }
@@ -201,7 +230,8 @@ mod tests {
 
         let kernel = HierarchicalCluster::default()
             .max_distance(0.1)
-            .transform(kernel);
+            .transform(kernel)
+            .unwrap();
 
         // check that all assigned ids are equal for the first cluster
         let ids = kernel.targets();
@@ -224,7 +254,8 @@ mod tests {
         // perform hierarchical clustering until we have two clusters left
         let kernel = HierarchicalCluster::default()
             .num_clusters(2)
-            .transform(kernel);
+            .transform(kernel)
+            .unwrap();
 
         // check that all assigned ids are equal for the first cluster
         let ids = kernel.targets();
@@ -254,11 +285,10 @@ mod tests {
             .method(KernelMethod::Linear)
             .transform(data.view());
 
-        dbg!(&kernel.to_upper_triangle());
         let predictions = HierarchicalCluster::default()
-            //.num_clusters(3)
             .max_distance(3.0)
-            .transform(kernel);
+            .transform(kernel)
+            .unwrap();
 
         dbg!(&predictions.targets());
     }

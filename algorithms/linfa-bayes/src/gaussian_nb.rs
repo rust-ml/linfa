@@ -2,87 +2,27 @@ use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, 
 use ndarray_stats::QuantileExt;
 use std::collections::HashMap;
 
-use crate::error::{BayesError, Result};
+use crate::error::{NaiveBayesError, Result};
+use crate::hyperparams::{GaussianNbParams, GaussianNbValidParams};
 use linfa::dataset::{AsTargets, DatasetBase, Labels};
-use linfa::traits::{Fit, IncrementalFit, PredictInplace};
-use linfa::Float;
+use linfa::traits::{Fit, FitWith, PredictInplace};
+use linfa::{Float, Label};
 
-/// Gaussian Naive Bayes (GaussianNB)
-///
-/// The Gaussian Naive Bayes is a classification algorithm where the likelihood
-/// of the feature P(x_i | y) is assumed to be Gaussian, features are assumed to
-/// be independent, and the mean and variance are estimated using maximum likelihood.
-#[derive(Debug)]
-pub struct GaussianNbParams {
-    // Required for calculation stability
-    var_smoothing: f64,
-}
-
-impl Default for GaussianNbParams {
-    fn default() -> Self {
-        Self::params()
-    }
-}
-
-impl GaussianNbParams {
-    /// Create new GaussianNB model with default values for its parameters
-    pub fn params() -> Self {
-        GaussianNbParams {
-            var_smoothing: 1e-9,
-        }
-    }
-
-    /// Specifies the portion of the largest variance of all the features that
-    /// is added to the variance for calculation stability
-    pub fn var_smoothing(mut self, var_smoothing: f64) -> Self {
-        self.var_smoothing = var_smoothing;
-        self
-    }
-}
-
-impl<F, D, L> Fit<ArrayBase<D, Ix2>, L, BayesError> for GaussianNbParams
+impl<F, L, D, T> Fit<ArrayBase<D, Ix2>, T, NaiveBayesError> for GaussianNbValidParams<F, L>
 where
     F: Float,
+    L: Label + Ord,
     D: Data<Elem = F>,
-    L: AsTargets<Elem = usize> + Labels<Elem = usize>,
+    T: AsTargets<Elem = L> + Labels<Elem = L>,
 {
-    type Object = GaussianNb<F>;
+    type Object = GaussianNb<F, L>;
 
-    /// Fit the model
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # use ndarray::array;
-    /// # use linfa::{Dataset, dataset::AsTargets};
-    /// # use linfa_bayes::{GaussianNbParams, Result};
-    /// # use linfa::traits::{Fit, Predict};
-    /// # use approx::assert_abs_diff_eq;
-    /// # fn main() -> Result<()> {
-    /// let x = array![
-    ///     [-2., -1.],
-    ///     [-1., -1.],
-    ///     [-1., -2.],
-    ///     [1., 1.],
-    ///     [1., 2.],
-    ///     [2., 1.]
-    /// ];
-    /// let y = array![1, 1, 1, 2, 2, 2];
-    ///
-    /// let data = Dataset::new(x, y);
-    /// let model = GaussianNbParams::params().fit(&data)?;
-    /// let pred = model.predict(&data);
-    ///
-    /// assert_abs_diff_eq!(pred, data.try_single_target()?);
-    /// # Ok(())
-    /// # }
-    /// ```
-    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, L>) -> Result<Self::Object> {
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
         // We extract the unique classes in sorted order
         let mut unique_classes = dataset.targets.labels();
         unique_classes.sort_unstable();
 
-        let mut model: Option<GaussianNb<_>> = None;
+        let mut model: Option<GaussianNb<_, _>> = None;
 
         // We train the model
         model = self.fit_with(model, dataset)?;
@@ -91,56 +31,21 @@ where
     }
 }
 
-impl<F, D, L> IncrementalFit<'_, ArrayBase<D, Ix2>, L, BayesError> for GaussianNbParams
+impl<'a, F, L, D, T> FitWith<'a, ArrayBase<D, Ix2>, T, NaiveBayesError>
+    for GaussianNbValidParams<F, L>
 where
     F: Float,
+    L: Label + 'a,
     D: Data<Elem = F>,
-    L: AsTargets<Elem = usize> + Labels<Elem = usize>,
+    T: AsTargets<Elem = L> + Labels<Elem = L>,
 {
-    type ObjectIn = Option<GaussianNb<F>>;
-    type ObjectOut = Option<GaussianNb<F>>;
+    type ObjectIn = Option<GaussianNb<F, L>>;
+    type ObjectOut = Option<GaussianNb<F, L>>;
 
-    /// Incrementally fit on a batch of samples
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # use ndarray::{array, Axis};
-    /// # use linfa::DatasetView;
-    /// # use linfa_bayes::{GaussianNbParams, Result};
-    /// # use linfa::traits::{Predict, IncrementalFit};
-    /// # use approx::assert_abs_diff_eq;
-    /// # fn main() -> Result<()> {
-    /// let x = array![
-    ///     [-2., -1.],
-    ///     [-1., -1.],
-    ///     [-1., -2.],
-    ///     [1., 1.],
-    ///     [1., 2.],
-    ///     [2., 1.]
-    /// ];
-    /// let y = array![1, 1, 1, 2, 2, 2];
-    ///
-    /// let mut clf = GaussianNbParams::params();
-    /// let mut model = None;
-    ///
-    /// for (x, y) in x
-    ///     .axis_chunks_iter(Axis(0), 2)
-    ///     .zip(y.axis_chunks_iter(Axis(0), 2))
-    /// {
-    ///     model = clf.fit_with(model, &DatasetView::new(x, y))?;
-    /// }
-    ///
-    /// let pred = model.as_ref().unwrap().predict(&x);
-    ///
-    /// assert_abs_diff_eq!(pred, y);
-    /// # Ok(())
-    /// # }
-    /// ```
     fn fit_with(
         &self,
         model_in: Self::ObjectIn,
-        dataset: &DatasetBase<ArrayBase<D, Ix2>, L>,
+        dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
     ) -> Result<Self::ObjectOut> {
         let x = dataset.records();
         let y = dataset.try_single_target()?;
@@ -148,7 +53,7 @@ where
         // If the ratio of the variance between dimensions is too small, it will cause
         // numerical errors. We address this by artificially boosting the variance
         // by `epsilon` (a small fraction of the variance of the largest feature)
-        let epsilon = F::cast(self.var_smoothing) * *x.var_axis(Axis(0), F::zero()).max()?;
+        let epsilon = self.var_smoothing() * *x.var_axis(Axis(0), F::zero()).max()?;
 
         let mut model = match model_in {
             Some(mut temp) => {
@@ -162,26 +67,23 @@ where
             },
         };
 
-        let yunique = y.labels();
+        //let yunique = y.labels();
+        let yunique = dataset.labels();
 
-        for class in yunique.iter() {
-            // We filter x for records that correspond to the current class
-            let xclass = Self::filter(&x.view(), y.as_slice().unwrap(), *class);
+        for class in yunique {
+            // We filter for records that correspond to the current class
+            let xclass = Self::filter(x.view(), y.view(), &class);
 
-            // We count the number of occurances of the class
+            // We count the number of occurences of the class
             let nclass = xclass.nrows();
 
             // We compute the update of the gaussian mean and variance
             let mut class_info = model
                 .class_info
-                .entry(*class)
+                .entry(class)
                 .or_insert_with(ClassInfo::default);
-            let (theta_new, sigma_new) = Self::update_mean_variance(
-                class_info.class_count,
-                &class_info.theta.view(),
-                &class_info.sigma.view(),
-                &xclass,
-            );
+
+            let (theta_new, sigma_new) = Self::update_mean_variance(class_info, xclass.view());
 
             // We now update the mean, variance and class count
             class_info.theta = theta_new;
@@ -200,7 +102,9 @@ where
         let class_count_sum = model
             .class_info
             .values()
-            .fold(0, |acc, x| acc + x.class_count);
+            .map(|x| x.class_count)
+            .sum::<usize>();
+
         for info in model.class_info.values_mut() {
             info.prior = F::cast(info.class_count) / F::cast(class_count_sum);
         }
@@ -209,14 +113,15 @@ where
     }
 }
 
-impl GaussianNbParams {
+impl<F: Float, L: Label> GaussianNbValidParams<F, L> {
     // Compute online update of gaussian mean and variance
-    fn update_mean_variance<A: Float>(
-        count_old: usize,
-        mu_old: &ArrayView1<A>,
-        var_old: &ArrayView1<A>,
-        x_new: &Array2<A>,
-    ) -> (Array1<A>, Array1<A>) {
+    fn update_mean_variance(
+        info_old: &ClassInfo<F>,
+        x_new: ArrayView2<F>,
+    ) -> (Array1<F>, Array1<F>) {
+        // deconstruct old state
+        let (count_old, mu_old, var_old) = (info_old.class_count, &info_old.theta, &info_old.sigma);
+
         // If incoming data is empty no updates required
         if x_new.nrows() == 0 {
             return (mu_old.to_owned(), var_old.to_owned());
@@ -225,10 +130,9 @@ impl GaussianNbParams {
         let count_new = x_new.nrows();
 
         // unwrap is safe because None is returned only when number of records
-        // along the specified axis is 0, we return early if we have o rows
+        // along the specified axis is 0, we return early if we have 0 rows
         let mu_new = x_new.mean_axis(Axis(0)).unwrap();
-
-        let var_new = x_new.var_axis(Axis(0), A::zero());
+        let var_new = x_new.var_axis(Axis(0), F::zero());
 
         // If previous batch was empty, we send the new mean and variance calculated
         if count_old == 0 {
@@ -239,71 +143,95 @@ impl GaussianNbParams {
 
         // Combine old and new mean, taking into consideration the number
         // of observations
-        let mu_new_weighted = &mu_new * A::from(count_new).unwrap();
-        let mu_old_weighted = mu_old * A::from(count_old).unwrap();
-        let mu_weighted =
-            (mu_new_weighted + mu_old_weighted).mapv(|x| x / A::from(count_total).unwrap());
+        let mu_new_weighted = &mu_new * F::cast(count_new);
+        let mu_old_weighted = mu_old * F::cast(count_old);
+        let mu_weighted = (mu_new_weighted + mu_old_weighted).mapv(|x| x / F::cast(count_total));
 
         // Combine old and new variance, taking into consideration the number
         // of observations. this is achieved by combining the sum of squared
         // differences
-        let ssd_old = var_old * A::from(count_old).unwrap();
-        let ssd_new = var_new * A::from(count_new).unwrap();
-        let weight = A::from(count_new * count_old).unwrap() / A::from(count_total).unwrap();
-        let ssd_weighted = ssd_old + ssd_new + (mu_old - &mu_new).mapv(|x| weight * x.powi(2));
-        let var_weighted = ssd_weighted.mapv(|x| x / A::from(count_total).unwrap());
+        let ssd_old = var_old * F::cast(count_old);
+        let ssd_new = var_new * F::cast(count_new);
+        let weight = F::cast(count_new * count_old) / F::cast(count_total);
+        let ssd_weighted = ssd_old + ssd_new + (mu_old - mu_new).mapv(|x| weight * x.powi(2));
+        let var_weighted = ssd_weighted.mapv(|x| x / F::cast(count_total));
 
         (mu_weighted, var_weighted)
     }
 
     // Returns a subset of x corresponding to the class specified by `ycondition`
-    fn filter<A: Float>(x: &ArrayView2<A>, y: &[usize], ycondition: usize) -> Array2<A> {
+    fn filter(x: ArrayView2<F>, y: ArrayView1<L>, ycondition: &L) -> Array2<F> {
         // We identify the row numbers corresponding to the class we are interested in
         let index = y
-            .iter()
+            .into_iter()
             .enumerate()
-            .filter_map(|(i, y)| {
-                if ycondition == *y {
-                    return Some(i);
-                }
-                None
+            .filter_map(|(i, y)| match *ycondition == *y {
+                true => Some(i),
+                false => None,
             })
             .collect::<Vec<_>>();
 
         // We subset x to only records corresponding to the class represented in `ycondition`
         let mut xsubset = Array2::zeros((index.len(), x.ncols()));
         index
-            .iter()
+            .into_iter()
             .enumerate()
-            .for_each(|(i, &r)| xsubset.row_mut(i).assign(&x.slice(s![r, ..])));
+            .for_each(|(i, r)| xsubset.row_mut(i).assign(&x.slice(s![r, ..])));
 
         xsubset
     }
 }
 
-/// Fitted GaussianNB for predicting classes
+/// Fitted Gaussian Naive Bayes classifier
+///
+/// See [GaussianNbParams] for more information on the hyper-parameters.
+///
+/// # Model assumptions
+///
+/// The family of naive bayes classifiers assume independence between variables. They do not model
+/// moments between variables and lack therefore in modelling capability. The advantage is a linear
+/// fitting time with maximum-likelihood training in a closed form.
+///
+/// # Model estimation
+///
+/// You can fit a single model from a dataset
+///
+/// ```rust, ignore
+/// use linfa::traits::Fit;
+/// let model = GaussianNb::params().fit(&ds)?;
+/// ```
+///
+/// or incrementally update a model
+///
+/// ```rust, ignore
+/// use linfa::traits::FitWith;
+/// let clf = GaussianNb::params();
+/// let model = datasets.iter()
+///     .try_fold(None, |prev_model, &ds| clf.fit_with(prev_model, ds))?
+///     .unwrap();
+/// ```
+///
+/// After fitting the model, you can use the [`Predict`](linfa::traits::Predict) variants to
+/// predict new targets.
+///
 #[derive(Debug, Clone)]
-pub struct GaussianNb<A> {
-    class_info: HashMap<usize, ClassInfo<A>>,
+pub struct GaussianNb<F, L> {
+    class_info: HashMap<L, ClassInfo<F>>,
 }
 
 #[derive(Debug, Default, Clone)]
-struct ClassInfo<A> {
+struct ClassInfo<F> {
     class_count: usize,
-    prior: A,
-    theta: Array1<A>,
-    sigma: Array1<A>,
+    prior: F,
+    theta: Array1<F>,
+    sigma: Array1<F>,
 }
 
-impl<F: Float, D> PredictInplace<ArrayBase<D, Ix2>, Array1<usize>> for GaussianNb<F>
+impl<F: Float, L: Label, D> PredictInplace<ArrayBase<D, Ix2>, Array1<L>> for GaussianNb<F, L>
 where
     D: Data<Elem = F>,
 {
-    /// Perform classification on incoming array
-    ///
-    /// __Panics__ if the input is empty or if pairwise orderings are undefined
-    /// (this occurs in presence of NaN values)
-    fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<usize>) {
+    fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<L>) {
         assert_eq!(
             x.nrows(),
             y.len(),
@@ -322,26 +250,31 @@ where
         joint_log_likelihood
             .iter()
             .enumerate()
-            .for_each(|(i, (&&key, value))| {
-                classes.push(key);
+            .for_each(|(i, (&key, value))| {
+                classes.push(key.clone());
                 likelihood.row_mut(i).assign(value);
             });
 
         // Identify the class with the maximum log likelihood
         *y = likelihood.map_axis(Axis(0), |x| {
             let i = x.argmax().unwrap();
-            *classes.get(i).unwrap()
+            classes[i].clone()
         });
     }
 
-    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<usize> {
-        Array1::zeros(x.nrows())
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<L> {
+        Array1::default(x.nrows())
     }
 }
 
-impl<A: Float> GaussianNb<A> {
+impl<F: Float, L: Label> GaussianNb<F, L> {
+    /// Construct a new set of hyperparameters
+    pub fn params() -> GaussianNbParams<F, L> {
+        GaussianNbParams::new()
+    }
+
     // Compute unnormalized posterior log probability
-    fn joint_log_likelihood(&self, x: ArrayView2<A>) -> HashMap<&usize, Array1<A>> {
+    fn joint_log_likelihood(&self, x: ArrayView2<F>) -> HashMap<&L, Array1<F>> {
         let mut joint_log_likelihood = HashMap::new();
 
         for (class, info) in self.class_info.iter() {
@@ -349,14 +282,14 @@ impl<A: Float> GaussianNb<A> {
 
             let mut nij = info
                 .sigma
-                .mapv(|x| A::from(2. * std::f64::consts::PI).unwrap() * x)
+                .mapv(|x| F::cast(2. * std::f64::consts::PI) * x)
                 .mapv(|x| x.ln())
                 .sum();
-            nij = A::from(-0.5).unwrap() * nij;
+            nij = F::cast(-0.5) * nij;
 
             let nij = ((x.to_owned() - &info.theta).mapv(|x| x.powi(2)) / &info.sigma)
                 .sum_axis(Axis(1))
-                .mapv(|x| x * A::from(0.5).unwrap())
+                .mapv(|x| x * F::cast(0.5))
                 .mapv(|x| nij - x);
 
             joint_log_likelihood.insert(class, nij + jointi);
@@ -368,10 +301,15 @@ impl<A: Float> GaussianNb<A> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{GaussianNb, Result};
+    use linfa::{
+        traits::{Fit, FitWith, Predict},
+        DatasetView,
+    };
+
     use approx::assert_abs_diff_eq;
-    use linfa::{traits::Predict, DatasetView};
-    use ndarray::array;
+    use ndarray::{array, Axis};
+    use std::collections::HashMap;
 
     #[test]
     fn test_gaussian_nb() -> Result<()> {
@@ -385,9 +323,8 @@ mod tests {
         ];
         let y = array![1, 1, 1, 2, 2, 2];
 
-        let clf = GaussianNbParams::params();
         let data = DatasetView::new(x.view(), y.view());
-        let fitted_clf = clf.fit(&data)?;
+        let fitted_clf = GaussianNb::params().fit(&data)?;
         let pred = fitted_clf.predict(&x);
 
         assert_abs_diff_eq!(pred, y);
@@ -434,7 +371,7 @@ mod tests {
         ];
         let y = array![1, 1, 1, 2, 2, 2];
 
-        let clf = GaussianNbParams::params();
+        let clf = GaussianNb::params();
 
         let model = x
             .axis_chunks_iter(Axis(0), 2)

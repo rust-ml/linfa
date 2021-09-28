@@ -1,8 +1,6 @@
 use crate::appx_dbscan::clustering::AppxDbscanLabeler;
-use crate::appx_dbscan::hyperparameters::AppxDbscanHyperParams;
-use crate::UncheckedAppxDbscanHyperParams;
-use linfa::Float;
-use linfa::{traits::Transformer, DatasetBase};
+use crate::appx_dbscan::{AppxDbscanParams, AppxDbscanValidParams};
+use linfa::{traits::Transformer, DatasetBase, Float};
 use ndarray::{Array1, ArrayBase, Data, Ix2};
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
@@ -93,13 +91,13 @@ impl AppxDbscan {
     /// Defaults are provided if the optional parameters are not specified:
     /// * `tolerance = 1e-4`
     /// * `slack = 1e-2`
-    pub fn params<F: Float>(min_points: usize) -> UncheckedAppxDbscanHyperParams<F> {
-        UncheckedAppxDbscanHyperParams::new(min_points)
+    pub fn params<F: Float>(min_points: usize) -> AppxDbscanParams<F> {
+        AppxDbscanParams::new(min_points)
     }
 }
 
 impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<usize>>>
-    for AppxDbscanHyperParams<F>
+    for AppxDbscanValidParams<F>
 {
     fn transform(&self, observations: &ArrayBase<D, Ix2>) -> Array1<Option<usize>> {
         if observations.dim().0 == 0 {
@@ -115,7 +113,7 @@ impl<F: Float, D: Data<Elem = F>, T>
     Transformer<
         DatasetBase<ArrayBase<D, Ix2>, T>,
         DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>,
-    > for AppxDbscanHyperParams<F>
+    > for AppxDbscanValidParams<F>
 {
     fn transform(
         &self,

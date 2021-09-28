@@ -1,7 +1,7 @@
 use curl::easy::Easy;
 use flate2::read::GzDecoder;
-use linfa_preprocessing::count_vectorization::CountVectorizer;
 use linfa_preprocessing::tf_idf_vectorization::TfIdfVectorizer;
+use linfa_preprocessing::CountVectorizer;
 use std::path::Path;
 use tar::Archive;
 
@@ -79,7 +79,7 @@ fn load_test_set(desired_targets: &[&str]) -> Result<Vec<std::path::PathBuf>, st
 
 fn iai_fit_vectorizer() {
     let file_names = load_20news_bydate();
-    CountVectorizer::default()
+    CountVectorizer::params()
         .document_frequency(0.05, 0.75)
         .n_gram_range(1, 2)
         .fit_files(
@@ -105,7 +105,7 @@ fn iai_fit_tf_idf() {
 
 fn iai_fit_transform_vectorizer() {
     let file_names = load_20news_bydate();
-    CountVectorizer::default()
+    CountVectorizer::params()
         .document_frequency(0.05, 0.75)
         .n_gram_range(1, 2)
         .fit_files(

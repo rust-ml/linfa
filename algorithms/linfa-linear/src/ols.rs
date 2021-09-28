@@ -66,9 +66,9 @@ impl Options {
 
 #[derive(Serialize, Deserialize)]
 /// A fitted linear regression model which can be used for making predictions.
-pub struct FittedLinearRegression<A> {
-    intercept: A,
-    params: Array1<A>,
+pub struct FittedLinearRegression<F> {
+    intercept: F,
+    params: Array1<F>,
 }
 
 impl Default for LinearRegression {
@@ -118,7 +118,7 @@ impl LinearRegression {
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> Fit<ArrayBase<D, Ix2>, T, LinearError>
+impl<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> Fit<ArrayBase<D, Ix2>, T, LinearError<F>>
     for LinearRegression
 {
     type Object = FittedLinearRegression<F>;
@@ -133,7 +133,7 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> Fit<ArrayBase<D, Ix2>,
     /// Returns a `FittedLinearRegression` object which contains the fitted
     /// parameters and can be used to `predict` values of the target variable
     /// for new feature values.
-    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object, F> {
         let X = dataset.records();
         let y = dataset.try_single_target()?;
 
@@ -174,7 +174,7 @@ fn compute_params<F, B, C>(
     X: ArrayBase<B, Ix2>,
     y: ArrayBase<C, Ix1>,
     normalize: bool,
-) -> Result<Array1<F>>
+) -> Result<Array1<F>, F>
 where
     F: Float,
     B: DataMut<Elem = F>,
@@ -196,7 +196,7 @@ where
 fn solve_least_squares<F, B, C>(
     mut X: ArrayBase<B, Ix2>,
     mut y: ArrayBase<C, Ix1>,
-) -> Result<Array1<F>>
+) -> Result<Array1<F>, F>
 where
     F: Float,
     B: DataMut<Elem = F>,

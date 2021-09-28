@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::float::Float;
 
-#[derive(Copy, Clone, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 /// Link functions used by GLM
 pub enum Link {
     /// The identity link function `g(x)=x`
