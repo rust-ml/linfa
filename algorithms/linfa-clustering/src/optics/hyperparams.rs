@@ -1,5 +1,5 @@
 use crate::optics::errors::{OpticsError, Result};
-use linfa::{param_guard::TransformGuard, ParamGuard};
+use linfa::{param_guard::TransformGuard, Float, ParamGuard};
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 
@@ -11,18 +11,22 @@ use serde_crate::{Deserialize, Serialize};
 )]
 /// The set of hyperparameters that can be specified for the execution of
 /// the [OPTICS algorithm](struct.Optics.html).
-pub struct OpticsValidParams {
+pub struct OpticsValidParams<F, D, N> {
     /// Distance between points for them to be considered neighbours.
-    tolerance: f64,
+    tolerance: F,
+    /// Distance metric to be used for the algorithm
+    dist_fn: D,
+    /// Nearest Neighbour algorithm to use to find the nearest points
+    nn_algo: N,
     /// Minimum number of neighboring points a point needs to have to be a core
     /// point and not a noise point.
     min_points: usize,
 }
 
-impl OpticsValidParams {
+impl<F: Float, D, N> OpticsValidParams<F, D, N> {
     /// Two points are considered neighbors if the euclidean distance between
     /// them is below the tolerance
-    pub fn tolerance(&self) -> f64 {
+    pub fn tolerance(&self) -> F {
         self.tolerance
     }
 
@@ -31,20 +35,27 @@ impl OpticsValidParams {
     pub fn minimum_points(&self) -> usize {
         self.min_points
     }
+
+    /// Distance metric to be used for the algorithm
+    pub fn dist_fn(&self) -> &D {
+        &self.dist_fn
+    }
+
+    /// Nearest Neighbour algorithm to use to find the nearest points
+    pub fn nn_algo(&self) -> &N {
+        &self.nn_algo
+    }
 }
 
-pub struct OpticsParams(OpticsValidParams);
+pub struct OpticsParams<F, D, N>(OpticsValidParams<F, D, N>);
 
-impl OpticsParams {
-    /// Minimum number of neighboring points a point needs to have to be a core
-    /// point and not a noise point.
-    ///
-    /// Defaults are provided if the optional parameters are not specified:
-    /// * `tolerance = f64::MAX`
-    pub fn new(min_points: usize) -> Self {
+impl<F: Float, D, N> OpticsParams<F, D, N> {
+    pub fn new(min_points: usize, dist_fn: D, nn_algo: N) -> Self {
         Self(OpticsValidParams {
             min_points,
-            tolerance: std::f64::MAX,
+            tolerance: F::infinity(),
+            dist_fn,
+            nn_algo,
         })
     }
 
@@ -52,18 +63,30 @@ impl OpticsParams {
     /// parameter isn't strictly necessary but improves execution time by not considering every
     /// point. If the tolerance is too low the distances calculated are undefined and no clusters
     /// will be returned.
-    pub fn tolerance(mut self, tolerance: f64) -> Self {
+    pub fn tolerance(mut self, tolerance: F) -> Self {
         self.0.tolerance = tolerance;
+        self
+    }
+
+    /// Distance metric to be used for the algorithm
+    pub fn dist_fn(mut self, dist_fn: D) -> Self {
+        self.0.dist_fn = dist_fn;
+        self
+    }
+
+    /// Nearest Neighbour algorithm to use to find the nearest points
+    pub fn nn_algo(mut self, nn_algo: N) -> Self {
+        self.0.nn_algo = nn_algo;
         self
     }
 }
 
-impl ParamGuard for OpticsParams {
-    type Checked = OpticsValidParams;
+impl<F: Float, D, N> ParamGuard for OpticsParams<F, D, N> {
+    type Checked = OpticsValidParams<F, D, N>;
     type Error = OpticsError;
 
     fn check_ref(&self) -> Result<&Self::Checked> {
-        if self.0.tolerance <= 0. {
+        if self.0.tolerance <= F::zero() {
             Err(OpticsError::InvalidValue(
                 "`tolerance` must be greater than 0!".to_string(),
             ))
@@ -82,4 +105,4 @@ impl ParamGuard for OpticsParams {
         Ok(self.0)
     }
 }
-impl TransformGuard for OpticsParams {}
+impl<F: Float, D, N> TransformGuard for OpticsParams<F, D, N> {}
