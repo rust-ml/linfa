@@ -7,7 +7,7 @@ use sprs::{CsMat, CsMatBase};
 pub fn adjacency_matrix<F: Float, DT: Data<Elem = F>, N: NearestNeighbour>(
     dataset: &ArrayBase<DT, Ix2>,
     k: usize,
-    nn_algo: N,
+    nn_algo: &N,
 ) -> CsMat<F> {
     let n_points = dataset.len_of(Axis(0));
 
@@ -71,7 +71,7 @@ pub fn adjacency_matrix<F: Float, DT: Data<Elem = F>, N: NearestNeighbour>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use linfa_nn::KdTree;
+    use linfa_nn::{BallTree, KdTree};
     use ndarray::Array2;
 
     #[test]
@@ -87,7 +87,7 @@ mod tests {
         // Elements in the input come in pairs of 2 nearby elements with consecutive indices
         // I expect a matrix with 16 non-zero elements placed in the diagonal and connecting
         // consecutive elements in pairs of two
-        let adj_mat = adjacency_matrix(&input_arr, 1, KdTree);
+        let adj_mat = adjacency_matrix(&input_arr, 1, &KdTree);
         assert_eq!(adj_mat.nnz(), 16);
 
         for i in 0..8 {
@@ -113,7 +113,7 @@ mod tests {
         // Elements in the input come in triples of 3 nearby elements with consecutive indices
         // I expect a matrix with 26 non-zero elements placed in the diagonal and connecting
         // consecutive elements in triples
-        let adj_mat = adjacency_matrix(&input_arr, 2, KdTree);
+        let adj_mat = adjacency_matrix(&input_arr, 2, &KdTree);
         assert_eq!(adj_mat.nnz(), 26);
 
         // diagonal -> 8 non-zeros
@@ -155,7 +155,7 @@ mod tests {
         ];
 
         let input_arr = Array2::from_shape_vec((8, 2), input_mat).unwrap();
-        let adj_mat = adjacency_matrix(&input_arr, 1, KdTree);
+        let adj_mat = adjacency_matrix(&input_arr, 1, &BallTree);
         assert_eq!(adj_mat.nnz(), 16);
 
         // I expext non-zeros in the diagonal and then:
@@ -185,7 +185,7 @@ mod tests {
         .concat()
         .concat();
         let input_arr = Array2::from_shape_vec((8, 2), input_mat).unwrap();
-        let _ = adjacency_matrix(&input_arr, 0, KdTree);
+        let _ = adjacency_matrix(&input_arr, 0, &KdTree);
     }
 
     #[test]
@@ -200,6 +200,6 @@ mod tests {
         .concat()
         .concat();
         let input_arr = Array2::from_shape_vec((8, 2), input_mat).unwrap();
-        let _ = adjacency_matrix(&input_arr, 8, KdTree);
+        let _ = adjacency_matrix(&input_arr, 8, &BallTree);
     }
 }
