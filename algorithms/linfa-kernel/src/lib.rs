@@ -18,6 +18,7 @@ pub mod inner;
 mod sparse;
 
 pub use inner::{Inner, KernelInner};
+use linfa_nn::KdTree;
 use ndarray::prelude::*;
 use ndarray::Data;
 #[cfg(feature = "serde")]
@@ -530,7 +531,7 @@ fn sparse_from_fn<F: Float, D: Data<Elem = F>>(
 ) -> CsMat<F> {
     // compute adjacency matrix between points in the input dataset:
     // one point for each row
-    let mut data = sparse::adjacency_matrix(dataset, k);
+    let mut data = sparse::adjacency_matrix(dataset, k, KdTree);
 
     // iterate through each row of the adjacency matrix where each
     // row is represented by a vec containing a pair (col_index, value)
