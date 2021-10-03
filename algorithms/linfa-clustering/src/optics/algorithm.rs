@@ -164,10 +164,16 @@ impl<F: Float, D: Distance<F>, N: NearestNeighbour>
             .map(Sample::new)
             .collect::<Vec<_>>();
 
-        let nn = self
+        let nn = match self
             .nn_algo()
             .from_batch(&observations, self.dist_fn().clone())
-            .unwrap();
+        {
+            Ok(nn) => nn,
+            Err(linfa_nn::BuildError::ZeroDimension) => {
+                return OpticsAnalysis { orderings: points }
+            }
+            Err(e) => panic!("Unexpected nearest neighbour error: {}", e),
+        };
 
         // The BTreeSet is used so that the indexes are ordered to make it easy to find next
         // index
@@ -252,6 +258,8 @@ impl<F: Float, D: Distance<F>, N: NearestNeighbour> OpticsValidParams<F, D, N> {
         nn: &dyn NearestNeighbourIndex<F>,
         candidate: ArrayView<F, Ix1>,
     ) -> Vec<Sample<F>> {
+        // Unwrap here is fine because we don't expect any dimension mismatch when calling
+        // within_range with points from the observations
         nn.within_range(candidate, self.tolerance())
             .unwrap()
             .into_iter()
