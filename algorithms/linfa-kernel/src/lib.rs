@@ -18,6 +18,8 @@ pub mod inner;
 mod sparse;
 
 pub use inner::{Inner, KernelInner};
+use linfa_nn::CommonNearestNeighbour;
+use linfa_nn::NearestNeighbour;
 use ndarray::prelude::*;
 use ndarray::Data;
 #[cfg(feature = "serde")]
@@ -87,26 +89,16 @@ impl<F: Float, K1: Inner<Elem = F>, K2: Inner<Elem = F>> KernelBase<K1, K2> {
 
     /// Generates the default set of parameters for building a kernel.
     /// Use this to initialize a set of parameters to be customized using `KernelParams`'s methods
-    ///
-    /// ## Example
-    ///
-    /// ```rust
-    ///
-    /// use linfa_kernel::Kernel;
-    /// use linfa::traits::Transformer;
-    /// use ndarray::Array2;
-    ///
-    /// let data = Array2::from_shape_vec((3,2), vec![1., 2., 3., 4., 5., 6.,]).unwrap();
-    ///
-    /// // Build a kernel from `data` with the default parameters
-    /// let params = Kernel::params();
-    /// let kernel = params.transform(&data);
-    ///
-    /// ```
-    pub fn params() -> KernelParams<F> {
+    pub fn params() -> KernelParams<F, CommonNearestNeighbour> {
+        Self::params_with_nn(CommonNearestNeighbour::KdTree)
+    }
+
+    /// Generate parameters with a specific nearest neighbour algorithm
+    pub fn params_with_nn<N: NearestNeighbour>(nn_algo: N) -> KernelParams<F, N> {
         KernelParams {
             kind: KernelType::Dense,
             method: KernelMethod::Gaussian(F::cast(0.5)),
+            nn_algo,
         }
     }
 
@@ -201,13 +193,21 @@ impl<F: Float, K1: Inner<Elem = F>, K2: Inner<Elem = F>> KernelBase<K1, K2> {
 }
 
 impl<'a, F: Float> Kernel<F> {
-    pub fn new(dataset: ArrayView2<'a, F>, method: KernelMethod<F>, kind: KernelType) -> Kernel<F> {
-        let inner = match kind {
-            KernelType::Dense => KernelInner::Dense(dense_from_fn(&dataset, &method)),
-            KernelType::Sparse(k) => KernelInner::Sparse(sparse_from_fn(&dataset, k, &method)),
+    pub fn new<N: NearestNeighbour>(
+        dataset: ArrayView2<'a, F>,
+        params: &KernelParams<F, N>,
+    ) -> Kernel<F> {
+        let inner = match params.kind {
+            KernelType::Dense => KernelInner::Dense(dense_from_fn(&dataset, &params.method)),
+            KernelType::Sparse(k) => {
+                KernelInner::Sparse(sparse_from_fn(&dataset, k, &params.method, &params.nn_algo))
+            }
         };
 
-        Kernel { inner, method }
+        Kernel {
+            inner,
+            method: params.method.clone(),
+        }
     }
 
     /// Gives a KernelView which has a view on the original kernel's inner matrix
@@ -291,75 +291,36 @@ impl<F: Float> KernelMethod<F> {
 }
 
 /// Defines the set of parameters needed to build a kernel
-pub struct KernelParams<F> {
+pub struct KernelParams<F, N = CommonNearestNeighbour> {
     /// Whether to construct a dense or sparse kernel
     kind: KernelType,
     /// The inner product used by the kernel
     method: KernelMethod<F>,
+    /// Nearest neighbour algorithm for calculating adjacency matrices
+    nn_algo: N,
 }
 
-impl<F: Float> KernelParams<F> {
-    /// Setter for `method`. Can be chained with `kind` and `transform`.
-    ///
-    /// ## Arguments
-    ///
-    /// - `method`: The inner product that will be used by the kernel
-    ///
-    /// ## Returns
-    ///
-    /// The modified set of params
-    ///
-    /// ## Example
-    ///
-    /// ```rust
-    /// use linfa_kernel::{Kernel, KernelMethod};
-    /// use linfa::traits::Transformer;
-    /// use ndarray::Array2;
-    ///
-    /// let data = Array2::from_shape_vec((3,2), vec![1., 2., 3., 4., 5., 6.,]).unwrap();
-    ///
-    /// // Build a kernel from `data` with the defaul parameters
-    /// // and then set the preferred method
-    /// let params = Kernel::params().method(KernelMethod::Linear);
-    /// let kernel = params.transform(&data);
-    /// ```
-    pub fn method(mut self, method: KernelMethod<F>) -> KernelParams<F> {
+impl<F, N> KernelParams<F, N> {
+    /// Setter for `method`, the inner product used by the kernel
+    pub fn method(mut self, method: KernelMethod<F>) -> Self {
         self.method = method;
-
         self
     }
 
-    /// Setter for `kind`. Can be chained with `method` and `transform`.
-    ///
-    /// ## Arguments
-    ///
-    /// - `kind`: The kind of kernel to build, either dense or sparse
-    ///
-    /// ## Returns
-    ///
-    /// The modified set of params
-    ///
-    /// ## Example
-    ///
-    /// ```rust
-    /// use linfa_kernel::{Kernel, KernelType};
-    /// use linfa::traits::Transformer;
-    /// use ndarray::Array2;
-    ///
-    /// let data = Array2::from_shape_vec((3,2), vec![1., 2., 3., 4., 5., 6.,]).unwrap();
-    ///
-    /// // Build a kernel from `data` with the defaul parameters
-    /// // and then set the preferred kind
-    /// let params = Kernel::params().kind(KernelType::Dense);
-    /// let kernel = params.transform(&data);
-    /// ```
-    pub fn kind(mut self, kind: KernelType) -> KernelParams<F> {
+    /// Setter for `kind`, whether to construct a dense or sparse kernel
+    pub fn kind(mut self, kind: KernelType) -> Self {
         self.kind = kind;
         self
     }
+
+    /// Setter for `nn_algo`, nearest neighbour algorithm for calculating adjacency matrices
+    pub fn nn_algo(mut self, nn_algo: N) -> Self {
+        self.nn_algo = nn_algo;
+        self
+    }
 }
 
-impl<F: Float> Transformer<&Array2<F>, Kernel<F>> for KernelParams<F> {
+impl<F: Float, N: NearestNeighbour> Transformer<&Array2<F>, Kernel<F>> for KernelParams<F, N> {
     /// Builds a kernel from a view of the input data.
     ///
     /// ## Parameters
@@ -374,11 +335,13 @@ impl<F: Float> Transformer<&Array2<F>, Kernel<F>> for KernelParams<F> {
     /// If the kernel type is `Sparse` and the number of neighbors specified is
     /// not between 1 and #records-1
     fn transform(&self, x: &Array2<F>) -> Kernel<F> {
-        Kernel::new(x.view(), self.method.clone(), self.kind.clone())
+        Kernel::new(x.view(), self)
     }
 }
 
-impl<'a, F: Float> Transformer<ArrayView2<'a, F>, Kernel<F>> for KernelParams<F> {
+impl<'a, F: Float, N: NearestNeighbour> Transformer<ArrayView2<'a, F>, Kernel<F>>
+    for KernelParams<F, N>
+{
     /// Builds a kernel from a view of the input data.
     ///
     /// ## Parameters
@@ -393,11 +356,13 @@ impl<'a, F: Float> Transformer<ArrayView2<'a, F>, Kernel<F>> for KernelParams<F>
     /// If the kernel type is `Sparse` and the number of neighbors specified is
     /// not between 1 and #records-1
     fn transform(&self, x: ArrayView2<'a, F>) -> Kernel<F> {
-        Kernel::new(x, self.method.clone(), self.kind.clone())
+        Kernel::new(x, self)
     }
 }
 
-impl<'a, F: Float> Transformer<&ArrayView2<'a, F>, Kernel<F>> for KernelParams<F> {
+impl<'a, F: Float, N: NearestNeighbour> Transformer<&ArrayView2<'a, F>, Kernel<F>>
+    for KernelParams<F, N>
+{
     /// Builds a kernel from a view of the input data.
     ///
     /// ## Parameters
@@ -412,12 +377,12 @@ impl<'a, F: Float> Transformer<&ArrayView2<'a, F>, Kernel<F>> for KernelParams<F
     /// If the kernel type is `Sparse` and the number of neighbors specified is
     /// not between 1 and #records-1
     fn transform(&self, x: &ArrayView2<'a, F>) -> Kernel<F> {
-        Kernel::new(*x, self.method.clone(), self.kind.clone())
+        Kernel::new(*x, self)
     }
 }
 
-impl<'a, F: Float, T: AsTargets> Transformer<DatasetBase<Array2<F>, T>, DatasetBase<Kernel<F>, T>>
-    for KernelParams<F>
+impl<'a, F: Float, T: AsTargets, N: NearestNeighbour>
+    Transformer<DatasetBase<Array2<F>, T>, DatasetBase<Kernel<F>, T>> for KernelParams<F, N>
 {
     /// Builds a new Dataset with the kernel as the records and the same targets as the input one.
     ///
@@ -439,14 +404,14 @@ impl<'a, F: Float, T: AsTargets> Transformer<DatasetBase<Array2<F>, T>, DatasetB
     /// If the kernel type is `Sparse` and the number of neighbors specified is
     /// not between 1 and #records-1
     fn transform(&self, x: DatasetBase<Array2<F>, T>) -> DatasetBase<Kernel<F>, T> {
-        let kernel = Kernel::new(x.records.view(), self.method.clone(), self.kind.clone());
+        let kernel = Kernel::new(x.records.view(), self);
         DatasetBase::new(kernel, x.targets)
     }
 }
 
-impl<'a, F: Float, L: 'a, T: AsTargets<Elem = L> + FromTargetArray<'a, L>>
+impl<'a, F: Float, L: 'a, T: AsTargets<Elem = L> + FromTargetArray<'a, L>, N: NearestNeighbour>
     Transformer<&'a DatasetBase<Array2<F>, T>, DatasetBase<Kernel<F>, T::View>>
-    for KernelParams<F>
+    for KernelParams<F, N>
 {
     /// Builds a new Dataset with the kernel as the records and the same targets as the input one.
     ///
@@ -466,16 +431,22 @@ impl<'a, F: Float, L: 'a, T: AsTargets<Elem = L> + FromTargetArray<'a, L>>
     /// If the kernel type is `Sparse` and the number of neighbors specified is
     /// not between 1 and #records-1
     fn transform(&self, x: &'a DatasetBase<Array2<F>, T>) -> DatasetBase<Kernel<F>, T::View> {
-        let kernel = Kernel::new(x.records.view(), self.method.clone(), self.kind.clone());
+        let kernel = Kernel::new(x.records.view(), self);
         DatasetBase::new(kernel, T::new_targets_view(x.as_multi_targets()))
     }
 }
 
 // lifetime 'b allows the kernel to borrow the underlying data
 // for a possibly shorter time than 'a, useful in fold_fit
-impl<'a, 'b, F: Float, L: 'b, T: AsTargets<Elem = L> + FromTargetArray<'b, L>>
-    Transformer<&'b DatasetBase<ArrayView2<'a, F>, T>, DatasetBase<Kernel<F>, T::View>>
-    for KernelParams<F>
+impl<
+        'a,
+        'b,
+        F: Float,
+        L: 'b,
+        T: AsTargets<Elem = L> + FromTargetArray<'b, L>,
+        N: NearestNeighbour,
+    > Transformer<&'b DatasetBase<ArrayView2<'a, F>, T>, DatasetBase<Kernel<F>, T::View>>
+    for KernelParams<F, N>
 {
     /// Builds a new Dataset with the kernel as the records and the same targets as the input one.
     ///
@@ -498,7 +469,7 @@ impl<'a, 'b, F: Float, L: 'b, T: AsTargets<Elem = L> + FromTargetArray<'b, L>>
         &self,
         x: &'b DatasetBase<ArrayView2<'a, F>, T>,
     ) -> DatasetBase<Kernel<F>, T::View> {
-        let kernel = Kernel::new(x.records.view(), self.method.clone(), self.kind.clone());
+        let kernel = Kernel::new(x.records.view(), self);
 
         DatasetBase::new(kernel, T::new_targets_view(x.as_multi_targets()))
     }
@@ -523,14 +494,15 @@ fn dense_from_fn<F: Float, D: Data<Elem = F>>(
     similarity
 }
 
-fn sparse_from_fn<F: Float, D: Data<Elem = F>>(
+fn sparse_from_fn<F: Float, D: Data<Elem = F>, N: NearestNeighbour>(
     dataset: &ArrayBase<D, Ix2>,
     k: usize,
     method: &KernelMethod<F>,
+    nn_algo: &N,
 ) -> CsMat<F> {
     // compute adjacency matrix between points in the input dataset:
     // one point for each row
-    let mut data = sparse::adjacency_matrix(dataset, k);
+    let mut data = sparse::adjacency_matrix(dataset, k, nn_algo);
 
     // iterate through each row of the adjacency matrix where each
     // row is represented by a vec containing a pair (col_index, value)
@@ -553,6 +525,7 @@ fn sparse_from_fn<F: Float, D: Data<Elem = F>>(
 mod tests {
     use super::*;
     use linfa::Dataset;
+    use linfa_nn::{BallTree, KdTree};
     use ndarray::{Array1, Array2};
     use std::f64::consts;
 
@@ -565,7 +538,7 @@ mod tests {
             0., 0., 0.1, 0.1, 1., 1., 1.1, 1.1, 2., 2., 2.1, 2.1, 3., 3., 3.1, 3.1,
         ];
         let input_arr = Array2::from_shape_vec((8, 2), input_mat).unwrap();
-        let adj_mat = sparse_from_fn(&input_arr, 1, &KernelMethod::Linear);
+        let adj_mat = sparse_from_fn(&input_arr, 1, &KernelMethod::Linear, &KdTree);
         assert_eq!(adj_mat.nnz(), 16);
 
         // 2*0^2
@@ -713,7 +686,8 @@ mod tests {
         assert!(matrices_almost_equal(mul_mat.view(), mul_ker.view()));
 
         // sparse kernel dot
-        let mul_mat = sparse_from_fn(&input_arr, 3, &KernelMethod::Linear).mul(&to_multiply.view());
+        let mul_mat =
+            sparse_from_fn(&input_arr, 3, &KernelMethod::Linear, &KdTree).mul(&to_multiply.view());
         let kernel = KernelView::params()
             .kind(KernelType::Sparse(3))
             .method(KernelMethod::Linear)
@@ -796,7 +770,7 @@ mod tests {
         assert!(arrays_almost_equal(cols_sum.view(), kers_sum.view()));
 
         // sparse kernel sum
-        let cols_sum = sparse_from_fn(&input_arr, 3, &method)
+        let cols_sum = sparse_from_fn(&input_arr, 3, &method, &BallTree)
             .to_dense()
             .sum_axis(Axis(1));
         let kernel = KernelView::params()
@@ -827,7 +801,7 @@ mod tests {
         ));
 
         // sparse kernel diag
-        let input_diagonal: Vec<_> = sparse_from_fn(&input_arr, 3, &method)
+        let input_diagonal: Vec<_> = sparse_from_fn(&input_arr, 3, &method, &BallTree)
             .outer_iterator()
             .enumerate()
             .map(|(i, row)| *row.get(i).unwrap())
@@ -890,7 +864,12 @@ mod tests {
             KernelMethod::Polynomial(1., 2.),
         ];
         for method in methods {
-            let kernel_ref = Kernel::new(input.records().view(), method.clone(), k_type.clone());
+            let kernel_ref = Kernel::new(
+                input.records().view(),
+                &Kernel::params_with_nn(KdTree)
+                    .method(method.clone())
+                    .kind(k_type.clone()),
+            );
             let kernel_tr = Kernel::params()
                 .kind(k_type.clone())
                 .method(method.clone())
@@ -921,7 +900,12 @@ mod tests {
             KernelMethod::Polynomial(1., 2.),
         ];
         for method in methods {
-            let kernel_ref = Kernel::new(*input.records(), method.clone(), k_type.clone());
+            let kernel_ref = Kernel::new(
+                *input.records(),
+                &Kernel::params_with_nn(KdTree)
+                    .method(method.clone())
+                    .kind(k_type.clone()),
+            );
             let kernel_tr = Kernel::params()
                 .kind(k_type.clone())
                 .method(method.clone())
@@ -946,7 +930,12 @@ mod tests {
             KernelMethod::Polynomial(1., 2.),
         ];
         for method in methods {
-            let kernel_ref = Kernel::new(input.view(), method.clone(), k_type.clone());
+            let kernel_ref = Kernel::new(
+                input.view(),
+                &Kernel::params_with_nn(KdTree)
+                    .method(method.clone())
+                    .kind(k_type.clone()),
+            );
             let kernel_tr = Kernel::params()
                 .kind(k_type.clone())
                 .method(method.clone())
@@ -971,7 +960,12 @@ mod tests {
             KernelMethod::Polynomial(1., 2.),
         ];
         for method in methods {
-            let kernel_ref = Kernel::new(input, method.clone(), k_type.clone());
+            let kernel_ref = Kernel::new(
+                input,
+                &Kernel::params_with_nn(KdTree)
+                    .method(method.clone())
+                    .kind(k_type.clone()),
+            );
             let kernel_tr = Kernel::params()
                 .kind(k_type.clone())
                 .method(method.clone())

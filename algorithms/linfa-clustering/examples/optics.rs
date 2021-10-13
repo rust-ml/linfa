@@ -45,7 +45,7 @@ fn main() {
         "reachability.npy",
         &analysis
             .iter()
-            .map(|&x| x.reachability_distance().unwrap_or(f64::INFINITY))
+            .map(|x| x.reachability_distance().unwrap_or(f64::INFINITY))
             .collect::<Array<_, _>>(),
     )
     .expect("Failed to write .npy file");
@@ -53,7 +53,7 @@ fn main() {
         "indexes.npy",
         &analysis
             .iter()
-            .map(|&x| x.index() as u32)
+            .map(|x| x.index() as u32)
             .collect::<Array<_, _>>(),
     )
     .expect("Failed to write .npy file");

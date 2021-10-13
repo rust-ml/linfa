@@ -1,27 +1,16 @@
-use crate::optics::analysis::*;
 use crate::optics::hyperparams::{OpticsParams, OpticsValidParams};
-use hnsw::{Hnsw, Params, Searcher};
 use linfa::traits::Transformer;
 use linfa::Float;
-use ndarray::{ArrayView, ArrayView1, Ix1, Ix2};
-use ndarray_stats::DeviationExt;
-use noisy_float::prelude::*;
-use rand_pcg::Pcg64;
+use linfa_nn::distance::{Distance, L2Dist};
+use linfa_nn::{CommonNearestNeighbour, NearestNeighbour, NearestNeighbourIndex};
+use ndarray::{ArrayView, Ix1, Ix2};
+use noisy_float::{checkers::NumChecker, NoisyFloat};
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
-use space::MetricPoint;
-use std::cmp::{max, Ordering};
+use std::cmp::Ordering;
 use std::collections::BTreeSet;
-
-/// Implementation of euclidean distance for ndarray
-struct Euclidean<'a, F>(ArrayView1<'a, F>);
-
-impl<F: Float> MetricPoint for Euclidean<'_, F> {
-    fn distance(&self, rhs: &Self) -> u64 {
-        let val = self.0.l2_dist(&rhs.0).unwrap();
-        space::f64_metric(val)
-    }
-}
+use std::ops::Index;
+use std::slice::SliceIndex;
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(
@@ -43,84 +32,148 @@ impl<F: Float> MetricPoint for Euclidean<'_, F> {
 /// [here](https://www.wikipedia.org/wiki/OPTICS_algorithm)
 pub struct Optics;
 
-#[derive(Clone)]
-struct Neighbor {
+/// This struct represents a data point in the dataset with it's associated distances obtained from
+/// the OPTICS analysis
+#[derive(Debug, Clone)]
+pub struct Sample<F> {
     /// Index of the observation in the dataset
     index: usize,
-    /// The core distance, named so to avoid name clash with `Sample::core_distance`
-    c_distance: Option<N64>,
+    /// The core distance
+    core_distance: Option<F>,
     /// The reachability distance
-    r_distance: Option<N64>,
+    reachability_distance: Option<F>,
 }
 
-impl Neighbor {
+impl<F: Float> Sample<F> {
     /// Create a new neighbor
     fn new(index: usize) -> Self {
         Self {
             index,
-            c_distance: None,
-            r_distance: None,
+            core_distance: None,
+            reachability_distance: None,
         }
     }
 
-    /// Set the core distance given the minimum points in a cluster and the points neighbors
-    fn set_core_distance<F: Float>(
-        &mut self,
-        min_pts: usize,
-        neighbors: &[Neighbor],
-        dataset: ArrayView<F, Ix2>,
-    ) {
-        let observation = dataset.row(self.index);
-        self.c_distance = neighbors
-            .get(min_pts - 1)
-            .map(|x| dataset.row(x.index))
-            .map(|x| observation.l2_dist(&x).unwrap())
-            .map(n64);
+    /// Index of the sample in the dataset.
+    pub fn index(&self) -> usize {
+        self.index
     }
 
-    /// Convert the neighbor to a sample for the user
-    fn sample(&self) -> Sample {
-        Sample {
-            index: self.index,
-            reachability_distance: self.r_distance.map(|x| x.raw()),
-            core_distance: self.c_distance.map(|x| x.raw()),
-        }
+    /// The reachability distance of a sample is the distance between the point and it's cluster
+    /// core or another point whichever is larger.
+    pub fn reachability_distance(&self) -> &Option<F> {
+        &self.reachability_distance
+    }
+
+    /// The distance to the nth closest point where n is the minimum points to form a cluster.
+    pub fn core_distance(&self) -> &Option<F> {
+        &self.core_distance
     }
 }
 
-impl Eq for Neighbor {}
+impl<F: Float> Eq for Sample<F> {}
 
-impl PartialEq for Neighbor {
+impl<F: Float> PartialEq for Sample<F> {
     fn eq(&self, other: &Self) -> bool {
-        self.r_distance == other.r_distance
+        self.reachability_distance == other.reachability_distance
     }
 }
 
-impl PartialOrd for Neighbor {
+impl<F: Float> PartialOrd for Sample<F> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.r_distance.partial_cmp(&other.r_distance)
+        self.reachability_distance
+            .partial_cmp(&other.reachability_distance)
     }
 }
 
-impl Ord for Neighbor {
+impl<F: Float> Ord for Sample<F> {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.r_distance.cmp(&other.r_distance)
+        self.reachability_distance
+            .map(NoisyFloat::<_, NumChecker>::new)
+            .cmp(
+                &other
+                    .reachability_distance
+                    .map(NoisyFloat::<_, NumChecker>::new),
+            )
+    }
+}
+
+/// The analysis from running OPTICS on a dataset, this allows you iterate over the data points and
+/// access their core and reachability distances. The ordering of the points also doesn't match
+/// that of the dataset instead ordering based on the clustering structure worked out during
+/// analysis.
+#[derive(Clone, Debug)]
+pub struct OpticsAnalysis<F> {
+    /// A list of the samples in the dataset sorted and with their reachability and core distances
+    /// computed.
+    orderings: Vec<Sample<F>>,
+}
+
+impl<F> OpticsAnalysis<F> {
+    /// Extracts a slice containing all samples in the dataset
+    pub fn as_slice(&self) -> &[Sample<F>] {
+        self.orderings.as_slice()
+    }
+
+    /// Returns an iterator over the samples in the dataset
+    pub fn iter(&self) -> std::slice::Iter<'_, Sample<F>> {
+        self.orderings.iter()
+    }
+}
+
+impl<I, F> Index<I> for OpticsAnalysis<F>
+where
+    I: SliceIndex<[Sample<F>]>,
+{
+    type Output = I::Output;
+
+    fn index(&self, index: I) -> &Self::Output {
+        self.orderings.index(index)
     }
 }
 
 impl Optics {
-    pub fn params(min_points: usize) -> OpticsParams {
-        OpticsParams::new(min_points)
+    /// Configures the hyperparameters with the minimum number of points required to form a cluster
+    ///
+    /// Defaults are provided if the optional parameters are not specified:
+    /// * `tolerance = f64::MAX`
+    /// * `dist_fn = L2Dist` (Euclidean distance)
+    /// * `nn_algo = KdTree`
+    pub fn params<F: Float>(min_points: usize) -> OpticsParams<F, L2Dist, CommonNearestNeighbour> {
+        OpticsParams::new(min_points, L2Dist, CommonNearestNeighbour::KdTree)
+    }
+
+    /// Configures the hyperparameters with the minimum number of points, a custom distance metric,
+    /// and a custom nearest neighbour algorithm
+    pub fn params_with<F: Float, D: Distance<F>, N: NearestNeighbour>(
+        min_points: usize,
+        dist_fn: D,
+        nn_algo: N,
+    ) -> OpticsParams<F, D, N> {
+        OpticsParams::new(min_points, dist_fn, nn_algo)
     }
 }
 
-impl<F: Float> Transformer<ArrayView<'_, F, Ix2>, OpticsAnalysis> for OpticsValidParams {
-    fn transform(&self, observations: ArrayView<F, Ix2>) -> OpticsAnalysis {
+impl<F: Float, D: Distance<F>, N: NearestNeighbour>
+    Transformer<ArrayView<'_, F, Ix2>, OpticsAnalysis<F>> for OpticsValidParams<F, D, N>
+{
+    fn transform(&self, observations: ArrayView<F, Ix2>) -> OpticsAnalysis<F> {
         let mut result = OpticsAnalysis { orderings: vec![] };
 
         let mut points = (0..observations.nrows())
-            .map(Neighbor::new)
+            .map(Sample::new)
             .collect::<Vec<_>>();
+
+        let nn = match self
+            .nn_algo()
+            .from_batch(&observations, self.dist_fn().clone())
+        {
+            Ok(nn) => nn,
+            Err(linfa_nn::BuildError::ZeroDimension) => {
+                return OpticsAnalysis { orderings: points }
+            }
+            Err(e) => panic!("Unexpected nearest neighbour error: {}", e),
+        };
 
         // The BTreeSet is used so that the indexes are ordered to make it easy to find next
         // index
@@ -145,18 +198,14 @@ impl<F: Float> Transformer<ArrayView<'_, F, Ix2>, OpticsAnalysis> for OpticsVali
                 expected += 1;
             }
             index += 1;
-            let neighbors = find_neighbors(
-                observations.row(points_index),
-                observations,
-                self.tolerance(),
-            );
+            let neighbors = self.find_neighbors(&*nn, observations.row(points_index));
             let n = &mut points[points_index];
-            n.set_core_distance(self.minimum_points(), &neighbors, observations);
-            if n.c_distance.is_some() {
+            self.set_core_distance(n, &neighbors, observations);
+            if n.core_distance.is_some() {
                 seeds.clear();
                 // Here we get a list of "density reachable" samples that haven't been processed
                 // and sort them by reachability so we can process the closest ones first.
-                get_seeds(
+                self.get_seeds(
                     observations,
                     n.clone(),
                     &neighbors,
@@ -174,13 +223,12 @@ impl<F: Float> Transformer<ArrayView<'_, F, Ix2>, OpticsAnalysis> for OpticsVali
                     let n = &mut points[*min_point];
                     seeds.remove(i);
                     processed.insert(n.index);
-                    let neighbors =
-                        find_neighbors(observations.row(n.index), observations, self.tolerance());
+                    let neighbors = self.find_neighbors(&*nn, observations.row(n.index));
 
-                    n.set_core_distance(self.minimum_points(), &neighbors, observations);
-                    result.orderings.push(n.sample());
-                    if n.c_distance.is_some() {
-                        get_seeds(
+                    self.set_core_distance(n, &neighbors, observations);
+                    result.orderings.push(n.clone());
+                    if n.core_distance.is_some() {
+                        self.get_seeds(
                             observations,
                             n.clone(),
                             &neighbors,
@@ -193,7 +241,7 @@ impl<F: Float> Transformer<ArrayView<'_, F, Ix2>, OpticsAnalysis> for OpticsVali
             } else {
                 // Ensure whole dataset is included so we can see the points with undefined core or
                 // reachability distance
-                result.orderings.push(n.sample());
+                result.orderings.push(n.clone());
                 processed.insert(n.index);
             }
         }
@@ -201,85 +249,74 @@ impl<F: Float> Transformer<ArrayView<'_, F, Ix2>, OpticsAnalysis> for OpticsVali
     }
 }
 
-/// For a sample find the points which are directly density reachable which have not
-/// yet been processed
-fn get_seeds<F: Float>(
-    observations: ArrayView<F, Ix2>,
-    sample: Neighbor,
-    neighbors: &[Neighbor],
-    points: &mut [Neighbor],
-    processed: &BTreeSet<usize>,
-    seeds: &mut Vec<usize>,
-) {
-    for n in neighbors.iter().filter(|x| !processed.contains(&x.index)) {
-        let dist = n64(observations
-            .row(n.index)
-            .l2_dist(&observations.row(sample.index))
-            .unwrap());
-        let r_dist = max(sample.c_distance.unwrap(), dist);
-        match points[n.index].r_distance {
-            None => {
-                points[n.index].r_distance = Some(r_dist);
-                seeds.push(n.index);
+impl<F: Float, D: Distance<F>, N: NearestNeighbour> OpticsValidParams<F, D, N> {
+    /// Given a candidate point, a list of observations, epsilon and list of already
+    /// assigned cluster IDs return a list of observations that neighbor the candidate. This function
+    /// uses euclidean distance and the neighbours are returned in sorted order.
+    fn find_neighbors(
+        &self,
+        nn: &dyn NearestNeighbourIndex<F>,
+        candidate: ArrayView<F, Ix1>,
+    ) -> Vec<Sample<F>> {
+        // Unwrap here is fine because we don't expect any dimension mismatch when calling
+        // within_range with points from the observations
+        nn.within_range(candidate, self.tolerance())
+            .unwrap()
+            .into_iter()
+            .map(|(pt, index)| Sample {
+                index,
+                reachability_distance: Some(self.dist_fn().distance(pt, candidate)),
+                core_distance: None,
+            })
+            .collect()
+    }
+
+    /// Set the core distance given the minimum points in a cluster and the points neighbors
+    fn set_core_distance(
+        &self,
+        point: &mut Sample<F>,
+        neighbors: &[Sample<F>],
+        dataset: ArrayView<F, Ix2>,
+    ) {
+        let observation = dataset.row(point.index);
+        point.core_distance = neighbors
+            .get(self.minimum_points() - 1)
+            .map(|x| dataset.row(x.index))
+            .map(|x| self.dist_fn().distance(observation, x));
+    }
+
+    /// For a sample find the points which are directly density reachable which have not
+    /// yet been processed
+    fn get_seeds(
+        &self,
+        observations: ArrayView<F, Ix2>,
+        sample: Sample<F>,
+        neighbors: &[Sample<F>],
+        points: &mut [Sample<F>],
+        processed: &BTreeSet<usize>,
+        seeds: &mut Vec<usize>,
+    ) {
+        for n in neighbors.iter().filter(|x| !processed.contains(&x.index)) {
+            let dist = self
+                .dist_fn()
+                .distance(observations.row(n.index), observations.row(sample.index));
+            let r_dist = F::max(sample.core_distance.unwrap(), dist);
+            match points[n.index].reachability_distance {
+                None => {
+                    points[n.index].reachability_distance = Some(r_dist);
+                    seeds.push(n.index);
+                }
+                Some(s) if r_dist < s => points[n.index].reachability_distance = Some(r_dist),
+                _ => {}
             }
-            Some(s) if r_dist < s => points[n.index].r_distance = Some(r_dist),
-            _ => {}
         }
     }
-}
-
-/// Given a candidate point, a list of observations, epsilon and list of already
-/// assigned cluster IDs return a list of observations that neighbor the candidate. This function
-/// uses euclidean distance and the neighbours are returned in sorted order.
-fn find_neighbors<F: Float>(
-    candidate: ArrayView<F, Ix1>,
-    observations: ArrayView<F, Ix2>,
-    eps: f64,
-) -> Vec<Neighbor> {
-    let params = Params::new().ef_construction(observations.nrows());
-    let mut searcher = Searcher::default();
-    let mut hnsw: Hnsw<Euclidean<F>, Pcg64, 12, 24> = Hnsw::new_params(params);
-
-    // insert all rows as data points into HNSW graph
-    for feature in observations.rows().into_iter() {
-        hnsw.insert(Euclidean(feature), &mut searcher);
-    }
-    let mut neighbours = vec![space::Neighbor::invalid(); observations.nrows()];
-    hnsw.nearest(
-        &Euclidean(candidate.view()),
-        observations.nrows(),
-        &mut searcher,
-        &mut neighbours,
-    );
-    let eps = space::f64_metric(eps);
-    let out_of_bounds = neighbours
-        .iter()
-        .enumerate()
-        .find(|(_, x)| x.distance > eps)
-        .map(|(i, _)| i);
-    if let Some(i) = out_of_bounds {
-        // once shrink_to is stablised can switch to that
-        neighbours.resize_with(i, space::Neighbor::invalid);
-    }
-
-    neighbours
-        .into_iter()
-        .map(|x| x.index)
-        .map(|idx| {
-            let observation = observations.row(idx);
-            let distance = candidate.l2_dist(&observation).unwrap();
-            Neighbor {
-                index: idx,
-                r_distance: Some(n64(distance)),
-                c_distance: None,
-            }
-        })
-        .collect()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use linfa::ParamGuard;
     use ndarray::Array2;
     use std::collections::BTreeSet;
 
@@ -385,25 +422,30 @@ mod tests {
         let data = vec![1.0, 2.0, 10.0, 15.0, 13.0];
         let data: Array2<f64> = Array2::from_shape_vec((data.len(), 1), data).unwrap();
 
-        let neighbors = find_neighbors(data.row(0), data.view(), 6.0);
+        let param = Optics::params(3).tolerance(6.0).check_unwrap();
+        let nn = CommonNearestNeighbour::KdTree
+            .from_batch(&data, L2Dist)
+            .unwrap();
+
+        let neighbors = param.find_neighbors(&*nn, data.row(0));
         assert_eq!(neighbors.len(), 2);
         assert_eq!(
             vec![0, 1],
             neighbors
                 .iter()
-                .map(|x| x.r_distance.unwrap().raw() as u32)
+                .map(|x| x.reachability_distance.unwrap() as u32)
                 .collect::<Vec<u32>>()
         );
-        assert!(neighbors.iter().all(|x| x.c_distance.is_none()));
+        assert!(neighbors.iter().all(|x| x.core_distance.is_none()));
 
-        let neighbors = find_neighbors(data.row(4), data.view(), 6.0);
+        let neighbors = param.find_neighbors(&*nn, data.row(4));
         assert_eq!(neighbors.len(), 3);
-        assert!(neighbors.iter().all(|x| x.c_distance.is_none()));
+        assert!(neighbors.iter().all(|x| x.core_distance.is_none()));
         assert_eq!(
             vec![0, 2, 3],
             neighbors
                 .iter()
-                .map(|x| x.r_distance.unwrap().raw() as u32)
+                .map(|x| x.reachability_distance.unwrap() as u32)
                 .collect::<Vec<u32>>()
         );
     }
@@ -413,24 +455,30 @@ mod tests {
         let data = vec![1.0, 2.0, 10.0, 15.0, 13.0];
         let data: Array2<f64> = Array2::from_shape_vec((data.len(), 1), data).unwrap();
 
-        let mut points = (0..data.nrows()).map(Neighbor::new).collect::<Vec<_>>();
+        let param = Optics::params(3).tolerance(6.0).check_unwrap();
+        let nn = CommonNearestNeighbour::KdTree
+            .from_batch(&data, L2Dist)
+            .unwrap();
 
-        let neighbors = find_neighbors(data.row(0), data.view(), 6.0);
+        let mut points = (0..data.nrows()).map(Sample::new).collect::<Vec<_>>();
+
+        let neighbors = param.find_neighbors(&*nn, data.row(0));
         // set core distance and make sure it's set correctly given number of neghobrs restriction
 
-        points[0].set_core_distance(3, &neighbors, data.view());
-        assert!(points[0].c_distance.is_none());
+        param.set_core_distance(&mut points[0], &neighbors, data.view());
+        assert!(points[0].core_distance.is_none());
 
-        let neighbors = find_neighbors(data.row(4), data.view(), 6.0);
-        points[4].set_core_distance(3, &neighbors, data.view());
-        assert!(points[4].c_distance.is_some());
+        let neighbors = param.find_neighbors(&*nn, data.row(4));
+        param.set_core_distance(&mut points[4], &neighbors, data.view());
+        dbg!(&points);
+        assert!(points[4].core_distance.is_some());
 
         let mut seeds = vec![];
         let mut processed = BTreeSet::new();
         // With a valid core distance make sure neighbours to point are returned in order if
         // unprocessed
 
-        get_seeds(
+        param.get_seeds(
             data.view(),
             points[4].clone(),
             &neighbors,
@@ -441,15 +489,15 @@ mod tests {
 
         assert_eq!(seeds, vec![4, 3, 2]);
 
-        let mut points = (0..data.nrows()).map(Neighbor::new).collect::<Vec<_>>();
+        let mut points = (0..data.nrows()).map(Sample::new).collect::<Vec<_>>();
 
         // if one of the neighbours has been processed make sure it's not in the seed list
 
-        points[4].set_core_distance(3, &neighbors, data.view());
+        param.set_core_distance(&mut points[4], &neighbors, data.view());
         processed.insert(3);
         seeds.clear();
 
-        get_seeds(
+        param.get_seeds(
             data.view(),
             points[4].clone(),
             &neighbors,
@@ -460,17 +508,17 @@ mod tests {
 
         assert_eq!(seeds, vec![4, 2]);
 
-        let mut points = (0..data.nrows()).map(Neighbor::new).collect::<Vec<_>>();
+        let mut points = (0..data.nrows()).map(Sample::new).collect::<Vec<_>>();
 
         // If one of the neighbours has a smaller R distance than it has to the core point make
         // sure it's not added to the seed list
 
         processed.clear();
-        points[4].set_core_distance(3, &neighbors, data.view());
-        points[2].r_distance = Some(n64(0.001));
+        param.set_core_distance(&mut points[4], &neighbors, data.view());
+        points[2].reachability_distance = Some(0.001);
         seeds.clear();
 
-        get_seeds(
+        param.get_seeds(
             data.view(),
             points[4].clone(),
             &neighbors,

@@ -1,29 +1,13 @@
-use hnsw::{Params, Searcher, HNSW};
 use linfa::Float;
-use ndarray::{ArrayBase, ArrayView1, Axis, Data, Ix2};
-use space::{MetricPoint, Neighbor};
+use linfa_nn::{distance::L2Dist, NearestNeighbour};
+use ndarray::{ArrayBase, Axis, Data, Ix2};
 use sprs::{CsMat, CsMatBase};
 
-/// Implementation of euclidean distance for ndarray
-struct Euclidean<'a, F>(ArrayView1<'a, F>);
-
-impl<F: Float> MetricPoint for Euclidean<'_, F> {
-    fn distance(&self, rhs: &Self) -> u32 {
-        let val = self
-            .0
-            .iter()
-            .zip(rhs.0.iter())
-            .map(|(&a, &b)| (a - b) * (a - b))
-            .sum::<F>()
-            .sqrt();
-        space::f32_metric(val.to_f32().unwrap())
-    }
-}
-
 /// Create sparse adjacency matrix from dense dataset
-pub fn adjacency_matrix<F: Float, D: Data<Elem = F>>(
-    dataset: &ArrayBase<D, Ix2>,
+pub fn adjacency_matrix<F: Float, DT: Data<Elem = F>, N: NearestNeighbour>(
+    dataset: &ArrayBase<DT, Ix2>,
     k: usize,
+    nn_algo: &N,
 ) -> CsMat<F> {
     let n_points = dataset.len_of(Axis(0));
 
@@ -32,18 +16,9 @@ pub fn adjacency_matrix<F: Float, D: Data<Elem = F>>(
     assert!(k < n_points);
     assert!(k > 0);
 
-    let params = Params::new().ef_construction(k);
-
-    let mut searcher = Searcher::default();
-    let mut hnsw: HNSW<Euclidean<F>> = HNSW::new_params(params);
-
-    // insert all rows as data points into HNSW graph
-    for feature in dataset.rows().into_iter() {
-        hnsw.insert(Euclidean(feature), &mut searcher);
-    }
-
-    // allocate buffer for k neighbours (plus the points itself)
-    let mut neighbours = vec![Neighbor::invalid(); k + 1];
+    let nn = nn_algo
+        .from_batch(dataset, L2Dist)
+        .expect("Unexpected nearest neighbour error");
 
     // allocate buffer to initialize the sparse matrix later on
     //  * data: we have exact #points * k positive entries
@@ -58,21 +33,21 @@ pub fn adjacency_matrix<F: Float, D: Data<Elem = F>>(
     // find neighbours for each data point
     let mut added = 0;
     for (m, feature) in dataset.rows().into_iter().enumerate() {
-        hnsw.nearest(&Euclidean(feature), 3 * k, &mut searcher, &mut neighbours);
+        let mut neighbours = nn.k_nearest(feature, k + 1).unwrap();
 
         //dbg!(&neighbours);
 
         // sort by indices
-        neighbours.sort_unstable();
+        neighbours.sort_unstable_by_key(|(_, i)| *i);
 
         indices.push(m);
         data.push(F::one());
         added += 1;
 
         // push each index into the indices array
-        for n in &neighbours {
-            if m != n.index {
-                indices.push(n.index);
+        for &(_, i) in &neighbours {
+            if m != i {
+                indices.push(i);
                 data.push(F::one());
                 added += 1;
             }
@@ -95,33 +70,9 @@ pub fn adjacency_matrix<F: Float, D: Data<Elem = F>>(
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
-    use ndarray::{Array2, ArrayView1};
-
-    #[test]
-    fn euclidean_distance_test() {
-        let p1 = Euclidean {
-            0: ArrayView1::from_shape(2, &[0., 0.]).unwrap(),
-        };
-        let p2 = Euclidean {
-            0: ArrayView1::from_shape(2, &[1., 1.]).unwrap(),
-        };
-
-        assert_eq!(p1.distance(&p2), 2_f32.sqrt().to_bits());
-
-        let p2 = Euclidean {
-            0: ArrayView1::from_shape(2, &[4., 3.]).unwrap(),
-        };
-
-        assert_eq!(p1.distance(&p2), 5_f32.to_bits());
-
-        let p2 = Euclidean {
-            0: ArrayView1::from_shape(2, &[0., 0.]).unwrap(),
-        };
-
-        assert_eq!(p1.distance(&p2), 0);
-    }
+    use linfa_nn::{BallTree, KdTree};
+    use ndarray::Array2;
 
     #[test]
     #[allow(clippy::if_same_then_else)]
@@ -136,7 +87,7 @@ mod tests {
         // Elements in the input come in pairs of 2 nearby elements with consecutive indices
         // I expect a matrix with 16 non-zero elements placed in the diagonal and connecting
         // consecutive elements in pairs of two
-        let adj_mat = adjacency_matrix(&input_arr, 1);
+        let adj_mat = adjacency_matrix(&input_arr, 1, &KdTree);
         assert_eq!(adj_mat.nnz(), 16);
 
         for i in 0..8 {
@@ -162,7 +113,7 @@ mod tests {
         // Elements in the input come in triples of 3 nearby elements with consecutive indices
         // I expect a matrix with 26 non-zero elements placed in the diagonal and connecting
         // consecutive elements in triples
-        let adj_mat = adjacency_matrix(&input_arr, 2);
+        let adj_mat = adjacency_matrix(&input_arr, 2, &KdTree);
         assert_eq!(adj_mat.nnz(), 26);
 
         // diagonal -> 8 non-zeros
@@ -204,7 +155,7 @@ mod tests {
         ];
 
         let input_arr = Array2::from_shape_vec((8, 2), input_mat).unwrap();
-        let adj_mat = adjacency_matrix(&input_arr, 1);
+        let adj_mat = adjacency_matrix(&input_arr, 1, &BallTree);
         assert_eq!(adj_mat.nnz(), 16);
 
         // I expext non-zeros in the diagonal and then:
@@ -234,7 +185,7 @@ mod tests {
         .concat()
         .concat();
         let input_arr = Array2::from_shape_vec((8, 2), input_mat).unwrap();
-        let _ = adjacency_matrix(&input_arr, 0);
+        let _ = adjacency_matrix(&input_arr, 0, &KdTree);
     }
 
     #[test]
@@ -249,6 +200,6 @@ mod tests {
         .concat()
         .concat();
         let input_arr = Array2::from_shape_vec((8, 2), input_mat).unwrap();
-        let _ = adjacency_matrix(&input_arr, 8);
+        let _ = adjacency_matrix(&input_arr, 8, &BallTree);
     }
 }

@@ -28,7 +28,6 @@ default-features = false
 features = ["std", "derive"]
 
 [dependencies]
-hnsw = "0.8"
 ndarray = { version = "0.15", features = ["rayon", "approx"]}
 ndarray-linalg = "0.14"
 ndarray-rand = "0.14"
@@ -40,7 +39,6 @@ thiserror = "1.0"
 partitions = "0.2.4"
 linfa = { version = "0.4.0", path = "../..", features = ["ndarray-linalg"] }
 linfa-nn = { version = "0.1.0", path = "../linfa-nn" }
-rand_pcg = "0.3.1"
 noisy_float = "0.2.0"
 
 [dev-dependencies]
