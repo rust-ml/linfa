@@ -1,3 +1,23 @@
+Version 0.5.0 - yyyy-mm-dd
+========================
+
+New Algorithms
+-----------
+
+ * Nearest neighbour algorithms and traits have been added as `linfa-nn` by [@YuhanLiin]
+ * OPTICS has been added to `linfa-clustering` by [@xd009642]
+ * Multinomial logistic regression has been added to `linfa-logistic` by [@YuhanLiin]
+
+Changes
+-----------
+ * use least squares solver from `ndarray-linalg` in `linfa-linear` (3dc9cb0)
+ * optimized DBSCAN by replacing linear range query implementation with KD-tree (44f91d0)
+ * allow distance metrics other than Euclidean to be used for KMeans (4e58d8d)
+ * enable models to write prediction results into existing memory without allocating (37bc25b)
+ * bumped `ndarray` version to 0.15 and reduced duplicated dependencies (603f821)
+ * introduce `ParamGuard` trait to algorithm parameter sets to enable both explicit and implicit parameter checking (01f912a)
+ * replace uses of HNSW with `linfa-nn` (208a762)
+
 Version 0.4.0 - 2021-04-28
 ========================
 
