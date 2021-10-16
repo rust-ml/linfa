@@ -1,3 +1,21 @@
+Version 0.4.0 - 2021-04-28
+========================
+
+New Algorithms
+-----------
+
+ * Partial Least Squares Regression has been added as `linfa-pls` by [@relf]
+ * Barnes-Hut t-SNE wrapper has been added as `linfa-tsne` by [@frjnn]
+ * Count-vectorizer and IT-IDF normalization has been added as `linfa-preprocessing` by [@Sauro98]
+ * Platt scaling has been added to `linfa-svm` by [@bytesnake]
+ * Incremental KMeans and KMeans++ and KMeans|| initialization methods added to `linfa-clustering` by [@YuhanLiin]
+
+Changes
+-----------
+ * bumped `ndarray` version to 0.14 (8276bdc)
+ * change trait signature of `linfa::Fit` to return `Result` (a5a479f)
+ * add `cross_validate` to perform K-folding (a5a479f)
+
 Version 0.3.1 - 2021-03-11
 ========================
 
