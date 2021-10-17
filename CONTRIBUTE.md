@@ -36,7 +36,7 @@ struct MyAlgValidParams {
 struct MyAlgParams(MyAlgValidParams);
 ```
 
-`MyAlgParams` should implement the Consuming Builder pattern, explained in the [Rust Book](https://doc.rust-lang.org/1.0.0/style/ownership/builders.html). Each hyperparameter gets a method to modify it. `MyAlgParams` should also implement the `ParamGuard` trait, which facilitates parameter checking. The associated type `ParamGuard::Checked` should be `MyAlgValidParams` and the `check_ref()` method should contain the parameter checking logic, which `check()` simply calls `check_ref()` before unwrapping the inner `MyAlgValidParams`.
+`MyAlgParams` should implement the Consuming Builder pattern, explained in the [Rust Book](https://doc.rust-lang.org/1.0.0/style/ownership/builders.html). Each hyperparameter gets a method to modify it. `MyAlgParams` should also implement the `ParamGuard` trait, which facilitates parameter checking. The associated type `ParamGuard::Checked` should be `MyAlgValidParams` and the `check_ref()` method should contain the parameter checking logic, while `check()` simply calls `check_ref()` before unwrapping the inner `MyAlgValidParams`.
 
 With a checked set of parameters, `MyAlgValidParams::fit(..) -> Result<MyAlg>` executes the learning process and returns a learned state. Due to blanket impls on `ParamGuard`, it's also possible to call `fit()` or `transform()` directly on `MyAlgParams` as well, which performs the parameter checking before the learning process.
 
