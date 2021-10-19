@@ -404,7 +404,7 @@ fn log_sum_exp<F: linfa::Float, A: Data<Elem = F>>(
     // Computes `max + ln(exp(x1-max) + exp(x2-max) + exp(x3-max) + ...)`, which is equal to the
     // log_sum_exp formula
     let reduced = m.fold_axis(axis, F::zero(), |acc, elem| *acc + (*elem - max).exp());
-    reduced.mapv_into(|e| e.ln() + max)
+    reduced.mapv_into(|e| e.max(F::cast(1e-15)).ln() + max)
 }
 
 /// Computes `exp(n - max) / sum(exp(n- max))`, which is a numerically stable version of softmax
