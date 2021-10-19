@@ -1,3 +1,8 @@
++++
+title = "Release 0.5.0"
+date = "yyyy-mm-dd"
++++
+
 Release 0.5.0
 
 Linfa's 0.5.0 release adds initial support for the OPTICS algorithm, multinomials logistic regression, and the family of nearest neighbor algorithms. Furthermore, we have improved documentation and introduced hyperparameter checking to all algorithms.
