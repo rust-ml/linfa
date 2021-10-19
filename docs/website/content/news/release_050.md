@@ -1,6 +1,6 @@
 +++
 title = "Release 0.5.0"
-date = "yyyy-mm-dd"
+date = "2021-10-23"
 +++
 
 Release 0.5.0
