@@ -16,7 +16,7 @@ let points = kdtree.within_range(candidate.view(), range).unwrap();
 
 Logistic regression models problems with two possible discrete outcomes. Extending this to the multinomial distribution yields the Multinomial Logistic Regression which can model datasets with an arbitrary number of outcomes. 
 
-We will try to model the winequality of 1440 samples, you can find the full example [here]()
+We will try to model the winequality of 1440 samples, you can find the full example [here](https://github.com/rust-ml/linfa/blob/master/algorithms/linfa-logistic/examples/winequality_multi.rs)
 ```rust
     // fit a Logistic regression model with 150 max iterations
    let model = MultiLogisticRegression::default()
