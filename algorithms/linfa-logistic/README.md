@@ -5,13 +5,19 @@
 `linfa-logistic` is a crate in the [`linfa`](https://crates.io/crates/linfa) ecosystem, an effort to create a toolkit for classical Machine Learning implemented in pure Rust, akin to Python's `scikit-learn`.
 
 ## Current state
-`linfa-logistic` provides a pure Rust implementation of a two class logistic regression model. 
+`linfa-logistic` provides pure Rust implementations of two-class and multinomial logistic regression models.
 
 ## Examples
-There is an usage example in the `examples/` directory. To run, use:
+There are usage examples in the `examples/` directory.
 
+To run the two-class example, use:
 ```bash
-$ cargo run --example winequality
+$ cargo run --example winequality --features linfa/<blas-library>
+```
+
+To run the multinomial example, use:
+```bash
+$ cargo run --example winequality_multi --features linfa/<blas-library>
 ```
 
 ## License

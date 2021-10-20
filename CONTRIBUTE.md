@@ -20,22 +20,25 @@ where the type of the input dataset is `&Dataset<Kernel<F>, Array1<bool>>`. It p
 
 The [Predict](src/traits.rs) trait has its own section later in this document, while for an example of a `Transformer` please look into the [linfa-kernel](linfa-kernel/src/lib.rs) implementation.
 
-## Parameters and builder
+## Parameters and checking
 
 An algorithm has a number of hyperparameters, describing how it operates. This section describes how the algorithm's structs should be organized in order to conform with other implementations. 
 
-Imagine we have an implementation of `MyAlg`, there should a separate struct called `MyAlgParams`. The method `MyAlg::params(..) -> MyAlgParams` constructs a parameter set with default parameters and optionally required arguments (for example the number of clusters). If no parameters are required, then `std::default::Default` can be implemented as well:
+Sometimes only an algorithm's parameters must be checked for validity. As such, Linfa makes a distinction between checked and unchecked parameters. Unchecked parameters can be converted into checked parameters if the values are valid, and only checked parameters can be used to run the algorithm.
+
+Imagine we have an implementation of `MyAlg`, there should separate structs called `MyAlgValidParams`, which are the checked parameters, and `MyAlgParams`, which are the unchecked parameters. The method `MyAlg::params(..) -> MyAlgParams` constructs a parameter set with default parameters and optionally required arguments (for example the number of clusters). `MyAlgValidParams` should be a struct that contains all the hyperparameters as fields, and `MyAlgParams` should just be a newtype that wraps `MyAlgValidParams`.
 ```rust
-impl Default for MyAlgParams {
-    fn default() -> MyAlgParams {
-        MyAlg::params()
-    }
+struct MyAlgValidParams {
+    eps: f32,
+    backwards: bool,
 }
+
+struct MyAlgParams(MyAlgValidParams);
 ```
 
-The `MyAlgParams` should implement the Consuming Builder pattern, explained in the [Rust Book](https://doc.rust-lang.org/1.0.0/style/ownership/builders.html). Each hyperparameter gets a single field in the struct, as well as a method to modify it. Sometimes a random number generator is used in the training process. Then two separate methods should take a seed or a random number generator. With the seed a default RNG is initialized, for example [Isaac64](https://docs.rs/rand_isaac/0.2.0/rand_isaac/isaac64/index.html).
+`MyAlgParams` should implement the Consuming Builder pattern, explained in the [Rust Book](https://doc.rust-lang.org/1.0.0/style/ownership/builders.html). Each hyperparameter gets a method to modify it. `MyAlgParams` should also implement the `ParamGuard` trait, which facilitates parameter checking. The associated type `ParamGuard::Checked` should be `MyAlgValidParams` and the `check_ref()` method should contain the parameter checking logic, while `check()` simply calls `check_ref()` before unwrapping the inner `MyAlgValidParams`.
 
-With a constructed set of parameters, the `MyAlgParams::fit(..) -> Result<MyAlg>` executes the learning process and returns a learned state. If one of the parameters is invalid (for example out of a required range), then an `Error::InvalidState` should be returned. For transformers there is only `MyAlg`, and no `MyAlgParams`, because there is no hidden state to be learned.
+With a checked set of parameters, `MyAlgValidParams::fit(..) -> Result<MyAlg>` executes the learning process and returns a learned state. Due to blanket impls on `ParamGuard`, it's also possible to call `fit()` or `transform()` directly on `MyAlgParams` as well, which performs the parameter checking before the learning process.
 
 Following this convention, the pattern can be used by the user like this:
 ```rust
@@ -44,6 +47,11 @@ MyAlg::params()
     .backwards(true)
     ...
     .fit(&dataset)?;
+```
+or, if the checking is done explicitly:
+```rust
+let params = MyAlg::params().check();
+params.fit(&dataset);
 ```
 
 ## Generic float types
