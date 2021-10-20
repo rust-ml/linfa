@@ -1,4 +1,4 @@
-Version 0.5.0 - yyyy-mm-dd
+Version 0.5.0 - 2021-10-20
 ========================
 
 New Algorithms
