@@ -7,6 +7,8 @@ use ndarray_npy::write_npy;
 use ndarray_rand::rand::SeedableRng;
 use rand_isaac::Isaac64Rng;
 
+use linfa_nn::distance::LInfDist;
+
 // A routine K-means task: build a synthetic dataset, fit the algorithm on it
 // and save both training data and predictions to disk.
 fn main() {
@@ -20,7 +22,7 @@ fn main() {
 
     // Configure our training algorithm
     let n_clusters = expected_centroids.len_of(Axis(0));
-    let model = KMeans::params_with_rng(n_clusters, rng)
+    let model = KMeans::params_with(n_clusters, rng, LInfDist)
         .max_n_iterations(200)
         .tolerance(1e-5)
         .fit(&dataset)
