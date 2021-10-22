@@ -1,7 +1,7 @@
 //! Ordinary Least Squares
 #![allow(non_snake_case)]
 use crate::error::{LinearError, Result};
-use ndarray::{concatenate, Array, Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2};
+use ndarray::{concatenate, s, Array, Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2};
 use ndarray_linalg::{Lapack, LeastSquaresSvdInto, Scalar};
 use ndarray_stats::SummaryStatisticsExt;
 use serde::{Deserialize, Serialize};
@@ -68,7 +68,7 @@ impl Options {
 /// A fitted linear regression model which can be used for making predictions.
 pub struct FittedLinearRegression<F> {
     intercept: F,
-    params: Array2<F>,
+    params: Array1<F>,
 }
 
 impl Default for LinearRegression {
@@ -144,14 +144,11 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> Fit<ArrayBase<D, Ix2>,
 
         if self.options.should_use_intercept() {
             let X = concatenate(Axis(1), &[X.view(), Array2::ones((X.nrows(), 1)).view()]).unwrap();
-            let mut params: Array1<F> =
+            let params: Array1<F> =
                 compute_params(X, y.to_owned(), self.options.should_normalize())?;
             let intercept = *params.last().unwrap();
-            params.remove_index(Axis(0), params.len() - 1);
-            Ok(FittedLinearRegression {
-                intercept,
-                params: params.insert_axis(Axis(1)),
-            })
+            let params = params.slice(s![..params.len() - 1]).to_owned();
+            Ok(FittedLinearRegression { intercept, params })
         } else {
             // `LeastSquaresSvdInto` needs a mutable reference to the data and `dataset` is taken
             // by reference. Therefore copy the problem matrix and target vector.
@@ -159,7 +156,7 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> Fit<ArrayBase<D, Ix2>,
 
             Ok(FittedLinearRegression {
                 intercept: F::cast(0),
-                params: solve_least_squares(X, y)?.insert_axis(Axis(1)),
+                params: solve_least_squares(X, y)?,
             })
         }
     }
@@ -200,7 +197,7 @@ where
 /// linear regresssion model.
 impl<F: Float> FittedLinearRegression<F> {
     /// Get the fitted parameters
-    pub fn params(&self) -> &Array2<F> {
+    pub fn params(&self) -> &Array1<F> {
         &self.params
     }
 
@@ -223,7 +220,7 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<F>>
             "The number of data points must match the number of output targets."
         );
 
-        *y = x.dot(&self.params).remove_axis(Axis(1)) + self.intercept;
+        *y = x.dot(&self.params) + self.intercept;
     }
 
     fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<F> {
@@ -300,7 +297,7 @@ mod tests {
         let dataset = Dataset::new(array![[0f64, 0.], [1., 1.], [2., 4.]], array![1., 4., 9.]);
         let model = lin_reg.fit(&dataset).unwrap();
 
-        assert_abs_diff_eq!(model.params(), &array![[2.], [1.]], epsilon = 1e-12);
+        assert_abs_diff_eq!(model.params(), &array![2., 1.], epsilon = 1e-12);
         assert_abs_diff_eq!(model.intercept(), &1., epsilon = 1e-12);
     }
 
@@ -316,7 +313,7 @@ mod tests {
         );
         let model = lin_reg.fit(&dataset).unwrap();
 
-        assert_abs_diff_eq!(model.params(), &array![[3.], [3.], [1.]], epsilon = 1e-12);
+        assert_abs_diff_eq!(model.params(), &array![3., 3., 1.], epsilon = 1e-12);
         assert_abs_diff_eq!(model.intercept(), &1., epsilon = 1e-12);
     }
 
@@ -329,7 +326,7 @@ mod tests {
         let dataset = Dataset::new(array![[0f64, 0.], [1., 1.], [2., 4.]], array![1., 4., 9.]);
         let model = lin_reg.fit(&dataset).unwrap();
 
-        assert_abs_diff_eq!(model.params(), &array![[2.], [1.]], epsilon = 1e-4);
+        assert_abs_diff_eq!(model.params(), &array![2., 1.], epsilon = 1e-4);
         assert_abs_diff_eq!(model.intercept(), &1., epsilon = 1e-6);
     }
 
@@ -346,7 +343,7 @@ mod tests {
         );
         let model = lin_reg.fit(&dataset).unwrap();
 
-        assert_abs_diff_eq!(model.params(), &array![[3.], [3.], [1.]], epsilon = 1e-12);
+        assert_abs_diff_eq!(model.params(), &array![3., 3., 1.], epsilon = 1e-12);
         assert_abs_diff_eq!(model.intercept(), 1., epsilon = 1e-12);
     }
 
