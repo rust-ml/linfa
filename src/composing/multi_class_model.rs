@@ -2,7 +2,6 @@
 //!
 use crate::dataset::{Pr, Records};
 use crate::traits::PredictInplace;
-use crate::Float;
 use ndarray::{Array1, ArrayBase, Data, Ix2};
 use std::iter::FromIterator;
 
@@ -19,7 +18,7 @@ impl<R: Records, L> MultiClassModel<R, L> {
     }
 }
 
-impl<L: Clone + Default, F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<L>>
+impl<L: Clone + Default, F, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<L>>
     for MultiClassModel<ArrayBase<D, Ix2>, L>
 {
     fn predict_inplace(&self, arr: &ArrayBase<D, Ix2>, y: &mut Array1<L>) {
@@ -63,12 +62,8 @@ impl<L: Clone + Default, F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D
     }
 }
 
-impl<
-        F: Float,
-        D: Data<Elem = F>,
-        L,
-        P: PredictInplace<ArrayBase<D, Ix2>, Array1<Pr>> + 'static,
-    > FromIterator<(L, P)> for MultiClassModel<ArrayBase<D, Ix2>, L>
+impl<F, D: Data<Elem = F>, L, P: PredictInplace<ArrayBase<D, Ix2>, Array1<Pr>> + 'static>
+    FromIterator<(L, P)> for MultiClassModel<ArrayBase<D, Ix2>, L>
 {
     fn from_iter<I: IntoIterator<Item = (L, P)>>(iter: I) -> Self {
         let models = iter
