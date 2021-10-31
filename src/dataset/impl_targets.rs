@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use super::{
-    AsProbabilities, AsTargets, AsTargetsMut, CountedTargets, DatasetBase, Float, FromTargetArray,
-    Label, Labels, Pr, Records,
+    AsProbabilities, AsTargets, AsTargetsMut, CountedTargets, DatasetBase, FromTargetArray, Label,
+    Labels, Pr, Records,
 };
 use ndarray::{
     Array1, Array2, ArrayBase, ArrayView2, ArrayViewMut2, Axis, CowArray, Data, DataMut, Dimension,
@@ -160,7 +160,7 @@ impl<L: Label, T: AsTargets<Elem = L>> Labels for CountedTargets<L, T> {
     }
 }
 
-impl<F: Float, L: Copy + Label, D, T> DatasetBase<ArrayBase<D, Ix2>, T>
+impl<F: Copy, L: Copy + Label, D, T> DatasetBase<ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
     T: AsTargets<Elem = L>,
