@@ -7,7 +7,6 @@
 //!
 use crate::dataset::Records;
 use crate::traits::PredictInplace;
-use crate::Float;
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2};
 use std::iter::FromIterator;
 
@@ -32,7 +31,7 @@ impl<R: Records, L> MultiTargetModel<R, L> {
     }
 }
 
-impl<L: Default, F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array2<L>>
+impl<L: Default, F, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array2<L>>
     for MultiTargetModel<ArrayBase<D, Ix2>, L>
 {
     fn predict_inplace(&self, arr: &ArrayBase<D, Ix2>, targets: &mut Array2<L>) {
@@ -60,7 +59,7 @@ impl<L: Default, F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, 
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, L, P: PredictInplace<ArrayBase<D, Ix2>, Array1<L>> + 'static>
+impl<F, D: Data<Elem = F>, L, P: PredictInplace<ArrayBase<D, Ix2>, Array1<L>> + 'static>
     FromIterator<P> for MultiTargetModel<ArrayBase<D, Ix2>, L>
 {
     fn from_iter<I: IntoIterator<Item = P>>(iter: I) -> Self {

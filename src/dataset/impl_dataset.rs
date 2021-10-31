@@ -174,7 +174,7 @@ impl<L, R: Records, T: AsTargets<Elem = L>> DatasetBase<R, T> {
     }
 }
 
-impl<'a, F: Float, L, D, T> DatasetBase<ArrayBase<D, Ix2>, T>
+impl<'a, F, L, D, T> DatasetBase<ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
     T: AsTargets<Elem = L>,
@@ -198,7 +198,7 @@ where
     }
 }
 
-impl<'a, F: Float, L: 'a, D, T> DatasetBase<ArrayBase<D, Ix2>, T>
+impl<'a, F: 'a, L: 'a, D, T> DatasetBase<ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
     T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
@@ -249,7 +249,7 @@ impl<L, R: Records, T: AsTargetsMut<Elem = L>> AsTargetsMut for DatasetBase<R, T
 }
 
 #[allow(clippy::type_complexity)]
-impl<'a, L: 'a, F: Float, T> DatasetBase<ArrayView2<'a, F>, T>
+impl<'a, L: 'a, F, T> DatasetBase<ArrayView2<'a, F>, T>
 where
     T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
 {
@@ -302,7 +302,7 @@ impl<L: Label, T: Labels<Elem = L>, R: Records> Labels for DatasetBase<R, T> {
 }
 
 #[allow(clippy::type_complexity)]
-impl<'a, 'b: 'a, F: Float, L: Label, T, D> DatasetBase<ArrayBase<D, Ix2>, T>
+impl<'a, 'b: 'a, F, L: Label, T, D> DatasetBase<ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
     T: AsTargets<Elem = L> + Labels<Elem = L>,
@@ -383,7 +383,7 @@ impl<L: Label, R: Records, S: AsTargets<Elem = L>> DatasetBase<R, S> {
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, I: Dimension> From<ArrayBase<D, I>>
+impl<F, D: Data<Elem = F>, I: Dimension> From<ArrayBase<D, I>>
     for DatasetBase<ArrayBase<D, I>, Array2<()>>
 {
     fn from(records: ArrayBase<D, I>) -> Self {
@@ -397,7 +397,7 @@ impl<F: Float, D: Data<Elem = F>, I: Dimension> From<ArrayBase<D, I>>
     }
 }
 
-impl<F: Float, E, D, S> From<(ArrayBase<D, Ix2>, ArrayBase<S, Ix2>)>
+impl<F, E, D, S> From<(ArrayBase<D, Ix2>, ArrayBase<S, Ix2>)>
     for DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, Ix2>>
 where
     D: Data<Elem = F>,
@@ -413,7 +413,7 @@ where
     }
 }
 
-impl<F: Float, E, D, S> From<(ArrayBase<D, Ix2>, ArrayBase<S, Ix1>)>
+impl<F, E, D, S> From<(ArrayBase<D, Ix2>, ArrayBase<S, Ix1>)>
     for DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, Ix2>>
 where
     D: Data<Elem = F>,
@@ -429,7 +429,7 @@ where
     }
 }
 
-impl<'b, F: Float, E: Copy + 'b, D, T> DatasetBase<ArrayBase<D, Ix2>, T>
+impl<'b, F: Clone, E: Copy + 'b, D, T> DatasetBase<ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
     T: AsTargets<Elem = E> + FromTargetArray<'b, E>,
@@ -667,7 +667,7 @@ macro_rules! assist_swap_array2 {
     };
 }
 
-impl<'a, F: Float, E: Copy + 'a, D, S> DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, Ix2>>
+impl<'a, F: 'a + Clone, E: Copy + 'a, D, S> DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, Ix2>>
 where
     D: DataMut<Elem = F>,
     S: DataMut<Elem = E>,
@@ -987,7 +987,7 @@ where
     }
 }
 
-impl<F: Float, E> Dataset<F, E> {
+impl<F, E> Dataset<F, E> {
     /// Split dataset into two disjoint chunks
     ///
     /// This function splits the observations in a dataset into two disjoint chunks. The splitting
@@ -1050,7 +1050,7 @@ impl<F: Float, E> Dataset<F, E> {
     }
 }
 
-impl<F: Float, D, E, T, O> Predict<ArrayBase<D, Ix2>, DatasetBase<ArrayBase<D, Ix2>, T>> for O
+impl<F, D, E, T, O> Predict<ArrayBase<D, Ix2>, DatasetBase<ArrayBase<D, Ix2>, T>> for O
 where
     D: Data<Elem = F>,
     T: AsTargets<Elem = E>,
@@ -1063,7 +1063,7 @@ where
     }
 }
 
-impl<F: Float, R, T, E, S, O> Predict<DatasetBase<R, T>, DatasetBase<R, S>> for O
+impl<F, R, T, E, S, O> Predict<DatasetBase<R, T>, DatasetBase<R, S>> for O
 where
     R: Records<Elem = F>,
     S: AsTargets<Elem = E>,
@@ -1076,7 +1076,7 @@ where
     }
 }
 
-impl<'a, F: Float, R, T, S, O> Predict<&'a DatasetBase<R, T>, S> for O
+impl<'a, F, R, T, S, O> Predict<&'a DatasetBase<R, T>, S> for O
 where
     R: Records<Elem = F>,
     O: PredictInplace<R, S>,
@@ -1088,7 +1088,7 @@ where
     }
 }
 
-impl<'a, F: Float, D, DM, T, O> Predict<&'a ArrayBase<D, DM>, T> for O
+impl<'a, F, D, DM, T, O> Predict<&'a ArrayBase<D, DM>, T> for O
 where
     D: Data<Elem = F>,
     DM: Dimension,

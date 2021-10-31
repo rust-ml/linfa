@@ -1,15 +1,15 @@
-use super::{AsTargets, DatasetBase, DatasetView, Float, FromTargetArray, Records};
+use super::{AsTargets, DatasetBase, DatasetView, FromTargetArray, Records};
 use ndarray::{s, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
 use std::marker::PhantomData;
 
-pub struct Iter<'a, 'b: 'a, F: Float, L> {
+pub struct Iter<'a, 'b: 'a, F, L> {
     records: ArrayView2<'b, F>,
     targets: ArrayView2<'b, L>,
     idx: usize,
     phantom: PhantomData<&'a ArrayView2<'b, F>>,
 }
 
-impl<'a, 'b: 'a, F: Float, L> Iter<'a, 'b, F, L> {
+impl<'a, 'b: 'a, F, L> Iter<'a, 'b, F, L> {
     pub fn new(records: ArrayView2<'b, F>, targets: ArrayView2<'b, L>) -> Iter<'a, 'b, F, L> {
         Iter {
             records,
@@ -20,7 +20,7 @@ impl<'a, 'b: 'a, F: Float, L> Iter<'a, 'b, F, L> {
     }
 }
 
-impl<'a, 'b: 'a, F: Float, L> Iterator for Iter<'a, 'b, F, L> {
+impl<'a, 'b: 'a, F, L> Iterator for Iter<'a, 'b, F, L> {
     type Item = (ArrayView1<'a, F>, ArrayView1<'a, L>);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -60,7 +60,7 @@ impl<'a, 'b: 'a, R: Records, T> DatasetIter<'a, 'b, R, T> {
     }
 }
 
-impl<'a, 'b: 'a, F: Float, L: 'a, D, T> Iterator for DatasetIter<'a, 'b, ArrayBase<D, Ix2>, T>
+impl<'a, 'b: 'a, F: 'a, L: 'a, D, T> Iterator for DatasetIter<'a, 'b, ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
     T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
@@ -107,7 +107,7 @@ where
 }
 
 #[derive(Clone)]
-pub struct ChunksIter<'a, 'b: 'a, F: Float, T> {
+pub struct ChunksIter<'a, 'b: 'a, F, T> {
     records: ArrayView2<'a, F>,
     targets: &'a T,
     size: usize,
@@ -116,7 +116,7 @@ pub struct ChunksIter<'a, 'b: 'a, F: Float, T> {
     phantom: PhantomData<&'b ArrayView2<'a, F>>,
 }
 
-impl<'a, 'b: 'a, F: Float, T> ChunksIter<'a, 'b, F, T> {
+impl<'a, 'b: 'a, F, T> ChunksIter<'a, 'b, F, T> {
     pub fn new(
         records: ArrayView2<'a, F>,
         targets: &'a T,
@@ -134,7 +134,7 @@ impl<'a, 'b: 'a, F: Float, T> ChunksIter<'a, 'b, F, T> {
     }
 }
 
-impl<'a, 'b: 'a, F: Float, E: 'b, T> Iterator for ChunksIter<'a, 'b, F, T>
+impl<'a, 'b: 'a, F, E: 'b, T> Iterator for ChunksIter<'a, 'b, F, T>
 where
     T: AsTargets<Elem = E> + FromTargetArray<'b, E>,
 {
