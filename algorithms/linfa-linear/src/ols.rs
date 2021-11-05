@@ -70,7 +70,7 @@ impl LinearRegression {
     }
 
     /// Configure the linear regression model to fit an intercept.
-    pub fn fit_intercept(mut self, intercept: bool) -> Self {
+    pub fn with_intercept(mut self, intercept: bool) -> Self {
         self.fit_intercept = intercept;
         self
     }
@@ -190,7 +190,7 @@ mod tests {
     /// fit we only need to provide one point.
     #[test]
     fn without_intercept_fits_line_through_origin() {
-        let lin_reg = LinearRegression::new().fit_intercept(false);
+        let lin_reg = LinearRegression::new().with_intercept(false);
         let dataset = Dataset::new(array![[1.]], array![1.]);
         let model = lin_reg.fit(&dataset).unwrap();
         let result = model.predict(&array![[0.], [1.]]);
@@ -205,7 +205,7 @@ mod tests {
     /// f(x) = 0
     #[test]
     fn fits_least_squares_line_through_two_dots() {
-        let lin_reg = LinearRegression::new().fit_intercept(false);
+        let lin_reg = LinearRegression::new().with_intercept(false);
         let dataset = Dataset::new(array![[-1.], [1.]], array![1., 1.]);
         let model = lin_reg.fit(&dataset).unwrap();
         let result = model.predict(dataset.records());
