@@ -1,9 +1,8 @@
 //! Ordinary Least Squares
 #![allow(non_snake_case)]
 use crate::error::{LinearError, Result};
-use ndarray::{Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2};
+use ndarray::{concatenate, s, Array, Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2};
 use ndarray_linalg::{Lapack, LeastSquaresSvdInto, Scalar};
-use ndarray_stats::SummaryStatisticsExt;
 use serde::{Deserialize, Serialize};
 
 use linfa::dataset::{AsTargets, DatasetBase};
@@ -44,24 +43,7 @@ impl Float for f64 {}
 /// println!("r2 from prediction: {}", r2);
 /// ```
 pub struct LinearRegression {
-    options: Options,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-enum Options {
-    None,
-    WithIntercept,
-    WithInterceptAndNormalize,
-}
-
-impl Options {
-    fn should_use_intercept(&self) -> bool {
-        *self == Options::WithIntercept || *self == Options::WithInterceptAndNormalize
-    }
-
-    fn should_normalize(&self) -> bool {
-        *self == Options::WithInterceptAndNormalize
-    }
+    fit_intercept: bool,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -80,40 +62,16 @@ impl Default for LinearRegression {
 /// Configure and fit a linear regression model
 impl LinearRegression {
     /// Create a default linear regression model.
-    ///
-    /// By default, an intercept will be fitted. To disable fitting an
-    /// intercept, call `.with_intercept(false)` before calling `.fit()`.
-    ///
-    /// To additionally normalize the feature matrix before fitting, call
-    /// `fit_intercept_and_normalize()` before calling `fit()`. The feature
-    /// matrix will not be normalized by default.
+    /// By default, an intercept will be fitted.
     pub fn new() -> LinearRegression {
         LinearRegression {
-            options: Options::WithIntercept,
+            fit_intercept: true,
         }
     }
 
     /// Configure the linear regression model to fit an intercept.
-    /// Defaults to `true` if not set.
-    pub fn with_intercept(mut self, with_intercept: bool) -> Self {
-        if with_intercept {
-            self.options = Options::WithIntercept;
-        } else {
-            self.options = Options::None;
-        }
-        self
-    }
-
-    /// Configure the linear regression model to fit an intercept and to
-    /// normalize the feature matrix before fitting it.
-    ///
-    /// Normalizing the feature matrix is generally recommended to improve
-    /// numeric stability unless features have already been normalized or
-    /// are all within in a small range and all features are of similar size.
-    ///
-    /// Normalization implies fitting an intercept.
-    pub fn with_intercept_and_normalize(mut self) -> Self {
-        self.options = Options::WithInterceptAndNormalize;
+    pub fn with_intercept(mut self, intercept: bool) -> Self {
+        self.fit_intercept = intercept;
         self
     }
 }
@@ -142,18 +100,11 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> Fit<ArrayBase<D, Ix2>,
         // Check that our inputs have compatible shapes
         assert_eq!(y.dim(), n_samples);
 
-        if self.options.should_use_intercept() {
-            // If we are fitting the intercept, we first center X and y,
-            // compute the models parameters based on the centered X and y
-            // and the intercept as the residual of fitted parameters applied
-            // to the X_offset and y_offset
-            let X_offset: Array1<F> = X.mean_axis(Axis(0)).ok_or(LinearError::NotEnoughSamples)?;
-            let X_centered: Array2<F> = X - &X_offset;
-            let y_offset: F = y.mean().ok_or(LinearError::NotEnoughTargets)?;
-            let y_centered: Array1<F> = &y - y_offset;
-            let params: Array1<F> =
-                compute_params(X_centered, y_centered, self.options.should_normalize())?;
-            let intercept: F = y_offset - X_offset.dot(&params);
+        if self.fit_intercept {
+            let X = concatenate(Axis(1), &[X.view(), Array2::ones((X.nrows(), 1)).view()]).unwrap();
+            let params: Array1<F> = solve_least_squares(X, y.to_owned())?;
+            let intercept = *params.last().unwrap();
+            let params = params.slice(s![..params.len() - 1]).to_owned();
             Ok(FittedLinearRegression { intercept, params })
         } else {
             // `LeastSquaresSvdInto` needs a mutable reference to the data and `dataset` is taken
@@ -168,39 +119,11 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> Fit<ArrayBase<D, Ix2>,
     }
 }
 
-/// Compute the parameters for the linear regression model with
-/// or without normalization.
-fn compute_params<F, B, C>(
-    X: ArrayBase<B, Ix2>,
-    y: ArrayBase<C, Ix1>,
-    normalize: bool,
-) -> Result<Array1<F>, F>
-where
-    F: Float,
-    B: DataMut<Elem = F>,
-    C: DataMut<Elem = F>,
-{
-    if normalize {
-        let scale: Array1<F> = X.map_axis(Axis(0), |column| column.central_moment(2).unwrap());
-        let X: Array2<F> = &X / &scale;
-        let mut params: Array1<F> = solve_least_squares(X, y)?;
-        params /= &scale;
-        Ok(params)
-    } else {
-        solve_least_squares(X, y)
-    }
-}
-
 /// Find the b that minimizes the 2-norm of X b - y
 /// by using the least_squares solver from ndarray-linalg
-fn solve_least_squares<F, B, C>(
-    mut X: ArrayBase<B, Ix2>,
-    mut y: ArrayBase<C, Ix1>,
-) -> Result<Array1<F>, F>
+fn solve_least_squares<F>(mut X: Array<F, Ix2>, mut y: Array<F, Ix1>) -> Result<Array1<F>, F>
 where
     F: Float,
-    B: DataMut<Elem = F>,
-    C: DataMut<Elem = F>,
 {
     // ensure that B = C
     let (X, y) = (X.view_mut(), y.view_mut());
@@ -347,40 +270,40 @@ mod tests {
         assert_abs_diff_eq!(model.intercept(), &1., epsilon = 1e-6);
     }
 
-    /// Check that the linear regression prefectly fits four datapoints for
-    /// the model
-    /// f(x) = (x + 1)^3 = x^3 + 3x^2 + 3x + 1
-    /// when normalization is enabled
-    #[test]
-    fn fits_four_parameters_through_four_dots_with_normalization() {
-        let lin_reg = LinearRegression::new().with_intercept_and_normalize();
-        let dataset = Dataset::new(
-            array![[0f64, 0., 0.], [1., 1., 1.], [2., 4., 8.], [3., 9., 27.]],
-            array![1., 8., 27., 64.],
-        );
-        let model = lin_reg.fit(&dataset).unwrap();
+    ///// Check that the linear regression prefectly fits four datapoints for
+    ///// the model
+    ///// f(x) = (x + 1)^3 = x^3 + 3x^2 + 3x + 1
+    ///// when normalization is enabled
+    //#[test]
+    //fn fits_four_parameters_through_four_dots_with_normalization() {
+    //let lin_reg = LinearRegression::new().with_intercept_and_normalize();
+    //let dataset = Dataset::new(
+    //array![[0f64, 0., 0.], [1., 1., 1.], [2., 4., 8.], [3., 9., 27.]],
+    //array![1., 8., 27., 64.],
+    //);
+    //let model = lin_reg.fit(&dataset).unwrap();
 
-        assert_abs_diff_eq!(model.params(), &array![3., 3., 1.], epsilon = 1e-12);
-        assert_abs_diff_eq!(model.intercept(), 1., epsilon = 1e-12);
-    }
+    //assert_abs_diff_eq!(model.params(), &array![3., 3., 1.], epsilon = 1e-12);
+    //assert_abs_diff_eq!(model.intercept(), 1., epsilon = 1e-12);
+    //}
 
-    /// Check that the linear regression model works with both owned and view
-    /// representations of arrays
-    #[test]
-    fn works_with_viewed_and_owned_representations() {
-        let lin_reg = LinearRegression::new().with_intercept_and_normalize();
-        let dataset = Dataset::new(
-            array![[0., 0., 0.], [1., 1., 1.], [2., 4., 8.], [3., 9., 27.]],
-            array![1., 8., 27., 64.],
-        );
-        let dataset_view = dataset.view();
+    ///// Check that the linear regression model works with both owned and view
+    ///// representations of arrays
+    //#[test]
+    //fn works_with_viewed_and_owned_representations() {
+    //let lin_reg = LinearRegression::new().with_intercept_and_normalize();
+    //let dataset = Dataset::new(
+    //array![[0., 0., 0.], [1., 1., 1.], [2., 4., 8.], [3., 9., 27.]],
+    //array![1., 8., 27., 64.],
+    //);
+    //let dataset_view = dataset.view();
 
-        let model1 = lin_reg.fit(&dataset).expect("can't fit owned arrays");
-        let model2 = lin_reg
-            .fit(&dataset_view)
-            .expect("can't fit feature view with owned target");
+    //let model1 = lin_reg.fit(&dataset).expect("can't fit owned arrays");
+    //let model2 = lin_reg
+    //.fit(&dataset_view)
+    //.expect("can't fit feature view with owned target");
 
-        assert_eq!(model1.params(), model2.params());
-        assert_abs_diff_eq!(model1.intercept(), model2.intercept());
-    }
+    //assert_eq!(model1.params(), model2.params());
+    //assert_abs_diff_eq!(model1.intercept(), model2.intercept());
+    //}
 }
