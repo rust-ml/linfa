@@ -71,7 +71,7 @@ pub trait NearestNeighbour: std::fmt::Debug {
         batch: &'a ArrayBase<DT, Ix2>,
         leaf_size: usize,
         dist_fn: D,
-    ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError>;
+    ) -> Result<Box<dyn 'a + Send + Sync + NearestNeighbourIndex<F>>, BuildError>;
 
     /// Builds a spatial index using a default leaf size. See `from_batch_with_leaf_size` for more
     /// information.
@@ -79,7 +79,7 @@ pub trait NearestNeighbour: std::fmt::Debug {
         &self,
         batch: &'a ArrayBase<DT, Ix2>,
         dist_fn: D,
-    ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError> {
+    ) -> Result<Box<dyn 'a + Send + Sync + NearestNeighbourIndex<F>>, BuildError> {
         self.from_batch_with_leaf_size(batch, 2usize.pow(4), dist_fn)
     }
 }
@@ -164,7 +164,7 @@ impl NearestNeighbour for CommonNearestNeighbour {
         batch: &'a ArrayBase<DT, Ix2>,
         leaf_size: usize,
         dist_fn: D,
-    ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError> {
+    ) -> Result<Box<dyn 'a + Send + Sync + NearestNeighbourIndex<F>>, BuildError> {
         match self {
             Self::LinearSearch => LinearSearch.from_batch_with_leaf_size(batch, leaf_size, dist_fn),
             Self::KdTree => KdTree.from_batch_with_leaf_size(batch, leaf_size, dist_fn),

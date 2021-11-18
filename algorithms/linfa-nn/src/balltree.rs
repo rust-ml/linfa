@@ -307,9 +307,9 @@ impl NearestNeighbour for BallTree {
         batch: &'a ArrayBase<DT, Ix2>,
         leaf_size: usize,
         dist_fn: D,
-    ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError> {
+    ) -> Result<Box<dyn 'a + Send + Sync + NearestNeighbourIndex<F>>, BuildError> {
         BallTreeIndex::new(batch, leaf_size, dist_fn)
-            .map(|v| Box::new(v) as Box<dyn NearestNeighbourIndex<F>>)
+            .map(|v| Box::new(v) as Box<dyn Send + Sync + NearestNeighbourIndex<F>>)
     }
 }
 
