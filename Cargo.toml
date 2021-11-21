@@ -38,6 +38,7 @@ serde = ["serde_crate", "ndarray/serde"]
 num-traits = "0.2"
 rand = { version = "0.8", features = ["small_rng"] }
 approx = "0.4"
+pdqselect = "=0.1.0"
 
 ndarray = { version = "0.15", default-features = false, features = ["approx"] }
 ndarray-linalg = { version = "0.14", optional = true }
