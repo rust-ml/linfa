@@ -1,9 +1,12 @@
-use crate::appx_dbscan::clustering::AppxDbscanLabeler;
 use crate::appx_dbscan::{AppxDbscanParams, AppxDbscanValidParams};
 use linfa::{traits::Transformer, DatasetBase, Float};
+use linfa_nn::distance::{Distance, L2Dist};
+use linfa_nn::{CommonNearestNeighbour, NearestNeighbour};
 use ndarray::{Array1, ArrayBase, Data, Ix2};
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
+
+use super::cells_grid::CellsGrid;
 
 #[cfg_attr(
     feature = "serde",
@@ -91,29 +94,39 @@ impl AppxDbscan {
     /// Defaults are provided if the optional parameters are not specified:
     /// * `tolerance = 1e-4`
     /// * `slack = 1e-2`
-    pub fn params<F: Float>(min_points: usize) -> AppxDbscanParams<F> {
-        AppxDbscanParams::new(min_points)
+    pub fn params<F: Float>(
+        min_points: usize,
+    ) -> AppxDbscanParams<F, L2Dist, CommonNearestNeighbour> {
+        AppxDbscanParams::new(min_points, L2Dist, CommonNearestNeighbour::KdTree)
+    }
+
+    pub fn params_with<F: Float, D, N>(
+        min_points: usize,
+        dist_fn: D,
+        nn_algo: N,
+    ) -> AppxDbscanParams<F, D, N> {
+        AppxDbscanParams::new(min_points, dist_fn, nn_algo)
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<usize>>>
-    for AppxDbscanValidParams<F>
+impl<F: Float, D: Data<Elem = F>, DF: Distance<F>, N: NearestNeighbour>
+    Transformer<&ArrayBase<D, Ix2>, Array1<Option<usize>>> for AppxDbscanValidParams<F, DF, N>
 {
     fn transform(&self, observations: &ArrayBase<D, Ix2>) -> Array1<Option<usize>> {
         if observations.dim().0 == 0 {
             return Array1::from_elem(0, None);
         }
 
-        let labeler = AppxDbscanLabeler::new(&observations.view(), self);
-        labeler.into_labels()
+        let mut grid = CellsGrid::new(observations.view(), self);
+        self.label(&mut grid, observations.view())
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T>
+impl<F: Float, D: Data<Elem = F>, DF: Distance<F>, N: NearestNeighbour, T>
     Transformer<
         DatasetBase<ArrayBase<D, Ix2>, T>,
         DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>,
-    > for AppxDbscanValidParams<F>
+    > for AppxDbscanValidParams<F, DF, N>
 {
     fn transform(
         &self,

@@ -1,8 +1,8 @@
 use crate::appx_dbscan::counting_tree::TreeStructure;
 use crate::AppxDbscanValidParams;
 use linfa::Float;
+use linfa_nn::distance::Distance;
 use ndarray::{Array1, ArrayView1, ArrayView2, ArrayViewMut1};
-use ndarray_stats::DeviationExt;
 use partitions::PartitionVec;
 
 #[derive(Clone)]
@@ -71,16 +71,17 @@ impl<F: Float> Cell<F> {
 
     /// Counts the points in `cell` that are at distance at most `epsilon` from `point`.
     /// The distance used is the euclidean one.
-    pub fn points_in_range(&self, point_i: usize, points: &ArrayView2<F>, tolerance: F) -> usize {
+    pub fn points_in_range<D: Distance<F>>(
+        &self,
+        point_i: usize,
+        points: ArrayView2<F>,
+        tolerance: F,
+        dist_fn: &D,
+    ) -> usize {
         self.points
             .iter()
             .filter(|s_p| {
-                F::cast(
-                    points
-                        .row(point_i)
-                        .l2_dist(&points.row(s_p.point_index))
-                        .unwrap(),
-                ) <= tolerance
+                dist_fn.distance(points.row(point_i), points.row(s_p.point_index)) <= tolerance
             })
             .count()
     }
@@ -97,10 +98,10 @@ impl<F: Float> Cell<F> {
         self.neighbour_cell_indexes = neighbors;
     }
 
-    pub fn approximate_range_counting(
+    pub fn approximate_range_counting<D: Distance<F>, N>(
         &self,
-        point: &ArrayView1<F>,
-        params: &AppxDbscanValidParams<F>,
+        point: ArrayView1<F>,
+        params: &AppxDbscanValidParams<F, D, N>,
     ) -> usize {
         self.core_info.as_ref().map_or(0, |info| {
             info.root.approximate_range_counting(point, params)
@@ -127,11 +128,11 @@ impl<F: Float> Cell<F> {
         &self.neighbour_cell_indexes
     }
 
-    pub fn label(
+    pub fn label<D: Distance<F>, N>(
         &mut self,
         cells: &PartitionVec<Cell<F>>,
-        points: &ArrayView2<F>,
-        params: &AppxDbscanValidParams<F>,
+        points: ArrayView2<F>,
+        params: &AppxDbscanValidParams<F, D, N>,
     ) {
         if self.points.len() >= params.min_points {
             self.label_dense(points, params);
@@ -144,7 +145,11 @@ impl<F: Float> Cell<F> {
     /// all the points in the cell to 'core'.
     /// An approximate range counting structure is then built on the core points and
     /// memorized in the cell
-    fn label_dense(&mut self, points: &ArrayView2<F>, params: &AppxDbscanValidParams<F>) {
+    fn label_dense<D, N>(
+        &mut self,
+        points: ArrayView2<F>,
+        params: &AppxDbscanValidParams<F, D, N>,
+    ) {
         let points: Vec<ArrayView1<F>> = self
             .points
             .iter()
@@ -163,11 +168,11 @@ impl<F: Float> Cell<F> {
     /// then all the core points inside are labeled as such.
     /// An approximate range counting structure is then built on the core points and
     /// memorized in the cell
-    fn label_sparse(
+    fn label_sparse<D: Distance<F>, N>(
         &mut self,
         cells: &PartitionVec<Cell<F>>,
-        points: &ArrayView2<F>,
-        params: &AppxDbscanValidParams<F>,
+        points: ArrayView2<F>,
+        params: &AppxDbscanValidParams<F, D, N>,
     ) {
         let len = self.points.len();
         let mut core_points: Vec<ArrayView1<F>> = Vec::with_capacity(len);
@@ -175,7 +180,12 @@ impl<F: Float> Cell<F> {
             let mut tot_pts = 0;
             for n_index in &self.neighbour_cell_indexes {
                 let neighbour = cells.get(*n_index).unwrap();
-                tot_pts += neighbour.points_in_range(s_point.point_index, points, params.tolerance);
+                tot_pts += neighbour.points_in_range(
+                    s_point.point_index,
+                    points,
+                    params.tolerance,
+                    params.dist_fn(),
+                );
 
                 if tot_pts >= params.min_points {
                     break;

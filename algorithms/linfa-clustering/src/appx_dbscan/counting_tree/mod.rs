@@ -1,7 +1,7 @@
 use crate::appx_dbscan::AppxDbscanValidParams;
 use linfa::Float;
+use linfa_nn::distance::Distance;
 use ndarray::{Array1, Array2, ArrayView1, Axis};
-use ndarray_stats::DeviationExt;
 use std::collections::HashMap;
 
 #[derive(PartialEq, Debug)]
@@ -39,9 +39,9 @@ impl<F: Float> TreeStructure<F> {
     /// Generates a tree starting from the points given in input. To function correctly, the points in input
     /// must be all and only the core points in a given cell of the approximated DBSCAN algorithm with side size
     /// equal to `tolerance/sqrt(D)`. This is assumed true during the construction.
-    pub fn build_structure(
+    pub fn build_structure<D, N>(
         points: Vec<ArrayView1<F>>,
-        params: &AppxDbscanValidParams<F>,
+        params: &AppxDbscanValidParams<F, D, N>,
     ) -> TreeStructure<F> {
         if points.is_empty() {
             panic!("AppxDbscan::build structure internal error: attempting to initialize counting tree with no points");
@@ -57,10 +57,10 @@ impl<F: Float> TreeStructure<F> {
         // The approximated DBSCAN algorithm needs one instance of this structure for every core cell.
         // This assumes that all the points in input are contained in the cell of side size `epsilon/sqrt(D)`.
         // All the points can then be added to the root and we proceed directly to divide the core cell in its sub-cells
-        let mut root = TreeStructure::new(&get_base_cell_index(&points[0], params), base_side_size);
+        let mut root = TreeStructure::new(&get_base_cell_index(points[0], params), base_side_size);
         root.cnt = points.len();
 
-        for point in &points {
+        for point in points {
             let mut curr_side_size = base_side_size;
             let mut prev_child = &mut root;
             //level 0 is already used by the root
@@ -84,10 +84,10 @@ impl<F: Float> TreeStructure<F> {
     /// The points in the vicinity are found for certain if they are at a distance less than equal to `epsilon` from `q` and
     /// are excluded for certain if their distance from `q` is greater than `epsilon(1 + rho)`. All the points in between are
     /// counted in an arbitrary way, depending on what is more efficient.
-    pub fn approximate_range_counting(
+    pub fn approximate_range_counting<D: Distance<F>, N>(
         &self,
-        q: &ArrayView1<F>,
-        params: &AppxDbscanValidParams<F>,
+        q: ArrayView1<F>,
+        params: &AppxDbscanValidParams<F, D, N>,
     ) -> usize {
         let mut ans: usize = 0;
         let intersection_type =
@@ -117,7 +117,7 @@ impl<F: Float> TreeStructure<F> {
 
 /// Gets the indexes of the intervals of the axes in the `D` dimensional space where lies a Cell with side
 /// size equal to `side_size` that contains point `p`
-pub fn get_cell_index<F: Float>(p: &ArrayView1<F>, side_size: F) -> Array1<i64> {
+pub fn get_cell_index<F: Float>(p: ArrayView1<F>, side_size: F) -> Array1<i64> {
     let dimensionality = p.dim();
     let mut new_index = Array1::zeros(dimensionality);
     let half_size = side_size / F::cast(2.0);
@@ -135,9 +135,9 @@ pub fn get_cell_index<F: Float>(p: &ArrayView1<F>, side_size: F) -> Array1<i64> 
 
 /// Gets the indexes of the intervals of the axes in the `D` dimensional space where lies a Cell with side
 /// size equal to `epsilon/sqrt(D)` that contains point `p`
-pub fn get_base_cell_index<F: Float>(
-    p: &ArrayView1<F>,
-    params: &AppxDbscanValidParams<F>,
+pub fn get_base_cell_index<F: Float, D, N>(
+    p: ArrayView1<F>,
+    params: &AppxDbscanValidParams<F, D, N>,
 ) -> Array1<i64> {
     let dimensionality = p.dim();
     get_cell_index(p, params.tolerance / (F::cast(dimensionality)).sqrt())
@@ -149,16 +149,16 @@ pub fn get_base_cell_index<F: Float>(
 ///  * IntersectionType::FullyCovered if the cell is completely contained in a ball with center `q` and radius `epsilon(1 + rho)`;
 ///  * IntersectionType::Disjoint if the cell is completely outside of a ball with center `q` and radius `epsilon`;
 ///  * IntersectionType::Intersecting otherwise;
-pub fn determine_intersection<F: Float>(
-    q: &ArrayView1<F>,
-    params: &AppxDbscanValidParams<F>,
+pub fn determine_intersection<F: Float, D: Distance<F>, N>(
+    q: ArrayView1<F>,
+    params: &AppxDbscanValidParams<F, D, N>,
     cell_center: &Array1<F>,
     side_size: F,
 ) -> IntersectionType {
     let dimensionality = q.dim();
 
     //let appr_dist = (F::cast(1.0) + params.slack()) * params.tolerance();
-    let dist_from_center = F::cast(cell_center.l2_dist(q).unwrap());
+    let dist_from_center = params.dist_fn.distance(cell_center.view(), q);
     let dist_corner_from_center = (side_size * F::cast(dimensionality).sqrt()) / F::cast(2);
     let min_dist_edge_from_center = side_size / F::cast(2);
 
@@ -186,7 +186,7 @@ pub fn determine_intersection<F: Float>(
     let mut farthest_corner_distance = F::zero();
 
     for corner in corners.axis_iter(Axis(0)) {
-        let dist = F::cast(corner.l2_dist(q).unwrap());
+        let dist = params.dist_fn.distance(corner, q);
         if dist > farthest_corner_distance {
             farthest_corner_distance = dist;
         }
