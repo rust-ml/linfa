@@ -45,15 +45,6 @@ pub struct CoreCellInfo<F: Float> {
     i_cluster: usize,
 }
 
-impl<F: Float> CoreCellInfo<F> {
-    fn new() -> CoreCellInfo<F> {
-        CoreCellInfo {
-            root: TreeStructure::new_empty(),
-            i_cluster: 0,
-        }
-    }
-}
-
 #[derive(Clone)]
 /// A cell from a grid that partitions the D dimensional euclidean space.
 pub struct Cell<F: Float> {
@@ -64,10 +55,8 @@ pub struct Cell<F: Float> {
     /// The list of all the indexes of the cells (in the grid) that might contain points at distance at most
     /// `tolerance` from a point in this cell
     neighbour_cell_indexes: Vec<usize>,
-    /// Keeps track of wether this cell is a core cell or not
-    is_core: bool,
     /// The additional informations that need to be stored if this cell is indeed a core cell
-    core_info: CoreCellInfo<F>,
+    core_info: Option<CoreCellInfo<F>>,
 }
 
 impl<F: Float> Cell<F> {
@@ -76,13 +65,12 @@ impl<F: Float> Cell<F> {
             index: index_arr,
             points: Vec::new(),
             neighbour_cell_indexes: Vec::new(),
-            is_core: false,
-            core_info: CoreCellInfo::new(),
+            core_info: None,
         }
     }
 
     pub fn is_core(&self) -> bool {
-        self.is_core
+        self.core_info.is_some()
     }
 
     /// Counts the points in `cell` that are at distance at most `epsilon` from `point`.
@@ -118,20 +106,13 @@ impl<F: Float> Cell<F> {
         point: &ArrayView1<F>,
         params: &AppxDbscanValidParams<F>,
     ) -> usize {
-        match self.is_core {
-            true => self
-                .core_info
-                .root
-                .approximate_range_counting(point, params),
-            false => 0,
-        }
+        self.core_info.as_ref().map_or(0, |info| {
+            info.root.approximate_range_counting(point, params)
+        })
     }
 
     pub fn cluster_i(&self) -> Option<usize> {
-        match self.is_core {
-            true => Some(self.core_info.i_cluster),
-            false => None,
-        }
+        self.core_info.as_ref().map(|info| info.i_cluster)
     }
 
     pub fn assign_to_cluster(
@@ -139,16 +120,10 @@ impl<F: Float> Cell<F> {
         cluster_i: usize,
         labels: &mut ArrayViewMut1<Option<usize>>,
     ) {
-        match self.is_core {
-            true => {
-                self.core_info.i_cluster = cluster_i;
-                for s_point in self.points.iter().filter(|p| p.is_core) {
-                    labels[s_point.point_index] = Some(cluster_i);
-                }
-            }
-            false => {
-                panic!("Error: Tried to assign a non core cell to a cluster");
-            }
+        let mut core_info = self.core_info.as_mut().unwrap();
+        core_info.i_cluster = cluster_i;
+        for s_point in self.points.iter().filter(|p| p.is_core) {
+            labels[s_point.point_index] = Some(cluster_i);
         }
     }
 
@@ -174,13 +149,15 @@ impl<F: Float> Cell<F> {
     /// An approximate range counting structure is then built on the core points and
     /// memorized in the cell
     fn label_dense(&mut self, points: &ArrayView2<F>, params: &AppxDbscanValidParams<F>) {
-        self.is_core = true;
         let points: Vec<ArrayView1<F>> = self
             .points
             .iter()
             .map(|x| points.row(x.point_index))
             .collect();
-        self.core_info.root = TreeStructure::build_structure(points, params);
+        self.core_info = Some(CoreCellInfo {
+            root: TreeStructure::build_structure(points, params),
+            i_cluster: 0,
+        });
         for mut s_point in &mut self.points {
             s_point.is_core = true;
         }
@@ -210,12 +187,14 @@ impl<F: Float> Cell<F> {
             }
             if tot_pts >= params.min_points {
                 s_point.is_core = true;
-                self.is_core = true;
                 core_points.push(points.row(s_point.point_index));
             }
         }
-        if self.is_core {
-            self.core_info.root = TreeStructure::build_structure(core_points, params);
+        if !core_points.is_empty() {
+            self.core_info = Some(CoreCellInfo {
+                root: TreeStructure::build_structure(core_points, params),
+                i_cluster: 0,
+            });
         }
     }
 }

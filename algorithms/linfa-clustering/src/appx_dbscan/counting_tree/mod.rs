@@ -36,15 +36,6 @@ impl<F: Float> TreeStructure<F> {
         structure
     }
 
-    pub fn new_empty() -> TreeStructure<F> {
-        TreeStructure {
-            cell_center: Array1::zeros(1),
-            cnt: 0,
-            side_size: F::cast(0.0),
-            children: HashMap::with_capacity(0),
-        }
-    }
-
     /// Generates a tree starting from the points given in input. To function correctly, the points in input
     /// must be all and only the core points in a given cell of the approximated DBSCAN algorithm with side size
     /// equal to `tolerance/sqrt(D)`. This is assumed true during the construction.
