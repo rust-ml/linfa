@@ -19,7 +19,7 @@ pub struct TreeStructure<F: Float> {
     cell_center: Array1<F>,
     /// The size of the cell
     side_size: F,
-    /// The number of points cointained in the cell
+    /// The number of points contained in the cell
     cnt: usize,
     /// The collection of nested sub-cells (bounded by 2^D at max, with D constant)
     children: HashMap<Array1<i64>, TreeStructure<F>>,
