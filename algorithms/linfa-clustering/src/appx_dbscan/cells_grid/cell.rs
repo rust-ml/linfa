@@ -4,10 +4,6 @@ use linfa::Float;
 use ndarray::{Array1, ArrayView1, ArrayView2, ArrayViewMut1};
 use ndarray_stats::DeviationExt;
 use partitions::PartitionVec;
-use std::collections::HashMap;
-
-/// A structure that memorizes all non empty cells by their index's hash
-pub type CellTable = HashMap<Array1<i64>, usize>;
 
 #[derive(Clone)]
 /// A point in a D dimensional euclidean space that memorizes its

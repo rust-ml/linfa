@@ -55,7 +55,7 @@ impl<F: Float> TreeStructure<F> {
             levels_count.to_i32().unwrap()
         };
         // The approximated DBSCAN algorithm needs one instance of this structure for every core cell.
-        // This gives that all the points in input are contained in the cell of side size `epsilon/sqrt(D)`.
+        // This assumes that all the points in input are contained in the cell of side size `epsilon/sqrt(D)`.
         // All the points can then be added to the root and we proceed directly to divide the core cell in its sub-cells
         let mut root = TreeStructure::new(&get_base_cell_index(&points[0], params), base_side_size);
         root.cnt = points.len();

@@ -1,15 +1,19 @@
 mod cell;
 
+use std::collections::HashMap;
+
 use crate::appx_dbscan::counting_tree::get_base_cell_index;
 use crate::AppxDbscanValidParams;
 use linfa::Float;
 use linfa_nn::{distance::L2Dist, KdTree, NearestNeighbour};
-use ndarray::{Array2, ArrayView1, ArrayView2, Axis};
+use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use partitions::PartitionVec;
 
-use cell::{Cell, CellTable, StatusPoint};
+use cell::{Cell, StatusPoint};
 
 pub type CellVector<F> = PartitionVec<Cell<F>>;
+/// A structure that memorizes all non empty cells by their index's hash
+pub type CellTable = HashMap<Array1<i64>, usize>;
 
 pub struct CellsGrid<F: Float> {
     table: CellTable,
