@@ -45,7 +45,7 @@ pub struct CoreCellInfo<F: Float> {
 /// A cell from a grid that partitions the D dimensional euclidean space.
 pub struct Cell<F: Float> {
     /// The index of the intervals of the D dimensional axes where this cell lies
-    index: Array1<i64>,
+    pub index: Array1<F>,
     /// The points from the dataset that lie inside this cell
     points: Vec<StatusPoint>,
     /// The list of all the indexes of the cells (in the grid) that might contain points at distance at most
@@ -56,7 +56,7 @@ pub struct Cell<F: Float> {
 }
 
 impl<F: Float> Cell<F> {
-    pub fn new(index_arr: Array1<i64>) -> Cell<F> {
+    pub fn new(index_arr: Array1<F>) -> Cell<F> {
         Cell {
             index: index_arr,
             points: Vec::new(),

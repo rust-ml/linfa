@@ -64,37 +64,26 @@ impl<F: Float> CellsGrid<F> {
     }
 
     fn populate_neighbours(&mut self) {
-        let nindices = self.table.len();
-        // map all cell indices from i64 to F and flatten in order to put them all in an array2
-        let all_indices: Vec<F> = self
-            .table
-            .keys()
-            .map(|x| x.mapv(F::cast).to_vec())
-            .flatten()
-            .collect();
-        // construct the matrix of all cell indices
-        let indices: Array2<F> =
-            Array2::from_shape_vec((nindices, self.dimensionality), all_indices).unwrap();
+        let nindices = self.cells.len();
+        // populate the array with the indices of all cells
+        let mut indices = Array2::zeros((nindices, self.dimensionality));
+        for (cell, mut index) in self.cells.iter().zip(indices.rows_mut()) {
+            index.assign(&cell.index);
+        }
         // bulk load the kdtree with all cell indices that are actually in the table
         let kd_tree = KdTree::new().from_batch(&indices, L2Dist).unwrap();
-        for (spatial_index, table_index) in &self.table {
+        for cell in self.cells.iter_mut() {
+            let spatial_index = cell.index.view();
             // the indices of the cell represent their position in space and so the neighboring cells (all the cells that *may* contain a point
             // within the approximated distance) are the ones that have an index up to the square root of 4 times the dimensionality of the space
             let neighbors = kd_tree
-                .within_range(
-                    spatial_index.mapv(F::cast).view(),
-                    F::cast(4 * self.dimensionality).sqrt(),
-                )
+                .within_range(spatial_index, F::cast(4 * self.dimensionality).sqrt())
                 .unwrap();
             // first map the indices of the neighboring cells back to i64 (safe since they came from there) and then use the indices to
             // get the related cell position in the partition vector. Since the tree was constructed from cells in the vector it is safe
             // to unwrap the result of `get`
-            let neighbors = neighbors
-                .into_iter()
-                .map(|(i, _)| i.mapv(|x| x.to_i64().unwrap()))
-                .map(|i| *self.table.get(&i).unwrap())
-                .collect();
-            self.cells[*table_index].populate_neighbours(neighbors);
+            let neighbors = neighbors.into_iter().map(|(_, i)| i).collect();
+            cell.populate_neighbours(neighbors);
         }
     }
 
@@ -118,9 +107,9 @@ impl<F: Float> CellsGrid<F> {
     ) {
         let cell_index = get_base_cell_index(point, params);
         let curr_cell_n = self.cells.len();
-        let cell_i = self.table.entry(cell_index.clone()).or_insert(curr_cell_n);
+        let cell_i = self.table.entry(cell_index).or_insert(curr_cell_n);
         if *cell_i == curr_cell_n {
-            self.cells.push(Cell::new(cell_index));
+            self.cells.push(Cell::new(point.to_owned()));
         }
         self.cells[*cell_i].points_mut().push(StatusPoint::new(p_i));
     }
