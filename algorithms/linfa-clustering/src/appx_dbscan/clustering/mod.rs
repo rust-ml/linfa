@@ -2,10 +2,10 @@ use crate::appx_dbscan::cells_grid::CellsGrid;
 use crate::appx_dbscan::AppxDbscanValidParams;
 use linfa::Float;
 
-use linfa_nn::{distance::Distance, NearestNeighbour};
+use linfa_nn::NearestNeighbour;
 use ndarray::{Array1, ArrayView2};
 
-impl<F: Float, D: Distance<F>, N: NearestNeighbour> AppxDbscanValidParams<F, D, N> {
+impl<F: Float, N: NearestNeighbour> AppxDbscanValidParams<F, N> {
     pub(crate) fn label(
         &self,
         grid: &mut CellsGrid<F>,

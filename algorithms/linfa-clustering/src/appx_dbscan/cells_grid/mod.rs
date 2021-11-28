@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use crate::appx_dbscan::counting_tree::get_base_cell_index;
 use crate::AppxDbscanValidParams;
 use linfa::Float;
-use linfa_nn::{distance::Distance, NearestNeighbour};
+use linfa_nn::{distance::L2Dist, NearestNeighbour};
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use partitions::PartitionVec;
 
@@ -24,9 +24,9 @@ pub struct CellsGrid<F: Float> {
 
 impl<F: Float> CellsGrid<F> {
     /// Partitions the euclidean space containing `points` in a grid
-    pub fn new<D: Distance<F>, N: NearestNeighbour>(
+    pub fn new<N: NearestNeighbour>(
         points: ArrayView2<F>,
-        params: &AppxDbscanValidParams<F, D, N>,
+        params: &AppxDbscanValidParams<F, N>,
     ) -> CellsGrid<F> {
         let mut grid = CellsGrid {
             table: CellTable::with_capacity(points.dim().0),
@@ -40,10 +40,10 @@ impl<F: Float> CellsGrid<F> {
 
     /// Divides the D dimensional euclidean space in a grid of cells with side length `epsilon\sqrt(D)` and memorizes
     /// the non empty ones in a `CellTable`
-    pub fn populate<D: Distance<F>, N: NearestNeighbour>(
+    pub fn populate<N: NearestNeighbour>(
         &mut self,
         points: ArrayView2<F>,
-        params: &AppxDbscanValidParams<F, D, N>,
+        params: &AppxDbscanValidParams<F, N>,
     ) {
         for (p_i, curr_point) in points.axis_iter(Axis(0)).enumerate() {
             self.insert_point(curr_point, p_i, params);
@@ -60,11 +60,7 @@ impl<F: Float> CellsGrid<F> {
     ///
     /// # Behavior
     /// At the end of this function all the possible unions between neighbouring cells in `self.cells` will have been made.
-    pub fn label_points<D: Distance<F>, N>(
-        &mut self,
-        points: ArrayView2<F>,
-        params: &AppxDbscanValidParams<F, D, N>,
-    ) {
+    pub fn label_points<N>(&mut self, points: ArrayView2<F>, params: &AppxDbscanValidParams<F, N>) {
         for cell_i in self.table.values() {
             let mut cloned_cell = self.cells[*cell_i].clone();
             cloned_cell.label(&self.cells, points, params);
@@ -74,10 +70,7 @@ impl<F: Float> CellsGrid<F> {
         self.labeled = true;
     }
 
-    fn populate_neighbours<D: Distance<F>, N: NearestNeighbour>(
-        &mut self,
-        params: &AppxDbscanValidParams<F, D, N>,
-    ) {
+    fn populate_neighbours<N: NearestNeighbour>(&mut self, params: &AppxDbscanValidParams<F, N>) {
         let nindices = self.cells.len();
         // populate the array with the indices of all cells
         let mut indices = Array2::zeros((nindices, self.dimensionality));
@@ -87,7 +80,7 @@ impl<F: Float> CellsGrid<F> {
         // bulk load the NN structure with all cell indices that are actually in the table
         let nn = params
             .nn_algo()
-            .from_batch(&indices, params.dist_fn().clone())
+            .from_batch(&indices, L2Dist)
             .expect("nearest neighbour initialization should not fail");
         for cell in self.cells.iter_mut() {
             let spatial_index = cell.index.view();
@@ -116,11 +109,11 @@ impl<F: Float> CellsGrid<F> {
         &mut self.cells
     }
 
-    fn insert_point<D, N>(
+    fn insert_point<N>(
         &mut self,
         point: ArrayView1<F>,
         p_i: usize,
-        params: &AppxDbscanValidParams<F, D, N>,
+        params: &AppxDbscanValidParams<F, N>,
     ) {
         let cell_index = get_base_cell_index(point, params);
         let curr_cell_n = self.cells.len();
@@ -131,10 +124,10 @@ impl<F: Float> CellsGrid<F> {
         self.cells[*cell_i].points_mut().push(StatusPoint::new(p_i));
     }
 
-    fn unite_neighbouring_cells<D: Distance<F>, N>(
+    fn unite_neighbouring_cells<N>(
         &mut self,
         points: ArrayView2<F>,
-        params: &AppxDbscanValidParams<F, D, N>,
+        params: &AppxDbscanValidParams<F, N>,
     ) {
         for cell_i in self.table.values() {
             if !self.cells[*cell_i].is_core() {

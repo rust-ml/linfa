@@ -1,6 +1,5 @@
 use crate::appx_dbscan::{AppxDbscanParams, AppxDbscanValidParams};
 use linfa::{traits::Transformer, DatasetBase, Float};
-use linfa_nn::distance::{Distance, L2Dist};
 use linfa_nn::{CommonNearestNeighbour, NearestNeighbour};
 use ndarray::{Array1, ArrayBase, Data, Ix2};
 #[cfg(feature = "serde")]
@@ -34,6 +33,9 @@ use super::cells_grid::CellsGrid;
 /// border points are not assigned deterministically, it may happen that the two
 /// results still differ (in terms of border points) for very small values
 /// of `slack`.
+///
+/// Unlike regular DBSCAN, this algorithm only works with Euclidean (L2) distances, not other
+/// distance functions.
 ///
 /// ## The algorithm
 ///
@@ -94,23 +96,18 @@ impl AppxDbscan {
     /// Defaults are provided if the optional parameters are not specified:
     /// * `tolerance = 1e-4`
     /// * `slack = 1e-2`
-    pub fn params<F: Float>(
-        min_points: usize,
-    ) -> AppxDbscanParams<F, L2Dist, CommonNearestNeighbour> {
-        AppxDbscanParams::new(min_points, L2Dist, CommonNearestNeighbour::KdTree)
+    /// * `nn_algo = KdTree`
+    pub fn params<F: Float>(min_points: usize) -> AppxDbscanParams<F, CommonNearestNeighbour> {
+        AppxDbscanParams::new(min_points, CommonNearestNeighbour::KdTree)
     }
 
-    pub fn params_with<F: Float, D, N>(
-        min_points: usize,
-        dist_fn: D,
-        nn_algo: N,
-    ) -> AppxDbscanParams<F, D, N> {
-        AppxDbscanParams::new(min_points, dist_fn, nn_algo)
+    pub fn params_with<F: Float, N>(min_points: usize, nn_algo: N) -> AppxDbscanParams<F, N> {
+        AppxDbscanParams::new(min_points, nn_algo)
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, DF: Distance<F>, N: NearestNeighbour>
-    Transformer<&ArrayBase<D, Ix2>, Array1<Option<usize>>> for AppxDbscanValidParams<F, DF, N>
+impl<F: Float, D: Data<Elem = F>, N: NearestNeighbour>
+    Transformer<&ArrayBase<D, Ix2>, Array1<Option<usize>>> for AppxDbscanValidParams<F, N>
 {
     fn transform(&self, observations: &ArrayBase<D, Ix2>) -> Array1<Option<usize>> {
         if observations.dim().0 == 0 {
@@ -122,11 +119,11 @@ impl<F: Float, D: Data<Elem = F>, DF: Distance<F>, N: NearestNeighbour>
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, DF: Distance<F>, N: NearestNeighbour, T>
+impl<F: Float, D: Data<Elem = F>, N: NearestNeighbour, T>
     Transformer<
         DatasetBase<ArrayBase<D, Ix2>, T>,
         DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>,
-    > for AppxDbscanValidParams<F, DF, N>
+    > for AppxDbscanValidParams<F, N>
 {
     fn transform(
         &self,
