@@ -4,4 +4,4 @@ set style line 2 lc rgb 'blue'
 set style line 3 lc rgb 'green'
 
 set style data points
-plot 'mnist.dat' using 1:2:3 linecolor variable pt 7 ps 2 t ''
+plot 'iris.dat' using 1:2:3 linecolor variable pt 7 ps 2 t ''
