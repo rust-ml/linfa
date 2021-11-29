@@ -118,3 +118,121 @@ impl<F: Float, L> ParamGuard for GaussianNbParams<F, L> {
         Ok(self.0)
     }
 }
+
+
+/// A verified hyper-parameter set ready for the estimation of a Multinomial Naive Bayes model
+///
+/// See [`MultinomialNbParams`](crate::hyperparams::MultinomialNbParams) for more informations.
+#[derive(Debug)]
+pub struct MultinomialNbValidParams<F, L> {
+    // Additive (Laplace/Lidstone) smoothing parameter
+    alpha: F,
+    // Phantom data for label type
+    label: PhantomData<L>,
+}
+
+impl<F: Float, L> MultinomialNbValidParams<F, L> {
+    /// Get the smoothing parameter
+    pub fn alpha(&self) -> F {
+        self.alpha
+    }
+}
+
+/// A hyper-parameter set during construction
+///
+/// The parameter set can be verified into a
+/// [`MultinomialNbValidParams`](crate::hyperparams::MultinomialNbValidParams) by calling
+/// [ParamGuard::check](Self::check). It is also possible to directly fit a model with
+/// [Fit::fit](linfa::traits::Fit::fit) or
+/// [FitWith::fit_with](linfa::traits::FitWith::fit_with) which implicitely verifies the parameter set
+/// prior to the model estimation and forwards any error.
+///
+/// # Parameters
+/// | Name | Default | Purpose | Range |
+/// | :--- | :--- | :---| :--- |
+/// | [alpha](Self::alpha) | `1` | Additive (Laplace/Lidstone) smoothing parameter (0 for no smoothing) | `[0, inf)` |
+///
+/// # Errors
+///
+/// The following errors can come from invalid hyper-parameters:
+///
+/// Returns [`InvalidSmoothing`](NaiveBayesError::InvalidSmoothing) if the smoothing
+/// parameter is negative.
+///
+/// # Example
+///
+/// ```rust
+/// use linfa_bayes::{MultinomialNbParams, MultinomialNbValidParams, Result};
+/// use linfa::prelude::*;
+/// use ndarray::array;
+///
+/// let x = array![
+///     [3., 1.],
+///     [4., 1.],
+///     [5., 2.],
+///     [1., 3.],
+///     [1., 4.],
+///     [2., 5.]
+/// ];
+/// let y = array![1, 1, 1, 2, 2, 2];
+/// let ds = DatasetView::new(x.view(), y.view());
+///
+/// // create a new parameter set with default smoothing parameter
+/// let unchecked_params = MultinomialNbParams::new();
+///
+/// // fit model with unchecked parameter set
+/// let model = unchecked_params.fit(&ds)?;
+///
+/// // transform into a verified parameter set
+/// let checked_params = unchecked_params.check()?;
+///
+/// // update model with the verified parameters, this only returns
+/// // errors originating from the fitting process
+/// let model = checked_params.fit_with(Some(model), &ds)?;
+/// # Result::Ok(())
+/// ```
+pub struct MultinomialNbParams<F, L>(MultinomialNbValidParams<F, L>);
+
+impl<F: Float, L> Default for MultinomialNbParams<F, L> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<F: Float, L> MultinomialNbParams<F, L> {
+    /// Create new [MultinomialNbParams] set with default values for its parameters
+    pub fn new() -> Self {
+        Self(MultinomialNbValidParams {
+            alpha: F::cast(1),
+            label: PhantomData,
+        })
+    }
+
+    /// Specifies additive (Laplace/Lidstone) smoothing parameter (0 for no smoothing)
+    pub fn alpha(mut self, alpha: F) -> Self {
+        self.0.alpha = alpha;
+        self
+    }
+}
+
+impl<F: Float, L> ParamGuard for MultinomialNbParams<F, L> {
+    type Checked = MultinomialNbValidParams<F, L>;
+    type Error = NaiveBayesError;
+
+    fn check_ref(&self) -> Result<&Self::Checked, Self::Error> {
+        if self.0.alpha.is_negative() {
+            Err(NaiveBayesError::InvalidSmoothing(
+                self.0.alpha.to_f64().unwrap(),
+            ))
+        } else {
+            Ok(&self.0)
+        }
+    }
+
+    fn check(self) -> Result<Self::Checked, Self::Error> {
+        self.check_ref()?;
+        Ok(self.0)
+    }
+}
+
+
