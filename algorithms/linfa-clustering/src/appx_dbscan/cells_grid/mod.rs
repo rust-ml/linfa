@@ -89,9 +89,6 @@ impl<F: Float> CellsGrid<F> {
             let neighbors = nn
                 .within_range(spatial_index, F::cast(4 * self.dimensionality).sqrt())
                 .unwrap();
-            // first map the indices of the neighboring cells back to i64 (safe since they came from there) and then use the indices to
-            // get the related cell position in the partition vector. Since the tree was constructed from cells in the vector it is safe
-            // to unwrap the result of `get`
             let neighbors = neighbors.into_iter().map(|(_, i)| i).collect();
             cell.populate_neighbours(neighbors);
         }
