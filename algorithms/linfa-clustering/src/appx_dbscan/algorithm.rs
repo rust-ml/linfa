@@ -1,9 +1,11 @@
-use crate::appx_dbscan::clustering::AppxDbscanLabeler;
 use crate::appx_dbscan::{AppxDbscanParams, AppxDbscanValidParams};
 use linfa::{traits::Transformer, DatasetBase, Float};
+use linfa_nn::{CommonNearestNeighbour, NearestNeighbour};
 use ndarray::{Array1, ArrayBase, Data, Ix2};
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
+
+use super::cells_grid::CellsGrid;
 
 #[cfg_attr(
     feature = "serde",
@@ -31,6 +33,9 @@ use serde_crate::{Deserialize, Serialize};
 /// border points are not assigned deterministically, it may happen that the two
 /// results still differ (in terms of border points) for very small values
 /// of `slack`.
+///
+/// Unlike regular DBSCAN, this algorithm only works with Euclidean (L2) distances, not other
+/// distance functions.
 ///
 /// ## The algorithm
 ///
@@ -91,29 +96,34 @@ impl AppxDbscan {
     /// Defaults are provided if the optional parameters are not specified:
     /// * `tolerance = 1e-4`
     /// * `slack = 1e-2`
-    pub fn params<F: Float>(min_points: usize) -> AppxDbscanParams<F> {
-        AppxDbscanParams::new(min_points)
+    /// * `nn_algo = KdTree`
+    pub fn params<F: Float>(min_points: usize) -> AppxDbscanParams<F, CommonNearestNeighbour> {
+        AppxDbscanParams::new(min_points, CommonNearestNeighbour::KdTree)
+    }
+
+    pub fn params_with<F: Float, N>(min_points: usize, nn_algo: N) -> AppxDbscanParams<F, N> {
+        AppxDbscanParams::new(min_points, nn_algo)
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<usize>>>
-    for AppxDbscanValidParams<F>
+impl<F: Float, D: Data<Elem = F>, N: NearestNeighbour>
+    Transformer<&ArrayBase<D, Ix2>, Array1<Option<usize>>> for AppxDbscanValidParams<F, N>
 {
     fn transform(&self, observations: &ArrayBase<D, Ix2>) -> Array1<Option<usize>> {
         if observations.dim().0 == 0 {
             return Array1::from_elem(0, None);
         }
 
-        let labeler = AppxDbscanLabeler::new(&observations.view(), self);
-        labeler.into_labels()
+        let mut grid = CellsGrid::new(observations.view(), self);
+        self.label(&mut grid, observations.view())
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T>
+impl<F: Float, D: Data<Elem = F>, N: NearestNeighbour, T>
     Transformer<
         DatasetBase<ArrayBase<D, Ix2>, T>,
         DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>,
-    > for AppxDbscanValidParams<F>
+    > for AppxDbscanValidParams<F, N>
 {
     fn transform(
         &self,

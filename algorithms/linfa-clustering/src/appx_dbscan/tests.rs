@@ -1,5 +1,5 @@
+use crate::AppxDbscan;
 use crate::{generate_blobs, AppxDbscanParamsError, Dbscan};
-use crate::{AppxDbscan, AppxDbscanParams};
 use linfa::traits::Transformer;
 use linfa::ParamGuard;
 use ndarray::{arr2, s, Array1, Array2};
@@ -289,30 +289,30 @@ fn test_exp(){
 
 #[test]
 fn tolerance_cannot_be_zero() {
-    let res = AppxDbscanParams::new(2).tolerance(0.0).slack(0.1).check();
+    let res = AppxDbscan::params(2).tolerance(0.0).slack(0.1).check();
     assert!(matches!(res, Err(AppxDbscanParamsError::Tolerance)));
 }
 
 #[test]
 fn slack_cannot_be_zero() {
-    let res = AppxDbscanParams::new(2).tolerance(0.1).slack(0.0).check();
+    let res = AppxDbscan::params(2).tolerance(0.1).slack(0.0).check();
     assert!(matches!(res, Err(AppxDbscanParamsError::Slack)));
 }
 
 #[test]
 fn min_points_at_least_2() {
-    let res = AppxDbscanParams::new(1).tolerance(0.1).slack(0.1).check();
+    let res = AppxDbscan::params(1).tolerance(0.1).slack(0.1).check();
     assert!(matches!(res, Err(AppxDbscanParamsError::MinPoints)));
 }
 
 #[test]
 fn tolerance_should_be_positive() {
-    let res = AppxDbscanParams::new(2).tolerance(-1.0).slack(0.1).check();
+    let res = AppxDbscan::params(2).tolerance(-1.0).slack(0.1).check();
     assert!(matches!(res, Err(AppxDbscanParamsError::Tolerance)));
 }
 
 #[test]
 fn slack_should_be_positive() {
-    let res = AppxDbscanParams::new(2).tolerance(0.1).slack(-1.0).check();
+    let res = AppxDbscan::params(2).tolerance(0.1).slack(-1.0).check();
     assert!(matches!(res, Err(AppxDbscanParamsError::Slack)));
 }

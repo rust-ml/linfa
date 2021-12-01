@@ -14,16 +14,17 @@ use thiserror::Error;
 #[derive(Clone, Debug, PartialEq)]
 /// The set of hyperparameters that can be specified for the execution of
 /// the [Approximated DBSCAN algorithm](struct.AppxDbscan.html).
-pub struct AppxDbscanValidParams<F: Float> {
+pub struct AppxDbscanValidParams<F: Float, N> {
     pub(crate) tolerance: F,
     pub(crate) min_points: usize,
     pub(crate) slack: F,
+    pub(crate) nn_algo: N,
 }
 
 #[derive(Debug)]
 /// Helper struct for building a set of [Approximated DBSCAN
 /// hyperparameters](struct.AppxDbscanParams.html)
-pub struct AppxDbscanParams<F: Float>(AppxDbscanValidParams<F>);
+pub struct AppxDbscanParams<F: Float, N>(AppxDbscanValidParams<F, N>);
 
 #[derive(Debug, Error)]
 pub enum AppxDbscanParamsError {
@@ -35,8 +36,8 @@ pub enum AppxDbscanParamsError {
     Slack,
 }
 
-impl<F: Float> AppxDbscanParams<F> {
-    pub(crate) fn new(min_points: usize) -> Self {
+impl<F: Float, N> AppxDbscanParams<F, N> {
+    pub(crate) fn new(min_points: usize, nn_algo: N) -> Self {
         let default_slack = F::cast(1e-2);
         let default_tolerance = F::cast(1e-4);
 
@@ -44,6 +45,7 @@ impl<F: Float> AppxDbscanParams<F> {
             min_points,
             tolerance: default_tolerance,
             slack: default_slack,
+            nn_algo,
         })
     }
 
@@ -58,10 +60,16 @@ impl<F: Float> AppxDbscanParams<F> {
         self.0.slack = slack;
         self
     }
+
+    /// Set the nearest neighbour algorithm to be used
+    pub fn nn_algo(mut self, nn_algo: N) -> Self {
+        self.0.nn_algo = nn_algo;
+        self
+    }
 }
 
-impl<F: Float> ParamGuard for AppxDbscanParams<F> {
-    type Checked = AppxDbscanValidParams<F>;
+impl<F: Float, N> ParamGuard for AppxDbscanParams<F, N> {
+    type Checked = AppxDbscanValidParams<F, N>;
     type Error = AppxDbscanParamsError;
 
     fn check_ref(&self) -> Result<&Self::Checked, Self::Error> {
@@ -81,9 +89,9 @@ impl<F: Float> ParamGuard for AppxDbscanParams<F> {
         Ok(self.0)
     }
 }
-impl<F: Float> TransformGuard for AppxDbscanParams<F> {}
+impl<F: Float, N> TransformGuard for AppxDbscanParams<F, N> {}
 
-impl<F: Float> AppxDbscanValidParams<F> {
+impl<F: Float, N> AppxDbscanValidParams<F, N> {
     /// Distance between points for them to be considered neighbours.
     pub fn tolerance(&self) -> F {
         self.tolerance
@@ -106,5 +114,10 @@ impl<F: Float> AppxDbscanValidParams<F> {
     /// `tolerance * (1 + slack)`
     pub fn appx_tolerance(&self) -> F {
         self.tolerance * (F::one() + self.slack)
+    }
+
+    /// Nearest neighbour algorithm used for range queries
+    pub fn nn_algo(&self) -> &N {
+        &self.nn_algo
     }
 }

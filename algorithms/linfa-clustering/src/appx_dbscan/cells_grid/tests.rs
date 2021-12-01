@@ -1,4 +1,4 @@
-use crate::AppxDbscanParams;
+use crate::AppxDbscan;
 
 use super::*;
 use linfa::prelude::ParamGuard;
@@ -6,20 +6,20 @@ use ndarray::Array2;
 
 #[test]
 fn find_cells_test() {
-    let params = AppxDbscanParams::new(2)
+    let params = AppxDbscan::params(2)
         .tolerance(2.0)
         .slack(0.1)
         .check()
         .unwrap();
     let l = params.tolerance / 2_f64.sqrt();
     let points = Array2::from_shape_vec((2, 2), vec![l, -l, -l, l]).unwrap();
-    let grid = CellsGrid::new(&points.view(), &params);
+    let grid = CellsGrid::new(points.view(), &params);
     assert_eq!(grid.cells().len(), 2);
 }
 
 #[test]
 fn label_points_test() {
-    let params = AppxDbscanParams::new(2)
+    let params = AppxDbscan::params(2)
         .tolerance(2.0)
         .slack(0.1)
         .check()
@@ -29,8 +29,8 @@ fn label_points_test() {
     let points = Array2::from_shape_vec((4, 2), all_points).unwrap();
     assert_eq!(points.row(0).dim(), 2);
     assert_eq!(points.nrows(), 4);
-    let mut grid = CellsGrid::new(&points.view(), &params);
-    grid.label_points(&points.view(), &params);
+    let mut grid = CellsGrid::new(points.view(), &params);
+    grid.label_points(points.view(), &params);
     assert_eq!(grid.cells().len(), 2);
     assert_eq!(grid.cells().iter().filter(|x| x.is_core()).count(), 2);
     assert_eq!(grid.cells().all_sets().count(), 1);
@@ -48,8 +48,8 @@ fn label_points_test() {
         -5.0 * l,
     ];
     let points = Array2::from_shape_vec((4, 2), all_points).unwrap();
-    let mut grid = CellsGrid::new(&points.view(), &params);
-    grid.label_points(&points.view(), &params);
+    let mut grid = CellsGrid::new(points.view(), &params);
+    grid.label_points(points.view(), &params);
     assert_eq!(grid.cells().len(), 2);
     assert_eq!(grid.cells().iter().filter(|x| x.is_core()).count(), 1);
     assert_eq!(grid.cells.all_sets().count(), 2);

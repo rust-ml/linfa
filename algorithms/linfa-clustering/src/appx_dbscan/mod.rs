@@ -5,7 +5,6 @@ mod counting_tree;
 mod hyperparams;
 
 pub use algorithm::*;
-pub use clustering::AppxDbscanLabeler;
 pub use hyperparams::*;
 
 #[cfg(test)]
