@@ -38,7 +38,7 @@ pub enum AppxDbscanParamsError {
 
 impl<F: Float, N> AppxDbscanParams<F, N> {
     pub(crate) fn new(min_points: usize, nn_algo: N) -> Self {
-        let default_slack = F::cast(1e-2);
+        let default_slack = F::cast(1e-6);
         let default_tolerance = F::cast(1e-4);
 
         Self(AppxDbscanValidParams {
