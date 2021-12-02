@@ -77,6 +77,9 @@ impl<F: Float> CellsGrid<F> {
         for (cell, mut index) in self.cells.iter().zip(indices.rows_mut()) {
             index.assign(&cell.index);
         }
+        let dsqrt = F::cast(self.dimensionality).sqrt();
+        let range = dsqrt.ceil() * (params.tolerance / dsqrt) + F::min_positive_value();
+
         // bulk load the NN structure with all cell indices that are actually in the table
         let nn = params
             .nn_algo()
@@ -86,9 +89,7 @@ impl<F: Float> CellsGrid<F> {
             let spatial_index = cell.index.view();
             // the indices of the cell represent their position in space and so the neighboring cells (all the cells that *may* contain a point
             // within the approximated distance) are the ones that have an index up to the square root of 4 times the dimensionality of the space
-            let neighbors = nn
-                .within_range(spatial_index, F::cast(4 * self.dimensionality).sqrt())
-                .unwrap();
+            let neighbors = nn.within_range(spatial_index, range).unwrap();
             let neighbors = neighbors.into_iter().map(|(_, i)| i).collect();
             cell.populate_neighbours(neighbors);
         }
