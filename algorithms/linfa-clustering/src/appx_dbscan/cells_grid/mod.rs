@@ -77,8 +77,7 @@ impl<F: Float> CellsGrid<F> {
         for (cell, mut index) in self.cells.iter().zip(indices.rows_mut()) {
             index.assign(&cell.index);
         }
-        let dsqrt = F::cast(self.dimensionality).sqrt();
-        let range = dsqrt.ceil() * (params.tolerance / dsqrt) + F::min_positive_value();
+        let range = params.tolerance * F::cast(2) - F::min_positive_value();
 
         // bulk load the NN structure with all cell indices that are actually in the table
         let nn = params

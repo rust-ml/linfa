@@ -2,7 +2,7 @@ use crate::AppxDbscan;
 
 use super::*;
 use linfa::prelude::ParamGuard;
-use ndarray::Array2;
+use ndarray::{arr2, Array2};
 
 #[test]
 fn find_cells_test() {
@@ -53,4 +53,46 @@ fn label_points_test() {
     assert_eq!(grid.cells().len(), 2);
     assert_eq!(grid.cells().iter().filter(|x| x.is_core()).count(), 1);
     assert_eq!(grid.cells.all_sets().count(), 2);
+}
+
+#[test]
+fn populate_neighbours_test() {
+    let tol = 2.0f64.sqrt();
+    let params = AppxDbscan::params(4).tolerance(tol).check().unwrap();
+    let points = arr2(&[
+        [0., 0.],
+        [0., 1.],
+        [0., -1.],
+        [1., 0.],
+        [-1., 0.],
+        [1., 1.],
+        [-1., -1.],
+        [1., -1.],
+        [-1., 1.],
+        [0., 2.0],
+        [0., -2.0],
+        [2.0, 0.],
+        [-2.0, 0.],
+        [1., 2.0],
+        [1., -2.0],
+        [-1., 2.0],
+        [-1., -2.0],
+        [2.0, 1.],
+        [2.0, -1.],
+        [-2.0, 1.],
+        [-2.0, -1.],
+        // These are not neighbors
+        [2.1, 2.0],
+        [2.0, -2.1],
+        [-2.0, 2.1],
+        [-2.1, -2.0],
+    ]);
+
+    let grid = CellsGrid::new(points.view(), &params);
+    let origin_cell = &grid.cells()[0];
+    let mut neighbours = origin_cell.neighbours_indexes().clone();
+    neighbours.sort_unstable();
+    // In 2D space, a cell should have 21 neighbour cells including itself, assuming all cells are
+    // occupied.
+    assert_eq!(neighbours, (0..=20).collect::<Vec<_>>());
 }
