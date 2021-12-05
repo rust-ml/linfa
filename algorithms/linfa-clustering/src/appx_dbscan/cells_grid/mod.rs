@@ -77,6 +77,16 @@ impl<F: Float> CellsGrid<F> {
         for (cell, mut index) in self.cells.iter().zip(indices.rows_mut()) {
             index.assign(&cell.index);
         }
+
+        // Neighbour cells are cells that are within `tolerance` of any edge of the cell.
+        // Finding neighbour cells via range query is iffy because the cell indices are center
+        // coordinates, not edge coordinates. This means we need a range above `tolerance` to
+        // detect cells whose edges are within `tolerance` of the cell's edge.
+        // The current range of `2*tolerance` detects all neighbour cells as well as some extra
+        // cells. Lowering the range improves performance but can adversely affect accuracy, since
+        // neighbours cells may be missed.
+        let range = params.tolerance * F::cast(2);
+
         // bulk load the NN structure with all cell indices that are actually in the table
         let nn = params
             .nn_algo()
@@ -84,11 +94,7 @@ impl<F: Float> CellsGrid<F> {
             .expect("nearest neighbour initialization should not fail");
         for cell in self.cells.iter_mut() {
             let spatial_index = cell.index.view();
-            // the indices of the cell represent their position in space and so the neighboring cells (all the cells that *may* contain a point
-            // within the approximated distance) are the ones that have an index up to the square root of 4 times the dimensionality of the space
-            let neighbors = nn
-                .within_range(spatial_index, F::cast(4 * self.dimensionality).sqrt())
-                .unwrap();
+            let neighbors = nn.within_range(spatial_index, range).unwrap();
             let neighbors = neighbors.into_iter().map(|(_, i)| i).collect();
             cell.populate_neighbours(neighbors);
         }

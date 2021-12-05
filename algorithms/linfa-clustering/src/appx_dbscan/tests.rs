@@ -1,26 +1,36 @@
-use crate::AppxDbscan;
-use crate::{generate_blobs, AppxDbscanParamsError, Dbscan};
+use crate::{generate_blobs_with_distribution, AppxDbscan};
+use crate::{AppxDbscanParamsError, Dbscan};
 use linfa::traits::Transformer;
 use linfa::ParamGuard;
-use ndarray::{arr2, s, Array1, Array2};
+use ndarray::{arr1, arr2, concatenate, s, Array1, Array2};
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::Uniform;
-use ndarray_rand::RandomExt;
 use rand_isaac::Isaac64Rng;
 use std::collections::HashMap;
 
 #[test]
-fn appx_dbscan_test_100() {
+fn appx_dbscan_parity() {
     let mut rng = Isaac64Rng::seed_from_u64(40);
     let min_points = 4;
-    let n_features = 3;
     let tolerance = 0.8;
-    let centroids =
-        Array2::random_using((min_points, n_features), Uniform::new(-30., 30.), &mut rng);
-    let dataset = generate_blobs(100, &centroids, &mut rng);
+    let centroids = arr2(&[
+        [-99.9, -88.3, 78.9],
+        [-69.3, 90.1, -87.3],
+        [20., 43.2, 10.2],
+        [-1.3, 56.0, 98.9],
+    ]);
+
+    // Points too far from any centroid to be part of a cluster
+    let outliers = arr2(&[[40.0, 55.5, 78.0], [-33.3, -1., 0.3], [-87.1, 0., 33.3]]);
+    // Each cluster of 100 points is situated within a 2x2x2 cube. On average the points are 0.08
+    // units apart, so they should all be in the same cluster
+    let clusters =
+        generate_blobs_with_distribution(100, &centroids, Uniform::new(-1., 1.), &mut rng);
+    let dataset = concatenate![ndarray::Axis(0), clusters, outliers];
+
     let appx_res = AppxDbscan::params(min_points)
         .tolerance(tolerance)
-        .slack(1e-4)
+        .slack(1e-6)
         .transform(&dataset)
         .unwrap();
     let ex_res = Dbscan::params(min_points)
@@ -34,7 +44,8 @@ fn appx_dbscan_test_100() {
     // to the approximate labels.
     let mut ex_appx_correspondence: HashMap<i64, i64> = HashMap::new();
     // For each point in the dataset get the exact and approximate label
-    for (ex_label, appx_label) in ex_res.iter().zip(appx_res.iter()) {
+    for (i, (ex_label, appx_label)) in ex_res.iter().zip(appx_res.iter()).enumerate() {
+        println!("{:?} = {:?} {}", ex_label, appx_label, dataset.row(i));
         // Get the value of the exact and approximate labels, defaulting to -1 if the
         // point is not in any cluster
         let ex_value = match ex_label {
@@ -57,102 +68,14 @@ fn appx_dbscan_test_100() {
 }
 
 #[test]
-fn appx_dbscan_test_250() {
-    let mut rng = Isaac64Rng::seed_from_u64(15);
-    let min_points = 4;
-    let n_features = 3;
-    let tolerance = 0.8;
-    let centroids = Array2::random_using(
-        (min_points, n_features),
-        Uniform::new(-100., 100.),
-        &mut rng,
-    );
-    //250* 4  = 1000 points
-    let dataset = generate_blobs(125, &centroids, &mut rng);
-    let appx_res = AppxDbscan::params(min_points)
-        .tolerance(tolerance)
-        .slack(1e-4)
-        .transform(&dataset)
-        .unwrap();
-    let ex_res = Dbscan::params(min_points)
-        .tolerance(tolerance)
-        .check()
-        .unwrap()
-        .transform(&dataset);
+fn non_cluster_points() {
+    let mut data: Array2<f64> = Array2::zeros((5, 2));
+    data.row_mut(0).assign(&arr1(&[10.0, 10.0]));
 
-    // The order of the labels of the clusters in the two algorithms may not be the same
-    // but it does not affect the result. We have to create a mapping from the exact labels
-    // to the approximate labels.
-    let mut ex_appx_correspondence: HashMap<i64, i64> = HashMap::new();
-    // For each point in the dataset get the exact and approximate label
-    for (ex_label, appx_label) in ex_res.iter().zip(appx_res.iter()) {
-        // Get the value of the exact and approximate labels, defaulting to -1 if the
-        // point is not in any cluster
-        let ex_value = match ex_label {
-            Some(value) => *value as i64,
-            None => -1,
-        };
-        let appx_value = match appx_label {
-            Some(value) => *value as i64,
-            None => -1,
-        };
-        // assert that every exact noise point is also an approximated noise point
-        if ex_value == -1 {
-            assert!(appx_value == -1);
-        }
-        // assert that the approximated label is the one associated to the exact label
-        // of the current points
-        let expected_appx_val = ex_appx_correspondence.entry(ex_value).or_insert(appx_value);
-        assert_eq!(*expected_appx_val, appx_value);
-    }
-}
+    let labels = AppxDbscan::params(4).check().unwrap().transform(&data);
 
-#[test]
-fn appx_dbscan_test_500() {
-    let mut rng = Isaac64Rng::seed_from_u64(80);
-    let min_points = 4;
-    let n_features = 3;
-    let tolerance = 0.8;
-    let centroids =
-        Array2::random_using((min_points, n_features), Uniform::new(-50., 50.), &mut rng);
-    // 500 * 4 = 2000 points
-    let dataset = generate_blobs(250, &centroids, &mut rng);
-    let appx_res = AppxDbscan::params(min_points)
-        .tolerance(tolerance)
-        .slack(1e-4)
-        .transform(&dataset)
-        .unwrap();
-    let ex_res = Dbscan::params(min_points)
-        .tolerance(tolerance)
-        .check()
-        .unwrap()
-        .transform(&dataset);
-
-    // The order of the labels of the clusters in the two algorithms may not be the same
-    // but it does not affect the result. We have to create a mapping from the exact labels
-    // to the approximate labels.
-    let mut ex_appx_correspondence: HashMap<i64, i64> = HashMap::new();
-    // For each point in the dataset get the exact and approximate label
-    for (ex_label, appx_label) in ex_res.iter().zip(appx_res.iter()) {
-        // Get the value of the exact and approximate labels, defaulting to -1 if the
-        // point is not in any cluster
-        let ex_value = match ex_label {
-            Some(value) => *value as i64,
-            None => -1,
-        };
-        let appx_value = match appx_label {
-            Some(value) => *value as i64,
-            None => -1,
-        };
-        // assert that every exact noise point is also an approximated noise point
-        if ex_value == -1 {
-            assert!(appx_value == -1);
-        }
-        // assert that the approximated label is the one associated to the exact label
-        // of the current points
-        let expected_appx_val = ex_appx_correspondence.entry(ex_value).or_insert(appx_value);
-        assert_eq!(*expected_appx_val, appx_value);
-    }
+    let expected = arr1(&[None, Some(0), Some(0), Some(0), Some(0)]);
+    assert_eq!(labels, expected);
 }
 
 #[test]
