@@ -798,13 +798,12 @@ mod tests {
 
     #[test]
     fn test_pls_constant_y() {
-        // Checks warning when y is constant.
+        // Checks constant residual error when y is constant.
         let n = 100;
         let mut rng = Isaac64Rng::seed_from_u64(42);
         let x = Array2::<f64>::random_using((n, 3), StandardNormal, &mut rng);
         let y = Array2::zeros((n, 1));
         let ds = Dataset::new(x, y);
-
         assert!(matches!(
             Pls::regression(2).fit(&ds).unwrap_err(),
             PlsError::PowerMethodConstantResidualError()
