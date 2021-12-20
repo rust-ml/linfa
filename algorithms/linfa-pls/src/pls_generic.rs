@@ -313,11 +313,16 @@ impl<F: Float> PlsValidParams<F> {
         let eps = F::epsilon();
 
         let mut y_score = Array1::ones(y.ncols());
+        let mut found = false;
         for col in y.t().rows() {
             if *col.mapv(|v| v.abs()).max().unwrap() > eps {
                 y_score = col.to_owned();
+                found = true;
                 break;
             }
+        }
+        if !found {
+            return Err(PlsError::PowerMethodConstantResidualError());
         }
 
         let mut x_pinv = None;
@@ -789,5 +794,20 @@ mod tests {
         assert_abs_diff_eq!(ds.records(), ds_orig.records(), epsilon = 1e-6);
         assert_abs_diff_eq!(ds.targets(), ds_orig.targets(), epsilon = 1e-6);
         Ok(())
+    }
+
+    #[test]
+    fn test_pls_constant_y() {
+        // Checks warning when y is constant.
+        let n = 100;
+        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let x = Array2::<f64>::random_using((n, 3), StandardNormal, &mut rng);
+        let y = Array2::zeros((n, 1));
+        let ds = Dataset::new(x, y);
+
+        assert!(matches!(
+            Pls::regression(2).fit(&ds).unwrap_err(),
+            PlsError::PowerMethodConstantResidualError()
+        ));
     }
 }
