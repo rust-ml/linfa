@@ -312,18 +312,14 @@ impl<F: Float> PlsValidParams<F> {
     ) -> Result<(Array1<F>, Array1<F>, usize)> {
         let eps = F::epsilon();
 
-        let mut y_score = Array1::ones(y.ncols());
-        let mut found = false;
+        let mut y_score = None;
         for col in y.t().rows() {
             if *col.mapv(|v| v.abs()).max().unwrap() > eps {
-                y_score = col.to_owned();
-                found = true;
+                y_score = Some(col.to_owned());
                 break;
             }
         }
-        if !found {
-            return Err(PlsError::PowerMethodConstantResidualError());
-        }
+        let mut y_score = y_score.ok_or(PlsError::PowerMethodConstantResidualError())?;
 
         let mut x_pinv = None;
         let mut y_pinv = None;
