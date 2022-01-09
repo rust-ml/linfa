@@ -1,5 +1,6 @@
 use linfa::prelude::*;
-use linfa_reduction::{utils::generate_blobs, Pca};
+use linfa_clustering::generate_blobs;
+use linfa_reduction::Pca;
 
 use ndarray::array;
 use ndarray_npy::write_npy;

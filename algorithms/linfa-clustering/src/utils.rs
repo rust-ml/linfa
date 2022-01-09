@@ -9,16 +9,7 @@ pub fn generate_blobs(
     blob_centroids: &ArrayBase<impl Data<Elem = f64>, Ix2>,
     rng: &mut impl Rng,
 ) -> Array2<f64> {
-    let (n_centroids, n_features) = blob_centroids.dim();
-    let mut blobs: Array2<f64> = Array2::zeros((n_centroids * blob_size, n_features));
-
-    for (blob_index, blob_centroid) in blob_centroids.rows().into_iter().enumerate() {
-        let blob = generate_blob(blob_size, &blob_centroid, StandardNormal, rng);
-
-        let indexes = s![blob_index * blob_size..(blob_index + 1) * blob_size, ..];
-        blobs.slice_mut(indexes).assign(&blob);
-    }
-    blobs
+    generate_blobs_with_distribution(blob_size, blob_centroids, StandardNormal, rng)
 }
 
 /// Given an input matrix `blob_centroids`, with shape `(n_blobs, n_features)`,
