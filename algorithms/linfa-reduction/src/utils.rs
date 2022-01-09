@@ -1,38 +1,9 @@
-use ndarray::{Array2, ArrayBase, Axis, Data, Ix1, Ix2};
+use ndarray::{Array2, ArrayBase, Data, Ix1, Ix2};
 use ndarray_rand::rand::Rng;
 use ndarray_rand::rand_distr::StandardNormal;
 use ndarray_rand::RandomExt;
 use num_traits::float::FloatConst;
 
-/// Computes a similarity matrix with gaussian kernel and scaling parameter `eps`
-///
-/// The generated matrix is a upper triangular matrix with dimension NxN (number of observations) and contains the similarity between all permutations of observations
-/// similarity
-pub fn to_gaussian_similarity(
-    observations: &ArrayBase<impl Data<Elem = f64>, Ix2>,
-    eps: f64,
-) -> Array2<f64> {
-    let n_observations = observations.len_of(Axis(0));
-    let mut similarity = Array2::eye(n_observations);
-
-    for i in 0..n_observations {
-        for j in 0..n_observations {
-            let a = observations.row(i);
-            let b = observations.row(j);
-
-            let distance = a
-                .iter()
-                .zip(b.iter())
-                .map(|(x, y)| (x - y).powf(2.0))
-                .sum::<f64>();
-
-            similarity[(i, j)] = (-distance / eps).exp();
-        }
-    }
-
-    similarity
-}
-///
 /// Generates a three dimension swiss roll, centered at the origin with height `height` and
 /// outwards speed `speed`
 pub fn generate_swissroll(
