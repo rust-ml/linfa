@@ -14,24 +14,29 @@ use crate::gaussian_nb::GaussianNb;
 /// Fitted Base Naive Bayes classifier
 /// 
 /// 
-/// Container for all fitted Naive Bayes models. Functionality common for all kinds of Naive Bayes 
-/// is implemented here, whereas functionality specific to individual kinds 
-/// is defined in corresponding variants of this enum: [`GaussianNb`](GaussianNb) and [`MultinomialNb`](MultinomialNb).
+/// Container for all fitted Naive Bayes models. Functionality common for all kinds
+/// of Naive Bayes is implemented here, whereas functionality specific to individual
+/// kinds is defined in corresponding variants of this enum: 
+/// [`GaussianNb`](GaussianNb) and [`MultinomialNb`](MultinomialNb).
 /// 
-/// See [`NbParams`](crate::hyperparams::NbParams) for more information on the hyper-parameters.
+/// See [`NbParams`](crate::hyperparams::NbParams) for more information on the 
+/// hyper-parameters.
 ///  
 ///
 /// # Model assumptions
 ///
-/// The family of Naive Bayes classifiers assume independence between variables. They do not model
-/// moments between variables and lack therefore in modelling capability. The advantage is a linear
-/// fitting time with maximum-likelihood training in a closed form. 
+/// The family of Naive Bayes classifiers assume independence between variables. They 
+/// do not model moments between variables and lack therefore in modelling capability.
+/// The advantage is a linear fitting time with maximum-likelihood training in a 
+/// closed form. 
 /// 
-/// Currently two types of Naive Bayes are supported: Gaussian Naive Bayes and Multinomial Naive Bayes
+/// Currently two types of Naive Bayes are supported: Gaussian Naive Bayes and
+/// Multinomial Naive Bayes
 ///
 /// # Model estimation
 ///
-/// You can fit a single model on an entire dataset. For example, for Gaussian Naive Bayes
+/// You can fit a single model on an entire dataset. 
+/// For example, for Gaussian Naive Bayes
 ///
 /// ```rust, ignore
 /// use linfa::traits::Fit;
@@ -48,8 +53,8 @@ use crate::gaussian_nb::GaussianNb;
 ///     .unwrap();
 /// ```
 ///
-/// After fitting the model, you can use the [`Predict`](linfa::traits::Predict) variants to
-/// predict new targets.
+/// After fitting the model, you can use the [`Predict`](linfa::traits::Predict) variants
+/// to predict new targets.
 ///
 #[derive(Debug, Clone)]
 pub enum BaseNb<F, L> {

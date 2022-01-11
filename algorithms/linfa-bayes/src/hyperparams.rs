@@ -39,13 +39,14 @@ pub struct NbValidParams<F, L> {
 /// [`NbValidParams`](crate::hyperparams::NbValidParams) by calling
 /// [ParamGuard::check](Self::check). It is also possible to directly fit a model with
 /// [Fit::fit](linfa::traits::Fit::fit) or
-/// [FitWith::fit_with](linfa::traits::FitWith::fit_with) which implicitely verifies the parameter set
-/// prior to the model estimation and forwards any error.
+/// [FitWith::fit_with](linfa::traits::FitWith::fit_with) which implicitely verifies
+/// the parameter set prior to the model estimation and forwards any error.
 /// 
 /// # Parameters
 /// 
-/// [`NbParams`](NbParams) can contain different hyper-parameter sets for different kinds of Naive Bayes, 
-/// depending on the chosen variant of enum [`NbValidParams::model`](crate::hyperparams::NbValidParams::model).
+/// [`NbParams`](NbParams) can contain different hyper-parameter sets for different
+/// kinds of Naive Bayes, depending on the chosen variant of enum 
+/// [`NbValidParams::model`](crate::hyperparams::NbValidParams::model).
 /// 
 /// ## Parameters for Gaussian Naive Bayes
 /// | Name | Default | Purpose | Range |
