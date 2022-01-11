@@ -3,7 +3,6 @@ use thiserror::Error;
 
 /// Simplified `Result` using [`NaiveBayesError`](crate::NaiveBayesError) as error type
 pub type Result<T> = std::result::Result<T, NaiveBayesError>;
-
 /// Error variants from hyper-parameter construction or model estimation
 #[derive(Error, Debug)]
 pub enum NaiveBayesError {
