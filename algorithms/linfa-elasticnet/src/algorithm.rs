@@ -232,7 +232,10 @@ fn block_coordinate_descent<'a, F: Float>(
                 }
             }
             let tmp = x_j.dot(&r);
-            // proximal step: TODO
+            w.slice_mut(s![j, ..]).assign(
+                &(block_soft_thresholding(tmp.view(), n_samples * l1_ratio * penalty)
+                    / (norm_cols_x[j] + n_samples * (F::one() - l1_ratio) * penalty)),
+            );
             let norm_w_j = w.slice(s![j, ..]).map(|wjt| wjt.powi(2)).sum().sqrt();
             if abs_diff_ne!(norm_w_j, F::zero()) {
                 for i in 0..x.shape()[0] {
@@ -258,6 +261,18 @@ fn block_coordinate_descent<'a, F: Float>(
     }
 
     (w, gap, n_steps)
+}
+
+fn block_soft_thresholding<'a, F: Float>(x: ArrayView1<'a, F>, threshold: F) -> Array1<F> {
+    let norm_x = x.map(|&xi| xi.powi(2)).sum().sqrt();
+    let mut _res = Array1::<F>::zeros(x.len());
+    if norm_x >= threshold {
+        let scal = F::one() - threshold / norm_x;
+        for i in 0..x.len() {
+            _res[i] = scal * x[i];
+        }
+    }
+    _res
 }
 
 fn duality_gap<'a, F: Float>(
