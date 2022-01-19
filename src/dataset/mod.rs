@@ -198,6 +198,14 @@ pub trait Records: Sized {
     fn nfeatures(&self) -> usize;
 }
 
+/// MultiTask trait
+pub trait MultiTaskTarget: Sized {
+    type Elem;
+
+    fn nsamples(&self) -> usize;
+    fn ntasks(&self) -> usize;
+}
+
 /// Return a reference to single or multiple target variables
 pub trait AsTargets {
     type Elem;

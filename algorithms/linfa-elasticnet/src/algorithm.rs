@@ -7,7 +7,7 @@ use ndarray_linalg::{Inverse, Lapack};
 
 use linfa::traits::{Fit, PredictInplace};
 use linfa::{
-    dataset::{AsTargets, Records},
+    dataset::{AsTargets, MultiTaskTarget, Records},
     DatasetBase, Float,
 };
 
@@ -60,6 +60,64 @@ where
         })
     }
 }
+
+// impl<F, D, T> Fit<ArrayBase<D, Ix2>, T, ElasticNetError> for ElasticNetValidParams<F>
+// where
+//     F: Float + Lapack,
+//     D: Data<Elem = F>,
+//     T: AsTargets<Elem = F>,
+// {
+//     type Object = MultiTaskElasticNet<F>;
+
+//     /// Fit a multi-task Elastic Net model given a feature matrix `x` and a target
+//     /// matrix `y`.
+//     ///
+//     /// The feature matrix `x` must have shape `(n_samples, n_features)`
+//     ///
+//     /// The target variable `y` must have shape `(n_samples, n_tasks)`
+//     ///
+//     /// Returns a `FittedMultiTaskElasticNet` object which contains the fitted
+//     /// parameters and can be used to `predict` values of the target variables
+//     /// for new feature values.
+//     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
+//         let target = dataset.targets();
+
+//         let (intercept, y) = compute_intercept_multi_task(self.with_intercept(), target);
+//         let (hyperplane, duality_gap, n_steps) = block_coordinate_descent(
+//             dataset.records().view(),
+//             y.view(),
+//             self.tolerance(),
+//             self.max_iterations(),
+//             self.l1_ratio(),
+//             self.penalty(),
+//         );
+
+//         let mut y_est = Array2::<F>::zeros((dataset.nsamples(), dataset.ntargets()));
+//         general_mat_mul(
+//             F::one(),
+//             &dataset.records(),
+//             &hyperplane,
+//             F::one(),
+//             &mut y_est,
+//         );
+//         // Adding intercept
+//         for i in 0..dataset.n_samples() {
+//             let _res = &y_est.slice(s![i, ..]) + intercept;
+//             y_est.slice_mut(s![i, ..]).assign(&_res);
+//         }
+
+//         // TODO: compute variance
+//         let variance = variance_params_multi_task(dataset, y_est);
+
+//         Ok(MultiTaskElasticNet {
+//             hyperplane,
+//             intercept,
+//             duality_gap,
+//             n_steps,
+//             variance,
+//         })
+//     }
+// }
 
 impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<F>> for ElasticNet<F> {
     /// Given an input matrix `X`, with shape `(n_samples, n_features)`,
@@ -159,9 +217,36 @@ impl<F: Float> MultiTaskElasticNet<F> {
         self.duality_gap
     }
 
-    // TODO: Z-score
+    /// Calculate the Z score
+    pub fn z_score(&self) -> Result<Array1<F>> {
+        self.variance
+            .as_ref()
+            .map(|variance| {
+                self.hyperplane
+                    .iter()
+                    .zip(variance.iter())
+                    .map(|(a, b)| *a / b.sqrt())
+                    .collect()
+            })
+            .map_err(|err| err.clone())
+    }
 
-    // TODO: confidence level
+    /// Calculate the confidence level
+    pub fn confidence_95th(&self) -> Result<Array1<(F, F)>> {
+        // the 95th percentile of our confidence level
+        let p = F::cast(1.645);
+
+        self.variance
+            .as_ref()
+            .map(|variance| {
+                self.hyperplane
+                    .iter()
+                    .zip(variance.iter())
+                    .map(|(a, b)| (*a - p * b.sqrt(), *a + p * b.sqrt()))
+                    .collect()
+            })
+            .map_err(|err| err.clone())
+    }
 }
 
 fn coordinate_descent<'a, F: Float>(
@@ -391,6 +476,36 @@ fn variance_params<F: Float + Lapack, T: AsTargets<Elem = F>, D: Data<Elem = F>>
     }
 
     let var_target = (&target - &y_est).mapv(|x| x * x).sum() / F::cast(nsamples - nfeatures);
+
+    let inv_cov = ds.records().t().dot(ds.records()).inv();
+
+    match inv_cov {
+        Ok(inv_cov) => Ok(inv_cov.diag().mapv(|x| var_target * x)),
+        Err(_) => Err(ElasticNetError::IllConditioned),
+    }
+}
+
+fn variance_params_multi_task<F, T, D>(
+    ds: &DatasetBase<ArrayBase<D, Ix2>, T>,
+    y_est: Array2<F>,
+) -> Result<Array1<F>>
+where
+    F: Float + Lapack,
+    T: AsTargets<Elem = F> + MultiTaskTarget<Elem = F>,
+    D: Data<Elem = F>,
+{
+    let nfeatures = ds.nfeatures();
+    let nsamples = ds.nsamples();
+    let ntasks = ds.targets().ntasks();
+
+    let target = ds.targets().as_multi_targets();
+
+    if nsamples < nfeatures + 1 {
+        return Err(ElasticNetError::NotEnoughSamples);
+    }
+
+    let var_target =
+        (&target - &y_est).mapv(|x| x * x).sum() / F::cast(ntasks * (nsamples - nfeatures));
 
     let inv_cov = ds.records().t().dot(ds.records()).inv();
 
