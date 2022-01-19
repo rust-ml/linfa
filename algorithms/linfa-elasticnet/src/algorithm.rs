@@ -1,4 +1,5 @@
 use approx::{abs_diff_eq, abs_diff_ne};
+use ndarray::linalg::general_mat_mul;
 use ndarray::{
     s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, CowArray, Data, Ix1, Ix2,
 };
@@ -282,6 +283,45 @@ fn duality_gap<'a, F: Float>(
     };
     let l1_norm = w.fold(F::zero(), |sum, w_i| sum + w_i.abs());
     gap += l1_reg * l1_norm - const_ * r.dot(&y)
+        + half * l2_reg * (F::one() + const_ * const_) * w_norm2;
+    gap
+}
+
+fn duality_gap_mtl<'a, F: Float>(
+    x: ArrayView2<'a, F>,
+    y: ArrayView2<'a, F>,
+    w: ArrayView2<'a, F>,
+    r: ArrayView2<'a, F>,
+    l1_ratio: F,
+    penalty: F,
+) -> F {
+    let half = F::cast(0.5);
+    let n_samples = F::cast(x.shape()[0]);
+    let n_features = x.shape()[1];
+    let n_tasks = y.shape()[1];
+    let l1_reg = l1_ratio * penalty * n_samples;
+    let l2_reg = (F::one() - l1_ratio) * penalty * n_samples;
+    let mut xta = Array2::<F>::zeros((n_features, n_tasks));
+    general_mat_mul(F::one(), &x.t(), &r, F::one(), &mut xta);
+    xta = xta - &w * l2_reg;
+
+    let dual_norm_xta = xta
+        .map_axis(Axis(1), |x| x.dot(&x).sqrt())
+        .fold(F::zero(), |max_norm, &nrm| max_norm.max(nrm));
+    let r_norm2 = r.map(|rij| rij.powi(2)).sum();
+    let w_norm2 = w.map(|wij| wij.powi(2)).sum();
+    let (const_, mut gap) = if dual_norm_xta > l1_reg {
+        let const_ = l1_reg / dual_norm_xta;
+        let a_norm2 = r_norm2 * const_ * const_;
+        (const_, half * (r_norm2 + a_norm2))
+    } else {
+        (F::one(), r_norm2)
+    };
+    let mut rty = Array2::<F>::zeros((n_tasks, n_tasks));
+    general_mat_mul(F::one(), &r.t(), &y, F::one(), &mut rty);
+    let trace_rty = rty.diag().sum();
+    let l21_norm = w.map_axis(Axis(1), |wj| (wj.dot(&wj)).sqrt()).sum();
+    gap += l1_reg * l21_norm - const_ * trace_rty
         + half * l2_reg * (F::one() + const_ * const_) * w_norm2;
     gap
 }
