@@ -11,7 +11,9 @@ use linfa::{
     DatasetBase, Float,
 };
 
-use super::{hyperparams::ElasticNetValidParams, ElasticNet, ElasticNetError, Result};
+use super::{
+    hyperparams::ElasticNetValidParams, ElasticNet, ElasticNetError, MultiTaskElasticNet, Result,
+};
 
 impl<F, D, T> Fit<ArrayBase<D, Ix2>, T, ElasticNetError> for ElasticNetValidParams<F>
 where
@@ -131,6 +133,35 @@ impl<F: Float> ElasticNet<F> {
             })
             .map_err(|err| err.clone())
     }
+}
+
+/// View the fitted parameters and make predictions with a fitted
+/// elastic net model
+impl<F: Float> MultiTaskElasticNet<F> {
+    /// Get the fitted hyperplane
+    pub fn hyperplane(&self) -> &Array2<F> {
+        &self.hyperplane
+    }
+
+    /// Get the fitted intercept, [0., ..., 0.] if no intercept was fitted
+    /// Note that there are as many intercepts as tasks
+    pub fn intercept(&self) -> &Array1<F> {
+        &self.intercept
+    }
+
+    /// Get the number of steps taken in optimization algorithm
+    pub fn n_steps(&self) -> u32 {
+        self.n_steps
+    }
+
+    /// Get the duality gap at the end of the optimization algorithm
+    pub fn duality_gap(&self) -> F {
+        self.duality_gap
+    }
+
+    // TODO: Z-score
+
+    // TODO: confidence level
 }
 
 fn coordinate_descent<'a, F: Float>(
