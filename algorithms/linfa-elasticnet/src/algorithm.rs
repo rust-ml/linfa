@@ -386,9 +386,10 @@ pub fn compute_intercept<F: Float>(
 
 #[cfg(test)]
 mod tests {
-    use super::{coordinate_descent, ElasticNet};
+    use super::{block_coordinate_descent, coordinate_descent, ElasticNet};
     use approx::assert_abs_diff_eq;
-    use ndarray::{array, s, Array, Array1, Array2};
+    use ndarray::linalg::general_mat_mul;
+    use ndarray::{array, s, Array, Array1, Array2, Axis};
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::Uniform;
     use ndarray_rand::RandomExt;
@@ -411,6 +412,17 @@ mod tests {
         squared_error(x, y, intercept, beta) + lambda * elastic_net_penalty(beta, alpha)
     }
 
+    fn elastic_net_multi_task_objective(
+        x: &Array2<f64>,
+        y: &Array2<f64>,
+        intercept: &Array1<f64>,
+        beta: &Array2<f64>,
+        alpha: f64,
+        lambda: f64,
+    ) -> f64 {
+        squared_error_mtl(x, y, intercept, beta) + lambda * elastic_net_mtl_penalty(beta, alpha)
+    }
+
     fn squared_error(x: &Array2<f64>, y: &Array1<f64>, intercept: f64, beta: &Array1<f64>) -> f64 {
         let mut resid = -x.dot(beta);
         resid -= intercept;
@@ -423,12 +435,36 @@ mod tests {
         result
     }
 
+    fn squared_error_mtl(
+        x: &Array2<f64>,
+        y: &Array2<f64>,
+        intercept: &Array1<f64>,
+        beta: &Array2<f64>,
+    ) -> f64 {
+        let mut resid = Array2::<f64>::zeros((x.shape()[0], y.shape()[1]));
+        general_mat_mul(1., &x, &beta, 1., &mut resid);
+        resid = &resid * -1.;
+        resid = resid - intercept;
+        resid = resid + y;
+        let mut datafit = resid.map(|r| r.powi(2)).sum();
+        datafit /= 2.0 * y.len() as f64;
+        datafit
+    }
+
     fn elastic_net_penalty(beta: &Array1<f64>, alpha: f64) -> f64 {
         let mut penalty = 0.0;
         for beta_j in beta {
             penalty += (1.0 - alpha) / 2.0 * beta_j * beta_j + alpha * beta_j.abs();
         }
         penalty
+    }
+
+    fn elastic_net_mtl_penalty(beta: &Array2<f64>, alpha: f64) -> f64 {
+        let frob_norm = beta.map(|beta_ij| beta_ij.powi(2)).sum();
+        let l21_norm = beta
+            .map_axis(Axis(1), |beta_j| (beta_j.dot(&beta_j)).sqrt())
+            .sum();
+        (1.0 - alpha) / 2.0 * frob_norm + alpha * l21_norm
     }
 
     #[test]
@@ -449,12 +485,18 @@ mod tests {
     }
 
     #[test]
+    fn elastic_net_mtl_penalty_works() {}
+
+    #[test]
     fn squared_error_works() {
         let x = array![[2.0, 1.0], [-1.0, 2.0]];
         let y = array![1.0, 1.0];
         let beta = array![0.0, 1.0];
         assert_abs_diff_eq!(squared_error(&x, &y, 0.0, &beta), 0.25);
     }
+
+    #[test]
+    fn squared_error_mtl_works() {}
 
     #[test]
     fn coordinate_descent_lowers_objective() {
@@ -469,6 +511,9 @@ mod tests {
         let objective_end = elastic_net_objective(&x, &y, intercept, &opt_result.0, alpha, lambda);
         assert!(objective_start > objective_end);
     }
+
+    #[test]
+    fn block_coordinate_descent_lowers_objective() {}
 
     #[test]
     fn lasso_zero_works() {
