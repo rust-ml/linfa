@@ -172,7 +172,7 @@ fn coordinate_descent<'a, F: Float>(
                 / (norm_cols_x[j] + n_samples * (F::one() - l1_ratio) * penalty);
             if abs_diff_ne!(w[j], F::zero()) {
                 for i in 0..x.shape()[0] {
-                    r[i] -= x_j[i] * old_w_j;
+                    r[i] -= x_j[i] * w[j];
                 }
             }
             let d_w_j = (w[j] - old_w_j).abs();
