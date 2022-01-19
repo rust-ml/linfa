@@ -54,6 +54,14 @@ impl<F: Float> ElasticNetValidParams<F> {
 ///     + 0.5 * penalty * (1 - l1_ratio) * ||w||^2_2
 /// ```
 ///
+/// The multi-task version (Y becomes a measurement matrix) is also supported and
+/// solves the following objective function:
+/// ```ignore
+/// 1 / (2 * n_samples) * || Y - XW ||^2_F
+///     + penalty * l1_ratio * ||W||_2,1
+///     + 0.5 * penalty * (1 - l1_ratio) * ||W||^2_F
+/// ```
+///
 /// The parameter set can be verified into a
 /// [`ElasticNetValidParams`](crate::hyperparams::ElasticNetValidParams) by calling
 /// [ParamGuard::check](Self::check). It is also possible to directly fit a model with
