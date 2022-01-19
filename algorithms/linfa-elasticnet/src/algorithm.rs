@@ -156,25 +156,28 @@ fn coordinate_descent<'a, F: Float>(
     while n_steps < max_steps {
         let mut w_max = F::zero();
         let mut d_w_max = F::zero();
-        for ii in 0..n_features {
-            if abs_diff_eq!(norm_cols_x[ii], F::zero()) {
+        for j in 0..n_features {
+            if abs_diff_eq!(norm_cols_x[j], F::zero()) {
                 continue;
             }
-            let w_ii = w[ii];
-            let x_slc: ArrayView1<F> = x.slice(s![.., ii]);
-            if abs_diff_ne!(w_ii, F::zero()) {
-                // FIXME: direct addition with loop might be faster as it does not have to allocate
-                r += &(&x_slc * w_ii);
+            let old_w_j = w[j];
+            let x_j: ArrayView1<F> = x.slice(s![.., j]);
+            if abs_diff_ne!(old_w_j, F::zero()) {
+                for i in 0..x.shape()[0] {
+                    r[i] += x_j[i] * old_w_j;
+                }
             }
-            let tmp: F = x_slc.dot(&r);
-            w[ii] = tmp.signum() * F::max(tmp.abs() - n_samples * l1_ratio * penalty, F::zero())
-                / (norm_cols_x[ii] + n_samples * (F::one() - l1_ratio) * penalty);
-            if abs_diff_ne!(w[ii], F::zero()) {
-                r -= &(&x_slc * w[ii]);
+            let tmp: F = x_j.dot(&r);
+            w[j] = tmp.signum() * F::max(tmp.abs() - n_samples * l1_ratio * penalty, F::zero())
+                / (norm_cols_x[j] + n_samples * (F::one() - l1_ratio) * penalty);
+            if abs_diff_ne!(w[j], F::zero()) {
+                for i in 0..x.shape()[0] {
+                    r[i] -= x_j[i] * old_w_j;
+                }
             }
-            let d_w_ii = (w[ii] - w_ii).abs();
-            d_w_max = F::max(d_w_max, d_w_ii);
-            w_max = F::max(w_max, w[ii].abs());
+            let d_w_j = (w[j] - old_w_j).abs();
+            d_w_max = F::max(d_w_max, d_w_j);
+            w_max = F::max(w_max, w[j].abs());
         }
         n_steps += 1;
 
