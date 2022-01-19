@@ -1,5 +1,7 @@
 use approx::{abs_diff_eq, abs_diff_ne};
-use ndarray::{s, Array1, ArrayBase, ArrayView1, ArrayView2, Axis, CowArray, Data, Ix1, Ix2};
+use ndarray::{
+    s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, CowArray, Data, Ix1, Ix2,
+};
 use ndarray_linalg::{Inverse, Lapack};
 
 use linfa::traits::{Fit, PredictInplace};
@@ -184,6 +186,73 @@ fn coordinate_descent<'a, F: Float>(
             }
         }
     }
+    (w, gap, n_steps)
+}
+
+fn block_coordinate_descent<'a, F: Float>(
+    x: ArrayView2<'a, F>,
+    y: ArrayView2<'a, F>,
+    tol: F,
+    max_steps: u32,
+    l1_ratio: F,
+    penalty: F,
+) -> (Array2<F>, F, u32) {
+    let n_samples = F::cast(x.shape()[0]);
+    let n_features = x.shape()[1];
+    let n_tasks = y.shape()[1];
+    // the parameters of the model
+    let mut w = Array2::<F>::zeros((n_features, n_tasks));
+    // the residuals: `Y - XW` (since W=0, this is just `Y` for now),
+    // the residuals are updated during the algorithm as the parameters change
+    let mut r = y.to_owned();
+    let mut n_steps = 0u32;
+    let norm_cols_x = x.map_axis(Axis(0), |col| col.dot(&col));
+    let mut gap = F::one() + tol;
+    let d_w_tol = tol;
+    let tol = tol * y.map(|yij| yij.powi(2)).sum();
+    while n_steps < max_steps {
+        let mut w_max = F::zero();
+        let mut d_w_max = F::zero();
+        for j in 0..n_features {
+            if abs_diff_eq!(norm_cols_x[j], F::zero()) {
+                continue;
+            }
+            let old_w_j: ArrayView1<F> = w.slice(s![j, ..]);
+            let x_j: ArrayView1<F> = x.slice(s![.., j]);
+            let norm_old_w_j = old_w_j.map(|wjt| wjt.powi(2)).sum().sqrt();
+            if abs_diff_ne!(norm_old_w_j, F::zero()) {
+                for i in 0..x.shape()[0] {
+                    for t in 0..n_tasks {
+                        r[[i, t]] += x_j[i] * old_w_j[t];
+                    }
+                }
+            }
+            let tmp = x_j.dot(&r);
+            // proximal step: TODO
+            let norm_w_j = w.slice(s![j, ..]).map(|wjt| wjt.powi(2)).sum().sqrt();
+            if abs_diff_ne!(norm_w_j, F::zero()) {
+                for i in 0..x.shape()[0] {
+                    for t in 0..n_tasks {
+                        r[[i, t]] -= x_j[i] * w[[j, t]];
+                    }
+                }
+            }
+            let d_w_j = (norm_w_j - norm_old_w_j).abs();
+            d_w_max = F::max(d_w_max, d_w_j);
+            w_max = F::max(w_max, norm_w_j);
+        }
+        n_steps += 1;
+
+        if n_steps == max_steps - 1 || abs_diff_eq!(w_max, F::zero()) || d_w_max / w_max < d_w_tol {
+            // We've hit one potentiel stopping criteria
+            // check duality gap for ultimate stopping criterion
+            gap = duality_gap_mtl(x.view(), y.view(), w.view(), r.view(), l1_ratio, penalty);
+            if gap < tol {
+                break;
+            }
+        }
+    }
+
     (w, gap, n_steps)
 }
 
