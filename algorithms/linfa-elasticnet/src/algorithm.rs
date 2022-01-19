@@ -555,7 +555,20 @@ mod tests {
     }
 
     #[test]
-    fn block_coordinate_descent_lowers_objective() {}
+    fn block_coordinate_descent_lowers_objective() {
+        let x = array![[1.0, 0., -0.3, 3.2], [0.3, 1.2, -0.6, 1.2]];
+        let y = array![[0.3, -1.2, 0.7], [1.4, -3.2, 0.2]];
+        let beta = array![[0., 0., 0.], [0., 0., 0.], [0., 0., 0.], [0., 0., 0.]];
+        let intercept = array![0., 0., 0.];
+        let alpha = 0.4;
+        let lambda = 0.002;
+        let objective_start =
+            elastic_net_multi_task_objective(&x, &y, &intercept, &beta, alpha, lambda);
+        let opt_result = block_coordinate_descent(x.view(), y.view(), 1e-4, 3, alpha, lambda);
+        let objective_end =
+            elastic_net_multi_task_objective(&x, &y, &intercept, &opt_result.0, alpha, lambda);
+        assert!(objective_start > objective_end);
+    }
 
     #[test]
     fn lasso_zero_works() {
