@@ -83,7 +83,7 @@ pub struct MultiTaskElasticNet<F> {
     intercept: Array1<F>,
     duality_gap: F,
     n_steps: u32,
-    variance: Result<Array2<F>>,
+    variance: Result<Array1<F>>,
 }
 
 impl<F: Float> MultiTaskElasticNet<F> {

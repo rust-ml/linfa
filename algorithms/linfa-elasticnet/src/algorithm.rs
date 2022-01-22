@@ -12,7 +12,8 @@ use linfa::{
 };
 
 use super::{
-    hyperparams::ElasticNetValidParams, ElasticNet, ElasticNetError, MultiTaskElasticNet, Result,
+    hyperparams::{ElasticNetValidParams, MultiTaskElasticNetValidParams},
+    ElasticNet, ElasticNetError, MultiTaskElasticNet, Result,
 };
 
 impl<F, D, T> Fit<ArrayBase<D, Ix2>, T, ElasticNetError> for ElasticNetValidParams<F>
@@ -61,63 +62,76 @@ where
     }
 }
 
-// impl<F, D, T> Fit<ArrayBase<D, Ix2>, T, ElasticNetError> for ElasticNetValidParams<F>
-// where
-//     F: Float + Lapack,
-//     D: Data<Elem = F>,
-//     T: AsTargets<Elem = F>,
-// {
-//     type Object = MultiTaskElasticNet<F>;
+impl<F, D> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, ElasticNetError>
+    for MultiTaskElasticNetValidParams<F>
+where
+    F: Float + Lapack,
+    D: Data<Elem = F>,
+{
+    type Object = MultiTaskElasticNet<F>;
 
-//     /// Fit a multi-task Elastic Net model given a feature matrix `x` and a target
-//     /// matrix `y`.
-//     ///
-//     /// The feature matrix `x` must have shape `(n_samples, n_features)`
-//     ///
-//     /// The target variable `y` must have shape `(n_samples, n_tasks)`
-//     ///
-//     /// Returns a `FittedMultiTaskElasticNet` object which contains the fitted
-//     /// parameters and can be used to `predict` values of the target variables
-//     /// for new feature values.
-//     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
-//         let target = dataset.targets();
+    /// Fit a multi-task Elastic Net model given a feature matrix `x` and a target
+    /// matrix `y`.
+    ///
+    /// The feature matrix `x` must have shape `(n_samples, n_features)`
+    ///
+    /// The target variable `y` must have shape `(n_samples, n_tasks)`
+    ///
+    /// Returns a `FittedMultiTaskElasticNet` object which contains the fitted
+    /// parameters and can be used to `predict` values of the target variables
+    /// for new feature values.
+    fn fit(
+        &self,
+        dataset: &DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>>,
+    ) -> Result<Self::Object> {
+        let target = dataset.targets();
+        let nsamples = dataset.nsamples();
+        let ntasks = target.ntasks();
 
-//         let (intercept, y) = compute_intercept_multi_task(self.with_intercept(), target);
-//         let (hyperplane, duality_gap, n_steps) = block_coordinate_descent(
-//             dataset.records().view(),
-//             y.view(),
-//             self.tolerance(),
-//             self.max_iterations(),
-//             self.l1_ratio(),
-//             self.penalty(),
-//         );
+        let mut intercept = Array1::<F>::zeros(ntasks);
+        let mut y = Array2::<F>::zeros((nsamples, ntasks));
 
-//         let mut y_est = Array2::<F>::zeros((dataset.nsamples(), dataset.ntargets()));
-//         general_mat_mul(
-//             F::one(),
-//             &dataset.records(),
-//             &hyperplane,
-//             F::one(),
-//             &mut y_est,
-//         );
-//         // Adding intercept
-//         for i in 0..dataset.n_samples() {
-//             let _res = &y_est.slice(s![i, ..]) + intercept;
-//             y_est.slice_mut(s![i, ..]).assign(&_res);
-//         }
+        for t in 0..target.ntasks() {
+            let (intercept_t, y_t) =
+                compute_intercept(self.with_intercept(), target.slice(s![.., t]));
+            intercept[t] = intercept_t;
+            y.slice_mut(s![.., t]).assign(&y_t);
+        }
 
-//         // TODO: compute variance
-//         let variance = variance_params_multi_task(dataset, y_est);
+        let (hyperplane, duality_gap, n_steps) = block_coordinate_descent(
+            dataset.records().view(),
+            y.view(),
+            self.tolerance(),
+            self.max_iterations(),
+            self.l1_ratio(),
+            self.penalty(),
+        );
 
-//         Ok(MultiTaskElasticNet {
-//             hyperplane,
-//             intercept,
-//             duality_gap,
-//             n_steps,
-//             variance,
-//         })
-//     }
-// }
+        let mut y_est = Array2::<F>::zeros((dataset.nsamples(), dataset.ntargets()));
+        general_mat_mul(
+            F::one(),
+            &dataset.records(),
+            &hyperplane,
+            F::one(),
+            &mut y_est,
+        );
+        // Adding intercept
+        for i in 0..dataset.nsamples() {
+            let _res = &y_est.slice(s![i, ..]) + &intercept;
+            y_est.slice_mut(s![i, ..]).assign(&_res);
+        }
+
+        let variance = variance_params_multi_task(dataset, y_est);
+
+        Ok(MultiTaskElasticNet {
+            hyperplane,
+            intercept,
+            duality_gap,
+            n_steps,
+            variance,
+        })
+    }
+}
 
 impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<F>> for ElasticNet<F> {
     /// Given an input matrix `X`, with shape `(n_samples, n_features)`,
