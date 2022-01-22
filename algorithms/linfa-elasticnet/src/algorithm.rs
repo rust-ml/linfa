@@ -152,6 +152,28 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<F>> f
     }
 }
 
+impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array2<F>>
+    for MultiTaskElasticNet<F>
+{
+    /// Given an input matrix `X`, with shape `(n_samples, n_features)`,
+    /// `predict` returns the target variable according to elastic net
+    /// learned from the training data distribution.
+    fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array2<F>) {
+        assert_eq!(
+            x.nrows(),
+            y.nrows(),
+            "The number of data points must match the number of output targets."
+        );
+
+        general_mat_mul(F::one(), &x, &self.hyperplane, F::one(), y);
+        // *y = *y + self.intercept;
+    }
+
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array2<F> {
+        Array2::zeros((x.nrows(), x.nrows()))
+    }
+}
+
 /// View the fitted parameters and make predictions with a fitted
 /// elastic net model
 impl<F: Float> ElasticNet<F> {
@@ -546,7 +568,7 @@ pub fn compute_intercept<F: Float>(
 
 #[cfg(test)]
 mod tests {
-    use super::{block_coordinate_descent, coordinate_descent, ElasticNet};
+    use super::{block_coordinate_descent, coordinate_descent, ElasticNet, MultiTaskElasticNet};
     use approx::assert_abs_diff_eq;
     use ndarray::linalg::general_mat_mul;
     use ndarray::{array, s, Array, Array1, Array2, Axis};
@@ -745,6 +767,20 @@ mod tests {
     }
 
     #[test]
+    fn mtl_lasso_zero_works() {
+        let dataset = Dataset::from((array![[0.], [0.], [0.]], array![[0.], [0.], [0.]]));
+
+        let model = MultiTaskElasticNet::params()
+            .l1_ratio(1.0)
+            .penalty(0.1)
+            .fit(&dataset)
+            .unwrap();
+
+        assert_abs_diff_eq!(model.intercept(), &array![0.]);
+        assert_abs_diff_eq!(model.hyperplane(), &array![[0.]]);
+    }
+
+    #[test]
     fn lasso_toy_example_works() {
         // Test Lasso on a toy example for various values of alpha.
         // When validating this against glmnet notice that glmnet divides it
@@ -775,6 +811,71 @@ mod tests {
         assert_abs_diff_eq!(model.intercept(), 0.0);
         assert_abs_diff_eq!(model.hyperplane(), &array![0.0], epsilon = 1e-6);
         assert_abs_diff_eq!(model.predict(&t), array![0.0, 0.0, 0.0], epsilon = 1e-6);
+        assert_abs_diff_eq!(model.duality_gap(), 0.0);
+    }
+
+    #[test]
+    fn multitask_lasso_toy_example_works() {
+        // Test MultiTaskLasso on a toy example for various values of alpha.
+        // When validating this against sklearn notice that sklearn divides it
+        // against n_samples.
+        let dataset = Dataset::new(
+            array![[-1.0], [0.0], [1.0]],
+            array![[-1.0, 1.0], [0.0, -1.5], [1.0, 1.3]],
+        );
+
+        // input for prediction
+        let t = array![[2.0], [3.0], [4.0]];
+        let model = MultiTaskElasticNet::lasso()
+            .penalty(1e-8)
+            .fit(&dataset)
+            .unwrap();
+        assert_abs_diff_eq!(model.intercept(), &array![0., -1.5]);
+        assert_abs_diff_eq!(model.hyperplane(), &array![[0.], [2.65]], epsilon = 1e-6);
+        assert_abs_diff_eq!(
+            model.predict(&t),
+            array![[0., 3.79999998], [0., 6.44999996], [0., 9.09999995]],
+            epsilon = 1e-6
+        );
+        assert_abs_diff_eq!(model.duality_gap(), 0.0);
+
+        let model = MultiTaskElasticNet::lasso()
+            .penalty(0.1)
+            .fit(&dataset)
+            .unwrap();
+        assert_abs_diff_eq!(model.intercept(), &array![0., -1.4]);
+        assert_abs_diff_eq!(model.hyperplane(), &array![[0.], [2.5]], epsilon = 1e-6);
+        assert_abs_diff_eq!(
+            model.predict(&t),
+            &array![[0., 3.6], [0., 6.1], [0., 8.6]],
+            epsilon = 1e-6
+        );
+        assert_abs_diff_eq!(model.duality_gap(), 0.0);
+
+        let model = MultiTaskElasticNet::lasso()
+            .penalty(0.5)
+            .fit(&dataset)
+            .unwrap();
+        assert_abs_diff_eq!(model.intercept(), &array![0., -1.]);
+        assert_abs_diff_eq!(model.hyperplane(), &array![[0.], [1.9]], epsilon = 1e-6);
+        assert_abs_diff_eq!(
+            model.predict(&t),
+            &array![[0., 2.8], [0., 4.7], [0., 6.6]],
+            epsilon = 1e-6
+        );
+        assert_abs_diff_eq!(model.duality_gap(), 0.0);
+
+        let model = MultiTaskElasticNet::lasso()
+            .penalty(1.0)
+            .fit(&dataset)
+            .unwrap();
+        assert_abs_diff_eq!(model.intercept(), &array![0., -0.5]);
+        assert_abs_diff_eq!(model.hyperplane(), &array![[0.0], [1.15]], epsilon = 1e-6);
+        assert_abs_diff_eq!(
+            model.predict(&t),
+            &array![[0., 1.8], [0., 2.95], [0., 4.1]],
+            epsilon = 1e-6
+        );
         assert_abs_diff_eq!(model.duality_gap(), 0.0);
     }
 

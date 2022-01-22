@@ -11,7 +11,10 @@ mod error;
 mod hyperparams;
 
 pub use error::{ElasticNetError, Result};
-pub use hyperparams::{ElasticNetParams, ElasticNetValidParams};
+pub use hyperparams::{
+    ElasticNetParams, ElasticNetValidParams, MultiTaskElasticNetParams,
+    MultiTaskElasticNetValidParams,
+};
 
 #[cfg_attr(
     feature = "serde",
@@ -87,25 +90,17 @@ pub struct MultiTaskElasticNet<F> {
 }
 
 impl<F: Float> MultiTaskElasticNet<F> {
-    /// Create a default parameter set for construction of MultiTaskElasticNet model
-    ///
-    /// By default, an intercept will be fitted. To disable fitting an
-    /// intercept, call `.with_intercept(false)` before calling `.fit()`.
-    ///
-    /// To additionally normalize the feature matrix before fitting, call
-    /// `fit_intercept_and_normalize()` before calling `fit()`. The feature
-    /// matrix will not be normalized by default.
-    pub fn params() -> ElasticNetParams<F> {
-        ElasticNetParams::new()
+    pub fn params() -> MultiTaskElasticNetParams<F> {
+        MultiTaskElasticNetParams::new()
     }
 
     /// Create a multi-task ridge only model
-    pub fn ridge() -> ElasticNetParams<F> {
-        ElasticNetParams::new().l1_ratio(F::zero())
+    pub fn ridge() -> MultiTaskElasticNetParams<F> {
+        MultiTaskElasticNetParams::new().l1_ratio(F::zero())
     }
 
     /// Create a multi-task Lasso only model
-    pub fn lasso() -> ElasticNetParams<F> {
-        ElasticNetParams::new().l1_ratio(F::one())
+    pub fn lasso() -> MultiTaskElasticNetParams<F> {
+        MultiTaskElasticNetParams::new().l1_ratio(F::one())
     }
 }
