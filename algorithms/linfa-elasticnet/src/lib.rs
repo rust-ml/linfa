@@ -11,7 +11,7 @@ mod error;
 mod hyperparams;
 
 pub use error::{ElasticNetError, Result};
-pub use hyperparams::{ElasticNetParams, ElasticNetValidParams, MultiTaskElasticNetParams};
+pub use hyperparams::{ElasticNetParams, ElasticNetValidParams};
 
 #[cfg_attr(
     feature = "serde",
@@ -92,17 +92,17 @@ pub struct MultiTaskElasticNet<F> {
 }
 
 impl<F: Float> MultiTaskElasticNet<F> {
-    pub fn params() -> MultiTaskElasticNetParams<F> {
-        MultiTaskElasticNetParams::new()
+    pub fn params() -> ElasticNetParams<F> {
+        ElasticNetParams::new()
     }
 
     /// Create a multi-task ridge only model
-    pub fn ridge() -> MultiTaskElasticNetParams<F> {
-        MultiTaskElasticNetParams::new().l1_ratio(F::zero())
+    pub fn ridge() -> ElasticNetParams<F> {
+        ElasticNetParams::new().l1_ratio(F::zero())
     }
 
     /// Create a multi-task Lasso only model
-    pub fn lasso() -> MultiTaskElasticNetParams<F> {
-        MultiTaskElasticNetParams::new().l1_ratio(F::one())
+    pub fn lasso() -> ElasticNetParams<F> {
+        ElasticNetParams::new().l1_ratio(F::one())
     }
 }

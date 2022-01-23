@@ -113,15 +113,8 @@ impl<F: Float> ElasticNetValidParams<F> {
 /// # Ok::<(), ElasticNetError>(())
 /// ```
 pub struct ElasticNetParams<F>(ElasticNetValidParams<F>);
-pub struct MultiTaskElasticNetParams<F>(MultiTaskElasticNetValidParams<F>);
 
 impl<F: Float> Default for ElasticNetParams<F> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<F: Float> Default for MultiTaskElasticNetParams<F> {
     fn default() -> Self {
         Self::new()
     }
@@ -193,74 +186,8 @@ impl<F: Float> ElasticNetParams<F> {
     }
 }
 
-impl<F: Float> MultiTaskElasticNetParams<F> {
-    pub fn new() -> MultiTaskElasticNetParams<F> {
-        Self(MultiTaskElasticNetValidParams {
-            penalty: F::one(),
-            l1_ratio: F::cast(0.5),
-            with_intercept: true,
-            max_iterations: 1000,
-            tolerance: F::cast(1e-4),
-        })
-    }
-
-    pub fn penalty(mut self, penalty: F) -> Self {
-        self.0.penalty = penalty;
-        self
-    }
-
-    pub fn l1_ratio(mut self, l1_ratio: F) -> Self {
-        self.0.l1_ratio = l1_ratio;
-        self
-    }
-
-    pub fn with_intercept(mut self, with_intercept: bool) -> Self {
-        self.0.with_intercept = with_intercept;
-        self
-    }
-
-    pub fn tolerance(mut self, tolerance: F) -> Self {
-        self.0.tolerance = tolerance;
-        self
-    }
-
-    pub fn max_iterations(mut self, max_iterations: u32) -> Self {
-        self.0.max_iterations = max_iterations;
-        self
-    }
-}
-
 impl<F: Float> ParamGuard for ElasticNetParams<F> {
     type Checked = ElasticNetValidParams<F>;
-    type Error = ElasticNetError;
-
-    /// Validate the hyper parameters
-    fn check_ref(&self) -> Result<&Self::Checked> {
-        if self.0.penalty.is_negative() {
-            Err(ElasticNetError::InvalidPenalty(
-                self.0.penalty.to_f32().unwrap(),
-            ))
-        } else if !(F::zero()..=F::one()).contains(&self.0.l1_ratio) {
-            Err(ElasticNetError::InvalidL1Ratio(
-                self.0.l1_ratio.to_f32().unwrap(),
-            ))
-        } else if self.0.tolerance.is_negative() {
-            Err(ElasticNetError::InvalidTolerance(
-                self.0.tolerance.to_f32().unwrap(),
-            ))
-        } else {
-            Ok(&self.0)
-        }
-    }
-
-    fn check(self) -> Result<Self::Checked> {
-        self.check_ref()?;
-        Ok(self.0)
-    }
-}
-
-impl<F: Float> ParamGuard for MultiTaskElasticNetParams<F> {
-    type Checked = MultiTaskElasticNetValidParams<F>;
     type Error = ElasticNetError;
 
     /// Validate the hyper parameters

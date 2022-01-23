@@ -11,8 +11,7 @@ use linfa::{
 };
 
 use super::{
-    hyperparams::{ElasticNetValidParams, MultiTaskElasticNetValidParams},
-    ElasticNet, ElasticNetError, MultiTaskElasticNet, Result,
+    hyperparams::ElasticNetValidParams, ElasticNet, ElasticNetError, MultiTaskElasticNet, Result,
 };
 
 impl<F, D> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix1>, ElasticNetError> for ElasticNetValidParams<F>
@@ -86,12 +85,12 @@ where
     ) -> Result<Self::Object> {
         let target = dataset.targets();
         let nsamples = dataset.nsamples();
-        let ntasks = target.ntasks();
+        let ntasks = dataset.targets().ncols();
 
         let mut intercept = Array1::<F>::zeros(ntasks);
         let mut y = Array2::<F>::zeros((nsamples, ntasks));
 
-        for t in 0..target.ntasks() {
+        for t in 0..ntasks {
             let (intercept_t, y_t) =
                 compute_intercept(self.with_intercept(), target.slice(s![.., t]));
             intercept[t] = intercept_t;
@@ -107,11 +106,9 @@ where
             self.penalty(),
         );
 
-        let y_est = dataset.records().dot(&hyperplane);
-
-        y_est = y_est + &intercept;
-
-        let variance = variance_params_multi_task(dataset, y_est);
+        // let y_est = dataset.records().dot(&hyperplane) + &intercept;
+        // let variance = variance_params_multi_task(dataset, y_est);
+        let variance = Ok(Array1::<F>::zeros(dataset.nfeatures()));
 
         Ok(MultiTaskElasticNet {
             hyperplane,
@@ -411,7 +408,7 @@ fn block_soft_thresholding<'a, F: Float>(x: ArrayView1<'a, F>, threshold: F) -> 
     let mut _res = Array1::<F>::zeros(x.len());
     if norm_x >= threshold {
         let scal = F::one() - threshold / norm_x;
-        _res = x * scal;
+        _res = &x * scal;
     }
     _res
 }
@@ -456,8 +453,6 @@ fn duality_gap_mtl<'a, F: Float>(
 ) -> F {
     let half = F::cast(0.5);
     let n_samples = F::cast(x.shape()[0]);
-    let n_features = x.shape()[1];
-    let n_tasks = y.shape()[1];
     let l1_reg = l1_ratio * penalty * n_samples;
     let l2_reg = (F::one() - l1_ratio) * penalty * n_samples;
     let xta = x.t().dot(&r) - &w * l2_reg;
@@ -474,7 +469,6 @@ fn duality_gap_mtl<'a, F: Float>(
     } else {
         (F::one(), r_norm2)
     };
-    let mut rty = Array2::<F>::zeros((n_tasks, n_tasks));
     let rty = r.t().dot(&y);
     let trace_rty = rty.diag().sum();
     let l21_norm = w.map_axis(Axis(1), |wj| (wj.dot(&wj)).sqrt()).sum();
@@ -499,36 +493,6 @@ fn variance_params<F: Float + Lapack, T: AsTargets<Elem = F>, D: Data<Elem = F>>
     }
 
     let var_target = (&target - &y_est).mapv(|x| x * x).sum() / F::cast(nsamples - nfeatures);
-
-    let inv_cov = ds.records().t().dot(ds.records()).inv();
-
-    match inv_cov {
-        Ok(inv_cov) => Ok(inv_cov.diag().mapv(|x| var_target * x)),
-        Err(_) => Err(ElasticNetError::IllConditioned),
-    }
-}
-
-fn variance_params_multi_task<F, T, D>(
-    ds: &DatasetBase<ArrayBase<D, Ix2>, T>,
-    y_est: Array2<F>,
-) -> Result<Array1<F>>
-where
-    F: Float + Lapack,
-    T: AsTargets<Elem = F> + MultiTaskTarget<Elem = F>,
-    D: Data<Elem = F>,
-{
-    let nfeatures = ds.nfeatures();
-    let nsamples = ds.nsamples();
-    let ntasks = ds.targets().ntasks();
-
-    let target = ds.targets().as_multi_targets();
-
-    if nsamples < nfeatures + 1 {
-        return Err(ElasticNetError::NotEnoughSamples);
-    }
-
-    let var_target =
-        (&target - &y_est).mapv(|x| x * x).sum() / F::cast(ntasks * (nsamples - nfeatures));
 
     let inv_cov = ds.records().t().dot(ds.records()).inv();
 
@@ -610,7 +574,7 @@ mod tests {
         beta: &Array2<f64>,
     ) -> f64 {
         let mut resid = Array2::<f64>::zeros((x.shape()[0], y.shape()[1]));
-        let resid = x.dot(&beta);
+        let resid = x.dot(beta);
         resid = &resid * -1.;
         for i in 0..resid.shape()[0] {
             let _res = &resid.slice(s![i, ..]) - intercept;
