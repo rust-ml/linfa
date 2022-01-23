@@ -11,14 +11,11 @@ mod error;
 mod hyperparams;
 
 pub use error::{ElasticNetError, Result};
-pub use hyperparams::{
-    ElasticNetParams, ElasticNetValidParams, MultiTaskElasticNetParams,
-    MultiTaskElasticNetValidParams,
-};
+pub use hyperparams::{ElasticNetParams, ElasticNetValidParams, MultiTaskElasticNetParams};
 
 #[cfg_attr(
     feature = "serde",
-    derive(Serialize, Deserialize),
+    derive(Serialize, Deserialize, Debug, Clone, PartialEq),
     serde(crate = "serde_crate")
 )]
 /// Elastic Net model
@@ -69,6 +66,11 @@ impl<F: Float> ElasticNet<F> {
     }
 }
 
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize, Debug, Clone, PartialEq),
+    serde(crate = "serde_crate")
+)]
 /// MultiTask Elastic Net model
 ///
 /// This struct contains the parameters of a fitted multi-task elastic net model. This includes the

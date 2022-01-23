@@ -23,37 +23,7 @@ pub struct ElasticNetValidParams<F> {
     tolerance: F,
 }
 
-pub struct MultiTaskElasticNetValidParams<F> {
-    penalty: F,
-    l1_ratio: F,
-    with_intercept: bool,
-    max_iterations: u32,
-    tolerance: F,
-}
-
 impl<F: Float> ElasticNetValidParams<F> {
-    pub fn penalty(&self) -> F {
-        self.penalty
-    }
-
-    pub fn l1_ratio(&self) -> F {
-        self.l1_ratio
-    }
-
-    pub fn with_intercept(&self) -> bool {
-        self.with_intercept
-    }
-
-    pub fn max_iterations(&self) -> u32 {
-        self.max_iterations
-    }
-
-    pub fn tolerance(&self) -> F {
-        self.tolerance
-    }
-}
-
-impl<F: Float> MultiTaskElasticNetValidParams<F> {
     pub fn penalty(&self) -> F {
         self.penalty
     }

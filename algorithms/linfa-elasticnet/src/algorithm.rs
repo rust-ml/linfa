@@ -1,5 +1,4 @@
 use approx::{abs_diff_eq, abs_diff_ne};
-use ndarray::linalg::general_mat_mul;
 use ndarray::{
     s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, CowArray, Data, Ix1, Ix2,
 };
@@ -7,7 +6,7 @@ use ndarray_linalg::{Inverse, Lapack};
 
 use linfa::traits::{Fit, PredictInplace};
 use linfa::{
-    dataset::{AsTargets, MultiTaskTarget, Records},
+    dataset::{AsTargets, Records},
     DatasetBase, Float,
 };
 
@@ -16,11 +15,10 @@ use super::{
     ElasticNet, ElasticNetError, MultiTaskElasticNet, Result,
 };
 
-impl<F, D, T> Fit<ArrayBase<D, Ix2>, T, ElasticNetError> for ElasticNetValidParams<F>
+impl<F, D> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix1>, ElasticNetError> for ElasticNetValidParams<F>
 where
     F: Float + Lapack,
     D: Data<Elem = F>,
-    T: AsTargets<Elem = F>,
 {
     type Object = ElasticNet<F>;
 
@@ -34,7 +32,10 @@ where
     /// Returns a `FittedElasticNet` object which contains the fitted
     /// parameters and can be used to `predict` values of the target variable
     /// for new feature values.
-    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
+    fn fit(
+        &self,
+        dataset: &DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D, Ix1>>,
+    ) -> Result<Self::Object> {
         let target = dataset.try_single_target()?;
 
         let (intercept, y) = compute_intercept(self.with_intercept(), target);
@@ -62,8 +63,7 @@ where
     }
 }
 
-impl<F, D> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, ElasticNetError>
-    for MultiTaskElasticNetValidParams<F>
+impl<F, D> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, ElasticNetError> for ElasticNetValidParams<F>
 where
     F: Float + Lapack,
     D: Data<Elem = F>,
@@ -107,19 +107,9 @@ where
             self.penalty(),
         );
 
-        let mut y_est = Array2::<F>::zeros((dataset.nsamples(), dataset.ntargets()));
-        general_mat_mul(
-            F::one(),
-            &dataset.records(),
-            &hyperplane,
-            F::one(),
-            &mut y_est,
-        );
-        // Adding intercept
-        for i in 0..dataset.nsamples() {
-            let _res = &y_est.slice(s![i, ..]) + &intercept;
-            y_est.slice_mut(s![i, ..]).assign(&_res);
-        }
+        let y_est = dataset.records().dot(&hyperplane);
+
+        y_est = y_est + &intercept;
 
         let variance = variance_params_multi_task(dataset, y_est);
 
@@ -165,11 +155,11 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array2<F>>
             "The number of data points must match the number of output targets."
         );
 
-        general_mat_mul(F::one(), &x, &self.hyperplane, F::one(), y);
-        // *y = *y + self.intercept;
+        let y = x.dot(&self.hyperplane) + &self.intercept;
     }
 
     fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array2<F> {
+        // TODO: fix, should be (x.nrows(), y.ncols())
         Array2::zeros((x.nrows(), x.nrows()))
     }
 }
@@ -315,9 +305,10 @@ fn coordinate_descent<'a, F: Float>(
             let old_w_j = w[j];
             let x_j: ArrayView1<F> = x.slice(s![.., j]);
             if abs_diff_ne!(old_w_j, F::zero()) {
-                for i in 0..x.shape()[0] {
-                    r[i] += x_j[i] * old_w_j;
-                }
+                // for i in 0..x.shape()[0] {
+                //     r[i] += x_j[i] * old_w_j;
+                // }
+                r.scaled_add(old_w_j, &x_j);
             }
             let tmp: F = x_j.dot(&r);
             w[j] = tmp.signum() * F::max(tmp.abs() - n_samples * l1_ratio * penalty, F::zero())
@@ -420,9 +411,7 @@ fn block_soft_thresholding<'a, F: Float>(x: ArrayView1<'a, F>, threshold: F) -> 
     let mut _res = Array1::<F>::zeros(x.len());
     if norm_x >= threshold {
         let scal = F::one() - threshold / norm_x;
-        for i in 0..x.len() {
-            _res[i] = scal * x[i];
-        }
+        _res = x * scal;
     }
     _res
 }
@@ -471,9 +460,7 @@ fn duality_gap_mtl<'a, F: Float>(
     let n_tasks = y.shape()[1];
     let l1_reg = l1_ratio * penalty * n_samples;
     let l2_reg = (F::one() - l1_ratio) * penalty * n_samples;
-    let mut xta = Array2::<F>::zeros((n_features, n_tasks));
-    general_mat_mul(F::one(), &x.t(), &r, F::one(), &mut xta);
-    xta = xta - &w * l2_reg;
+    let xta = x.t().dot(&r) - &w * l2_reg;
 
     let dual_norm_xta = xta
         .map_axis(Axis(1), |x| x.dot(&x).sqrt())
@@ -488,7 +475,7 @@ fn duality_gap_mtl<'a, F: Float>(
         (F::one(), r_norm2)
     };
     let mut rty = Array2::<F>::zeros((n_tasks, n_tasks));
-    general_mat_mul(F::one(), &r.t(), &y, F::one(), &mut rty);
+    let rty = r.t().dot(&y);
     let trace_rty = rty.diag().sum();
     let l21_norm = w.map_axis(Axis(1), |wj| (wj.dot(&wj)).sqrt()).sum();
     gap += l1_reg * l21_norm - const_ * trace_rty
@@ -570,7 +557,6 @@ pub fn compute_intercept<F: Float>(
 mod tests {
     use super::{block_coordinate_descent, coordinate_descent, ElasticNet, MultiTaskElasticNet};
     use approx::assert_abs_diff_eq;
-    use ndarray::linalg::general_mat_mul;
     use ndarray::{array, s, Array, Array1, Array2, Axis};
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::Uniform;
@@ -624,7 +610,7 @@ mod tests {
         beta: &Array2<f64>,
     ) -> f64 {
         let mut resid = Array2::<f64>::zeros((x.shape()[0], y.shape()[1]));
-        general_mat_mul(1., &x, &beta, 1., &mut resid);
+        let resid = x.dot(&beta);
         resid = &resid * -1.;
         for i in 0..resid.shape()[0] {
             let _res = &resid.slice(s![i, ..]) - intercept;

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use super::{
     AsProbabilities, AsTargets, AsTargetsMut, CountedTargets, DatasetBase, FromTargetArray, Label,
-    Labels, MultiTaskTarget, Pr, Records,
+    Labels, Pr, Records,
 };
 use ndarray::{
     Array1, Array2, ArrayBase, ArrayView2, ArrayViewMut2, Axis, CowArray, Data, DataMut, Dimension,
@@ -14,18 +14,6 @@ impl<'a, L, S: Data<Elem = L>> AsTargets for ArrayBase<S, Ix1> {
 
     fn as_multi_targets(&self) -> ArrayView2<L> {
         self.view().insert_axis(Axis(1))
-    }
-}
-
-impl<'a, L, S: Data<Elem = L>> MultiTaskTarget for ArrayBase<S, Ix2> {
-    type Elem = L;
-
-    fn nsamples(&self) -> usize {
-        self.shape()[0]
-    }
-
-    fn ntasks(&self) -> usize {
-        self.shape()[1]
     }
 }
 
