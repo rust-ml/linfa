@@ -11,13 +11,15 @@ use linfa::{
 };
 
 use super::{
-    hyperparams::ElasticNetValidParams, ElasticNet, ElasticNetError, MultiTaskElasticNet, Result,
+    hyperparams::{ElasticNetValidParams, MultiTaskElasticNetValidParams},
+    ElasticNet, ElasticNetError, MultiTaskElasticNet, Result,
 };
 
-impl<F, D> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix1>, ElasticNetError> for ElasticNetValidParams<F>
+impl<F, D, T> Fit<ArrayBase<D, Ix2>, T, ElasticNetError> for ElasticNetValidParams<F>
 where
     F: Float + Lapack,
     D: Data<Elem = F>,
+    T: AsTargets<Elem = F>,
 {
     type Object = ElasticNet<F>;
 
@@ -31,10 +33,7 @@ where
     /// Returns a `FittedElasticNet` object which contains the fitted
     /// parameters and can be used to `predict` values of the target variable
     /// for new feature values.
-    fn fit(
-        &self,
-        dataset: &DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D, Ix1>>,
-    ) -> Result<Self::Object> {
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
         let target = dataset.try_single_target()?;
 
         let (intercept, y) = compute_intercept(self.with_intercept(), target);
@@ -62,7 +61,8 @@ where
     }
 }
 
-impl<F, D> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, ElasticNetError> for ElasticNetValidParams<F>
+impl<F, D> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, ElasticNetError>
+    for MultiTaskElasticNetValidParams<F>
 where
     F: Float + Lapack,
     D: Data<Elem = F>,
@@ -152,7 +152,7 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array2<F>>
             "The number of data points must match the number of output targets."
         );
 
-        let y = x.dot(&self.hyperplane) + &self.intercept;
+        *y = x.dot(&self.hyperplane) + &self.intercept;
     }
 
     fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array2<F> {
@@ -573,14 +573,9 @@ mod tests {
         intercept: &Array1<f64>,
         beta: &Array2<f64>,
     ) -> f64 {
-        let mut resid = Array2::<f64>::zeros((x.shape()[0], y.shape()[1]));
-        let resid = x.dot(beta);
+        let mut resid = x.dot(beta);
         resid = &resid * -1.;
-        for i in 0..resid.shape()[0] {
-            let _res = &resid.slice(s![i, ..]) - intercept;
-            resid.slice_mut(s![i, ..]).assign(&_res);
-        }
-        resid = resid + y;
+        resid = &resid - intercept + y;
         let mut datafit = resid.map(|r| r.powi(2)).sum();
         datafit /= 2.0 * x.shape()[0] as f64;
         datafit
@@ -704,7 +699,10 @@ mod tests {
 
     #[test]
     fn lasso_zero_works() {
-        let dataset = Dataset::from((array![[0.], [0.], [0.]], array![0., 0., 0.]));
+        // let dataset = Dataset::from((array![[0.], [0.], [0.]], array![0., 0., 0.]));
+        let x = array![[0.], [0.], [0.]];
+        let y = array![0., 0., 0.];
+        let dataset = Dataset::from((x, y));
 
         let model = ElasticNet::params()
             .l1_ratio(1.0)

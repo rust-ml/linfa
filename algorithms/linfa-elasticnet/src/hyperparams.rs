@@ -15,7 +15,7 @@ use super::Result;
 /// A verified hyper-parameter set ready for the estimation of a ElasticNet regression model
 ///
 /// See [`ElasticNetParams`](crate::ElasticNetParams) for more informations.
-pub struct ElasticNetValidParams<F> {
+pub struct ElasticNetValidParamsBase<F, const MULTI_TASK: bool> {
     penalty: F,
     l1_ratio: F,
     with_intercept: bool,
@@ -23,7 +23,10 @@ pub struct ElasticNetValidParams<F> {
     tolerance: F,
 }
 
-impl<F: Float> ElasticNetValidParams<F> {
+pub type ElasticNetValidParams<F> = ElasticNetValidParamsBase<F, false>;
+pub type MultiTaskElasticNetValidParams<F> = ElasticNetValidParamsBase<F, true>;
+
+impl<F: Float, const MULTI_TASK: bool> ElasticNetValidParamsBase<F, MULTI_TASK> {
     pub fn penalty(&self) -> F {
         self.penalty
     }
@@ -112,16 +115,21 @@ impl<F: Float> ElasticNetValidParams<F> {
 /// let model = checked_params.fit(&ds)?;
 /// # Ok::<(), ElasticNetError>(())
 /// ```
-pub struct ElasticNetParams<F>(ElasticNetValidParams<F>);
+pub struct ElasticNetParamsBase<F, const MULTI_TASK: bool>(
+    ElasticNetValidParamsBase<F, MULTI_TASK>,
+);
 
-impl<F: Float> Default for ElasticNetParams<F> {
+pub type ElasticNetParams<F> = ElasticNetParamsBase<F, false>;
+pub type MultiTaskElasticNetParams<F> = ElasticNetParamsBase<F, true>;
+
+impl<F: Float, const MULTI_TASK: bool> Default for ElasticNetParamsBase<F, MULTI_TASK> {
     fn default() -> Self {
         Self::new()
     }
 }
 
 /// Configure and fit a Elastic Net model
-impl<F: Float> ElasticNetParams<F> {
+impl<F: Float, const MULTI_TASK: bool> ElasticNetParamsBase<F, MULTI_TASK> {
     /// Create default elastic net hyper parameters
     ///
     /// By default, an intercept will be fitted. To disable fitting an
@@ -130,8 +138,8 @@ impl<F: Float> ElasticNetParams<F> {
     /// To additionally normalize the feature matrix before fitting, call
     /// `fit_intercept_and_normalize()` before calling `fit()`. The feature
     /// matrix will not be normalized by default.
-    pub fn new() -> ElasticNetParams<F> {
-        Self(ElasticNetValidParams {
+    pub fn new() -> ElasticNetParamsBase<F, MULTI_TASK> {
+        Self(ElasticNetValidParamsBase {
             penalty: F::one(),
             l1_ratio: F::cast(0.5),
             with_intercept: true,
@@ -186,8 +194,8 @@ impl<F: Float> ElasticNetParams<F> {
     }
 }
 
-impl<F: Float> ParamGuard for ElasticNetParams<F> {
-    type Checked = ElasticNetValidParams<F>;
+impl<F: Float, const MULTI_TASK: bool> ParamGuard for ElasticNetParamsBase<F, MULTI_TASK> {
+    type Checked = ElasticNetValidParamsBase<F, MULTI_TASK>;
     type Error = ElasticNetError;
 
     /// Validate the hyper parameters
