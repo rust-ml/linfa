@@ -699,10 +699,7 @@ mod tests {
 
     #[test]
     fn lasso_zero_works() {
-        // let dataset = Dataset::from((array![[0.], [0.], [0.]], array![0., 0., 0.]));
-        let x = array![[0.], [0.], [0.]];
-        let y = array![0., 0., 0.];
-        let dataset = Dataset::from((x, y));
+        let dataset = Dataset::from((array![[0.], [0.], [0.]], array![0., 0., 0.]));
 
         let model = ElasticNet::params()
             .l1_ratio(1.0)
