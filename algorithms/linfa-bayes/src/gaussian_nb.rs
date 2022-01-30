@@ -1,52 +1,120 @@
 use ndarray::{Array1, ArrayBase, ArrayView2, Axis, Data, Ix2};
 use ndarray_stats::QuantileExt;
 use std::collections::HashMap;
-
-use crate::error::{NaiveBayesError, Result};
-use crate::hyperparams::{NbParams, NbValidParams, GaussianNbParams};
 use linfa::dataset::{AsTargets, DatasetBase, Labels};
 use linfa::{Float, Label};
-use crate::base_nb::BaseNb;
+use linfa::traits::{Fit, FitWith, PredictInplace};
 
-// Input and output Gaussian Naive Bayes models for fitting
-type GaussianNbIn<F, L> = Option<BaseNb<F, L>>;
-type GaussianNbOut<F, L> = Option<BaseNb<F, L>>;
+use crate::error::{NaiveBayesError, Result};
+use crate::hyperparams::{GaussianNbValidParams, GaussianNbParams};
+use crate::base_nb::{NaiveBayes, NaiveBayesValidParams, filter};
 
-impl<'a, F> GaussianNbParams<F> where F: Float {
 
- pub fn fit_with<L: Label + 'a,
- D: Data<Elem = F>,
- T: AsTargets<Elem = L> + Labels<Elem = L>>(
+
+impl<'a, F, L, D, T> NaiveBayesValidParams<'a, F, L, D, T> for GaussianNbValidParams<F, L> where   
+F: Float,
+L: Label + 'a,
+D: Data<Elem = F>,
+T: AsTargets<Elem = L> + Labels<Elem = L>{
+
+}
+
+
+impl<'a, F, L, D> NaiveBayes<'a, F, L, D> for GaussianNb<F, L> where 
+F: Float,
+L: Label + Ord,
+D: Data<Elem = F> 
+{
+
+// Compute unnormalized posterior log probability
+fn joint_log_likelihood(&self, x: ArrayView2<F>) -> HashMap<&L, Array1<F>> {
+    let mut joint_log_likelihood = HashMap::new();
+
+    for (class, info) in self.class_info.iter() {
+        let jointi = info.prior.ln();
+
+        let mut nij = info
+            .sigma
+            .mapv(|x| F::cast(2. * std::f64::consts::PI) * x)
+            .mapv(|x| x.ln())
+            .sum();
+        nij = F::cast(-0.5) * nij;
+
+        let nij = ((x.to_owned() - &info.theta).mapv(|x| x.powi(2)) / &info.sigma)
+            .sum_axis(Axis(1))
+            .mapv(|x| x * F::cast(0.5))
+            .mapv(|x| nij - x);
+
+        joint_log_likelihood.insert(class, nij + jointi);
+    }
+
+    joint_log_likelihood
+}
+
+
+}
+
+
+
+impl<F, L, D, T> Fit<ArrayBase<D, Ix2>, T, NaiveBayesError> for GaussianNbValidParams<F, L> 
+where
+    F: Float,
+    L: Label + Ord,
+    D: Data<Elem = F>,
+    T: AsTargets<Elem = L> + Labels<Elem = L>,
+{
+    type Object = GaussianNb<F, L>;
+   
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
+
+        let res = NaiveBayesValidParams::fit(self, dataset, None);
+        Ok(res.unwrap().unwrap())
+    }
+}
+
+
+
+impl<'a, F, L, D, T> FitWith<'a, ArrayBase<D, Ix2>, T, NaiveBayesError> for GaussianNbValidParams<F, L> where 
+    F: Float,
+    L: Label + 'a,
+    D: Data<Elem = F>,
+    T: AsTargets<Elem = L> + Labels<Elem = L>, {
+
+    type ObjectIn = Option<GaussianNb<F, L>>;
+    type ObjectOut = Option<GaussianNb<F, L>>;
+
+
+    fn fit_with(
         &self,
-        model_in: GaussianNbIn<F, L>,
-        dataset: &DatasetBase<ArrayBase<D, Ix2>, T>
-    ) -> Result<GaussianNbOut<F, L>> {
+        model_in: Self::ObjectIn,
+        dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
+    ) -> Result<Self::ObjectOut> {
         let x = dataset.records();
         let y = dataset.try_single_target()?;
 
         // If the ratio of the variance between dimensions is too small, it will cause
         // numerical errors. We address this by artificially boosting the variance
         // by `epsilon` (a small fraction of the variance of the largest feature)
-        let epsilon = self.var_smoothing * *x.var_axis(Axis(0), F::zero()).max()?;
+        let epsilon = self.var_smoothing() * *x.var_axis(Axis(0), F::zero()).max()?;
 
         let mut model = match model_in {
-            Some(BaseNb::GaussianNb(mut temp)) => {
+            Some(mut temp) => {
                 temp.class_info
                     .values_mut()
                     .for_each(|x| x.sigma -= epsilon);
                 temp
             }
-            None => GaussianNb::<F, L> {
+            None => GaussianNb {
                 class_info: HashMap::new(),
             },
-            _ => panic!("Wrong model type passed as input - expected Gaussian Naive Bayes")
         };
 
+        //let yunique = y.labels();
         let yunique = dataset.labels();
 
         for class in yunique {
             // We filter for records that correspond to the current class
-            let xclass = NbValidParams::filter(x.view(), y.view(), &class);
+            let xclass = filter(x.view(), y.view(), &class);
 
             // We count the number of occurences of the class
             let nclass = xclass.nrows();
@@ -83,12 +151,38 @@ impl<'a, F> GaussianNbParams<F> where F: Float {
             info.prior = F::cast(info.class_count) / F::cast(class_count_sum);
         }
 
-        Ok(Some(BaseNb::GaussianNb(model)))
-
+        Ok(Some(model))
     }
 
-    // Compute online update of gaussian mean and variance
-    fn update_mean_variance(
+
+
+}
+
+
+
+
+impl<F: Float, L: Label, D> PredictInplace<ArrayBase<D, Ix2>, Array1<L>> for GaussianNb<F, L>
+where
+    D: Data<Elem = F>,
+{
+
+    fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<L>) {
+        // call NaiveBayes::predict_inplace, TODO
+        NaiveBayes::predict_inplace(self, x, y);
+    }
+    
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<L> {
+        Array1::default(x.nrows())
+    }
+
+}
+
+
+
+impl<'a, F, L> GaussianNbValidParams<F, L> where F: Float {
+
+       // Compute online update of gaussian mean and variance
+       fn update_mean_variance(
         info_old: &GaussianClassInfo<F>,
         x_new: ArrayView2<F>,
     ) -> (Array1<F>, Array1<F>) {
@@ -132,19 +226,19 @@ impl<'a, F> GaussianNbParams<F> where F: Float {
         (mu_weighted, var_weighted)
     }
 
-    // Check that the smoothing parameter is non-negative
-    pub fn check_ref(&self) -> Result<()> {
-        if self.var_smoothing.is_negative() {
-            Err(NaiveBayesError::InvalidSmoothing(
-                self.var_smoothing.to_f64().unwrap(),
-            ))
-        } else {
-            Ok(())
-        }
+}
+
+
+impl<F: Float, L: Label> GaussianNb<F, L> where
+{
+    /// Construct a new set of hyperparameters
+    pub fn params() -> GaussianNbParams<F, L> {
+        GaussianNbParams::new()
     }
 
     
 }
+
 
 /// Fitted Gaussian Naive Bayes classifier
 /// 
@@ -164,43 +258,9 @@ struct GaussianClassInfo<F> {
 }
 
 
-impl<F: Float, L: Label> GaussianNb<F, L> where
-{
-    /// Construct a new set of hyperparameters
-    pub fn params() -> NbParams<F, L> {
-        NbParams::new().gaussian()
-    }
-
-    // Compute unnormalized posterior log probability
-    pub fn joint_log_likelihood(&self, x: ArrayView2<F>) -> HashMap<&L, Array1<F>> {
-        let mut joint_log_likelihood = HashMap::new();
-
-        for (class, info) in self.class_info.iter() {
-            let jointi = info.prior.ln();
-
-            let mut nij = info
-                .sigma
-                .mapv(|x| F::cast(2. * std::f64::consts::PI) * x)
-                .mapv(|x| x.ln())
-                .sum();
-            nij = F::cast(-0.5) * nij;
-
-            let nij = ((x.to_owned() - &info.theta).mapv(|x| x.powi(2)) / &info.sigma)
-                .sum_axis(Axis(1))
-                .mapv(|x| x * F::cast(0.5))
-                .mapv(|x| nij - x);
-
-            joint_log_likelihood.insert(class, nij + jointi);
-        }
-
-        joint_log_likelihood
-    }
-}
-
-
 #[cfg(test)]
 mod tests {
-    use super::{GaussianNb, Result};
+    use super::{GaussianNb, Result, NaiveBayes};
     use linfa::{
         traits::{Fit, FitWith, Predict},
         DatasetView,
@@ -228,7 +288,7 @@ mod tests {
 
         assert_abs_diff_eq!(pred, y);
 
-        let jll = fitted_clf.joint_log_likelihood(x.view());
+        let jll = NaiveBayes::<_, _, ndarray::OwnedRepr<_>>::joint_log_likelihood(&fitted_clf, x.view());
         let mut expected = HashMap::new();
         expected.insert(
             &1usize,
@@ -283,7 +343,7 @@ mod tests {
 
         assert_abs_diff_eq!(pred, y);
 
-        let jll = model.joint_log_likelihood(x.view());
+        let jll = NaiveBayes::<_, _, ndarray::OwnedRepr<_>>::joint_log_likelihood(&model, x.view());
 
         let mut expected = HashMap::new();
         expected.insert(

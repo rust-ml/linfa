@@ -7,7 +7,8 @@ mod multinomial_nb;
 mod hyperparams;
 
 pub use error::{NaiveBayesError, Result};
-pub use base_nb::BaseNb;
 pub use gaussian_nb::GaussianNb;
+pub use hyperparams::{GaussianNbParams, GaussianNbValidParams};
 pub use multinomial_nb::MultinomialNb;
-pub use hyperparams::{NbParams, NbValidParams};
+pub use hyperparams::{MultinomialNbParams, MultinomialNbValidParams};
+

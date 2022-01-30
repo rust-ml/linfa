@@ -1,44 +1,92 @@
 use ndarray::{Array1, ArrayBase, ArrayView2, Axis, Data, Ix2};
 use std::collections::HashMap;
-
-use crate::error::{NaiveBayesError, Result};
-use crate::hyperparams::{NbParams, NbValidParams, MultinomialNbParams};
 use linfa::dataset::{AsTargets, DatasetBase, Labels};
 use linfa::{Float, Label};
-use crate::base_nb::BaseNb;
+use linfa::traits::{Fit, FitWith, PredictInplace};
 
-// Input and output Multinomial Naive Bayes models for fitting
-type MultinomialNbIn<F, L> = Option<BaseNb<F, L>>;
-type MultinomialNbOut<F, L> = Option<BaseNb<F, L>>;
+use crate::error::{NaiveBayesError, Result};
+use crate::hyperparams::{MultinomialNbValidParams, MultinomialNbParams};
+use crate::base_nb::{NaiveBayes, NaiveBayesValidParams, filter};
 
-impl<'a, F> MultinomialNbParams<F> where F: Float {
 
- pub fn fit_with<L: Label + 'a,
- D: Data<Elem = F>,
- T: AsTargets<Elem = L> + Labels<Elem = L>>(
+impl<'a, F, L, D, T> NaiveBayesValidParams<'a, F, L, D, T> for MultinomialNbValidParams<F, L> where   
+F: Float,
+L: Label + 'a,
+D: Data<Elem = F>,
+T: AsTargets<Elem = L> + Labels<Elem = L>{
+
+}
+
+impl<'a, F, L, D> NaiveBayes<'a, F, L, D> for MultinomialNb<F, L> where 
+F: Float,
+L: Label + Ord,
+D: Data<Elem = F> 
+{
+    // Compute unnormalized posterior log probability
+    fn joint_log_likelihood(&self, x: ArrayView2<F>) -> HashMap<&L, Array1<F>> {
+        let mut joint_log_likelihood = HashMap::new();
+        for (class, info) in self.class_info.iter() {
+            // Combine feature log probabilities and class priors to get log-likelihood for each class
+            let jointi = info.prior.ln(); 
+            let nij = x.dot(&info.feature_log_prob);
+            joint_log_likelihood.insert(class, nij + jointi);
+        }
+
+        joint_log_likelihood
+    }
+
+}
+
+
+impl<F, L, D, T> Fit<ArrayBase<D, Ix2>, T, NaiveBayesError> for MultinomialNbValidParams<F, L> 
+where
+    F: Float,
+    L: Label + Ord,
+    D: Data<Elem = F>,
+    T: AsTargets<Elem = L> + Labels<Elem = L>,
+{
+    type Object = MultinomialNb<F, L>;
+   
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
+
+        let res = NaiveBayesValidParams::fit(self, dataset, None);
+        Ok(res.unwrap().unwrap())
+    }
+}
+
+
+impl<'a, F, L, D, T> FitWith<'a, ArrayBase<D, Ix2>, T, NaiveBayesError> for MultinomialNbValidParams<F, L> where 
+    F: Float,
+    L: Label + 'a,
+    D: Data<Elem = F>,
+    T: AsTargets<Elem = L> + Labels<Elem = L>, {
+
+    type ObjectIn = Option<MultinomialNb<F, L>>;
+    type ObjectOut = Option<MultinomialNb<F, L>>;
+
+    fn fit_with(
         &self,
-        model_in: MultinomialNbIn<F, L>,
-        dataset: &DatasetBase<ArrayBase<D, Ix2>, T>
-    ) -> Result<MultinomialNbOut<F, L>> {
+        model_in: Self::ObjectIn,
+        dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
+    ) -> Result<Self::ObjectOut>{
         let x = dataset.records();
         let y = dataset.try_single_target()?;
         // Extract the specific Naive Bayes model from the BaseNb model container
         // Throw an error if the model isn't Multinomial
         let mut model = match model_in {
-            Some(BaseNb::MultinomialNb(temp)) => {
+            Some(temp) => {
                 temp
             }
-            None => MultinomialNb::<F, L> {
+            None => MultinomialNb {
                 class_info: HashMap::new(),
             },
-            _ => panic!("Wrong model type passed as input - expected Multinomial Naive Bayes")
         };
 
         let yunique = dataset.labels();
 
         for class in yunique {
             // We filter for records that correspond to the current class
-            let xclass = NbValidParams::filter(x.view(), y.view(), &class);
+            let xclass = filter(x.view(), y.view(), &class);
             // We count the number of occurences of the class
             let nclass = xclass.nrows();
 
@@ -63,10 +111,33 @@ impl<'a, F> MultinomialNbParams<F> where F: Float {
         for info in model.class_info.values_mut() {
             info.prior = F::cast(info.class_count) / F::cast(class_count_sum);
         }
-        // We return the resulting model wrapped into BaseNb model container
-        Ok(Some(BaseNb::MultinomialNb(model)))
+        // We return the resulting model wrapped into BaseNb model container TODO
+        Ok(Some(model))
+    }
+
+}
+
+
+impl<F: Float, L: Label, D> PredictInplace<ArrayBase<D, Ix2>, Array1<L>> for MultinomialNb<F, L>
+where
+    D: Data<Elem = F>,
+{
+
+    fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<L>) {
+        // call NaiveBayes::predict_inplace, TODO
+        NaiveBayes::predict_inplace(self, x, y);
     }
     
+    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<L> {
+        Array1::default(x.nrows())
+    }
+
+}
+
+
+
+impl<'a, F, L> MultinomialNbValidParams<F, L> where F: Float {
+
     // Update log probabilities of features given class
     fn update_feature_log_prob(&self,
         info_old: &MultinomialClassInfo<F>,
@@ -91,25 +162,13 @@ impl<'a, F> MultinomialNbParams<F> where F: Float {
             feature_count_new
         };
         // Apply smoothing to feature counts
-        let feature_count_smoothed = feature_count.clone() + self.alpha;
+        let feature_count_smoothed = feature_count.clone() + self.alpha();
         // Compute total count over all (smoothed) features
         let count = feature_count_smoothed.sum();
         // Compute log probabilities of each feature
         let feature_log_prob = feature_count_smoothed.mapv(|x| x.ln() - F::cast(count).ln());
         (feature_log_prob.to_owned(), feature_count.to_owned())
     }
-
-    // Check that the smoothing parameter alpha is non-negative
-    pub fn check_ref(&self) -> Result<()> {
-        if self.alpha.is_negative() {
-            Err(NaiveBayesError::InvalidSmoothing(
-                self.alpha.to_f64().unwrap(),
-            ))
-        } else {
-            Ok(())
-        }
-    }
-
     
 }
 
@@ -134,28 +193,17 @@ struct MultinomialClassInfo<F> {
 impl<F: Float, L: Label> MultinomialNb<F, L> where
 {
     /// Construct a new set of hyperparameters
-    pub fn params() -> NbParams<F, L> {
-        NbParams::new().multinomial()
+    pub fn params() -> MultinomialNbParams<F, L> {
+       MultinomialNbParams::new()
     }
 
-    // Compute unnormalized posterior log probability
-    pub fn joint_log_likelihood(&self, x: ArrayView2<F>) -> HashMap<&L, Array1<F>> {
-        let mut joint_log_likelihood = HashMap::new();
-        for (class, info) in self.class_info.iter() {
-            // Combine feature log probabilities and class priors to get log-likelihood for each class
-            let jointi = info.prior.ln(); 
-            let nij = x.dot(&info.feature_log_prob);
-            joint_log_likelihood.insert(class, nij + jointi);
-        }
-
-        joint_log_likelihood
-    }
+    
 }
 
 
 #[cfg(test)]
 mod tests {
-    use super::{MultinomialNb, Result};
+    use super::{MultinomialNb, Result, NaiveBayes};
     use linfa::{
         traits::{Fit, FitWith, Predict},
         DatasetView,
@@ -182,8 +230,9 @@ mod tests {
         let pred = fitted_clf.predict(&x);
 
         assert_abs_diff_eq!(pred, y);
+        //::<ndarray::OwnedRepr<usize>>
 
-        let jll = fitted_clf.joint_log_likelihood(x.view());
+        let jll = NaiveBayes::<_, _, ndarray::OwnedRepr<_>>::joint_log_likelihood(&fitted_clf, x.view());
         let mut expected = HashMap::new();
         // Computed with sklearn.naive_bayes.MultinomialNB
         expected.insert(
@@ -242,7 +291,8 @@ mod tests {
 
         assert_abs_diff_eq!(pred, y);
 
-        let jll = model.joint_log_likelihood(x.view());
+        //let jll = model.joint_log_likelihood(x.view());
+        let jll = NaiveBayes::<_, _, ndarray::OwnedRepr<_>>::joint_log_likelihood(&model, x.view());
 
         let mut expected = HashMap::new();
         // Computed with sklearn.naive_bayes.MultinomialNB
