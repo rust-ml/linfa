@@ -7,6 +7,7 @@ use linfa::dataset::{AsTargets, DatasetBase, Labels};
 use linfa::traits::FitWith;
 use linfa::{Float, Label};
 
+// Common functionality of fitted Naive Bayes models
 pub trait NaiveBayes<'a, F, L, D>
 where
     F: Float,
@@ -47,6 +48,7 @@ where
     }
 }
 
+// Common functionality for hyper-parameter sets of Naive Bayes models ready for estimation
 pub trait NaiveBayesValidParams<'a, F, L, D, T>:
     FitWith<'a, ArrayBase<D, Ix2>, T, NaiveBayesError>
 where
@@ -68,6 +70,7 @@ where
     }
 }
 
+// Returns a subset of x corresponding to the class specified by `ycondition`
 pub fn filter<F: Float, L: Label + Ord>(
     x: ArrayView2<F>,
     y: ArrayView1<L>,

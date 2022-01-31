@@ -2,7 +2,7 @@ use crate::NaiveBayesError;
 use linfa::{Float, ParamGuard};
 use std::marker::PhantomData;
 
-/// A verified hyper-parameter set ready for the estimation of a Gaussian Naive Bayes model
+/// A verified hyper-parameter set ready for the estimation of a Gaussian Naive Bayes model.
 ///
 /// See [`GaussianNbParams`](crate::hyperparams::GaussianNbParams) for more informations.
 #[derive(Debug)]
@@ -20,7 +20,7 @@ impl<F: Float, L> GaussianNbValidParams<F, L> {
     }
 }
 
-/// A hyper-parameter set during construction
+/// A hyper-parameter set during construction for a Gaussian Naive Bayes model.
 ///
 /// The parameter set can be verified into a
 /// [`GaussianNbValidParams`](crate::hyperparams::GaussianNbValidParams) by calling
@@ -119,7 +119,7 @@ impl<F: Float, L> ParamGuard for GaussianNbParams<F, L> {
     }
 }
 
-/// A verified hyper-parameter set ready for the estimation of a Multinomail Naive Bayes model
+/// A verified hyper-parameter set ready for the estimation of a Multinomial Naive Bayes model.
 ///
 /// See [`MultinomialNbParams`](crate::hyperparams::MultinomialNbParams) for more informations.
 #[derive(Debug)]
@@ -137,7 +137,7 @@ impl<F: Float, L> MultinomialNbValidParams<F, L> {
     }
 }
 
-/// A hyper-parameter set during construction TODO
+/// A hyper-parameter set during construction for a Multinomial Naive Bayes model.
 ///
 /// The parameter set can be verified into a
 /// [`MultinomialNbValidParams`](crate::hyperparams::MultinomialNbValidParams) by calling
@@ -149,7 +149,7 @@ impl<F: Float, L> MultinomialNbValidParams<F, L> {
 /// # Parameters
 /// | Name | Default | Purpose | Range |
 /// | :--- | :--- | :---| :--- |
-/// | [var_smoothing](Self::var_smoothing) | `1e-9` | Stabilize variance calculation if ratios are small in update step | `[0, inf)` |
+/// | [alpha](Self::alpha) | `1` | Additive (Laplace/Lidstone) smoothing parameter (0 for no smoothing) | `[0, inf)` |
 ///
 /// # Errors
 ///
@@ -176,7 +176,7 @@ impl<F: Float, L> MultinomialNbValidParams<F, L> {
 /// let y = array![1, 1, 1, 2, 2, 2];
 /// let ds = DatasetView::new(x.view(), y.view());
 ///
-/// // create a new parameter set with variance smoothing equals `1`
+/// // create a new parameter set with smoothing parameter equals `1`
 /// let unchecked_params = MultinomialNbParams::new()
 ///     .alpha(1.0);
 ///

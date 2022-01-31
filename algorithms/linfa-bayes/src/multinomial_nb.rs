@@ -17,26 +17,6 @@ where
 {
 }
 
-impl<'a, F, L, D> NaiveBayes<'a, F, L, D> for MultinomialNb<F, L>
-where
-    F: Float,
-    L: Label + Ord,
-    D: Data<Elem = F>,
-{
-    // Compute unnormalized posterior log probability
-    fn joint_log_likelihood(&self, x: ArrayView2<F>) -> HashMap<&L, Array1<F>> {
-        let mut joint_log_likelihood = HashMap::new();
-        for (class, info) in self.class_info.iter() {
-            // Combine feature log probabilities and class priors to get log-likelihood for each class
-            let jointi = info.prior.ln();
-            let nij = x.dot(&info.feature_log_prob);
-            joint_log_likelihood.insert(class, nij + jointi);
-        }
-
-        joint_log_likelihood
-    }
-}
-
 impl<F, L, D, T> Fit<ArrayBase<D, Ix2>, T, NaiveBayesError> for MultinomialNbValidParams<F, L>
 where
     F: Float,
@@ -45,10 +25,10 @@ where
     T: AsTargets<Elem = L> + Labels<Elem = L>,
 {
     type Object = MultinomialNb<F, L>;
-
+    // Thin wrapper around the corresponding method of NaiveBayesValidParams
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
-        let res = NaiveBayesValidParams::fit(self, dataset, None);
-        Ok(res.unwrap().unwrap())
+        let model = NaiveBayesValidParams::fit(self, dataset, None)?;
+        Ok(model.unwrap())
     }
 }
 
@@ -70,8 +50,7 @@ where
     ) -> Result<Self::ObjectOut> {
         let x = dataset.records();
         let y = dataset.try_single_target()?;
-        // Extract the specific Naive Bayes model from the BaseNb model container
-        // Throw an error if the model isn't Multinomial
+
         let mut model = match model_in {
             Some(temp) => temp,
             None => MultinomialNb {
@@ -109,7 +88,6 @@ where
         for info in model.class_info.values_mut() {
             info.prior = F::cast(info.class_count) / F::cast(class_count_sum);
         }
-        // We return the resulting model wrapped into BaseNb model container TODO
         Ok(Some(model))
     }
 }
@@ -118,8 +96,8 @@ impl<F: Float, L: Label, D> PredictInplace<ArrayBase<D, Ix2>, Array1<L>> for Mul
 where
     D: Data<Elem = F>,
 {
+    // Thin wrapper around the corresponding method of NaiveBayes
     fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<L>) {
-        // call NaiveBayes::predict_inplace, TODO
         NaiveBayes::predict_inplace(self, x, y);
     }
 
@@ -171,10 +149,38 @@ where
     }
 }
 
-/// Fitted Multinomial Naive Bayes classifier
+/// Fitted Multinomial Naive Bayes classifier.
 ///
-/// Implements functionality specific to the Multinomial model. Functionality common to
-/// all Naive Bayes models is implemented in [`BaseNb`](BaseNb)
+/// See [MultinomialNbParams] for more information on the hyper-parameters.
+///
+/// # Model assumptions
+///
+/// The family of naive bayes classifiers assume independence between variables. They do not model
+/// moments between variables and lack therefore in modelling capability. The advantage is a linear
+/// fitting time with maximum-likelihood training in a closed form.
+///
+/// # Model estimation
+///
+/// You can fit a single model from a dataset
+///
+/// ```rust, ignore
+/// use linfa::traits::Fit;
+/// let model = MultinomialNb::params().fit(&ds)?;
+/// ```
+///
+/// or incrementally update a model
+///
+/// ```rust, ignore
+/// use linfa::traits::FitWith;
+/// let clf = MultinomialNb::params();
+/// let model = datasets.iter()
+///     .try_fold(None, |prev_model, &ds| clf.fit_with(prev_model, ds))?
+///     .unwrap();
+/// ```
+///
+/// After fitting the model, you can use the [`Predict`](linfa::traits::Predict) variants to
+/// predict new targets.
+///
 #[derive(Debug, Clone)]
 pub struct MultinomialNb<F, L> {
     class_info: HashMap<L, MultinomialClassInfo<F>>,
@@ -192,6 +198,26 @@ impl<F: Float, L: Label> MultinomialNb<F, L> {
     /// Construct a new set of hyperparameters
     pub fn params() -> MultinomialNbParams<F, L> {
         MultinomialNbParams::new()
+    }
+}
+
+impl<'a, F, L, D> NaiveBayes<'a, F, L, D> for MultinomialNb<F, L>
+where
+    F: Float,
+    L: Label + Ord,
+    D: Data<Elem = F>,
+{
+    // Compute unnormalized posterior log probability
+    fn joint_log_likelihood(&self, x: ArrayView2<F>) -> HashMap<&L, Array1<F>> {
+        let mut joint_log_likelihood = HashMap::new();
+        for (class, info) in self.class_info.iter() {
+            // Combine feature log probabilities and class priors to get log-likelihood for each class
+            let jointi = info.prior.ln();
+            let nij = x.dot(&info.feature_log_prob);
+            joint_log_likelihood.insert(class, nij + jointi);
+        }
+
+        joint_log_likelihood
     }
 }
 
@@ -217,8 +243,8 @@ mod tests {
         let pred = fitted_clf.predict(&x);
 
         assert_abs_diff_eq!(pred, y);
-        //::<ndarray::OwnedRepr<usize>>
 
+        // TODO
         let jll =
             NaiveBayes::<_, _, ndarray::OwnedRepr<_>>::joint_log_likelihood(&fitted_clf, x.view());
         let mut expected = HashMap::new();
@@ -272,7 +298,7 @@ mod tests {
 
         assert_abs_diff_eq!(pred, y);
 
-        //let jll = model.joint_log_likelihood(x.view());
+        // TODO
         let jll = NaiveBayes::<_, _, ndarray::OwnedRepr<_>>::joint_log_likelihood(&model, x.view());
 
         let mut expected = HashMap::new();

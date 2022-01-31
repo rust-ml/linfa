@@ -18,38 +18,6 @@ where
 {
 }
 
-impl<'a, F, L, D> NaiveBayes<'a, F, L, D> for GaussianNb<F, L>
-where
-    F: Float,
-    L: Label + Ord,
-    D: Data<Elem = F>,
-{
-    // Compute unnormalized posterior log probability
-    fn joint_log_likelihood(&self, x: ArrayView2<F>) -> HashMap<&L, Array1<F>> {
-        let mut joint_log_likelihood = HashMap::new();
-
-        for (class, info) in self.class_info.iter() {
-            let jointi = info.prior.ln();
-
-            let mut nij = info
-                .sigma
-                .mapv(|x| F::cast(2. * std::f64::consts::PI) * x)
-                .mapv(|x| x.ln())
-                .sum();
-            nij = F::cast(-0.5) * nij;
-
-            let nij = ((x.to_owned() - &info.theta).mapv(|x| x.powi(2)) / &info.sigma)
-                .sum_axis(Axis(1))
-                .mapv(|x| x * F::cast(0.5))
-                .mapv(|x| nij - x);
-
-            joint_log_likelihood.insert(class, nij + jointi);
-        }
-
-        joint_log_likelihood
-    }
-}
-
 impl<F, L, D, T> Fit<ArrayBase<D, Ix2>, T, NaiveBayesError> for GaussianNbValidParams<F, L>
 where
     F: Float,
@@ -59,9 +27,10 @@ where
 {
     type Object = GaussianNb<F, L>;
 
+    // Thin wrapper around the corresponding method of NaiveBayesValidParams
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
-        let res = NaiveBayesValidParams::fit(self, dataset, None);
-        Ok(res.unwrap().unwrap())
+        let model = NaiveBayesValidParams::fit(self, dataset, None)?;
+        Ok(model.unwrap())
     }
 }
 
@@ -101,7 +70,6 @@ where
             },
         };
 
-        //let yunique = y.labels();
         let yunique = dataset.labels();
 
         for class in yunique {
@@ -152,7 +120,7 @@ where
     D: Data<Elem = F>,
 {
     fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<L>) {
-        // call NaiveBayes::predict_inplace, TODO
+        // Thin wrapper around the corresponding method of NaiveBayes
         NaiveBayes::predict_inplace(self, x, y);
     }
 
@@ -211,17 +179,38 @@ where
     }
 }
 
-impl<F: Float, L: Label> GaussianNb<F, L> {
-    /// Construct a new set of hyperparameters
-    pub fn params() -> GaussianNbParams<F, L> {
-        GaussianNbParams::new()
-    }
-}
-
-/// Fitted Gaussian Naive Bayes classifier
+/// Fitted Gaussian Naive Bayes classifier.
 ///
-/// Implements functionality specific to the Gaussian model. Functionality common to
-/// all Naive Bayes models is implemented in [`BaseNb`](BaseNb)
+/// See [GaussianNbParams] for more information on the hyper-parameters.
+///
+/// # Model assumptions
+///
+/// The family of naive bayes classifiers assume independence between variables. They do not model
+/// moments between variables and lack therefore in modelling capability. The advantage is a linear
+/// fitting time with maximum-likelihood training in a closed form.
+///
+/// # Model estimation
+///
+/// You can fit a single model from a dataset
+///
+/// ```rust, ignore
+/// use linfa::traits::Fit;
+/// let model = GaussianNb::params().fit(&ds)?;
+/// ```
+///
+/// or incrementally update a model
+///
+/// ```rust, ignore
+/// use linfa::traits::FitWith;
+/// let clf = GaussianNb::params();
+/// let model = datasets.iter()
+///     .try_fold(None, |prev_model, &ds| clf.fit_with(prev_model, ds))?
+///     .unwrap();
+/// ```
+///
+/// After fitting the model, you can use the [`Predict`](linfa::traits::Predict) variants to
+/// predict new targets.
+///
 #[derive(Debug, Clone)]
 pub struct GaussianNb<F, L> {
     class_info: HashMap<L, GaussianClassInfo<F>>,
@@ -233,6 +222,45 @@ struct GaussianClassInfo<F> {
     prior: F,
     theta: Array1<F>,
     sigma: Array1<F>,
+}
+
+impl<F: Float, L: Label> GaussianNb<F, L> {
+    /// Construct a new set of hyperparameters
+    pub fn params() -> GaussianNbParams<F, L> {
+        GaussianNbParams::new()
+    }
+}
+
+impl<'a, F, L, D> NaiveBayes<'a, F, L, D> for GaussianNb<F, L>
+where
+    F: Float,
+    L: Label + Ord,
+    D: Data<Elem = F>,
+{
+    // Compute unnormalized posterior log probability
+    fn joint_log_likelihood(&self, x: ArrayView2<F>) -> HashMap<&L, Array1<F>> {
+        let mut joint_log_likelihood = HashMap::new();
+
+        for (class, info) in self.class_info.iter() {
+            let jointi = info.prior.ln();
+
+            let mut nij = info
+                .sigma
+                .mapv(|x| F::cast(2. * std::f64::consts::PI) * x)
+                .mapv(|x| x.ln())
+                .sum();
+            nij = F::cast(-0.5) * nij;
+
+            let nij = ((x.to_owned() - &info.theta).mapv(|x| x.powi(2)) / &info.sigma)
+                .sum_axis(Axis(1))
+                .mapv(|x| x * F::cast(0.5))
+                .mapv(|x| nij - x);
+
+            joint_log_likelihood.insert(class, nij + jointi);
+        }
+
+        joint_log_likelihood
+    }
 }
 
 #[cfg(test)]
@@ -265,8 +293,10 @@ mod tests {
 
         assert_abs_diff_eq!(pred, y);
 
+        // TODO
         let jll =
             NaiveBayes::<_, _, ndarray::OwnedRepr<_>>::joint_log_likelihood(&fitted_clf, x.view());
+
         let mut expected = HashMap::new();
         expected.insert(
             &1usize,
@@ -320,7 +350,7 @@ mod tests {
         let pred = model.predict(&x);
 
         assert_abs_diff_eq!(pred, y);
-
+        // TODO
         let jll = NaiveBayes::<_, _, ndarray::OwnedRepr<_>>::joint_log_likelihood(&model, x.view());
 
         let mut expected = HashMap::new();
