@@ -260,7 +260,7 @@ impl<F: Float, R: Rng + SeedableRng + Clone, DA: Data<Elem = F>, T, D: Distance<
                 inertia = dists.sum();
                 let distance = self
                     .dist_fn()
-                    .rdistance(centroids.view(), new_centroids.view());
+                    .distance(centroids.view(), new_centroids.view());
                 centroids = new_centroids;
                 if distance < self.tolerance() {
                     converged_iter = Some(n_iter);
@@ -324,7 +324,6 @@ impl<
         model: Self::ObjectIn,
         dataset: &'a DatasetBase<ArrayBase<DA, Ix2>, T>,
     ) -> Result<Self::ObjectOut, IncrKMeansError<Self::ObjectOut>> {
-        let mut rng = self.rng().clone();
         let observations = dataset.records().view();
         let n_samples = dataset.nsamples();
 
@@ -333,9 +332,9 @@ impl<
             None => {
                 let centroids = if let KMeansInit::Precomputed(centroids) = self.init_method() {
                     // If using precomputed centroids, don't run the init algorithm multiple times
-                    // since it's pointless
                     centroids.clone()
                 } else {
+                    let mut rng = self.rng().clone();
                     let mut dists = Array1::zeros(n_samples);
                     // Initial centroids derived from the first batch by running the init algorithm
                     // n_runs times and taking the centroids with the lowest inertia
@@ -387,7 +386,7 @@ impl<
         model.inertia = dists.sum() / F::cast(n_samples);
         let dist = self
             .dist_fn()
-            .rdistance(model.centroids.view(), new_centroids.view());
+            .distance(model.centroids.view(), new_centroids.view());
         model.centroids = new_centroids;
 
         if dist < self.tolerance() {
@@ -832,5 +831,18 @@ mod tests {
             model.centroids(),
             &array![[-6. / 4., -8. / 4.], [4., 5.], [10., 10.]]
         );
+    }
+
+    #[test]
+    fn test_tolerance() {
+        let rng = Isaac64Rng::seed_from_u64(45);
+        // The "correct" centroid for the dataset is [6, 6], so the centroid distance from the
+        // initial centroid in the first iteration should be around 8.48. With a tolerance of 8.5,
+        // KMeans should converge on first iteration.
+        let params = KMeans::params_with_rng(1, rng)
+            .tolerance(8.5)
+            .init_method(KMeansInit::Precomputed(array![[0., 0.]]));
+        let data = DatasetBase::from(array![[1., 1.], [11., 11.]]);
+        assert!(params.fit_with(None, &data).is_ok());
     }
 }
