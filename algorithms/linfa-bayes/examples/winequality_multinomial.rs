@@ -16,10 +16,10 @@ fn main() -> Result<()> {
 
     // Construct confusion matrix
     let cm = pred.confusion_matrix(&valid)?;
-    // classes    | bad        | good      
-    // bad        | 88         | 54        
-    // good       | 10         | 7         
-    
+    // classes    | bad        | good
+    // bad        | 88         | 54
+    // good       | 10         | 7
+
     // accuracy 0.5974843, MCC 0.02000631
     println!("{:?}", cm);
     println!("accuracy {}, MCC {}", cm.accuracy(), cm.mcc());

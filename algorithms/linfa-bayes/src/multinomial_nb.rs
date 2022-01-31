@@ -1,44 +1,43 @@
+use linfa::dataset::{AsTargets, DatasetBase, Labels};
+use linfa::traits::{Fit, FitWith, PredictInplace};
+use linfa::{Float, Label};
 use ndarray::{Array1, ArrayBase, ArrayView2, Axis, Data, Ix2};
 use std::collections::HashMap;
-use linfa::dataset::{AsTargets, DatasetBase, Labels};
-use linfa::{Float, Label};
-use linfa::traits::{Fit, FitWith, PredictInplace};
 
+use crate::base_nb::{filter, NaiveBayes, NaiveBayesValidParams};
 use crate::error::{NaiveBayesError, Result};
-use crate::hyperparams::{MultinomialNbValidParams, MultinomialNbParams};
-use crate::base_nb::{NaiveBayes, NaiveBayesValidParams, filter};
+use crate::hyperparams::{MultinomialNbParams, MultinomialNbValidParams};
 
-
-impl<'a, F, L, D, T> NaiveBayesValidParams<'a, F, L, D, T> for MultinomialNbValidParams<F, L> where   
-F: Float,
-L: Label + 'a,
-D: Data<Elem = F>,
-T: AsTargets<Elem = L> + Labels<Elem = L>{
-
+impl<'a, F, L, D, T> NaiveBayesValidParams<'a, F, L, D, T> for MultinomialNbValidParams<F, L>
+where
+    F: Float,
+    L: Label + 'a,
+    D: Data<Elem = F>,
+    T: AsTargets<Elem = L> + Labels<Elem = L>,
+{
 }
 
-impl<'a, F, L, D> NaiveBayes<'a, F, L, D> for MultinomialNb<F, L> where 
-F: Float,
-L: Label + Ord,
-D: Data<Elem = F> 
+impl<'a, F, L, D> NaiveBayes<'a, F, L, D> for MultinomialNb<F, L>
+where
+    F: Float,
+    L: Label + Ord,
+    D: Data<Elem = F>,
 {
     // Compute unnormalized posterior log probability
     fn joint_log_likelihood(&self, x: ArrayView2<F>) -> HashMap<&L, Array1<F>> {
         let mut joint_log_likelihood = HashMap::new();
         for (class, info) in self.class_info.iter() {
             // Combine feature log probabilities and class priors to get log-likelihood for each class
-            let jointi = info.prior.ln(); 
+            let jointi = info.prior.ln();
             let nij = x.dot(&info.feature_log_prob);
             joint_log_likelihood.insert(class, nij + jointi);
         }
 
         joint_log_likelihood
     }
-
 }
 
-
-impl<F, L, D, T> Fit<ArrayBase<D, Ix2>, T, NaiveBayesError> for MultinomialNbValidParams<F, L> 
+impl<F, L, D, T> Fit<ArrayBase<D, Ix2>, T, NaiveBayesError> for MultinomialNbValidParams<F, L>
 where
     F: Float,
     L: Label + Ord,
@@ -46,21 +45,21 @@ where
     T: AsTargets<Elem = L> + Labels<Elem = L>,
 {
     type Object = MultinomialNb<F, L>;
-   
-    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
 
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
         let res = NaiveBayesValidParams::fit(self, dataset, None);
         Ok(res.unwrap().unwrap())
     }
 }
 
-
-impl<'a, F, L, D, T> FitWith<'a, ArrayBase<D, Ix2>, T, NaiveBayesError> for MultinomialNbValidParams<F, L> where 
+impl<'a, F, L, D, T> FitWith<'a, ArrayBase<D, Ix2>, T, NaiveBayesError>
+    for MultinomialNbValidParams<F, L>
+where
     F: Float,
     L: Label + 'a,
     D: Data<Elem = F>,
-    T: AsTargets<Elem = L> + Labels<Elem = L>, {
-
+    T: AsTargets<Elem = L> + Labels<Elem = L>,
+{
     type ObjectIn = Option<MultinomialNb<F, L>>;
     type ObjectOut = Option<MultinomialNb<F, L>>;
 
@@ -68,15 +67,13 @@ impl<'a, F, L, D, T> FitWith<'a, ArrayBase<D, Ix2>, T, NaiveBayesError> for Mult
         &self,
         model_in: Self::ObjectIn,
         dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
-    ) -> Result<Self::ObjectOut>{
+    ) -> Result<Self::ObjectOut> {
         let x = dataset.records();
         let y = dataset.try_single_target()?;
         // Extract the specific Naive Bayes model from the BaseNb model container
         // Throw an error if the model isn't Multinomial
         let mut model = match model_in {
-            Some(temp) => {
-                temp
-            }
+            Some(temp) => temp,
             None => MultinomialNb {
                 class_info: HashMap::new(),
             },
@@ -95,7 +92,8 @@ impl<'a, F, L, D, T> FitWith<'a, ArrayBase<D, Ix2>, T, NaiveBayesError> for Mult
                 .class_info
                 .entry(class)
                 .or_insert_with(MultinomialClassInfo::default);
-            let (feature_log_prob, feature_count) = self.update_feature_log_prob(class_info, xclass.view());
+            let (feature_log_prob, feature_count) =
+                self.update_feature_log_prob(class_info, xclass.view());
             // We now update the total counts of each feature, feature log probabilities, and class count
             class_info.feature_log_prob = feature_log_prob;
             class_info.feature_count = feature_count;
@@ -114,51 +112,53 @@ impl<'a, F, L, D, T> FitWith<'a, ArrayBase<D, Ix2>, T, NaiveBayesError> for Mult
         // We return the resulting model wrapped into BaseNb model container TODO
         Ok(Some(model))
     }
-
 }
-
 
 impl<F: Float, L: Label, D> PredictInplace<ArrayBase<D, Ix2>, Array1<L>> for MultinomialNb<F, L>
 where
     D: Data<Elem = F>,
 {
-
     fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<L>) {
         // call NaiveBayes::predict_inplace, TODO
         NaiveBayes::predict_inplace(self, x, y);
     }
-    
+
     fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<L> {
         Array1::default(x.nrows())
     }
-
 }
 
-
-
-impl<'a, F, L> MultinomialNbValidParams<F, L> where F: Float {
-
+impl<'a, F, L> MultinomialNbValidParams<F, L>
+where
+    F: Float,
+{
     // Update log probabilities of features given class
-    fn update_feature_log_prob(&self,
+    fn update_feature_log_prob(
+        &self,
         info_old: &MultinomialClassInfo<F>,
         x_new: ArrayView2<F>,
     ) -> (Array1<F>, Array1<F>) {
         // Deconstruct old state
-        let (count_old, feature_log_prob_old, feature_count_old) = (&info_old.class_count, &info_old.feature_log_prob,
-             &info_old.feature_count);
+        let (count_old, feature_log_prob_old, feature_count_old) = (
+            &info_old.class_count,
+            &info_old.feature_log_prob,
+            &info_old.feature_count,
+        );
 
         // If incoming data is empty no updates required
         if x_new.nrows() == 0 {
-            return (feature_log_prob_old.to_owned(), feature_count_old.to_owned())
+            return (
+                feature_log_prob_old.to_owned(),
+                feature_count_old.to_owned(),
+            );
         }
 
         let feature_count_new = x_new.sum_axis(Axis(0));
-        
+
         // If previous batch was empty, we send the new feature count calculated
         let feature_count = if count_old > &0 {
             feature_count_old + feature_count_new
-        }
-        else {
+        } else {
             feature_count_new
         };
         // Apply smoothing to feature counts
@@ -169,11 +169,10 @@ impl<'a, F, L> MultinomialNbValidParams<F, L> where F: Float {
         let feature_log_prob = feature_count_smoothed.mapv(|x| x.ln() - F::cast(count).ln());
         (feature_log_prob.to_owned(), feature_count.to_owned())
     }
-    
 }
 
 /// Fitted Multinomial Naive Bayes classifier
-/// 
+///
 /// Implements functionality specific to the Multinomial model. Functionality common to
 /// all Naive Bayes models is implemented in [`BaseNb`](BaseNb)
 #[derive(Debug, Clone)]
@@ -186,24 +185,19 @@ struct MultinomialClassInfo<F> {
     class_count: usize,
     prior: F,
     feature_count: Array1<F>,
-    feature_log_prob: Array1<F>
+    feature_log_prob: Array1<F>,
 }
 
-
-impl<F: Float, L: Label> MultinomialNb<F, L> where
-{
+impl<F: Float, L: Label> MultinomialNb<F, L> {
     /// Construct a new set of hyperparameters
     pub fn params() -> MultinomialNbParams<F, L> {
-       MultinomialNbParams::new()
+        MultinomialNbParams::new()
     }
-
-    
 }
-
 
 #[cfg(test)]
 mod tests {
-    use super::{MultinomialNb, Result, NaiveBayes};
+    use super::{MultinomialNb, NaiveBayes, Result};
     use linfa::{
         traits::{Fit, FitWith, Predict},
         DatasetView,
@@ -215,14 +209,7 @@ mod tests {
 
     #[test]
     fn test_multinomial_nb() -> Result<()> {
-        let x = array![
-            [1., 0.],
-            [2., 0.],
-            [3., 0.],
-            [0., 1.],
-            [0., 2.],
-            [0., 3.]
-        ];
+        let x = array![[1., 0.], [2., 0.], [3., 0.], [0., 1.], [0., 2.], [0., 3.]];
         let y = array![1, 1, 1, 2, 2, 2];
 
         let data = DatasetView::new(x.view(), y.view());
@@ -232,16 +219,17 @@ mod tests {
         assert_abs_diff_eq!(pred, y);
         //::<ndarray::OwnedRepr<usize>>
 
-        let jll = NaiveBayes::<_, _, ndarray::OwnedRepr<_>>::joint_log_likelihood(&fitted_clf, x.view());
+        let jll =
+            NaiveBayes::<_, _, ndarray::OwnedRepr<_>>::joint_log_likelihood(&fitted_clf, x.view());
         let mut expected = HashMap::new();
         // Computed with sklearn.naive_bayes.MultinomialNB
         expected.insert(
             &1usize,
             array![
-                -0.82667857, 
-                -0.96020997, 
-                -1.09374136, 
-                -2.77258872, 
+                -0.82667857,
+                -0.96020997,
+                -1.09374136,
+                -2.77258872,
                 -4.85203026,
                 -6.93147181
             ],
@@ -250,11 +238,11 @@ mod tests {
         expected.insert(
             &2usize,
             array![
-                -2.77258872, 
-                -4.85203026, 
-                -6.93147181, 
-                -0.82667857, 
-                -0.96020997, 
+                -2.77258872,
+                -4.85203026,
+                -6.93147181,
+                -0.82667857,
+                -0.96020997,
                 -1.09374136
             ],
         );
@@ -268,14 +256,7 @@ mod tests {
 
     #[test]
     fn test_mnb_fit_with() -> Result<()> {
-        let x = array![
-            [1., 0.],
-            [2., 0.],
-            [3., 0.],
-            [0., 1.],
-            [0., 2.],
-            [0., 3.]
-        ];
+        let x = array![[1., 0.], [2., 0.], [3., 0.], [0., 1.], [0., 2.], [0., 3.]];
         let y = array![1, 1, 1, 2, 2, 2];
 
         let clf = MultinomialNb::params();
@@ -299,10 +280,10 @@ mod tests {
         expected.insert(
             &1usize,
             array![
-                -0.82667857, 
-                -0.96020997, 
-                -1.09374136, 
-                -2.77258872, 
+                -0.82667857,
+                -0.96020997,
+                -1.09374136,
+                -2.77258872,
                 -4.85203026,
                 -6.93147181
             ],
@@ -311,15 +292,14 @@ mod tests {
         expected.insert(
             &2usize,
             array![
-                -2.77258872, 
-                -4.85203026, 
-                -6.93147181, 
-                -0.82667857, 
-                -0.96020997, 
+                -2.77258872,
+                -4.85203026,
+                -6.93147181,
+                -0.82667857,
+                -0.96020997,
                 -1.09374136
             ],
         );
-
 
         for (key, value) in jll.iter() {
             assert_abs_diff_eq!(value, expected.get(key).unwrap(), epsilon = 1e-6);
@@ -327,5 +307,4 @@ mod tests {
 
         Ok(())
     }
-
 }

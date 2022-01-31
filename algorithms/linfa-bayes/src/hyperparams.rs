@@ -119,8 +119,6 @@ impl<F: Float, L> ParamGuard for GaussianNbParams<F, L> {
     }
 }
 
-
-
 /// A verified hyper-parameter set ready for the estimation of a Multinomail Naive Bayes model
 ///
 /// See [`MultinomialNbParams`](crate::hyperparams::MultinomialNbParams) for more informations.

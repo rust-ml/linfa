@@ -1,62 +1,56 @@
+use linfa::dataset::{AsTargets, DatasetBase, Labels};
+use linfa::traits::{Fit, FitWith, PredictInplace};
+use linfa::{Float, Label};
 use ndarray::{Array1, ArrayBase, ArrayView2, Axis, Data, Ix2};
 use ndarray_stats::QuantileExt;
 use std::collections::HashMap;
-use linfa::dataset::{AsTargets, DatasetBase, Labels};
-use linfa::{Float, Label};
-use linfa::traits::{Fit, FitWith, PredictInplace};
 
+use crate::base_nb::{filter, NaiveBayes, NaiveBayesValidParams};
 use crate::error::{NaiveBayesError, Result};
-use crate::hyperparams::{GaussianNbValidParams, GaussianNbParams};
-use crate::base_nb::{NaiveBayes, NaiveBayesValidParams, filter};
+use crate::hyperparams::{GaussianNbParams, GaussianNbValidParams};
 
-
-
-impl<'a, F, L, D, T> NaiveBayesValidParams<'a, F, L, D, T> for GaussianNbValidParams<F, L> where   
-F: Float,
-L: Label + 'a,
-D: Data<Elem = F>,
-T: AsTargets<Elem = L> + Labels<Elem = L>{
-
-}
-
-
-impl<'a, F, L, D> NaiveBayes<'a, F, L, D> for GaussianNb<F, L> where 
-F: Float,
-L: Label + Ord,
-D: Data<Elem = F> 
+impl<'a, F, L, D, T> NaiveBayesValidParams<'a, F, L, D, T> for GaussianNbValidParams<F, L>
+where
+    F: Float,
+    L: Label + 'a,
+    D: Data<Elem = F>,
+    T: AsTargets<Elem = L> + Labels<Elem = L>,
 {
+}
 
-// Compute unnormalized posterior log probability
-fn joint_log_likelihood(&self, x: ArrayView2<F>) -> HashMap<&L, Array1<F>> {
-    let mut joint_log_likelihood = HashMap::new();
+impl<'a, F, L, D> NaiveBayes<'a, F, L, D> for GaussianNb<F, L>
+where
+    F: Float,
+    L: Label + Ord,
+    D: Data<Elem = F>,
+{
+    // Compute unnormalized posterior log probability
+    fn joint_log_likelihood(&self, x: ArrayView2<F>) -> HashMap<&L, Array1<F>> {
+        let mut joint_log_likelihood = HashMap::new();
 
-    for (class, info) in self.class_info.iter() {
-        let jointi = info.prior.ln();
+        for (class, info) in self.class_info.iter() {
+            let jointi = info.prior.ln();
 
-        let mut nij = info
-            .sigma
-            .mapv(|x| F::cast(2. * std::f64::consts::PI) * x)
-            .mapv(|x| x.ln())
-            .sum();
-        nij = F::cast(-0.5) * nij;
+            let mut nij = info
+                .sigma
+                .mapv(|x| F::cast(2. * std::f64::consts::PI) * x)
+                .mapv(|x| x.ln())
+                .sum();
+            nij = F::cast(-0.5) * nij;
 
-        let nij = ((x.to_owned() - &info.theta).mapv(|x| x.powi(2)) / &info.sigma)
-            .sum_axis(Axis(1))
-            .mapv(|x| x * F::cast(0.5))
-            .mapv(|x| nij - x);
+            let nij = ((x.to_owned() - &info.theta).mapv(|x| x.powi(2)) / &info.sigma)
+                .sum_axis(Axis(1))
+                .mapv(|x| x * F::cast(0.5))
+                .mapv(|x| nij - x);
 
-        joint_log_likelihood.insert(class, nij + jointi);
+            joint_log_likelihood.insert(class, nij + jointi);
+        }
+
+        joint_log_likelihood
     }
-
-    joint_log_likelihood
 }
 
-
-}
-
-
-
-impl<F, L, D, T> Fit<ArrayBase<D, Ix2>, T, NaiveBayesError> for GaussianNbValidParams<F, L> 
+impl<F, L, D, T> Fit<ArrayBase<D, Ix2>, T, NaiveBayesError> for GaussianNbValidParams<F, L>
 where
     F: Float,
     L: Label + Ord,
@@ -64,25 +58,23 @@ where
     T: AsTargets<Elem = L> + Labels<Elem = L>,
 {
     type Object = GaussianNb<F, L>;
-   
-    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
 
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
         let res = NaiveBayesValidParams::fit(self, dataset, None);
         Ok(res.unwrap().unwrap())
     }
 }
 
-
-
-impl<'a, F, L, D, T> FitWith<'a, ArrayBase<D, Ix2>, T, NaiveBayesError> for GaussianNbValidParams<F, L> where 
+impl<'a, F, L, D, T> FitWith<'a, ArrayBase<D, Ix2>, T, NaiveBayesError>
+    for GaussianNbValidParams<F, L>
+where
     F: Float,
     L: Label + 'a,
     D: Data<Elem = F>,
-    T: AsTargets<Elem = L> + Labels<Elem = L>, {
-
+    T: AsTargets<Elem = L> + Labels<Elem = L>,
+{
     type ObjectIn = Option<GaussianNb<F, L>>;
     type ObjectOut = Option<GaussianNb<F, L>>;
-
 
     fn fit_with(
         &self,
@@ -153,36 +145,28 @@ impl<'a, F, L, D, T> FitWith<'a, ArrayBase<D, Ix2>, T, NaiveBayesError> for Gaus
 
         Ok(Some(model))
     }
-
-
-
 }
-
-
-
 
 impl<F: Float, L: Label, D> PredictInplace<ArrayBase<D, Ix2>, Array1<L>> for GaussianNb<F, L>
 where
     D: Data<Elem = F>,
 {
-
     fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<L>) {
         // call NaiveBayes::predict_inplace, TODO
         NaiveBayes::predict_inplace(self, x, y);
     }
-    
+
     fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<L> {
         Array1::default(x.nrows())
     }
-
 }
 
-
-
-impl<'a, F, L> GaussianNbValidParams<F, L> where F: Float {
-
-       // Compute online update of gaussian mean and variance
-       fn update_mean_variance(
+impl<'a, F, L> GaussianNbValidParams<F, L>
+where
+    F: Float,
+{
+    // Compute online update of gaussian mean and variance
+    fn update_mean_variance(
         info_old: &GaussianClassInfo<F>,
         x_new: ArrayView2<F>,
     ) -> (Array1<F>, Array1<F>) {
@@ -225,23 +209,17 @@ impl<'a, F, L> GaussianNbValidParams<F, L> where F: Float {
 
         (mu_weighted, var_weighted)
     }
-
 }
 
-
-impl<F: Float, L: Label> GaussianNb<F, L> where
-{
+impl<F: Float, L: Label> GaussianNb<F, L> {
     /// Construct a new set of hyperparameters
     pub fn params() -> GaussianNbParams<F, L> {
         GaussianNbParams::new()
     }
-
-    
 }
 
-
 /// Fitted Gaussian Naive Bayes classifier
-/// 
+///
 /// Implements functionality specific to the Gaussian model. Functionality common to
 /// all Naive Bayes models is implemented in [`BaseNb`](BaseNb)
 #[derive(Debug, Clone)]
@@ -257,10 +235,9 @@ struct GaussianClassInfo<F> {
     sigma: Array1<F>,
 }
 
-
 #[cfg(test)]
 mod tests {
-    use super::{GaussianNb, Result, NaiveBayes};
+    use super::{GaussianNb, NaiveBayes, Result};
     use linfa::{
         traits::{Fit, FitWith, Predict},
         DatasetView,
@@ -288,7 +265,8 @@ mod tests {
 
         assert_abs_diff_eq!(pred, y);
 
-        let jll = NaiveBayes::<_, _, ndarray::OwnedRepr<_>>::joint_log_likelihood(&fitted_clf, x.view());
+        let jll =
+            NaiveBayes::<_, _, ndarray::OwnedRepr<_>>::joint_log_likelihood(&fitted_clf, x.view());
         let mut expected = HashMap::new();
         expected.insert(
             &1usize,

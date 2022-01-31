@@ -7,18 +7,15 @@ use linfa::dataset::{AsTargets, DatasetBase, Labels};
 use linfa::traits::FitWith;
 use linfa::{Float, Label};
 
-
-pub trait NaiveBayes<'a, F, L, D> where   
+pub trait NaiveBayes<'a, F, L, D>
+where
     F: Float,
     L: Label + Ord,
     D: Data<Elem = F>,
-   // T: AsTargets<Elem = L> + Labels<Elem = L>
-     {
-
+{
     fn joint_log_likelihood(&self, x: ArrayView2<F>) -> HashMap<&L, Array1<F>>;
 
     fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<L>) {
-
         assert_eq!(
             x.nrows(),
             y.len(),
@@ -48,42 +45,40 @@ pub trait NaiveBayes<'a, F, L, D> where
             classes[i].clone()
         });
     }
-
-
 }
 
-
-
-pub trait NaiveBayesValidParams<'a, F, L, D, T>: FitWith<'a, ArrayBase<D, Ix2>, T, NaiveBayesError> where   
+pub trait NaiveBayesValidParams<'a, F, L, D, T>:
+    FitWith<'a, ArrayBase<D, Ix2>, T, NaiveBayesError>
+where
     F: Float,
     L: Label + Ord,
     D: Data<Elem = F>,
-    T: AsTargets<Elem = L> + Labels<Elem = L>
-     {
-
-
-    fn fit(&self, dataset: &'a DatasetBase<ArrayBase<D, Ix2>, T>, model_none: Self::ObjectIn) -> Result<Self::ObjectOut> {
+    T: AsTargets<Elem = L> + Labels<Elem = L>,
+{
+    fn fit(
+        &self,
+        dataset: &'a DatasetBase<ArrayBase<D, Ix2>, T>,
+        model_none: Self::ObjectIn,
+    ) -> Result<Self::ObjectOut> {
         // We extract the unique classes in sorted order
         let mut unique_classes = dataset.targets.labels();
         unique_classes.sort_unstable();
 
         self.fit_with(model_none, dataset)
     }
-
 }
 
-
-
-
-pub fn filter<F: Float, L: Label + Ord>(x: ArrayView2<F>, y: ArrayView1<L>, ycondition: &L) -> Array2<F> {
+pub fn filter<F: Float, L: Label + Ord>(
+    x: ArrayView2<F>,
+    y: ArrayView1<L>,
+    ycondition: &L,
+) -> Array2<F> {
     // We identify the row numbers corresponding to the class we are interested in
+
     let index = y
         .into_iter()
         .enumerate()
-        .filter_map(|(i, y)| match *ycondition == *y {
-            true => Some(i),
-            false => None,
-        })
+        .filter_map(|(i, y)| (*ycondition == *y).then(|| i))
         .collect::<Vec<_>>();
 
     // We subset x to only records corresponding to the class represented in `ycondition`
@@ -95,5 +90,3 @@ pub fn filter<F: Float, L: Label + Ord>(x: ArrayView2<F>, y: ArrayView1<L>, ycon
 
     xsubset
 }
-
-
