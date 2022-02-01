@@ -4,7 +4,7 @@ use linfa::{Float, Label};
 use ndarray::{Array1, ArrayBase, ArrayView2, Axis, Data, Ix2};
 use std::collections::HashMap;
 
-use crate::base_nb::{filter, NaiveBayes, NaiveBayesValidParams};
+use crate::base_nb::{filter, NaiveBayes, NaiveBayesLogLikelihood, NaiveBayesValidParams};
 use crate::error::{NaiveBayesError, Result};
 use crate::hyperparams::{MultinomialNbParams, MultinomialNbValidParams};
 
@@ -161,6 +161,9 @@ where
 ///
 /// # Model usage example
 ///
+/// The example below creates a set of hyperparameters, and then uses it to fit a Multinomial Naive
+/// Bayes classifier on provided data.
+///
 /// ```rust
 /// use linfa_bayes::{MultinomialNbParams, MultinomialNbValidParams, Result};
 /// use linfa::prelude::*;
@@ -218,6 +221,13 @@ where
     L: Label + Ord,
     D: Data<Elem = F>,
 {
+}
+
+impl<F, L> NaiveBayesLogLikelihood<F, L> for MultinomialNb<F, L>
+where
+    F: Float,
+    L: Label + Ord,
+{
     // Compute unnormalized posterior log probability
     fn joint_log_likelihood(&self, x: ArrayView2<F>) -> HashMap<&L, Array1<F>> {
         let mut joint_log_likelihood = HashMap::new();
@@ -234,7 +244,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{MultinomialNb, NaiveBayes, Result};
+    use super::{MultinomialNb, NaiveBayesLogLikelihood, Result};
     use linfa::{
         traits::{Fit, FitWith, Predict},
         DatasetView,
@@ -255,9 +265,7 @@ mod tests {
 
         assert_abs_diff_eq!(pred, y);
 
-        // TODO
-        let jll =
-            NaiveBayes::<_, _, ndarray::OwnedRepr<_>>::joint_log_likelihood(&fitted_clf, x.view());
+        let jll = fitted_clf.joint_log_likelihood(x.view());
         let mut expected = HashMap::new();
         // Computed with sklearn.naive_bayes.MultinomialNB
         expected.insert(
@@ -309,8 +317,7 @@ mod tests {
 
         assert_abs_diff_eq!(pred, y);
 
-        // TODO
-        let jll = NaiveBayes::<_, _, ndarray::OwnedRepr<_>>::joint_log_likelihood(&model, x.view());
+        let jll = model.joint_log_likelihood(x.view());
 
         let mut expected = HashMap::new();
         // Computed with sklearn.naive_bayes.MultinomialNB

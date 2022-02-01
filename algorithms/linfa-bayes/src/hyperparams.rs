@@ -28,7 +28,7 @@ impl<F: Float, L> GaussianNbValidParams<F, L> {
 /// [Fit::fit](linfa::traits::Fit::fit) or
 /// [FitWith::fit_with](linfa::traits::FitWith::fit_with) which implicitely verifies the parameter set
 /// prior to the model estimation and forwards any error.
-/// 
+///
 /// See [`GaussianNb`](crate::gaussian_nb::GaussianNb) for information on the model.
 ///
 /// # Parameters
@@ -106,7 +106,7 @@ impl<F: Float, L> MultinomialNbValidParams<F, L> {
     }
 }
 
-/// A hyper-parameter set during construction for a [Multinomial Naive Bayes model](crate::multinomial_nb::MultinomialNb). 
+/// A hyper-parameter set during construction for a [Multinomial Naive Bayes model](crate::multinomial_nb::MultinomialNb).
 ///
 /// The parameter set can be verified into a
 /// [`MultinomialNbValidParams`](crate::hyperparams::MultinomialNbValidParams) by calling
@@ -116,7 +116,7 @@ impl<F: Float, L> MultinomialNbValidParams<F, L> {
 /// prior to the model estimation and forwards any error.
 ///
 /// See [`MultinomialNb`](crate::multinomial_nb::MultinomialNb) for information on the model.
-/// 
+///
 /// # Parameters
 /// | Name | Default | Purpose | Range |
 /// | :--- | :--- | :---| :--- |
