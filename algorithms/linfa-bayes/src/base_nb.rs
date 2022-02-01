@@ -8,7 +8,7 @@ use linfa::traits::FitWith;
 use linfa::{Float, Label};
 
 // Common functionality of fitted Naive Bayes models
-pub trait NaiveBayes<'a, F, L, D>
+pub(crate) trait NaiveBayes<'a, F, L, D>
 where
     F: Float,
     L: Label + Ord,
@@ -49,7 +49,7 @@ where
 }
 
 // Common functionality for hyper-parameter sets of Naive Bayes models ready for estimation
-pub trait NaiveBayesValidParams<'a, F, L, D, T>:
+pub(crate) trait NaiveBayesValidParams<'a, F, L, D, T>:
     FitWith<'a, ArrayBase<D, Ix2>, T, NaiveBayesError>
 where
     F: Float,
@@ -77,7 +77,6 @@ pub fn filter<F: Float, L: Label + Ord>(
     ycondition: &L,
 ) -> Array2<F> {
     // We identify the row numbers corresponding to the class we are interested in
-
     let index = y
         .into_iter()
         .enumerate()

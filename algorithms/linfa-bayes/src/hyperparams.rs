@@ -2,9 +2,9 @@ use crate::NaiveBayesError;
 use linfa::{Float, ParamGuard};
 use std::marker::PhantomData;
 
-/// A verified hyper-parameter set ready for the estimation of a Gaussian Naive Bayes model.
+/// A verified hyper-parameter set ready for the estimation of a [Gaussian Naive Bayes model](crate::gaussian_nb::GaussianNb).
 ///
-/// See [`GaussianNbParams`](crate::hyperparams::GaussianNbParams) for more informations.
+/// See [`GaussianNb`](crate::gaussian_nb::GaussianNb) for information on the model and [`GaussianNbParams`](crate::hyperparams::GaussianNbParams) for information on hyperparameters.
 #[derive(Debug)]
 pub struct GaussianNbValidParams<F, L> {
     // Required for calculation stability
@@ -20,7 +20,7 @@ impl<F: Float, L> GaussianNbValidParams<F, L> {
     }
 }
 
-/// A hyper-parameter set during construction for a Gaussian Naive Bayes model.
+/// A hyper-parameter set during construction for a [Gaussian Naive Bayes model](crate::gaussian_nb::GaussianNb).
 ///
 /// The parameter set can be verified into a
 /// [`GaussianNbValidParams`](crate::hyperparams::GaussianNbValidParams) by calling
@@ -28,6 +28,8 @@ impl<F: Float, L> GaussianNbValidParams<F, L> {
 /// [Fit::fit](linfa::traits::Fit::fit) or
 /// [FitWith::fit_with](linfa::traits::FitWith::fit_with) which implicitely verifies the parameter set
 /// prior to the model estimation and forwards any error.
+/// 
+/// See [`GaussianNb`](crate::gaussian_nb::GaussianNb) for information on the model.
 ///
 /// # Parameters
 /// | Name | Default | Purpose | Range |
@@ -41,39 +43,6 @@ impl<F: Float, L> GaussianNbValidParams<F, L> {
 /// Returns [`InvalidSmoothing`](NaiveBayesError::InvalidSmoothing) if the smoothing
 /// parameter is negative.
 ///
-/// # Example
-///
-/// ```rust
-/// use linfa_bayes::{GaussianNbParams, GaussianNbValidParams, Result};
-/// use linfa::prelude::*;
-/// use ndarray::array;
-///
-/// let x = array![
-///     [-2., -1.],
-///     [-1., -1.],
-///     [-1., -2.],
-///     [1., 1.],
-///     [1., 2.],
-///     [2., 1.]
-/// ];
-/// let y = array![1, 1, 1, 2, 2, 2];
-/// let ds = DatasetView::new(x.view(), y.view());
-///
-/// // create a new parameter set with variance smoothing equals `1e-5`
-/// let unchecked_params = GaussianNbParams::new()
-///     .var_smoothing(1e-5);
-///
-/// // fit model with unchecked parameter set
-/// let model = unchecked_params.fit(&ds)?;
-///
-/// // transform into a verified parameter set
-/// let checked_params = unchecked_params.check()?;
-///
-/// // update model with the verified parameters, this only returns
-/// // errors originating from the fitting process
-/// let model = checked_params.fit_with(Some(model), &ds)?;
-/// # Result::Ok(())
-/// ```
 pub struct GaussianNbParams<F, L>(GaussianNbValidParams<F, L>);
 
 impl<F: Float, L> Default for GaussianNbParams<F, L> {
@@ -119,9 +88,9 @@ impl<F: Float, L> ParamGuard for GaussianNbParams<F, L> {
     }
 }
 
-/// A verified hyper-parameter set ready for the estimation of a Multinomial Naive Bayes model.
+/// A verified hyper-parameter set ready for the estimation of a [Multinomial Naive Bayes model](crate::multinomial_nb::MultinomialNb).
 ///
-/// See [`MultinomialNbParams`](crate::hyperparams::MultinomialNbParams) for more informations.
+/// See [`MultinomialNb`](crate::multinomial_nb::MultinomialNb) for information on the model and [`MultinomialNbParams`](crate::hyperparams::MultinomialNbParams) for information on hyperparameters.
 #[derive(Debug)]
 pub struct MultinomialNbValidParams<F, L> {
     // Required for calculation stability
@@ -137,7 +106,7 @@ impl<F: Float, L> MultinomialNbValidParams<F, L> {
     }
 }
 
-/// A hyper-parameter set during construction for a Multinomial Naive Bayes model.
+/// A hyper-parameter set during construction for a [Multinomial Naive Bayes model](crate::multinomial_nb::MultinomialNb). 
 ///
 /// The parameter set can be verified into a
 /// [`MultinomialNbValidParams`](crate::hyperparams::MultinomialNbValidParams) by calling
@@ -146,6 +115,8 @@ impl<F: Float, L> MultinomialNbValidParams<F, L> {
 /// [FitWith::fit_with](linfa::traits::FitWith::fit_with) which implicitely verifies the parameter set
 /// prior to the model estimation and forwards any error.
 ///
+/// See [`MultinomialNb`](crate::multinomial_nb::MultinomialNb) for information on the model.
+/// 
 /// # Parameters
 /// | Name | Default | Purpose | Range |
 /// | :--- | :--- | :---| :--- |
@@ -158,39 +129,6 @@ impl<F: Float, L> MultinomialNbValidParams<F, L> {
 /// Returns [`InvalidSmoothing`](NaiveBayesError::InvalidSmoothing) if the smoothing
 /// parameter is negative.
 ///
-/// # Example
-///
-/// ```rust
-/// use linfa_bayes::{MultinomialNbParams, MultinomialNbValidParams, Result};
-/// use linfa::prelude::*;
-/// use ndarray::array;
-///
-/// let x = array![
-///     [-2., -1.],
-///     [-1., -1.],
-///     [-1., -2.],
-///     [1., 1.],
-///     [1., 2.],
-///     [2., 1.]
-/// ];
-/// let y = array![1, 1, 1, 2, 2, 2];
-/// let ds = DatasetView::new(x.view(), y.view());
-///
-/// // create a new parameter set with smoothing parameter equals `1`
-/// let unchecked_params = MultinomialNbParams::new()
-///     .alpha(1.0);
-///
-/// // fit model with unchecked parameter set
-/// let model = unchecked_params.fit(&ds)?;
-///
-/// // transform into a verified parameter set
-/// let checked_params = unchecked_params.check()?;
-///
-/// // update model with the verified parameters, this only returns
-/// // errors originating from the fitting process
-/// let model = checked_params.fit_with(Some(model), &ds)?;
-/// # Result::Ok(())
-/// ```
 pub struct MultinomialNbParams<F, L>(MultinomialNbValidParams<F, L>);
 
 impl<F: Float, L> Default for MultinomialNbParams<F, L> {

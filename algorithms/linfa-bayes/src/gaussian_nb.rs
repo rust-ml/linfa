@@ -119,8 +119,8 @@ impl<F: Float, L: Label, D> PredictInplace<ArrayBase<D, Ix2>, Array1<L>> for Gau
 where
     D: Data<Elem = F>,
 {
+    // Thin wrapper around the corresponding method of NaiveBayes
     fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<L>) {
-        // Thin wrapper around the corresponding method of NaiveBayes
         NaiveBayes::predict_inplace(self, x, y);
     }
 
@@ -167,7 +167,7 @@ where
         let mu_weighted = (mu_new_weighted + mu_old_weighted).mapv(|x| x / F::cast(count_total));
 
         // Combine old and new variance, taking into consideration the number
-        // of observations. this is achieved by combining the sum of squared
+        // of observations. This is achieved by combining the sum of squared
         // differences
         let ssd_old = var_old * F::cast(count_old);
         let ssd_new = var_new * F::cast(count_new);
@@ -185,32 +185,43 @@ where
 ///
 /// # Model assumptions
 ///
-/// The family of naive bayes classifiers assume independence between variables. They do not model
+/// The family of Naive Bayes classifiers assume independence between variables. They do not model
 /// moments between variables and lack therefore in modelling capability. The advantage is a linear
 /// fitting time with maximum-likelihood training in a closed form.
 ///
-/// # Model estimation
+/// # Model usage example
 ///
-/// You can fit a single model from a dataset
+/// ```rust
+/// use linfa_bayes::{GaussianNbParams, GaussianNbValidParams, Result};
+/// use linfa::prelude::*;
+/// use ndarray::array;
 ///
-/// ```rust, ignore
-/// use linfa::traits::Fit;
-/// let model = GaussianNb::params().fit(&ds)?;
+/// let x = array![
+///     [-2., -1.],
+///     [-1., -1.],
+///     [-1., -2.],
+///     [1., 1.],
+///     [1., 2.],
+///     [2., 1.]
+/// ];
+/// let y = array![1, 1, 1, 2, 2, 2];
+/// let ds = DatasetView::new(x.view(), y.view());
+///
+/// // create a new parameter set with variance smoothing equals `1e-5`
+/// let unchecked_params = GaussianNbParams::new()
+///     .var_smoothing(1e-5);
+///
+/// // fit model with unchecked parameter set
+/// let model = unchecked_params.fit(&ds)?;
+///
+/// // transform into a verified parameter set
+/// let checked_params = unchecked_params.check()?;
+///
+/// // update model with the verified parameters, this only returns
+/// // errors originating from the fitting process
+/// let model = checked_params.fit_with(Some(model), &ds)?;
+/// # Result::Ok(())
 /// ```
-///
-/// or incrementally update a model
-///
-/// ```rust, ignore
-/// use linfa::traits::FitWith;
-/// let clf = GaussianNb::params();
-/// let model = datasets.iter()
-///     .try_fold(None, |prev_model, &ds| clf.fit_with(prev_model, ds))?
-///     .unwrap();
-/// ```
-///
-/// After fitting the model, you can use the [`Predict`](linfa::traits::Predict) variants to
-/// predict new targets.
-///
 #[derive(Debug, Clone)]
 pub struct GaussianNb<F, L> {
     class_info: HashMap<L, GaussianClassInfo<F>>,
