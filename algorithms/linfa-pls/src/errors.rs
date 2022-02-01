@@ -14,6 +14,8 @@ pub enum PlsError {
     ZeroMaxIter,
     #[error("Singular vector computation power method: max iterations ({0}) reached")]
     PowerMethodNotConvergedError(usize),
+    #[error("Constant residual detected in power method")]
+    PowerMethodConstantResidualError(),
     #[error(transparent)]
     LinalgError(#[from] LinalgError),
     #[error(transparent)]
