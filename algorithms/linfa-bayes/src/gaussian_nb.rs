@@ -5,7 +5,7 @@ use ndarray::{Array1, ArrayBase, ArrayView2, Axis, Data, Ix2};
 use ndarray_stats::QuantileExt;
 use std::collections::HashMap;
 
-use crate::base_nb::{filter, NaiveBayes, NaiveBayesLogLikelihood, NaiveBayesValidParams};
+use crate::base_nb::{filter, NaiveBayes, NaiveBayesValidParams};
 use crate::error::{NaiveBayesError, Result};
 use crate::hyperparams::{GaussianNbParams, GaussianNbValidParams};
 
@@ -251,13 +251,6 @@ where
     L: Label + Ord,
     D: Data<Elem = F>,
 {
-}
-
-impl<F, L> NaiveBayesLogLikelihood<F, L> for GaussianNb<F, L>
-where
-    F: Float,
-    L: Label + Ord,
-{
     // Compute unnormalized posterior log probability
     fn joint_log_likelihood(&self, x: ArrayView2<F>) -> HashMap<&L, Array1<F>> {
         let mut joint_log_likelihood = HashMap::new();
@@ -286,7 +279,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{GaussianNb, NaiveBayesLogLikelihood, Result};
+    use super::{GaussianNb, NaiveBayes, Result};
     use linfa::{
         traits::{Fit, FitWith, Predict},
         DatasetView,
@@ -314,7 +307,8 @@ mod tests {
 
         assert_abs_diff_eq!(pred, y);
 
-        let jll = fitted_clf.joint_log_likelihood(x.view());
+        let jll =
+            NaiveBayes::<_, _, ndarray::OwnedRepr<_>>::joint_log_likelihood(&fitted_clf, x.view());
 
         let mut expected = HashMap::new();
         expected.insert(
@@ -370,7 +364,7 @@ mod tests {
 
         assert_abs_diff_eq!(pred, y);
 
-        let jll = model.joint_log_likelihood(x.view());
+        let jll = NaiveBayes::<_, _, ndarray::OwnedRepr<_>>::joint_log_likelihood(&model, x.view());
 
         let mut expected = HashMap::new();
         expected.insert(
