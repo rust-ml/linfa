@@ -215,11 +215,10 @@ impl<F: Float, L: Label> MultinomialNb<F, L> {
     }
 }
 
-impl<'a, F, L, D> NaiveBayes<'a, F, L, D> for MultinomialNb<F, L>
+impl<'a, F, L> NaiveBayes<'a, F, L> for MultinomialNb<F, L>
 where
     F: Float,
     L: Label + Ord,
-    D: Data<Elem = F>,
 {
     // Compute unnormalized posterior log probability
     fn joint_log_likelihood(&self, x: ArrayView2<F>) -> HashMap<&L, Array1<F>> {
@@ -258,8 +257,7 @@ mod tests {
 
         assert_abs_diff_eq!(pred, y);
 
-        let jll =
-            NaiveBayes::<_, _, ndarray::OwnedRepr<_>>::joint_log_likelihood(&fitted_clf, x.view());
+        let jll = fitted_clf.joint_log_likelihood(x.view());
         let mut expected = HashMap::new();
         // Computed with sklearn.naive_bayes.MultinomialNB
         expected.insert(
@@ -311,7 +309,7 @@ mod tests {
 
         assert_abs_diff_eq!(pred, y);
 
-        let jll = NaiveBayes::<_, _, ndarray::OwnedRepr<_>>::joint_log_likelihood(&model, x.view());
+        let jll = model.joint_log_likelihood(x.view());
 
         let mut expected = HashMap::new();
         // Computed with sklearn.naive_bayes.MultinomialNB
