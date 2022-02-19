@@ -1,6 +1,6 @@
 [package]
 name = "linfa-preprocessing"
-version = "0.5.0"
+version = "0.5.1"
 authors = ["Sauro98 <ivadonadi98@gmail.com>"]
 
 description = "A Machine Learning framework for Rust"
@@ -17,7 +17,7 @@ categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
 
-linfa = { version = "0.5.0", path = "../..", features = ["ndarray-linalg"] }
+linfa = { version = "0.5.1", path = "../..", features = ["ndarray-linalg"] }
 ndarray = { version = "0.15", default-features = false, features = ["approx", "blas"] }
 ndarray-linalg = { version = "0.14" }
 ndarray-stats = "0.5"
@@ -30,8 +30,8 @@ encoding = "0.2"
 sprs =  { version="0.11.0", default-features = false }
 
 [dev-dependencies]
-linfa-datasets = { version = "0.5.0", path = "../../datasets", features = ["diabetes", "winequality"] }
-linfa-bayes = { version = "0.5.0", path = "../linfa-bayes" }
+linfa-datasets = { version = "0.5.1", path = "../../datasets", features = ["diabetes", "winequality"] }
+linfa-bayes = { version = "0.5.1", path = "../linfa-bayes" }
 iai = "0.1" 
 curl = "0.4.35"
 flate2 = "1.0.20"

@@ -1,6 +1,6 @@
 [package]
 name = "linfa-ica"
-version = "0.5.0"
+version = "0.5.1"
 authors = ["VasanthakumarV <vasanth260m12@gmail.com>"]
 description = "A collection of Independent Component Analysis (ICA) algorithms"
 edition = "2018"
@@ -32,7 +32,7 @@ num-traits = "0.2"
 rand_isaac = "0.3"
 thiserror = "1.0"
 
-linfa = { version = "0.5.0", path = "../..", features = ["ndarray-linalg"] }
+linfa = { version = "0.5.1", path = "../..", features = ["ndarray-linalg"] }
 
 [dev-dependencies]
 ndarray-npy = { version = "0.8", default-features = false }
