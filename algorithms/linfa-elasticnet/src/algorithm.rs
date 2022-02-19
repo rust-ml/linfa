@@ -769,6 +769,30 @@ mod tests {
             array![[-1.0, 1.0], [0.0, -1.5], [1.0, 1.3]],
         );
 
+        // no intercept fitting
+        let t = array![[2.0], [3.0], [4.0]];
+        let model = MultiTaskElasticNet::lasso()
+            .with_intercept(false)
+            .penalty(0.01)
+            .fit(&dataset)
+            .unwrap();
+        assert_abs_diff_eq!(model.intercept(), &array![0., 0.]);
+        assert_abs_diff_eq!(
+            model.hyperplane(),
+            &array![[0.9851659, 0.1477748]],
+            epsilon = 1e-6
+        );
+        assert_abs_diff_eq!(
+            model.predict(&t),
+            array![
+                [1.9703319, 0.2955497],
+                [2.9554978, 0.4433246],
+                [3.9406638, 0.5910995]
+            ],
+            epsilon = 1e-6
+        );
+        assert_abs_diff_eq!(model.duality_gap(), 0.0);
+
         // input for prediction
         let t = array![[2.0], [3.0], [4.0]];
         let model = MultiTaskElasticNet::lasso()
@@ -776,7 +800,7 @@ mod tests {
             .fit(&dataset)
             .unwrap();
         assert_abs_diff_eq!(model.intercept(), &array![0., -1.5]);
-        assert_abs_diff_eq!(model.hyperplane(), &array![[0.], [2.65]], epsilon = 1e-6);
+        assert_abs_diff_eq!(model.hyperplane(), &array![[0., 2.65]], epsilon = 1e-6);
         assert_abs_diff_eq!(
             model.predict(&t),
             array![[0., 3.79999998], [0., 6.44999996], [0., 9.09999995]],
@@ -789,7 +813,7 @@ mod tests {
             .fit(&dataset)
             .unwrap();
         assert_abs_diff_eq!(model.intercept(), &array![0., -1.4]);
-        assert_abs_diff_eq!(model.hyperplane(), &array![[0.], [2.5]], epsilon = 1e-6);
+        assert_abs_diff_eq!(model.hyperplane(), &array![[0., 2.5]], epsilon = 1e-6);
         assert_abs_diff_eq!(
             model.predict(&t),
             &array![[0., 3.6], [0., 6.1], [0., 8.6]],
@@ -802,7 +826,7 @@ mod tests {
             .fit(&dataset)
             .unwrap();
         assert_abs_diff_eq!(model.intercept(), &array![0., -1.]);
-        assert_abs_diff_eq!(model.hyperplane(), &array![[0.], [1.9]], epsilon = 1e-6);
+        assert_abs_diff_eq!(model.hyperplane(), &array![[0., 1.9]], epsilon = 1e-6);
         assert_abs_diff_eq!(
             model.predict(&t),
             &array![[0., 2.8], [0., 4.7], [0., 6.6]],
@@ -815,7 +839,7 @@ mod tests {
             .fit(&dataset)
             .unwrap();
         assert_abs_diff_eq!(model.intercept(), &array![0., -0.5]);
-        assert_abs_diff_eq!(model.hyperplane(), &array![[0.0], [1.15]], epsilon = 1e-6);
+        assert_abs_diff_eq!(model.hyperplane(), &array![[0.0, 1.15]], epsilon = 1e-6);
         assert_abs_diff_eq!(
             model.predict(&t),
             &array![[0., 1.8], [0., 2.95], [0., 4.1]],
@@ -859,6 +883,88 @@ mod tests {
             epsilon = 1e-3
         );
         assert_abs_diff_eq!(model.duality_gap(), 0.0);
+    }
+
+    #[test]
+    fn multitask_elasticnet_toy_example_works() {
+        // Test MultiTaskElasticNet on a toy example for various values of alpha
+        // and l1_ratio. When validating this against sklearn notice that sklearn
+        // divides it against n_samples.
+        let dataset = Dataset::new(
+            array![[-1.0], [0.0], [1.0]],
+            array![[-1.0, 1.0], [0.0, -1.5], [1.0, 1.3]],
+        );
+
+        // no intercept fitting
+        let t = array![[2.0], [3.0], [4.0]];
+        let model = MultiTaskElasticNet::params()
+            .with_intercept(false)
+            .l1_ratio(0.3)
+            .penalty(0.1)
+            .fit(&dataset)
+            .unwrap();
+        assert_abs_diff_eq!(model.intercept(), &array![0., 0.]);
+        assert_abs_diff_eq!(
+            model.hyperplane(),
+            &array![[0.86470395, 0.12970559]],
+            epsilon = 1e-6
+        );
+        assert_abs_diff_eq!(
+            model.predict(&t),
+            array![
+                [1.7294079, 0.25941118],
+                [2.59411185, 0.38911678],
+                [3.4588158, 0.51882237]
+            ],
+            epsilon = 1e-6
+        );
+        assert_abs_diff_eq!(model.duality_gap(), 0.0, epsilon = 1e-12);
+
+        // input for prediction
+        let t = array![[2.0], [3.0], [4.0]];
+        let model = MultiTaskElasticNet::params()
+            .l1_ratio(0.3)
+            .penalty(0.1)
+            .fit(&dataset)
+            .unwrap();
+        assert_abs_diff_eq!(model.intercept(), &array![0., 0.26666666], epsilon = 1e-6);
+        assert_abs_diff_eq!(
+            model.hyperplane(),
+            &array![[0.86470395, 0.12970559]],
+            epsilon = 1e-6
+        );
+        assert_abs_diff_eq!(
+            model.predict(&t),
+            array![
+                [1.7294079, 0.52607785],
+                [2.59411185, 0.65578344],
+                [3.4588158, 0.78548904]
+            ],
+            epsilon = 1e-6
+        );
+        assert_abs_diff_eq!(model.duality_gap(), 0.0, epsilon = 1e-12);
+
+        let model = MultiTaskElasticNet::params()
+            .l1_ratio(0.5)
+            .penalty(0.1)
+            .fit(&dataset)
+            .unwrap();
+        assert_abs_diff_eq!(model.intercept(), &array![0., 0.2666666], epsilon = 1e-6);
+        assert_abs_diff_eq!(
+            model.hyperplane(),
+            &array![[0.861237, 0.12918555]],
+            epsilon = 1e-6
+        );
+        assert_abs_diff_eq!(
+            model.predict(&t),
+            &array![
+                [1.722474, 0.52503777],
+                [2.583711, 0.65422332],
+                [3.44494799, 0.78340887]
+            ],
+            epsilon = 1e-6
+        );
+        assert_abs_diff_eq!(model.duality_gap(), 0.0, epsilon = 1e-12);
     }
 
     #[test]
