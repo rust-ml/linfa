@@ -1,6 +1,6 @@
 use approx::{abs_diff_eq, abs_diff_ne};
 use ndarray::{
-    s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, CowArray, Data, Ix1, Ix2,
+    s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, CowArray, Data, Dimension, Ix1, Ix2,
 };
 use ndarray_linalg::{Inverse, Lapack};
 
@@ -106,10 +106,8 @@ where
             self.penalty(),
         );
 
-        // let y_est = dataset.records().dot(&hyperplane) + &intercept;
-        // let variance = variance_params_multi_task(dataset, y_est);
-        // TODO: Compute variance
-        let variance = Ok(Array1::<F>::zeros(dataset.nfeatures()));
+        let y_est = dataset.records().dot(&hyperplane) + &intercept;
+        let variance = variance_params(dataset, y_est);
 
         Ok(MultiTaskElasticNet {
             hyperplane,
@@ -242,34 +240,13 @@ impl<F: Float> MultiTaskElasticNet<F> {
     }
 
     /// Calculate the Z score
-    pub fn z_score(&self) -> Result<Array1<F>> {
-        self.variance
-            .as_ref()
-            .map(|variance| {
-                self.hyperplane
-                    .iter()
-                    .zip(variance.iter())
-                    .map(|(a, b)| *a / b.sqrt())
-                    .collect()
-            })
-            .map_err(|err| err.clone())
+    pub fn z_score(&self) -> Result<Array2<F>> {
+        // TODO
     }
 
     /// Calculate the confidence level
-    pub fn confidence_95th(&self) -> Result<Array1<(F, F)>> {
-        // the 95th percentile of our confidence level
-        let p = F::cast(1.645);
-
-        self.variance
-            .as_ref()
-            .map(|variance| {
-                self.hyperplane
-                    .iter()
-                    .zip(variance.iter())
-                    .map(|(a, b)| (*a - p * b.sqrt(), *a + p * b.sqrt()))
-                    .collect()
-            })
-            .map_err(|err| err.clone())
+    pub fn confidence_95th(&self) -> Result<Array2<(F, F)>> {
+        // TODO
     }
 }
 
@@ -364,9 +341,7 @@ fn block_coordinate_descent<'a, F: Float>(
                 .sqrt();
             if abs_diff_ne!(norm_old_w_j, F::zero()) {
                 for i in 0..x.shape()[0] {
-                    for t in 0..n_tasks {
-                        r[[i, t]] += x_j[i] * old_w_j[t];
-                    }
+                    r.slice_mut(s![i, ..]).scaled_add(x_j[i], &old_w_j);
                 }
             }
             let tmp = x_j.dot(&r);
@@ -477,22 +452,34 @@ fn duality_gap_mtl<'a, F: Float>(
     gap
 }
 
-fn variance_params<F: Float + Lapack, T: AsTargets<Elem = F>, D: Data<Elem = F>>(
-    ds: &DatasetBase<ArrayBase<D, Ix2>, T>,
-    y_est: Array1<F>,
+fn variance_params<F: Float + Lapack, T: AsTargets<Elem = F>, D: Data<Elem = F>, I: Dimension>(
+    ds: &DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D, I>>,
+    y_est: ArrayBase<D, I>,
 ) -> Result<Array1<F>> {
     let nfeatures = ds.nfeatures();
     let nsamples = ds.nsamples();
 
-    // try to convert targets into a single target
-    let target = ds.try_single_target()?;
+    let target = ds.targets();
+    let ndim = target.ndim();
+
+    let ntasks: usize = match ndim {
+        1 => 1,
+        2 => *target.shape().last().unwrap(),
+        _ => 0,
+    };
+
+    // check that the dimension of the target is either a vector or a matrix
+    if ntasks == 0 {
+        return Err(ElasticNetError::IncorrectTargetShape);
+    }
 
     // check that we have enough samples
     if nsamples < nfeatures + 1 {
         return Err(ElasticNetError::NotEnoughSamples);
     }
 
-    let var_target = (&target - &y_est).mapv(|x| x * x).sum() / F::cast(nsamples - nfeatures);
+    let var_target =
+        (target - &y_est).mapv(|x| x * x).sum() / F::cast(ntasks * (nsamples - nfeatures));
 
     let inv_cov = ds.records().t().dot(ds.records()).inv();
 
