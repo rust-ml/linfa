@@ -249,9 +249,17 @@ pub trait FromTargetArray<'a, F> {
     fn new_targets_view(targets: ArrayView2<'a, F>) -> Self::View;
 }
 
-pub trait AsSingleTargetsMut {
+pub trait AsMultiTargetsMut {
     type Elem;
 
+    /// Convert to a multi-target
+    fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<Self::Elem>;
+
+    /// Returns the number of targets
+    fn ntargets(&mut self) -> usize;
+}
+
+pub trait AsSingleTargetsMut: AsMultiTargetsMut {
     /// Convert to single target, fails for more than one target
     fn try_single_target_mut(&mut self) -> Result<ArrayViewMut1<Self::Elem>> {
         let multi_targets = self.as_multi_targets_mut();
@@ -262,16 +270,6 @@ pub trait AsSingleTargetsMut {
 
         Ok(multi_targets.index_axis_move(Axis(1), 0))
     }
-}
-
-pub trait AsMultiTargetsMut {
-    type Elem;
-
-    /// Convert to a multi-target
-    fn as_multi_targets_mut(&mut self) -> Result<ArrayViewMut2<Self::Elem>>;
-
-    /// Returns the number of targets
-    fn ntargets(&self) -> usize;
 }
 
 /// Convert to probability matrix

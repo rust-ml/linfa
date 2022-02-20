@@ -238,6 +238,10 @@ impl<L, R: Records, T: AsMultiTargets<Elem = L>> AsMultiTargets for DatasetBase<
     fn as_multi_targets(&self) -> ArrayView2<'_, Self::Elem> {
         self.targets.as_multi_targets()
     }
+
+    fn ntargets(&self) -> usize {
+        self.targets.ntargets()
+    }
 }
 
 impl<L, R: Records, T: AsMultiTargetsMut<Elem = L>> AsMultiTargetsMut for DatasetBase<R, T> {
@@ -245,6 +249,10 @@ impl<L, R: Records, T: AsMultiTargetsMut<Elem = L>> AsMultiTargetsMut for Datase
 
     fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<'_, Self::Elem> {
         self.targets.as_multi_targets_mut()
+    }
+
+    fn ntargets(&mut self) -> usize {
+        self.targets.ntargets()
     }
 }
 

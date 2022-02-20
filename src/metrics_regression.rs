@@ -3,7 +3,7 @@
 //! This module implements common comparison metrices for continuous variables.
 
 use crate::{
-    dataset::{AsMultiTargets, AsSingleTargets, DatasetBase},
+    dataset::{AsMultiTargets, AsSingleTargets},
     error::{Error, Result},
     Float,
 };
@@ -211,10 +211,10 @@ impl<F: Float, D: Data<Elem = F>, T: AsMultiTargets<Elem = F>> MultiTargetRegres
 {
 }
 
-impl<F: Float, T: AsMultiTargets<Elem = F>, T2: AsMultiTargets<Elem = F>, D: Data<Elem = F>>
-    MultiTargetRegression<F, T2> for DatasetBase<ArrayBase<D, Ix2>, T>
-{
-}
+// impl<F: Float, T: AsMultiTargets<Elem = F>, T2: AsMultiTargets<Elem = F>, D: Data<Elem = F>>
+//     MultiTargetRegression<F, T2> for DatasetBase<ArrayBase<D, Ix2>, T>
+// {
+// }
 
 #[cfg(test)]
 mod tests {

@@ -50,18 +50,6 @@ impl<'a, L: Clone + 'a, S: Data<Elem = L>> FromTargetArray<'a, L> for ArrayBase<
     }
 }
 
-impl<L, S: DataMut<Elem = L>> AsMultiTargetsMut for ArrayBase<S, Ix1> {
-    type Elem = L;
-
-    fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<'_, Self::Elem> {
-        self.view_mut().insert_axis(Axis(1))
-    }
-
-    fn ntargets(&self) -> usize {
-        1
-    }
-}
-
 impl<L, S: DataMut<Elem = L>> AsMultiTargetsMut for ArrayBase<S, Ix2> {
     type Elem = L;
 
@@ -69,7 +57,7 @@ impl<L, S: DataMut<Elem = L>> AsMultiTargetsMut for ArrayBase<S, Ix2> {
         self.view_mut()
     }
 
-    fn ntargets(&self) -> usize {
+    fn ntargets(&mut self) -> usize {
         self.len_of(Axis(1))
     }
 }
@@ -105,7 +93,7 @@ impl<L: Label, T: AsMultiTargetsMut<Elem = L>> AsMultiTargetsMut for CountedTarg
         self.targets.as_multi_targets_mut()
     }
 
-    fn ntargets(&self) -> usize {
+    fn ntargets(&mut self) -> usize {
         self.targets.ntargets()
     }
 }
