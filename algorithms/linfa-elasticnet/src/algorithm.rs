@@ -244,11 +244,9 @@ impl<F: Float> MultiTaskElasticNet<F> {
         self.variance
             .as_ref()
             .map(|variance| {
-                self.hyperplane
-                    .axis_iter(Axis(0))
-                    .zip(variance.iter())
-                    .map(|(a, b)| a.to_owned() / b.sqrt())
-                    .collect()
+                ndarray::Zip::from(&self.hyperplane)
+                    .and_broadcast(variance)
+                    .map_collect(|a, b| *a / b.sqrt())
             })
             .map_err(|err| err.clone())
     }
@@ -261,15 +259,9 @@ impl<F: Float> MultiTaskElasticNet<F> {
         self.variance
             .as_ref()
             .map(|variance| {
-                self.hyperplane
-                    .axis_iter(Axis(1))
-                    .map(|coef| {
-                        coef.iter()
-                            .zip(variance.iter())
-                            .map(|(a, b)| (*a - p * b.sqrt(), *a + p * b.sqrt()))
-                            .collect()
-                    })
-                    .collect()
+                ndarray::Zip::from(&self.hyperplane)
+                    .and_broadcast(variance)
+                    .map_collect(|a, b| (*a - p * b.sqrt(), *a + p * b.sqrt()))
             })
             .map_err(|err| err.clone())
     }
