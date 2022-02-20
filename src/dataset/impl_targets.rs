@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use super::{
-    AsMultiTargets, AsMultiTargetsMut, AsProbabilities, CountedTargets, DatasetBase,
-    FromTargetArray, Label, Labels, Pr, Records,
+    AsMultiTargets, AsMultiTargetsMut, AsProbabilities, AsSingleTargets, CountedTargets,
+    DatasetBase, FromTargetArray, Label, Labels, Pr, Records,
 };
 use ndarray::{
     Array1, Array2, ArrayBase, ArrayView2, ArrayViewMut2, Axis, CowArray, Data, DataMut, Dimension,
@@ -32,6 +32,10 @@ impl<'a, L, S: Data<Elem = L>> AsMultiTargets for ArrayBase<S, Ix2> {
         self.len_of(Axis(1))
     }
 }
+
+impl<'a, L, S: Data<Elem = L>> AsSingleTargets for ArrayBase<S, Ix1> {}
+
+impl<'a, L, S: Data<Elem = L>> AsSingleTargets for ArrayBase<S, Ix2> {}
 
 impl<'a, L: Clone + 'a, S: Data<Elem = L>> FromTargetArray<'a, L> for ArrayBase<S, Ix2> {
     type Owned = ArrayBase<OwnedRepr<L>, Ix2>;
