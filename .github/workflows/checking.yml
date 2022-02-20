@@ -30,6 +30,12 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           override: true
 
+      # Check if linfa compiles by itself without uniting dependency features with other crates
+      - name: Run cargo check on linfa
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+
       - name: Run cargo check (no features)
         uses: actions-rs/cargo@v1
         with:
