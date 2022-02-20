@@ -241,12 +241,37 @@ impl<F: Float> MultiTaskElasticNet<F> {
 
     /// Calculate the Z score
     pub fn z_score(&self) -> Result<Array2<F>> {
-        // TODO
+        self.variance
+            .as_ref()
+            .map(|variance| {
+                self.hyperplane
+                    .axis_iter(Axis(0))
+                    .zip(variance.iter())
+                    .map(|(a, b)| a.to_owned() / b.sqrt())
+                    .collect()
+            })
+            .map_err(|err| err.clone())
     }
 
     /// Calculate the confidence level
     pub fn confidence_95th(&self) -> Result<Array2<(F, F)>> {
-        // TODO
+        // the 95th percentile of our confidence level
+        let p = F::cast(1.645);
+
+        self.variance
+            .as_ref()
+            .map(|variance| {
+                self.hyperplane
+                    .axis_iter(Axis(1))
+                    .map(|coef| {
+                        coef.iter()
+                            .zip(variance.iter())
+                            .map(|(a, b)| (*a - p * b.sqrt(), *a + p * b.sqrt()))
+                            .collect()
+                    })
+                    .collect()
+            })
+            .map_err(|err| err.clone())
     }
 }
 
