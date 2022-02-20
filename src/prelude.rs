@@ -11,7 +11,9 @@ pub use crate::error::Error;
 pub use crate::traits::*;
 
 #[doc(no_inline)]
-pub use crate::dataset::{AsTargets, Dataset, DatasetBase, DatasetView, Float, Pr, Records};
+pub use crate::dataset::{
+    AsMultiTargets, AsSingleTargets, Dataset, DatasetBase, DatasetView, Float, Pr, Records,
+};
 
 #[doc(no_inline)]
 pub use crate::metrics_classification::{BinaryClassification, ConfusionMatrix, ToConfusionMatrix};
