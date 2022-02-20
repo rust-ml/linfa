@@ -1,4 +1,4 @@
-use super::{AsMultiTargets, AsSingleTargets, DatasetBase, DatasetView, FromTargetArray, Records};
+use super::{AsMultiTargets, DatasetBase, DatasetView, FromTargetArray, Records};
 use ndarray::{s, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
 use std::marker::PhantomData;
 

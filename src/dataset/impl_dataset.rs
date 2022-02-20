@@ -123,7 +123,7 @@ impl<R: Records, S> DatasetBase<R, S> {
     }
 }
 
-impl<L, R: Records, T: AsSingleTargets<Elem = L>> DatasetBase<R, T> {
+impl<L, R: Records, T: AsMultiTargets<Elem = L>> DatasetBase<R, T> {
     /// Map targets with a function `f`
     ///
     /// # Example

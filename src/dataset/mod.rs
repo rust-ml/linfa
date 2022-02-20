@@ -202,9 +202,6 @@ pub trait Records: Sized {
 pub trait AsSingleTargets {
     type Elem;
 
-    /// Returns a view on targets as two-dimensional array
-    fn as_multi_targets(&self) -> ArrayView2<Self::Elem>;
-
     /// Convert to single target, fails for more than one target
     ///
     /// # Returns
@@ -249,9 +246,6 @@ pub trait FromTargetArray<'a, F> {
 
 pub trait AsSingleTargetsMut {
     type Elem;
-
-    /// Returns a mutable view on targets as two-dimensional array
-    fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<Self::Elem>;
 
     /// Convert to single target, fails for more than one target
     fn try_single_target_mut(&mut self) -> Result<ArrayViewMut1<Self::Elem>> {

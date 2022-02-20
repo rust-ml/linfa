@@ -1,29 +1,13 @@
 use std::collections::HashMap;
 
 use super::{
-    AsMultiTargets, AsMultiTargetsMut, AsProbabilities, AsSingleTargets, AsSingleTargetsMut,
-    CountedTargets, DatasetBase, FromTargetArray, Label, Labels, Pr, Records,
+    AsMultiTargets, AsMultiTargetsMut, AsProbabilities, CountedTargets, DatasetBase,
+    FromTargetArray, Label, Labels, Pr, Records,
 };
 use ndarray::{
     Array1, Array2, ArrayBase, ArrayView2, ArrayViewMut2, Axis, CowArray, Data, DataMut, Dimension,
     Ix1, Ix2, Ix3, OwnedRepr, ViewRepr,
 };
-
-impl<'a, L, S: Data<Elem = L>> AsSingleTargets for ArrayBase<S, Ix1> {
-    type Elem = L;
-
-    fn as_multi_targets(&self) -> ArrayView2<L> {
-        self.view().insert_axis(Axis(1))
-    }
-}
-
-impl<'a, L, S: Data<Elem = L>> AsSingleTargets for ArrayBase<S, Ix2> {
-    type Elem = L;
-
-    fn as_multi_targets(&self) -> ArrayView2<L> {
-        self.view()
-    }
-}
 
 impl<'a, L, S: Data<Elem = L>> AsMultiTargets for ArrayBase<S, Ix1> {
     type Elem = L;
@@ -62,22 +46,6 @@ impl<'a, L: Clone + 'a, S: Data<Elem = L>> FromTargetArray<'a, L> for ArrayBase<
     }
 }
 
-impl<L, S: DataMut<Elem = L>> AsSingleTargetsMut for ArrayBase<S, Ix1> {
-    type Elem = L;
-
-    fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<'_, Self::Elem> {
-        self.view_mut().insert_axis(Axis(1))
-    }
-}
-
-impl<L, S: DataMut<Elem = L>> AsSingleTargetsMut for ArrayBase<S, Ix2> {
-    type Elem = L;
-
-    fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<'_, Self::Elem> {
-        self.view_mut()
-    }
-}
-
 impl<L, S: DataMut<Elem = L>> AsMultiTargetsMut for ArrayBase<S, Ix1> {
     type Elem = L;
 
@@ -102,14 +70,6 @@ impl<L, S: DataMut<Elem = L>> AsMultiTargetsMut for ArrayBase<S, Ix2> {
     }
 }
 
-impl<T: AsSingleTargets> AsSingleTargets for &T {
-    type Elem = T::Elem;
-
-    fn as_multi_targets(&self) -> ArrayView2<Self::Elem> {
-        (*self).as_multi_targets()
-    }
-}
-
 impl<T: AsMultiTargets> AsMultiTargets for &T {
     type Elem = T::Elem;
 
@@ -122,14 +82,6 @@ impl<T: AsMultiTargets> AsMultiTargets for &T {
     }
 }
 
-impl<L: Label, T: AsSingleTargets<Elem = L>> AsSingleTargets for CountedTargets<L, T> {
-    type Elem = L;
-
-    fn as_multi_targets(&self) -> ArrayView2<L> {
-        self.targets.as_multi_targets()
-    }
-}
-
 impl<L: Label, T: AsMultiTargets<Elem = L>> AsMultiTargets for CountedTargets<L, T> {
     type Elem = L;
 
@@ -139,14 +91,6 @@ impl<L: Label, T: AsMultiTargets<Elem = L>> AsMultiTargets for CountedTargets<L,
 
     fn ntargets(&self) -> usize {
         self.targets.ntargets()
-    }
-}
-
-impl<L: Label, T: AsSingleTargetsMut<Elem = L>> AsSingleTargetsMut for CountedTargets<L, T> {
-    type Elem = L;
-
-    fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<'_, Self::Elem> {
-        self.targets.as_multi_targets_mut()
     }
 }
 
@@ -164,7 +108,7 @@ impl<L: Label, T: AsMultiTargetsMut<Elem = L>> AsMultiTargetsMut for CountedTarg
 
 impl<'a, L: Label + 'a, T> FromTargetArray<'a, L> for CountedTargets<L, T>
 where
-    T: AsSingleTargets<Elem = L> + FromTargetArray<'a, L>,
+    T: FromTargetArray<'a, L>,
     T::Owned: Labels<Elem = L>,
     T::View: Labels<Elem = L>,
 {
@@ -236,7 +180,7 @@ impl<L: Label, S: Data<Elem = L>, I: Dimension> Labels for ArrayBase<S, I> {
 }
 
 /// Counted labels can act as labels
-impl<L: Label, T: AsSingleTargets<Elem = L>> Labels for CountedTargets<L, T> {
+impl<L: Label, T> Labels for CountedTargets<L, T> {
     type Elem = L;
 
     fn label_count(&self) -> Vec<HashMap<L, usize>> {
@@ -247,7 +191,7 @@ impl<L: Label, T: AsSingleTargets<Elem = L>> Labels for CountedTargets<L, T> {
 impl<F: Copy, L: Copy + Label, D, T> DatasetBase<ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
-    T: AsSingleTargets<Elem = L>,
+    T: AsMultiTargets<Elem = L>,
 {
     /// Transforms the input dataset by keeping only those samples whose label appears in `labels`.
     ///
