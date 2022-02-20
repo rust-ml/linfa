@@ -1,8 +1,8 @@
 use super::{
     super::traits::{Predict, PredictInplace},
     iter::{ChunksIter, DatasetIter, Iter},
-    AsMultiTargets, AsMultiTargetsMut, AsSingleTargets, AsSingleTargetsMut, CountedTargets,
-    Dataset, DatasetBase, DatasetView, Float, FromTargetArray, Label, Labels, Records, Result,
+    AsMultiTargets, AsMultiTargetsMut, AsSingleTargets, CountedTargets, Dataset, DatasetBase,
+    DatasetView, Float, FromTargetArray, Label, Labels, Records, Result,
 };
 use crate::traits::Fit;
 use ndarray::{
@@ -177,7 +177,7 @@ impl<L, R: Records, T: AsMultiTargets<Elem = L>> DatasetBase<R, T> {
 impl<'a, F, L, D, T> DatasetBase<ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
-    T: AsTargets<Elem = L>,
+    T: AsMultiTargets<Elem = L>,
 {
     /// Iterate over observations
     ///
@@ -201,7 +201,7 @@ where
 impl<'a, F: 'a, L: 'a, D, T> DatasetBase<ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
-    T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
+    T: AsMultiTargets<Elem = L> + FromTargetArray<'a, L>,
 {
     /// Creates a view of a dataset
     pub fn view(&'a self) -> DatasetBase<ArrayView2<'a, F>, T::View> {
@@ -232,7 +232,7 @@ where
     }
 }
 
-impl<L, R: Records, T: AsTargets<Elem = L>> AsTargets for DatasetBase<R, T> {
+impl<L, R: Records, T: AsMultiTargets<Elem = L>> AsMultiTargets for DatasetBase<R, T> {
     type Elem = L;
 
     fn as_multi_targets(&self) -> ArrayView2<'_, Self::Elem> {
@@ -240,7 +240,7 @@ impl<L, R: Records, T: AsTargets<Elem = L>> AsTargets for DatasetBase<R, T> {
     }
 }
 
-impl<L, R: Records, T: AsTargetsMut<Elem = L>> AsTargetsMut for DatasetBase<R, T> {
+impl<L, R: Records, T: AsMultiTargetsMut<Elem = L>> AsMultiTargetsMut for DatasetBase<R, T> {
     type Elem = L;
 
     fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<'_, Self::Elem> {
@@ -251,7 +251,7 @@ impl<L, R: Records, T: AsTargetsMut<Elem = L>> AsTargetsMut for DatasetBase<R, T
 #[allow(clippy::type_complexity)]
 impl<'a, L: 'a, F, T> DatasetBase<ArrayView2<'a, F>, T>
 where
-    T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
+    T: AsMultiTargets<Elem = L> + FromTargetArray<'a, L>,
 {
     /// Split dataset into two disjoint chunks
     ///
@@ -305,7 +305,7 @@ impl<L: Label, T: Labels<Elem = L>, R: Records> Labels for DatasetBase<R, T> {
 impl<'a, 'b: 'a, F, L: Label, T, D> DatasetBase<ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
-    T: AsTargets<Elem = L> + Labels<Elem = L>,
+    T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
 {
     /// Produce N boolean targets from multi-class targets
     ///
@@ -344,7 +344,7 @@ where
     }
 }
 
-impl<L: Label, R: Records, S: AsTargets<Elem = L>> DatasetBase<R, S> {
+impl<L: Label, R: Records, S: AsMultiTargets<Elem = L>> DatasetBase<R, S> {
     /// Calculates label frequencies from a dataset while masking certain samples.
     ///
     /// ### Parameters
@@ -432,8 +432,8 @@ where
 impl<'b, F: Clone, E: Copy + 'b, D, T> DatasetBase<ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
-    T: AsTargets<Elem = E> + FromTargetArray<'b, E>,
-    T::Owned: AsTargets,
+    T: AsMultiTargets<Elem = E> + FromTargetArray<'b, E>,
+    T::Owned: AsMultiTargets,
 {
     /// Apply bootstrapping for samples and features
     ///
@@ -1053,7 +1053,7 @@ impl<F, E> Dataset<F, E> {
 impl<F, D, E, T, O> Predict<ArrayBase<D, Ix2>, DatasetBase<ArrayBase<D, Ix2>, T>> for O
 where
     D: Data<Elem = F>,
-    T: AsTargets<Elem = E>,
+    T: AsMultiTargets<Elem = E>,
     O: PredictInplace<ArrayBase<D, Ix2>, T>,
 {
     fn predict(&self, records: ArrayBase<D, Ix2>) -> DatasetBase<ArrayBase<D, Ix2>, T> {
@@ -1066,7 +1066,7 @@ where
 impl<F, R, T, E, S, O> Predict<DatasetBase<R, T>, DatasetBase<R, S>> for O
 where
     R: Records<Elem = F>,
-    S: AsTargets<Elem = E>,
+    S: AsMultiTargets<Elem = E>,
     O: PredictInplace<R, S>,
 {
     fn predict(&self, ds: DatasetBase<R, T>) -> DatasetBase<R, S> {
