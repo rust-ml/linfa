@@ -226,7 +226,7 @@ pub trait AsSingleTargets {
 pub trait AsMultiTargets {
     type Elem;
 
-    /// Returns a view on targets as two-dimensional array
+    /// Convert to a multi-target
     fn as_multi_targets(&self) -> ArrayView2<Self::Elem>;
 
     /// Returns the number of targets
@@ -268,8 +268,8 @@ pub trait AsSingleTargetsMut {
 pub trait AsMultiTargetsMut {
     type Elem;
 
-    /// Returns a mutable view on targets as two-dimensional array
-    fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<Self::Elem>;
+    /// Convert to a multi-target
+    fn as_multi_targets_mut(&mut self) -> Result<ArrayViewMut2<Self::Elem>>;
 
     /// Returns the number of targets
     fn ntargets(&self) -> usize;
