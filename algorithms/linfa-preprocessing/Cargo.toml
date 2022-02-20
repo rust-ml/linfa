@@ -18,11 +18,11 @@ categories = ["algorithms", "mathematics", "science"]
 [dependencies]
 
 linfa = { version = "0.5.0", path = "../..", features = ["ndarray-linalg"] }
-ndarray = { version = "0.15", default-features = false, features = ["approx", "blas"] }
+ndarray = { version = "0.15", features = ["approx", "blas"] }
 ndarray-linalg = { version = "0.14" }
 ndarray-stats = "0.5"
 thiserror = "1.0"
-approx = { version = "0.4", default-features = false, features = ["std"] }
+approx = { version = "0.4" }
 ndarray-rand = { version = "0.14" }
 unicode-normalization = "0.1.8"
 regex = "1.4.5"
