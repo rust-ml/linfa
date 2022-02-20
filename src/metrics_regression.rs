@@ -3,7 +3,7 @@
 //! This module implements common comparison metrices for continuous variables.
 
 use crate::{
-    dataset::{AsTargets, DatasetBase},
+    dataset::{AsMultiTargets, AsSingleTargets, DatasetBase},
     error::{Error, Result},
     Float,
 };
@@ -22,7 +22,9 @@ use std::ops::Sub;
 /// the result will be an error.
 ///
 /// To compare bi-dimensional arrays use [`MultiTargetRegression`](trait.MultiTargetRegression.html)
-pub trait SingleTargetRegression<F: Float, T: AsTargets<Elem = F>>: AsTargets<Elem = F> {
+pub trait SingleTargetRegression<F: Float, T: AsSingleTargets<Elem = F>>:
+    AsSingleTargets<Elem = F>
+{
     /// Maximal error between two continuous variables
     fn max_error(&self, compare_to: &T) -> Result<F> {
         let max_error = self
@@ -120,7 +122,7 @@ pub trait SingleTargetRegression<F: Float, T: AsTargets<Elem = F>>: AsTargets<El
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> SingleTargetRegression<F, T>
+impl<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = F>> SingleTargetRegression<F, T>
     for ArrayBase<D, Ix1>
 {
 }
@@ -137,7 +139,9 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> SingleTargetRegression
 /// The shape of the compared targets must match.
 ///
 /// To compare single-dimensional arrays use [`SingleTargetRegression`](trait.SingleTargetRegression.html)
-pub trait MultiTargetRegression<F: Float, T: AsTargets<Elem = F>>: AsTargets<Elem = F> {
+pub trait MultiTargetRegression<F: Float, T: AsSingleTargets<Elem = F>>:
+    AsSingleTargets<Elem = F>
+{
     /// Maximal error between two continuous variables
     fn max_error(&self, other: &T) -> Result<Array1<F>> {
         self.as_multi_targets()
@@ -202,12 +206,12 @@ pub trait MultiTargetRegression<F: Float, T: AsTargets<Elem = F>>: AsTargets<Ele
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> MultiTargetRegression<F, T>
+impl<F: Float, D: Data<Elem = F>, T: AsMultiTargets<Elem = F>> MultiTargetRegression<F, T>
     for ArrayBase<D, Ix2>
 {
 }
 
-impl<F: Float, T: AsTargets<Elem = F>, T2: AsTargets<Elem = F>, D: Data<Elem = F>>
+impl<F: Float, T: AsMultiTargets<Elem = F>, T2: AsMultiTargets<Elem = F>, D: Data<Elem = F>>
     MultiTargetRegression<F, T2> for DatasetBase<ArrayBase<D, Ix2>, T>
 {
 }

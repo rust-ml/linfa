@@ -1,5 +1,5 @@
 //! Common metrics for clustering
-use crate::dataset::{AsTargets, DatasetBase, Label, Labels, Records};
+use crate::dataset::{AsSingleTargets, DatasetBase, Label, Labels, Records};
 use crate::error::{Error, Result};
 use crate::Float;
 use ndarray::{ArrayBase, ArrayView1, Data, Ix2};
@@ -62,8 +62,13 @@ impl<F: Float> DistanceCount<F> {
     }
 }
 
-impl<'a, F: Float, L: 'a + Label, D: Data<Elem = F>, T: AsTargets<Elem = L> + Labels<Elem = L>>
-    SilhouetteScore<F> for DatasetBase<ArrayBase<D, Ix2>, T>
+impl<
+        'a,
+        F: Float,
+        L: 'a + Label,
+        D: Data<Elem = F>,
+        T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
+    > SilhouetteScore<F> for DatasetBase<ArrayBase<D, Ix2>, T>
 {
     fn silhouette_score(&self) -> Result<F> {
         if self.ntargets() > 1 {

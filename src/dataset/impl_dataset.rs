@@ -1,8 +1,8 @@
 use super::{
     super::traits::{Predict, PredictInplace},
     iter::{ChunksIter, DatasetIter, Iter},
-    AsTargets, AsTargetsMut, CountedTargets, Dataset, DatasetBase, DatasetView, Float,
-    FromTargetArray, Label, Labels, Records, Result,
+    AsMultiTargets, AsMultiTargetsMut, AsSingleTargets, AsSingleTargetsMut, CountedTargets,
+    Dataset, DatasetBase, DatasetView, Float, FromTargetArray, Label, Labels, Records, Result,
 };
 use crate::traits::Fit;
 use ndarray::{

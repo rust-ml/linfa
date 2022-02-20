@@ -9,7 +9,7 @@ use std::fmt;
 use ndarray::prelude::*;
 use ndarray::Data;
 
-use crate::dataset::{AsTargets, DatasetBase, Label, Labels, Pr, Records};
+use crate::dataset::{AsSingleTargets, DatasetBase, Label, Labels, Pr, Records};
 use crate::error::{Error, Result};
 
 /// Return tuple of class index for each element of prediction and ground_truth
@@ -264,7 +264,7 @@ pub trait ToConfusionMatrix<A, T> {
 impl<L: Label, S, T> ToConfusionMatrix<L, ArrayBase<S, Ix1>> for T
 where
     S: Data<Elem = L>,
-    T: AsTargets<Elem = L> + Labels<Elem = L>,
+    T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
 {
     fn confusion_matrix(&self, ground_truth: ArrayBase<S, Ix1>) -> Result<ConfusionMatrix<L>> {
         self.confusion_matrix(&ground_truth)
@@ -274,7 +274,7 @@ where
 impl<L: Label, S, T> ToConfusionMatrix<L, &ArrayBase<S, Ix1>> for T
 where
     S: Data<Elem = L>,
-    T: AsTargets<Elem = L> + Labels<Elem = L>,
+    T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
 {
     fn confusion_matrix(&self, ground_truth: &ArrayBase<S, Ix1>) -> Result<ConfusionMatrix<L>> {
         let targets = self.try_single_target()?;
@@ -307,8 +307,8 @@ impl<L: Label, R, R2, T, T2> ToConfusionMatrix<L, &DatasetBase<R, T>> for Datase
 where
     R: Records,
     R2: Records,
-    T: AsTargets<Elem = L>,
-    T2: AsTargets<Elem = L> + Labels<Elem = L>,
+    T: AsSingleTargets<Elem = L>,
+    T2: AsSingleTargets<Elem = L> + Labels<Elem = L>,
 {
     fn confusion_matrix(&self, ground_truth: &DatasetBase<R, T>) -> Result<ConfusionMatrix<L>> {
         self.targets()
@@ -316,7 +316,7 @@ where
     }
 }
 
-impl<L: Label, S: Data<Elem = L>, T: AsTargets<Elem = L> + Labels<Elem = L>, R: Records>
+impl<L: Label, S: Data<Elem = L>, T: AsSingleTargets<Elem = L> + Labels<Elem = L>, R: Records>
     ToConfusionMatrix<L, &DatasetBase<R, T>> for ArrayBase<S, Ix1>
 {
     fn confusion_matrix(&self, ground_truth: &DatasetBase<R, T>) -> Result<ConfusionMatrix<L>> {
@@ -477,7 +477,7 @@ impl<D: Data<Elem = Pr>> BinaryClassification<&[bool]> for ArrayBase<D, Ix1> {
     }
 }
 
-impl<R: Records, R2: Records, T: AsTargets<Elem = bool>, T2: AsTargets<Elem = Pr>>
+impl<R: Records, R2: Records, T: AsSingleTargets<Elem = bool>, T2: AsSingleTargets<Elem = Pr>>
     BinaryClassification<&DatasetBase<R, T>> for DatasetBase<R2, T2>
 {
     fn roc(&self, y: &DatasetBase<R, T>) -> Result<ReceiverOperatingCharacteristic> {
