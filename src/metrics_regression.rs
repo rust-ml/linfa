@@ -139,7 +139,7 @@ impl<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = F>> SingleTargetRegr
 /// The shape of the compared targets must match.
 ///
 /// To compare single-dimensional arrays use [`SingleTargetRegression`](trait.SingleTargetRegression.html)
-pub trait MultiTargetRegression<F: Float, T: AsSingleTargets<Elem = F>>:
+pub trait MultiTargetRegression<F: Float, T: AsMultiTargets<Elem = F>>:
     AsSingleTargets<Elem = F>
 {
     /// Maximal error between two continuous variables

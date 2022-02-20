@@ -1,6 +1,6 @@
 //! Common metrics for clustering
 use crate::dataset::{AsSingleTargets, DatasetBase, Label, Labels, Records};
-use crate::error::{Error, Result};
+use crate::error::Result;
 use crate::Float;
 use ndarray::{ArrayBase, ArrayView1, Data, Ix2};
 use std::collections::HashMap;
@@ -71,11 +71,6 @@ impl<
     > SilhouetteScore<F> for DatasetBase<ArrayBase<D, Ix2>, T>
 {
     fn silhouette_score(&self) -> Result<F> {
-        if self.ntargets() > 1 {
-            return Err(Error::MultipleTargets);
-        }
-        // By using try_single_target we ensure that the iterator returns an
-        // array1 as target with just one element, that can be addressed by [0]
         let mut labels: HashMap<L, DistanceCount<F>> = self
             .label_count()
             .remove(0)
