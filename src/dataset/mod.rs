@@ -198,8 +198,26 @@ pub trait Records: Sized {
     fn nfeatures(&self) -> usize;
 }
 
-/// Return a reference to single target variable
-pub trait AsSingleTargets {
+/// AsMultiTargets trait
+///
+/// Provides useful methods to handle target variables. Note that AsMultiTargets
+/// is a supertrait of AsSingleTargets. AsMultiTargets is specifically designed
+/// to handle multi-target variables.
+pub trait AsMultiTargets {
+    type Elem;
+
+    /// Convert to a multi-target
+    fn as_multi_targets(&self) -> ArrayView2<Self::Elem>;
+
+    /// Returns the number of targets
+    fn ntargets(&self) -> usize;
+}
+
+/// AsSingleTargets trait
+///
+/// AsSingleTargets is a special case of AsSingleTargets where there is a single
+/// target to predict.
+pub trait AsSingleTargets: AsMultiTargets {
     type Elem;
 
     /// Convert to single target, fails for more than one target
@@ -217,17 +235,6 @@ pub trait AsSingleTargets {
 
         Ok(multi_targets.index_axis_move(Axis(1), 0))
     }
-}
-
-/// Return a reference to a multi-target variable
-pub trait AsMultiTargets {
-    type Elem;
-
-    /// Convert to a multi-target
-    fn as_multi_targets(&self) -> ArrayView2<Self::Elem>;
-
-    /// Returns the number of targets
-    fn ntargets(&self) -> usize;
 }
 
 /// Helper trait to construct counted labels
