@@ -14,7 +14,7 @@ keywords = ["hierachical", "agglomerative", "clustering", "machine-learning", "l
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
-ndarray = { version = "0.15", default-features = false }
+ndarray = { version = "0.15" }
 kodama = "0.2"
 thiserror = "=1.0.25"
 
