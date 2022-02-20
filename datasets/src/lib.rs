@@ -20,6 +20,8 @@
 //! The purpose of this crate is to faciliate dataset loading and make it as simple as possible. Loaded datasets are returned as a
 //! [linfa::Dataset] structure with named features.
 //!
+//! Additionally, this crate provides utility functions to randomly generate test datasets.
+//!
 //! ## Using a dataset
 //!
 //! To use one of the provided datasets in your project add the `linfa-datasets` crate to your `Cargo.toml` and enable the corresponding feature:
@@ -32,6 +34,9 @@
 //! let (train, valid) = linfa_datasets::winequality()
 //!     .split_with_ratio(0.8);
 //! ```
+
+#[cfg(feature = "generate")]
+pub mod generate;
 
 use csv::ReaderBuilder;
 use flate2::read::GzDecoder;

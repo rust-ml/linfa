@@ -13,6 +13,7 @@ ndarray = { version = "0.15", default-features = false }
 ndarray-csv = "=0.5.1"
 csv = "1.1"
 flate2 = "1.0"
+ndarray-rand = { version = "0.14", optional = true }
 
 [dev-dependencies]
 approx = "0.4"
@@ -23,3 +24,4 @@ diabetes = []
 iris = []
 winequality = []
 linnerud = []
+generate = ["ndarray-rand"]

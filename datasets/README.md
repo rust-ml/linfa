@@ -20,6 +20,8 @@ Currently the following datasets are provided:
 The purpose of this crate is to faciliate dataset loading and make it as simple as possible. Loaded datasets are returned as a 
 [`linfa::Dataset`](https://docs.rs/linfa/latest/linfa/dataset/type.Dataset.html) structure with named features.
 
+Additionally, this crate provides utility functions to randomly generate test datasets.
+
 ## Using a dataset
 
 To use one of the provided datasets in your project add the `linfa-datasets` crate to your `Cargo.toml` and enable the corresponding feature:
