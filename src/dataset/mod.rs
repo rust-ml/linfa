@@ -198,8 +198,8 @@ pub trait Records: Sized {
     fn nfeatures(&self) -> usize;
 }
 
-/// Return a reference to single or multiple target variables
-pub trait AsTargets {
+/// Return a reference to single target variable
+pub trait AsSingleTargets {
     type Elem;
 
     /// Returns a view on targets as two-dimensional array
@@ -222,6 +222,17 @@ pub trait AsTargets {
     }
 }
 
+/// Return a reference to a multi-target variable
+pub trait AsMultiTargets {
+    type Elem;
+
+    /// Returns a view on targets as two-dimensional array
+    fn as_multi_targets(&self) -> ArrayView2<Self::Elem>;
+
+    /// Returns the number of targets
+    fn ntargets(&self) -> usize;
+}
+
 /// Helper trait to construct counted labels
 ///
 /// This is implemented for objects which can act as targets and created from a target matrix. For
@@ -236,7 +247,7 @@ pub trait FromTargetArray<'a, F> {
     fn new_targets_view(targets: ArrayView2<'a, F>) -> Self::View;
 }
 
-pub trait AsTargetsMut {
+pub trait AsSingleTargetsMut {
     type Elem;
 
     /// Returns a mutable view on targets as two-dimensional array
@@ -252,6 +263,16 @@ pub trait AsTargetsMut {
 
         Ok(multi_targets.index_axis_move(Axis(1), 0))
     }
+}
+
+pub trait AsMultiTargetsMut {
+    type Elem;
+
+    /// Returns a mutable view on targets as two-dimensional array
+    fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<Self::Elem>;
+
+    /// Returns the number of targets
+    fn ntargets(&self) -> usize;
 }
 
 /// Convert to probability matrix
