@@ -351,7 +351,7 @@ fn block_coordinate_descent<'a, F: Float>(
     let norm_cols_x = x.map_axis(Axis(0), |col| col.dot(&col));
     let mut gap = F::one() + tol;
     let d_w_tol = tol;
-    let tol = tol * y.fold(F::zero(), |sum, &y_ij| sum + y_ij.powi(2));
+    let tol = tol * y.iter().map(|&y_ij| y_ij * y_ij).sum();
     while n_steps < max_steps {
         let mut w_max = F::zero();
         let mut d_w_max = F::zero();
