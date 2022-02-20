@@ -1,4 +1,4 @@
-use super::{AsTargets, DatasetBase, DatasetView, FromTargetArray, Records};
+use super::{AsMultiTargets, AsSingleTargets, DatasetBase, DatasetView, FromTargetArray, Records};
 use ndarray::{s, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
 use std::marker::PhantomData;
 
@@ -63,7 +63,7 @@ impl<'a, 'b: 'a, R: Records, T> DatasetIter<'a, 'b, R, T> {
 impl<'a, 'b: 'a, F: 'a, L: 'a, D, T> Iterator for DatasetIter<'a, 'b, ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
-    T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
+    T: AsMultiTargets<Elem = L> + FromTargetArray<'a, L>,
 {
     type Item = DatasetView<'a, F, L>;
 
@@ -136,7 +136,7 @@ impl<'a, 'b: 'a, F, T> ChunksIter<'a, 'b, F, T> {
 
 impl<'a, 'b: 'a, F, E: 'b, T> Iterator for ChunksIter<'a, 'b, F, T>
 where
-    T: AsTargets<Elem = E> + FromTargetArray<'b, E>,
+    T: AsMultiTargets<Elem = E> + FromTargetArray<'b, E>,
 {
     type Item = DatasetBase<ArrayView2<'a, F>, T::View>;
 
