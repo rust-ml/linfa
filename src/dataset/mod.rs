@@ -218,8 +218,6 @@ pub trait AsMultiTargets {
 /// AsSingleTargets is a special case of AsSingleTargets where there is a single
 /// target to predict.
 pub trait AsSingleTargets: AsMultiTargets {
-    type Elem;
-
     /// Convert to single target, fails for more than one target
     ///
     /// # Returns
