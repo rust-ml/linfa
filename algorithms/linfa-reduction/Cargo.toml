@@ -25,7 +25,7 @@ default-features = false
 features = ["std", "derive"]
 
 [dependencies]
-ndarray = { version = "0.15", default-features = false, features = ["approx"] }
+ndarray = { version = "0.15", features = ["approx"] }
 ndarray-linalg = "0.14"
 ndarray-rand = "0.14"
 num-traits = "0.2"
@@ -38,4 +38,4 @@ linfa-kernel = { version = "0.5.0", path = "../linfa-kernel" }
 rand = { version = "0.8", features = ["small_rng"] }
 ndarray-npy = { version = "0.8", default-features = false }
 linfa-datasets = { version = "0.5.0", path = "../../datasets", features = ["iris"] }
-approx = { version = "0.4", default-features = false, features = ["std"] }
+approx = { version = "0.4" }
