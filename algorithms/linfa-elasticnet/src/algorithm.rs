@@ -4,7 +4,7 @@ use ndarray_linalg::{Inverse, Lapack};
 
 use linfa::traits::{Fit, PredictInplace};
 use linfa::{
-    dataset::{AsTargets, Records},
+    dataset::{AsSingleTargets, Records},
     DatasetBase, Float,
 };
 
@@ -14,7 +14,7 @@ impl<F, D, T> Fit<ArrayBase<D, Ix2>, T, ElasticNetError> for ElasticNetValidPara
 where
     F: Float + Lapack,
     D: Data<Elem = F>,
-    T: AsTargets<Elem = F>,
+    T: AsSingleTargets<Elem = F>,
 {
     type Object = ElasticNet<F>;
 
@@ -217,7 +217,7 @@ fn duality_gap<'a, F: Float>(
     gap
 }
 
-fn variance_params<F: Float + Lapack, T: AsTargets<Elem = F>, D: Data<Elem = F>>(
+fn variance_params<F: Float + Lapack, T: AsSingleTargets<Elem = F>, D: Data<Elem = F>>(
     ds: &DatasetBase<ArrayBase<D, Ix2>, T>,
     y_est: Array1<F>,
 ) -> Result<Array1<F>> {
