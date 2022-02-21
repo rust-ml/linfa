@@ -5,7 +5,7 @@ use ndarray::{concatenate, s, Array, Array1, Array2, ArrayBase, Axis, Data, Ix1,
 use ndarray_linalg::{Lapack, LeastSquaresSvdInto, Scalar};
 use serde::{Deserialize, Serialize};
 
-use linfa::dataset::{AsTargets, DatasetBase};
+use linfa::dataset::{AsSingleTargets, DatasetBase};
 use linfa::traits::{Fit, PredictInplace};
 
 pub trait Float: linfa::Float + Lapack + Scalar {}
@@ -76,8 +76,8 @@ impl LinearRegression {
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> Fit<ArrayBase<D, Ix2>, T, LinearError<F>>
-    for LinearRegression
+impl<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = F>>
+    Fit<ArrayBase<D, Ix2>, T, LinearError<F>> for LinearRegression
 {
     type Object = FittedLinearRegression<F>;
 

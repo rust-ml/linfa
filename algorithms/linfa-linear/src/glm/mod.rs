@@ -18,10 +18,10 @@ use ndarray::{Array, Array1, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2}
 use serde::{Deserialize, Serialize};
 
 use linfa::traits::*;
-use linfa::{dataset::AsTargets, DatasetBase};
+use linfa::{dataset::AsSingleTargets, DatasetBase};
 
-impl<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> Fit<ArrayBase<D, Ix2>, T, LinearError<F>>
-    for TweedieRegressorValidParams<F>
+impl<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = F>>
+    Fit<ArrayBase<D, Ix2>, T, LinearError<F>> for TweedieRegressorValidParams<F>
 {
     type Object = TweedieRegressor<F>;
 
