@@ -244,6 +244,8 @@ impl<L, R: Records, T: AsMultiTargets<Elem = L>> AsMultiTargets for DatasetBase<
     }
 }
 
+impl<L, R: Records, T: AsSingleTargets<Elem = L>> AsSingleTargets for DatasetBase<R, T> {}
+
 impl<L, R: Records, T: AsMultiTargetsMut<Elem = L>> AsMultiTargetsMut for DatasetBase<R, T> {
     type Elem = L;
 
