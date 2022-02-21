@@ -206,7 +206,7 @@ pub trait Records: Sized {
 pub trait AsMultiTargets {
     type Elem;
 
-    /// Convert to a multi-target
+    /// Returns a view on targets as two-dimensional array
     fn as_multi_targets(&self) -> ArrayView2<Self::Elem>;
 
     /// Returns the number of targets
@@ -256,7 +256,7 @@ pub trait AsMultiTargetsMut {
     fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<Self::Elem>;
 
     /// Returns the number of targets
-    fn ntargets(&mut self) -> usize;
+    fn ntargets(&self) -> usize;
 }
 
 pub trait AsSingleTargetsMut: AsMultiTargetsMut {

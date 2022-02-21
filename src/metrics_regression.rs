@@ -140,7 +140,7 @@ impl<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = F>> SingleTargetRegr
 ///
 /// To compare single-dimensional arrays use [`SingleTargetRegression`](trait.SingleTargetRegression.html)
 pub trait MultiTargetRegression<F: Float, T: AsMultiTargets<Elem = F>>:
-    AsSingleTargets<Elem = F>
+    AsMultiTargets<Elem = F>
 {
     /// Maximal error between two continuous variables
     fn max_error(&self, other: &T) -> Result<Array1<F>> {

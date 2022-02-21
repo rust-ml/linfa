@@ -251,7 +251,7 @@ impl<L, R: Records, T: AsMultiTargetsMut<Elem = L>> AsMultiTargetsMut for Datase
         self.targets.as_multi_targets_mut()
     }
 
-    fn ntargets(&mut self) -> usize {
+    fn ntargets(&self) -> usize {
         self.targets.ntargets()
     }
 }

@@ -35,8 +35,6 @@ impl<'a, L, S: Data<Elem = L>> AsMultiTargets for ArrayBase<S, Ix2> {
 
 impl<'a, L, S: Data<Elem = L>> AsSingleTargets for ArrayBase<S, Ix1> {}
 
-impl<'a, L, S: Data<Elem = L>> AsSingleTargets for ArrayBase<S, Ix2> {}
-
 impl<'a, L: Clone + 'a, S: Data<Elem = L>> FromTargetArray<'a, L> for ArrayBase<S, Ix2> {
     type Owned = ArrayBase<OwnedRepr<L>, Ix2>;
     type View = ArrayBase<ViewRepr<&'a L>, Ix2>;
@@ -50,6 +48,18 @@ impl<'a, L: Clone + 'a, S: Data<Elem = L>> FromTargetArray<'a, L> for ArrayBase<
     }
 }
 
+impl<L, S: DataMut<Elem = L>> AsMultiTargetsMut for ArrayBase<S, Ix1> {
+    type Elem = L;
+
+    fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<'_, Self::Elem> {
+        self.view_mut().insert_axis(Axis(1))
+    }
+
+    fn ntargets(&self) -> usize {
+        1
+    }
+}
+
 impl<L, S: DataMut<Elem = L>> AsMultiTargetsMut for ArrayBase<S, Ix2> {
     type Elem = L;
 
@@ -57,7 +67,7 @@ impl<L, S: DataMut<Elem = L>> AsMultiTargetsMut for ArrayBase<S, Ix2> {
         self.view_mut()
     }
 
-    fn ntargets(&mut self) -> usize {
+    fn ntargets(&self) -> usize {
         self.len_of(Axis(1))
     }
 }
@@ -93,7 +103,7 @@ impl<L: Label, T: AsMultiTargetsMut<Elem = L>> AsMultiTargetsMut for CountedTarg
         self.targets.as_multi_targets_mut()
     }
 
-    fn ntargets(&mut self) -> usize {
+    fn ntargets(&self) -> usize {
         self.targets.ntargets()
     }
 }
