@@ -20,21 +20,15 @@
 //! * [OPTICS](struct.OpticsAnalysis.html)
 //!
 //! Implementation choices, algorithmic details and tutorials can be found in the page dedicated to the specific algorithms.
-//!
-//! Additionally, this crate provides the [`generate_blobs`](fn.generate_blobs.html) utility to quickly generate test datasets for clustering.
-//!
-//! Check [here](https://github.com/LukeMathWalker/clustering-benchmarks) for extensive benchmarks against `scikit-learn`'s K-means implementation.
 mod appx_dbscan;
 mod dbscan;
 mod gaussian_mixture;
 #[allow(clippy::new_ret_no_self)]
 mod k_means;
 mod optics;
-mod utils;
 
 pub use appx_dbscan::*;
 pub use dbscan::*;
 pub use gaussian_mixture::*;
 pub use k_means::*;
 pub use optics::*;
-pub use utils::*;

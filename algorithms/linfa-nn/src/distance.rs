@@ -1,5 +1,5 @@
 use linfa::Float;
-use ndarray::{ArrayView, Dimension, Zip};
+use ndarray::{Array2, ArrayBase, ArrayView, Axis, Data, Dimension, Ix2, Zip};
 use ndarray_stats::DeviationExt;
 
 /// A distance function that can be used in spatial algorithms such as nearest neighbour.
@@ -88,6 +88,31 @@ impl<F: Float> Distance<F> for LpDist<F> {
             .fold(F::zero(), |acc, &a, &b| acc + (a - b).abs().powf(self.0))
             .powf(F::one() / self.0)
     }
+}
+
+/// Computes a similarity matrix with gaussian kernel and scaling parameter `eps`
+///
+/// The generated matrix is a upper triangular matrix with dimension NxN (number of observations) and contains the similarity between all permutations of observations
+/// similarity
+pub fn to_gaussian_similarity<F: Float>(
+    observations: &ArrayBase<impl Data<Elem = F>, Ix2>,
+    eps: F,
+    dist_fn: &impl Distance<F>,
+) -> Array2<F> {
+    let n_observations = observations.len_of(Axis(0));
+    let mut similarity = Array2::eye(n_observations);
+
+    for i in 0..n_observations {
+        for j in 0..n_observations {
+            let a = observations.row(i);
+            let b = observations.row(j);
+
+            let distance = dist_fn.distance(a, b);
+            similarity[(i, j)] = (-distance / eps).exp();
+        }
+    }
+
+    similarity
 }
 
 #[cfg(test)]

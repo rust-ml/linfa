@@ -89,7 +89,8 @@ use serde_crate::{Deserialize, Serialize};
 /// ```
 /// use linfa::DatasetBase;
 /// use linfa::traits::{Fit, FitWith, Predict};
-/// use linfa_clustering::{KMeansParams, KMeans, generate_blobs, IncrKMeansError};
+/// use linfa_clustering::{KMeansParams, KMeans, IncrKMeansError};
+/// use linfa_datasets::generate;
 /// use ndarray::{Axis, array, s};
 /// use ndarray_rand::rand::SeedableRng;
 /// use rand_isaac::Isaac64Rng;
@@ -104,7 +105,7 @@ use serde_crate::{Deserialize, Serialize};
 /// let expected_centroids = array![[0., 1.], [-10., 20.], [-1., 10.]];
 /// // Let's generate a synthetic dataset: three blobs of observations
 /// // (100 points each) centered around our `expected_centroids`
-/// let data = generate_blobs(100, &expected_centroids, &mut rng);
+/// let data = generate::blobs(100, &expected_centroids, &mut rng);
 /// let n_clusters = expected_centroids.len_of(Axis(0));
 ///
 /// // Standard K-means
