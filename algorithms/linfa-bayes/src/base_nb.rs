@@ -3,7 +3,7 @@ use ndarray_stats::QuantileExt;
 use std::collections::HashMap;
 
 use crate::error::{NaiveBayesError, Result};
-use linfa::dataset::{AsTargets, DatasetBase, Labels};
+use linfa::dataset::{AsSingleTargets, DatasetBase, Labels};
 use linfa::traits::FitWith;
 use linfa::{Float, Label};
 
@@ -54,7 +54,7 @@ where
     F: Float,
     L: Label + Ord,
     D: Data<Elem = F>,
-    T: AsTargets<Elem = L> + Labels<Elem = L>,
+    T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
 {
     fn fit(
         &self,
