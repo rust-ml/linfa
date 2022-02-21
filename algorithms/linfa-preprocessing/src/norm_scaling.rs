@@ -1,5 +1,5 @@
 //! Sample normalization methods
-use linfa::dataset::{AsTargets, DatasetBase, Float, WithLapack, WithoutLapack};
+use linfa::dataset::{AsMultiTargets, DatasetBase, Float, WithLapack, WithoutLapack};
 use linfa::traits::Transformer;
 use ndarray::{Array2, ArrayBase, Axis, Data, Ix2, Zip};
 use ndarray_linalg::norm::Norm;
@@ -71,7 +71,7 @@ impl<F: Float> Transformer<Array2<F>, Array2<F>> for NormScaler {
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T: AsTargets>
+impl<F: Float, D: Data<Elem = F>, T: AsMultiTargets>
     Transformer<DatasetBase<ArrayBase<D, Ix2>, T>, DatasetBase<Array2<F>, T>> for NormScaler
 {
     /// Substitutes the records of the dataset with their scaled versions with unit norm.

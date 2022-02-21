@@ -2,7 +2,7 @@
 
 use crate::error::{PreprocessingError, Result};
 use approx::abs_diff_eq;
-use linfa::dataset::{AsTargets, DatasetBase, Float, WithLapack};
+use linfa::dataset::{AsMultiTargets, DatasetBase, Float, WithLapack};
 use linfa::traits::{Fit, Transformer};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2, Zip};
 use ndarray_linalg::norm::Norm;
@@ -216,7 +216,7 @@ impl<F: Float> LinearScaler<F> {
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T: AsTargets> Fit<ArrayBase<D, Ix2>, T, PreprocessingError>
+impl<F: Float, D: Data<Elem = F>, T: AsMultiTargets> Fit<ArrayBase<D, Ix2>, T, PreprocessingError>
     for LinearScalerParams<F>
 {
     type Object = LinearScaler<F>;
@@ -279,7 +279,7 @@ impl<F: Float> Transformer<Array2<F>, Array2<F>> for LinearScaler<F> {
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T: AsTargets>
+impl<F: Float, D: Data<Elem = F>, T: AsMultiTargets>
     Transformer<DatasetBase<ArrayBase<D, Ix2>, T>, DatasetBase<Array2<F>, T>> for LinearScaler<F>
 {
     /// Substitutes the records of the dataset with their scaled version.

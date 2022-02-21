@@ -22,7 +22,7 @@ use crate::error::{Error, Result};
 use argmin::prelude::*;
 use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::lbfgs::LBFGS;
-use linfa::prelude::{AsTargets, DatasetBase};
+use linfa::prelude::{AsSingleTargets, DatasetBase};
 use linfa::traits::{Fit, PredictInplace};
 use ndarray::{
     s, Array, Array1, Array2, ArrayBase, ArrayView, ArrayView2, Axis, CowArray, Data, DataMut,
@@ -185,7 +185,7 @@ impl<F: Float, D: Dimension> LogisticRegressionValidParams<F, D> {
     }
 }
 
-impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C>>
+impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = C>>
     Fit<ArrayBase<D, Ix2>, T, Error> for ValidLogisticRegression<F>
 {
     type Object = FittedLogisticRegression<F, C>;
@@ -225,7 +225,7 @@ impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C
     }
 }
 
-impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C>>
+impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = C>>
     Fit<ArrayBase<D, Ix2>, T, Error> for ValidMultiLogisticRegression<F>
 {
     type Object = MultiFittedLogisticRegression<F, C>;
@@ -238,7 +238,7 @@ impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C
     /// This method returns an error if any of the preconditions are violated,
     /// i.e. any values are `Inf` or `NaN`, `y` doesn't have as many items as
     /// `x` has rows, or if other parameters (gradient_tolerance, alpha) have
-    /// been set to inalid values. The input features are also strongly recommended to be
+    /// been set to invalid values. The input features are also strongly recommended to be
     /// normalized to ensure numerical stability.
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
         let (x, y) = (dataset.records(), dataset.targets());
@@ -268,7 +268,7 @@ impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C
 fn label_classes<F, T, C>(y: T) -> Result<(ClassLabels<F, C>, Array1<F>)>
 where
     F: Float,
-    T: AsTargets<Elem = C>,
+    T: AsSingleTargets<Elem = C>,
     C: Ord + Clone,
 {
     let y_single_target = y.try_single_target()?;
@@ -324,7 +324,7 @@ where
 fn label_classes_multi<F, T, C>(y: T) -> Result<(Vec<C>, Array2<F>)>
 where
     F: Float,
-    T: AsTargets<Elem = C>,
+    T: AsSingleTargets<Elem = C>,
     C: Ord + Clone,
 {
     let y_single_target = y.try_single_target()?;

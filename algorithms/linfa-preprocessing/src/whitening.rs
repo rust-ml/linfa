@@ -7,7 +7,7 @@
 //! unit diagonal (white) covariance matrix.
 
 use crate::error::{PreprocessingError, Result};
-use linfa::dataset::{AsTargets, Records, WithLapack, WithoutLapack};
+use linfa::dataset::{AsMultiTargets, Records, WithLapack, WithoutLapack};
 use linfa::traits::{Fit, Transformer};
 use linfa::{DatasetBase, Float};
 use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
@@ -55,7 +55,7 @@ impl Whitener {
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T: AsTargets> Fit<ArrayBase<D, Ix2>, T, PreprocessingError>
+impl<F: Float, D: Data<Elem = F>, T: AsMultiTargets> Fit<ArrayBase<D, Ix2>, T, PreprocessingError>
     for Whitener
 {
     type Object = FittedWhitener<F>;
@@ -156,7 +156,7 @@ impl<F: Float> Transformer<Array2<F>, Array2<F>> for FittedWhitener<F> {
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T: AsTargets>
+impl<F: Float, D: Data<Elem = F>, T: AsMultiTargets>
     Transformer<DatasetBase<ArrayBase<D, Ix2>, T>, DatasetBase<Array2<F>, T>>
     for FittedWhitener<F>
 {

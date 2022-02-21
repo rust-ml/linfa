@@ -9,7 +9,7 @@ use super::NodeIter;
 use super::Tikz;
 use super::{DecisionTreeValidParams, SplitQuality};
 use linfa::{
-    dataset::{AsTargets, Labels, Records},
+    dataset::{AsSingleTargets, Labels, Records},
     error::Error,
     error::Result,
     traits::*,
@@ -196,7 +196,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
     }
 
     /// Recursively fits the node
-    fn fit<D: Data<Elem = F>, T: AsTargets<Elem = L> + Labels<Elem = L>>(
+    fn fit<D: Data<Elem = F>, T: AsSingleTargets<Elem = L> + Labels<Elem = L>>(
         data: &DatasetBase<ArrayBase<D, Ix2>, T>,
         mask: &RowMask,
         hyperparameters: &DecisionTreeValidParams<F, L>,
@@ -513,7 +513,7 @@ impl<'a, F: Float, L: Label + 'a + std::fmt::Debug, D, T> Fit<ArrayBase<D, Ix2>,
     for DecisionTreeValidParams<F, L>
 where
     D: Data<Elem = F>,
-    T: AsTargets<Elem = L> + Labels<Elem = L>,
+    T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
 {
     type Object = DecisionTree<F, L>;
 
