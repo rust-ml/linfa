@@ -28,7 +28,7 @@ use sprs::{CsMat, CsMatView};
 use std::ops::Mul;
 
 use linfa::{
-    dataset::AsTargets, dataset::DatasetBase, dataset::FromTargetArray, dataset::Records,
+    dataset::AsMultiTargets, dataset::DatasetBase, dataset::FromTargetArray, dataset::Records,
     traits::Transformer, Float,
 };
 
@@ -381,7 +381,7 @@ impl<'a, F: Float, N: NearestNeighbour> Transformer<&ArrayView2<'a, F>, Kernel<F
     }
 }
 
-impl<'a, F: Float, T: AsTargets, N: NearestNeighbour>
+impl<'a, F: Float, T: AsMultiTargets, N: NearestNeighbour>
     Transformer<DatasetBase<Array2<F>, T>, DatasetBase<Kernel<F>, T>> for KernelParams<F, N>
 {
     /// Builds a new Dataset with the kernel as the records and the same targets as the input one.
@@ -409,8 +409,13 @@ impl<'a, F: Float, T: AsTargets, N: NearestNeighbour>
     }
 }
 
-impl<'a, F: Float, L: 'a, T: AsTargets<Elem = L> + FromTargetArray<'a, L>, N: NearestNeighbour>
-    Transformer<&'a DatasetBase<Array2<F>, T>, DatasetBase<Kernel<F>, T::View>>
+impl<
+        'a,
+        F: Float,
+        L: 'a,
+        T: AsMultiTargets<Elem = L> + FromTargetArray<'a, L>,
+        N: NearestNeighbour,
+    > Transformer<&'a DatasetBase<Array2<F>, T>, DatasetBase<Kernel<F>, T::View>>
     for KernelParams<F, N>
 {
     /// Builds a new Dataset with the kernel as the records and the same targets as the input one.
@@ -443,7 +448,7 @@ impl<
         'b,
         F: Float,
         L: 'b,
-        T: AsTargets<Elem = L> + FromTargetArray<'b, L>,
+        T: AsMultiTargets<Elem = L> + FromTargetArray<'b, L>,
         N: NearestNeighbour,
     > Transformer<&'b DatasetBase<ArrayView2<'a, F>, T>, DatasetBase<Kernel<F>, T::View>>
     for KernelParams<F, N>
