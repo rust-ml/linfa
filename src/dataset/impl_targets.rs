@@ -84,6 +84,8 @@ impl<T: AsMultiTargets> AsMultiTargets for &T {
     }
 }
 
+impl<T: AsSingleTargets> AsSingleTargets for &T {}
+
 impl<L: Label, T: AsMultiTargets<Elem = L>> AsMultiTargets for CountedTargets<L, T> {
     type Elem = L;
 
