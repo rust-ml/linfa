@@ -107,6 +107,8 @@ where
         );
 
         let y_est = dataset.records().dot(&hyperplane) + &intercept;
+
+        // try to calculate the variance
         let variance = variance_params(dataset, y_est);
 
         Ok(MultiTaskElasticNet {
@@ -353,9 +355,7 @@ fn block_coordinate_descent<'a, F: Float>(
             }
             let old_w_j: ArrayView1<F> = w.slice(s![j, ..]);
             let x_j: ArrayView1<F> = x.slice(s![.., j]);
-            let norm_old_w_j = old_w_j
-                .fold(F::zero(), |sum, &wjt| sum + wjt.powi(2))
-                .sqrt();
+            let norm_old_w_j = old_w_j.map(|wjt| wjt.powi(2)).sum().sqrt();
             if abs_diff_ne!(norm_old_w_j, F::zero()) {
                 for i in 0..x.shape()[0] {
                     r.slice_mut(s![i, ..]).scaled_add(x_j[i], &old_w_j);
@@ -366,10 +366,7 @@ fn block_coordinate_descent<'a, F: Float>(
                 &(block_soft_thresholding(tmp.view(), n_samples * l1_ratio * penalty)
                     / (norm_cols_x[j] + n_samples * (F::one() - l1_ratio) * penalty)),
             );
-            let norm_w_j = w
-                .slice(s![j, ..])
-                .fold(F::zero(), |sum, &wjt| sum + wjt.powi(2))
-                .sqrt();
+            let norm_w_j = w.slice(s![j, ..]).map(|wjt| wjt.powi(2)).sum().sqrt();
             if abs_diff_ne!(norm_w_j, F::zero()) {
                 for i in 0..x.shape()[0] {
                     for t in 0..n_tasks {
@@ -384,7 +381,7 @@ fn block_coordinate_descent<'a, F: Float>(
         n_steps += 1;
 
         if n_steps == max_steps - 1 || abs_diff_eq!(w_max, F::zero()) || d_w_max / w_max < d_w_tol {
-            // We've hit one potentiel stopping criteria
+            // We've hit one potential stopping criteria
             // check duality gap for ultimate stopping criterion
             gap = duality_gap_mtl(x.view(), y.view(), w.view(), r.view(), l1_ratio, penalty);
             if gap < tol {
@@ -397,7 +394,7 @@ fn block_coordinate_descent<'a, F: Float>(
 }
 
 fn block_soft_thresholding<'a, F: Float>(x: ArrayView1<'a, F>, threshold: F) -> Array1<F> {
-    let norm_x = x.fold(F::zero(), |sum, &x_i| sum + x_i * x_i).sqrt();
+    let norm_x = x.map(|x| x.powi(2)).sum().sqrt();
     if norm_x < threshold {
         return Array1::<F>::zeros(x.len());
     }
@@ -429,7 +426,7 @@ fn duality_gap<'a, F: Float>(
     } else {
         (F::one(), r_norm2)
     };
-    let l1_norm = w.fold(F::zero(), |sum, w_i| sum + w_i.abs());
+    let l1_norm = w.map(|w_i| w_i.abs()).sum();
     gap += l1_reg * l1_norm - const_ * r.dot(&y)
         + half * l2_reg * (F::one() + const_ * const_) * w_norm2;
     gap
@@ -452,8 +449,8 @@ fn duality_gap_mtl<'a, F: Float>(
     let dual_norm_xta = xta
         .map_axis(Axis(1), |x| x.dot(&x).sqrt())
         .fold(F::zero(), |max_norm, &nrm| max_norm.max(nrm));
-    let r_norm2 = r.fold(F::zero(), |sum, &rij| sum + rij.powi(2));
-    let w_norm2 = w.fold(F::zero(), |sum, &wij| sum + wij.powi(2));
+    let r_norm2 = r.map(|rij| rij.powi(2)).sum();
+    let w_norm2 = w.map(|wij| wij.powi(2)).sum();
     let (const_, mut gap) = if dual_norm_xta > l1_reg {
         let const_ = l1_reg / dual_norm_xta;
         let a_norm2 = r_norm2 * const_ * const_;
@@ -580,7 +577,7 @@ mod tests {
         let mut resid = x.dot(beta);
         resid = &resid * -1.;
         resid = &resid - intercept + y;
-        let mut datafit = resid.fold(0., |sum, &r| sum + r.powi(2));
+        let mut datafit = resid.map(|rij| rij.powi(2)).sum();
         datafit /= 2.0 * x.shape()[0] as f64;
         datafit
     }
@@ -594,7 +591,7 @@ mod tests {
     }
 
     fn elastic_net_mtl_penalty(beta: &Array2<f64>, alpha: f64) -> f64 {
-        let frob_norm = beta.fold(0., |sum, &beta_ij| sum + beta_ij.powi(2));
+        let frob_norm = beta.map(|beta_ij| beta_ij.powi(2)).sum();
         let l21_norm = beta
             .map_axis(Axis(1), |beta_j| (beta_j.dot(&beta_j)).sqrt())
             .sum();
