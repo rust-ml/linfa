@@ -858,7 +858,7 @@ mod tests {
     fn check_kernel_from_dataset_type<
         'a,
         L: 'a,
-        T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
+        T: AsMultiTargets<Elem = L> + FromTargetArray<'a, L>,
     >(
         input: &'a DatasetBase<Array2<f64>, T>,
         k_type: KernelType,
@@ -894,7 +894,7 @@ mod tests {
     fn check_kernel_from_dataset_view_type<
         'a,
         L: 'a,
-        T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
+        T: AsMultiTargets<Elem = L> + FromTargetArray<'a, L>,
     >(
         input: &'a DatasetBase<ArrayView2<'a, f64>, T>,
         k_type: KernelType,
