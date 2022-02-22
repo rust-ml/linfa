@@ -1123,11 +1123,11 @@ pub trait IntoTargets<T> {
     fn into(self) -> T;
 }
 
-impl<F, D: Data<Elem = F>> IntoTargets<ArrayBase<D, Ix2>> for ArrayBase<D, Ix1> {
-    fn into(self) -> ArrayBase<D, Ix2> {
-        self.insert_axis(Axis(1))
-    }
-}
+// impl<F, D: Data<Elem = F>> IntoTargets<ArrayBase<D, Ix2>> for ArrayBase<D, Ix1> {
+//     fn into(self) -> ArrayBase<D, Ix2> {
+//         self.insert_axis(Axis(1))
+//     }
+// }
 
 impl<T> IntoTargets<T> for T {
     fn into(self) -> T {

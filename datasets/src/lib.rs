@@ -79,7 +79,7 @@ pub fn iris() -> Dataset<f64, usize> {
 
 #[cfg(feature = "diabetes")]
 /// Read in the diabetes dataset from dataset path
-pub fn diabetes() -> Dataset<f64, f64> {
+pub fn diabetes() -> Dataset<f64, f64, Ix1> {
     let data = include_bytes!("../data/diabetes_data.csv.gz");
     let data = array_from_buf(&data[..]);
 
