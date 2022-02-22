@@ -174,13 +174,14 @@ pub struct CountedTargets<L: Label, P> {
 ///
 /// The most commonly used typed of dataset. It contains a number of records
 /// stored as an `Array2` and each record may correspond to multiple targets. The
-/// targets are stored as an `Array2`.
-pub type Dataset<D, T> = DatasetBase<ArrayBase<OwnedRepr<D>, Ix2>, ArrayBase<OwnedRepr<T>, Ix2>>;
+/// targets are stored as an `Array2` by default.
+pub type Dataset<D, T, I = Ix2> =
+    DatasetBase<ArrayBase<OwnedRepr<D>, Ix2>, ArrayBase<OwnedRepr<T>, I>>;
 
 /// DatasetView
 ///
 /// A read only view of a Dataset
-pub type DatasetView<'a, D, T> = DatasetBase<ArrayView<'a, D, Ix2>, ArrayView<'a, T, Ix2>>;
+pub type DatasetView<'a, D, T, I = Ix2> = DatasetBase<ArrayView<'a, D, Ix2>, ArrayView<'a, T, I>>;
 
 /// DatasetPr
 ///
