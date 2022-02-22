@@ -1,12 +1,12 @@
 use linfa::prelude::Transformer;
 use linfa::{
     composing::platt_scaling::{platt_newton_method, platt_predict, PlattParams},
-    dataset::{AsTargets, CountedTargets, DatasetBase, Pr},
+    dataset::{AsSingleTargets, CountedTargets, DatasetBase, Pr},
     traits::Fit,
     traits::{Predict, PredictInplace},
     ParamGuard,
 };
-use ndarray::{Array1, Array2, ArrayBase, ArrayView2, Data, Ix1, Ix2};
+use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix1, Ix2};
 use std::cmp::Ordering;
 
 use super::error::{Result, SvmError};
@@ -16,7 +16,7 @@ use super::SolverParams;
 use super::{Float, Svm, SvmValidParams};
 use linfa_kernel::Kernel;
 
-fn calibrate_with_platt<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = bool>>(
+fn calibrate_with_platt<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = bool>>(
     mut obj: Svm<F, F>,
     params: &PlattParams<F, ()>,
     dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
@@ -274,11 +274,11 @@ macro_rules! impl_classification {
     };
 }
 
-impl_classification!(Array2<F>, Array2<bool>);
-impl_classification!(ArrayView2<'_, F>, ArrayView2<'_, bool>);
-impl_classification!(Array2<F>, CountedTargets<bool, Array2<bool>>);
-impl_classification!(ArrayView2<'_, F>, CountedTargets<bool, Array2<bool>>);
-impl_classification!(ArrayView2<'_, F>, CountedTargets<bool, ArrayView2<'_, bool>>);
+impl_classification!(Array2<F>, Array1<bool>);
+impl_classification!(ArrayView2<'_, F>, ArrayView1<'_, bool>);
+impl_classification!(Array2<F>, CountedTargets<bool, Array1<bool>>);
+impl_classification!(ArrayView2<'_, F>, CountedTargets<bool, Array1<bool>>);
+impl_classification!(ArrayView2<'_, F>, CountedTargets<bool, ArrayView1<'_, bool>>);
 
 /// Fit one-class problem
 ///
