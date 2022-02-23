@@ -144,10 +144,9 @@ impl<
 mod tests {
 
     use crate::metrics_clustering::SilhouetteScore;
-    use crate::{Dataset, DatasetBase};
+    use crate::Dataset;
     use approx::assert_abs_diff_eq;
     use ndarray::{concatenate, Array, Array1, Axis};
-    use num_traits::ToPrimitive;
 
     #[test]
     fn test_silhouette_score() {
@@ -161,7 +160,7 @@ mod tests {
         .insert_axis(Axis(1));
         let records = concatenate![Axis(1), records, records];
         let targets = concatenate![Axis(0), Array1::from_elem(10, 0), Array1::from_elem(10, 1)];
-        let dataset: Dataset<_, _> = (records, targets).into();
+        let dataset = Dataset::new(records, targets);
         let score = dataset.silhouette_score().unwrap();
         assert_abs_diff_eq!(score, 1f64, epsilon = 1e-3);
 
@@ -183,7 +182,7 @@ mod tests {
             Array1::from_elem(5, 0),
             Array1::from_elem(5, 1)
         ];
-        let dataset: Dataset<_, _> = (records, targets).into();
+        let dataset = Dataset::new(records, targets);
         let score = dataset.silhouette_score().unwrap();
         assert!(score < 0f64);
 
@@ -191,7 +190,7 @@ mod tests {
         let records = Array::linspace(0f64, 10f64, 100).insert_axis(Axis(1));
         let records = concatenate![Axis(1), records, records];
         let targets = Array1::from_shape_fn(100, |i| (i + 3) % 48);
-        let dataset: Dataset<_, _> = (records, targets).into();
+        let dataset = Dataset::new(records, targets);
         let score = dataset.silhouette_score().unwrap();
         assert!(score < -0.5f64)
     }
@@ -199,20 +198,8 @@ mod tests {
     #[test]
     fn test_empty_labels_as_single_label() {
         let records = Array::linspace(0f64, 1f64, 10).insert_axis(Axis(1));
-        let dataset: DatasetBase<_, _> = records.into();
+        let dataset = Dataset::new(records, ());
         let score = dataset.silhouette_score().unwrap();
         assert_abs_diff_eq!(score, 1f64, epsilon = 1e-5);
-    }
-
-    #[test]
-    fn test_fail_on_multi_target() {
-        let records = concatenate![Axis(0), Array::linspace(0f64, 1f64, 10)].insert_axis(Axis(1));
-        let records = concatenate![Axis(1), records, records];
-
-        let targets = records.mapv(|x| x.to_usize().unwrap());
-
-        let dataset: DatasetBase<_, _> = (records, targets).into();
-        let score_res = dataset.silhouette_score();
-        assert!(score_res.is_err());
     }
 }
