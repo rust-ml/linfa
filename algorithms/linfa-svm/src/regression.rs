@@ -153,10 +153,6 @@ macro_rules! impl_regression {
     };
 }
 
-// impl_regression!(Array2<f32>, Array2<f32>, f32);
-// impl_regression!(Array2<f64>, Array2<f64>, f64);
-// impl_regression!(ArrayView2<'_, f32>, ArrayView2<'_, f32>, f32);
-// impl_regression!(ArrayView2<'_, f64>, ArrayView2<'_, f64>, f64);
 impl_regression!(Array2<f32>, Array1<f32>, f32);
 impl_regression!(Array2<f64>, Array1<f64>, f64);
 impl_regression!(ArrayView2<'_, f32>, ArrayView1<'_, f32>, f32);
