@@ -424,7 +424,7 @@ where
 }
 
 impl<F, E, D, S> From<(ArrayBase<D, Ix2>, ArrayBase<S, Ix1>)>
-    for DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, Ix2>>
+    for DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, Ix1>>
 where
     D: Data<Elem = F>,
     S: Data<Elem = E>,
@@ -432,7 +432,7 @@ where
     fn from(rec_tar: (ArrayBase<D, Ix2>, ArrayBase<S, Ix1>)) -> Self {
         DatasetBase {
             records: rec_tar.0,
-            targets: rec_tar.1.insert_axis(Axis(1)),
+            targets: rec_tar.1,
             weights: Array1::zeros(0),
             feature_names: Vec::new(),
         }
