@@ -35,6 +35,21 @@ impl<'a, L, S: Data<Elem = L>> AsMultiTargets for ArrayBase<S, Ix2> {
 
 impl<'a, L, S: Data<Elem = L>> AsSingleTargets for ArrayBase<S, Ix1> {}
 
+impl<'a, L: Clone + 'a, S: Data<Elem = L>> FromTargetArray<'a, L> for ArrayBase<S, Ix1> {
+    type Owned = ArrayBase<OwnedRepr<L>, Ix1>;
+    type View = ArrayBase<ViewRepr<&'a L>, Ix1>;
+
+    fn new_targets(targets: Array2<L>) -> Self::Owned {
+        let new_shape = &targets.nrows();
+        targets.into_shape(*new_shape).unwrap()
+    }
+
+    fn new_targets_view(targets: ArrayView2<'a, L>) -> Self::View {
+        let new_shape = &targets.nrows();
+        targets.into_shape(*new_shape).unwrap()
+    }
+}
+
 impl<'a, L: Clone + 'a, S: Data<Elem = L>> FromTargetArray<'a, L> for ArrayBase<S, Ix2> {
     type Owned = ArrayBase<OwnedRepr<L>, Ix2>;
     type View = ArrayBase<ViewRepr<&'a L>, Ix2>;
