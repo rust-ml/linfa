@@ -76,8 +76,8 @@ linfa-datasets = { path = "datasets", features = ["winequality", "iris", "diabet
 
 [workspace]
 members = [
-    "algorithms/*",
     "datasets",
+    "algorithms/*",
 ]
 
 [profile.release]
