@@ -421,7 +421,7 @@ mod tests {
         let dataset = Dataset::from((records, targets));
 
         // view ,Split with ratio view
-        let view: DatasetView<f64, f64> = dataset.view();
+        let view = dataset.view();
 
         let (train, val) = view.split_with_ratio(0.5);
         assert_eq!(train.targets().len(), 25);
@@ -432,7 +432,7 @@ mod tests {
         // ------ Labels ------
         let dataset_multiclass =
             Dataset::from((array![[1., 2.], [2., 1.], [0., 0.]], array![0, 1, 2]));
-        let view: DatasetView<f64, usize> = dataset_multiclass.view();
+        let view = dataset_multiclass.view();
 
         // One Vs All
         let datasets_one_vs_all = view.one_vs_all()?;
@@ -447,7 +447,7 @@ mod tests {
             array![0, 1, 2, 2],
         ));
 
-        let view: DatasetView<f64, usize> = dataset_multiclass.view();
+        let view = dataset_multiclass.view();
 
         // Frequencies with mask
         let freqs = view.label_frequencies_with_mask(&[true, true, true, true]);
@@ -474,8 +474,8 @@ mod tests {
         {
             assert_eq!(train.records().dim(), (25, 2));
             assert_eq!(val.records().dim(), (25, 2));
-            assert_eq!(train.targets().dim(), (25, 1));
-            assert_eq!(val.targets().dim(), (25, 1));
+            assert_eq!(train.targets().dim(), 25);
+            assert_eq!(val.targets().dim(), 25);
         }
         assert_eq!(Dataset::from((records, targets)).fold(10).len(), 10);
 
@@ -489,12 +489,12 @@ mod tests {
         {
             assert_eq!(val.records.row(0)[0] as usize, (i + 1));
             assert_eq!(val.records.row(0)[1] as usize, (i + 1));
-            assert_eq!(val.targets.column(0)[0] as usize, (i + 1));
+            assert_eq!(val.targets[0] as usize, (i + 1));
 
             for j in 0..4 {
                 assert!(train.records.row(j)[0] as usize != (i + 1));
                 assert!(train.records.row(j)[1] as usize != (i + 1));
-                assert!(train.targets.column(0)[j] as usize != (i + 1));
+                assert!(train.targets[j] as usize != (i + 1));
             }
         }
     }
@@ -615,7 +615,7 @@ mod tests {
         let records =
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let mut dataset = Dataset::new(records, targets);
         let params = MockFittable { mock_var: 1 };
 
         for (i, (model, validation_set)) in
@@ -635,7 +635,7 @@ mod tests {
         let records =
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let mut dataset = Dataset::new(records, targets);
         let params = MockFittable { mock_var: 1 };
 
         // If we request three folds from a dataset with 5 samples it will cut the
@@ -683,7 +683,7 @@ mod tests {
         let records =
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let mut dataset = Dataset::new(records, targets);
         let params = MockFittable { mock_var: 1 };
         let _ = dataset.iter_fold(0, |v| params.fit(v)).enumerate();
     }
@@ -694,7 +694,7 @@ mod tests {
         let records =
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let mut dataset = Dataset::new(records, targets);
         let params = MockFittable { mock_var: 1 };
         let _ = dataset.iter_fold(6, |v| params.fit(v)).enumerate();
     }
@@ -704,7 +704,7 @@ mod tests {
         let records =
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let mut dataset = Dataset::new(records, targets);
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 2 }];
         let acc = dataset
             .cross_validate(5, &params, |_pred, _truth| Ok(3.))
@@ -728,7 +728,7 @@ mod tests {
         let records =
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let mut dataset = Dataset::new(records, targets);
         // second one should throw an error
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 0 }];
         let acc: MockResult<Array1<_>> = dataset.cross_validate(5, &params, |_pred, _truth| Ok(0.));
@@ -744,7 +744,7 @@ mod tests {
         let records =
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let mut dataset = Dataset::new(records, targets);
         // second one should throw an error
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 1 }];
         let err: MockResult<Array1<_>> = dataset.cross_validate(5, &params, |_pred, _truth| {
@@ -756,53 +756,6 @@ mod tests {
         });
 
         err.unwrap();
-    }
-
-    #[test]
-    fn test_st_cv_mt_all_correct() {
-        let records =
-            Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
-        let targets = array![[1., 1.], [2., 2.], [3., 3.], [4., 4.], [5., 5.]];
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
-        let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 2 }];
-        let acc = dataset
-            .cross_validate_multi(5, &params, |_pred, _truth| Ok(array![5., 6.]))
-            .unwrap();
-        assert_eq!(acc.dim(), (params.len(), dataset.ntargets()));
-        assert_eq!(acc, array![[5., 6.], [5., 6.]])
-    }
-    #[test]
-    fn test_st_cv_mt_one_incorrect() {
-        let records =
-            Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
-        let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
-        // second one should throw an error
-        let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 0 }];
-        let err = dataset
-            .cross_validate_multi(5, &params, |_pred, _truth| Ok(array![5.]))
-            .unwrap_err();
-        assert_eq!(err.to_string(), "invalid parameter 0".to_string());
-    }
-
-    #[test]
-    fn test_st_cv_mt_incorrect_eval() {
-        let records =
-            Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
-        let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
-        // second one should throw an error
-        let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 1 }];
-        let err = dataset
-            .cross_validate_multi(5, &params, |_pred, _truth| {
-                if false {
-                    Ok(array![0f32])
-                } else {
-                    Err(Error::Parameters("eval".to_string()))
-                }
-            })
-            .unwrap_err();
-        assert_eq!(err.to_string(), "invalid parameter eval".to_string());
     }
 
     #[test]
