@@ -7,7 +7,7 @@ use super::{
 use crate::traits::Fit;
 use ndarray::{
     concatenate, s, Array, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, ArrayViewMut2, Axis,
-    Data, DataMut, Dimension, Ix1, Ix2, OwnedRepr,
+    Data, DataMut, Dimension, Ix1, Ix2, OwnedRepr, ViewRepr,
 };
 use rand::{seq::SliceRandom, Rng};
 use std::collections::HashMap;
@@ -677,10 +677,11 @@ macro_rules! assist_swap_array2 {
     };
 }
 
-impl<'a, F: 'a + Clone, E: Copy + 'a, D, S> DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, Ix2>>
+impl<'a, F: 'a + Clone, E: Copy + 'a, D, T> DatasetBase<ArrayBase<D, Ix2>, T>
 where
     D: DataMut<Elem = F>,
-    S: DataMut<Elem = E>,
+    T: AsMultiTargets<Elem = E> + AsMultiTargetsMut<Elem = E> + FromTargetArray<'a, E, View = T>,
+    T::Owned: AsMultiTargets,
 {
     /// Allows to perform k-folding cross validation on fittable algorithms.
     ///
@@ -749,7 +750,7 @@ where
         &'a mut self,
         k: usize,
         fit_closure: C,
-    ) -> impl Iterator<Item = (O, DatasetBase<ArrayView2<F>, ArrayView2<E>>)> {
+    ) -> impl Iterator<Item = (O, DatasetBase<ArrayBase<ViewRepr<&F>, Ix2>, T>)> {
         assert!(k > 0);
         assert!(k <= self.nsamples());
         let samples_count = self.nsamples();
