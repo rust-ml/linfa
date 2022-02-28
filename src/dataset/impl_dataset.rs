@@ -795,87 +795,6 @@ where
         objs.into_iter().zip(self.sample_chunks(fold_size))
     }
 
-    /// Cross validation for multi-target algorithms
-    ///
-    /// Given a list of fittable models, cross validation
-    /// is used to compare their performance according to some
-    /// performance metric. To do so, k-folding is applied to the
-    /// dataset and, for each fold, each model is trained on the training set
-    /// and its performance is evaluated on the validation set. The performances
-    /// collected for each model are then averaged over the number of folds.
-    ///
-    /// ### Parameters:
-    ///
-    /// - `k`: the number of folds to apply
-    /// - `parameters`: a list of models to compare
-    /// - `eval`: closure used to evaluate the performance of each trained model
-    ///
-    /// ### Returns
-    ///
-    /// An array of model performances, in the same order as the models in input, if no errors occur.
-    /// The performance of each model is given as an array of performances, one for each target.
-    /// Otherwise, it might return an Error in one of the following cases:
-    ///
-    /// - An error occurred during the fitting of one model
-    /// - An error occurred inside the evaluation closure
-    ///
-    /// ### Example
-    ///
-    /// ```rust, ignore
-    ///
-    /// use linfa::prelude::*;
-    ///
-    /// // mutability needed for fast cross validation
-    /// let mut dataset = linfa_datasets::diabetes();
-    ///
-    /// let models = vec![model1, model2, ... ];
-    ///
-    /// let r2_scores = dataset.cross_validate_multi(5,&models, |prediction, truth| prediction.r2(truth))?;
-    ///
-    /// ```
-    pub fn cross_validate_multi<O, ER, M, FACC, C>(
-        &'a mut self,
-        k: usize,
-        parameters: &[M],
-        eval: C,
-    ) -> std::result::Result<Array2<FACC>, ER>
-    where
-        ER: std::error::Error + std::convert::From<crate::error::Error>,
-        M: for<'c> Fit<ArrayView2<'c, F>, ArrayView2<'c, E>, ER, Object = O>,
-        O: for<'d> PredictInplace<ArrayView2<'a, F>, Array2<E>>,
-        FACC: Float,
-        C: Fn(&Array2<E>, &ArrayView2<E>) -> std::result::Result<Array1<FACC>, crate::error::Error>,
-    {
-        let mut evaluations = Array2::from_elem((parameters.len(), self.ntargets()), FACC::zero());
-        let folds_evaluations: std::result::Result<Vec<_>, ER> = self
-            .iter_fold(k, |train| {
-                let fit_result: std::result::Result<Vec<_>, ER> =
-                    parameters.iter().map(|p| p.fit(train)).collect();
-                fit_result
-            })
-            .map(|(models, valid)| {
-                let targets = valid.targets();
-                let models = models?;
-                let mut eval_predictions =
-                    Array2::from_elem((models.len(), targets.len()), FACC::zero());
-                for (i, model) in models.iter().enumerate() {
-                    let predicted = model.predict(valid.records());
-                    let eval_pred = match eval(&predicted, targets) {
-                        Err(e) => Err(ER::from(e)),
-                        Ok(res) => Ok(res),
-                    }?;
-                    eval_predictions.row_mut(i).add_assign(&eval_pred);
-                }
-                Ok(eval_predictions)
-            })
-            .collect();
-
-        for fold_evaluation in folds_evaluations? {
-            evaluations.add_assign(&fold_evaluation)
-        }
-        Ok(evaluations / FACC::from(k).unwrap())
-    }
-
     /// Cross validation for single target algorithms
     ///
     /// Given a list of fittable models, cross validation
@@ -929,7 +848,10 @@ where
         M: for<'c> Fit<ArrayView2<'c, F>, ArrayView2<'c, E>, ER, Object = O>,
         O: for<'d> PredictInplace<ArrayView2<'a, F>, ArrayBase<OwnedRepr<E>, I>>,
         FACC: Float,
-        C: Fn(&ArrayView1<E>, &ArrayView1<E>) -> std::result::Result<FACC, crate::error::Error>,
+        C: Fn(
+            &ArrayView2<E>,
+            &ArrayView2<E>,
+        ) -> std::result::Result<Array1<FACC>, crate::error::Error>,
         I: Dimension,
     {
         // construct shape as either vector or matrix
@@ -973,14 +895,21 @@ where
                         let predicted: Array2<_> =
                             predicted.into_shape((nsamples, ntargets)).unwrap();
 
-                        predicted
-                            .columns()
-                            .into_iter()
-                            .zip(targets.columns().into_iter())
-                            .map(|(p, t)| eval(&p.view(), &t).map_err(ER::from))
-                            .collect()
+                        let eval_pred = match eval(&predicted.view(), &targets.view()) {
+                            Err(e) => Err(ER::from(e)),
+                            Ok(res) => Ok(res),
+                        }
+                        .unwrap();
+
+                        eval_pred
+                        // predicted
+                        //     .columns()
+                        //     .into_iter()
+                        //     .zip(targets.columns().into_iter())
+                        //     .map(|(p, t)| eval(&p.view(), &t).map_err(ER::from))
+                        //     .collect()
                     })
-                    .collect::<std::result::Result<Vec<Vec<FACC>>, ER>>()?
+                    .collect::<Vec<Array1<_>>>()
                     .into_iter()
                     .flatten()
                     .collect();
