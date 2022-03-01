@@ -1,4 +1,4 @@
-Version 0.5.1 - 2022-02-27
+Version 0.5.1 - 2022-02-28
 ========================
 
 Note that the commits for this release are in the `0-5-1` branch.
