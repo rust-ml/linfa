@@ -355,7 +355,7 @@ fn block_coordinate_descent<'a, F: Float>(
             }
             let old_w_j: ArrayView1<F> = w.slice(s![j, ..]);
             let x_j: ArrayView1<F> = x.slice(s![.., j]);
-            let norm_old_w_j = old_w_j.map(|wjt| wjt.powi(2)).sum().sqrt();
+            let norm_old_w_j = old_w_j.dot(&old_w_j).sqrt();
             if abs_diff_ne!(norm_old_w_j, F::zero()) {
                 for i in 0..x.shape()[0] {
                     r.slice_mut(s![i, ..]).scaled_add(x_j[i], &old_w_j);
@@ -366,7 +366,7 @@ fn block_coordinate_descent<'a, F: Float>(
                 &(block_soft_thresholding(tmp.view(), n_samples * l1_ratio * penalty)
                     / (norm_cols_x[j] + n_samples * (F::one() - l1_ratio) * penalty)),
             );
-            let norm_w_j = w.slice(s![j, ..]).map(|wjt| wjt.powi(2)).sum().sqrt();
+            let norm_w_j = w.slice(s![j, ..]).dot(&w.slice(s![j, ..])).sqrt();
             if abs_diff_ne!(norm_w_j, F::zero()) {
                 for i in 0..x.shape()[0] {
                     for t in 0..n_tasks {
@@ -394,7 +394,7 @@ fn block_coordinate_descent<'a, F: Float>(
 }
 
 fn block_soft_thresholding<'a, F: Float>(x: ArrayView1<'a, F>, threshold: F) -> Array1<F> {
-    let norm_x = x.map(|x| x.powi(2)).sum().sqrt();
+    let norm_x = x.dot(&x).sqrt();
     if norm_x < threshold {
         return Array1::<F>::zeros(x.len());
     }
@@ -426,7 +426,7 @@ fn duality_gap<'a, F: Float>(
     } else {
         (F::one(), r_norm2)
     };
-    let l1_norm = w.map(|w_i| w_i.abs()).sum();
+    let l1_norm = w.iter().map(|w_i| w_i.abs()).sum();
     gap += l1_reg * l1_norm - const_ * r.dot(&y)
         + half * l2_reg * (F::one() + const_ * const_) * w_norm2;
     gap
@@ -449,8 +449,8 @@ fn duality_gap_mtl<'a, F: Float>(
     let dual_norm_xta = xta
         .map_axis(Axis(1), |x| x.dot(&x).sqrt())
         .fold(F::zero(), |max_norm, &nrm| max_norm.max(nrm));
-    let r_norm2 = r.map(|rij| rij.powi(2)).sum();
-    let w_norm2 = w.map(|wij| wij.powi(2)).sum();
+    let r_norm2 = r.iter().map(|rij| rij.powi(2)).sum();
+    let w_norm2 = w.iter().map(|wij| wij.powi(2)).sum();
     let (const_, mut gap) = if dual_norm_xta > l1_reg {
         let const_ = l1_reg / dual_norm_xta;
         let a_norm2 = r_norm2 * const_ * const_;
@@ -577,7 +577,7 @@ mod tests {
         let mut resid = x.dot(beta);
         resid = &resid * -1.;
         resid = &resid - intercept + y;
-        let mut datafit = resid.map(|rij| rij.powi(2)).sum();
+        let mut datafit = resid.iter().map(|rij| rij.powi(2)).sum();
         datafit /= 2.0 * x.shape()[0] as f64;
         datafit
     }
@@ -591,7 +591,7 @@ mod tests {
     }
 
     fn elastic_net_mtl_penalty(beta: &Array2<f64>, alpha: f64) -> f64 {
-        let frob_norm = beta.map(|beta_ij| beta_ij.powi(2)).sum();
+        let frob_norm: f64 = beta.iter().map(|beta_ij| beta_ij.powi(2)).sum();
         let l21_norm = beta
             .map_axis(Axis(1), |beta_j| (beta_j.dot(&beta_j)).sqrt())
             .sum();
