@@ -403,32 +403,16 @@ impl<F, D: Data<Elem = F>, I: Dimension> From<ArrayBase<D, I>>
     }
 }
 
-impl<F, E, D, S> From<(ArrayBase<D, Ix2>, ArrayBase<S, Ix2>)>
-    for DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, Ix2>>
+impl<F, E, D, S, I: TargetDim> From<(ArrayBase<D, Ix2>, ArrayBase<S, I>)>
+    for DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, I>>
 where
     D: Data<Elem = F>,
     S: Data<Elem = E>,
 {
-    fn from(rec_tar: (ArrayBase<D, Ix2>, ArrayBase<S, Ix2>)) -> Self {
+    fn from(rec_tar: (ArrayBase<D, Ix2>, ArrayBase<S, I>)) -> Self {
         DatasetBase {
             records: rec_tar.0,
             targets: rec_tar.1,
-            weights: Array1::zeros(0),
-            feature_names: Vec::new(),
-        }
-    }
-}
-
-impl<F, E, D, S> From<(ArrayBase<D, Ix2>, ArrayBase<S, Ix1>)>
-    for DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, Ix2>>
-where
-    D: Data<Elem = F>,
-    S: Data<Elem = E>,
-{
-    fn from(rec_tar: (ArrayBase<D, Ix2>, ArrayBase<S, Ix1>)) -> Self {
-        DatasetBase {
-            records: rec_tar.0,
-            targets: rec_tar.1.insert_axis(Axis(1)),
             weights: Array1::zeros(0),
             feature_names: Vec::new(),
         }

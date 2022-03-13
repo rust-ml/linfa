@@ -289,6 +289,7 @@ pub trait Labels {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::Error;
     use approx::assert_abs_diff_eq;
     use ndarray::{array, Array1, Array2};
     use rand::{rngs::SmallRng, SeedableRng};
@@ -345,10 +346,10 @@ mod tests {
 
         // Split with ratio
         let (train, val) = dataset.split_with_ratio(0.25);
-        assert_eq!(train.targets().dim().0, 13);
-        assert_eq!(val.targets().dim().0, 37);
-        assert_eq!(train.records().dim().0, 13);
-        assert_eq!(val.records().dim().0, 37);
+        assert_eq!(train.targets().dim(), 13);
+        assert_eq!(val.targets().dim(), 37);
+        assert_eq!(train.records().dim(), 13);
+        assert_eq!(val.records().dim(), 37);
 
         // ------ Labels ------
         let dataset_multiclass =
