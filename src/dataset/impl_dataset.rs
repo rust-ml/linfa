@@ -825,7 +825,7 @@ where
     ///
     /// let models = vec![model1, model2, ... ];
     ///
-    /// let r2_scores = dataset.cross_validate_multi(5,&models, |prediction, truth| prediction.r2(truth))?;
+    /// let r2_scores = dataset.cross_validate(5, &models, |prediction, truth| prediction.r2(truth))?;
     ///
     /// ```
     pub fn cross_validate<O, ER, M, FACC, C>(
@@ -892,7 +892,20 @@ impl<F, E, I: TargetDim> Dataset<F, E, I> {
     /// ### Returns
     ///  
     /// The input Dataset split into two according to the input ratio.
+    ///
+    /// ### Panics
+    ///
+    /// Panic occurs when the input record or targets are not in row-major layout.
     pub fn split_with_ratio(mut self, ratio: f32) -> (Self, Self) {
+        assert!(
+            self.records.is_standard_layout(),
+            "records not in row-major layout"
+        );
+        assert!(
+            self.targets.is_standard_layout(),
+            "targets not in row-major layout"
+        );
+
         let nfeatures = self.nfeatures();
 
         let n1 = (self.nsamples() as f32 * ratio).ceil() as usize;
