@@ -1,4 +1,4 @@
-use linfa::dataset::{AsTargets, DatasetBase, Labels};
+use linfa::dataset::{AsSingleTargets, DatasetBase, Labels};
 use linfa::traits::{Fit, FitWith, PredictInplace};
 use linfa::{Float, Label};
 use ndarray::{Array1, ArrayBase, ArrayView2, Axis, Data, Ix2};
@@ -14,7 +14,7 @@ where
     F: Float,
     L: Label + 'a,
     D: Data<Elem = F>,
-    T: AsTargets<Elem = L> + Labels<Elem = L>,
+    T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
 {
 }
 
@@ -23,7 +23,7 @@ where
     F: Float,
     L: Label + Ord,
     D: Data<Elem = F>,
-    T: AsTargets<Elem = L> + Labels<Elem = L>,
+    T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
 {
     type Object = GaussianNb<F, L>;
 
@@ -40,7 +40,7 @@ where
     F: Float,
     L: Label + 'a,
     D: Data<Elem = F>,
-    T: AsTargets<Elem = L> + Labels<Elem = L>,
+    T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
 {
     type ObjectIn = Option<GaussianNb<F, L>>;
     type ObjectOut = Option<GaussianNb<F, L>>;
@@ -51,7 +51,7 @@ where
         dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
     ) -> Result<Self::ObjectOut> {
         let x = dataset.records();
-        let y = dataset.try_single_target()?;
+        let y = dataset.as_single_targets();
 
         // If the ratio of the variance between dimensions is too small, it will cause
         // numerical errors. We address this by artificially boosting the variance

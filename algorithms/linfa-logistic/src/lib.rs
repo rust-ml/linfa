@@ -22,7 +22,8 @@ use crate::error::{Error, Result};
 use argmin::prelude::*;
 use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::lbfgs::LBFGS;
-use linfa::prelude::{AsTargets, DatasetBase};
+use linfa::dataset::AsSingleTargets;
+use linfa::prelude::DatasetBase;
 use linfa::traits::{Fit, PredictInplace};
 use ndarray::{
     s, Array, Array1, Array2, ArrayBase, ArrayView, ArrayView2, Axis, CowArray, Data, DataMut,
@@ -185,7 +186,7 @@ impl<F: Float, D: Dimension> LogisticRegressionValidParams<F, D> {
     }
 }
 
-impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C>>
+impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = C>>
     Fit<ArrayBase<D, Ix2>, T, Error> for ValidLogisticRegression<F>
 {
     type Object = FittedLogisticRegression<F, C>;
@@ -225,7 +226,7 @@ impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C
     }
 }
 
-impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C>>
+impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = C>>
     Fit<ArrayBase<D, Ix2>, T, Error> for ValidMultiLogisticRegression<F>
 {
     type Object = MultiFittedLogisticRegression<F, C>;
@@ -268,10 +269,10 @@ impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsTargets<Elem = C
 fn label_classes<F, T, C>(y: T) -> Result<(ClassLabels<F, C>, Array1<F>)>
 where
     F: Float,
-    T: AsTargets<Elem = C>,
+    T: AsSingleTargets<Elem = C>,
     C: Ord + Clone,
 {
-    let y_single_target = y.try_single_target()?;
+    let y_single_target = y.as_single_targets();
     let mut classes: Vec<&C> = vec![];
     let mut target_vec = vec![];
     let mut use_negative_label: bool = true;
@@ -324,10 +325,10 @@ where
 fn label_classes_multi<F, T, C>(y: T) -> Result<(Vec<C>, Array2<F>)>
 where
     F: Float,
-    T: AsTargets<Elem = C>,
+    T: AsSingleTargets<Elem = C>,
     C: Ord + Clone,
 {
-    let y_single_target = y.try_single_target()?;
+    let y_single_target = y.as_single_targets();
     let mut classes = y_single_target.to_vec();
     // Dedup the list of classes
     classes.sort();
@@ -912,7 +913,7 @@ mod test {
         assert!(res.params().abs_diff_eq(&array![0.681], 1e-3));
         assert_eq!(
             &res.predict(dataset.records()),
-            dataset.targets().try_single_target().unwrap()
+            dataset.targets().as_single_target().unwrap()
         );
     }
 
@@ -930,7 +931,7 @@ mod test {
             .abs_diff_eq(&array![0.501, 0.664, 0.335, 0.498], 1e-3));
         assert_eq!(
             &res.predict(dataset.records()),
-            dataset.targets().try_single_target().unwrap()
+            dataset.targets().as_single_target().unwrap()
         );
     }
 
@@ -954,7 +955,7 @@ mod test {
         let res = log_reg.fit(&dataset).unwrap();
         assert_eq!(
             &res.predict(dataset.records()),
-            dataset.targets().try_single_target().unwrap()
+            dataset.targets().as_single_target().unwrap()
         );
     }
 
@@ -1067,7 +1068,7 @@ mod test {
         assert!(res.params().abs_diff_eq(&array![1.181], 1e-3));
         assert_eq!(
             &res.predict(dataset.records()),
-            dataset.targets().try_single_target().unwrap()
+            dataset.targets().as_single_target().unwrap()
         );
     }
 
@@ -1082,7 +1083,7 @@ mod test {
         assert!(res.params().abs_diff_eq(&array![0.682_f32], 1e-3));
         assert_eq!(
             &res.predict(dataset.records()),
-            dataset.targets().try_single_target().unwrap()
+            dataset.targets().as_single_target().unwrap()
         );
     }
 
@@ -1206,7 +1207,7 @@ mod test {
         assert_eq!(res.intercept().dim(), 3);
         assert_eq!(
             &res.predict(dataset.records()),
-            dataset.targets().try_single_target().unwrap()
+            dataset.targets().as_single_target().unwrap()
         );
     }
 
@@ -1221,7 +1222,7 @@ mod test {
         assert_eq!(res.intercept().dim(), 4);
         assert_eq!(
             &res.predict(dataset.records()),
-            dataset.targets().try_single_target().unwrap()
+            dataset.targets().as_single_target().unwrap()
         );
     }
 
@@ -1247,7 +1248,7 @@ mod test {
         assert_eq!(res.intercept().dim(), 2);
         assert_eq!(
             &res.predict(dataset.records()),
-            dataset.targets().try_single_target().unwrap()
+            dataset.targets().as_single_target().unwrap()
         );
     }
 

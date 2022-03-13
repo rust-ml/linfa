@@ -1,12 +1,10 @@
 use approx::{abs_diff_eq, abs_diff_ne};
+use linfa::dataset::AsSingleTargets;
 use ndarray::{s, Array1, ArrayBase, ArrayView1, ArrayView2, Axis, CowArray, Data, Ix1, Ix2};
 use ndarray_linalg::{Inverse, Lapack};
 
 use linfa::traits::{Fit, PredictInplace};
-use linfa::{
-    dataset::{AsTargets, Records},
-    DatasetBase, Float,
-};
+use linfa::{dataset::Records, DatasetBase, Float};
 
 use super::{hyperparams::ElasticNetValidParams, ElasticNet, ElasticNetError, Result};
 
@@ -14,7 +12,7 @@ impl<F, D, T> Fit<ArrayBase<D, Ix2>, T, ElasticNetError> for ElasticNetValidPara
 where
     F: Float + Lapack,
     D: Data<Elem = F>,
-    T: AsTargets<Elem = F>,
+    T: AsSingleTargets<Elem = F>,
 {
     type Object = ElasticNet<F>;
 
@@ -29,7 +27,7 @@ where
     /// parameters and can be used to `predict` values of the target variable
     /// for new feature values.
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
-        let target = dataset.try_single_target()?;
+        let target = dataset.as_single_targets();
 
         let (intercept, y) = compute_intercept(self.with_intercept(), target);
         let (hyperplane, duality_gap, n_steps) = coordinate_descent(
@@ -217,7 +215,7 @@ fn duality_gap<'a, F: Float>(
     gap
 }
 
-fn variance_params<F: Float + Lapack, T: AsTargets<Elem = F>, D: Data<Elem = F>>(
+fn variance_params<F: Float + Lapack, T: AsSingleTargets<Elem = F>, D: Data<Elem = F>>(
     ds: &DatasetBase<ArrayBase<D, Ix2>, T>,
     y_est: Array1<F>,
 ) -> Result<Array1<F>> {
@@ -225,7 +223,7 @@ fn variance_params<F: Float + Lapack, T: AsTargets<Elem = F>, D: Data<Elem = F>>
     let nsamples = ds.nsamples();
 
     // try to convert targets into a single target
-    let target = ds.try_single_target()?;
+    let target = ds.as_single_targets();
 
     // check that we have enough samples
     if nsamples < nfeatures + 1 {
