@@ -123,6 +123,11 @@ impl<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = F>> SingleTargetRegr
 {
 }
 
+impl<F: Float, T: AsSingleTargets<Elem = F>, T2: AsSingleTargets<Elem = F>, D: Data<Elem = F>>
+    SingleTargetRegression<F, T2> for DatasetBase<ArrayBase<D, Ix2>, T>
+{
+}
+
 /// Regression metrices trait for multiple targets.
 ///
 /// It is possible to compute the listed mectrics between:
@@ -214,7 +219,7 @@ impl<F: Float, T: AsMultiTargets<Elem = F>, T2: AsMultiTargets<Elem = F>, D: Dat
 
 #[cfg(test)]
 mod tests {
-    use super::{MultiTargetRegression, SingleTargetRegression};
+    use super::SingleTargetRegression;
     use crate::dataset::DatasetBase;
     use approx::assert_abs_diff_eq;
     use ndarray::prelude::*;
@@ -265,10 +270,9 @@ mod tests {
         let prediction: Array1<f64> = array![0.1, 0.3, 0.2, 0.5, 0.7];
         let abs_err_from_arr1 = prediction.max_error(st_dataset.targets()).unwrap();
         let prediction: DatasetBase<_, _> = (records.view(), prediction.view()).into();
-        let abs_err_from_ds = prediction.max_error(&st_dataset.targets()).unwrap();
-        assert_eq!(abs_err_from_ds.dim(), 1);
+        let abs_err_from_ds = prediction.max_error(st_dataset.targets()).unwrap();
         assert_abs_diff_eq!(abs_err_from_arr1, 0.3);
-        assert_abs_diff_eq!(abs_err_from_arr1, abs_err_from_ds[0]);
+        assert_abs_diff_eq!(abs_err_from_arr1, abs_err_from_ds);
     }
 
     #[test]
@@ -282,9 +286,8 @@ mod tests {
         let abs_err_from_ds = prediction
             .mean_absolute_error(st_dataset.targets())
             .unwrap();
-        assert_eq!(abs_err_from_ds.dim(), 1);
         assert_abs_diff_eq!(abs_err_from_arr1, 0.16);
-        assert_abs_diff_eq!(abs_err_from_arr1, abs_err_from_ds[0]);
+        assert_abs_diff_eq!(abs_err_from_arr1, abs_err_from_ds);
     }
 
     #[test]
@@ -296,9 +299,8 @@ mod tests {
         let abs_err_from_arr1 = prediction.mean_squared_error(st_dataset.targets()).unwrap();
         let prediction: DatasetBase<_, _> = (records.view(), prediction).into();
         let abs_err_from_ds = prediction.mean_squared_error(st_dataset.targets()).unwrap();
-        assert_eq!(abs_err_from_ds.dim(), 1);
         assert_abs_diff_eq!(abs_err_from_arr1, 0.036);
-        assert_abs_diff_eq!(abs_err_from_arr1, abs_err_from_ds[0]);
+        assert_abs_diff_eq!(abs_err_from_arr1, abs_err_from_ds);
     }
 
     #[test]
@@ -314,9 +316,8 @@ mod tests {
         let abs_err_from_ds = prediction
             .mean_squared_log_error(st_dataset.targets())
             .unwrap();
-        assert_eq!(abs_err_from_ds.dim(), 1);
         assert_abs_diff_eq!(abs_err_from_arr1, 0.019_033, epsilon = 1e-5);
-        assert_abs_diff_eq!(abs_err_from_arr1, abs_err_from_ds[0]);
+        assert_abs_diff_eq!(abs_err_from_arr1, abs_err_from_ds);
     }
 
     #[test]
@@ -333,9 +334,8 @@ mod tests {
         let abs_err_from_ds = prediction
             .median_absolute_error(st_dataset.targets())
             .unwrap();
-        assert_eq!(abs_err_from_ds.dim(), 1);
         assert_abs_diff_eq!(abs_err_from_arr1, 0.15, epsilon = 1e-5);
-        assert_abs_diff_eq!(abs_err_from_arr1, abs_err_from_ds[0]);
+        assert_abs_diff_eq!(abs_err_from_arr1, abs_err_from_ds);
 
         // odd length absolute errors
         let records = array![[0.0, 0.0], [0.1, 0.1], [0.2, 0.2], [0.3, 0.3], [0.4, 0.4]];
@@ -345,9 +345,8 @@ mod tests {
         let abs_err_from_arr1 = prediction.median_absolute_error(&st_dataset).unwrap();
         let prediction: DatasetBase<_, _> = (records.view(), prediction).into();
         let abs_err_from_ds = prediction.median_absolute_error(&st_dataset).unwrap();
-        assert_eq!(abs_err_from_ds.dim(), 1);
         assert_abs_diff_eq!(abs_err_from_arr1, 0.2, epsilon = 1e-5);
-        assert_abs_diff_eq!(abs_err_from_arr1, abs_err_from_ds[0]);
+        assert_abs_diff_eq!(abs_err_from_arr1, abs_err_from_ds);
     }
 
     #[test]
@@ -359,9 +358,8 @@ mod tests {
         let abs_err_from_arr1 = prediction.r2(st_dataset.targets()).unwrap();
         let prediction: DatasetBase<_, _> = (records.view(), prediction).into();
         let abs_err_from_ds = prediction.r2(st_dataset.targets()).unwrap();
-        assert_eq!(abs_err_from_ds.dim(), 1);
         assert_abs_diff_eq!(abs_err_from_arr1, -0.8, epsilon = 1e-5);
-        assert_abs_diff_eq!(abs_err_from_arr1, abs_err_from_ds[0]);
+        assert_abs_diff_eq!(abs_err_from_arr1, abs_err_from_ds);
     }
 
     #[test]
@@ -373,8 +371,7 @@ mod tests {
         let abs_err_from_arr1 = prediction.explained_variance(st_dataset.targets()).unwrap();
         let prediction: DatasetBase<_, _> = (records.view(), prediction).into();
         let abs_err_from_ds = prediction.explained_variance(&st_dataset).unwrap();
-        assert_eq!(abs_err_from_ds.dim(), 1);
         assert_abs_diff_eq!(abs_err_from_arr1, 0.8, epsilon = 1e-5);
-        assert_abs_diff_eq!(abs_err_from_arr1, abs_err_from_ds[0]);
+        assert_abs_diff_eq!(abs_err_from_arr1, abs_err_from_ds);
     }
 }

@@ -146,7 +146,6 @@ mod tests {
     use crate::{Dataset, DatasetBase};
     use approx::assert_abs_diff_eq;
     use ndarray::{concatenate, Array, Array1, Axis, Ix1};
-    use num_traits::ToPrimitive;
 
     #[test]
     fn test_silhouette_score() {

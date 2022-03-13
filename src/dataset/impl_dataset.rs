@@ -403,20 +403,6 @@ impl<F, D: Data<Elem = F>, I: Dimension> From<ArrayBase<D, I>>
     }
 }
 
-impl<F, D: Data<Elem = F>, I: Dimension> From<ArrayBase<D, I>>
-    for DatasetBase<ArrayBase<D, I>, Array2<()>>
-{
-    fn from(records: ArrayBase<D, I>) -> Self {
-        let empty_targets = Array2::default((records.len_of(Axis(0)), 1));
-        DatasetBase {
-            records,
-            targets: empty_targets,
-            weights: Array1::zeros(0),
-            feature_names: Vec::new(),
-        }
-    }
-}
-
 impl<F, E, D, S, I: TargetDim> From<(ArrayBase<D, Ix2>, ArrayBase<S, I>)>
     for DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, I>>
 where

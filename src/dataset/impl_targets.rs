@@ -169,6 +169,7 @@ where
     /// In the multi-target case a sample is kept if *any* of its targets appears in `labels`.
     ///
     /// Sample weights and feature names are preserved by this transformation.
+    #[allow(clippy::type_complexity)]
     pub fn with_labels(
         &self,
         labels: &[L],
@@ -180,13 +181,13 @@ where
         let mut targets_arr = Vec::new();
         let mut weights = Vec::new();
 
-        let mut map = vec![HashMap::new(); targets.len_of(Axis(1))];
+        let mut map = vec![HashMap::new(); self.ntargets()];
 
         for (i, (r, t)) in self
             .records()
             .rows()
             .into_iter()
-            .zip(targets.rows().into_iter())
+            .zip(targets.axis_iter(Axis(0)).into_iter())
             .enumerate()
         {
             let any_exists = t.iter().any(|a| labels.contains(a));
@@ -196,8 +197,8 @@ where
                     *map.entry(*val).or_insert(0) += 1;
                 }
 
-                records_arr.push(r.insert_axis(Axis(1)));
-                targets_arr.push(t.insert_axis(Axis(1)));
+                records_arr.push(r);
+                targets_arr.push(t);
 
                 if let Some(weight) = old_weights {
                     weights.push(weight[i]);
