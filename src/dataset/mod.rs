@@ -291,7 +291,7 @@ mod tests {
     use super::*;
     use crate::error::Error;
     use approx::assert_abs_diff_eq;
-    use ndarray::{array, Array1, Array2, Axis};
+    use ndarray::{arr0, array, Array1, Array2, Axis};
     use rand::{rngs::SmallRng, SeedableRng};
 
     #[test]
@@ -567,6 +567,23 @@ mod tests {
         }
     }
 
+    impl<'a> Fit<ArrayView2<'a, f64>, ArrayView2<'a, f64>, MockError> for MockFittable {
+        type Object = MockFittableResult;
+
+        fn fit(
+            &self,
+            training_data: &DatasetView<f64, f64, Ix2>,
+        ) -> std::result::Result<Self::Object, MockError> {
+            if self.mock_var == 0 {
+                Err(MockError::LinfaError(Error::Parameters("0".to_string())))
+            } else {
+                Ok(MockFittableResult {
+                    mock_var: training_data.nsamples(),
+                })
+            }
+        }
+    }
+
     impl<'b> PredictInplace<ArrayView2<'b, f64>, Array1<f64>> for MockFittableResult {
         fn predict_inplace<'a>(&'a self, x: &'a ArrayView2<'b, f64>, y: &mut Array1<f64>) {
             assert_eq!(
@@ -694,7 +711,7 @@ mod tests {
         let mut dataset: Dataset<f64, f64, Ix1> = (records, targets).into();
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 2 }];
         let acc = dataset
-            .cross_validate(5, &params, |_pred, _truth| Ok(3.))
+            .cross_validate(5, &params, |_pred, _truth| Ok(arr0(3.)))
             .unwrap();
         assert_eq!(acc, array![3., 3.]);
 
@@ -703,7 +720,7 @@ mod tests {
 
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 2 }];
         let acc = dataset
-            .cross_validate(2, &params, |_pred, _truth| Ok(3.))
+            .cross_validate(2, &params, |_pred, _truth| Ok(array![3., 3.]))
             .unwrap();
         assert_eq!(acc, array![[3., 3.], [3., 3.]]);
     }
@@ -718,7 +735,8 @@ mod tests {
         let mut dataset: Dataset<f64, f64, Ix1> = (records, targets).into();
         // second one should throw an error
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 0 }];
-        let acc: MockResult<Array1<_>> = dataset.cross_validate(5, &params, |_pred, _truth| Ok(0.));
+        let acc: MockResult<Array1<_>> =
+            dataset.cross_validate(5, &params, |_pred, _truth| Ok(arr0(0.)));
 
         acc.unwrap();
     }
@@ -736,7 +754,7 @@ mod tests {
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 1 }];
         let err: MockResult<Array1<_>> = dataset.cross_validate(5, &params, |_pred, _truth| {
             if false {
-                Ok(0f32)
+                Ok(arr0(0f32))
             } else {
                 Err(Error::Parameters("eval".to_string()))
             }
@@ -753,7 +771,7 @@ mod tests {
         let mut dataset: Dataset<f64, f64> = (records, targets).into();
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 2 }];
         let acc = dataset
-            .cross_validate_multi(5, &params, |_pred, _truth| Ok(array![5., 6.]))
+            .cross_validate(5, &params, |_pred, _truth| Ok(array![5., 6.]))
             .unwrap();
         assert_eq!(acc.dim(), (params.len(), dataset.ntargets()));
         assert_eq!(acc, array![[5., 6.], [5., 6.]])
@@ -767,7 +785,7 @@ mod tests {
         // second one should throw an error
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 0 }];
         let err = dataset
-            .cross_validate_multi(5, &params, |_pred, _truth| Ok(array![5.]))
+            .cross_validate(5, &params, |_pred, _truth| Ok(arr0(5.)))
             .unwrap_err();
         assert_eq!(err.to_string(), "invalid parameter 0".to_string());
     }
@@ -781,9 +799,9 @@ mod tests {
         // second one should throw an error
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 1 }];
         let err = dataset
-            .cross_validate_multi(5, &params, |_pred, _truth| {
+            .cross_validate(5, &params, |_pred, _truth| {
                 if false {
-                    Ok(array![0f32])
+                    Ok(arr0(0f32))
                 } else {
                     Err(Error::Parameters("eval".to_string()))
                 }

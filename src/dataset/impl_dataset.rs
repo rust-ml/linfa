@@ -7,7 +7,7 @@ use super::{
 use crate::traits::Fit;
 use ndarray::{
     concatenate, s, Array, Array1, Array2, ArrayBase, ArrayView, ArrayView2, ArrayViewMut, Axis,
-    Data, DataMut, Dimension, Ix1, Ix2,
+    Data, DataMut, Dimension, Ix2,
 };
 use rand::{seq::SliceRandom, Rng};
 use std::collections::HashMap;
@@ -25,8 +25,8 @@ impl<R: Records, S> DatasetBase<R, S> {
     /// ```ignore
     /// let dataset = Dataset::new(records, targets);
     /// ```
-    pub fn new<T: IntoTargets<S>>(records: R, targets: T) -> DatasetBase<R, S> {
-        let targets = targets.into();
+    pub fn new(records: R, targets: S) -> DatasetBase<R, S> {
+        let targets = targets;
 
         DatasetBase {
             records,
@@ -386,6 +386,20 @@ impl<L: Label, R: Records, S: AsTargets<Elem = L>> DatasetBase<R, S> {
     /// Calculates label frequencies from a dataset
     pub fn label_frequencies(&self) -> HashMap<L, f32> {
         self.label_frequencies_with_mask(&[])
+    }
+}
+
+impl<F, D: Data<Elem = F>, I: Dimension> From<ArrayBase<D, I>>
+    for DatasetBase<ArrayBase<D, I>, Array1<()>>
+{
+    fn from(records: ArrayBase<D, I>) -> Self {
+        let empty_targets = Array1::default(records.len_of(Axis(0)));
+        DatasetBase {
+            records,
+            targets: empty_targets,
+            weights: Array1::zeros(0),
+            feature_names: Vec::new(),
+        }
     }
 }
 
@@ -817,7 +831,7 @@ where
         k: usize,
         parameters: &[M],
         eval: C,
-    ) -> std::result::Result<Array2<FACC>, ER>
+    ) -> std::result::Result<Array<FACC, I>, ER>
     where
         ER: std::error::Error + std::convert::From<crate::error::Error>,
         M: for<'c> Fit<ArrayView2<'c, F>, ArrayView<'c, E, I>, ER, Object = O>,
@@ -826,9 +840,12 @@ where
         C: Fn(
             &Array<E, I>,
             &ArrayView<E, I>,
-        ) -> std::result::Result<Array1<FACC>, crate::error::Error>,
+        ) -> std::result::Result<Array<FACC, I::Smaller>, crate::error::Error>,
     {
-        let mut evaluations = Array2::from_elem((parameters.len(), self.ntargets()), FACC::zero());
+        let mut evaluations = Array::from_elem(
+            self.targets.raw_dim().nsamples(parameters.len()),
+            FACC::zero(),
+        );
         let folds_evaluations: std::result::Result<Vec<_>, ER> = self
             .iter_fold(k, |train| {
                 let fit_result: std::result::Result<Vec<_>, ER> =
@@ -838,15 +855,18 @@ where
             .map(|(models, valid)| {
                 let targets = valid.targets();
                 let models = models?;
+                // XXX diverges from master branch
                 let mut eval_predictions =
-                    Array2::from_elem((models.len(), targets.len()), FACC::zero());
+                    Array::from_elem(targets.raw_dim().nsamples(models.len()), FACC::zero());
                 for (i, model) in models.iter().enumerate() {
                     let predicted = model.predict(valid.records());
                     let eval_pred = match eval(&predicted, targets) {
                         Err(e) => Err(ER::from(e)),
                         Ok(res) => Ok(res),
                     }?;
-                    eval_predictions.row_mut(i).add_assign(&eval_pred);
+                    eval_predictions
+                        .index_axis_mut(Axis(0), i)
+                        .add_assign(&eval_pred);
                 }
                 Ok(eval_predictions)
             })
@@ -993,21 +1013,5 @@ impl<L: Label, S: Labels<Elem = L>> CountedTargets<L, S> {
         let labels = targets.label_count();
 
         CountedTargets { targets, labels }
-    }
-}
-
-pub trait IntoTargets<T> {
-    fn into(self) -> T;
-}
-
-impl<F, D: Data<Elem = F>> IntoTargets<ArrayBase<D, Ix2>> for ArrayBase<D, Ix1> {
-    fn into(self) -> ArrayBase<D, Ix2> {
-        self.insert_axis(Axis(1))
-    }
-}
-
-impl<T> IntoTargets<T> for T {
-    fn into(self) -> T {
-        self
     }
 }
