@@ -291,7 +291,7 @@ mod tests {
     use super::*;
     use crate::error::Error;
     use approx::assert_abs_diff_eq;
-    use ndarray::{array, Array1, Array2};
+    use ndarray::{array, Array1, Array2, Axis};
     use rand::{rngs::SmallRng, SeedableRng};
 
     #[test]
@@ -348,8 +348,8 @@ mod tests {
         let (train, val) = dataset.split_with_ratio(0.25);
         assert_eq!(train.targets().dim(), 13);
         assert_eq!(val.targets().dim(), 37);
-        assert_eq!(train.records().dim(), 13);
-        assert_eq!(val.records().dim(), 37);
+        assert_eq!(train.records().dim().0, 13);
+        assert_eq!(val.records().dim().0, 37);
 
         // ------ Labels ------
         let dataset_multiclass =
@@ -408,7 +408,7 @@ mod tests {
         let dataset = Dataset::from((records, targets));
 
         // view ,Split with ratio view
-        let view: DatasetView<f64, f64> = dataset.view();
+        let view: DatasetView<f64, f64, Ix1> = dataset.view();
 
         let (train, val) = view.split_with_ratio(0.5);
         assert_eq!(train.targets().len(), 25);
@@ -419,7 +419,7 @@ mod tests {
         // ------ Labels ------
         let dataset_multiclass =
             Dataset::from((array![[1., 2.], [2., 1.], [0., 0.]], array![0, 1, 2]));
-        let view: DatasetView<f64, usize> = dataset_multiclass.view();
+        let view: DatasetView<f64, usize, Ix1> = dataset_multiclass.view();
 
         // One Vs All
         let datasets_one_vs_all = view.one_vs_all()?;
@@ -434,7 +434,7 @@ mod tests {
             array![0, 1, 2, 2],
         ));
 
-        let view: DatasetView<f64, usize> = dataset_multiclass.view();
+        let view: DatasetView<f64, usize, Ix1> = dataset_multiclass.view();
 
         // Frequencies with mask
         let freqs = view.label_frequencies_with_mask(&[true, true, true, true]);
@@ -461,8 +461,8 @@ mod tests {
         {
             assert_eq!(train.records().dim(), (25, 2));
             assert_eq!(val.records().dim(), (25, 2));
-            assert_eq!(train.targets().dim(), (25, 1));
-            assert_eq!(val.targets().dim(), (25, 1));
+            assert_eq!(train.targets().dim(), 25);
+            assert_eq!(val.targets().dim(), 25);
         }
         assert_eq!(Dataset::from((records, targets)).fold(10).len(), 10);
 
@@ -476,12 +476,12 @@ mod tests {
         {
             assert_eq!(val.records.row(0)[0] as usize, (i + 1));
             assert_eq!(val.records.row(0)[1] as usize, (i + 1));
-            assert_eq!(val.targets.column(0)[0] as usize, (i + 1));
+            assert_eq!(val.targets[0] as usize, (i + 1));
 
             for j in 0..4 {
                 assert!(train.records.row(j)[0] as usize != (i + 1));
                 assert!(train.records.row(j)[1] as usize != (i + 1));
-                assert!(train.targets.column(0)[j] as usize != (i + 1));
+                assert!(train.targets[j] as usize != (i + 1));
             }
         }
     }
@@ -495,7 +495,7 @@ mod tests {
 
         let res = dataset
             .target_iter()
-            .map(|x| x.try_single_target().unwrap().to_owned())
+            .map(|x| x.as_targets().remove_axis(Axis(1)).to_owned())
             .collect::<Vec<_>>();
 
         assert_eq!(res, &[array![1, 3, 5], array![2, 4, 6]]);
@@ -550,12 +550,12 @@ mod tests {
 
     type MockResult<T> = std::result::Result<T, MockError>;
 
-    impl<'a> Fit<ArrayView2<'a, f64>, ArrayView2<'a, f64>, MockError> for MockFittable {
+    impl<'a> Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>, MockError> for MockFittable {
         type Object = MockFittableResult;
 
         fn fit(
             &self,
-            training_data: &DatasetView<f64, f64>,
+            training_data: &DatasetView<f64, f64, Ix1>,
         ) -> std::result::Result<Self::Object, MockError> {
             if self.mock_var == 0 {
                 Err(MockError::LinfaError(Error::Parameters("0".to_string())))
@@ -602,7 +602,7 @@ mod tests {
         let records =
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let mut dataset: Dataset<f64, f64, Ix1> = (records, targets).into();
         let params = MockFittable { mock_var: 1 };
 
         for (i, (model, validation_set)) in
@@ -611,9 +611,9 @@ mod tests {
             assert_eq!(model.mock_var, 4);
             assert_eq!(validation_set.records().row(0)[0] as usize, i + 1);
             assert_eq!(validation_set.records().row(0)[1] as usize, i + 1);
-            assert_eq!(validation_set.targets().column(0)[0] as usize, i + 1);
+            assert_eq!(validation_set.targets()[0] as usize, i + 1);
             assert_eq!(validation_set.records().dim(), (1, 2));
-            assert_eq!(validation_set.targets().dim(), (1, 1));
+            assert_eq!(validation_set.targets().dim(), 1);
         }
     }
 
@@ -622,7 +622,7 @@ mod tests {
         let records =
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let mut dataset: Dataset<f64, f64, Ix1> = (records, targets).into();
         let params = MockFittable { mock_var: 1 };
 
         // If we request three folds from a dataset with 5 samples it will cut the
@@ -634,9 +634,9 @@ mod tests {
             assert_eq!(model.mock_var, 4);
             assert_eq!(validation_set.records().row(0)[0] as usize, i + 1);
             assert_eq!(validation_set.records().row(0)[1] as usize, i + 1);
-            assert_eq!(validation_set.targets().column(0)[0] as usize, i + 1);
+            assert_eq!(validation_set.targets()[0] as usize, i + 1);
             assert_eq!(validation_set.records().dim(), (1, 2));
-            assert_eq!(validation_set.targets().dim(), (1, 1));
+            assert_eq!(validation_set.targets().dim(), 1);
             assert!(i < 3);
         }
 
@@ -647,9 +647,9 @@ mod tests {
             assert_eq!(model.mock_var, 4);
             assert_eq!(validation_set.records().row(0)[0] as usize, i + 1);
             assert_eq!(validation_set.records().row(0)[1] as usize, i + 1);
-            assert_eq!(validation_set.targets().column(0)[0] as usize, i + 1);
+            assert_eq!(validation_set.targets()[0] as usize, i + 1);
             assert_eq!(validation_set.records().dim(), (1, 2));
-            assert_eq!(validation_set.targets().dim(), (1, 1));
+            assert_eq!(validation_set.targets().dim(), 1);
             assert!(i < 4);
         }
 
@@ -659,7 +659,7 @@ mod tests {
             dataset.iter_fold(2, |v| params.fit(v).unwrap()).enumerate()
         {
             assert_eq!(model.mock_var, 3);
-            assert_eq!(validation_set.targets().dim(), (2, 1));
+            assert_eq!(validation_set.targets().dim(), 2);
             assert!(i < 2);
         }
     }
@@ -670,7 +670,7 @@ mod tests {
         let records =
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let mut dataset: Dataset<f64, f64, Ix1> = (records, targets).into();
         let params = MockFittable { mock_var: 1 };
         let _ = dataset.iter_fold(0, |v| params.fit(v)).enumerate();
     }
@@ -681,7 +681,7 @@ mod tests {
         let records =
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let mut dataset: Dataset<f64, f64, Ix1> = (records, targets).into();
         let params = MockFittable { mock_var: 1 };
         let _ = dataset.iter_fold(6, |v| params.fit(v)).enumerate();
     }
@@ -691,7 +691,7 @@ mod tests {
         let records =
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let mut dataset: Dataset<f64, f64, Ix1> = (records, targets).into();
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 2 }];
         let acc = dataset
             .cross_validate(5, &params, |_pred, _truth| Ok(3.))
@@ -715,7 +715,7 @@ mod tests {
         let records =
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let mut dataset: Dataset<f64, f64, Ix1> = (records, targets).into();
         // second one should throw an error
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 0 }];
         let acc: MockResult<Array1<_>> = dataset.cross_validate(5, &params, |_pred, _truth| Ok(0.));
@@ -731,7 +731,7 @@ mod tests {
         let records =
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let mut dataset: Dataset<f64, f64, Ix1> = (records, targets).into();
         // second one should throw an error
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 1 }];
         let err: MockResult<Array1<_>> = dataset.cross_validate(5, &params, |_pred, _truth| {
@@ -763,7 +763,7 @@ mod tests {
         let records =
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let mut dataset: Dataset<f64, f64, Ix1> = (records, targets).into();
         // second one should throw an error
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 0 }];
         let err = dataset
@@ -777,7 +777,7 @@ mod tests {
         let records =
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let mut dataset: Dataset<f64, f64, Ix1> = (records, targets).into();
         // second one should throw an error
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 1 }];
         let err = dataset
@@ -806,7 +806,7 @@ mod tests {
             [2., 9.],
             [0., 10.]
         ];
-        let targets = array![0, 1, 2, 0, 1, 2, 0, 1, 2, 0].insert_axis(Axis(1));
+        let targets = array![0, 1, 2, 0, 1, 2, 0, 1, 2, 0];
         let dataset = DatasetBase::from((records, targets));
         assert_eq!(dataset.nsamples(), 10);
         assert_eq!(dataset.ntargets(), 1);
@@ -817,10 +817,7 @@ mod tests {
             dataset_no_0.records,
             array![[1., 2.], [2., 3.], [1., 5.], [2., 6.], [1., 8.], [2., 9.]]
         );
-        assert_abs_diff_eq!(
-            dataset_no_0.try_single_target().unwrap(),
-            array![1, 2, 1, 2, 1, 2]
-        );
+        assert_abs_diff_eq!(dataset_no_0.as_single_targets(), array![1, 2, 1, 2, 1, 2]);
         let dataset_no_1 = dataset.with_labels(&[0, 2]);
         assert_eq!(dataset_no_1.nsamples(), 7);
         assert_eq!(dataset_no_1.ntargets(), 1);
@@ -837,7 +834,7 @@ mod tests {
             ]
         );
         assert_abs_diff_eq!(
-            dataset_no_1.try_single_target().unwrap(),
+            dataset_no_1.as_single_targets(),
             array![0, 2, 0, 2, 0, 2, 0]
         );
         let dataset_no_2 = dataset.with_labels(&[0, 1]);
@@ -856,7 +853,7 @@ mod tests {
             ]
         );
         assert_abs_diff_eq!(
-            dataset_no_2.try_single_target().unwrap(),
+            dataset_no_2.as_single_targets(),
             array![0, 1, 0, 1, 0, 1, 0]
         );
     }

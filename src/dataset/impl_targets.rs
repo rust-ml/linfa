@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use super::{
     AsMultiTargets, AsMultiTargetsMut, AsProbabilities, AsSingleTargets, AsSingleTargetsMut,
     AsTargets, AsTargetsMut, CountedTargets, DatasetBase, FromTargetArray, Label, Labels, Pr,
-    Records, TargetDim,
+    TargetDim,
 };
 use ndarray::{
     Array, Array1, Array2, ArrayBase, ArrayView, ArrayViewMut, Axis, CowArray, Data, DataMut,
@@ -172,7 +172,7 @@ where
     pub fn with_labels(
         &self,
         labels: &[L],
-    ) -> DatasetBase<Array2<F>, CountedTargets<L, Array2<L>>> {
+    ) -> DatasetBase<Array2<F>, CountedTargets<L, Array<L, T::Ix>>> {
         let targets = self.targets.as_targets();
         let old_weights = self.weights();
 
@@ -206,14 +206,17 @@ where
         }
 
         let nsamples = records_arr.len();
-        let nfeatures = self.nfeatures();
-        let ntargets = self.ntargets();
 
         let records_arr = records_arr.into_iter().flatten().copied().collect();
         let targets_arr = targets_arr.into_iter().flatten().copied().collect();
 
-        let records = Array2::from_shape_vec((nsamples, nfeatures), records_arr).unwrap();
-        let targets = Array2::from_shape_vec((nsamples, ntargets), targets_arr).unwrap();
+        let records =
+            Array2::from_shape_vec(self.records.raw_dim().nsamples(nsamples), records_arr).unwrap();
+        let targets = Array::from_shape_vec(
+            self.targets.as_targets().raw_dim().nsamples(nsamples),
+            targets_arr,
+        )
+        .unwrap();
 
         let targets = CountedTargets {
             targets,

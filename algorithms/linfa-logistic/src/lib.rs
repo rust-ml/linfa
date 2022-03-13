@@ -913,7 +913,7 @@ mod test {
         assert!(res.params().abs_diff_eq(&array![0.681], 1e-3));
         assert_eq!(
             &res.predict(dataset.records()),
-            dataset.targets().as_single_target().unwrap()
+            dataset.targets().as_single_targets()
         );
     }
 
@@ -931,7 +931,7 @@ mod test {
             .abs_diff_eq(&array![0.501, 0.664, 0.335, 0.498], 1e-3));
         assert_eq!(
             &res.predict(dataset.records()),
-            dataset.targets().as_single_target().unwrap()
+            dataset.targets().as_single_targets()
         );
     }
 
@@ -955,20 +955,8 @@ mod test {
         let res = log_reg.fit(&dataset).unwrap();
         assert_eq!(
             &res.predict(dataset.records()),
-            dataset.targets().as_single_target().unwrap()
+            dataset.targets().as_single_targets()
         );
-    }
-
-    #[test]
-    fn rejects_multi_target() {
-        let log_reg = LogisticRegression::default();
-        let x = array![[0.01], [1.0], [-1.0], [-0.01]];
-        let y = array![[0, 0], [0, 0], [0, 0], [0, 0]];
-        let res = log_reg.fit(&Dataset::new(x, y));
-        assert!(matches!(
-            res.unwrap_err(),
-            Error::LinfaError(linfa::Error::MultipleTargets)
-        ));
     }
 
     #[test]
@@ -1068,7 +1056,7 @@ mod test {
         assert!(res.params().abs_diff_eq(&array![1.181], 1e-3));
         assert_eq!(
             &res.predict(dataset.records()),
-            dataset.targets().as_single_target().unwrap()
+            dataset.targets().as_single_targets()
         );
     }
 
@@ -1083,7 +1071,7 @@ mod test {
         assert!(res.params().abs_diff_eq(&array![0.682_f32], 1e-3));
         assert_eq!(
             &res.predict(dataset.records()),
-            dataset.targets().as_single_target().unwrap()
+            dataset.targets().as_single_targets()
         );
     }
 
@@ -1207,7 +1195,7 @@ mod test {
         assert_eq!(res.intercept().dim(), 3);
         assert_eq!(
             &res.predict(dataset.records()),
-            dataset.targets().as_single_target().unwrap()
+            dataset.targets().as_single_targets()
         );
     }
 
@@ -1222,7 +1210,7 @@ mod test {
         assert_eq!(res.intercept().dim(), 4);
         assert_eq!(
             &res.predict(dataset.records()),
-            dataset.targets().as_single_target().unwrap()
+            dataset.targets().as_single_targets()
         );
     }
 
@@ -1248,7 +1236,7 @@ mod test {
         assert_eq!(res.intercept().dim(), 2);
         assert_eq!(
             &res.predict(dataset.records()),
-            dataset.targets().as_single_target().unwrap()
+            dataset.targets().as_single_targets()
         );
     }
 
