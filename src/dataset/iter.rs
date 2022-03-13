@@ -1,5 +1,5 @@
 use super::{AsTargets, DatasetBase, DatasetView, FromTargetArray, Records, TargetDim};
-use ndarray::{s, ArrayBase, ArrayView, ArrayView1, ArrayView2, Axis, Data, Ix2};
+use ndarray::{ArrayBase, ArrayView, ArrayView1, ArrayView2, Axis, Data, Ix2};
 use std::marker::PhantomData;
 
 pub struct Iter<'a, 'b: 'a, F, L, I> {
@@ -30,11 +30,11 @@ impl<'a, 'b: 'a, F, L, I: TargetDim> Iterator for Iter<'a, 'b, F, L, I> {
 
         self.idx += 1;
         let records = self.records.reborrow();
-        let targets = self.targets.reborrow();
+        let targets = self.targets.clone().reborrow();
 
         Some((
-            records.slice_move(s![self.idx - 1, ..]),
-            targets.slice_move(s![self.idx - 1, ..]),
+            records.index_axis_move(Axis(0), self.idx - 1),
+            targets.index_axis_move(Axis(0), self.idx - 1),
         ))
     }
 }
@@ -82,10 +82,11 @@ where
         let weights = self.dataset.weights.clone();
 
         if !self.target_or_feature {
-            targets.slice_collapse(s![.., self.idx]);
+            // This branch should only run for 2D targets
+            targets.collapse_axis(Axis(1), self.idx);
             feature_names = self.dataset.feature_names.clone();
         } else {
-            records.slice_collapse(s![.., self.idx]);
+            records.collapse_axis(Axis(1), self.idx);
             if self.dataset.feature_names.len() == records.len_of(Axis(1)) {
                 feature_names = vec![self.dataset.feature_names[self.idx].clone()];
             } else {

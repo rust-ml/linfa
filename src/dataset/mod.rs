@@ -199,7 +199,12 @@ pub trait Records: Sized {
     fn nfeatures(&self) -> usize;
 }
 
-pub trait TargetDim: RemoveAxis {}
+pub trait TargetDim: RemoveAxis {
+    fn nsamples(mut self, nsamples: usize) -> Self {
+        self.as_array_view_mut()[0] = nsamples;
+        self
+    }
+}
 
 /// Return a reference to single or multiple target variables
 pub trait AsTargets {
@@ -243,13 +248,13 @@ pub trait AsTargetsMut {
 }
 
 pub trait AsSingleTargetsMut: AsTargetsMut<Ix = Ix1> {
-    fn as_single_targets_mut(&self) -> ArrayViewMut1<Self::Elem> {
+    fn as_single_targets_mut(&mut self) -> ArrayViewMut1<Self::Elem> {
         self.as_targets_mut()
     }
 }
 
 pub trait AsMultiTargetsMut: AsTargetsMut<Ix = Ix2> {
-    fn as_multi_targets_mut(&self) -> ArrayViewMut2<Self::Elem> {
+    fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<Self::Elem> {
         self.as_targets_mut()
     }
 }

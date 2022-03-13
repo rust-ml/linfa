@@ -2,7 +2,7 @@ use super::{
     super::traits::{Predict, PredictInplace},
     iter::{ChunksIter, DatasetIter, Iter},
     AsSingleTargets, AsTargets, AsTargetsMut, CountedTargets, Dataset, DatasetBase, DatasetView,
-    Float, FromTargetArray, Label, Labels, Records, Result,
+    Float, FromTargetArray, Label, Labels, Records, Result, TargetDim,
 };
 use crate::traits::Fit;
 use ndarray::{
@@ -633,7 +633,7 @@ where
                 // validation
                 DatasetBase::new(
                     records_chunks[0].into_owned(),
-                    T::new_targets(targets_chunks[0].into_owned()),
+                    T::new_targets(targets_chunks[0].clone().into_owned()),
                 ),
             ));
 
@@ -990,7 +990,7 @@ where
     }
 }
 
-impl<F, E> Dataset<F, E> {
+impl<F, E, I: TargetDim> Dataset<F, E, I> {
     /// Split dataset into two disjoint chunks
     ///
     /// This function splits the observations in a dataset into two disjoint chunks. The splitting
@@ -1008,7 +1008,7 @@ impl<F, E> Dataset<F, E> {
     ///  
     /// The input Dataset split into two according to the input ratio.
     pub fn split_with_ratio(mut self, ratio: f32) -> (Self, Self) {
-        let (nfeatures, ntargets) = (self.nfeatures(), self.ntargets());
+        let nfeatures = self.nfeatures();
 
         let n1 = (self.nsamples() as f32 * ratio).ceil() as usize;
         let n2 = self.nsamples() - n1;
@@ -1023,11 +1023,13 @@ impl<F, E> Dataset<F, E> {
         let second = Array2::from_shape_vec((n2, nfeatures), second_array_buf).unwrap();
 
         // split targets into two disjoint Vec
+        let dim1 = self.targets.raw_dim().nsamples(n1);
+        let dim2 = self.targets.raw_dim().nsamples(n2);
         let mut array_buf = self.targets.into_raw_vec();
-        let second_array_buf = array_buf.split_off(n1 * ntargets);
+        let second_array_buf = array_buf.split_off(dim1.size());
 
-        let first_targets = Array2::from_shape_vec((n1, ntargets), array_buf).unwrap();
-        let second_targets = Array2::from_shape_vec((n2, ntargets), second_array_buf).unwrap();
+        let first_targets = Array::from_shape_vec(dim1, array_buf).unwrap();
+        let second_targets = Array::from_shape_vec(dim2, second_array_buf).unwrap();
 
         // split weights into two disjoint Vec
         let second_weights = if self.weights.len() == n1 + n2 {
