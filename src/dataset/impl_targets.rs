@@ -1,93 +1,88 @@
 use std::collections::HashMap;
 
 use super::{
-    AsProbabilities, AsTargets, AsTargetsMut, CountedTargets, DatasetBase, FromTargetArray, Label,
-    Labels, Pr, Records,
+    AsMultiTargets, AsProbabilities, AsSingleTargets, AsTargets, AsTargetsMut, CountedTargets,
+    DatasetBase, FromTargetArray, Label, Labels, Pr, Records, TargetDim,
 };
 use ndarray::{
-    Array1, Array2, ArrayBase, ArrayView2, ArrayViewMut2, Axis, CowArray, Data, DataMut, Dimension,
-    Ix1, Ix2, Ix3, OwnedRepr, ViewRepr,
+    Array, Array1, Array2, ArrayBase, ArrayView, ArrayViewMut, Axis, CowArray, Data, DataMut,
+    Dimension, Ix1, Ix2, Ix3, OwnedRepr, ViewRepr,
 };
 
-impl<'a, L, S: Data<Elem = L>> AsTargets for ArrayBase<S, Ix1> {
+impl TargetDim for Ix1 {}
+impl TargetDim for Ix2 {}
+
+impl<'a, L, S: Data<Elem = L>, I: TargetDim> AsTargets for ArrayBase<S, I> {
     type Elem = L;
+    type Ix = I;
 
-    fn as_multi_targets(&self) -> ArrayView2<L> {
-        self.view().insert_axis(Axis(1))
-    }
-}
-
-impl<'a, L: Clone + 'a, S: Data<Elem = L>> FromTargetArray<'a, L> for ArrayBase<S, Ix2> {
-    type Owned = ArrayBase<OwnedRepr<L>, Ix2>;
-    type View = ArrayBase<ViewRepr<&'a L>, Ix2>;
-
-    fn new_targets(targets: Array2<L>) -> Self::Owned {
-        targets
-    }
-
-    fn new_targets_view(targets: ArrayView2<'a, L>) -> Self::View {
-        targets
-    }
-}
-
-impl<L, S: DataMut<Elem = L>> AsTargetsMut for ArrayBase<S, Ix1> {
-    type Elem = L;
-
-    fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<'_, Self::Elem> {
-        self.view_mut().insert_axis(Axis(1))
-    }
-}
-
-impl<L, S: Data<Elem = L>> AsTargets for ArrayBase<S, Ix2> {
-    type Elem = L;
-
-    fn as_multi_targets(&self) -> ArrayView2<L> {
+    fn as_targets(&self) -> ArrayView<L, I> {
         self.view()
     }
 }
 
-impl<L, S: DataMut<Elem = L>> AsTargetsMut for ArrayBase<S, Ix2> {
-    type Elem = L;
+impl<T: AsTargets<Ix = Ix1>> AsSingleTargets for T {}
+impl<T: AsTargets<Ix = Ix2>> AsMultiTargets for T {}
 
-    fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<'_, Self::Elem> {
+impl<'a, L: Clone + 'a, S: Data<Elem = L>, I: TargetDim> FromTargetArray<'a> for ArrayBase<S, I> {
+    type Owned = ArrayBase<OwnedRepr<L>, I>;
+    type View = ArrayBase<ViewRepr<&'a L>, I>;
+
+    fn new_targets(targets: Array<L, I>) -> Self::Owned {
+        targets
+    }
+
+    fn new_targets_view(targets: ArrayView<'a, L, I>) -> Self::View {
+        targets
+    }
+}
+
+impl<L, S: DataMut<Elem = L>, I: TargetDim> AsTargetsMut for ArrayBase<S, I> {
+    type Elem = L;
+    type Ix = I;
+
+    fn as_targets_mut(&mut self) -> ArrayViewMut<Self::Elem, I> {
         self.view_mut()
     }
 }
 
 impl<T: AsTargets> AsTargets for &T {
     type Elem = T::Elem;
+    type Ix = T::Ix;
 
-    fn as_multi_targets(&self) -> ArrayView2<Self::Elem> {
-        (*self).as_multi_targets()
+    fn as_targets(&self) -> ArrayView<Self::Elem, Self::Ix> {
+        (*self).as_targets()
     }
 }
 
 impl<L: Label, T: AsTargets<Elem = L>> AsTargets for CountedTargets<L, T> {
     type Elem = L;
+    type Ix = T::Ix;
 
-    fn as_multi_targets(&self) -> ArrayView2<L> {
-        self.targets.as_multi_targets()
+    fn as_targets(&self) -> ArrayView<Self::Elem, Self::Ix> {
+        self.targets.as_targets()
     }
 }
 
 impl<L: Label, T: AsTargetsMut<Elem = L>> AsTargetsMut for CountedTargets<L, T> {
     type Elem = L;
+    type Ix = T::Ix;
 
-    fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<'_, Self::Elem> {
-        self.targets.as_multi_targets_mut()
+    fn as_targets_mut(&mut self) -> ArrayViewMut<Self::Elem, Self::Ix> {
+        self.targets.as_targets_mut()
     }
 }
 
-impl<'a, L: Label + 'a, T> FromTargetArray<'a, L> for CountedTargets<L, T>
+impl<'a, L: Label + 'a, T> FromTargetArray<'a> for CountedTargets<L, T>
 where
-    T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
+    T: FromTargetArray<'a, Elem = L>,
     T::Owned: Labels<Elem = L>,
     T::View: Labels<Elem = L>,
 {
     type Owned = CountedTargets<L, T::Owned>;
     type View = CountedTargets<L, T::View>;
 
-    fn new_targets(targets: Array2<L>) -> Self::Owned {
+    fn new_targets(targets: Array<L, T::Ix>) -> Self::Owned {
         let targets = T::new_targets(targets);
 
         CountedTargets {
@@ -96,7 +91,7 @@ where
         }
     }
 
-    fn new_targets_view(targets: ArrayView2<'a, L>) -> Self::View {
+    fn new_targets_view(targets: ArrayView<'a, L, T::Ix>) -> Self::View {
         let targets = T::new_targets_view(targets);
 
         CountedTargets {
@@ -174,7 +169,7 @@ where
         &self,
         labels: &[L],
     ) -> DatasetBase<Array2<F>, CountedTargets<L, Array2<L>>> {
-        let targets = self.targets.as_multi_targets();
+        let targets = self.targets.as_targets();
         let old_weights = self.weights();
 
         let mut records_arr = Vec::new();

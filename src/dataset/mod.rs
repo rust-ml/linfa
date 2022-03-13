@@ -3,8 +3,8 @@
 //! This module implements the dataset struct and various helper traits to extend its
 //! functionality.
 use ndarray::{
-    Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2,
-    Axis, CowArray, Ix2, Ix3, OwnedRepr, ScalarOperand,
+    Array, Array1, ArrayBase, ArrayView, ArrayView1, ArrayView2, ArrayViewMut, ArrayViewMut1,
+    ArrayViewMut2, CowArray, Ix1, Ix2, Ix3, OwnedRepr, RemoveAxis, ScalarOperand,
 };
 
 #[cfg(feature = "ndarray-linalg")]
@@ -20,7 +20,7 @@ use std::hash::Hash;
 use std::iter::Sum;
 use std::ops::{AddAssign, Deref, DivAssign, MulAssign, SubAssign};
 
-use crate::error::{Error, Result};
+use crate::error::Result;
 
 mod impl_dataset;
 mod impl_records;
@@ -175,12 +175,13 @@ pub struct CountedTargets<L: Label, P> {
 /// The most commonly used typed of dataset. It contains a number of records
 /// stored as an `Array2` and each record may correspond to multiple targets. The
 /// targets are stored as an `Array2`.
-pub type Dataset<D, T> = DatasetBase<ArrayBase<OwnedRepr<D>, Ix2>, ArrayBase<OwnedRepr<T>, Ix2>>;
+pub type Dataset<D, T, I = Ix2> =
+    DatasetBase<ArrayBase<OwnedRepr<D>, Ix2>, ArrayBase<OwnedRepr<T>, I>>;
 
 /// DatasetView
 ///
 /// A read only view of a Dataset
-pub type DatasetView<'a, D, T> = DatasetBase<ArrayView<'a, D, Ix2>, ArrayView<'a, T, Ix2>>;
+pub type DatasetView<'a, D, T, I = Ix2> = DatasetBase<ArrayView<'a, D, Ix2>, ArrayView<'a, T, I>>;
 
 /// DatasetPr
 ///
@@ -198,27 +199,25 @@ pub trait Records: Sized {
     fn nfeatures(&self) -> usize;
 }
 
+pub trait TargetDim: RemoveAxis {}
+
 /// Return a reference to single or multiple target variables
 pub trait AsTargets {
     type Elem;
+    type Ix: TargetDim;
 
-    /// Returns a view on targets as two-dimensional array
-    fn as_multi_targets(&self) -> ArrayView2<Self::Elem>;
+    fn as_targets(&self) -> ArrayView<Self::Elem, Self::Ix>;
+}
 
-    /// Convert to single target, fails for more than one target
-    ///
-    /// # Returns
-    ///
-    /// May return a single target with the same label type, but returns an
-    /// `Error::MultipleTargets` in case that there are more than a single target.
-    fn try_single_target(&self) -> Result<ArrayView1<Self::Elem>> {
-        let multi_targets = self.as_multi_targets();
+pub trait AsSingleTargets: AsTargets<Ix = Ix1> {
+    fn as_single_targets(&self) -> ArrayView1<Self::Elem> {
+        self.as_targets()
+    }
+}
 
-        if multi_targets.len_of(Axis(1)) > 1 {
-            return Err(Error::MultipleTargets);
-        }
-
-        Ok(multi_targets.index_axis_move(Axis(1), 0))
+pub trait AsMultiTargets: AsTargets<Ix = Ix2> {
+    fn as_multi_targets(&self) -> ArrayView2<Self::Elem> {
+        self.as_targets()
     }
 }
 
@@ -227,30 +226,31 @@ pub trait AsTargets {
 /// This is implemented for objects which can act as targets and created from a target matrix. For
 /// targets represented as `ndarray` matrix this is identity, for counted labels, i.e.
 /// `TargetsWithLabels`, it creates the corresponding wrapper struct.
-pub trait FromTargetArray<'a, F> {
+pub trait FromTargetArray<'a>: AsTargets {
     type Owned;
     type View;
 
     /// Create self object from new target array
-    fn new_targets(targets: Array2<F>) -> Self::Owned;
-    fn new_targets_view(targets: ArrayView2<'a, F>) -> Self::View;
+    fn new_targets(targets: Array<Self::Elem, Self::Ix>) -> Self::Owned;
+    fn new_targets_view(targets: ArrayView<'a, Self::Elem, Self::Ix>) -> Self::View;
 }
 
 pub trait AsTargetsMut {
     type Elem;
+    type Ix: TargetDim;
 
-    /// Returns a mutable view on targets as two-dimensional array
-    fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<Self::Elem>;
+    fn as_targets_mut(&mut self) -> ArrayViewMut<Self::Elem, Self::Ix>;
+}
 
-    /// Convert to single target, fails for more than one target
-    fn try_single_target_mut(&mut self) -> Result<ArrayViewMut1<Self::Elem>> {
-        let multi_targets = self.as_multi_targets_mut();
+pub trait AsSingleTargetsMut: AsTargetsMut<Ix = Ix1> {
+    fn as_single_targets_mut(&self) -> ArrayViewMut1<Self::Elem> {
+        self.as_targets_mut()
+    }
+}
 
-        if multi_targets.len_of(Axis(1)) > 1 {
-            return Err(Error::MultipleTargets);
-        }
-
-        Ok(multi_targets.index_axis_move(Axis(1), 0))
+pub trait AsMultiTargetsMut: AsTargetsMut<Ix = Ix2> {
+    fn as_multi_targets_mut(&self) -> ArrayViewMut2<Self::Elem> {
+        self.as_targets_mut()
     }
 }
 

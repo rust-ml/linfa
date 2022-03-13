@@ -1,6 +1,6 @@
 //! Common metrics for clustering
-use crate::dataset::{AsTargets, DatasetBase, Label, Labels, Records};
-use crate::error::{Error, Result};
+use crate::dataset::{AsSingleTargets, DatasetBase, Label, Labels, Records};
+use crate::error::Result;
 use crate::Float;
 use ndarray::{ArrayBase, ArrayView1, Data, Ix2};
 use std::collections::HashMap;
@@ -62,13 +62,15 @@ impl<F: Float> DistanceCount<F> {
     }
 }
 
-impl<'a, F: Float, L: 'a + Label, D: Data<Elem = F>, T: AsTargets<Elem = L> + Labels<Elem = L>>
-    SilhouetteScore<F> for DatasetBase<ArrayBase<D, Ix2>, T>
+impl<
+        'a,
+        F: Float,
+        L: 'a + Label,
+        D: Data<Elem = F>,
+        T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
+    > SilhouetteScore<F> for DatasetBase<ArrayBase<D, Ix2>, T>
 {
     fn silhouette_score(&self) -> Result<F> {
-        if self.ntargets() > 1 {
-            return Err(Error::MultipleTargets);
-        }
         // By using try_single_target we ensure that the iterator returns an
         // array1 as target with just one element, that can be addressed by [0]
         let mut labels: HashMap<L, DistanceCount<F>> = self
@@ -93,7 +95,7 @@ impl<'a, F: Float, L: 'a + Label, D: Data<Elem = F>, T: AsTargets<Elem = L> + La
 
                 for other in self.sample_iter() {
                     labels
-                        .get_mut(&other.1[0])
+                        .get_mut(&other.1.into_scalar())
                         .unwrap()
                         .add_point(sample.0, other.0);
                 }
@@ -105,7 +107,7 @@ impl<'a, F: Float, L: 'a + Label, D: Data<Elem = F>, T: AsTargets<Elem = L> + La
                 let mut b_x: Option<F> = None;
 
                 for (label, counter) in &mut labels {
-                    if sample.1[0] == *label {
+                    if sample.1.into_scalar() == label {
                         // The cluster of `sample` averages by excluding `sample` from the counting
                         a_x = counter.same_label_mean_distance();
                     } else {

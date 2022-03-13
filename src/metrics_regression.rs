@@ -3,7 +3,7 @@
 //! This module implements common comparison metrices for continuous variables.
 
 use crate::{
-    dataset::{AsTargets, DatasetBase},
+    dataset::{AsMultiTargets, AsSingleTargets, DatasetBase},
     error::{Error, Result},
     Float,
 };
@@ -22,12 +22,14 @@ use std::ops::Sub;
 /// the result will be an error.
 ///
 /// To compare bi-dimensional arrays use [`MultiTargetRegression`](trait.MultiTargetRegression.html)
-pub trait SingleTargetRegression<F: Float, T: AsTargets<Elem = F>>: AsTargets<Elem = F> {
+pub trait SingleTargetRegression<F: Float, T: AsSingleTargets<Elem = F>>:
+    AsSingleTargets<Elem = F>
+{
     /// Maximal error between two continuous variables
     fn max_error(&self, compare_to: &T) -> Result<F> {
         let max_error = self
-            .try_single_target()?
-            .sub(&compare_to.try_single_target()?)
+            .as_single_targets()
+            .sub(&compare_to.as_single_targets())
             .iter()
             .map(|x| x.abs())
             .fold(F::neg_infinity(), F::max);
@@ -35,8 +37,8 @@ pub trait SingleTargetRegression<F: Float, T: AsTargets<Elem = F>>: AsTargets<El
     }
     /// Mean error between two continuous variables
     fn mean_absolute_error(&self, compare_to: &T) -> Result<F> {
-        self.try_single_target()?
-            .sub(&compare_to.try_single_target()?)
+        self.as_single_targets()
+            .sub(&compare_to.as_single_targets())
             .mapv(|x| x.abs())
             .mean()
             .ok_or(Error::NotEnoughSamples)
@@ -44,8 +46,8 @@ pub trait SingleTargetRegression<F: Float, T: AsTargets<Elem = F>>: AsTargets<El
 
     /// Mean squared error between two continuous variables
     fn mean_squared_error(&self, compare_to: &T) -> Result<F> {
-        self.try_single_target()?
-            .sub(&compare_to.try_single_target()?)
+        self.as_single_targets()
+            .sub(&compare_to.as_single_targets())
             .mapv(|x| x * x)
             .mean()
             .ok_or(Error::NotEnoughSamples)
@@ -53,20 +55,16 @@ pub trait SingleTargetRegression<F: Float, T: AsTargets<Elem = F>>: AsTargets<El
 
     /// Mean squared log error between two continuous variables
     fn mean_squared_log_error(&self, compare_to: &T) -> Result<F> {
-        self.try_single_target()?
+        self.as_single_targets()
             .mapv(|x| (F::one() + x).ln())
-            .mean_squared_error(
-                &compare_to
-                    .try_single_target()?
-                    .mapv(|x| (F::one() + x).ln()),
-            )
+            .mean_squared_error(&compare_to.as_single_targets().mapv(|x| (F::one() + x).ln()))
     }
 
     /// Median absolute error between two continuous variables
     fn median_absolute_error(&self, compare_to: &T) -> Result<F> {
         let mut abs_error = self
-            .try_single_target()?
-            .sub(&compare_to.try_single_target()?)
+            .as_single_targets()
+            .sub(&compare_to.as_single_targets())
             .mapv(|x| x.abs())
             .to_vec();
         abs_error.sort_by(|a, b| a.partial_cmp(b).unwrap());
@@ -84,14 +82,14 @@ pub trait SingleTargetRegression<F: Float, T: AsTargets<Elem = F>>: AsTargets<El
     // if the mean is of `compare_to`, then the denominator
     // should compare `compare_to` and the mean, and not self and the mean
     fn r2(&self, compare_to: &T) -> Result<F> {
-        let single_target_compare_to = compare_to.try_single_target()?;
+        let single_target_compare_to = compare_to.as_single_targets();
         let mean = single_target_compare_to
             .mean()
             .ok_or(Error::NotEnoughSamples)?;
 
         Ok(F::one()
             - self
-                .try_single_target()?
+                .as_single_targets()
                 .sub(&single_target_compare_to)
                 .mapv(|x| x * x)
                 .sum()
@@ -103,8 +101,8 @@ pub trait SingleTargetRegression<F: Float, T: AsTargets<Elem = F>>: AsTargets<El
 
     /// Same as R-Squared but with biased variance
     fn explained_variance(&self, compare_to: &T) -> Result<F> {
-        let single_target_compare_to = compare_to.try_single_target()?;
-        let diff = self.try_single_target()?.sub(&single_target_compare_to);
+        let single_target_compare_to = compare_to.as_single_targets();
+        let diff = self.as_single_targets().sub(&single_target_compare_to);
 
         let mean = single_target_compare_to
             .mean()
@@ -120,7 +118,7 @@ pub trait SingleTargetRegression<F: Float, T: AsTargets<Elem = F>>: AsTargets<El
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> SingleTargetRegression<F, T>
+impl<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = F>> SingleTargetRegression<F, T>
     for ArrayBase<D, Ix1>
 {
 }
@@ -137,7 +135,9 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> SingleTargetRegression
 /// The shape of the compared targets must match.
 ///
 /// To compare single-dimensional arrays use [`SingleTargetRegression`](trait.SingleTargetRegression.html)
-pub trait MultiTargetRegression<F: Float, T: AsTargets<Elem = F>>: AsTargets<Elem = F> {
+pub trait MultiTargetRegression<F: Float, T: AsMultiTargets<Elem = F>>:
+    AsMultiTargets<Elem = F>
+{
     /// Maximal error between two continuous variables
     fn max_error(&self, other: &T) -> Result<Array1<F>> {
         self.as_multi_targets()
@@ -202,12 +202,12 @@ pub trait MultiTargetRegression<F: Float, T: AsTargets<Elem = F>>: AsTargets<Ele
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>> MultiTargetRegression<F, T>
+impl<F: Float, D: Data<Elem = F>, T: AsMultiTargets<Elem = F>> MultiTargetRegression<F, T>
     for ArrayBase<D, Ix2>
 {
 }
 
-impl<F: Float, T: AsTargets<Elem = F>, T2: AsTargets<Elem = F>, D: Data<Elem = F>>
+impl<F: Float, T: AsMultiTargets<Elem = F>, T2: AsMultiTargets<Elem = F>, D: Data<Elem = F>>
     MultiTargetRegression<F, T2> for DatasetBase<ArrayBase<D, Ix2>, T>
 {
 }

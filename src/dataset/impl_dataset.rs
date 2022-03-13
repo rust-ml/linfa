@@ -1,13 +1,13 @@
 use super::{
     super::traits::{Predict, PredictInplace},
     iter::{ChunksIter, DatasetIter, Iter},
-    AsTargets, AsTargetsMut, CountedTargets, Dataset, DatasetBase, DatasetView, Float,
-    FromTargetArray, Label, Labels, Records, Result,
+    AsSingleTargets, AsTargets, AsTargetsMut, CountedTargets, Dataset, DatasetBase, DatasetView,
+    Float, FromTargetArray, Label, Labels, Records, Result,
 };
 use crate::traits::Fit;
 use ndarray::{
-    concatenate, s, Array, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, ArrayViewMut2, Axis,
-    Data, DataMut, Dimension, Ix1, Ix2, OwnedRepr,
+    concatenate, s, Array, Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2,
+    ArrayViewMut, Axis, Data, DataMut, Dimension, Ix1, Ix2, OwnedRepr,
 };
 use rand::{seq::SliceRandom, Rng};
 use std::collections::HashMap;
@@ -140,7 +140,7 @@ impl<L, R: Records, T: AsTargets<Elem = L>> DatasetBase<R, T> {
     ///
     /// A modified dataset with new target type.
     ///
-    pub fn map_targets<S, G: FnMut(&L) -> S>(self, fnc: G) -> DatasetBase<R, Array2<S>> {
+    pub fn map_targets<S, G: FnMut(&L) -> S>(self, fnc: G) -> DatasetBase<R, Array<S, T::Ix>> {
         let DatasetBase {
             records,
             targets,
@@ -149,7 +149,7 @@ impl<L, R: Records, T: AsTargets<Elem = L>> DatasetBase<R, T> {
             ..
         } = self;
 
-        let targets = targets.as_multi_targets();
+        let targets = targets.as_targets();
 
         DatasetBase {
             records,
@@ -170,7 +170,11 @@ impl<L, R: Records, T: AsTargets<Elem = L>> DatasetBase<R, T> {
     /// ```
     ///
     pub fn ntargets(&self) -> usize {
-        self.targets.as_multi_targets().len_of(Axis(1))
+        if T::Ix::NDIM.unwrap() == 1 {
+            1
+        } else {
+            self.targets.as_targets().len_of(Axis(1))
+        }
     }
 }
 
@@ -193,20 +197,20 @@ where
     ///     println!("{} => {}", x, y);
     /// }
     /// ```
-    pub fn sample_iter(&'a self) -> Iter<'a, '_, F, T::Elem> {
-        Iter::new(self.records.view(), self.targets.as_multi_targets())
+    pub fn sample_iter(&'a self) -> Iter<'a, '_, F, T::Elem, T::Ix> {
+        Iter::new(self.records.view(), self.targets.as_targets())
     }
 }
 
 impl<'a, F: 'a, L: 'a, D, T> DatasetBase<ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
-    T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
+    T: AsTargets<Elem = L> + FromTargetArray<'a>,
 {
     /// Creates a view of a dataset
     pub fn view(&'a self) -> DatasetBase<ArrayView2<'a, F>, T::View> {
         let records = self.records().view();
-        let targets = T::new_targets_view(self.as_multi_targets());
+        let targets = T::new_targets_view(self.as_targets());
 
         DatasetBase::new(records, targets)
             .with_feature_names(self.feature_names.clone())
@@ -234,24 +238,26 @@ where
 
 impl<L, R: Records, T: AsTargets<Elem = L>> AsTargets for DatasetBase<R, T> {
     type Elem = L;
+    type Ix = T::Ix;
 
-    fn as_multi_targets(&self) -> ArrayView2<'_, Self::Elem> {
-        self.targets.as_multi_targets()
+    fn as_targets(&self) -> ArrayView<Self::Elem, Self::Ix> {
+        self.targets.as_targets()
     }
 }
 
 impl<L, R: Records, T: AsTargetsMut<Elem = L>> AsTargetsMut for DatasetBase<R, T> {
     type Elem = L;
+    type Ix = T::Ix;
 
-    fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<'_, Self::Elem> {
-        self.targets.as_multi_targets_mut()
+    fn as_targets_mut(&mut self) -> ArrayViewMut<Self::Elem, Self::Ix> {
+        self.targets.as_targets_mut()
     }
 }
 
 #[allow(clippy::type_complexity)]
 impl<'a, L: 'a, F, T> DatasetBase<ArrayView2<'a, F>, T>
 where
-    T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
+    T: AsTargets<Elem = L> + FromTargetArray<'a>,
 {
     /// Split dataset into two disjoint chunks
     ///
@@ -268,7 +274,7 @@ where
     ) {
         let n = (self.nsamples() as f32 * ratio).ceil() as usize;
         let (records_first, records_second) = self.records.view().split_at(Axis(0), n);
-        let (targets_first, targets_second) = self.targets.as_multi_targets().split_at(Axis(0), n);
+        let (targets_first, targets_second) = self.targets.as_targets().split_at(Axis(0), n);
 
         let targets_first = T::new_targets_view(targets_first);
         let targets_second = T::new_targets_view(targets_second);
@@ -305,7 +311,7 @@ impl<L: Label, T: Labels<Elem = L>, R: Records> Labels for DatasetBase<R, T> {
 impl<'a, 'b: 'a, F, L: Label, T, D> DatasetBase<ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
-    T: AsTargets<Elem = L> + Labels<Elem = L>,
+    T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
 {
     /// Produce N boolean targets from multi-class targets
     ///
@@ -319,7 +325,7 @@ where
             DatasetBase<ArrayView2<'_, F>, CountedTargets<bool, Array2<bool>>>,
         )>,
     > {
-        let targets = self.targets().try_single_target()?;
+        let targets = self.targets().as_single_targets();
 
         Ok(self
             .labels()
@@ -359,7 +365,7 @@ impl<L: Label, R: Records, S: AsTargets<Elem = L>> DatasetBase<R, S> {
 
         for (elms, val) in self
             .targets
-            .as_multi_targets()
+            .as_targets()
             .axis_iter(Axis(0))
             .enumerate()
             .filter(|(i, _)| *mask.get(*i).unwrap_or(&true))
@@ -432,7 +438,7 @@ where
 impl<'b, F: Clone, E: Copy + 'b, D, T> DatasetBase<ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
-    T: AsTargets<Elem = E> + FromTargetArray<'b, E>,
+    T: FromTargetArray<'b, Elem = E>,
     T::Owned: AsTargets,
 {
     /// Apply bootstrapping for samples and features
@@ -455,8 +461,7 @@ where
         &'b self,
         sample_feature_size: (usize, usize),
         rng: &'b mut R,
-    ) -> impl Iterator<Item = DatasetBase<Array2<F>, <T as FromTargetArray<'b, E>>::Owned>> + 'b
-    {
+    ) -> impl Iterator<Item = DatasetBase<Array2<F>, <T as FromTargetArray<'b>>::Owned>> + 'b {
         std::iter::repeat(()).map(move |_| {
             // sample with replacement
             let indices = (0..sample_feature_size.0)
@@ -464,7 +469,7 @@ where
                 .collect::<Vec<_>>();
 
             let records = self.records().select(Axis(0), &indices);
-            let targets = T::new_targets(self.as_multi_targets().select(Axis(0), &indices));
+            let targets = T::new_targets(self.as_targets().select(Axis(0), &indices));
 
             let indices = (0..sample_feature_size.1)
                 .map(|_| rng.gen_range(0..self.nfeatures()))
@@ -496,8 +501,7 @@ where
         &'b self,
         num_samples: usize,
         rng: &'b mut R,
-    ) -> impl Iterator<Item = DatasetBase<Array2<F>, <T as FromTargetArray<'b, E>>::Owned>> + 'b
-    {
+    ) -> impl Iterator<Item = DatasetBase<Array2<F>, <T as FromTargetArray<'b>>::Owned>> + 'b {
         std::iter::repeat(()).map(move |_| {
             // sample with replacement
             let indices = (0..num_samples)
@@ -505,7 +509,7 @@ where
                 .collect::<Vec<_>>();
 
             let records = self.records().select(Axis(0), &indices);
-            let targets = T::new_targets(self.as_multi_targets().select(Axis(0), &indices));
+            let targets = T::new_targets(self.as_targets().select(Axis(0), &indices));
 
             DatasetBase::new(records, targets)
         })
@@ -531,10 +535,9 @@ where
         &'b self,
         num_features: usize,
         rng: &'b mut R,
-    ) -> impl Iterator<Item = DatasetBase<Array2<F>, <T as FromTargetArray<'b, E>>::Owned>> + 'b
-    {
+    ) -> impl Iterator<Item = DatasetBase<Array2<F>, <T as FromTargetArray<'b>>::Owned>> + 'b {
         std::iter::repeat(()).map(move |_| {
-            let targets = T::new_targets(self.as_multi_targets().to_owned());
+            let targets = T::new_targets(self.as_targets().to_owned());
 
             let indices = (0..num_features)
                 .map(|_| rng.gen_range(0..self.nfeatures()))
@@ -560,7 +563,7 @@ where
         indices.shuffle(rng);
 
         let records = self.records().select(Axis(0), &indices);
-        let targets = self.as_multi_targets().select(Axis(0), &indices);
+        let targets = self.as_targets().select(Axis(0), &indices);
         let targets = T::new_targets(targets);
 
         DatasetBase::new(records, targets)
@@ -608,7 +611,7 @@ where
         DatasetBase<Array2<F>, T::Owned>,
         DatasetBase<Array2<F>, T::Owned>,
     )> {
-        let targets = self.as_multi_targets();
+        let targets = self.as_targets();
         let fold_size = targets.len() / k;
         let mut res = Vec::new();
 
@@ -650,7 +653,7 @@ where
     pub fn to_owned(&self) -> DatasetBase<Array2<F>, T::Owned> {
         DatasetBase::new(
             self.records().to_owned(),
-            T::new_targets(self.as_multi_targets().to_owned()),
+            T::new_targets(self.as_targets().to_owned()),
         )
     }
 }
@@ -752,7 +755,7 @@ where
 
         {
             let records_sl = self.records.as_slice_mut().unwrap();
-            let mut targets_sl2 = self.targets.as_multi_targets_mut();
+            let mut targets_sl2 = self.targets.as_targets_mut();
             let targets_sl = targets_sl2.as_slice_mut().unwrap();
 
             for i in 0..k {
@@ -944,7 +947,7 @@ where
                 fit_result
             })
             .map(|(models, valid)| {
-                let targets = valid.as_multi_targets();
+                let targets = valid.as_targets();
                 let models = models?;
 
                 let eval_predictions = models
