@@ -95,7 +95,7 @@ impl<
 
                 for other in self.sample_iter() {
                     labels
-                        .get_mut(&other.1.into_scalar())
+                        .get_mut(other.1.into_scalar())
                         .unwrap()
                         .add_point(sample.0, other.0);
                 }

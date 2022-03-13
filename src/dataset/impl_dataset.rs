@@ -6,8 +6,8 @@ use super::{
 };
 use crate::traits::Fit;
 use ndarray::{
-    concatenate, s, Array, Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2,
-    ArrayViewMut, Axis, Data, DataMut, Dimension, Ix1, Ix2, OwnedRepr,
+    concatenate, s, Array, Array1, Array2, ArrayBase, ArrayView, ArrayView2, ArrayViewMut, Axis,
+    Data, DataMut, Dimension, Ix1, Ix2,
 };
 use rand::{seq::SliceRandom, Rng};
 use std::collections::HashMap;
@@ -670,7 +670,8 @@ macro_rules! assist_swap_array2 {
     };
 }
 
-impl<'a, F: 'a + Clone, E: Copy + 'a, D, S> DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, Ix2>>
+impl<'a, F: 'a + Clone, E: Copy + 'a, D, S, I: TargetDim>
+    DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, I>>
 where
     D: DataMut<Elem = F>,
     S: DataMut<Elem = E>,
@@ -738,11 +739,11 @@ where
     ///     // assert the performance of the chosen algorithm
     /// }
     /// ```
-    pub fn iter_fold<O, C: Fn(&DatasetView<F, E>) -> O>(
+    pub fn iter_fold<O, C: Fn(&DatasetView<F, E, I>) -> O>(
         &'a mut self,
         k: usize,
         fit_closure: C,
-    ) -> impl Iterator<Item = (O, DatasetBase<ArrayView2<F>, ArrayView2<E>>)> {
+    ) -> impl Iterator<Item = (O, DatasetBase<ArrayView2<F>, ArrayView<E, I>>)> {
         assert!(k > 0);
         assert!(k <= self.nsamples());
         let samples_count = self.nsamples();
@@ -750,6 +751,7 @@ where
 
         let features = self.nfeatures();
         let targets = self.ntargets();
+        let tshape = self.targets.raw_dim();
 
         let mut objs: Vec<O> = Vec::new();
 
@@ -769,8 +771,8 @@ where
                             records_sl.split_at(fold_size * features).1,
                         )
                         .unwrap(),
-                        ArrayView2::from_shape(
-                            (samples_count - fold_size, targets),
+                        ArrayView::from_shape(
+                            tshape.clone().nsamples(samples_count - fold_size),
                             targets_sl.split_at(fold_size * targets).1,
                         )
                         .unwrap(),
@@ -826,7 +828,7 @@ where
     /// let r2_scores = dataset.cross_validate_multi(5,&models, |prediction, truth| prediction.r2(truth))?;
     ///
     /// ```
-    pub fn cross_validate_multi<O, ER, M, FACC, C>(
+    pub fn cross_validate<O, ER, M, FACC, C>(
         &'a mut self,
         k: usize,
         parameters: &[M],
@@ -834,10 +836,13 @@ where
     ) -> std::result::Result<Array2<FACC>, ER>
     where
         ER: std::error::Error + std::convert::From<crate::error::Error>,
-        M: for<'c> Fit<ArrayView2<'c, F>, ArrayView2<'c, E>, ER, Object = O>,
-        O: for<'d> PredictInplace<ArrayView2<'a, F>, Array2<E>>,
+        M: for<'c> Fit<ArrayView2<'c, F>, ArrayView<'c, E, I>, ER, Object = O>,
+        O: for<'d> PredictInplace<ArrayView2<'a, F>, Array<E, I>>,
         FACC: Float,
-        C: Fn(&Array2<E>, &ArrayView2<E>) -> std::result::Result<Array1<FACC>, crate::error::Error>,
+        C: Fn(
+            &Array<E, I>,
+            &ArrayView<E, I>,
+        ) -> std::result::Result<Array1<FACC>, crate::error::Error>,
     {
         let mut evaluations = Array2::from_elem((parameters.len(), self.ntargets()), FACC::zero());
         let folds_evaluations: std::result::Result<Vec<_>, ER> = self
@@ -867,126 +872,6 @@ where
             evaluations.add_assign(&fold_evaluation)
         }
         Ok(evaluations / FACC::from(k).unwrap())
-    }
-
-    /// Cross validation for single target algorithms
-    ///
-    /// Given a list of fittable models, cross validation
-    /// is used to compare their performance according to some
-    /// performance metric. To do so, k-folding is applied to the
-    /// dataset and, for each fold, each model is trained on the training set
-    /// and its performance is evaluated on the validation set. The performances
-    /// collected for each model are then averaged over the number of folds.
-    ///
-    /// ### Parameters:
-    ///
-    /// - `k`: the number of folds to apply
-    /// - `parameters`: a list of models to compare
-    /// - `eval`: closure used to evaluate the performance of each trained model. For single target
-    ///    datasets, this closure is called once for each fold.
-    ///    For multi-target datasets the closure is called, in each fold, once for every different target.
-    ///    If there is the need to use different evaluations for each target, take a look at the
-    ///    [`cross_validate_multi`](struct.DatasetBase.html#method.cross_validate_multi) method.
-    ///
-    /// ### Returns
-    ///
-    /// On succesful evalutation it returns an array of model performances, in the same order as the models in input.
-    ///
-    /// It returns an Error in one of the following cases:
-    ///
-    /// - An error occurred during the fitting of one model
-    /// - An error occurred inside the evaluation closure
-    ///
-    /// ### Example
-    ///
-    /// ```rust, ignore
-    ///
-    /// use linfa::prelude::*;
-    ///
-    /// // mutability needed for fast cross validation
-    /// let mut dataset = linfa_datasets::diabetes();
-    ///
-    /// let models = vec![model1, model2, ... ];
-    ///
-    /// let r2_scores = dataset.cross_validate(5,&models, |prediction, truth| prediction.r2(truth))?;
-    ///
-    /// ```
-    pub fn cross_validate<O, ER, M, FACC, C, I>(
-        &'a mut self,
-        k: usize,
-        parameters: &[M],
-        eval: C,
-    ) -> std::result::Result<ArrayBase<OwnedRepr<FACC>, I>, ER>
-    where
-        ER: std::error::Error + std::convert::From<crate::error::Error>,
-        M: for<'c> Fit<ArrayView2<'c, F>, ArrayView2<'c, E>, ER, Object = O>,
-        O: for<'d> PredictInplace<ArrayView2<'a, F>, ArrayBase<OwnedRepr<E>, I>>,
-        FACC: Float,
-        C: Fn(&ArrayView1<E>, &ArrayView1<E>) -> std::result::Result<FACC, crate::error::Error>,
-        I: Dimension,
-    {
-        // construct shape as either vector or matrix
-        let mut shape = match I::NDIM {
-            Some(1) | Some(2) => Ok(I::zeros(I::NDIM.unwrap())),
-            _ => Err(crate::Error::NdShape(ndarray::ShapeError::from_kind(
-                ndarray::ErrorKind::IncompatibleShape,
-            ))),
-        }?;
-
-        // assign shape form of output
-        let mut tmp = shape.as_array_view_mut();
-        tmp[0] = parameters.len();
-        if tmp.len() == 2 {
-            tmp[1] = self.ntargets();
-        }
-
-        let folds_evaluations = self
-            .iter_fold(k, |train| {
-                let fit_result: std::result::Result<Vec<_>, ER> =
-                    parameters.iter().map(|p| p.fit(train)).collect();
-                fit_result
-            })
-            .map(|(models, valid)| {
-                let targets = valid.as_targets();
-                let models = models?;
-
-                let eval_predictions = models
-                    .iter()
-                    .map(|m| {
-                        let nsamples = valid.nsamples();
-                        let predicted = m.predict(valid.records());
-
-                        // reshape to ensure that matrix has two dimensions
-                        let ntargets = if predicted.ndim() == 1 {
-                            1
-                        } else {
-                            predicted.len_of(Axis(1))
-                        };
-
-                        let predicted: Array2<_> =
-                            predicted.into_shape((nsamples, ntargets)).unwrap();
-
-                        predicted
-                            .columns()
-                            .into_iter()
-                            .zip(targets.columns().into_iter())
-                            .map(|(p, t)| eval(&p.view(), &t).map_err(ER::from))
-                            .collect()
-                    })
-                    .collect::<std::result::Result<Vec<Vec<FACC>>, ER>>()?
-                    .into_iter()
-                    .flatten()
-                    .collect();
-
-                Ok(Array::from_shape_vec(shape.clone(), eval_predictions).unwrap())
-            })
-            .collect::<std::result::Result<Vec<_>, ER>>();
-
-        let res = folds_evaluations?
-            .into_iter()
-            .fold(Array::<FACC, _>::zeros(shape.clone()), std::ops::Add::add);
-
-        Ok(res / FACC::cast(k))
     }
 }
 

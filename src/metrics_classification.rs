@@ -265,10 +265,10 @@ pub trait ToConfusionMatrix<A, T> {
 impl<L: Label, S, T> ToConfusionMatrix<L, ArrayBase<S, Ix1>> for T
 where
     S: Data<Elem = L>,
-    T: AsTargets<Elem = L> + Labels<Elem = L>,
+    T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
 {
     fn confusion_matrix(&self, ground_truth: ArrayBase<S, Ix1>) -> Result<ConfusionMatrix<L>> {
-        self.confusion_matrix(ground_truth)
+        self.confusion_matrix(&ground_truth)
     }
 }
 
@@ -316,7 +316,7 @@ where
     }
 }
 
-impl<L: Label, S: Data<Elem = L>, T: AsTargets<Elem = L> + Labels<Elem = L>, R: Records>
+impl<L: Label, S: Data<Elem = L>, T: AsSingleTargets<Elem = L> + Labels<Elem = L>, R: Records>
     ToConfusionMatrix<L, &DatasetBase<R, T>> for ArrayBase<S, Ix1>
 {
     fn confusion_matrix(&self, ground_truth: &DatasetBase<R, T>) -> Result<ConfusionMatrix<L>> {
