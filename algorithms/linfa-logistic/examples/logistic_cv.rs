@@ -1,6 +1,7 @@
 use linfa::prelude::*;
 use linfa_logistic::error::Result;
 use linfa_logistic::LogisticRegression;
+use ndarray::arr0;
 
 fn main() -> Result<()> {
     // Load dataset. Mutability is needed for fast cross validation
@@ -22,7 +23,7 @@ fn main() -> Result<()> {
     // use cross validation to compute the validation accuracy of each model. The
     // accuracy of each model will be averaged across the folds, 5 in this case
     let accuracies = dataset.cross_validate(5, &models, |prediction, truth| {
-        Ok(prediction.confusion_matrix(truth)?.accuracy())
+        Ok(arr0(prediction.confusion_matrix(truth)?.accuracy()))
     })?;
 
     // display the accuracy of the models along with their regularization coefficient

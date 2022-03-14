@@ -15,7 +15,7 @@ fn main() -> Result<()> {
     let mut f = std::fs::File::create("examples/iris.dat").unwrap();
 
     for (x, y) in ds.sample_iter() {
-        f.write_all(format!("{} {} {}\n", x[0], x[1], y[0]).as_bytes())
+        f.write_all(format!("{} {} {}\n", x[0], x[1], y).as_bytes())
             .unwrap();
     }
 
