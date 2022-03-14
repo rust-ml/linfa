@@ -322,7 +322,7 @@ where
     ) -> Result<
         Vec<(
             L,
-            DatasetBase<ArrayView2<'_, F>, CountedTargets<bool, Array2<bool>>>,
+            DatasetBase<ArrayView2<'_, F>, CountedTargets<bool, Array1<bool>>>,
         )>,
     > {
         let targets = self.targets().as_single_targets();
@@ -331,11 +331,7 @@ where
             .labels()
             .into_iter()
             .map(|label| {
-                let targets = targets
-                    .iter()
-                    .map(|x| x == &label)
-                    .collect::<Array1<_>>()
-                    .insert_axis(Axis(1));
+                let targets = targets.iter().map(|x| x == &label).collect::<Array1<_>>();
 
                 let targets = CountedTargets::new(targets);
 
