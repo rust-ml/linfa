@@ -569,12 +569,12 @@ where
     ///
     /// ```rust
     /// use linfa::dataset::DatasetView;
-    /// use ndarray::array;
+    /// use ndarray::{Ix1, array};
     ///
     /// let records = array![[1.,1.], [2.,1.], [3.,2.], [4.,1.],[5., 3.], [6.,2.]];
     /// let targets = array![1, 1, 0, 1, 0, 0];
     ///
-    /// let dataset : DatasetView<f64, usize> = (records.view(), targets.view()).into();
+    /// let dataset : DatasetView<f64, usize, Ix1> = (records.view(), targets.view()).into();
     /// let accuracies = dataset.fold(3).into_iter().map(|(train, valid)| {
     ///     // Here you can train your model and perform validation
     ///     
@@ -689,7 +689,7 @@ where
     /// ```rust
     /// use linfa::traits::Fit;
     /// use linfa::dataset::{Dataset, DatasetView, Records};
-    /// use ndarray::{array, ArrayView1, ArrayView2};
+    /// use ndarray::{array, ArrayView1, ArrayView2, Ix1};
     /// use linfa::Error;
     ///
     /// struct MockFittable {}
@@ -698,11 +698,10 @@ where
     ///    mock_var: usize,
     /// }
     ///
-    ///
-    /// impl<'a> Fit<ArrayView2<'a,f64>, ArrayView2<'a, f64>, linfa::error::Error> for MockFittable {
+    /// impl<'a> Fit<ArrayView2<'a,f64>, ArrayView1<'a, f64>, linfa::error::Error> for MockFittable {
     ///     type Object = MockFittableResult;
     ///
-    ///     fn fit(&self, training_data: &DatasetView<f64, f64>) -> Result<Self::Object, linfa::error::Error> {
+    ///     fn fit(&self, training_data: &DatasetView<f64, f64, Ix1>) -> Result<Self::Object, linfa::error::Error> {
     ///         Ok(MockFittableResult {
     ///             mock_var: training_data.nsamples(),
     ///         })
@@ -711,10 +710,10 @@ where
     ///
     /// let records = array![[1.,1.], [2.,2.], [3.,3.], [4.,4.], [5.,5.]];
     /// let targets = array![1.,2.,3.,4.,5.];
-    /// let mut dataset: Dataset<f64, f64> = (records, targets).into();
+    /// let mut dataset: Dataset<f64, f64, Ix1> = (records, targets).into();
     /// let params = MockFittable {};
     ///
-    ///for (model,validation_set) in dataset.iter_fold(5, |v| params.fit(&v).unwrap()){
+    /// for (model,validation_set) in dataset.iter_fold(5, |v| params.fit(v).unwrap()){
     ///     // Here you can use `model` and `validation_set` to
     ///     // assert the performance of the chosen algorithm
     /// }
@@ -799,13 +798,34 @@ where
     /// ```rust, ignore
     ///
     /// use linfa::prelude::*;
+    /// use ndarray::arr0;
+    /// # use ndarray::{array, ArrayView1, ArrayView2, Ix1};
+    ///
+    /// # struct MockFittable {}
+    ///
+    /// # struct MockFittableResult {
+    /// #    mock_var: usize,
+    /// # }
+    ///
+    /// # impl<'a> Fit<ArrayView2<'a,f64>, ArrayView1<'a, f64>, linfa::error::Error> for MockFittable {
+    /// #     type Object = MockFittableResult;
+    ///
+    /// #     fn fit(&self, training_data: &DatasetView<f64, f64, Ix1>) -> Result<Self::Object, linfa::error::Error> {
+    /// #         Ok(MockFittableResult {
+    /// #             mock_var: training_data.nsamples(),
+    /// #         })
+    /// #     }
+    /// # }
+    ///
+    /// # let model1 = MockFittable {};
+    /// # let model2 = MockFittable {};
     ///
     /// // mutability needed for fast cross validation
     /// let mut dataset = linfa_datasets::diabetes();
     ///
-    /// let models = vec![model1, model2, ... ];
+    /// let models = vec![model1, model2];
     ///
-    /// let r2_scores = dataset.cross_validate(5, &models, |prediction, truth| prediction.r2(truth))?;
+    /// let r2_scores = dataset.cross_validate(5, &models, |prediction, truth| prediction.r2(truth).map(arr0))?;
     ///
     /// ```
     pub fn cross_validate<O, ER, M, FACC, C>(

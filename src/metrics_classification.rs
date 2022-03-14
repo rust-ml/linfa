@@ -66,13 +66,16 @@ impl<A> ConfusionMatrix<A> {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```rust
+    /// use linfa::prelude::*;
+    /// use ndarray::array;
+    ///
     /// // create dummy classes 0 and 1
     /// let prediction = array![0, 1, 1, 1, 0, 0, 1];
     /// let ground_truth = array![0, 0, 1, 0, 1, 0, 1];
     ///
     /// // create confusion matrix
-    /// let cm = prediction.into_confusion_matrix(&ground_truth);
+    /// let cm = prediction.confusion_matrix(&ground_truth).unwrap();
     ///
     /// // print precision for label 0
     /// println!("{:?}", cm.precision());
@@ -108,13 +111,16 @@ impl<A> ConfusionMatrix<A> {
     ///
     /// # Example
     ///
-    /// ```rust, ignore
+    /// ```rust
+    /// use linfa::prelude::*;
+    /// use ndarray::array;
+    ///
     /// // create dummy classes 0 and 1
     /// let prediction = array![0, 1, 1, 1, 0, 0, 1];
     /// let ground_truth = array![0, 0, 1, 0, 1, 0, 1];
     ///
     /// // create confusion matrix
-    /// let cm = prediction.into_confusion_matrix(&ground_truth);
+    /// let cm = prediction.confusion_matrix(&ground_truth).unwrap();
     ///
     /// // print recall for label 0
     /// println!("{:?}", cm.recall());
