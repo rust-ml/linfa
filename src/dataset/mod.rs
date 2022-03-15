@@ -206,7 +206,11 @@ pub trait TargetDim: RemoveAxis {
     }
 }
 
-/// Return a reference to single or multiple target variables
+/// AsTargets
+///
+/// Return a reference to single or multiple target variables. It is made generic
+/// over the dimension of the target array to support both single-target and multi-target
+/// variables.
 pub trait AsTargets {
     type Elem;
     type Ix: TargetDim;
@@ -214,12 +218,20 @@ pub trait AsTargets {
     fn as_targets(&self) -> ArrayView<Self::Elem, Self::Ix>;
 }
 
+/// AsSingleTargets
+///
+/// Return a reference to a single target variable. A subtrait of `AsTargets`
+/// for single-target vectors
 pub trait AsSingleTargets: AsTargets<Ix = Ix1> {
     fn as_single_targets(&self) -> ArrayView1<Self::Elem> {
         self.as_targets()
     }
 }
 
+/// AsMultiTargets
+///
+/// Return a reference to a multi target variable. A subtrait of `AsMultiTargets`
+/// for multi-target vectors
 pub trait AsMultiTargets: AsTargets<Ix = Ix2> {
     fn as_multi_targets(&self) -> ArrayView2<Self::Elem> {
         self.as_targets()
@@ -240,6 +252,9 @@ pub trait FromTargetArray<'a>: AsTargets {
     fn new_targets_view(targets: ArrayView<'a, Self::Elem, Self::Ix>) -> Self::View;
 }
 
+/// AsTargetMut
+///
+/// Return a mutable reference to single or multi target variables.
 pub trait AsTargetsMut {
     type Elem;
     type Ix: TargetDim;
@@ -247,12 +262,20 @@ pub trait AsTargetsMut {
     fn as_targets_mut(&mut self) -> ArrayViewMut<Self::Elem, Self::Ix>;
 }
 
+/// AsSingleTargetsMut
+///
+/// Subtrait of `AsTargetMut` for single-target vectors. It returns a mutable
+/// reference to single-target variables.
 pub trait AsSingleTargetsMut: AsTargetsMut<Ix = Ix1> {
     fn as_single_targets_mut(&mut self) -> ArrayViewMut1<Self::Elem> {
         self.as_targets_mut()
     }
 }
 
+/// AsMultiTargetsMut
+///
+/// Subtrait of `AsMultiTargetsMut` for multi-target vectors. It returns a
+/// mutable reference to multi-target variables.
 pub trait AsMultiTargetsMut: AsTargetsMut<Ix = Ix2> {
     fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<Self::Elem> {
         self.as_targets_mut()
