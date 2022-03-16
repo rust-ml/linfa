@@ -13,14 +13,10 @@ use ndarray::{
 impl TargetDim for Ix1 {}
 impl TargetDim for Ix2 {}
 
-/// Implementation for 1-dimensional and 2-dimensional arrays
-///
-/// This implementation block provides a method for the creation of a target array.
 impl<'a, L, S: Data<Elem = L>, I: TargetDim> AsTargets for ArrayBase<S, I> {
     type Elem = L;
     type Ix = I;
 
-    /// Returns a reference to the target array
     fn as_targets(&self) -> ArrayView<L, I> {
         self.view()
     }
@@ -29,9 +25,6 @@ impl<'a, L, S: Data<Elem = L>, I: TargetDim> AsTargets for ArrayBase<S, I> {
 impl<T: AsTargets<Ix = Ix1>> AsSingleTargets for T {}
 impl<T: AsTargets<Ix = Ix2>> AsMultiTargets for T {}
 
-/// Implementation for 1-dimensional and 2-dimensional arrays
-///
-/// This implementation block provides methods to transform a `ndarray` into a target vector.
 impl<'a, L: Clone + 'a, S: Data<Elem = L>, I: TargetDim> FromTargetArray<'a> for ArrayBase<S, I> {
     type Owned = ArrayBase<OwnedRepr<L>, I>;
     type View = ArrayBase<ViewRepr<&'a L>, I>;
@@ -47,14 +40,10 @@ impl<'a, L: Clone + 'a, S: Data<Elem = L>, I: TargetDim> FromTargetArray<'a> for
     }
 }
 
-/// Implementation for 1-dimensional and 2-dimensional arrays
-///
-/// This implementation block provides methods to transform `ndarray` into a mutable target array
 impl<L, S: DataMut<Elem = L>, I: TargetDim> AsTargetsMut for ArrayBase<S, I> {
     type Elem = L;
     type Ix = I;
 
-    /// Returns a mutable reference to the target array
     fn as_targets_mut(&mut self) -> ArrayViewMut<Self::Elem, I> {
         self.view_mut()
     }
@@ -90,9 +79,6 @@ impl<L: Label, T: AsTargetsMut<Elem = L>> AsTargetsMut for CountedTargets<L, T> 
     }
 }
 
-/// Implementation for counted targets
-///
-/// This implementation block provides methods to transform a counted targets into a 2-dimensional target array.
 impl<'a, L: Label + 'a, T> FromTargetArray<'a> for CountedTargets<L, T>
 where
     T: FromTargetArray<'a, Elem = L>,

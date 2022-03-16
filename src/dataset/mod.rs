@@ -174,7 +174,7 @@ pub struct CountedTargets<L: Label, P> {
 ///
 /// The most commonly used typed of dataset. It contains a number of records
 /// stored as an `Array2` and each record may correspond to multiple targets. The
-/// targets are stored as an `Array2`.
+/// targets are stored as an `Array1` or `Array2`.
 pub type Dataset<D, T, I = Ix2> =
     DatasetBase<ArrayBase<OwnedRepr<D>, Ix2>, ArrayBase<OwnedRepr<T>, I>>;
 
@@ -186,7 +186,7 @@ pub type DatasetView<'a, D, T, I = Ix2> = DatasetBase<ArrayView<'a, D, Ix2>, Arr
 /// DatasetPr
 ///
 /// Dataset with probabilities as targets. Useful for multiclass probabilities.
-/// It stores records as an `Array2` of elements of type `D`, and targets as an `Array1`
+/// It stores records as an `Array2` of elements of type `D`, and targets as an `Array3`
 /// of elements of type `Pr`
 pub type DatasetPr<D, L> =
     DatasetBase<ArrayBase<OwnedRepr<D>, Ix2>, CountedTargets<L, ArrayBase<OwnedRepr<Pr>, Ix3>>>;
@@ -206,11 +206,10 @@ pub trait TargetDim: RemoveAxis {
     }
 }
 
-/// AsTargets
+/// Return a reference to single or multiple target variables.
 ///
-/// Return a reference to single or multiple target variables. It is made generic
-/// over the dimension of the target array to support both single-target and multi-target
-/// variables.
+/// This is generic over the dimension of the target array to support both single-target and
+/// multi-target variables.
 pub trait AsTargets {
     type Elem;
     type Ix: TargetDim;
@@ -218,20 +217,14 @@ pub trait AsTargets {
     fn as_targets(&self) -> ArrayView<Self::Elem, Self::Ix>;
 }
 
-/// AsSingleTargets
-///
-/// Return a reference to a single target variable. A subtrait of `AsTargets`
-/// for single-target vectors
+/// Return a reference to single-target variables.
 pub trait AsSingleTargets: AsTargets<Ix = Ix1> {
     fn as_single_targets(&self) -> ArrayView1<Self::Elem> {
         self.as_targets()
     }
 }
 
-/// AsMultiTargets
-///
-/// Return a reference to a multi target variable. A subtrait of `AsMultiTargets`
-/// for multi-target vectors
+/// Return a reference to multi-target variables.
 pub trait AsMultiTargets: AsTargets<Ix = Ix2> {
     fn as_multi_targets(&self) -> ArrayView2<Self::Elem> {
         self.as_targets()
@@ -252,9 +245,10 @@ pub trait FromTargetArray<'a>: AsTargets {
     fn new_targets_view(targets: ArrayView<'a, Self::Elem, Self::Ix>) -> Self::View;
 }
 
-/// AsTargetMut
+/// Return a mutable reference to single or multiple target variables.
 ///
-/// Return a mutable reference to single or multi target variables.
+/// This is generic over the dimension of the target array to support both single-target and
+/// multi-target variables.
 pub trait AsTargetsMut {
     type Elem;
     type Ix: TargetDim;
@@ -262,20 +256,14 @@ pub trait AsTargetsMut {
     fn as_targets_mut(&mut self) -> ArrayViewMut<Self::Elem, Self::Ix>;
 }
 
-/// AsSingleTargetsMut
-///
-/// Subtrait of `AsTargetMut` for single-target vectors. It returns a mutable
-/// reference to single-target variables.
+/// Returns a mutable reference to single-target variables.
 pub trait AsSingleTargetsMut: AsTargetsMut<Ix = Ix1> {
     fn as_single_targets_mut(&mut self) -> ArrayViewMut1<Self::Elem> {
         self.as_targets_mut()
     }
 }
 
-/// AsMultiTargetsMut
-///
-/// Subtrait of `AsMultiTargetsMut` for multi-target vectors. It returns a
-/// mutable reference to multi-target variables.
+/// Returns a mutable reference to multi-target variables.
 pub trait AsMultiTargetsMut: AsTargetsMut<Ix = Ix2> {
     fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<Self::Elem> {
         self.as_targets_mut()

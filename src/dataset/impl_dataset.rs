@@ -189,6 +189,10 @@ where
     /// iterator runs once for each data point and, while doing so, holds an reference to the owned
     /// dataset.
     ///
+    /// For multi-target datasets, the yielded target value is `ArrayView1` consisting of the
+    /// different targets. For single-target datasets, the target value is `ArrayView0` containing
+    /// the single target.
+    ///
     /// # Example
     /// ```
     /// let dataset = linfa_datasets::iris();
@@ -230,7 +234,6 @@ where
     /// This functions creates an iterator which produces dataset views complete records, but only
     /// a single target each. Useful to train multiple single target models for a multi-target
     /// dataset.
-    ///
     pub fn target_iter(&'a self) -> DatasetIter<'a, '_, ArrayBase<D, Ix2>, T> {
         DatasetIter::new(self, false)
     }
@@ -316,7 +319,7 @@ where
     /// Produce N boolean targets from multi-class targets
     ///
     /// Some algorithms (like SVM) don't support multi-class targets. This function splits a
-    /// dataset into multiple binary target view of the same dataset.
+    /// dataset into multiple binary single-target views of the same dataset.
     pub fn one_vs_all(
         &self,
     ) -> Result<
@@ -551,11 +554,11 @@ where
 
     #[allow(clippy::type_complexity)]
     /// Performs K-folding on the dataset.
-    /// The dataset is divided into `k` "fold", each containing
-    /// `(dataset size)/k` samples, used to generate `k` training-validation
-    /// dataset pairs. Each pair contains a validation `Dataset` with `k` samples,
-    ///  the ones contained in the i-th fold, and a training `Dataset` composed by the
-    /// union of all the samples in the remaining folds.
+    ///
+    /// The dataset is divided into `k` "folds", each containing `(dataset size)/k` samples, used
+    /// to generate `k` training-validation dataset pairs. Each pair contains a validation
+    /// `Dataset` with `k` samples, the ones contained in the i-th fold, and a training `Dataset`
+    /// composed by the union of all the samples in the remaining folds.
     ///
     /// ### Parameters
     ///
@@ -656,9 +659,9 @@ where
     D: DataMut<Elem = F>,
     S: DataMut<Elem = E>,
 {
-    /// Allows to perform k-folding cross validation on fittable algorithms.
+    /// Performs k-folding cross validation on fittable algorithms.
     ///
-    /// Given in input a dataset, a value of k and the desired params for the fittable
+    /// Given a dataset as input, a value of k and the desired params for the fittable
     /// algorithm, returns an iterator over the k trained models and the
     /// associated validation set.
     ///
@@ -769,25 +772,28 @@ where
         objs.into_iter().zip(self.sample_chunks(fold_size))
     }
 
-    /// Cross validation for multi-target algorithms
+    /// Cross validation for single and multi-target algorithms
     ///
-    /// Given a list of fittable models, cross validation
-    /// is used to compare their performance according to some
-    /// performance metric. To do so, k-folding is applied to the
-    /// dataset and, for each fold, each model is trained on the training set
-    /// and its performance is evaluated on the validation set. The performances
-    /// collected for each model are then averaged over the number of folds.
+    /// Given a list of fittable models, cross validation is used to compare their performance
+    /// according to some performance metric. To do so, k-folding is applied to the dataset and,
+    /// for each fold, each model is trained on the training set and its performance is evaluated
+    /// on the validation set. The performances collected for each model are then averaged over the
+    /// number of folds.
     ///
     /// ### Parameters:
     ///
     /// - `k`: the number of folds to apply
     /// - `parameters`: a list of models to compare
-    /// - `eval`: closure used to evaluate the performance of each trained model
+    /// - `eval`: closure used to evaluate the performance of each trained model. This closure is
+    /// called on the model output and validation targets of each fold and outputs the performance
+    /// score for each target. For single-target dataset the signature is `(Array1, Array1) ->
+    /// Array0`. For multi-target dataset the signature is `(Array2, Array2) -> Array1`.
     ///
     /// ### Returns
     ///
-    /// An array of model performances, in the same order as the models in input, if no errors occur.
-    /// The performance of each model is given as an array of performances, one for each target.
+    /// An array of model performances, for each model and each target, if no errors occur.
+    /// For multi-target dataset, the array has dimensions `(n_models, n_targets)`. For
+    /// single-target dataset, the array has dimensions `(n_models)`.
     /// Otherwise, it might return an Error in one of the following cases:
     ///
     /// - An error occurred during the fitting of one model
