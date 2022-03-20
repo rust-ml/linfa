@@ -1,10 +1,14 @@
 use approx::{abs_diff_eq, abs_diff_ne};
-use linfa::dataset::AsSingleTargets;
-use ndarray::{s, Array1, ArrayBase, ArrayView1, ArrayView2, Axis, CowArray, Data, Ix1, Ix2};
+use ndarray::{
+    s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, CowArray, Data, Dimension, Ix1, Ix2,
+};
 use ndarray_linalg::{Inverse, Lapack};
 
 use linfa::traits::{Fit, PredictInplace};
-use linfa::{dataset::Records, DatasetBase, Float};
+use linfa::{
+    dataset::{AsMultiTargets, AsSingleTargets, AsTargets, Records},
+    DatasetBase, Float,
+};
 
 use super::{
     hyperparams::{ElasticNetValidParams, MultiTaskElasticNetValidParams},
@@ -57,10 +61,10 @@ where
     }
 }
 
-impl<F, D> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, ElasticNetError>
-    for MultiTaskElasticNetValidParams<F>
+impl<F, D, T> Fit<ArrayBase<D, Ix2>, T, ElasticNetError> for MultiTaskElasticNetValidParams<F>
 where
     F: Float + Lapack,
+    T: AsMultiTargets<Elem = F>,
     D: Data<Elem = F>,
 {
     type Object = MultiTaskElasticNet<F>;
@@ -75,20 +79,17 @@ where
     /// Returns a `FittedMultiTaskElasticNet` object which contains the fitted
     /// parameters and can be used to `predict` values of the target variables
     /// for new feature values.
-    fn fit(
-        &self,
-        dataset: &DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>>,
-    ) -> Result<Self::Object> {
-        let target = dataset.targets();
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
+        let targets = dataset.targets().as_multi_targets();
         let nsamples = dataset.nsamples();
-        let ntasks = dataset.targets().ncols();
+        let ntasks = targets.ncols();
 
         let mut intercept = Array1::<F>::zeros(ntasks);
         let mut y = Array2::<F>::zeros((nsamples, ntasks));
 
         for t in 0..ntasks {
             let (intercept_t, y_t) =
-                compute_intercept(self.with_intercept(), target.slice(s![.., t]));
+                compute_intercept(self.with_intercept(), targets.slice(s![.., t]));
             intercept[t] = intercept_t;
             y.slice_mut(s![.., t]).assign(&y_t);
         }
@@ -462,26 +463,25 @@ fn duality_gap_mtl<'a, F: Float>(
     gap
 }
 
-fn variance_params<F: Float + Lapack, T: AsTargets<Elem = F>, D: Data<Elem = F>, I: Dimension>(
-    ds: &DatasetBase<ArrayBase<D, Ix2>, ArrayBase<D, I>>,
-    y_est: ArrayBase<D, I>,
+fn variance_params<F: Float + Lapack, T: AsTargets<Elem = F>, D: Data<Elem = F>>(
+    ds: &DatasetBase<ArrayBase<D, Ix2>, T>,
+    y_est: T,
 ) -> Result<Array1<F>> {
     let nfeatures = ds.nfeatures();
     let nsamples = ds.nsamples();
 
-    let target = ds.targets();
+    let target = ds.targets().as_targets();
     let ndim = target.ndim();
 
     let ntasks: usize = match ndim {
         1 => 1,
         2 => *target.shape().last().unwrap(),
-        _ => 0,
+        _ => {
+            return Err(ElasticNetError::IncorrectTargetShape);
+        }
     };
 
-    // check that the dimension of the target is either a vector or a matrix
-    if ntasks == 0 {
-        return Err(ElasticNetError::IncorrectTargetShape);
-    }
+    let y_est = y_est.as_targets();
 
     // check that we have enough samples
     if nsamples < nfeatures + 1 {
@@ -489,7 +489,7 @@ fn variance_params<F: Float + Lapack, T: AsTargets<Elem = F>, D: Data<Elem = F>,
     }
 
     let var_target =
-        (target - &y_est).mapv(|x| x * x).sum() / F::cast(ntasks * (nsamples - nfeatures));
+        (&target - &y_est).mapv(|x| x * x).sum() / F::cast(ntasks * (nsamples - nfeatures));
 
     let inv_cov = ds.records().t().dot(ds.records()).inv();
 
