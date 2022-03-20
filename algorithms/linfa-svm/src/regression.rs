@@ -1,6 +1,6 @@
 //! Support Vector Regression
 use linfa::{
-    dataset::{AsTargets, DatasetBase},
+    dataset::{AsSingleTargets, DatasetBase},
     traits::Fit,
     traits::Transformer,
     traits::{Predict, PredictInplace},
@@ -124,7 +124,7 @@ macro_rules! impl_regression {
 
             fn fit(&self, dataset: &DatasetBase<$records, $targets>) -> Result<Self::Object> {
                 let kernel = self.kernel_params().transform(dataset.records());
-                let target = dataset.try_single_target()?;
+                let target = dataset.as_single_targets();
                 let target = target.as_slice().unwrap();
 
                 let ret = match (self.c(), self.nu()) {
@@ -153,10 +153,6 @@ macro_rules! impl_regression {
     };
 }
 
-impl_regression!(Array2<f32>, Array2<f32>, f32);
-impl_regression!(Array2<f64>, Array2<f64>, f64);
-impl_regression!(ArrayView2<'_, f32>, ArrayView2<'_, f32>, f32);
-impl_regression!(ArrayView2<'_, f64>, ArrayView2<'_, f64>, f64);
 impl_regression!(Array2<f32>, Array1<f32>, f32);
 impl_regression!(Array2<f64>, Array1<f64>, f64);
 impl_regression!(ArrayView2<'_, f32>, ArrayView1<'_, f32>, f32);

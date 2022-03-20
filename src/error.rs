@@ -29,8 +29,6 @@ pub enum Error {
     NdShape(#[from] ShapeError),
     #[error("not enough samples")]
     NotEnoughSamples,
-    #[error("multiple targets not supported")]
-    MultipleTargets,
     #[error("The number of samples do not match: {0} - {1}")]
     MismatchedShapes(usize, usize),
 }

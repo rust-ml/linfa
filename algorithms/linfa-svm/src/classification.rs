@@ -1,12 +1,13 @@
+use linfa::dataset::AsSingleTargets;
 use linfa::prelude::Transformer;
 use linfa::{
     composing::platt_scaling::{platt_newton_method, platt_predict, PlattParams},
-    dataset::{AsTargets, CountedTargets, DatasetBase, Pr},
+    dataset::{CountedTargets, DatasetBase, Pr},
     traits::Fit,
     traits::{Predict, PredictInplace},
     ParamGuard,
 };
-use ndarray::{Array1, Array2, ArrayBase, ArrayView2, Data, Ix1, Ix2};
+use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix1, Ix2};
 use std::cmp::Ordering;
 
 use super::error::{Result, SvmError};
@@ -16,7 +17,7 @@ use super::SolverParams;
 use super::{Float, Svm, SvmValidParams};
 use linfa_kernel::Kernel;
 
-fn calibrate_with_platt<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = bool>>(
+fn calibrate_with_platt<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = bool>>(
     mut obj: Svm<F, F>,
     params: &PlattParams<F, ()>,
     dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
@@ -29,7 +30,7 @@ fn calibrate_with_platt<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = bool>>(
 
     let (a, b) = platt_newton_method(
         pred.view(),
-        dataset.try_single_target()?,
+        dataset.as_single_targets(),
         params.check_ref()?,
     )?;
     obj.probability_coeffs = Some((a, b));
@@ -215,7 +216,7 @@ macro_rules! impl_classification {
 
             fn fit(&self, dataset: &DatasetBase<$records, $targets>) -> Result<Self::Object> {
                 let kernel = self.kernel_params().transform(dataset.records());
-                let target = dataset.try_single_target()?;
+                let target = dataset.as_single_targets();
                 let target = target.as_slice().unwrap();
 
                 let ret = match (self.c(), self.nu()) {
@@ -246,7 +247,7 @@ macro_rules! impl_classification {
 
             fn fit(&self, dataset: &DatasetBase<$records, $targets>) -> Result<Self::Object> {
                 let kernel = self.kernel_params().transform(dataset.records());
-                let target = dataset.try_single_target()?;
+                let target = dataset.as_single_targets();
                 let target = target.as_slice().unwrap();
 
                 let ret = match (self.c(), self.nu()) {
@@ -274,11 +275,11 @@ macro_rules! impl_classification {
     };
 }
 
-impl_classification!(Array2<F>, Array2<bool>);
-impl_classification!(ArrayView2<'_, F>, ArrayView2<'_, bool>);
-impl_classification!(Array2<F>, CountedTargets<bool, Array2<bool>>);
-impl_classification!(ArrayView2<'_, F>, CountedTargets<bool, Array2<bool>>);
-impl_classification!(ArrayView2<'_, F>, CountedTargets<bool, ArrayView2<'_, bool>>);
+impl_classification!(Array2<F>, Array1<bool>);
+impl_classification!(ArrayView2<'_, F>, ArrayView1<'_, bool>);
+impl_classification!(Array2<F>, CountedTargets<bool, Array1<bool>>);
+impl_classification!(ArrayView2<'_, F>, CountedTargets<bool, Array1<bool>>);
+impl_classification!(ArrayView2<'_, F>, CountedTargets<bool, ArrayView1<'_, bool>>);
 
 /// Fit one-class problem
 ///
@@ -310,6 +311,10 @@ impl_oneclass!(Array2<F>, Array2<()>);
 impl_oneclass!(ArrayView2<'_, F>, ArrayView2<'_, ()>);
 impl_oneclass!(Array2<F>, CountedTargets<(), Array2<()>>);
 impl_oneclass!(Array2<F>, CountedTargets<(), ArrayView2<'_, ()>>);
+impl_oneclass!(Array2<F>, Array1<()>);
+impl_oneclass!(ArrayView2<'_, F>, ArrayView1<'_, ()>);
+impl_oneclass!(Array2<F>, CountedTargets<(), Array1<()>>);
+impl_oneclass!(Array2<F>, CountedTargets<(), ArrayView1<'_, ()>>);
 
 /// Predict a probability with a feature vector
 impl<F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix1>, Pr> for Svm<F, Pr> {
@@ -399,6 +404,8 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<bool>
 
 #[cfg(test)]
 mod tests {
+    use std::f64::consts::TAU;
+
     use super::Svm;
     use crate::error::Result;
     use approx::assert_abs_diff_eq;
@@ -416,7 +423,7 @@ mod tests {
         let mut out = Array::random((n_points * 2, 2), Uniform::new(0f64, 1.));
         for (i, mut elm) in out.outer_iter_mut().enumerate() {
             // generate convoluted rings with 1/10th noise
-            let phi = 6.28 * elm[1];
+            let phi = TAU * elm[1];
             let eps = elm[0] / 10.0;
 
             if i < n_points {

@@ -409,7 +409,7 @@ impl<'a, F: Float, T: AsTargets, N: NearestNeighbour>
     }
 }
 
-impl<'a, F: Float, L: 'a, T: AsTargets<Elem = L> + FromTargetArray<'a, L>, N: NearestNeighbour>
+impl<'a, F: Float, L: 'a, T: AsTargets<Elem = L> + FromTargetArray<'a>, N: NearestNeighbour>
     Transformer<&'a DatasetBase<Array2<F>, T>, DatasetBase<Kernel<F>, T::View>>
     for KernelParams<F, N>
 {
@@ -432,7 +432,7 @@ impl<'a, F: Float, L: 'a, T: AsTargets<Elem = L> + FromTargetArray<'a, L>, N: Ne
     /// not between 1 and #records-1
     fn transform(&self, x: &'a DatasetBase<Array2<F>, T>) -> DatasetBase<Kernel<F>, T::View> {
         let kernel = Kernel::new(x.records.view(), self);
-        DatasetBase::new(kernel, T::new_targets_view(x.as_multi_targets()))
+        DatasetBase::new(kernel, T::new_targets_view(x.as_targets()))
     }
 }
 
@@ -443,7 +443,7 @@ impl<
         'b,
         F: Float,
         L: 'b,
-        T: AsTargets<Elem = L> + FromTargetArray<'b, L>,
+        T: AsTargets<Elem = L> + FromTargetArray<'b>,
         N: NearestNeighbour,
     > Transformer<&'b DatasetBase<ArrayView2<'a, F>, T>, DatasetBase<Kernel<F>, T::View>>
     for KernelParams<F, N>
@@ -471,7 +471,7 @@ impl<
     ) -> DatasetBase<Kernel<F>, T::View> {
         let kernel = Kernel::new(x.records.view(), self);
 
-        DatasetBase::new(kernel, T::new_targets_view(x.as_multi_targets()))
+        DatasetBase::new(kernel, T::new_targets_view(x.as_targets()))
     }
 }
 
@@ -850,11 +850,7 @@ mod tests {
         check_kernel_from_dataset_view_type(&input.view(), KernelType::Sparse(3));
     }
 
-    fn check_kernel_from_dataset_type<
-        'a,
-        L: 'a,
-        T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
-    >(
+    fn check_kernel_from_dataset_type<'a, L: 'a, T: AsTargets<Elem = L> + FromTargetArray<'a>>(
         input: &'a DatasetBase<Array2<f64>, T>,
         k_type: KernelType,
     ) {
@@ -889,7 +885,7 @@ mod tests {
     fn check_kernel_from_dataset_view_type<
         'a,
         L: 'a,
-        T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
+        T: AsTargets<Elem = L> + FromTargetArray<'a>,
     >(
         input: &'a DatasetBase<ArrayView2<'a, f64>, T>,
         k_type: KernelType,
