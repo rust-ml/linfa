@@ -1,14 +1,10 @@
 use approx::{abs_diff_eq, abs_diff_ne};
-use ndarray::{
-    s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, CowArray, Data, Dimension, Ix1, Ix2,
-};
+use linfa::dataset::AsSingleTargets;
+use ndarray::{s, Array1, ArrayBase, ArrayView1, ArrayView2, Axis, CowArray, Data, Ix1, Ix2};
 use ndarray_linalg::{Inverse, Lapack};
 
 use linfa::traits::{Fit, PredictInplace};
-use linfa::{
-    dataset::{AsTargets, Records},
-    DatasetBase, Float,
-};
+use linfa::{dataset::Records, DatasetBase, Float};
 
 use super::{
     hyperparams::{ElasticNetValidParams, MultiTaskElasticNetValidParams},
@@ -19,7 +15,7 @@ impl<F, D, T> Fit<ArrayBase<D, Ix2>, T, ElasticNetError> for ElasticNetValidPara
 where
     F: Float + Lapack,
     D: Data<Elem = F>,
-    T: AsTargets<Elem = F>,
+    T: AsSingleTargets<Elem = F>,
 {
     type Object = ElasticNet<F>;
 
@@ -34,7 +30,7 @@ where
     /// parameters and can be used to `predict` values of the target variable
     /// for new feature values.
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
-        let target = dataset.try_single_target()?;
+        let target = dataset.as_single_targets();
 
         let (intercept, y) = compute_intercept(self.with_intercept(), target);
         let (hyperplane, duality_gap, n_steps) = coordinate_descent(

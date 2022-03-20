@@ -20,6 +20,8 @@
 //! The purpose of this crate is to faciliate dataset loading and make it as simple as possible. Loaded datasets are returned as a
 //! [linfa::Dataset] structure with named features.
 //!
+//! Additionally, this crate provides utility functions to randomly generate test datasets.
+//!
 //! ## Using a dataset
 //!
 //! To use one of the provided datasets in your project add the `linfa-datasets` crate to your `Cargo.toml` and enable the corresponding feature:
@@ -32,6 +34,9 @@
 //! let (train, valid) = linfa_datasets::winequality()
 //!     .split_with_ratio(0.8);
 //! ```
+
+#[cfg(feature = "generate")]
+pub mod generate;
 
 use csv::ReaderBuilder;
 use flate2::read::GzDecoder;
@@ -61,7 +66,7 @@ fn array_from_buf(buf: &[u8]) -> Array2<f64> {
 #[cfg(feature = "iris")]
 /// Read in the iris-flower dataset from dataset path.
 // The `.csv` data is two dimensional: Axis(0) denotes y-axis (rows), Axis(1) denotes x-axis (columns)
-pub fn iris() -> Dataset<f64, usize> {
+pub fn iris() -> Dataset<f64, usize, Ix1> {
     let data = include_bytes!("../data/iris.csv.gz");
     let array = array_from_buf(&data[..]);
 
@@ -79,7 +84,7 @@ pub fn iris() -> Dataset<f64, usize> {
 
 #[cfg(feature = "diabetes")]
 /// Read in the diabetes dataset from dataset path
-pub fn diabetes() -> Dataset<f64, f64> {
+pub fn diabetes() -> Dataset<f64, f64, Ix1> {
     let data = include_bytes!("../data/diabetes_data.csv.gz");
     let data = array_from_buf(&data[..]);
 
@@ -104,7 +109,7 @@ pub fn diabetes() -> Dataset<f64, f64> {
 
 #[cfg(feature = "winequality")]
 /// Read in the winequality dataset from dataset path
-pub fn winequality() -> Dataset<f64, usize> {
+pub fn winequality() -> Dataset<f64, usize, Ix1> {
     let data = include_bytes!("../data/winequality-red.csv.gz");
     let array = array_from_buf(&data[..]);
 

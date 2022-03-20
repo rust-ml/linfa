@@ -4,7 +4,8 @@ use criterion::{
 };
 use linfa::prelude::*;
 use linfa::DatasetBase;
-use linfa_clustering::{generate_blobs, IncrKMeansError, KMeans, KMeansInit};
+use linfa_clustering::{IncrKMeansError, KMeans, KMeansInit};
+use linfa_datasets::generate;
 use ndarray::Array2;
 use ndarray_rand::RandomExt;
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform};
@@ -42,7 +43,7 @@ fn k_means_bench(c: &mut Criterion) {
         let rng = &mut rng;
         let centroids =
             Array2::random_using((n_clusters, n_features), Uniform::new(-30., 30.), rng);
-        let dataset = DatasetBase::from(generate_blobs(cluster_size, &centroids, rng));
+        let dataset = DatasetBase::from(generate::blobs(cluster_size, &centroids, rng));
         let mut stats = Stats::default();
 
         benchmark.bench_function(
@@ -75,7 +76,8 @@ fn k_means_incr_bench(c: &mut Criterion) {
         let rng = &mut rng;
         let centroids =
             Array2::random_using((n_clusters, n_features), Uniform::new(-30., 30.), rng);
-        let dataset = DatasetBase::from(generate_blobs(cluster_size, &centroids, rng)).shuffle(rng);
+        let dataset =
+            DatasetBase::from(generate::blobs(cluster_size, &centroids, rng)).shuffle(rng);
         let mut stats = Stats::default();
 
         benchmark.bench_function(
@@ -126,7 +128,7 @@ fn k_means_init_bench(c: &mut Criterion) {
             let rng = &mut rng;
             let centroids =
                 Array2::random_using((n_clusters, n_features), Uniform::new(-30., 30.), rng);
-            let dataset = DatasetBase::from(generate_blobs(cluster_size, &centroids, rng));
+            let dataset = DatasetBase::from(generate::blobs(cluster_size, &centroids, rng));
             let mut stats = Stats::default();
 
             benchmark.bench_function(

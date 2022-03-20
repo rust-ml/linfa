@@ -38,11 +38,10 @@ fn decision_tree_bench(c: &mut Criterion) {
             Array2::random_using((n_classes, n_features), Uniform::new(-30., 30.), &mut rng);
 
         let train_x = generate_blobs(&centroids, *n, &mut rng);
-        let train_y: Array2<usize> = (0..n_classes)
+        let train_y: Array1<usize> = (0..n_classes)
             .map(|x| std::iter::repeat(x).take(*n).collect::<Vec<usize>>())
             .flatten()
-            .collect::<Array1<usize>>()
-            .insert_axis(Axis(1));
+            .collect::<Array1<usize>>();
         let dataset = DatasetBase::new(train_x, train_y);
 
         group.bench_with_input(BenchmarkId::from_parameter(n), &dataset, |b, d| {

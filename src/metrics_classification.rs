@@ -9,6 +9,7 @@ use std::fmt;
 use ndarray::prelude::*;
 use ndarray::Data;
 
+use crate::dataset::AsSingleTargets;
 use crate::dataset::{AsTargets, DatasetBase, Label, Labels, Pr, Records};
 use crate::error::{Error, Result};
 
@@ -65,13 +66,16 @@ impl<A> ConfusionMatrix<A> {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```rust
+    /// use linfa::prelude::*;
+    /// use ndarray::array;
+    ///
     /// // create dummy classes 0 and 1
     /// let prediction = array![0, 1, 1, 1, 0, 0, 1];
     /// let ground_truth = array![0, 0, 1, 0, 1, 0, 1];
     ///
     /// // create confusion matrix
-    /// let cm = prediction.into_confusion_matrix(&ground_truth);
+    /// let cm = prediction.confusion_matrix(&ground_truth).unwrap();
     ///
     /// // print precision for label 0
     /// println!("{:?}", cm.precision());
@@ -107,13 +111,16 @@ impl<A> ConfusionMatrix<A> {
     ///
     /// # Example
     ///
-    /// ```rust, ignore
+    /// ```rust
+    /// use linfa::prelude::*;
+    /// use ndarray::array;
+    ///
     /// // create dummy classes 0 and 1
     /// let prediction = array![0, 1, 1, 1, 0, 0, 1];
     /// let ground_truth = array![0, 0, 1, 0, 1, 0, 1];
     ///
     /// // create confusion matrix
-    /// let cm = prediction.into_confusion_matrix(&ground_truth);
+    /// let cm = prediction.confusion_matrix(&ground_truth).unwrap();
     ///
     /// // print recall for label 0
     /// println!("{:?}", cm.recall());
@@ -264,7 +271,7 @@ pub trait ToConfusionMatrix<A, T> {
 impl<L: Label, S, T> ToConfusionMatrix<L, ArrayBase<S, Ix1>> for T
 where
     S: Data<Elem = L>,
-    T: AsTargets<Elem = L> + Labels<Elem = L>,
+    T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
 {
     fn confusion_matrix(&self, ground_truth: ArrayBase<S, Ix1>) -> Result<ConfusionMatrix<L>> {
         self.confusion_matrix(&ground_truth)
@@ -274,10 +281,10 @@ where
 impl<L: Label, S, T> ToConfusionMatrix<L, &ArrayBase<S, Ix1>> for T
 where
     S: Data<Elem = L>,
-    T: AsTargets<Elem = L> + Labels<Elem = L>,
+    T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
 {
     fn confusion_matrix(&self, ground_truth: &ArrayBase<S, Ix1>) -> Result<ConfusionMatrix<L>> {
-        let targets = self.try_single_target()?;
+        let targets = self.as_single_targets();
         if targets.len() != ground_truth.len() {
             return Err(Error::MismatchedShapes(targets.len(), ground_truth.len()));
         }
@@ -307,16 +314,15 @@ impl<L: Label, R, R2, T, T2> ToConfusionMatrix<L, &DatasetBase<R, T>> for Datase
 where
     R: Records,
     R2: Records,
-    T: AsTargets<Elem = L>,
-    T2: AsTargets<Elem = L> + Labels<Elem = L>,
+    T: AsSingleTargets<Elem = L>,
+    T2: AsSingleTargets<Elem = L> + Labels<Elem = L>,
 {
     fn confusion_matrix(&self, ground_truth: &DatasetBase<R, T>) -> Result<ConfusionMatrix<L>> {
-        self.targets()
-            .confusion_matrix(ground_truth.try_single_target()?)
+        self.targets().confusion_matrix(ground_truth.as_targets())
     }
 }
 
-impl<L: Label, S: Data<Elem = L>, T: AsTargets<Elem = L> + Labels<Elem = L>, R: Records>
+impl<L: Label, S: Data<Elem = L>, T: AsSingleTargets<Elem = L> + Labels<Elem = L>, R: Records>
     ToConfusionMatrix<L, &DatasetBase<R, T>> for ArrayBase<S, Ix1>
 {
     fn confusion_matrix(&self, ground_truth: &DatasetBase<R, T>) -> Result<ConfusionMatrix<L>> {
@@ -477,13 +483,13 @@ impl<D: Data<Elem = Pr>> BinaryClassification<&[bool]> for ArrayBase<D, Ix1> {
     }
 }
 
-impl<R: Records, R2: Records, T: AsTargets<Elem = bool>, T2: AsTargets<Elem = Pr>>
+impl<R: Records, R2: Records, T: AsSingleTargets<Elem = bool>, T2: AsSingleTargets<Elem = Pr>>
     BinaryClassification<&DatasetBase<R, T>> for DatasetBase<R2, T2>
 {
     fn roc(&self, y: &DatasetBase<R, T>) -> Result<ReceiverOperatingCharacteristic> {
-        let targets = self.try_single_target()?;
+        let targets = self.as_targets();
         let targets = targets.as_slice().unwrap();
-        let y_targets = y.try_single_target()?;
+        let y_targets = y.as_targets();
         let y_targets = y_targets.as_slice().unwrap();
 
         targets.roc(y_targets)

@@ -59,8 +59,9 @@ use super::cells_grid::CellsGrid;
 /// Let's do a walkthrough of an example running the approximated DBSCAN on some data.
 ///
 /// ```rust
-/// use linfa_clustering::{AppxDbscan, generate_blobs};
+/// use linfa_clustering::AppxDbscan;
 /// use linfa::traits::Transformer;
+/// use linfa_datasets::generate;
 /// use ndarray::{Axis, array, s};
 /// use ndarray_rand::rand::SeedableRng;
 /// use rand_isaac::Isaac64Rng;
@@ -75,7 +76,7 @@ use super::cells_grid::CellsGrid;
 /// let expected_centroids = array![[0., 1.], [-10., 20.], [-1., 10.]];
 /// // Let's generate a synthetic dataset: three blobs of observations
 /// // (100 points each) centered around our `expected_centroids`
-/// let observations = generate_blobs(100, &expected_centroids, &mut rng);
+/// let observations = generate::blobs(100, &expected_centroids, &mut rng);
 ///
 /// // Let's configure and run our AppxDbscan algorithm
 /// // We use the builder pattern to specify the hyperparameters

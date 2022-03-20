@@ -1,5 +1,6 @@
 use linfa::prelude::*;
 use linfa_elasticnet::{ElasticNet, Result};
+use ndarray::arr0;
 
 fn main() -> Result<()> {
     // load Diabetes dataset (mutable to allow fast k-folding)
@@ -15,8 +16,9 @@ fn main() -> Result<()> {
         .collect::<Vec<_>>();
 
     // get the mean r2 validation score across all folds for each model
-    let r2_values =
-        dataset.cross_validate(5, &models, |prediction, truth| prediction.r2(&truth))?;
+    let r2_values = dataset.cross_validate(5, &models, |prediction, truth| {
+        prediction.r2(&truth).map(arr0)
+    })?;
 
     for (ratio, r2) in ratios.iter().zip(r2_values.iter()) {
         println!("L1 ratio: {}, r2 score: {}", ratio, r2);

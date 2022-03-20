@@ -1,7 +1,8 @@
 use linfa::dataset::{DatasetBase, Labels, Records};
 use linfa::metrics::SilhouetteScore;
 use linfa::traits::Transformer;
-use linfa_clustering::{generate_blobs, AppxDbscan};
+use linfa_clustering::AppxDbscan;
+use linfa_datasets::generate;
 use ndarray::array;
 use ndarray_npy::write_npy;
 use ndarray_rand::rand::SeedableRng;
@@ -17,7 +18,7 @@ fn main() {
     let expected_centroids = array![[10., 10.], [1., 12.], [20., 30.], [-20., 30.],];
     let n = 1000;
     // For each our expected centroids, generate `n` data points around it (a "blob")
-    let dataset: DatasetBase<_, _> = generate_blobs(n, &expected_centroids, &mut rng).into();
+    let dataset: DatasetBase<_, _> = generate::blobs(n, &expected_centroids, &mut rng).into();
 
     // Configure our training algorithm
     let min_points = 3;

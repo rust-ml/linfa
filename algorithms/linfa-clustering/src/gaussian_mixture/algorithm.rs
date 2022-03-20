@@ -59,7 +59,8 @@ use serde_crate::{Deserialize, Serialize};
 /// ```rust
 /// use linfa::DatasetBase;
 /// use linfa::prelude::*;
-/// use linfa_clustering::{GmmValidParams, GaussianMixtureModel, generate_blobs};
+/// use linfa_clustering::{GmmValidParams, GaussianMixtureModel};
+/// use linfa_datasets::generate;
 /// use ndarray::{Axis, array, s, Zip};
 /// use ndarray_rand::rand::SeedableRng;
 /// use rand_isaac::Isaac64Rng;
@@ -70,7 +71,7 @@ use serde_crate::{Deserialize, Serialize};
 /// let n = 200;
 ///
 /// // We generate a dataset from points normally distributed around some distant centroids.  
-/// let dataset = DatasetBase::from(generate_blobs(n, &expected_centroids, &mut rng));
+/// let dataset = DatasetBase::from(generate::blobs(n, &expected_centroids, &mut rng));
 ///
 /// // Our GMM is expected to have a number of clusters equals the number of centroids
 /// // used to generate the dataset
@@ -481,9 +482,9 @@ impl<F: Float + Lapack + Scalar, D: Data<Elem = F>> PredictInplace<ArrayBase<D, 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::generate_blobs;
     use approx::{abs_diff_eq, assert_abs_diff_eq};
     use lax::error::Error;
+    use linfa_datasets::generate;
     use ndarray::{array, concatenate, ArrayView1, ArrayView2, Axis};
     use ndarray_linalg::error::LinalgError;
     use ndarray_linalg::error::Result as LAResult;
@@ -636,7 +637,7 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(42);
         let expected_centroids = array![[0., 1.], [-10., 20.], [-1., 10.]];
         let n = 1000;
-        let blobs = DatasetBase::from(generate_blobs(n, &expected_centroids, &mut rng));
+        let blobs = DatasetBase::from(generate::blobs(n, &expected_centroids, &mut rng));
 
         let n_clusters = expected_centroids.len_of(Axis(0));
         let gmm = GaussianMixtureModel::params(n_clusters)

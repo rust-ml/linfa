@@ -3,7 +3,8 @@ use criterion::{
     PlotConfiguration,
 };
 use linfa::prelude::{ParamGuard, Transformer};
-use linfa_clustering::{generate_blobs, Dbscan};
+use linfa_clustering::Dbscan;
+use linfa_datasets::generate;
 use ndarray::Array2;
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::Uniform;
@@ -27,7 +28,7 @@ fn dbscan_bench(c: &mut Criterion) {
                 let tolerance = 0.3;
                 let centroids =
                     Array2::random_using((min_points, n_features), Uniform::new(-30., 30.), rng);
-                let dataset = generate_blobs(cluster_size, &centroids, rng);
+                let dataset = generate::blobs(cluster_size, &centroids, rng);
 
                 bencher.iter(|| {
                     black_box(

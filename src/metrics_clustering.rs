@@ -1,6 +1,6 @@
 //! Common metrics for clustering
-use crate::dataset::{AsTargets, DatasetBase, Label, Labels, Records};
-use crate::error::{Error, Result};
+use crate::dataset::{AsSingleTargets, DatasetBase, Label, Labels, Records};
+use crate::error::Result;
 use crate::Float;
 use ndarray::{ArrayBase, ArrayView1, Data, Ix2};
 use std::collections::HashMap;
@@ -62,15 +62,15 @@ impl<F: Float> DistanceCount<F> {
     }
 }
 
-impl<'a, F: Float, L: 'a + Label, D: Data<Elem = F>, T: AsTargets<Elem = L> + Labels<Elem = L>>
-    SilhouetteScore<F> for DatasetBase<ArrayBase<D, Ix2>, T>
+impl<
+        'a,
+        F: Float,
+        L: 'a + Label,
+        D: Data<Elem = F>,
+        T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
+    > SilhouetteScore<F> for DatasetBase<ArrayBase<D, Ix2>, T>
 {
     fn silhouette_score(&self) -> Result<F> {
-        if self.ntargets() > 1 {
-            return Err(Error::MultipleTargets);
-        }
-        // By using try_single_target we ensure that the iterator returns an
-        // array1 as target with just one element, that can be addressed by [0]
         let mut labels: HashMap<L, DistanceCount<F>> = self
             .label_count()
             .remove(0)
@@ -93,7 +93,7 @@ impl<'a, F: Float, L: 'a + Label, D: Data<Elem = F>, T: AsTargets<Elem = L> + La
 
                 for other in self.sample_iter() {
                     labels
-                        .get_mut(&other.1[0])
+                        .get_mut(other.1.into_scalar())
                         .unwrap()
                         .add_point(sample.0, other.0);
                 }
@@ -105,7 +105,7 @@ impl<'a, F: Float, L: 'a + Label, D: Data<Elem = F>, T: AsTargets<Elem = L> + La
                 let mut b_x: Option<F> = None;
 
                 for (label, counter) in &mut labels {
-                    if sample.1[0] == *label {
+                    if sample.1.into_scalar() == label {
                         // The cluster of `sample` averages by excluding `sample` from the counting
                         a_x = counter.same_label_mean_distance();
                     } else {
@@ -142,12 +142,10 @@ impl<'a, F: Float, L: 'a + Label, D: Data<Elem = F>, T: AsTargets<Elem = L> + La
 
 #[cfg(test)]
 mod tests {
-
     use crate::metrics_clustering::SilhouetteScore;
     use crate::{Dataset, DatasetBase};
     use approx::assert_abs_diff_eq;
-    use ndarray::{concatenate, Array, Array1, Axis};
-    use num_traits::ToPrimitive;
+    use ndarray::{concatenate, Array, Array1, Axis, Ix1};
 
     #[test]
     fn test_silhouette_score() {
@@ -161,7 +159,7 @@ mod tests {
         .insert_axis(Axis(1));
         let records = concatenate![Axis(1), records, records];
         let targets = concatenate![Axis(0), Array1::from_elem(10, 0), Array1::from_elem(10, 1)];
-        let dataset: Dataset<_, _> = (records, targets).into();
+        let dataset: Dataset<_, _, Ix1> = (records, targets).into();
         let score = dataset.silhouette_score().unwrap();
         assert_abs_diff_eq!(score, 1f64, epsilon = 1e-3);
 
@@ -183,7 +181,7 @@ mod tests {
             Array1::from_elem(5, 0),
             Array1::from_elem(5, 1)
         ];
-        let dataset: Dataset<_, _> = (records, targets).into();
+        let dataset: Dataset<_, _, Ix1> = (records, targets).into();
         let score = dataset.silhouette_score().unwrap();
         assert!(score < 0f64);
 
@@ -191,7 +189,7 @@ mod tests {
         let records = Array::linspace(0f64, 10f64, 100).insert_axis(Axis(1));
         let records = concatenate![Axis(1), records, records];
         let targets = Array1::from_shape_fn(100, |i| (i + 3) % 48);
-        let dataset: Dataset<_, _> = (records, targets).into();
+        let dataset: Dataset<_, _, Ix1> = (records, targets).into();
         let score = dataset.silhouette_score().unwrap();
         assert!(score < -0.5f64)
     }
@@ -202,17 +200,5 @@ mod tests {
         let dataset: DatasetBase<_, _> = records.into();
         let score = dataset.silhouette_score().unwrap();
         assert_abs_diff_eq!(score, 1f64, epsilon = 1e-5);
-    }
-
-    #[test]
-    fn test_fail_on_multi_target() {
-        let records = concatenate![Axis(0), Array::linspace(0f64, 1f64, 10)].insert_axis(Axis(1));
-        let records = concatenate![Axis(1), records, records];
-
-        let targets = records.mapv(|x| x.to_usize().unwrap());
-
-        let dataset: DatasetBase<_, _> = (records, targets).into();
-        let score_res = dataset.silhouette_score();
-        assert!(score_res.is_err());
     }
 }

@@ -1,6 +1,7 @@
 use linfa::dataset::Records;
 use linfa::traits::Transformer;
-use linfa_clustering::{generate_blobs, Optics};
+use linfa_clustering::Optics;
+use linfa_datasets::generate;
 use ndarray::{array, Array, Array2};
 use ndarray_npy::write_npy;
 use ndarray_rand::rand::SeedableRng;
@@ -14,7 +15,7 @@ fn main() {
 
     let expected_centroids = array![[10., 10.], [5., 5.], [20., 30.], [-20., 30.],];
     let n = 100;
-    let dataset: Array2<f64> = generate_blobs(n, &expected_centroids, &mut rng);
+    let dataset: Array2<f64> = generate::blobs(n, &expected_centroids, &mut rng);
 
     // Configure our training algorithm
     let min_points = 3;

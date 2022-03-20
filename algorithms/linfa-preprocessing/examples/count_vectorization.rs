@@ -7,7 +7,7 @@ use linfa::traits::{Fit, Predict};
 use linfa::Dataset;
 use linfa_bayes::GaussianNb;
 use linfa_preprocessing::CountVectorizer;
-use ndarray::Array2;
+use ndarray::{Array1, Ix1};
 use std::collections::HashSet;
 use std::path::Path;
 use tar::Archive;
@@ -35,7 +35,7 @@ fn download_20news_bydate() {
 fn load_set(
     path: &'static str,
     desired_targets: &[&str],
-) -> Result<(Vec<std::path::PathBuf>, Array2<usize>, usize), std::io::Error> {
+) -> Result<(Vec<std::path::PathBuf>, Array1<usize>, usize), std::io::Error> {
     let mut file_paths = Vec::new();
     let mut targets = Vec::new();
     let desired_targets: HashSet<String> = desired_targets.iter().map(|s| s.to_string()).collect();
@@ -60,19 +60,19 @@ fn load_set(
             ntargets += 1;
         }
     }
-    let targets = Array2::from_shape_vec((targets.len(), 1), targets).unwrap();
+    let targets = Array1::from_shape_vec(targets.len(), targets).unwrap();
     Ok((file_paths, targets, ntargets))
 }
 
 fn load_train_set(
     desired_targets: &[&str],
-) -> Result<(Vec<std::path::PathBuf>, Array2<usize>, usize), std::io::Error> {
+) -> Result<(Vec<std::path::PathBuf>, Array1<usize>, usize), std::io::Error> {
     load_set("./20news/20news-bydate-train", desired_targets)
 }
 
 fn load_test_set(
     desired_targets: &[&str],
-) -> Result<(Vec<std::path::PathBuf>, Array2<usize>, usize), std::io::Error> {
+) -> Result<(Vec<std::path::PathBuf>, Array1<usize>, usize), std::io::Error> {
     load_set("./20news/20news-bydate-test", desired_targets)
 }
 
@@ -166,7 +166,7 @@ fn main() {
         .transform_files(&test_filenames, ISO_8859_1, Strict)
         .to_dense();
     let test_records = test_records.mapv(|c| c as f32);
-    let test_dataset: Dataset<f32, usize> = (test_records, test_targets).into();
+    let test_dataset: Dataset<f32, usize, Ix1> = (test_records, test_targets).into();
     // Let's predict the test data targets
     let test_prediction = model.predict(&test_dataset);
     let cm = test_prediction.confusion_matrix(&test_dataset).unwrap();

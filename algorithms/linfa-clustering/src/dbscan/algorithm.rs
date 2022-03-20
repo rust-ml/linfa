@@ -41,8 +41,9 @@ use linfa::{traits::Transformer, DatasetBase};
 /// Let's do a walkthrough of an example running DBSCAN on some data.
 ///
 /// ```rust
-/// use linfa::traits::Transformer;
-/// use linfa_clustering::{DbscanParams, Dbscan, generate_blobs};
+/// use linfa::traits::*;
+/// use linfa_clustering::{DbscanParams, Dbscan};
+/// use linfa_datasets::generate;
 /// use ndarray::{Axis, array, s};
 /// use ndarray_rand::rand::SeedableRng;
 /// use rand_isaac::Isaac64Rng;
@@ -57,7 +58,7 @@ use linfa::{traits::Transformer, DatasetBase};
 /// let expected_centroids = array![[0., 1.], [-10., 20.], [-1., 10.]];
 /// // Let's generate a synthetic dataset: three blobs of observations
 /// // (100 points each) centered around our `expected_centroids`
-/// let observations = generate_blobs(100, &expected_centroids, &mut rng);
+/// let observations = generate::blobs(100, &expected_centroids, &mut rng);
 ///
 /// // Let's configure and run our DBSCAN algorithm
 /// // We use the builder pattern to specify the hyperparameters

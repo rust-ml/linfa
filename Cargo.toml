@@ -27,8 +27,8 @@ netlib-system = ["blas", "ndarray-linalg", "netlib-src/system"]
 openblas-static = ["blas", "ndarray-linalg", "openblas-src/static"]
 openblas-system = ["blas", "ndarray-linalg", "openblas-src/system"]
 
-intel-mkl-static = ["blas", "ndarray-linalg", "intel-mkl-src/mkl-static-lp64-seq", "intel-mkl-src/download", "anyhow"]
-intel-mkl-system = ["blas", "ndarray-linalg", "intel-mkl-src/mkl-dynamic-lp64-seq", "anyhow"]
+intel-mkl-static = ["blas", "ndarray-linalg", "intel-mkl-src/mkl-static-lp64-seq", "intel-mkl-src/download"]
+intel-mkl-system = ["blas", "ndarray-linalg", "intel-mkl-src/mkl-dynamic-lp64-seq"]
 
 blas = ["ndarray/blas"]
 
@@ -39,12 +39,12 @@ num-traits = "0.2"
 rand = { version = "0.8", features = ["small_rng"] }
 approx = "0.4"
 
-ndarray = { version = "0.15", default-features = false, features = ["approx"] }
+ndarray = { version = "0.15", features = ["approx"] }
 ndarray-linalg = { version = "0.14", optional = true }
 
 thiserror = "1.0"
 # Temporary fix for compatibility issue between intel-mkl-tool and anyhow (https://github.com/rust-math/intel-mkl-src/issues/68)
-anyhow = { version = "<=1.0.48", optional = true }
+anyhow = { version = "<=1.0.48" }
 
 [dependencies.serde_crate]
 package = "serde"
