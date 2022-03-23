@@ -29,16 +29,17 @@ pub(crate) struct Pls<F: Float> {
     x_std: Array1<F>,
     y_mean: Array1<F>,
     y_std: Array1<F>,
-    x_weights: Array2<F>,  // U
-    y_weights: Array2<F>,  // V
-    x_scores: Array2<F>,   // xi
-    y_scores: Array2<F>,   // Omega
+    x_weights: Array2<F>, // U
+    y_weights: Array2<F>, // V
+    #[cfg(test)]
+    x_scores: Array2<F>, // xi
+    #[cfg(test)]
+    y_scores: Array2<F>, // Omega
     x_loadings: Array2<F>, // Gamma
     y_loadings: Array2<F>, // Delta
     x_rotations: Array2<F>,
     y_rotations: Array2<F>,
     coefficients: Array2<F>,
-    n_iters: Array1<usize>,
 }
 
 #[derive(PartialEq, Debug, Clone, Copy)]
@@ -292,14 +293,15 @@ impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsE
             y_std,
             x_weights,
             y_weights,
+            #[cfg(test)]
             x_scores,
+            #[cfg(test)]
             y_scores,
             x_loadings,
             y_loadings,
             x_rotations,
             y_rotations,
             coefficients,
-            n_iters,
         })
     }
 }
