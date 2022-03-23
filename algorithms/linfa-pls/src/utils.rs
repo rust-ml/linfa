@@ -3,8 +3,10 @@ use linfa::{
     DatasetBase, Float,
 };
 use ndarray::{s, Array1, Array2, ArrayBase, ArrayView2, Axis, Data, DataMut, Ix1, Ix2, Zip};
+#[cfg(feature = "blas")]
 use ndarray_linalg::svd::*;
-use ndarray_linalg::Scalar;
+#[cfg(not(feature = "blas"))]
+use ndarray_linalg_rs::svd::*;
 use ndarray_stats::QuantileExt;
 
 pub fn outer<F: Float>(
@@ -38,11 +40,7 @@ pub fn pinv2<F: Float>(x: ArrayView2<F>, cond: Option<F>) -> Array2<F> {
     let mut ucut = u.slice_move(s![.., ..rank]);
     ucut /= &s.slice(s![..rank]).mapv(F::Lapack::cast);
 
-    vh.slice(s![..rank, ..])
-        .t()
-        .dot(&ucut.t())
-        .mapv(|v| v.conj())
-        .without_lapack()
+    vh.slice(s![..rank, ..]).t().dot(&ucut.t()).without_lapack()
 }
 
 #[allow(clippy::type_complexity)]

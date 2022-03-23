@@ -3,7 +3,10 @@ use crate::{utils, Float};
 use linfa::dataset::{WithLapack, WithoutLapack};
 use linfa::{dataset::Records, traits::Fit, traits::Transformer, DatasetBase};
 use ndarray::{s, Array1, Array2, ArrayBase, Data, Ix2};
+#[cfg(feature = "blas")]
 use ndarray_linalg::svd::*;
+#[cfg(not(feature = "blas"))]
+use ndarray_linalg_rs::svd::*;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 
@@ -73,6 +76,7 @@ impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsE
         let c = x.t().dot(&y);
         let (u, _, vt) = c.with_lapack().svd(true, true)?;
         // safe unwraps because both parameters are set to true in above call
+        // TODO sort SVD components
         let u = u.unwrap().slice_move(s![.., ..self.n_components]);
         let vt = vt.unwrap().slice_move(s![..self.n_components, ..]);
         let (u, vt) = utils::svd_flip(u, vt);

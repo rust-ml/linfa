@@ -14,6 +14,7 @@ categories = ["algorithms", "mathematics", "science"]
 
 [features]
 default = []
+blas = ["ndarray-linalg", "linfa/ndarray-linalg"]
 serde = ["serde_crate", "ndarray/serde"]
 
 [dependencies.serde_crate]
@@ -25,14 +26,15 @@ features = ["std", "derive"]
 
 [dependencies]
 ndarray = { version = "0.15" }
-ndarray-linalg = "0.14"
+ndarray-linalg-rs = { git = "https://github.com/rust-ml/ndarray-linalg-rs.git" }
+ndarray-linalg = { version = "0.14", optional = true }
 ndarray-stats = "0.5"
 ndarray-rand = "0.14"
 rand_isaac = "0.3"
 num-traits = "0.2"
 paste = "1.0"
 thiserror = "1.0"
-linfa = { version = "0.5.0", path = "../..", features = ["ndarray-linalg"] }
+linfa = { version = "0.5.0", path = "../.." }
 
 [dev-dependencies]
 linfa-datasets = { version = "0.5.0", path = "../../datasets", features = ["linnerud"] }
