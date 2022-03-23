@@ -4,13 +4,13 @@
 //! functionality.
 use ndarray::{
     Array, Array1, ArrayBase, ArrayView, ArrayView1, ArrayView2, ArrayViewMut, ArrayViewMut1,
-    ArrayViewMut2, CowArray, Ix1, Ix2, Ix3, OwnedRepr, RemoveAxis, ScalarOperand,
+    ArrayViewMut2, CowArray, Ix1, Ix2, Ix3, NdFloat, OwnedRepr, RemoveAxis, ScalarOperand,
 };
 
 #[cfg(feature = "ndarray-linalg")]
 use ndarray_linalg::{Lapack, Scalar};
 
-use num_traits::{AsPrimitive, FromPrimitive, NumAssignOps, NumCast, Signed};
+use num_traits::{AsPrimitive, FromPrimitive, NumCast, Signed};
 use rand::distributions::uniform::SampleUniform;
 
 use std::cmp::{Ordering, PartialOrd};
@@ -37,17 +37,11 @@ pub use lapack_bounds::*;
 /// implement them for 32bit and 64bit floating points. They are used in records of a dataset and, for
 /// regression task, in the targets as well.
 pub trait Float:
-    FromPrimitive
-    + num_traits::Float
-    + PartialOrd
-    + Sync
-    + Send
+    NdFloat
+    + FromPrimitive
     + Default
-    + fmt::Display
-    + fmt::Debug
     + Signed
     + Sum
-    + NumAssignOps
     + AsPrimitive<usize>
     + for<'a> AddAssign<&'a Self>
     + for<'a> MulAssign<&'a Self>

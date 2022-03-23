@@ -3,13 +3,14 @@ use crate::gaussian_mixture::hyperparams::{
     GmmCovarType, GmmInitMethod, GmmParams, GmmValidParams,
 };
 use crate::k_means::KMeans;
-use linfa::{
-    dataset::{WithLapack, WithoutLapack},
-    prelude::*,
-    DatasetBase, Float,
-};
+#[cfg(feature = "blas")]
+use linfa::dataset::{WithLapack, WithoutLapack};
+use linfa::{prelude::*, DatasetBase, Float};
 use ndarray::{s, Array, Array1, Array2, Array3, ArrayBase, Axis, Data, Ix2, Ix3, Zip};
+#[cfg(feature = "blas")]
 use ndarray_linalg::{cholesky::*, triangular::*, Lapack, Scalar};
+#[cfg(not(feature = "blas"))]
+use ndarray_linalg_rs::{cholesky::*, triangular::*};
 use ndarray_rand::rand::Rng;
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::Uniform;
@@ -261,10 +262,18 @@ impl<F: Float> GaussianMixtureModel<F> {
         let n_features = covariances.shape()[1];
         let mut precisions_chol = Array::zeros((n_clusters, n_features, n_features));
         for (k, covariance) in covariances.outer_iter().enumerate() {
-            let decomp = covariance.with_lapack().cholesky(UPLO::Lower)?;
-            let sol = decomp
-                .solve_triangular(UPLO::Lower, Diag::NonUnit, &Array::eye(n_features))?
-                .without_lapack();
+            #[cfg(feature = "blas")]
+            let sol = {
+                let decomp = covariance.with_lapack().cholesky(UPLO::Lower)?;
+                decomp
+                    .solve_triangular(UPLO::Lower, Diag::NonUnit, &Array::eye(n_features))?
+                    .without_lapack()
+            };
+            #[cfg(not(feature = "blas"))]
+            let sol = {
+                let decomp = covariance.cholesky()?;
+                decomp.solve_triangular(&Array::eye(n_features), UPLO::Lower)?
+            };
 
             precisions_chol.slice_mut(s![k, .., ..]).assign(&sol.t());
         }
@@ -458,7 +467,7 @@ impl<F: Float, R: Rng + SeedableRng + Clone, D: Data<Elem = F>, T>
     }
 }
 
-impl<F: Float + Lapack + Scalar, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<usize>>
+impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<usize>>
     for GaussianMixtureModel<F>
 {
     fn predict_inplace(&self, observations: &ArrayBase<D, Ix2>, targets: &mut Array1<usize>) {
@@ -470,7 +479,7 @@ impl<F: Float + Lapack + Scalar, D: Data<Elem = F>> PredictInplace<ArrayBase<D, 
 
         let (_, log_resp) = self.estimate_log_prob_resp(observations);
         *targets = log_resp
-            .mapv(Scalar::exp)
+            .mapv(F::exp)
             .map_axis(Axis(1), |row| row.argmax().unwrap());
     }
 
@@ -483,11 +492,20 @@ impl<F: Float + Lapack + Scalar, D: Data<Elem = F>> PredictInplace<ArrayBase<D, 
 mod tests {
     use super::*;
     use approx::{abs_diff_eq, assert_abs_diff_eq};
+    #[cfg(feature = "blas")]
     use lax::error::Error;
     use linfa_datasets::generate;
     use ndarray::{array, concatenate, ArrayView1, ArrayView2, Axis};
+
+    #[cfg(feature = "blas")]
     use ndarray_linalg::error::LinalgError;
+    #[cfg(feature = "blas")]
     use ndarray_linalg::error::Result as LAResult;
+    #[cfg(not(feature = "blas"))]
+    use ndarray_linalg_rs::LinalgError;
+    #[cfg(not(feature = "blas"))]
+    use ndarray_linalg_rs::Result as LAResult;
+
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::{Distribution, StandardNormal};
 
@@ -499,7 +517,10 @@ mod tests {
     }
     impl MultivariateNormal {
         pub fn new(mean: &ArrayView1<f64>, covariance: &ArrayView2<f64>) -> LAResult<Self> {
+            #[cfg(feature = "blas")]
             let lower = covariance.cholesky(UPLO::Lower)?;
+            #[cfg(not(feature = "blas"))]
+            let lower = covariance.cholesky()?;
             Ok(MultivariateNormal {
                 mean: mean.to_owned(),
                 covariance: covariance.to_owned(),
@@ -588,16 +609,18 @@ mod tests {
             .with_rng(rng.clone())
             .fit(&dataset);
 
-        assert!(
-            match gmm.expect_err("should generate an error with reg_covar being nul") {
-                GmmError::LinalgError(e) => match e {
-                    LinalgError::Lapack(Error::LapackComputationalFailure { return_code: 2 }) =>
-                        true,
-                    _ => panic!("should be a lapack error 2"),
-                },
-                _ => panic!("should be a linear algebra error"),
+        match gmm.expect_err("should generate an error with reg_covar being nul") {
+            GmmError::LinalgError(e) => {
+                #[cfg(feature = "blas")]
+                assert!(matches!(
+                    e,
+                    LinalgError::Lapack(Error::LapackComputationalFailure { return_code: 2 })
+                ));
+                #[cfg(not(feature = "blas"))]
+                assert!(matches!(e, LinalgError::NotPositiveDefinite));
             }
-        );
+            e => panic!("should be a linear algebra error: {:?}", e),
+        }
         // Test it passes when default value is used
         assert!(GaussianMixtureModel::params(3)
             .with_rng(rng)
@@ -617,16 +640,18 @@ mod tests {
             .reg_covariance(0.)
             .fit(&dataset);
 
-        assert!(
-            match gmm.expect_err("should generate an error with reg_covar being nul") {
-                GmmError::LinalgError(e) => match e {
-                    LinalgError::Lapack(Error::LapackComputationalFailure { return_code: 1 }) =>
-                        true,
-                    _ => panic!("should be a lapack error 1"),
-                },
-                _ => panic!("should be a linear algebra error"),
+        #[cfg(feature = "blas")]
+        match gmm.expect_err("should generate an error with reg_covar being nul") {
+            GmmError::LinalgError(e) => {
+                assert!(matches!(
+                    e,
+                    LinalgError::Lapack(Error::LapackComputationalFailure { return_code: 1 })
+                ));
             }
-        );
+            e => panic!("should be a linear algebra error: {:?}", e),
+        }
+        #[cfg(not(feature = "blas"))]
+        gmm.expect_err("should generate an error with reg_covar being nul");
 
         // Test it passes when default value is used
         assert!(GaussianMixtureModel::params(1).fit(&dataset).is_ok());
