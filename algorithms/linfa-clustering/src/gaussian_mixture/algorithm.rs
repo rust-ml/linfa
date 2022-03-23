@@ -8,7 +8,7 @@ use linfa::dataset::{WithLapack, WithoutLapack};
 use linfa::{prelude::*, DatasetBase, Float};
 use ndarray::{s, Array, Array1, Array2, Array3, ArrayBase, Axis, Data, Ix2, Ix3, Zip};
 #[cfg(feature = "blas")]
-use ndarray_linalg::{cholesky::*, triangular::*, Lapack, Scalar};
+use ndarray_linalg::{cholesky::*, triangular::*};
 #[cfg(not(feature = "blas"))]
 use ndarray_linalg_rs::{cholesky::*, triangular::*};
 use ndarray_rand::rand::Rng;
