@@ -6,7 +6,10 @@ use linfa::{
     Float,
 };
 use ndarray::{Array, Array1, Array2, ArrayBase, Axis, Data, Ix2};
+#[cfg(feature = "blas")]
 use ndarray_linalg::{eigh::Eigh, solveh::UPLO, svd::SVD};
+#[cfg(not(feature = "blas"))]
+use ndarray_linalg_rs::{eigh::*, svd::*};
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
 use ndarray_stats::QuantileExt;
 use rand_isaac::Isaac64Rng;
@@ -66,6 +69,9 @@ impl<F: Float, D: Data<Elem = F>, T> Fit<ArrayBase<D, Ix2>, T, FastIcaError>
         let k = match xcentered.svd(true, false)? {
             (Some(u), s, _) => {
                 let s = s.mapv(F::Lapack::cast);
+                // This slice operation will extract the "thin" SVD component of `u` regardless of
+                // whether `.svd` returns a full or thin SVD, because the slice dimensions
+                // correspond to the thin SVD dimensions.
                 (u.slice_move(s![.., ..nsamples.min(nfeatures)]) / s)
                     .t()
                     .slice(s![..ncomponents, ..])
@@ -145,7 +151,10 @@ impl<F: Float> FastIcaValidParams<F> {
     //
     // W <- (W * W.T)^{-1/2} * W
     fn sym_decorrelation(w: &Array2<F>) -> Result<Array2<F>> {
+        #[cfg(feature = "blas")]
         let (eig_val, eig_vec) = w.dot(&w.t()).with_lapack().eigh(UPLO::Upper)?;
+        #[cfg(not(feature = "blas"))]
+        let (eig_val, eig_vec) = w.dot(&w.t()).with_lapack().eigh()?;
         let eig_val = eig_val.mapv(F::cast);
         let eig_vec = eig_vec.without_lapack();
 
