@@ -74,9 +74,12 @@ impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsE
 
         // Compute SVD of cross-covariance matrix
         let c = x.t().dot(&y);
-        let (u, _, vt) = c.with_lapack().svd(true, true)?;
+        let d = c.with_lapack().svd(true, true)?;
+        #[cfg(feature = "blas")]
+        let (u, _, vt) = d;
+        #[cfg(not(feature = "blas"))]
+        let (u, _, vt) = d.sort_svd_desc();
         // safe unwraps because both parameters are set to true in above call
-        // TODO sort SVD components
         let u = u.unwrap().slice_move(s![.., ..self.n_components]);
         let vt = vt.unwrap().slice_move(s![..self.n_components, ..]);
         let (u, vt) = utils::svd_flip(u, vt);
