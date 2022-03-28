@@ -7,7 +7,11 @@
 //! j.
 //!
 use ndarray::{Array1, Array2};
+#[cfg(feature = "blas")]
 use ndarray_linalg::{eigh::EighInto, lobpcg, lobpcg::LobpcgResult, Scalar, TruncatedOrder, UPLO};
+#[cfg(not(feature = "blas"))]
+use ndarray_linalg_rs::eigh::*;
+#[cfg(feature = "blas")]
 use ndarray_rand::{rand_distr::Uniform, RandomExt};
 
 use linfa::dataset::{WithLapack, WithoutLapack};
@@ -95,6 +99,7 @@ impl<F: Float> DiffusionMap<F> {
     }
 }
 
+#[allow(unused)]
 fn compute_diffusion_map<F: Float>(
     kernel: &Kernel<F>,
     steps: usize,
@@ -105,10 +110,8 @@ fn compute_diffusion_map<F: Float>(
     assert!(embedding_size < kernel.size());
 
     let d = kernel.sum().mapv(|x| x.recip());
-    let d2 = d.mapv(|x| x.powf(F::cast(0.5 + alpha)));
 
-    // use full eigenvalue decomposition for small problem sizes
-    let (vals, vecs) = if kernel.size() < 5 * embedding_size + 1 {
+    let full_eig = || {
         let mut matrix = kernel.dot(&Array2::from_diag(&d).view());
         matrix
             .columns_mut()
@@ -117,14 +120,33 @@ fn compute_diffusion_map<F: Float>(
             .for_each(|(mut a, b)| a *= *b);
 
         let matrix = matrix.with_lapack();
-        let (vals, vecs) = matrix.eigh_into(UPLO::Lower).unwrap();
-        let (vals, vecs) = (vals.slice_move(s![..; -1]), vecs.slice_move(s![.., ..; -1]));
+        // Calculate the eigen decomposition sorted from largest to lowest
+        #[cfg(feature = "blas")]
+        let (vals, vecs) = {
+            let (vals, vecs) = matrix.eigh_into(UPLO::Lower).unwrap();
+            (
+                vals.slice_move(s![..; -1]).mapv(Scalar::from_real),
+                vecs.slice_move(s![.., ..; -1]),
+            )
+        };
+        #[cfg(not(feature = "blas"))]
+        let (vals, vecs) = matrix.eigh_into().unwrap().sort_eig_desc();
         (
-            vals.slice_move(s![1..=embedding_size])
-                .mapv(Scalar::from_real),
+            vals.slice_move(s![1..=embedding_size]),
             vecs.slice_move(s![.., 1..=embedding_size]),
         )
+    };
+
+    // Without BLAS, always calculate the full eigendecomposition, which may be inefficient for
+    // large embeddings.
+    #[cfg(not(feature = "blas"))]
+    let (vals, vecs) = full_eig();
+    #[cfg(feature = "blas")]
+    let (vals, vecs) = if kernel.size() < 5 * embedding_size + 1 {
+        // use full eigenvalue decomposition for small problem sizes
+        full_eig()
     } else {
+        let d2 = d.mapv(|x| x.powf(F::cast(0.5 + alpha)));
         // calculate truncated eigenvalue decomposition
         let x = guess
             .unwrap_or_else(|| {

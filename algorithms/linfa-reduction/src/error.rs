@@ -1,4 +1,9 @@
+#[cfg(feature = "blas")]
+use ndarray_linalg::error::LinalgError;
+#[cfg(not(feature = "blas"))]
+use ndarray_linalg_rs::LinalgError;
 use thiserror::Error;
+
 pub type Result<T> = std::result::Result<T, ReductionError>;
 
 #[derive(Error, Debug)]
@@ -10,7 +15,7 @@ pub enum ReductionError {
     #[error("Number of steps zero in diffusion map operator")]
     StepsZero,
     #[error(transparent)]
-    LinalgError(#[from] ndarray_linalg::error::LinalgError),
+    LinalgError(#[from] LinalgError),
     #[error(transparent)]
     LinfaError(#[from] linfa::error::Error),
 }
