@@ -23,7 +23,10 @@ pub fn outer<F: Float>(
 /// Calculates the pseudo inverse of a matrix
 pub fn pinv2<F: Float>(x: ArrayView2<F>, cond: Option<F>) -> Array2<F> {
     let x = x.with_lapack();
+    #[cfg(feature = "blas")]
     let (opt_u, s, opt_vh) = x.svd(true, true).unwrap();
+    #[cfg(not(feature = "blas"))]
+    let (opt_u, s, opt_vh) = x.svd(true, true).unwrap().sort_svd_desc();
     let u = opt_u.unwrap();
     let vh = opt_vh.unwrap();
 

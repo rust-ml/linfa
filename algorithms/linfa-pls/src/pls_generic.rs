@@ -754,7 +754,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "No longer converges without BLAS, even though this has nothing to do with SVD. Likely related to non-BLAS matrix multiplication"]
     fn test_cca() {
         // values checked against scikit-learn 0.24.1 CCA
         let ds = linnerud();
