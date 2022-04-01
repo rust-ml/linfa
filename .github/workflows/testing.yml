@@ -14,11 +14,9 @@ jobs:
           - 1.54.0
           - stable
         platform: [{ os: "ubuntu-18.04", 
-            rust-target: "x86_64-unknown-linux-gnu",
-            linfa-features: "intel-mkl-static"},
+            rust-target: "x86_64-unknown-linux-gnu"},
           { os: "windows-2019", 
-            rust-target: "x86_64-pc-windows-msvc",
-            linfa-features: "intel-mkl-static"},
+            rust-target: "x86_64-pc-windows-msvc"},
         ]
     steps:
       - name: Checkout sources
@@ -37,4 +35,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --all --release --features ${{ matrix.platform.linfa-features }}
+          args: --all --release --features intel-mkl-static
