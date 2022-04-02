@@ -10,15 +10,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        toolchain:
+        toolchain: 
           - 1.54.0
           - stable
-        os: ["ubuntu-latest", "windows-latest"] 
-        experimental: [false]
-        include:
-          - toolchain: nightly
-            experimental: [true]
-    continue-on-error: ${{ matrix.experimental }}
+          - nightly
+        os:
+          - ubuntu-latest
+          - windows-latest
+
+    continue-on-error: ${{ matrix.toolchain == 'nightly' }}
 
     steps:
       - name: Checkout sources
