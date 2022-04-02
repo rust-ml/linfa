@@ -27,8 +27,10 @@ jobs:
           profile: minimal
           toolchain: ${{ matrix.toolchain }}
           target: ${{ matrix.platform.rust-target }}
+          override: true
 
-      - run: rustup set default-host ${{ matrix.platform.rust-target }}
+      - name: Log used toolchain
+        run: rustup show
 
       - name: Run cargo test in release mode
         uses: actions-rs/cargo@v1
