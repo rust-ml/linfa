@@ -4,8 +4,8 @@ name: Run Tests
 
 jobs:
   testing:
-    name: testing-${{ matrix.toolchain }}-${{ matrix.platform.os }}
-    runs-on: ${{ matrix.platform.os }}
+    name: testing-${{ matrix.toolchain }}-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     if: github.event.pull_request.draft == false
     strategy:
       fail-fast: false
@@ -13,10 +13,10 @@ jobs:
         toolchain:
           - 1.54.0
           - stable
-        platform: [{ os: "ubuntu-18.04", 
-                     rust-target: "x86_64-unknown-linux-gnu"},
-                   { os: "windows-2019", 
-                     rust-target: "x86_64-pc-windows-msvc"}]
+        os:
+          - ubuntu-18.04
+          - windows-2019
+
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
@@ -26,7 +26,6 @@ jobs:
         with:
           profile: minimal
           toolchain: ${{ matrix.toolchain }}
-          target: ${{ matrix.platform.rust-target }}
           override: true
 
       - name: Log active toolchain
