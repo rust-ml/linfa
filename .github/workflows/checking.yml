@@ -4,8 +4,8 @@ name: Check For Build Errors
 
 jobs:
   check:
-    name: check
-    runs-on: ubuntu-latest
+    name: check-${{ matrix.toolchain }}-${{ matrix.platform.os }}
+    runs-on: ${{ matrix.platform.os }}
     if: github.event.pull_request.draft == false
     strategy:
       fail-fast: false
@@ -13,6 +13,10 @@ jobs:
         toolchain:
           - 1.54.0
           - stable
+        platform: [{ os: "ubuntu-18.04", 
+                     rust-target: "x86_64-unknown-linux-gnu"},
+                   { os: "windows-2019", 
+                     rust-target: "x86_64-pc-windows-msvc"}]
         experimental: [false]
         include:
           - toolchain: nightly
@@ -28,7 +32,11 @@ jobs:
         with:
           profile: minimal
           toolchain: ${{ matrix.toolchain }}
+          target: ${{ matrix.platform.rust-target }}
           override: true
+
+      - name: Log active toolchain
+        run: rustup show
 
       # Check if linfa compiles by itself without uniting dependency features with other crates
       - name: Run cargo check on linfa

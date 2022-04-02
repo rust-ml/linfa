@@ -29,7 +29,7 @@ jobs:
           target: ${{ matrix.platform.rust-target }}
           override: true
 
-      - name: Log used toolchain
+      - name: Log active toolchain
         run: rustup show
 
       - name: Run cargo test in release mode
