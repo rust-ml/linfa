@@ -14,10 +14,9 @@ jobs:
           - 1.54.0
           - stable
         platform: [{ os: "ubuntu-18.04", 
-            rust-target: "x86_64-unknown-linux-gnu"},
-          { os: "windows-2019", 
-            rust-target: "x86_64-pc-windows-msvc"},
-        ]
+                     rust-target: "x86_64-unknown-linux-gnu"},
+                   { os: "windows-2019", 
+                     rust-target: "x86_64-pc-windows-msvc"}]
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
