@@ -13,9 +13,9 @@ jobs:
         toolchain:
           - 1.54.0
           - stable
-        platform: [{ os: "ubuntu-18.04", 
+        platform: [{ os: "ubuntu-latest",
                      rust-target: "x86_64-unknown-linux-gnu"},
-                   { os: "windows-2019", 
+                   { os: "windows-latest",
                      rust-target: "x86_64-pc-windows-msvc"}]
         experimental: [false]
         include:
