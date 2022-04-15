@@ -11,8 +11,7 @@ use linfa::dataset::{AsTargets, Records, WithLapack, WithoutLapack};
 use linfa::traits::{Fit, Transformer};
 use linfa::{DatasetBase, Float};
 use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
-use ndarray_linalg::cholesky::{Cholesky, UPLO};
-use ndarray_linalg::solve::Inverse;
+use ndarray_linalg::cholesky::{CholeskyInto, InverseCInto, UPLO};
 use ndarray_linalg::svd::SVD;
 use ndarray_linalg::Scalar;
 
@@ -102,7 +101,12 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets> Fit<ArrayBase<D, Ix2>, T, Prepro
             }
             WhiteningMethod::Cholesky => {
                 let sigma = sigma.t().dot(&sigma) / F::Lapack::cast(x.nsamples() - 1);
-                sigma.inv()?.cholesky(UPLO::Upper)?.without_lapack()
+                // sigma must be positive definite for us to call cholesky on its inverse, so invc
+                // is allowed here
+                sigma
+                    .invc_into()?
+                    .cholesky_into(UPLO::Upper)?
+                    .without_lapack()
             }
         };
 
@@ -188,7 +192,7 @@ mod tests {
     }
 
     fn inv_cov<D: Data<Elem = f64>>(x: &ArrayBase<D, Ix2>) -> Array2<f64> {
-        cov(x).inv().unwrap()
+        cov(x).invc_into().unwrap()
     }
 
     #[test]
