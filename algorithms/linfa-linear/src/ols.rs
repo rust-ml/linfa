@@ -1,16 +1,18 @@
 //! Ordinary Least Squares
 #![allow(non_snake_case)]
 use crate::error::{LinearError, Result};
+#[cfg(feature = "blas")]
+use linfa::dataset::{WithLapack, WithoutLapack};
+use linfa::Float;
 use ndarray::{concatenate, s, Array, Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2};
-use ndarray_linalg::{Lapack, LeastSquaresSvdInto, Scalar};
+#[cfg(feature = "blas")]
+use ndarray_linalg::LeastSquaresSvdInto;
+#[cfg(not(feature = "blas"))]
+use ndarray_linalg_rs::qr::LeastSquaresQrInto;
 use serde::{Deserialize, Serialize};
 
 use linfa::dataset::{AsSingleTargets, DatasetBase};
 use linfa::traits::{Fit, PredictInplace};
-
-pub trait Float: linfa::Float + Lapack + Scalar {}
-impl Float for f32 {}
-impl Float for f64 {}
 
 #[derive(Serialize, Deserialize)]
 /// An ordinary least squares linear regression model.
@@ -128,9 +130,17 @@ where
     // ensure that B = C
     let (X, y) = (X.view_mut(), y.view_mut());
 
-    X.least_squares_into(y)
-        .map(|x| x.solution)
-        .map_err(|err| err.into())
+    #[cfg(not(feature = "blas"))]
+    let out = X
+        .least_squares_into(y.insert_axis(Axis(1)))?
+        .remove_axis(Axis(1));
+    #[cfg(feature = "blas")]
+    let out = X
+        .with_lapack()
+        .least_squares_into(y.with_lapack())
+        .map(|x| x.solution)?
+        .without_lapack();
+    Ok(out)
 }
 
 /// View the fitted parameters and make predictions with a fitted

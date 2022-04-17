@@ -23,5 +23,8 @@ pub enum LinearError<F: Float> {
     #[error("some value(s) of y are out of the valid range for power value {0}")]
     InvalidTargetRange(F),
     #[error(transparent)]
-    LinalgError(#[from] ndarray_linalg::error::LinalgError),
+    #[cfg(feature = "blas")]
+    LinalgBlasError(#[from] ndarray_linalg::error::LinalgError),
+    #[error(transparent)]
+    LinalgError(#[from] ndarray_linalg_rs::LinalgError),
 }

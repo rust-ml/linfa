@@ -73,6 +73,10 @@ impl<'a, F: Float> WithLapackData for ViewRepr<&'a F> {
     type D = ViewRepr<&'a F::Lapack>;
 }
 
+impl<'a, F: Float> WithLapackData for ViewRepr<&'a mut F> {
+    type D = ViewRepr<&'a mut F::Lapack>;
+}
+
 pub trait WithoutLapackData<F: Float>
 where
     Self: Data,
@@ -96,6 +100,10 @@ impl<F: Float> WithoutLapackData<F> for OwnedRepr<F::Lapack> {
 
 impl<'a, F: Float> WithoutLapackData<F> for ViewRepr<&'a F::Lapack> {
     type D = ViewRepr<&'a F>;
+}
+
+impl<'a, F: Float> WithoutLapackData<F> for ViewRepr<&'a mut F::Lapack> {
+    type D = ViewRepr<&'a mut F>;
 }
 
 #[cfg(test)]
