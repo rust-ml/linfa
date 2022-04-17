@@ -29,7 +29,10 @@ pub enum PreprocessingError {
     #[error("Encoding error {0}")]
     EncodingError(std::borrow::Cow<'static, str>),
     #[error(transparent)]
-    LinalgError(#[from] ndarray_linalg::error::LinalgError),
+    #[cfg(feature = "blas")]
+    LinalgBlasError(#[from] ndarray_linalg::error::LinalgError),
+    #[error(transparent)]
+    LinalgError(#[from] ndarray_linalg_rs::LinalgError),
     #[error(transparent)]
     NdarrayStatsEmptyError(#[from] ndarray_stats::errors::EmptyInput),
     #[error(transparent)]

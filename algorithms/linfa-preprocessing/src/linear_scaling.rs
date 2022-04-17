@@ -5,7 +5,10 @@ use approx::abs_diff_eq;
 use linfa::dataset::{AsTargets, DatasetBase, Float, WithLapack};
 use linfa::traits::{Fit, Transformer};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2, Zip};
+#[cfg(feature = "blas")]
 use ndarray_linalg::norm::Norm;
+#[cfg(not(feature = "blas"))]
+use ndarray_linalg_rs::norm::Norm;
 
 #[derive(Clone, Debug)]
 /// Possible scaling methods for [LinearScaler](struct.LinearScaler.html)

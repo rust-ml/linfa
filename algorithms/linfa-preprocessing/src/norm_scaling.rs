@@ -2,7 +2,10 @@
 use linfa::dataset::{AsTargets, DatasetBase, Float, WithLapack, WithoutLapack};
 use linfa::traits::Transformer;
 use ndarray::{Array2, ArrayBase, Axis, Data, Ix2, Zip};
+#[cfg(feature = "blas")]
 use ndarray_linalg::norm::Norm;
+#[cfg(not(feature = "blas"))]
+use ndarray_linalg_rs::norm::Norm;
 
 enum Norms {
     L1,
