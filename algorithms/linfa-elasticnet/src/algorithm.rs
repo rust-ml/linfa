@@ -1,7 +1,7 @@
 use approx::{abs_diff_eq, abs_diff_ne};
 use linfa::dataset::AsSingleTargets;
 use ndarray::{s, Array1, ArrayBase, ArrayView1, ArrayView2, Axis, CowArray, Data, Ix1, Ix2};
-use ndarray_linalg::{InverseCInto, Lapack};
+use ndarray_linalg::{InverseH, Lapack};
 
 use linfa::traits::{Fit, PredictInplace};
 use linfa::{dataset::Records, DatasetBase, Float};
@@ -232,8 +232,8 @@ fn variance_params<F: Float + Lapack, T: AsSingleTargets<Elem = F>, D: Data<Elem
 
     let var_target = (&target - &y_est).mapv(|x| x * x).sum() / F::cast(nsamples - nfeatures);
 
-    // `A.t * A` always produces a positive semi-definite matrix, which invc should work on
-    let inv_cov = ds.records().t().dot(ds.records()).invc_into();
+    // `A.t * A` always produces a symmetric matrix
+    let inv_cov = ds.records().t().dot(ds.records()).invh();
 
     match inv_cov {
         Ok(inv_cov) => Ok(inv_cov.diag().mapv(|x| var_target * x)),
