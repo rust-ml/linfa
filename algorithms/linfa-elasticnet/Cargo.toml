@@ -19,6 +19,7 @@ categories = ["algorithms", "mathematics", "science"]
 [features]
 default = []
 serde = ["serde_crate", "ndarray/serde", "linfa/serde"]
+blas = ["ndarray-linalg", "linfa/ndarray-linalg"]
 
 [dependencies.serde_crate]
 package = "serde"
@@ -28,8 +29,9 @@ default-features = false
 features = ["std", "derive"]
 
 [dependencies]
-ndarray = { version = "0.15", features = ["blas", "approx"]}
-ndarray-linalg = "0.14"
+ndarray = { version = "0.15", features = ["approx"]}
+ndarray-linalg-rs = { git = "https://github.com/rust-ml/ndarray-linalg-rs.git" }
+ndarray-linalg = { version = "0.14", optional = true }
 
 num-traits = "0.2"
 approx = "0.4"
