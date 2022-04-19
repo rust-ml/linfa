@@ -480,14 +480,15 @@ impl BinaryClassification<&[bool]> for &[Pr] {
     fn log_loss(&self, y: &[bool]) -> Result<f32> {
         let clipped_probs: Vec<_> = self
             .iter()
-            .map(|v| v.clamp(f32::EPSILON, 1.-f32::EPSILON))
+            .map(|v| v.clamp(f32::EPSILON, 1. - f32::EPSILON))
             .collect();
         clipped_probs
             .iter()
             .zip(y.iter())
-            .map(|(a, b)| if b == &true { -a.ln() } else { -(1.- a).ln() })
+            .map(|(a, b)| if b == &true { -a.ln() } else { -(1. - a).ln() })
             .collect::<Array1<f32>>()
-            .mean().ok_or(Error::NotEnoughSamples)
+            .mean()
+            .ok_or(Error::NotEnoughSamples)
     }
 }
 
@@ -697,17 +698,14 @@ mod tests {
 
     #[test]
     fn log_loss() {
-        let ground_truth = &[false, false, false, false, true, true, true, true, true, true];
+        let ground_truth = &[
+            false, false, false, false, true, true, true, true, true, true,
+        ];
         let predicted = ArrayView1::from(&[
             0.1, //
-            0.2,
-            0.3,
-            0.4,
-            0.5,
-            0.6,
-            0.7,
-            0.8,
-            0.9]).mapv(Pr);
+            0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9,
+        ])
+        .mapv(Pr);
 
         let logloss = predicted.log_loss(ground_truth).unwrap();
         assert_abs_diff_eq!(logloss, 0.34279516);
