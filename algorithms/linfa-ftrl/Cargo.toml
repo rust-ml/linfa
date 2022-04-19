@@ -1,0 +1,34 @@
+[package]
+name = "linfa-ftrl"
+version = "0.5.0"
+authors = ["Liudmyla Kyrashchuk <himila@tutanota.com>"]
+
+description = "A Machine Learning framework for Rust"
+edition = "2021"
+license = "MIT/Apache-2.0"
+
+repository = "https://github.com/rust-ml/linfa"
+readme = "README.md"
+
+keywords = ["machine-learning", "linfa", "ai", "ml", "ftrl"]
+categories = ["algorithms", "mathematics", "science"]
+
+[dependencies]
+ndarray = { version = "0.15", features = ["blas"] }
+ndarray-rand = "0.14.0"
+argmin = { version = "0.4.6", features = ["ndarrayl"] }
+thiserror = "1.0"
+rand = "0.8.5"
+
+linfa = { version = "0.5.0", path = "../..", features=["serde"] }
+
+[dependencies.serde_crate]
+package = "serde"
+optional = true
+version = "1.0"
+default-features = false
+features = ["std", "derive"]
+
+[dev-dependencies]
+approx = "0.4"
+linfa-datasets = { version = "0.5.0", path = "../../datasets", features = ["winequality"] }
