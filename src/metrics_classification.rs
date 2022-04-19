@@ -425,10 +425,11 @@ impl ReceiverOperatingCharacteristic {
 
 /// Classification for binary-labels
 ///
-/// This contains Receiver-Operating-Characterstics curves as these only work for binary
+/// This contains Receiver-Operating-Characterstics curves and log loss as those only work for binary
 /// classification tasks.
 pub trait BinaryClassification<T> {
     fn roc(&self, y: T) -> Result<ReceiverOperatingCharacteristic>;
+    fn log_loss(&self, y: T) -> Result<f32>;
 }
 
 impl BinaryClassification<&[bool]> for &[Pr] {
@@ -475,11 +476,28 @@ impl BinaryClassification<&[bool]> for &[Pr] {
             thresholds: thresholds.into_iter().map(|x| *x).collect(),
         })
     }
+
+    fn log_loss(&self, y: &[bool]) -> Result<f32> {
+        let clipped_probs: Vec<_> = self
+            .iter()
+            .map(|v| v.clamp(f32::EPSILON, 1.-f32::EPSILON))
+            .collect();
+        clipped_probs
+            .iter()
+            .zip(y.iter())
+            .map(|(a, b)| if b == &true { -a.ln() } else { -(1.- a).ln() })
+            .collect::<Array1<f32>>()
+            .mean().ok_or(Error::NotEnoughSamples)
+    }
 }
 
 impl<D: Data<Elem = Pr>> BinaryClassification<&[bool]> for ArrayBase<D, Ix1> {
     fn roc(&self, y: &[bool]) -> Result<ReceiverOperatingCharacteristic> {
         self.as_slice().unwrap().roc(y)
+    }
+
+    fn log_loss(&self, y: &[bool]) -> Result<f32> {
+        self.as_slice().unwrap().log_loss(y)
     }
 }
 
@@ -493,6 +511,16 @@ impl<R: Records, R2: Records, T: AsSingleTargets<Elem = bool>, T2: AsSingleTarge
         let y_targets = y_targets.as_slice().unwrap();
 
         targets.roc(y_targets)
+    }
+
+    /// Log loss of the probabilities of the binary target
+    fn log_loss(&self, y: &DatasetBase<R, T>) -> Result<f32> {
+        let probabilities = self.as_targets();
+        let probabilities = probabilities.as_slice().unwrap();
+        let y_targets = y.as_targets();
+        let y_targets = y_targets.as_slice().unwrap();
+
+        probabilities.log_loss(y_targets)
     }
 }
 
@@ -665,5 +693,23 @@ mod tests {
         {
             assert_cm_eq(x, r, &bin_labels);
         }
+    }
+
+    #[test]
+    fn log_loss() {
+        let ground_truth = &[false, false, false, false, true, true, true, true, true, true];
+        let predicted = ArrayView1::from(&[
+            0.1, //
+            0.2,
+            0.3,
+            0.4,
+            0.5,
+            0.6,
+            0.7,
+            0.8,
+            0.9]).mapv(Pr);
+
+        let logloss = predicted.log_loss(ground_truth).unwrap();
+        assert_abs_diff_eq!(logloss, 0.34279516);
     }
 }
