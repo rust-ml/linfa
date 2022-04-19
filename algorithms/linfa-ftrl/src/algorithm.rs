@@ -111,7 +111,10 @@ impl<F: Float> FollowTheRegularizedLeader<F> {
     /// Update method of the model hyperparameters in case of async mode.
     /// To use this method, we must store probabilities and features for the row, and update once the result (bool) is observed.
     pub fn update<D: Data<Elem = F>, T: AsSingleTargets<Elem = bool>>(
-        &mut self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>, probabilities: ArrayView1<Pr>) {
+        &mut self,
+        dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
+        probabilities: ArrayView1<Pr>,
+    ) {
         let probabilities = probabilities.mapv(|prob| F::cast(prob.0));
         let gradient = calculate_gradient(probabilities.view(), dataset);
         let sigma = self.calculate_sigma(gradient.view());
@@ -281,16 +284,8 @@ mod test {
             n: array![0.0, 0.0],
         };
         model.update(&dataset, probabilities.view());
-        assert_abs_diff_eq!(
-            model.n(),
-            &array![0.09, 0.01],
-            epsilon = 1e-2
-        );
-        assert_abs_diff_eq!(
-            model.z(),
-            &array![0.8, 8.6],
-            epsilon = 1e-2
-        );
+        assert_abs_diff_eq!(model.n(), &array![0.09, 0.01], epsilon = 1e-2);
+        assert_abs_diff_eq!(model.z(), &array![0.8, 8.6], epsilon = 1e-2);
     }
 
     #[test]
