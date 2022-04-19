@@ -108,6 +108,16 @@ impl<F: Float> FollowTheRegularizedLeader<F> {
             })
     }
 
+    /// Update method of the model hyperparameters in case of async mode.
+    /// To use this method, we must store probabilities and features for the row, and update once the result (bool) is observed.
+    pub fn update<D: Data<Elem = F>, T: AsSingleTargets<Elem = bool>>(
+        &mut self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>, probabilities: ArrayView1<Pr>) {
+        let probabilities = probabilities.mapv(|prob| F::cast(prob.0));
+        let gradient = calculate_gradient(probabilities.view(), dataset);
+        let sigma = self.calculate_sigma(gradient.view());
+        self.update_params(gradient, sigma);
+    }
+
     fn predict_probabilities<D: Data<Elem = F>>(&self, x: &ArrayBase<D, Ix2>) -> Array1<F> {
         let weights = self.get_weights();
         let mut probabilities = x.dot(&weights);
@@ -254,6 +264,33 @@ mod test {
         assert!(probabilities
             .iter()
             .all(|prob| prob >= &0.0 && prob <= &1.0));
+    }
+
+    #[test]
+    fn update_works() {
+        let probabilities = array![0.5, 0.3, 0.7].mapv(Pr);
+        let dataset = Dataset::new(
+            array![[0.0, 1.0], [2.0, 3.0], [1.0, 5.0]],
+            array![false, false, true],
+        );
+
+        // Initialize model this way to control random z values
+        let mut model = FollowTheRegularizedLeader {
+            params: FtrlParams::default(),
+            z: array![0.5, 0.7],
+            n: array![0.0, 0.0],
+        };
+        model.update(&dataset, probabilities.view());
+        assert_abs_diff_eq!(
+            model.n(),
+            &array![0.09, 0.01],
+            epsilon = 1e-2
+        );
+        assert_abs_diff_eq!(
+            model.z(),
+            &array![0.8, 8.6],
+            epsilon = 1e-2
+        );
     }
 
     #[test]
