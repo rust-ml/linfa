@@ -47,6 +47,7 @@ let params = FollowTheRegularizedLeader::params()
 
 let mut model = FollowTheRegularizedLeader::new(&params, train.nfeatures());
 
+// Bootstrap each row from the train dataset to imitate online nature of the data flow
 let mut rng = SmallRng::seed_from_u64(42);
 let mut row_iter = train.bootstrap_samples(1, &mut rng);
 for _ in 0..train.nsamples() {
