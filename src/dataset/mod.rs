@@ -18,7 +18,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::hash::Hash;
 use std::iter::Sum;
-use std::ops::{AddAssign, Deref, DivAssign, MulAssign, SubAssign};
+use std::ops::{AddAssign, Deref, DivAssign, MulAssign, Sub, SubAssign};
 
 use crate::error::Result;
 
@@ -112,6 +112,14 @@ impl PartialEq for Pr {
 impl PartialOrd for Pr {
     fn partial_cmp(&self, other: &Pr) -> Option<Ordering> {
         self.0.partial_cmp(&other.0)
+    }
+}
+
+impl Sub for Pr {
+    type Output = Pr;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Pr(self.0 - rhs.0)
     }
 }
 
