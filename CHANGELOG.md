@@ -7,7 +7,8 @@ Breaking Changes
  * 1D target arrays are no longer converted to 2D when constructing `Dataset`s
  * `Dataset` and `DatasetView` can now be parametrized by target dimensionality, with 2D being the default
  * single-target algorithms no longer accept 2D target arrays as input
- * `cross_validate_multi` has been merged with `cross_validate`, which is now generic across single and multi-targets
+ * `cross_validate` changed to `cross_validate_single`
+ * `cross_validate_multi` changed to `cross_validate`, which is now generic across single and multi-targets
 
 Version 0.5.1 - 2022-02-28
 ========================
