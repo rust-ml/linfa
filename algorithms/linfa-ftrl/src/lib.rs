@@ -1,20 +1,5 @@
-//! # Follow the regularized leader - proximal
-//!
-//! ## The Big Picture
-//!
-//! `linfa-ftrl` is a crate in the [`linfa`](https://crates.io/crates/linfa) ecosystem, an effort to create a toolkit for classical Machine Learning implemented in pure Rust, akin to Python's `scikit-learn`.
-//!
-//! ## Current state
-//! `linfa-ftrl` provides a pure Rust implementation of an [algorithm](struct.FollowTheRegularizedLeader.html).
-//!
-//! ## Examples
-//!
-//! There is an usage example in the `examples/` directory. To run, use:
-//!
-//! ```bash
-//! $ cargo run --example winequality
-//! ```
-//!
+#![doc = include_str!("../README.md")]
+
 mod algorithm;
 mod error;
 mod hyperparams;
@@ -35,13 +20,26 @@ use serde_crate::{Deserialize, Serialize};
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-pub struct FollowTheRegularizedLeader<F: Float> {
+pub struct FTRL<F: Float> {
+    /// FTRL (Follow The Regularized Leader - proximal) is a linear model for CTR prediction in online learning settings.
+    /// It stores z and n values, which are later used to calculate weights at incremental model fit and during prediction.
+    /// It is a special type of linear model with sigmoid function which uses L1 and L2 regularization.
+    /// ```rust
+    /// use linfa::Dataset;
+    /// use ndarray::array;
+    /// use linfa_ftrl::FTRL;
+    /// use linfa::prelude::*;
+    /// let dataset = Dataset::new(array![[0.], [1.]], array![true, false]);
+    /// let params = FTRL::params();
+    /// let model = params.fit_with(None, &dataset).unwrap();
+    /// let predictions = model.predict(&dataset);
+    /// ```
     params: FtrlParams<F>,
     z: Array1<F>,
     n: Array1<F>,
 }
 
-impl<F: Float> FollowTheRegularizedLeader<F> {
+impl<F: Float> FTRL<F> {
     /// Create a default parameter set for construction of Follow The Regularized Leader - proximal model
     /// The description can be found here https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/41159.pdf
     ///
@@ -53,7 +51,7 @@ impl<F: Float> FollowTheRegularizedLeader<F> {
     }
 
     /// Create a new model with given parameters and number of features
-    pub fn new(params: &FtrlParams<F>, nfeatures: usize) -> FollowTheRegularizedLeader<F> {
+    pub fn new(params: &FtrlParams<F>, nfeatures: usize) -> FTRL<F> {
         Self {
             params: params.clone(),
             n: Array1::zeros(nfeatures),

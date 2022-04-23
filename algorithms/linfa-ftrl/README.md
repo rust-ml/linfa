@@ -31,7 +31,7 @@ Show source code
 ```rust
 use linfa::prelude::*;
 use linfa::dataset::{AsSingleTargets, Records};
-use linfa_ftrl::{FollowTheRegularizedLeader, Result};
+use linfa_ftrl::{FTRL, Result};
 use rand::{rngs::SmallRng, SeedableRng};
 
 // load Winequality dataset
@@ -39,13 +39,13 @@ let (train, valid) = linfa_datasets::winequality()
     .map_targets(|v| if *v > 6 { true } else { false })
     .split_with_ratio(0.9);
 
-let params = FollowTheRegularizedLeader::params()
+let params = FTRL::params()
     .alpha(0.005)
     .beta(1.0)
     .l1_ratio(0.005)
     .l2_ratio(1.0);
 
-let mut model = FollowTheRegularizedLeader::new(&params, train.nfeatures());
+let mut model = FTRL::new(&params, train.nfeatures());
 
 // Bootstrap each row from the train dataset to imitate online nature of the data flow
 let mut rng = SmallRng::seed_from_u64(42);

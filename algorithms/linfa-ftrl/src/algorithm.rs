@@ -1,6 +1,6 @@
 use crate::error::FtrlError;
 use crate::hyperparams::{FtrlParams, FtrlValidParams};
-use crate::FollowTheRegularizedLeader;
+use crate::FTRL;
 use linfa::dataset::{AsSingleTargets, Pr, Records};
 use linfa::traits::{FitWith, PredictInplace};
 use linfa::{DatasetBase, Float};
@@ -15,8 +15,8 @@ where
     D: Data<Elem = F>,
     T: AsSingleTargets<Elem = bool>,
 {
-    type ObjectIn = Option<FollowTheRegularizedLeader<F>>;
-    type ObjectOut = FollowTheRegularizedLeader<F>;
+    type ObjectIn = Option<FTRL<F>>;
+    type ObjectOut = FTRL<F>;
 
     /// Fit a follow the regularized leader, proximal, model given a feature matrix `x` and a target
     /// variable `y`.
@@ -25,7 +25,7 @@ where
     ///
     /// The target variable `y` must have shape `(n_samples)`
     ///
-    /// Returns a fitted `FollowTheRegularizedLeader` object which contains the fitted
+    /// Returns a fitted `FTRL` object which contains the fitted
     /// parameters and can be used to `predict` values of the target variable
     /// for new feature values.
     fn fit_with(
@@ -33,9 +33,8 @@ where
         model_in: Self::ObjectIn,
         dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
     ) -> Result<Self::ObjectOut> {
-        let mut model_out = model_in.unwrap_or_else(|| {
-            FollowTheRegularizedLeader::new(&FtrlParams(self.clone()), dataset.nfeatures())
-        });
+        let mut model_out =
+            model_in.unwrap_or_else(|| FTRL::new(&FtrlParams(self.clone()), dataset.nfeatures()));
         let probabilities = model_out.predict_probabilities(dataset.records());
         let gradient = calculate_gradient(probabilities.view(), dataset);
         let sigma = model_out.calculate_sigma(gradient.view());
@@ -44,9 +43,7 @@ where
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<Pr>>
-    for FollowTheRegularizedLeader<F>
-{
+impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<Pr>> for FTRL<F> {
     /// Given an input matrix `X`, with shape `(n_samples, n_features)`,
     /// `predict` returns the target variable according to the parameters
     /// learned from the training data distribution.
@@ -76,7 +73,7 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<Pr>>
 
 /// View the fitted parameters and make predictions with a fitted
 /// follow the regularized leader -proximal, model
-impl<F: Float> FollowTheRegularizedLeader<F> {
+impl<F: Float> FTRL<F> {
     /// Get Z values
     pub fn z(&self) -> &Array1<F> {
         &self.z
@@ -242,7 +239,7 @@ mod test {
             array![false, false, true],
         );
         let params = FtrlParams::default();
-        let mut model = FollowTheRegularizedLeader::new(&params, dataset.nfeatures());
+        let mut model = FTRL::new(&params, dataset.nfeatures());
         let initial_z = model.z().clone();
         let initial_n = model.n().clone();
         let weights = model.get_weights();
@@ -262,7 +259,7 @@ mod test {
             array![false, false, true],
         );
         let params = FtrlParams::default();
-        let model = FollowTheRegularizedLeader::new(&params, dataset.nfeatures());
+        let model = FTRL::new(&params, dataset.nfeatures());
         let probabilities = model.predict_probabilities(dataset.records());
         assert!(probabilities
             .iter()
@@ -278,7 +275,7 @@ mod test {
         );
 
         // Initialize model this way to control random z values
-        let mut model = FollowTheRegularizedLeader {
+        let mut model = FTRL {
             params: FtrlParams::default(),
             z: array![0.5, 0.7],
             n: array![0.0, 0.0],
@@ -294,14 +291,14 @@ mod test {
             array![[-1.0], [-2.0], [10.0], [9.0]],
             array![true, true, false, false],
         );
-        let params = FollowTheRegularizedLeader::params()
+        let params = FTRL::params()
             .l2_ratio(0.5)
             .l1_ratio(0.5)
             .alpha(0.1)
             .beta(0.0);
 
         // Initialize model this way to control random z values
-        let model = FollowTheRegularizedLeader {
+        let model = FTRL {
             params: params.clone(),
             z: array![0.5],
             n: array![0.],
@@ -318,14 +315,14 @@ mod test {
     #[test]
     fn ftrl_2d_toy_example_works() {
         let dataset = Dataset::new(array![[0.0, -5.0], [10.0, 20.0]], array![true, false]);
-        let params = FollowTheRegularizedLeader::params()
+        let params = FTRL::params()
             .l2_ratio(0.5)
             .l1_ratio(0.5)
             .alpha(0.01)
             .beta(0.0);
 
         // Initialize model this way to control random z values
-        let model = FollowTheRegularizedLeader {
+        let model = FTRL {
             params: params.clone(),
             z: array![0.5, 0.5],
             n: array![0.0, 0.0],

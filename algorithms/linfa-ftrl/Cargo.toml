@@ -4,7 +4,7 @@ version = "0.5.0"
 authors = ["Liudmyla Kyrashchuk <himila@tutanota.com>"]
 
 description = "A Machine Learning framework for Rust"
-edition = "2021"
+edition = "2018"
 license = "MIT/Apache-2.0"
 
 repository = "https://github.com/rust-ml/linfa"
