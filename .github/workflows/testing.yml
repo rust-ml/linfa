@@ -31,7 +31,7 @@ jobs:
           args: --workspace
 
   testing-blas:
-    name: testing
+    name: testing with BLAS
     runs-on: ubuntu-18.04
     container:
       image: rustmath/mkl-rust:1.43.0
