@@ -1,6 +1,11 @@
 Unreleased
 ========================
 
+Changes
+-----------
+ * BLAS backend no longer require to build some algorithm crates
+ * add `blas` feature flag on relevant crates to use BLAS backend instead of Rust linalg implementation
+
 Breaking Changes
 ----------------------
  * parametrize `AsTargets` by the dimensionality of the targets and introduce `AsSingleTargets` and `AsMultiTargets`
