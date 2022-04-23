@@ -266,13 +266,13 @@ impl<F: Float> GaussianMixtureModel<F> {
             let sol = {
                 let decomp = covariance.with_lapack().cholesky(UPLO::Lower)?;
                 decomp
-                    .solve_triangular(UPLO::Lower, Diag::NonUnit, &Array::eye(n_features))?
+                    .solve_triangular_into(UPLO::Lower, Diag::NonUnit, Array::eye(n_features))?
                     .without_lapack()
             };
             #[cfg(not(feature = "blas"))]
             let sol = {
                 let decomp = covariance.cholesky()?;
-                decomp.solve_triangular(&Array::eye(n_features), UPLO::Lower)?
+                decomp.solve_triangular_into(Array::eye(n_features), UPLO::Lower)?
             };
 
             precisions_chol.slice_mut(s![k, .., ..]).assign(&sol.t());
