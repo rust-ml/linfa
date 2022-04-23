@@ -17,7 +17,7 @@
 There is an usage example in the `examples/` directory. To run, use:
 
 ```bash
-$ cargo run --features openblas --example diabetes
+$ cargo run --example diabetes
 $ cargo run --example glm
 ```
 

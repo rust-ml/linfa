@@ -14,10 +14,10 @@
 
 ## Examples
 
-There is an usage example in the `examples/` directory. The example uses a BLAS backend, to run it and use the `intel-mkl` library do:
+There is an usage example in the `examples/` directory. To run it, use:
 
 ```bash
-$ cargo run --example pls_regression --features linfa/intel-mkl-system
+$ cargo run --example pls_regression
 ```
 
 ## License

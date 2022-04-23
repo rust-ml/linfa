@@ -20,7 +20,7 @@ See also:
 There is an usage example in the `examples/` directory. To run, use:
 
 ```bash
-$ cargo run --features linfa/intel-mkl-system --example elasticnet
+$ cargo run --example elasticnet
 ```
 
 <details>
