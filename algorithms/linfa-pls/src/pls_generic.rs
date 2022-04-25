@@ -3,11 +3,8 @@ use crate::utils;
 use crate::{PlsParams, PlsValidParams};
 
 use linfa::{
-    dataset::{Records, WithLapack, WithoutLapack},
-    traits::Fit,
-    traits::PredictInplace,
-    traits::Transformer,
-    Dataset, DatasetBase, Float,
+    dataset::Records, traits::Fit, traits::PredictInplace, traits::Transformer, Dataset,
+    DatasetBase, Float,
 };
 use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
 #[cfg(feature = "blas")]
@@ -384,13 +381,12 @@ impl<F: Float> PlsValidParams<F> {
     ) -> Result<(Array1<F>, Array1<F>)> {
         let c = x.t().dot(y);
 
-        let c = c.with_lapack();
         let (u, s, vt) = c.svd(true, true)?;
         // Extract the SVD component corresponding to the largest singular-value
         // XXX We should compute the partial SVD instead of full SVD
         let max = s.argmax()?;
-        let u = u.unwrap().column(max).to_owned().without_lapack();
-        let vt = vt.unwrap().row(max).to_owned().without_lapack();
+        let u = u.unwrap().column(max).to_owned();
+        let vt = vt.unwrap().row(max).to_owned();
 
         Ok((u, vt))
     }

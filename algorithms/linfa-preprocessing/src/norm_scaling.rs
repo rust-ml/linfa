@@ -1,5 +1,5 @@
 //! Sample normalization methods
-use linfa::dataset::{AsTargets, DatasetBase, Float, WithLapack, WithoutLapack};
+use linfa::dataset::{AsTargets, DatasetBase, Float};
 use linfa::traits::Transformer;
 use ndarray::{Array2, ArrayBase, Axis, Data, Ix2, Zip};
 #[cfg(feature = "blas")]
@@ -52,18 +52,13 @@ impl NormScaler {
 
 impl<F: Float> Transformer<Array2<F>, Array2<F>> for NormScaler {
     /// Scales all samples in the array of shape (nsamples, nfeatures) to have unit norm.
-    fn transform(&self, x: Array2<F>) -> Array2<F> {
+    fn transform(&self, mut x: Array2<F>) -> Array2<F> {
         // add Lapack trait bound
-        let x = x.with_lapack();
-
         let norms = match &self.norm {
             Norms::L1 => x.map_axis(Axis(1), |row| F::cast(row.norm_l1())),
             Norms::L2 => x.map_axis(Axis(1), |row| F::cast(row.norm_l2())),
             Norms::Max => x.map_axis(Axis(1), |row| F::cast(row.norm_max())),
         };
-
-        // remove Lapack trait bound
-        let mut x = x.without_lapack();
 
         Zip::from(x.rows_mut())
             .and(&norms)

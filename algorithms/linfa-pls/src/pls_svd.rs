@@ -1,6 +1,5 @@
 use crate::errors::{PlsError, Result};
 use crate::{utils, Float};
-use linfa::dataset::{WithLapack, WithoutLapack};
 use linfa::{dataset::Records, traits::Fit, traits::Transformer, DatasetBase};
 use ndarray::{s, Array1, Array2, ArrayBase, Data, Ix2};
 #[cfg(feature = "blas")]
@@ -74,7 +73,7 @@ impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsE
 
         // Compute SVD of cross-covariance matrix
         let c = x.t().dot(&y);
-        let d = c.with_lapack().svd(true, true)?;
+        let d = c.svd(true, true)?;
         #[cfg(feature = "blas")]
         let (u, _, vt) = d;
         #[cfg(not(feature = "blas"))]
@@ -85,8 +84,8 @@ impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsE
         let (u, vt) = utils::svd_flip(u, vt);
         let v = vt.reversed_axes();
 
-        let x_weights = u.without_lapack();
-        let y_weights = v.without_lapack();
+        let x_weights = u;
+        let y_weights = v;
 
         Ok(PlsSvd {
             x_mean,

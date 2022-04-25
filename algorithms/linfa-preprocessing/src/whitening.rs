@@ -7,7 +7,7 @@
 //! unit diagonal (white) covariance matrix.
 
 use crate::error::{PreprocessingError, Result};
-use linfa::dataset::{AsTargets, Records, WithLapack, WithoutLapack};
+use linfa::dataset::{AsTargets, Records};
 use linfa::traits::{Fit, Transformer};
 use linfa::{DatasetBase, Float};
 use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
@@ -75,19 +75,12 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets> Fit<ArrayBase<D, Ix2>, T, Prepro
         let mean = x.records().mean_axis(Axis(0)).unwrap();
         let sigma = x.records() - &mean;
 
-        // add Lapack + Scalar trait bounds
-        let sigma = sigma.with_lapack();
-
         let transformation_matrix = match self.method {
             WhiteningMethod::Pca => {
                 let (_, s, v_t) = sigma.svd(false, true)?;
 
                 // Safe because the second argument in the above call is set to true
-                let mut v_t = v_t.unwrap().without_lapack();
-                #[cfg(feature = "blas")]
-                let s = s.mapv(Scalar::from_real);
-                let s = s.without_lapack();
-
+                let mut v_t = v_t.unwrap();
                 let s = s.mapv(|x: F| x.max(F::cast(1e-8)));
 
                 let cov_scale = F::cast(x.nsamples() - 1).sqrt();
@@ -98,28 +91,23 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets> Fit<ArrayBase<D, Ix2>, T, Prepro
                 v_t
             }
             WhiteningMethod::Zca => {
-                let sigma = sigma.t().dot(&sigma) / F::Lapack::cast(x.nsamples() - 1);
+                let sigma = sigma.t().dot(&sigma) / F::cast(x.nsamples() - 1);
                 let (u, s, _) = sigma.svd(true, false)?;
 
                 // Safe because the first argument in the above call is set to true
-                let u = u.unwrap().without_lapack();
+                let u = u.unwrap();
                 #[cfg(feature = "blas")]
                 let s = s.mapv(Scalar::from_real);
-                let s = s.without_lapack();
-
                 let s = s.mapv(|x: F| (F::one() / x.sqrt()).max(F::cast(1e-8)));
                 let lambda: Array2<F> = Array2::<F>::eye(s.len()) * s;
                 u.dot(&lambda).dot(&u.t())
             }
             WhiteningMethod::Cholesky => {
-                let sigma = sigma.t().dot(&sigma) / F::Lapack::cast(x.nsamples() - 1);
+                let sigma = sigma.t().dot(&sigma) / F::cast(x.nsamples() - 1);
                 // sigma must be positive definite for us to call cholesky on its inverse, so invc
                 // is allowed here
                 #[cfg(feature = "blas")]
-                let out = sigma
-                    .invc_into()?
-                    .cholesky_into(UPLO::Upper)?
-                    .without_lapack();
+                let out = sigma.invc_into()?.cholesky_into(UPLO::Upper)?;
                 #[cfg(not(feature = "blas"))]
                 let mut sigma = sigma;
                 #[cfg(not(feature = "blas"))]
@@ -127,8 +115,7 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets> Fit<ArrayBase<D, Ix2>, T, Prepro
                     .invc_inplace()?
                     .reversed_axes()
                     .cholesky_into()?
-                    .reversed_axes()
-                    .without_lapack();
+                    .reversed_axes();
                 out
             }
         };
