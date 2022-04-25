@@ -2,7 +2,7 @@
 
 use crate::error::{PreprocessingError, Result};
 use approx::abs_diff_eq;
-use linfa::dataset::{AsTargets, DatasetBase, Float};
+use linfa::dataset::{AsTargets, DatasetBase, Float, WithLapack};
 use linfa::traits::{Fit, Transformer};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2, Zip};
 #[cfg(feature = "blas")]
@@ -105,7 +105,7 @@ impl<F: Float> ScalingMethod<F> {
             return Err(PreprocessingError::NotEnoughSamples);
         }
         let scales: Array1<F> = records.map_axis(Axis(0), |col| {
-            let norm_max = F::cast(col.norm_max());
+            let norm_max = F::cast(col.with_lapack().norm_max());
             if abs_diff_eq!(norm_max, F::zero()) {
                 // if feature is constant at zero then don't scale
                 F::one()

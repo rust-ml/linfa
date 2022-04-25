@@ -6,6 +6,7 @@ use ndarray_linalg::InverseHInto;
 #[cfg(not(feature = "blas"))]
 use ndarray_linalg_rs::qr::QRInto;
 
+use linfa::dataset::{WithLapack, WithoutLapack};
 use linfa::traits::{Fit, PredictInplace};
 use linfa::{dataset::Records, DatasetBase, Float};
 
@@ -236,14 +237,14 @@ fn variance_params<F: Float, T: AsSingleTargets<Elem = F>, D: Data<Elem = F>>(
     let var_target = (&target - &y_est).mapv(|x| x * x).sum() / F::cast(nsamples - nfeatures);
 
     // `A.t * A` always produces a symmetric matrix
-    let ds2 = ds.records().t().dot(ds.records());
+    let ds2 = ds.records().t().dot(ds.records()).with_lapack();
     #[cfg(feature = "blas")]
     let inv_cov = ds2.invh_into();
     #[cfg(not(feature = "blas"))]
     let inv_cov = (|| ds2.qr_into()?.inverse())();
 
     match inv_cov {
-        Ok(inv_cov) => Ok(inv_cov.diag().mapv(|x| var_target * x)),
+        Ok(inv_cov) => Ok(inv_cov.without_lapack().diag().mapv(|x| var_target * x)),
         Err(_) => Err(ElasticNetError::IllConditioned),
     }
 }

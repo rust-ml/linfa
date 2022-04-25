@@ -1,6 +1,8 @@
 //! Ordinary Least Squares
 #![allow(non_snake_case)]
 use crate::error::{LinearError, Result};
+#[cfg(feature = "blas")]
+use linfa::dataset::{WithLapack, WithoutLapack};
 use linfa::Float;
 use ndarray::{concatenate, s, Array, Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2};
 #[cfg(feature = "blas")]
@@ -133,7 +135,11 @@ where
         .least_squares_into(y.insert_axis(Axis(1)))?
         .remove_axis(Axis(1));
     #[cfg(feature = "blas")]
-    let out = X.least_squares_into(y).map(|x| x.solution)?;
+    let out = X
+        .with_lapack()
+        .least_squares_into(y.with_lapack())
+        .map(|x| x.solution)?
+        .without_lapack();
     Ok(out)
 }
 

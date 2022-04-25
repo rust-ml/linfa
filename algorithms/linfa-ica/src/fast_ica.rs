@@ -1,13 +1,13 @@
 //! Fast algorithm for Independent Component Analysis (ICA)
 
 use linfa::{
-    dataset::{DatasetBase, Records},
+    dataset::{DatasetBase, Records, WithLapack, WithoutLapack},
     traits::*,
     Float,
 };
 use ndarray::{Array, Array1, Array2, ArrayBase, Axis, Data, Ix2};
 #[cfg(feature = "blas")]
-use ndarray_linalg::{eigh::*, solveh::UPLO, svd::SVD};
+use ndarray_linalg::{eigh::Eigh, solveh::UPLO, svd::SVD};
 #[cfg(not(feature = "blas"))]
 use ndarray_linalg_rs::{eigh::*, svd::*};
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
@@ -65,9 +65,10 @@ impl<F: Float, D: Data<Elem = F>, T> Fit<ArrayBase<D, Ix2>, T, FastIcaError>
 
         // We whiten the matrix to remove any potential correlation between
         // the components
-        let xcentered = xcentered;
+        let xcentered = xcentered.with_lapack();
         let k = match xcentered.svd(true, false)? {
             (Some(u), s, _) => {
+                let s = s.mapv(F::Lapack::cast);
                 // This slice operation will extract the "thin" SVD component of `u` regardless of
                 // whether `.svd` returns a full or thin SVD, because the slice dimensions
                 // correspond to the thin SVD dimensions.
@@ -79,19 +80,21 @@ impl<F: Float, D: Data<Elem = F>, T> Fit<ArrayBase<D, Ix2>, T, FastIcaError>
             _ => return Err(FastIcaError::SvdDecomposition),
         };
 
-        let mut xwhitened = k.dot(&xcentered);
+        let mut xwhitened = k.dot(&xcentered).without_lapack();
+        let k = k.without_lapack();
 
         // We multiply the matrix with root of the number of records
         let nsamples_sqrt = F::cast(nsamples).sqrt();
         xwhitened.mapv_inplace(|x| x * nsamples_sqrt);
 
         // We initialize the de-mixing matrix with a uniform distribution
-        let w: Array2<f64> = if let Some(seed) = self.random_state() {
+        let w: Array2<f64>;
+        if let Some(seed) = self.random_state() {
             let mut rng = Isaac64Rng::seed_from_u64(*seed as u64);
-            Array::random_using((ncomponents, ncomponents), Uniform::new(0., 1.), &mut rng)
+            w = Array::random_using((ncomponents, ncomponents), Uniform::new(0., 1.), &mut rng);
         } else {
-            Array::random((ncomponents, ncomponents), Uniform::new(0., 1.))
-        };
+            w = Array::random((ncomponents, ncomponents), Uniform::new(0., 1.));
+        }
         let mut w = w.mapv(F::cast);
 
         // We find the optimized de-mixing matrix
@@ -149,10 +152,11 @@ impl<F: Float> FastIcaValidParams<F> {
     // W <- (W * W.T)^{-1/2} * W
     fn sym_decorrelation(w: &Array2<F>) -> Result<Array2<F>> {
         #[cfg(feature = "blas")]
-        let (eig_val, eig_vec) = w.dot(&w.t()).eigh_into(UPLO::Upper)?;
+        let (eig_val, eig_vec) = w.dot(&w.t()).with_lapack().eigh(UPLO::Upper)?;
         #[cfg(not(feature = "blas"))]
-        let (eig_val, eig_vec) = w.dot(&w.t()).eigh_into()?;
+        let (eig_val, eig_vec) = w.dot(&w.t()).with_lapack().eigh()?;
         let eig_val = eig_val.mapv(F::cast);
+        let eig_vec = eig_vec.without_lapack();
 
         let tmp = &eig_vec
             * &(eig_val.mapv(|x| x.sqrt()).mapv(|x| {

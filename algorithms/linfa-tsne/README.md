@@ -23,7 +23,7 @@ There is an usage example in the `examples/` directory. The example uses a BLAS 
 $ cargo run --example tsne --features linfa/intel-mkl-system
 ```
 
-You have to install the `gnuplot` library for plotting.
+You have to install the `gnuplot` library for plotting. Also take a look at the [README](https://github.com/rust-ml/linfa#blaslapack-backend) to see what BLAS/LAPACK backends are possible.
 
 ## License
 Dual-licensed to be compatible with the Rust project.

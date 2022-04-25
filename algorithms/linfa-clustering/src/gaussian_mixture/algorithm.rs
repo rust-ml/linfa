@@ -3,6 +3,8 @@ use crate::gaussian_mixture::hyperparams::{
     GmmCovarType, GmmInitMethod, GmmParams, GmmValidParams,
 };
 use crate::k_means::KMeans;
+#[cfg(feature = "blas")]
+use linfa::dataset::{WithLapack, WithoutLapack};
 use linfa::{prelude::*, DatasetBase, Float};
 use ndarray::{s, Array, Array1, Array2, Array3, ArrayBase, Axis, Data, Ix2, Ix3, Zip};
 #[cfg(feature = "blas")]
@@ -262,8 +264,10 @@ impl<F: Float> GaussianMixtureModel<F> {
         for (k, covariance) in covariances.outer_iter().enumerate() {
             #[cfg(feature = "blas")]
             let sol = {
-                let decomp = covariance.cholesky(UPLO::Lower)?;
-                decomp.solve_triangular_into(UPLO::Lower, Diag::NonUnit, Array::eye(n_features))?
+                let decomp = covariance.with_lapack().cholesky(UPLO::Lower)?;
+                decomp
+                    .solve_triangular_into(UPLO::Lower, Diag::NonUnit, Array::eye(n_features))?
+                    .without_lapack()
             };
             #[cfg(not(feature = "blas"))]
             let sol = {

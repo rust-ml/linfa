@@ -14,6 +14,7 @@ use ndarray_linalg_rs::eigh::*;
 #[cfg(feature = "blas")]
 use ndarray_rand::{rand_distr::Uniform, RandomExt};
 
+use linfa::dataset::{WithLapack, WithoutLapack};
 use linfa::{traits::Transformer, Float};
 use linfa_kernel::Kernel;
 
@@ -118,6 +119,7 @@ fn compute_diffusion_map<F: Float>(
             .zip(d.iter())
             .for_each(|(mut a, b)| a *= *b);
 
+        let matrix = matrix.with_lapack();
         // Calculate the eigen decomposition sorted from largest to lowest
         #[cfg(feature = "blas")]
         let (vals, vecs) = {
@@ -138,7 +140,7 @@ fn compute_diffusion_map<F: Float>(
     // Without BLAS, always calculate the full eigendecomposition, which may be inefficient for
     // large embeddings.
     #[cfg(not(feature = "blas"))]
-    let (mut vals, mut vecs) = full_eig();
+    let (vals, vecs) = full_eig();
     #[cfg(feature = "blas")]
     let (vals, vecs) = if kernel.size() < 5 * embedding_size + 1 {
         // use full eigenvalue decomposition for small problem sizes
@@ -146,17 +148,19 @@ fn compute_diffusion_map<F: Float>(
     } else {
         let d2 = d.mapv(|x| x.powf(F::cast(0.5 + alpha)));
         // calculate truncated eigenvalue decomposition
-        let x = guess.unwrap_or_else(|| {
-            Array2::random(
-                (kernel.size(), embedding_size + 1),
-                Uniform::new(0.0f64, 1.0),
-            )
-            .mapv(F::cast)
-        });
+        let x = guess
+            .unwrap_or_else(|| {
+                Array2::random(
+                    (kernel.size(), embedding_size + 1),
+                    Uniform::new(0.0f64, 1.0),
+                )
+                .mapv(F::cast)
+            })
+            .with_lapack();
 
         let result = lobpcg::lobpcg(
             |y| {
-                let mut y = y.to_owned();
+                let mut y = y.to_owned().without_lapack();
                 y.rows_mut()
                     .into_iter()
                     .zip(d2.iter())
@@ -167,7 +171,8 @@ fn compute_diffusion_map<F: Float>(
                     .into_iter()
                     .zip(d2.iter())
                     .for_each(|(mut a, b)| a *= *b);
-                y
+
+                y.with_lapack()
             },
             x,
             |_| {},
@@ -186,6 +191,7 @@ fn compute_diffusion_map<F: Float>(
         (vals.slice_move(s![1..]), vecs.slice_move(s![.., 1..]))
     };
 
+    let (vals, mut vecs): (Array1<F>, _) = (vals.without_lapack(), vecs.without_lapack());
     let d = d.mapv(|x| x.sqrt());
 
     for (mut col, val) in vecs.rows_mut().into_iter().zip(d.iter()) {

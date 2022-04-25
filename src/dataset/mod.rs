@@ -25,7 +25,11 @@ use crate::error::Result;
 mod impl_dataset;
 mod impl_records;
 mod impl_targets;
+
 mod iter;
+
+mod lapack_bounds;
+pub use lapack_bounds::*;
 
 /// Floating point numbers
 ///
@@ -47,34 +51,24 @@ pub trait Float:
     + SampleUniform
     + ScalarOperand
     + approx::AbsDiffEq
-    + LapackFloat
 {
+    #[cfg(feature = "ndarray-linalg")]
+    type Lapack: Float + Scalar + Lapack;
+    #[cfg(not(feature = "ndarray-linalg"))]
+    type Lapack: Float;
+
     fn cast<T: NumCast>(x: T) -> Self {
         NumCast::from(x).unwrap()
     }
-
-    fn flt_ln(self) -> Self {
-        num_traits::Float::ln(self)
-    }
-    fn flt_exp(self) -> Self {
-        num_traits::Float::exp(self)
-    }
-    fn flt_abs(self) -> Self {
-        num_traits::Float::abs(self)
-    }
 }
 
-#[doc(hidden)]
-#[cfg(feature = "ndarray-linalg")]
-pub trait LapackFloat: Lapack + Scalar<Real = Self> {}
-#[doc(hidden)]
-#[cfg(not(feature = "ndarray-linalg"))]
-pub trait LapackFloat {}
+impl Float for f32 {
+    type Lapack = f32;
+}
 
-impl LapackFloat for f32 {}
-impl Float for f32 {}
-impl LapackFloat for f64 {}
-impl Float for f64 {}
+impl Float for f64 {
+    type Lapack = f64;
+}
 
 /// Discrete labels
 ///
