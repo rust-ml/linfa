@@ -11,7 +11,6 @@ use linfa::{
 use ndarray::{s, Array, Array1, Array2, Array3, ArrayBase, Axis, Data, Ix2, Ix3, Zip};
 use ndarray_linalg::{cholesky::*, triangular::*, Lapack, Scalar};
 use ndarray_rand::rand::Rng;
-use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
 use ndarray_stats::QuantileExt;
@@ -127,7 +126,7 @@ impl<F: Float> Clone for GaussianMixtureModel<F> {
 }
 
 impl<F: Float> GaussianMixtureModel<F> {
-    fn new<D: Data<Elem = F>, R: Rng + SeedableRng + Clone, T>(
+    fn new<D: Data<Elem = F>, R: Rng + Clone, T>(
         hyperparameters: &GmmValidParams<F, R>,
         dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
         mut rng: R,
@@ -190,6 +189,10 @@ impl<F: Float> GaussianMixtureModel<F> {
 impl<F: Float> GaussianMixtureModel<F> {
     pub fn params(n_clusters: usize) -> GmmParams<F, Isaac64Rng> {
         GmmParams::new(n_clusters)
+    }
+
+    pub fn params_with_rng<R: Rng + Clone>(n_clusters: usize, rng: R) -> GmmParams<F, R> {
+        GmmParams::new_with_rng(n_clusters, rng)
     }
 
     pub fn weights(&self) -> &Array1<F> {
@@ -402,8 +405,8 @@ impl<F: Float> GaussianMixtureModel<F> {
     }
 }
 
-impl<F: Float, R: Rng + SeedableRng + Clone, D: Data<Elem = F>, T>
-    Fit<ArrayBase<D, Ix2>, T, GmmError> for GmmValidParams<F, R>
+impl<F: Float, R: Rng + Clone, D: Data<Elem = F>, T> Fit<ArrayBase<D, Ix2>, T, GmmError>
+    for GmmValidParams<F, R>
 {
     type Object = GaussianMixtureModel<F>;
 
@@ -488,6 +491,7 @@ mod tests {
     use ndarray::{array, concatenate, ArrayView1, ArrayView2, Axis};
     use ndarray_linalg::error::LinalgError;
     use ndarray_linalg::error::Result as LAResult;
+    use ndarray_rand::rand::prelude::ThreadRng;
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::{Distribution, StandardNormal};
 
@@ -709,5 +713,14 @@ mod tests {
                 .is_err(),
             "max_n_iterations must be stricly positive"
         );
+    }
+
+    fn fittable<T: Fit<Array2<f64>, (), GmmError>>(_: T) {}
+    #[test]
+    fn thread_rng_fittable() {
+        fittable(GaussianMixtureModel::params_with_rng(
+            1,
+            ThreadRng::default(),
+        ));
     }
 }
