@@ -1,6 +1,10 @@
 Unreleased
 ========================
 
+Changes
+----------------------
+* remove `SeedableRng` trait bound from `KMeans` and `GaussianMixture`
+
 Breaking Changes
 ----------------------
  * parametrize `AsTargets` by the dimensionality of the targets and introduce `AsSingleTargets` and `AsMultiTargets`
