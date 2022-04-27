@@ -302,7 +302,7 @@ mod tests {
     use super::*;
     use crate::error::Error;
     use approx::assert_abs_diff_eq;
-    use ndarray::{arr0, array, Array1, Array2, Axis};
+    use ndarray::{array, Array1, Array2, Axis};
     use rand::{rngs::SmallRng, SeedableRng};
 
     #[test]
@@ -722,7 +722,7 @@ mod tests {
         let mut dataset: Dataset<f64, f64, Ix1> = (records, targets).into();
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 2 }];
         let acc = dataset
-            .cross_validate(5, &params, |_pred, _truth| Ok(arr0(3.)))
+            .cross_validate_single(5, &params, |_pred, _truth| Ok(3.))
             .unwrap();
         assert_eq!(acc, array![3., 3.]);
 
@@ -747,7 +747,7 @@ mod tests {
         // second one should throw an error
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 0 }];
         let acc: MockResult<Array1<_>> =
-            dataset.cross_validate(5, &params, |_pred, _truth| Ok(arr0(0.)));
+            dataset.cross_validate_single(5, &params, |_pred, _truth| Ok(0.));
 
         acc.unwrap();
     }
@@ -763,13 +763,14 @@ mod tests {
         let mut dataset: Dataset<f64, f64, Ix1> = (records, targets).into();
         // second one should throw an error
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 1 }];
-        let err: MockResult<Array1<_>> = dataset.cross_validate(5, &params, |_pred, _truth| {
-            if false {
-                Ok(arr0(0f32))
-            } else {
-                Err(Error::Parameters("eval".to_string()))
-            }
-        });
+        let err: MockResult<Array1<_>> =
+            dataset.cross_validate_single(5, &params, |_pred, _truth| {
+                if false {
+                    Ok(0f32)
+                } else {
+                    Err(Error::Parameters("eval".to_string()))
+                }
+            });
 
         err.unwrap();
     }
@@ -796,7 +797,7 @@ mod tests {
         // second one should throw an error
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 0 }];
         let err = dataset
-            .cross_validate(5, &params, |_pred, _truth| Ok(arr0(5.)))
+            .cross_validate_single(5, &params, |_pred, _truth| Ok(5.))
             .unwrap_err();
         assert_eq!(err.to_string(), "invalid parameter 0".to_string());
     }
@@ -810,9 +811,9 @@ mod tests {
         // second one should throw an error
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 1 }];
         let err = dataset
-            .cross_validate(5, &params, |_pred, _truth| {
+            .cross_validate_single(5, &params, |_pred, _truth| {
                 if false {
-                    Ok(arr0(0f32))
+                    Ok(0f32)
                 } else {
                     Err(Error::Parameters("eval".to_string()))
                 }
