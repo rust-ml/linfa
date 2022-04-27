@@ -777,6 +777,8 @@ where
     /// on the validation set. The performances collected for each model are then averaged over the
     /// number of folds.
     ///
+    /// For single-target datasets, [`Dataset::cross_validate_single`] is recommended.
+    ///
     /// ### Parameters:
     ///
     /// - `k`: the number of folds to apply
