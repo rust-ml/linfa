@@ -9,7 +9,7 @@ use ndarray::{Array, Array1, Array2, ArrayBase, Axis, Data, Ix2};
 use ndarray_linalg::{eigh::Eigh, solveh::UPLO, svd::SVD};
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
 use ndarray_stats::QuantileExt;
-use rand_isaac::Isaac64Rng;
+use rand_xoshiro::Xoshiro256Plus;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 
@@ -84,7 +84,7 @@ impl<F: Float, D: Data<Elem = F>, T> Fit<ArrayBase<D, Ix2>, T, FastIcaError>
         // We initialize the de-mixing matrix with a uniform distribution
         let w: Array2<f64>;
         if let Some(seed) = self.random_state() {
-            let mut rng = Isaac64Rng::seed_from_u64(*seed as u64);
+            let mut rng = Xoshiro256Plus::seed_from_u64(*seed as u64);
             w = Array::random_using((ncomponents, ncomponents), Uniform::new(0., 1.), &mut rng);
         } else {
             w = Array::random((ncomponents, ncomponents), Uniform::new(0., 1.));
@@ -328,7 +328,7 @@ mod tests {
         });
 
         // Creating noise using Student T distribution
-        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let mut rng = Xoshiro256Plus::seed_from_u64(42);
         let source2 = Array::random_using((nsamples, 1), StudentT::new(1.0).unwrap(), &mut rng);
 
         // Column concatenating both the sources

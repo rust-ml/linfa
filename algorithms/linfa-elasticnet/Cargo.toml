@@ -40,4 +40,4 @@ linfa = { version = "0.5.0", path = "../.." }
 [dev-dependencies]
 linfa-datasets = { version = "0.5.0", path = "../../datasets", features = ["diabetes"] }
 ndarray-rand = "0.14"
-rand_isaac = "0.3"
+rand_xoshiro = "0.6"

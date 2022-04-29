@@ -7,7 +7,7 @@ use ndarray::{array, concatenate};
 use ndarray::{Array, Array2, Axis};
 use ndarray_npy::write_npy;
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
-use rand_isaac::Isaac64Rng;
+use rand_xoshiro::Xoshiro256Plus;
 use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -61,7 +61,7 @@ fn create_data() -> (Array2<f64>, Array2<f64>) {
     ];
 
     // Adding noise to the signals
-    let mut rng = Isaac64Rng::seed_from_u64(42);
+    let mut rng = Xoshiro256Plus::seed_from_u64(42);
     sources_original +=
         &Array::random_using((2000, 2), Uniform::new(0.0, 1.0), &mut rng).mapv(|x| x * 0.2);
 
