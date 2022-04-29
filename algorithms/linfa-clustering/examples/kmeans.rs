@@ -6,7 +6,7 @@ use linfa_datasets::generate;
 use ndarray::{array, Axis};
 use ndarray_npy::write_npy;
 use ndarray_rand::rand::SeedableRng;
-use rand_isaac::Isaac64Rng;
+use rand_xoshiro::Xoshiro256Plus;
 
 use linfa_nn::distance::LInfDist;
 
@@ -14,7 +14,7 @@ use linfa_nn::distance::LInfDist;
 // and save both training data and predictions to disk.
 fn main() {
     // Our random number generator, seeded for reproducibility
-    let mut rng = Isaac64Rng::seed_from_u64(42);
+    let mut rng = Xoshiro256Plus::seed_from_u64(42);
 
     // For each our expected centroids, generate `n` data points around it (a "blob")
     let expected_centroids = array![[10., 10.], [1., 12.], [20., 30.], [-20., 30.],];

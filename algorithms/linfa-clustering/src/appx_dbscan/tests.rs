@@ -5,12 +5,12 @@ use linfa_datasets::generate;
 use ndarray::{arr1, arr2, concatenate, s, Array1, Array2};
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::Uniform;
-use rand_isaac::Isaac64Rng;
+use rand_xoshiro::Xoshiro256Plus;
 use std::collections::HashMap;
 
 #[test]
 fn appx_dbscan_parity() {
-    let mut rng = Isaac64Rng::seed_from_u64(40);
+    let mut rng = Xoshiro256Plus::seed_from_u64(40);
     let min_points = 4;
     let tolerance = 0.8;
     let centroids = arr2(&[

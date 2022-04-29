@@ -8,7 +8,7 @@ use linfa::{prelude::*, DatasetBase, Float};
 use linfa_nn::distance::{Distance, L2Dist};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
 use ndarray_rand::rand::{Rng, SeedableRng};
-use rand_isaac::Isaac64Rng;
+use rand_xoshiro::Xoshiro256Plus;
 
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
@@ -92,12 +92,12 @@ use serde_crate::{Deserialize, Serialize};
 /// use linfa_datasets::generate;
 /// use ndarray::{Axis, array, s};
 /// use ndarray_rand::rand::SeedableRng;
-/// use rand_isaac::Isaac64Rng;
+/// use rand_xoshiro::Xoshiro256Plus;
 /// use approx::assert_abs_diff_eq;
 ///
 /// // Our random number generator, seeded for reproducibility
 /// let seed = 42;
-/// let mut rng = Isaac64Rng::seed_from_u64(seed);
+/// let mut rng = Xoshiro256Plus::seed_from_u64(seed);
 ///
 /// // `expected_centroids` has shape `(n_centroids, n_features)`
 /// // i.e. three points in the 2-dimensional plane
@@ -183,8 +183,8 @@ pub struct KMeans<F: Float, D: Distance<F>> {
 }
 
 impl<F: Float> KMeans<F, L2Dist> {
-    pub fn params(nclusters: usize) -> KMeansParams<F, Isaac64Rng, L2Dist> {
-        KMeansParams::new(nclusters, Isaac64Rng::seed_from_u64(42), L2Dist)
+    pub fn params(nclusters: usize) -> KMeansParams<F, Xoshiro256Plus, L2Dist> {
+        KMeansParams::new(nclusters, Xoshiro256Plus::seed_from_u64(42), L2Dist)
     }
 
     pub fn params_with_rng<R: Rng>(nclusters: usize, rng: R) -> KMeansParams<F, R, L2Dist> {
@@ -640,7 +640,7 @@ mod tests {
     }
 
     fn test_n_runs<D: Distance<f64>>(dist_fn: D) {
-        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let mut rng = Xoshiro256Plus::seed_from_u64(42);
         let xt = Array::random_using(100, Uniform::new(0., 1.0), &mut rng).insert_axis(Axis(1));
         let yt = function_test_1d(&xt);
         let data = concatenate(Axis(1), &[xt.view(), yt.view()]).unwrap();
@@ -756,7 +756,7 @@ mod tests {
     fn nothing_is_closer_than_self() {
         let n_centroids = 20;
         let n_features = 5;
-        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let mut rng = Xoshiro256Plus::seed_from_u64(42);
         let centroids: Array2<f64> = Array::random_using(
             (n_centroids, n_features),
             Uniform::new(-100., 100.),
@@ -814,7 +814,7 @@ mod tests {
             inertia: 0.0,
             dist_fn: L2Dist,
         };
-        let rng = Isaac64Rng::seed_from_u64(45);
+        let rng = Xoshiro256Plus::seed_from_u64(45);
         let params = KMeans::params_with_rng(3, rng).tolerance(100.0);
 
         // Should converge on first try
@@ -830,7 +830,7 @@ mod tests {
 
     #[test]
     fn test_tolerance() {
-        let rng = Isaac64Rng::seed_from_u64(45);
+        let rng = Xoshiro256Plus::seed_from_u64(45);
         // The "correct" centroid for the dataset is [6, 6], so the centroid distance from the
         // initial centroid in the first iteration should be around 8.48. With a tolerance of 8.5,
         // KMeans should converge on first iteration.
