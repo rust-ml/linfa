@@ -478,17 +478,8 @@ impl BinaryClassification<&[bool]> for &[Pr] {
     }
 
     fn log_loss(&self, y: &[bool]) -> Result<f32> {
-        let clipped_probs: Vec<_> = self
-            .iter()
-            .map(|v| v.clamp(f32::EPSILON, 1. - f32::EPSILON))
-            .collect();
-        clipped_probs
-            .iter()
-            .zip(y.iter())
-            .map(|(a, b)| if b == &true { -a.ln() } else { -(1. - a).ln() })
-            .collect::<Array1<f32>>()
-            .mean()
-            .ok_or(Error::NotEnoughSamples)
+        let probabilities = Array1::from_vec(self.to_vec());
+        probabilities.log_loss(y)
     }
 }
 
@@ -498,7 +489,17 @@ impl<D: Data<Elem = Pr>> BinaryClassification<&[bool]> for ArrayBase<D, Ix1> {
     }
 
     fn log_loss(&self, y: &[bool]) -> Result<f32> {
-        self.as_slice().unwrap().log_loss(y)
+        let clipped_probs: Vec<_> = self
+            .iter()
+            .map(|v| (*v).clamp(f32::EPSILON, 1. - f32::EPSILON))
+            .collect();
+        clipped_probs
+            .iter()
+            .zip(y.iter())
+            .map(|(a, b)| if *b { -a.ln() } else { -(1. - a).ln() })
+            .collect::<Array1<f32>>()
+            .mean()
+            .ok_or(Error::NotEnoughSamples)
     }
 }
 
@@ -516,8 +517,7 @@ impl<R: Records, R2: Records, T: AsSingleTargets<Elem = bool>, T2: AsSingleTarge
 
     /// Log loss of the probabilities of the binary target
     fn log_loss(&self, y: &DatasetBase<R, T>) -> Result<f32> {
-        let probabilities = self.as_targets();
-        let probabilities = probabilities.as_slice().unwrap();
+        let probabilities = self.as_single_targets();
         let y_targets = y.as_targets();
         let y_targets = y_targets.as_slice().unwrap();
 
@@ -630,7 +630,7 @@ mod tests {
 
     #[test]
     fn test_roc_curve() {
-        let predicted = ArrayView1::from(&[0.1, 0.3, 0.5, 0.7, 0.8, 0.9]).mapv(Pr);
+        let predicted = ArrayView1::from(&[0.1, 0.3, 0.5, 0.7, 0.8, 0.9]).mapv(Pr::new);
 
         let groundtruth = vec![false, true, false, true, true, true];
 
@@ -651,7 +651,7 @@ mod tests {
     #[test]
     fn test_roc_auc() {
         let mut rng = SmallRng::seed_from_u64(42);
-        let predicted = Array1::linspace(0.0, 1.0, 1000).mapv(Pr);
+        let predicted = Array1::linspace(0.0, 1.0, 1000).mapv(Pr::new);
 
         let range = Uniform::new(0, 2);
 
@@ -699,7 +699,8 @@ mod tests {
     #[test]
     fn log_loss() {
         let ground_truth = &[false, false, false, false, true, true, true, true, true];
-        let predicted = ArrayView1::from(&[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]).mapv(Pr);
+        let predicted =
+            ArrayView1::from(&[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]).mapv(Pr::new);
 
         let logloss = predicted.log_loss(ground_truth).unwrap();
         assert_abs_diff_eq!(logloss, 0.34279516);
