@@ -15,10 +15,11 @@ use rand::distributions::uniform::SampleUniform;
 
 use std::cmp::{Ordering, PartialOrd};
 use std::collections::{HashMap, HashSet};
+use std::convert::TryFrom;
 use std::fmt;
 use std::hash::Hash;
 use std::iter::Sum;
-use std::ops::{AddAssign, Deref, DivAssign, MulAssign, Sub, SubAssign};
+use std::ops::{AddAssign, Deref, DivAssign, MulAssign, SubAssign};
 
 use crate::error::Result;
 
@@ -94,10 +95,36 @@ impl<L: Label> Label for Option<L> {}
 /// This helper struct exists to distinguish probabilities from floating points. For example SVM
 /// selects regression or classification training, based on the target type, and could not
 /// distinguish them without a new-type definition.
+///
+/// # Panics
+/// Panics if probability is negative or bigger than one.
+#[repr(transparent)]
 #[derive(Debug, Copy, Clone, Default)]
-pub struct Pr(pub f32);
+pub struct Pr(f32);
+
+impl TryFrom<f32> for Pr {
+    type Error = f32;
+
+    fn try_from(prob: f32) -> std::result::Result<Self, Self::Error> {
+        if (0. ..=1.).contains(&prob) {
+            Ok(Pr(prob))
+        } else {
+            Err(prob)
+        }
+    }
+}
 
 impl Pr {
+    pub fn new(prob: f32) -> Self {
+        match Pr::try_from(prob) {
+            Ok(pr) => pr,
+            Err(_) => panic!(),
+        }
+    }
+
+    pub fn new_unchecked(prob: f32) -> Self {
+        Pr(prob)
+    }
     pub fn even() -> Pr {
         Pr(0.5)
     }
@@ -112,14 +139,6 @@ impl PartialEq for Pr {
 impl PartialOrd for Pr {
     fn partial_cmp(&self, other: &Pr) -> Option<Ordering> {
         self.0.partial_cmp(&other.0)
-    }
-}
-
-impl Sub for Pr {
-    type Output = Pr;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        Pr(self.0 - rhs.0)
     }
 }
 
