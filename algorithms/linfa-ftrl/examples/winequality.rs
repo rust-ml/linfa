@@ -15,7 +15,8 @@ fn main() -> Result<()> {
         .l1_ratio(0.005)
         .l2_ratio(1.0);
 
-    let mut model = FTRL::new(&params, train.nfeatures());
+    let valid_params = params.clone().check_unwrap();
+    let mut model = FTRL::new(valid_params, train.nfeatures());
 
     // Bootstrap each row from the train dataset to imitate online nature of the data flow
     let mut rng = SmallRng::seed_from_u64(42);

@@ -20,7 +20,7 @@ See also:
 There is a usage example in the `examples/` directory. To run, use:
 
 ```bash
-$ cargo run --features linfa/intel-mkl-system --example ftrl
+$ cargo run --example winequality
 ```
 
 <details>
@@ -45,14 +45,15 @@ let params = FTRL::params()
     .l1_ratio(0.005)
     .l2_ratio(1.0);
 
-let mut model = FTRL::new(&params, train.nfeatures());
+let valid_params = params.clone().check_unwrap();
+let mut model = FTRL::new(valid_params, train.nfeatures());
 
 // Bootstrap each row from the train dataset to imitate online nature of the data flow
 let mut rng = SmallRng::seed_from_u64(42);
 let mut row_iter = train.bootstrap_samples(1, &mut rng);
 for _ in 0..train.nsamples() {
-let b_dataset = row_iter.next().unwrap();
-model = params.fit_with(Some(model), &b_dataset)?;
+    let b_dataset = row_iter.next().unwrap();
+    model = params.fit_with(Some(model), &b_dataset)?;
 }
 let val_predictions = model.predict(&valid);
 println!("valid log loss {:?}", val_predictions.log_loss(&valid.as_single_targets().to_vec())?);
