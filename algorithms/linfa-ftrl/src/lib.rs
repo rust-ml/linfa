@@ -4,7 +4,7 @@ mod algorithm;
 mod error;
 mod hyperparams;
 
-use crate::hyperparams::FtrlParams;
+use crate::hyperparams::{FtrlParams, FtrlValidParams};
 pub use algorithm::Result;
 pub use error::FtrlError;
 use linfa::Float;
@@ -12,14 +12,7 @@ use ndarray::Array1;
 use ndarray_rand::RandomExt;
 use rand::distributions::Uniform;
 
-#[cfg(feature = "serde")]
-use serde_crate::{Deserialize, Serialize};
-
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
+#[derive(Clone, Debug)]
 pub struct FTRL<F: Float> {
     /// FTRL (Follow The Regularized Leader - proximal) is a linear model for CTR prediction in online learning settings.
     /// It stores z and n values, which are later used to calculate weights at incremental model fit and during prediction.
@@ -34,7 +27,7 @@ pub struct FTRL<F: Float> {
     /// let model = params.fit_with(None, &dataset).unwrap();
     /// let predictions = model.predict(&dataset);
     /// ```
-    params: FtrlParams<F>,
+    params: FtrlValidParams<F>,
     z: Array1<F>,
     n: Array1<F>,
 }
@@ -51,9 +44,9 @@ impl<F: Float> FTRL<F> {
     }
 
     /// Create a new model with given parameters and number of features
-    pub fn new(params: &FtrlParams<F>, nfeatures: usize) -> FTRL<F> {
+    pub fn new(params: FtrlValidParams<F>, nfeatures: usize) -> FTRL<F> {
         Self {
-            params: params.clone(),
+            params,
             n: Array1::zeros(nfeatures),
             z: Array1::random(nfeatures, Uniform::new(F::zero(), F::one())),
         }

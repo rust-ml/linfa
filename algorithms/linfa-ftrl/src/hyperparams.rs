@@ -1,13 +1,13 @@
 use crate::error::FtrlError;
 use linfa::{Float, ParamGuard};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FtrlParams<F: Float>(pub(crate) FtrlValidParams<F>);
 
 /// A verified hyper-parameter set ready for the estimation of a Follow the regularized leader - proximal model
 ///
 /// See [`FtrlParams`](crate::FtrlParams) for more information.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FtrlValidParams<F: Float> {
     pub(crate) alpha: F,
     pub(crate) beta: F,

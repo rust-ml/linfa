@@ -1,5 +1,5 @@
 use crate::error::FtrlError;
-use crate::hyperparams::{FtrlParams, FtrlValidParams};
+use crate::hyperparams::FtrlValidParams;
 use crate::FTRL;
 use linfa::dataset::{AsSingleTargets, Pr, Records};
 use linfa::traits::{FitWith, PredictInplace};
@@ -34,7 +34,7 @@ where
         dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
     ) -> Result<Self::ObjectOut> {
         let mut model_out =
-            model_in.unwrap_or_else(|| FTRL::new(&FtrlParams(self.clone()), dataset.nfeatures()));
+            model_in.unwrap_or_else(|| FTRL::new(self.clone(), dataset.nfeatures()));
         let probabilities = model_out.predict_probabilities(dataset.records());
         let gradient = calculate_gradient(probabilities.view(), dataset);
         let sigma = model_out.calculate_sigma(gradient.view());
@@ -62,12 +62,12 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<Pr>> 
 
         let probabilities = self.predict_probabilities(x);
         Zip::from(&probabilities).and(y).for_each(|prob, out| {
-            *out = Pr(F::to_f32(prob).unwrap_or_default());
+            *out = *prob;
         });
     }
 
     fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<Pr> {
-        Array1::zeros(x.nrows()).mapv(Pr)
+        Array1::zeros(x.nrows()).mapv(Pr::new)
     }
 }
 
@@ -85,7 +85,7 @@ impl<F: Float> FTRL<F> {
     }
 
     /// Get the hyperparameters
-    pub fn get_params(&self) -> &FtrlParams<F> {
+    pub fn get_params(&self) -> &FtrlValidParams<F> {
         &self.params
     }
 
@@ -93,14 +93,14 @@ impl<F: Float> FTRL<F> {
     pub fn get_weights(&self) -> Array1<F> {
         Zip::from(self.z.view())
             .and(self.n.view())
-            .map_collect(|z_, n_| {
+            .map_collect(|z, n| {
                 calculate_weight(
-                    *z_,
-                    *n_,
-                    self.params.0.alpha(),
-                    self.params.0.beta(),
-                    self.params.0.l1_ratio(),
-                    self.params.0.l2_ratio(),
+                    *z,
+                    *n,
+                    self.params.alpha(),
+                    self.params.beta(),
+                    self.params.l1_ratio(),
+                    self.params.l2_ratio(),
                 )
             })
     }
@@ -112,33 +112,34 @@ impl<F: Float> FTRL<F> {
         dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
         probabilities: ArrayView1<Pr>,
     ) {
-        let probabilities = probabilities.mapv(|prob| F::cast(prob.0));
         let gradient = calculate_gradient(probabilities.view(), dataset);
         let sigma = self.calculate_sigma(gradient.view());
         self.update_params(gradient, sigma);
     }
 
-    fn predict_probabilities<D: Data<Elem = F>>(&self, x: &ArrayBase<D, Ix2>) -> Array1<F> {
+    fn predict_probabilities<D: Data<Elem = F>>(&self, x: &ArrayBase<D, Ix2>) -> Array1<Pr> {
         let weights = self.get_weights();
         let mut probabilities = x.dot(&weights);
         probabilities.mapv_inplace(sigmoid);
-        probabilities
+        probabilities.mapv(|v| Pr::new(F::to_f32(&v).unwrap_or_default()))
     }
 
     fn calculate_sigma(&self, gradients: ArrayView1<F>) -> Array1<F> {
         Zip::from(&self.n)
             .and(gradients)
-            .map_collect(|n_, grad| calculate_sigma(*n_, *grad, self.params.0.alpha))
+            .map_collect(|n, grad| calculate_sigma(*n, *grad, self.params.alpha))
     }
 
     fn update_params(&mut self, gradient: Array1<F>, sigma: Array1<F>) {
-        self.z = &self.z + &gradient - sigma * self.get_weights();
-        self.n = &self.n + gradient.mapv(|grad| grad.powf(F::cast(2.)));
+        let weights = self.get_weights();
+        self.z += &gradient;
+        self.z -= &(sigma * weights);
+        self.n += &gradient.mapv(|grad| grad.powf(F::cast(2.)));
     }
 }
 
 fn calculate_gradient<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = bool>>(
-    probabilities: ArrayView1<F>,
+    probabilities: ArrayView1<Pr>,
     dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
 ) -> Array1<F> {
     let targets = dataset.as_single_targets();
@@ -147,7 +148,7 @@ fn calculate_gradient<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = boo
         .and(targets)
         .map_collect(|prob, y| {
             let truth = if *y { F::one() } else { F::zero() };
-            *prob - truth
+            F::cast(**prob) - truth
         });
     diff.dot(x)
 }
@@ -157,7 +158,7 @@ fn calculate_sigma<F: Float>(n: F, gradient: F, alpha: F) -> F {
 }
 
 fn sigmoid<F: Float>(prediction: F) -> F {
-    F::one() / (F::one() + F::exp(-F::max(F::min(prediction, F::cast(35.)), F::cast(-35.))))
+    F::one() / (F::one() + (-prediction.min(F::cast(35.)).max(F::cast(-35.))).exp())
 }
 
 fn calculate_weight<F: Float>(z: F, n: F, alpha: F, beta: F, l1_ratio: F, l2_ratio: F) -> F {
@@ -174,8 +175,9 @@ mod test {
     extern crate linfa;
     use super::*;
     use crate::algorithm::test::linfa::prelude::Predict;
+    use crate::FtrlParams;
     use approx::assert_abs_diff_eq;
-    use linfa::Dataset;
+    use linfa::{Dataset, ParamGuard};
     use ndarray::array;
 
     #[test]
@@ -222,24 +224,25 @@ mod test {
 
     #[test]
     fn calculate_gradient_works() {
-        let probabilities = array![0.1, 0.3, 0.8];
+        let probabilities = array![0.1, 0.3, 0.8].mapv(Pr::new);
         let dataset = Dataset::new(
             array![[0.0, 1.0], [2.0, 3.0], [1.0, 5.0]],
             array![false, false, true],
         );
         let result = calculate_gradient(probabilities.view(), &dataset);
-        assert_abs_diff_eq!(result, array![0.4, 0.0])
+        assert_abs_diff_eq!(result, array![0.4, 0.0], epsilon = 1e-1)
     }
 
     #[test]
     fn update_params_works() {
-        let probabilities = array![0.1, 0.3, 0.8];
+        let probabilities = array![0.1, 0.3, 0.8].mapv(Pr::new);
         let dataset = Dataset::new(
             array![[0.0, 1.0], [2.0, 3.0], [1.0, 5.0]],
             array![false, false, true],
         );
         let params = FtrlParams::default();
-        let mut model = FTRL::new(&params, dataset.nfeatures());
+        let valid_params = params.check().unwrap();
+        let mut model = FTRL::new(valid_params, dataset.nfeatures());
         let initial_z = model.z().clone();
         let initial_n = model.n().clone();
         let weights = model.get_weights();
@@ -248,8 +251,8 @@ mod test {
         model.update_params(gradient.clone(), sigma.clone());
         let expected_z = initial_z + &gradient - sigma * weights;
         let expected_n = initial_n + &gradient.mapv(|grad| (grad as f64).powf(2.));
-        assert_abs_diff_eq!(model.z(), &expected_z);
-        assert_abs_diff_eq!(model.n(), &expected_n)
+        assert_abs_diff_eq!(model.z(), &expected_z, epsilon = 1e-1);
+        assert_abs_diff_eq!(model.n(), &expected_n, epsilon = 1e-1)
     }
 
     #[test]
@@ -259,24 +262,27 @@ mod test {
             array![false, false, true],
         );
         let params = FtrlParams::default();
-        let model = FTRL::new(&params, dataset.nfeatures());
+        let valid_params = params.check().unwrap();
+        let model = FTRL::new(valid_params, dataset.nfeatures());
         let probabilities = model.predict_probabilities(dataset.records());
         assert!(probabilities
             .iter()
-            .all(|prob| prob >= &0.0 && prob <= &1.0));
+            .all(|prob| **prob >= 0. && **prob <= 1.));
     }
 
     #[test]
     fn update_works() {
-        let probabilities = array![0.5, 0.3, 0.7].mapv(Pr);
+        let probabilities = array![0.5, 0.3, 0.7].mapv(Pr::new);
         let dataset = Dataset::new(
             array![[0.0, 1.0], [2.0, 3.0], [1.0, 5.0]],
             array![false, false, true],
         );
 
         // Initialize model this way to control random z values
+        let params = FtrlParams::default();
+        let valid_params = params.check().unwrap();
         let mut model = FTRL {
-            params: FtrlParams::default(),
+            params: valid_params,
             z: array![0.5, 0.7],
             n: array![0.0, 0.0],
         };
@@ -298,15 +304,16 @@ mod test {
             .beta(0.0);
 
         // Initialize model this way to control random z values
+        let valid_params = params.clone().check().unwrap();
         let model = FTRL {
-            params: params.clone(),
+            params: valid_params,
             z: array![0.5],
             n: array![0.],
         };
         let model = params.fit_with(Some(model), &dataset).unwrap();
         let test_x = array![[11.0]];
         assert_abs_diff_eq!(
-            model.predict(&test_x).mapv(|v| v.0),
+            model.predict(&test_x).mapv(|v| *v),
             array![0.25],
             epsilon = 1e-2
         );
@@ -322,15 +329,16 @@ mod test {
             .beta(0.0);
 
         // Initialize model this way to control random z values
+        let valid_params = params.clone().check().unwrap();
         let model = FTRL {
-            params: params.clone(),
+            params: valid_params,
             z: array![0.5, 0.5],
             n: array![0.0, 0.0],
         };
         let model = params.fit_with(Some(model), &dataset).unwrap();
         let test_x = array![[-4.0, -10.0], [15.0, 25.0]];
         assert_abs_diff_eq!(
-            model.predict(&test_x).mapv(|v| v.0),
+            model.predict(&test_x).mapv(|v| *v),
             array![0.53, 0.401],
             epsilon = 1e-2
         );
