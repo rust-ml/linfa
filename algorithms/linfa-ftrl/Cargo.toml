@@ -14,20 +14,13 @@ keywords = ["machine-learning", "linfa", "ai", "ml", "ftrl"]
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
-ndarray = { version = "0.15", features = ["blas"] }
+ndarray = { version = "0.15"}
 ndarray-rand = "0.14.0"
-argmin = { version = "0.4.6", features = ["ndarrayl"] }
+argmin = { version = "0.5.1", features = ["ndarray", "ndarray-rand"]}
 thiserror = "1.0"
 rand = "0.8.5"
 
-linfa = { version = "0.5.0", path = "../..", features=["serde"] }
-
-[dependencies.serde_crate]
-package = "serde"
-optional = true
-version = "1.0"
-default-features = false
-features = ["std", "derive"]
+linfa = { version = "0.5.0", path = "../.."}
 
 [dev-dependencies]
 approx = "0.4"
