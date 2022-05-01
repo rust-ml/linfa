@@ -15,7 +15,7 @@ use rand::distributions::uniform::SampleUniform;
 
 use std::cmp::{Ordering, PartialOrd};
 use std::collections::{HashMap, HashSet};
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::hash::Hash;
 use std::iter::Sum;
@@ -116,10 +116,7 @@ impl TryFrom<f32> for Pr {
 
 impl Pr {
     pub fn new(prob: f32) -> Self {
-        match Pr::try_from(prob) {
-            Ok(pr) => pr,
-            Err(_) => panic!(),
-        }
+        prob.try_into().unwrap()
     }
 
     pub fn new_unchecked(prob: f32) -> Self {
