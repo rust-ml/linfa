@@ -957,4 +957,23 @@ mod tests {
         assert_eq!(dataset_no_17.nsamples(), 10);
         assert_eq!(dataset_no_17.ntargets(), 2);
     }
+
+    #[test]
+    fn correct_probability_creation() {
+        let prob = 0.5;
+        assert_abs_diff_eq!(Pr::new(prob).0, prob);
+    }
+
+    #[test]
+    #[should_panic]
+    fn negative_probability_panics() {
+        let prob = -0.5;
+        Pr::new(prob);
+    }
+
+    #[test]
+    fn negative_probability_unchecked() {
+        let prob = -0.5;
+        assert_abs_diff_eq!(Pr::new_unchecked(prob).0, prob);
+    }
 }
