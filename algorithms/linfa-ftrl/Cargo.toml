@@ -13,6 +13,10 @@ readme = "README.md"
 keywords = ["machine-learning", "linfa", "ai", "ml", "ftrl"]
 categories = ["algorithms", "mathematics", "science"]
 
+[features]
+default = []
+serde = ["serde_crate"]
+
 [dependencies]
 ndarray = { version = "0.15"}
 ndarray-rand = "0.14.0"
@@ -25,3 +29,10 @@ linfa = { version = "0.5.0", path = "../.."}
 [dev-dependencies]
 approx = "0.4"
 linfa-datasets = { version = "0.5.0", path = "../../datasets", features = ["winequality"] }
+
+[dependencies.serde_crate]
+package = "serde"
+optional = true
+version = "1.0"
+default-features = false
+features = ["std", "derive"]

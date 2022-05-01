@@ -12,6 +12,11 @@ use ndarray::Array1;
 use ndarray_rand::RandomExt;
 use rand::distributions::Uniform;
 
+#[cfg_attr(
+feature = "serde",
+derive(Serialize, Deserialize),
+serde(crate = "serde_crate")
+)]
 #[derive(Clone, Debug)]
 pub struct FTRL<F: Float> {
     /// FTRL (Follow The Regularized Leader - proximal) is a linear model for CTR prediction in online learning settings.
