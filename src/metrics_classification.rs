@@ -489,7 +489,17 @@ impl<D: Data<Elem = Pr>> BinaryClassification<&[bool]> for ArrayBase<D, Ix1> {
     }
 
     fn log_loss(&self, y: &[bool]) -> Result<f32> {
-        self.as_slice().unwrap().log_loss(y)
+        let clipped_probs: Vec<_> = self
+            .iter()
+            .map(|v| (*v).clamp(f32::EPSILON, 1. - f32::EPSILON))
+            .collect();
+        clipped_probs
+            .iter()
+            .zip(y.iter())
+            .map(|(a, b)| if *b { -a.ln() } else { -(1. - a).ln() })
+            .collect::<Array1<f32>>()
+            .mean()
+            .ok_or(Error::NotEnoughSamples)
     }
 }
 
@@ -509,17 +519,9 @@ impl<R: Records, R2: Records, T: AsSingleTargets<Elem = bool>, T2: AsSingleTarge
     fn log_loss(&self, y: &DatasetBase<R, T>) -> Result<f32> {
         let probabilities = self.as_single_targets();
         let y_targets = y.as_targets();
-        let clipped_probs: Vec<_> = probabilities
-            .iter()
-            .map(|v| (*v).clamp(f32::EPSILON, 1. - f32::EPSILON))
-            .collect();
-        clipped_probs
-            .iter()
-            .zip(y_targets.iter())
-            .map(|(a, b)| if *b { -a.ln() } else { -(1. - a).ln() })
-            .collect::<Array1<f32>>()
-            .mean()
-            .ok_or(Error::NotEnoughSamples)
+        let y_targets = y_targets.as_slice().unwrap();
+
+        probabilities.log_loss(y_targets)
     }
 }
 
