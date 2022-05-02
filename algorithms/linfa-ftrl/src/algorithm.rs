@@ -94,7 +94,7 @@ impl<F: Float> FTRL<F> {
         Zip::from(self.z.view())
             .and(self.n.view())
             .map_collect(|z, n| {
-                calculate_weight(
+                apply_proximal_to_weights(
                     *z,
                     *n,
                     self.params.alpha(),
@@ -120,21 +120,21 @@ impl<F: Float> FTRL<F> {
     fn predict_probabilities<D: Data<Elem = F>>(&self, x: &ArrayBase<D, Ix2>) -> Array1<Pr> {
         let weights = self.get_weights();
         let mut probabilities = x.dot(&weights);
-        probabilities.mapv_inplace(sigmoid);
+        probabilities.mapv_inplace(stable_sigmoid);
         probabilities.mapv(|v| Pr::new(F::to_f32(&v).unwrap_or_default()))
     }
 
     fn calculate_sigma(&self, gradients: ArrayView1<F>) -> Array1<F> {
         Zip::from(&self.n)
             .and(gradients)
-            .map_collect(|n, grad| calculate_sigma(*n, *grad, self.params.alpha))
+            .map_collect(|n, grad| calculate_weight_in_average(*n, *grad, self.params.alpha))
     }
 
     fn update_params(&mut self, gradient: Array1<F>, sigma: Array1<F>) {
         let weights = self.get_weights();
         self.z += &gradient;
         self.z -= &(sigma * weights);
-        self.n += &gradient.mapv(|grad| grad.powf(F::cast(2.)));
+        self.n += &(&gradient * &gradient);
     }
 }
 
@@ -153,16 +153,39 @@ fn calculate_gradient<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = boo
     diff.dot(x)
 }
 
-fn calculate_sigma<F: Float>(n: F, gradient: F, alpha: F) -> F {
-    (F::sqrt(n + gradient.powf(F::cast(2.))) - F::sqrt(n)) / alpha
+fn calculate_weight_in_average<F: Float>(n: F, gradient: F, alpha: F) -> F {
+    (F::sqrt(n + gradient * gradient) - F::sqrt(n)) / alpha
 }
 
-fn sigmoid<F: Float>(prediction: F) -> F {
-    F::one() / (F::one() + (-prediction.min(F::cast(35.)).max(F::cast(-35.))).exp())
+/// Stable sigmoid uses branching for negative and positive values to avoid numerical overflow for float type data.
+fn stable_sigmoid<F: Float>(prediction: F) -> F {
+    let max_abs = F::cast(35.);
+    let prediction = prediction.min(max_abs).max(-max_abs);
+    if prediction.is_negative() {
+        negative_sigmoid(prediction)
+    } else {
+        positive_sigmoid(prediction)
+    }
 }
 
-fn calculate_weight<F: Float>(z: F, n: F, alpha: F, beta: F, l1_ratio: F, l2_ratio: F) -> F {
-    let sign = if z < F::zero() { -F::one() } else { F::one() };
+fn positive_sigmoid<F: Float>(prediction: F) -> F {
+    return F::one() / (F::one() + (-prediction).exp());
+}
+
+fn negative_sigmoid<F: Float>(prediction: F) -> F {
+    let exp = prediction.exp();
+    return exp / (exp + F::one());
+}
+
+fn apply_proximal_to_weights<F: Float>(
+    z: F,
+    n: F,
+    alpha: F,
+    beta: F,
+    l1_ratio: F,
+    l2_ratio: F,
+) -> F {
+    let sign = z.signum();
     if z * sign <= l1_ratio {
         F::zero()
     } else {
@@ -183,7 +206,7 @@ mod test {
     #[test]
     fn sigmoid_works() {
         let value = 100.;
-        let result = sigmoid(value);
+        let result = stable_sigmoid(value);
         assert!(result > 0.9)
     }
 
@@ -195,7 +218,7 @@ mod test {
         let beta = 0.5;
         let l1_ratio = 0.5;
         let l2_ratio = 0.5;
-        let result = calculate_weight(z, n, alpha, beta, l1_ratio, l2_ratio);
+        let result = apply_proximal_to_weights(z, n, alpha, beta, l1_ratio, l2_ratio);
         assert_abs_diff_eq!(result, 0.0)
     }
 
@@ -205,7 +228,7 @@ mod test {
         let n: f64 = 0.11;
         let alpha = 0.5;
         let expected_result = (((0.11 + 0.25) as f64).sqrt() - (0.11 as f64).sqrt()) / 0.5;
-        let result = calculate_sigma(n, gradient, alpha);
+        let result = calculate_weight_in_average(n, gradient, alpha);
         assert_abs_diff_eq!(result, expected_result)
     }
 
@@ -218,7 +241,7 @@ mod test {
         let l1_ratio = 0.1;
         let l2_ratio = 0.5;
         let expected_result = (0.1 - 0.5) / ((0.4 + 0.5) / 0.5 + 0.5);
-        let result = calculate_weight(z, n, alpha, beta, l1_ratio, l2_ratio);
+        let result = apply_proximal_to_weights(z, n, alpha, beta, l1_ratio, l2_ratio);
         assert_abs_diff_eq!(result, expected_result)
     }
 
