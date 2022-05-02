@@ -169,12 +169,12 @@ fn stable_sigmoid<F: Float>(prediction: F) -> F {
 }
 
 fn positive_sigmoid<F: Float>(prediction: F) -> F {
-    return F::one() / (F::one() + (-prediction).exp());
+    F::one() / (F::one() + (-prediction).exp())
 }
 
 fn negative_sigmoid<F: Float>(prediction: F) -> F {
     let exp = prediction.exp();
-    return exp / (exp + F::one());
+    exp / (exp + F::one())
 }
 
 fn apply_proximal_to_weights<F: Float>(

@@ -4,9 +4,10 @@ mod algorithm;
 mod error;
 mod hyperparams;
 
-use crate::hyperparams::{FtrlParams, FtrlValidParams};
+use crate::hyperparams::FtrlValidParams;
 pub use algorithm::Result;
 pub use error::FtrlError;
+pub use hyperparams::FtrlParams;
 use linfa::Float;
 use ndarray::Array1;
 use ndarray_rand::RandomExt;

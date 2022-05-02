@@ -27,6 +27,7 @@ rand = "0.8.5"
 linfa = { version = "0.5.0", path = "../.."}
 
 [dev-dependencies]
+iai = "0.1"
 approx = "0.4"
 linfa-datasets = { version = "0.5.0", path = "../../datasets", features = ["winequality"] }
 
@@ -36,3 +37,7 @@ optional = true
 version = "1.0"
 default-features = false
 features = ["std", "derive"]
+
+[[bench]]
+name = "ftrl"
+harness = false
