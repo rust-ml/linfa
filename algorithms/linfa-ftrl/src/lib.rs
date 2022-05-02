@@ -13,9 +13,9 @@ use ndarray_rand::RandomExt;
 use rand::distributions::Uniform;
 
 #[cfg_attr(
-feature = "serde",
-derive(Serialize, Deserialize),
-serde(crate = "serde_crate")
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
 )]
 #[derive(Clone, Debug)]
 pub struct FTRL<F: Float> {
