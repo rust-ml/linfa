@@ -478,7 +478,7 @@ impl BinaryClassification<&[bool]> for &[Pr] {
     }
 
     fn log_loss(&self, y: &[bool]) -> Result<f32> {
-        let probabilities = Array1::from_vec(self.to_vec());
+        let probabilities = aview1(self);
         probabilities.log_loss(y)
     }
 }
@@ -489,17 +489,23 @@ impl<D: Data<Elem = Pr>> BinaryClassification<&[bool]> for ArrayBase<D, Ix1> {
     }
 
     fn log_loss(&self, y: &[bool]) -> Result<f32> {
-        let clipped_probs: Vec<_> = self
-            .iter()
-            .map(|v| (*v).clamp(f32::EPSILON, 1. - f32::EPSILON))
-            .collect();
-        clipped_probs
-            .iter()
-            .zip(y.iter())
-            .map(|(a, b)| if *b { -a.ln() } else { -(1. - a).ln() })
-            .collect::<Array1<f32>>()
-            .mean()
-            .ok_or(Error::NotEnoughSamples)
+        assert_eq!(
+            self.len(),
+            y.len(),
+            "The number of predicted points must match the length of target."
+        );
+        let len = self.len();
+        if len == 0 {
+            Err(Error::NotEnoughSamples)
+        } else {
+            let sum: f32 = self
+                .iter()
+                .map(|v| (*v).clamp(f32::EPSILON, 1. - f32::EPSILON))
+                .zip(y.iter())
+                .map(|(a, b)| if *b { -a.ln() } else { -(1. - a).ln() })
+                .sum();
+            Ok(sum / len as f32)
+        }
     }
 }
 
@@ -704,5 +710,22 @@ mod tests {
 
         let logloss = predicted.log_loss(ground_truth).unwrap();
         assert_abs_diff_eq!(logloss, 0.34279516);
+    }
+
+    #[test]
+    #[should_panic]
+    fn log_loss_empty() {
+        let ground_truth = &[];
+        let predicted = ArrayView1::from(&[]).mapv(Pr::new);
+        predicted.log_loss(ground_truth).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn log_loss_with_different_lengths() {
+        let ground_truth = &[false, false, false, false, true, true, true, true];
+        let predicted =
+            ArrayView1::from(&[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]).mapv(Pr::new);
+        predicted.log_loss(ground_truth);
     }
 }
