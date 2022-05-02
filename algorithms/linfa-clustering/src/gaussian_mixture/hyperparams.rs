@@ -103,7 +103,7 @@ impl<F: Float> GmmParams<F, Isaac64Rng> {
 }
 
 impl<F: Float, R: Rng + Clone> GmmParams<F, R> {
-    fn new_with_rng(n_clusters: usize, rng: R) -> GmmParams<F, R> {
+    pub fn new_with_rng(n_clusters: usize, rng: R) -> GmmParams<F, R> {
         Self(GmmValidParams {
             n_clusters,
             covar_type: GmmCovarType::Full,

@@ -1,13 +1,18 @@
 Unreleased
 ========================
 
+Changes
+----------------------
+* remove `SeedableRng` trait bound from `KMeans` and `GaussianMixture`
+
 Breaking Changes
 ----------------------
  * parametrize `AsTargets` by the dimensionality of the targets and introduce `AsSingleTargets` and `AsMultiTargets`
  * 1D target arrays are no longer converted to 2D when constructing `Dataset`s
  * `Dataset` and `DatasetView` can now be parametrized by target dimensionality, with 2D being the default
  * single-target algorithms no longer accept 2D target arrays as input
- * `cross_validate_multi` has been merged with `cross_validate`, which is now generic across single and multi-targets
+ * `cross_validate` changed to `cross_validate_single`
+ * `cross_validate_multi` changed to `cross_validate`, which is now generic across single and multi-targets
  * `Pr` has been constrained to `0. <= prob <= 1.`. Creating probability value now possible with `Pr::new(prob)` or `Pr::try_from(prob)?`
 
 Version 0.5.1 - 2022-02-28

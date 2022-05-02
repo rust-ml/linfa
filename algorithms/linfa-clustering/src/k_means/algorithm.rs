@@ -7,8 +7,7 @@ use crate::{k_means::errors::KMeansError, KMeansInit};
 use linfa::{prelude::*, DatasetBase, Float};
 use linfa_nn::distance::{Distance, L2Dist};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, DataMut, Ix1, Ix2, Zip};
-use ndarray_rand::rand::Rng;
-use ndarray_rand::rand::SeedableRng;
+use ndarray_rand::rand::{Rng, SeedableRng};
 use rand_isaac::Isaac64Rng;
 
 #[cfg(feature = "serde")]
@@ -217,7 +216,7 @@ impl<F: Float, D: Distance<F>> KMeans<F, D> {
     }
 }
 
-impl<F: Float, R: Rng + SeedableRng + Clone, DA: Data<Elem = F>, T, D: Distance<F>>
+impl<F: Float, R: Rng + Clone, DA: Data<Elem = F>, T, D: Distance<F>>
     Fit<ArrayBase<DA, Ix2>, T, KMeansError> for KMeansValidParams<F, R, D>
 {
     type Object = KMeans<F, D>;
@@ -300,14 +299,8 @@ impl<F: Float, R: Rng + SeedableRng + Clone, DA: Data<Elem = F>, T, D: Distance<
     }
 }
 
-impl<
-        'a,
-        F: Float + Debug,
-        R: Rng + Clone + SeedableRng,
-        DA: Data<Elem = F>,
-        T,
-        D: 'a + Distance<F> + Debug,
-    > FitWith<'a, ArrayBase<DA, Ix2>, T, IncrKMeansError<KMeans<F, D>>>
+impl<'a, F: Float + Debug, R: Rng + Clone, DA: Data<Elem = F>, T, D: 'a + Distance<F> + Debug>
+    FitWith<'a, ArrayBase<DA, Ix2>, T, IncrKMeansError<KMeans<F, D>>>
     for KMeansValidParams<F, R, D>
 {
     type ObjectIn = Option<KMeans<F, D>>;
@@ -597,6 +590,7 @@ mod tests {
     use approx::assert_abs_diff_eq;
     use linfa_nn::distance::L1Dist;
     use ndarray::{array, concatenate, Array, Array1, Array2, Axis};
+    use ndarray_rand::rand::prelude::ThreadRng;
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::Uniform;
     use ndarray_rand::RandomExt;
@@ -845,5 +839,11 @@ mod tests {
             .init_method(KMeansInit::Precomputed(array![[0., 0.]]));
         let data = DatasetBase::from(array![[1., 1.], [11., 11.]]);
         assert!(params.fit_with(None, &data).is_ok());
+    }
+
+    fn fittable<T: Fit<Array2<f64>, (), KMeansError>>(_: T) {}
+    #[test]
+    fn thread_rng_fittable() {
+        fittable(KMeans::params_with_rng(1, ThreadRng::default()));
     }
 }

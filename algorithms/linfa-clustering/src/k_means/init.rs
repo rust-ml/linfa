@@ -6,6 +6,7 @@ use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, 
 use ndarray_rand::rand::distributions::{Distribution, WeightedIndex};
 use ndarray_rand::rand::Rng;
 use ndarray_rand::rand::{self, SeedableRng};
+use rand_isaac::Isaac64Rng;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
@@ -35,7 +36,7 @@ pub enum KMeansInit<F: Float> {
 
 impl<F: Float> KMeansInit<F> {
     /// Runs the chosen initialization routine
-    pub(crate) fn run<R: Rng + SeedableRng, D: Distance<F>>(
+    pub(crate) fn run<R: Rng, D: Distance<F>>(
         &self,
         dist_fn: &D,
         n_clusters: usize,
@@ -133,7 +134,7 @@ fn k_means_plusplus<F: Float, D: Distance<F>>(
 /// input point in parallel. The probability of a point becoming a centroid is the same as with
 /// KMeans++. After multiple iterations, run weighted KMeans++ on the candidates to produce the
 /// final set of centroids.
-fn k_means_para<R: Rng + SeedableRng, F: Float, D: Distance<F>>(
+fn k_means_para<R: Rng, F: Float, D: Distance<F>>(
     dist_fn: &D,
     n_clusters: usize,
     observations: ArrayView2<F>,
@@ -190,7 +191,7 @@ fn k_means_para<R: Rng + SeedableRng, F: Float, D: Distance<F>>(
 
 /// Generate candidate centroids by sampling each observation in parallel using a seedable RNG in
 /// every thread. Average number of generated candidates should equal `multiplier`.
-fn sample_subsequent_candidates<R: Rng + SeedableRng, F: Float>(
+fn sample_subsequent_candidates<R: Rng, F: Float>(
     dists: &Array1<F>,
     multiplier: F,
     seed: u64,
@@ -210,7 +211,7 @@ fn sample_subsequent_candidates<R: Rng + SeedableRng, F: Float>(
         .into_par_iter()
         .enumerate()
         .map_init(
-            || R::seed_from_u64(seed.fetch_add(1, Relaxed)),
+            || Isaac64Rng::seed_from_u64(seed.fetch_add(1, Relaxed)),
             move |rng, (i, d)| {
                 let d = *d.into_scalar();
                 let rand = F::cast(rng.gen_range(0.0..1.0));
