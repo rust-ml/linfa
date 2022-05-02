@@ -8,6 +8,7 @@ Breaking Changes
  * `Dataset` and `DatasetView` can now be parametrized by target dimensionality, with 2D being the default
  * single-target algorithms no longer accept 2D target arrays as input
  * `cross_validate_multi` has been merged with `cross_validate`, which is now generic across single and multi-targets
+ * `Pr` has been constrained to `0. <= prob <= 1.`. Creating probability value now possible with `Pr::new(prob)` or `Pr::try_from(prob)?`
 
 Version 0.5.1 - 2022-02-28
 ========================

@@ -28,23 +28,24 @@ Where does `linfa` stand right now? [Are we learning yet?](http://www.arewelearn
 `linfa` currently provides sub-packages with the following algorithms: 
 
 
-| Name | Purpose | Status | Category |  Notes | 
-| :--- | :--- | :---| :--- | :---| 
-| [clustering](algorithms/linfa-clustering/) | Data clustering | Tested / Benchmarked  | Unsupervised learning | Clustering of unlabeled data; contains K-Means, Gaussian-Mixture-Model, DBSCAN and OPTICS | 
-| [kernel](algorithms/linfa-kernel/) | Kernel methods for data transformation  | Tested  | Pre-processing | Maps feature vector into higher-dimensional space| 
-| [linear](algorithms/linfa-linear/) | Linear regression | Tested  | Partial fit | Contains Ordinary Least Squares (OLS), Generalized Linear Models (GLM) | 
-| [elasticnet](algorithms/linfa-elasticnet/) | Elastic Net | Tested | Supervised learning | Linear regression with elastic net constraints |
-| [logistic](algorithms/linfa-logistic/) | Logistic regression | Tested  | Partial fit | Builds two-class logistic regression models
-| [reduction](algorithms/linfa-reduction/) | Dimensionality reduction | Tested | Pre-processing | Diffusion mapping and Principal Component Analysis (PCA) |
-| [trees](algorithms/linfa-trees/) | Decision trees | Experimental  | Supervised learning | Linear decision trees
-| [svm](algorithms/linfa-svm/) | Support Vector Machines | Tested  | Supervised learning | Classification or regression analysis of labeled datasets | 
-| [hierarchical](algorithms/linfa-hierarchical/) | Agglomerative hierarchical clustering | Tested | Unsupervised learning | Cluster and build hierarchy of clusters |
-| [bayes](algorithms/linfa-bayes/) | Naive Bayes | Tested | Supervised learning | Contains Gaussian Naive Bayes |
-| [ica](algorithms/linfa-ica/) | Independent component analysis | Tested | Unsupervised learning | Contains FastICA implementation |
-| [pls](algorithms/linfa-pls/) | Partial Least Squares | Tested | Supervised learning | Contains PLS estimators for dimensionality reduction and regression |
-| [tsne](algorithms/linfa-tsne/) | Dimensionality reduction| Tested | Unsupervised learning | Contains exact solution and Barnes-Hut approximation t-SNE |
-| [preprocessing](algorithms/linfa-preprocessing/) |Normalization & Vectorization| Tested | Pre-processing | Contains data normalization/whitening and count vectorization/tf-idf |
-| [nn](algorithms/linfa-nn/) | Nearest Neighbours & Distances | Tested / Benchmarked | Pre-processing | Spatial index structures and distance functions |
+| Name                                             | Purpose                                  | Status | Category | Notes                                                                                     | 
+|:-------------------------------------------------|:-----------------------------------------| :---| :--- |:------------------------------------------------------------------------------------------| 
+| [clustering](algorithms/linfa-clustering/)       | Data clustering                          | Tested / Benchmarked  | Unsupervised learning | Clustering of unlabeled data; contains K-Means, Gaussian-Mixture-Model, DBSCAN and OPTICS | 
+| [kernel](algorithms/linfa-kernel/)               | Kernel methods for data transformation   | Tested  | Pre-processing | Maps feature vector into higher-dimensional space                                         | 
+| [linear](algorithms/linfa-linear/)               | Linear regression                        | Tested  | Partial fit | Contains Ordinary Least Squares (OLS), Generalized Linear Models (GLM)                    | 
+| [elasticnet](algorithms/linfa-elasticnet/)       | Elastic Net                              | Tested | Supervised learning | Linear regression with elastic net constraints                                            |
+| [logistic](algorithms/linfa-logistic/)           | Logistic regression                      | Tested  | Partial fit | Builds two-class logistic regression models                                               
+| [reduction](algorithms/linfa-reduction/)         | Dimensionality reduction                 | Tested | Pre-processing | Diffusion mapping and Principal Component Analysis (PCA)                                  |
+| [trees](algorithms/linfa-trees/)                 | Decision trees                           | Experimental  | Supervised learning | Linear decision trees                                                                     
+| [svm](algorithms/linfa-svm/)                     | Support Vector Machines                  | Tested  | Supervised learning | Classification or regression analysis of labeled datasets                                 | 
+| [hierarchical](algorithms/linfa-hierarchical/)   | Agglomerative hierarchical clustering    | Tested | Unsupervised learning | Cluster and build hierarchy of clusters                                                   |
+| [bayes](algorithms/linfa-bayes/)                 | Naive Bayes                              | Tested | Supervised learning | Contains Gaussian Naive Bayes                                                             |
+| [ica](algorithms/linfa-ica/)                     | Independent component analysis           | Tested | Unsupervised learning | Contains FastICA implementation                                                           |
+| [pls](algorithms/linfa-pls/)                     | Partial Least Squares                    | Tested | Supervised learning | Contains PLS estimators for dimensionality reduction and regression                       |
+| [tsne](algorithms/linfa-tsne/)                   | Dimensionality reduction                 | Tested | Unsupervised learning | Contains exact solution and Barnes-Hut approximation t-SNE                                |
+| [preprocessing](algorithms/linfa-preprocessing/) | Normalization & Vectorization            | Tested | Pre-processing | Contains data normalization/whitening and count vectorization/tf-idf                      |
+| [nn](algorithms/linfa-nn/)                       | Nearest Neighbours & Distances           | Tested / Benchmarked | Pre-processing | Spatial index structures and distance functions                                           |
+| [ftrl](algorithms/linfa-ftrl/)                   | Follow The Reguralized Leader - proximal | Tested  | Partial fit | Contains L1 and L2 regularization. Possible incremental update                            | 
 
 We believe that only a significant community effort can nurture, build, and sustain a machine learning ecosystem in Rust - there is no other way forward.
 
