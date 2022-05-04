@@ -5,13 +5,15 @@ use linfa::dataset::{AsSingleTargets, Pr, Records};
 use linfa::traits::{FitWith, PredictInplace};
 use linfa::{DatasetBase, Float};
 use ndarray::{Array1, ArrayBase, ArrayView1, Data, Ix2, Zip};
+use rand::Rng;
 
 /// Simplified `Result` using [`FTRLError`](crate::FTRLError) as error type
 pub type Result<T> = std::result::Result<T, FtrlError>;
 
-impl<'a, F, D, T> FitWith<'a, ArrayBase<D, Ix2>, T, FtrlError> for FtrlValidParams<F>
+impl<'a, F, R, D, T> FitWith<'a, ArrayBase<D, Ix2>, T, FtrlError> for FtrlValidParams<F, R>
 where
     F: Float,
+    R: Rng + Clone,
     D: Data<Elem = F>,
     T: AsSingleTargets<Elem = bool>,
 {
@@ -84,9 +86,24 @@ impl<F: Float> FTRL<F> {
         &self.n
     }
 
-    /// Get the hyperparameters
-    pub fn get_params(&self) -> &FtrlValidParams<F> {
-        &self.params
+    /// Get the alpha parameter
+    pub fn alpha(&self) -> F {
+        self.alpha
+    }
+
+    /// Get the beta parameter
+    pub fn beta(&self) -> F {
+        self.beta
+    }
+
+    /// Get the L1 regularization value
+    pub fn l1_ratio(&self) -> F {
+        self.l1_ratio
+    }
+
+    /// Get the L2 regularization value
+    pub fn l2_ratio(&self) -> F {
+        self.l2_ratio
     }
 
     /// Calculate weights for model prediction
@@ -97,10 +114,10 @@ impl<F: Float> FTRL<F> {
                 apply_proximal_to_weights(
                     *z,
                     *n,
-                    self.params.alpha(),
-                    self.params.beta(),
-                    self.params.l1_ratio(),
-                    self.params.l2_ratio(),
+                    self.alpha(),
+                    self.beta(),
+                    self.l1_ratio(),
+                    self.l2_ratio(),
                 )
             })
     }
@@ -127,7 +144,7 @@ impl<F: Float> FTRL<F> {
     fn calculate_sigma(&self, gradients: ArrayView1<F>) -> Array1<F> {
         Zip::from(&self.n)
             .and(gradients)
-            .map_collect(|n, grad| calculate_weight_in_average(*n, *grad, self.params.alpha))
+            .map_collect(|n, grad| calculate_weight_in_average(*n, *grad, self.alpha()))
     }
 
     fn update_params(&mut self, gradient: Array1<F>, sigma: Array1<F>) {
@@ -202,6 +219,8 @@ mod test {
     use approx::assert_abs_diff_eq;
     use linfa::{Dataset, ParamGuard};
     use ndarray::array;
+    use rand::rngs::SmallRng;
+    use rand::SeedableRng;
 
     #[test]
     fn sigmoid_works() {
@@ -258,14 +277,15 @@ mod test {
 
     #[test]
     fn update_params_works() {
+        let rng = SmallRng::seed_from_u64(42);
         let probabilities = array![0.1, 0.3, 0.8].mapv(Pr::new);
         let dataset = Dataset::new(
             array![[0.0, 1.0], [2.0, 3.0], [1.0, 5.0]],
             array![false, false, true],
         );
-        let params = FtrlParams::default();
+        let params = FtrlParams::new_with_rng(rng);
         let valid_params = params.check().unwrap();
-        let mut model = FTRL::new(valid_params, dataset.nfeatures());
+        let mut model = FTRL::new(valid_params.clone(), dataset.nfeatures());
         let initial_z = model.z().clone();
         let initial_n = model.n().clone();
         let weights = model.get_weights();
@@ -280,13 +300,14 @@ mod test {
 
     #[test]
     fn predict_probabilities_works() {
+        let rng = SmallRng::seed_from_u64(42);
         let dataset = Dataset::new(
             array![[0.0, 1.0], [2.0, 3.0], [1.0, 5.0]],
             array![false, false, true],
         );
-        let params = FtrlParams::default();
+        let params = FtrlParams::new_with_rng(rng);
         let valid_params = params.check().unwrap();
-        let model = FTRL::new(valid_params, dataset.nfeatures());
+        let model = FTRL::new(valid_params.clone(), dataset.nfeatures());
         let probabilities = model.predict_probabilities(dataset.records());
         assert!(probabilities
             .iter()
@@ -302,10 +323,11 @@ mod test {
         );
 
         // Initialize model this way to control random z values
-        let params = FtrlParams::default();
-        let valid_params = params.check().unwrap();
         let mut model = FTRL {
-            params: valid_params,
+            alpha: 0.005,
+            beta: 0.0,
+            l1_ratio: 0.5,
+            l2_ratio: 0.5,
             z: array![0.5, 0.7],
             n: array![0.0, 0.0],
         };
@@ -316,20 +338,25 @@ mod test {
 
     #[test]
     fn ftrl_toy_example_works() {
+        let alpha = 0.1;
+        let beta = 0.0;
+        let regularization = 0.5;
         let dataset = Dataset::new(
             array![[-1.0], [-2.0], [10.0], [9.0]],
             array![true, true, false, false],
         );
         let params = FTRL::params()
-            .l2_ratio(0.5)
-            .l1_ratio(0.5)
-            .alpha(0.1)
-            .beta(0.0);
+            .l2_ratio(regularization)
+            .l1_ratio(regularization)
+            .alpha(alpha)
+            .beta(beta);
 
         // Initialize model this way to control random z values
-        let valid_params = params.clone().check().unwrap();
         let model = FTRL {
-            params: valid_params,
+            alpha,
+            beta,
+            l1_ratio: regularization,
+            l2_ratio: regularization,
             z: array![0.5],
             n: array![0.],
         };
@@ -344,17 +371,22 @@ mod test {
 
     #[test]
     fn ftrl_2d_toy_example_works() {
+        let alpha = 0.01;
+        let beta = 0.0;
+        let regularization = 0.5;
         let dataset = Dataset::new(array![[0.0, -5.0], [10.0, 20.0]], array![true, false]);
         let params = FTRL::params()
-            .l2_ratio(0.5)
-            .l1_ratio(0.5)
-            .alpha(0.01)
-            .beta(0.0);
+            .l2_ratio(regularization)
+            .l1_ratio(regularization)
+            .alpha(alpha)
+            .beta(beta);
 
         // Initialize model this way to control random z values
-        let valid_params = params.clone().check().unwrap();
         let model = FTRL {
-            params: valid_params,
+            alpha,
+            beta,
+            l1_ratio: regularization,
+            l2_ratio: regularization,
             z: array![0.5, 0.5],
             n: array![0.0, 0.0],
         };

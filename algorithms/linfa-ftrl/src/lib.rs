@@ -11,13 +11,9 @@ pub use hyperparams::FtrlParams;
 use linfa::Float;
 use ndarray::Array1;
 use ndarray_rand::RandomExt;
-use rand::distributions::Uniform;
+use rand::{distributions::Uniform, Rng};
+use rand_xoshiro::{rand_core::SeedableRng, Xoshiro256Plus};
 
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
 #[derive(Clone, Debug)]
 pub struct FTRL<F: Float> {
     /// FTRL (Follow The Regularized Leader - proximal) is a linear model for CTR prediction in online learning settings.
@@ -33,7 +29,10 @@ pub struct FTRL<F: Float> {
     /// let model = params.fit_with(None, &dataset).unwrap();
     /// let predictions = model.predict(&dataset);
     /// ```
-    params: FtrlValidParams<F>,
+    alpha: F,
+    beta: F,
+    l1_ratio: F,
+    l2_ratio: F,
     z: Array1<F>,
     n: Array1<F>,
 }
@@ -44,17 +43,26 @@ impl<F: Float> FTRL<F> {
     ///
     /// It requires data preprocessing done in the separate step.
 
-    /// Create default hyperparameters
-    pub fn params() -> FtrlParams<F> {
-        FtrlParams::default()
+    /// Create default hyperparameters. Random number generator will default to rand_xoshiro::Xoshiro256Plus
+    pub fn params() -> FtrlParams<F, Xoshiro256Plus> {
+        FtrlParams::new_with_rng(Xoshiro256Plus::seed_from_u64(42))
     }
 
-    /// Create a new model with given parameters and number of features
-    pub fn new(params: FtrlValidParams<F>, nfeatures: usize) -> FTRL<F> {
+    /// Create default hyperparameters with custom random number generator
+    pub fn params_with_rng<R: Rng>(rng: R) -> FtrlParams<F, R> {
+        FtrlParams::new_with_rng(rng)
+    }
+
+    /// Create a new model with given parameters, number of features and custom random number generator
+    pub fn new<R: Rng + Clone>(params: FtrlValidParams<F, R>, nfeatures: usize) -> FTRL<F> {
+        let mut rng = params.rng.clone();
         Self {
-            params,
+            alpha: params.alpha,
+            beta: params.beta,
+            l1_ratio: params.l1_ratio,
+            l2_ratio: params.l2_ratio,
             n: Array1::zeros(nfeatures),
-            z: Array1::random(nfeatures, Uniform::new(F::zero(), F::one())),
+            z: Array1::random_using(nfeatures, Uniform::new(F::zero(), F::one()), &mut rng),
         }
     }
 }

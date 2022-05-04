@@ -13,16 +13,14 @@ readme = "README.md"
 keywords = ["machine-learning", "linfa", "ai", "ml", "ftrl"]
 categories = ["algorithms", "mathematics", "science"]
 
-[features]
-default = []
-serde = ["serde_crate"]
-
 [dependencies]
 ndarray = { version = "0.15"}
 ndarray-rand = "0.14.0"
 argmin = { version = "0.4.7", features = ["ndarray", "ndarray-rand"]}
 thiserror = "1.0"
 rand = "0.8.5"
+rand_xoshiro = "0.6.0"
+serde = {version = "0.9.15", features = ["derive"]}
 
 linfa = { version = "0.5.0", path = "../.."}
 
@@ -30,13 +28,6 @@ linfa = { version = "0.5.0", path = "../.."}
 iai = "0.1"
 approx = "0.4"
 linfa-datasets = { version = "0.5.0", path = "../../datasets", features = ["winequality"] }
-
-[dependencies.serde_crate]
-package = "serde"
-optional = true
-version = "1.0"
-default-features = false
-features = ["std", "derive"]
 
 [[bench]]
 name = "ftrl"

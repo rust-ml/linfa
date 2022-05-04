@@ -1,22 +1,25 @@
 use crate::error::FtrlError;
 use linfa::{Float, ParamGuard};
+use rand::Rng;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug)]
-pub struct FtrlParams<F: Float>(pub(crate) FtrlValidParams<F>);
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct FtrlParams<F: Float, R: Rng>(pub(crate) FtrlValidParams<F, R>);
 
 /// A verified hyper-parameter set ready for the estimation of a Follow the regularized leader - proximal model
 ///
 /// See [`FtrlParams`](crate::FtrlParams) for more information.
-#[derive(Clone, Debug)]
-pub struct FtrlValidParams<F: Float> {
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct FtrlValidParams<F: Float, R: Rng> {
     pub(crate) alpha: F,
     pub(crate) beta: F,
     pub(crate) l1_ratio: F,
     pub(crate) l2_ratio: F,
+    pub(crate) rng: R,
 }
 
-impl<F: Float> ParamGuard for FtrlParams<F> {
-    type Checked = FtrlValidParams<F>;
+impl<F: Float, R: Rng> ParamGuard for FtrlParams<F, R> {
+    type Checked = FtrlValidParams<F, R>;
     type Error = FtrlError;
 
     /// Validate the hyper parameters
@@ -40,7 +43,7 @@ impl<F: Float> ParamGuard for FtrlParams<F> {
     }
 }
 
-impl<F: Float> FtrlValidParams<F> {
+impl<F: Float, R: Rng> FtrlValidParams<F, R> {
     pub fn alpha(&self) -> F {
         self.alpha
     }
@@ -56,27 +59,32 @@ impl<F: Float> FtrlValidParams<F> {
     pub fn l2_ratio(&self) -> F {
         self.l2_ratio
     }
-}
 
-impl<F: Float> Default for FtrlParams<F> {
-    fn default() -> Self {
-        Self(FtrlValidParams {
-            alpha: F::cast(0.005),
-            beta: F::cast(0.0),
-            l1_ratio: F::cast(0.5),
-            l2_ratio: F::cast(0.5),
-        })
+    pub fn rng(&self) -> &R {
+        &self.rng
     }
 }
 
-impl<F: Float> FtrlParams<F> {
+impl<F: Float, R: Rng> FtrlParams<F, R> {
     /// Create new hyperparameters with pre-defined values
-    pub fn new(alpha: F, beta: F, l1_ratio: F, l2_ratio: F) -> Self {
+    pub fn new(alpha: F, beta: F, l1_ratio: F, l2_ratio: F, rng: R) -> Self {
         Self(FtrlValidParams {
             alpha,
             beta,
             l1_ratio,
             l2_ratio,
+            rng,
+        })
+    }
+
+    /// Create new hyperparameters with pre-defined random number generator
+    pub fn new_with_rng(rng: R) -> Self {
+        Self(FtrlValidParams {
+            alpha: F::cast(0.005),
+            beta: F::cast(0.0),
+            l1_ratio: F::cast(0.5),
+            l2_ratio: F::cast(0.5),
+            rng,
         })
     }
 
@@ -118,6 +126,16 @@ impl<F: Float> FtrlParams<F> {
     /// `l2_ratio` must be between `0.0` and `1.0`.
     pub fn l2_ratio(mut self, l2_ratio: F) -> Self {
         self.0.l2_ratio = l2_ratio;
+        self
+    }
+
+    /// Set random number generator. Used to initialize Z values
+    ///
+    /// Defaults to Xoshiro256Plus
+    ///
+    /// `rng` must have Clone trait implemented.
+    pub fn rng(mut self, rng: R) -> Self {
+        self.0.rng = rng;
         self
     }
 }
