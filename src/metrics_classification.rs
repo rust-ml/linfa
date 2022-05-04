@@ -726,6 +726,6 @@ mod tests {
         let ground_truth = &[false, false, false, false, true, true, true, true];
         let predicted =
             ArrayView1::from(&[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]).mapv(Pr::new);
-        predicted.log_loss(ground_truth);
+        predicted.log_loss(ground_truth).unwrap();
     }
 }
