@@ -1,6 +1,6 @@
 use crate::error::FtrlError;
 use crate::hyperparams::FtrlValidParams;
-use crate::FTRL;
+use crate::Ftrl;
 use linfa::dataset::{AsSingleTargets, Pr, Records};
 use linfa::traits::{FitWith, PredictInplace};
 use linfa::{DatasetBase, Float};
@@ -17,8 +17,8 @@ where
     D: Data<Elem = F>,
     T: AsSingleTargets<Elem = bool>,
 {
-    type ObjectIn = Option<FTRL<F>>;
-    type ObjectOut = FTRL<F>;
+    type ObjectIn = Option<Ftrl<F>>;
+    type ObjectOut = Ftrl<F>;
 
     /// Fit a follow the regularized leader, proximal, model given a feature matrix `x` and a target
     /// variable `y`.
@@ -36,7 +36,7 @@ where
         dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
     ) -> Result<Self::ObjectOut> {
         let mut model_out =
-            model_in.unwrap_or_else(|| FTRL::new(self.clone(), dataset.nfeatures()));
+            model_in.unwrap_or_else(|| Ftrl::new(self.clone(), dataset.nfeatures()));
         let probabilities = model_out.predict_probabilities(dataset.records());
         let gradient = calculate_gradient(probabilities.view(), dataset);
         let sigma = model_out.calculate_sigma(gradient.view());
@@ -45,7 +45,7 @@ where
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<Pr>> for FTRL<F> {
+impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<Pr>> for Ftrl<F> {
     /// Given an input matrix `X`, with shape `(n_samples, n_features)`,
     /// `predict` returns the target variable according to the parameters
     /// learned from the training data distribution.
@@ -75,7 +75,7 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<Pr>> 
 
 /// View the fitted parameters and make predictions with a fitted
 /// follow the regularized leader -proximal, model
-impl<F: Float> FTRL<F> {
+impl<F: Float> Ftrl<F> {
     /// Get Z values
     pub fn z(&self) -> &Array1<F> {
         &self.z
@@ -285,7 +285,7 @@ mod test {
         );
         let params = FtrlParams::new_with_rng(rng);
         let valid_params = params.check().unwrap();
-        let mut model = FTRL::new(valid_params.clone(), dataset.nfeatures());
+        let mut model = Ftrl::new(valid_params.clone(), dataset.nfeatures());
         let initial_z = model.z().clone();
         let initial_n = model.n().clone();
         let weights = model.get_weights();
@@ -307,7 +307,7 @@ mod test {
         );
         let params = FtrlParams::new_with_rng(rng);
         let valid_params = params.check().unwrap();
-        let model = FTRL::new(valid_params.clone(), dataset.nfeatures());
+        let model = Ftrl::new(valid_params.clone(), dataset.nfeatures());
         let probabilities = model.predict_probabilities(dataset.records());
         assert!(probabilities
             .iter()
@@ -323,7 +323,7 @@ mod test {
         );
 
         // Initialize model this way to control random z values
-        let mut model = FTRL {
+        let mut model = Ftrl {
             alpha: 0.005,
             beta: 0.0,
             l1_ratio: 0.5,
@@ -345,14 +345,14 @@ mod test {
             array![[-1.0], [-2.0], [10.0], [9.0]],
             array![true, true, false, false],
         );
-        let params = FTRL::params()
+        let params = Ftrl::params()
             .l2_ratio(regularization)
             .l1_ratio(regularization)
             .alpha(alpha)
             .beta(beta);
 
         // Initialize model this way to control random z values
-        let model = FTRL {
+        let model = Ftrl {
             alpha,
             beta,
             l1_ratio: regularization,
@@ -375,14 +375,14 @@ mod test {
         let beta = 0.0;
         let regularization = 0.5;
         let dataset = Dataset::new(array![[0.0, -5.0], [10.0, 20.0]], array![true, false]);
-        let params = FTRL::params()
+        let params = Ftrl::params()
             .l2_ratio(regularization)
             .l1_ratio(regularization)
             .alpha(alpha)
             .beta(beta);
 
         // Initialize model this way to control random z values
-        let model = FTRL {
+        let model = Ftrl {
             alpha,
             beta,
             l1_ratio: regularization,

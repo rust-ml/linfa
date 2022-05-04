@@ -1,6 +1,6 @@
 use linfa::dataset::{AsSingleTargets, Records};
 use linfa::prelude::*;
-use linfa_ftrl::{Result, FTRL};
+use linfa_ftrl::{Ftrl, Result};
 use rand::{rngs::SmallRng, SeedableRng};
 
 fn main() -> Result<()> {
@@ -9,14 +9,14 @@ fn main() -> Result<()> {
         .map_targets(|v| if *v > 6 { true } else { false })
         .split_with_ratio(0.9);
 
-    let params = FTRL::params()
+    let params = Ftrl::params()
         .alpha(0.005)
         .beta(1.0)
         .l1_ratio(0.005)
         .l2_ratio(1.0);
 
     let valid_params = params.clone().check_unwrap();
-    let mut model = FTRL::new(valid_params, train.nfeatures());
+    let mut model = Ftrl::new(valid_params, train.nfeatures());
 
     // Bootstrap each row from the train dataset to imitate online nature of the data flow
     let mut rng = SmallRng::seed_from_u64(42);

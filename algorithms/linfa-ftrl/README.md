@@ -13,7 +13,7 @@ Without L1 and L2 regularization, it is identical to online gradient descent.
 
 
 See also:
-* [Paper about FTRL](https://www.eecs.tufts.edu/~dsculley/papers/ad-click-prediction.pdf)
+* [Paper about Ftrl](https://www.eecs.tufts.edu/~dsculley/papers/ad-click-prediction.pdf)
 
 ## Examples
 
@@ -31,7 +31,7 @@ Show source code
 ```rust
 use linfa::prelude::*;
 use linfa::dataset::{AsSingleTargets, Records};
-use linfa_ftrl::{FTRL, Result};
+use linfa_ftrl::{Ftrl, Result};
 use rand::{rngs::SmallRng, SeedableRng};
 
 // load Winequality dataset
@@ -39,14 +39,14 @@ let (train, valid) = linfa_datasets::winequality()
     .map_targets(|v| if *v > 6 { true } else { false })
     .split_with_ratio(0.9);
 
-let params = FTRL::params()
+let params = Ftrl::params()
     .alpha(0.005)
     .beta(1.0)
     .l1_ratio(0.005)
     .l2_ratio(1.0);
 
 let valid_params = params.clone().check_unwrap();
-let mut model = FTRL::new(valid_params, train.nfeatures());
+let mut model = Ftrl::new(valid_params, train.nfeatures());
 
 // Bootstrap each row from the train dataset to imitate online nature of the data flow
 let mut rng = SmallRng::seed_from_u64(42);

@@ -14,13 +14,13 @@ keywords = ["machine-learning", "linfa", "ai", "ml", "ftrl"]
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
-ndarray = { version = "0.15"}
+ndarray = { version = "0.15.4", features = ["serde"]}
 ndarray-rand = "0.14.0"
 argmin = { version = "0.4.7", features = ["ndarray", "ndarray-rand"]}
 thiserror = "1.0"
 rand = "0.8.5"
 rand_xoshiro = "0.6.0"
-serde = {version = "0.9.15", features = ["derive"]}
+serde = {version = "1.0.137", features = ["derive"]}
 
 linfa = { version = "0.5.0", path = "../.."}
 
