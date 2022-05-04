@@ -25,7 +25,7 @@ serde = {version = "0.9.15", features = ["derive"]}
 linfa = { version = "0.5.0", path = "../.."}
 
 [dev-dependencies]
-iai = "0.1"
+criterion = "0.3"
 approx = "0.4"
 linfa-datasets = { version = "0.5.0", path = "../../datasets", features = ["winequality"] }
 
