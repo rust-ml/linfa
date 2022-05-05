@@ -283,7 +283,7 @@ mod test {
             array![[0.0, 1.0], [2.0, 3.0], [1.0, 5.0]],
             array![false, false, true],
         );
-        let params = FtrlParams::new_with_rng(rng);
+        let params = FtrlParams::default_with_rng(rng);
         let valid_params = params.check().unwrap();
         let mut model = Ftrl::new(valid_params.clone(), dataset.nfeatures());
         let initial_z = model.z().clone();
@@ -305,7 +305,7 @@ mod test {
             array![[0.0, 1.0], [2.0, 3.0], [1.0, 5.0]],
             array![false, false, true],
         );
-        let params = FtrlParams::new_with_rng(rng);
+        let params = FtrlParams::default_with_rng(rng);
         let valid_params = params.check().unwrap();
         let model = Ftrl::new(valid_params.clone(), dataset.nfeatures());
         let probabilities = model.predict_probabilities(dataset.records());

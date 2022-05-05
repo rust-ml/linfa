@@ -78,7 +78,7 @@ impl<F: Float, R: Rng> FtrlParams<F, R> {
     }
 
     /// Create new hyperparameters with pre-defined random number generator
-    pub fn new_with_rng(rng: R) -> Self {
+    pub fn default_with_rng(rng: R) -> Self {
         Self(FtrlValidParams {
             alpha: F::cast(0.005),
             beta: F::cast(0.0),

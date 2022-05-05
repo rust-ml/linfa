@@ -46,12 +46,12 @@ impl<F: Float> Ftrl<F> {
 
     /// Create default hyperparameters. Random number generator will default to rand_xoshiro::Xoshiro256Plus
     pub fn params() -> FtrlParams<F, Xoshiro256Plus> {
-        FtrlParams::new_with_rng(Xoshiro256Plus::seed_from_u64(42))
+        FtrlParams::default_with_rng(Xoshiro256Plus::seed_from_u64(42))
     }
 
     /// Create default hyperparameters with custom random number generator
     pub fn params_with_rng<R: Rng>(rng: R) -> FtrlParams<F, R> {
-        FtrlParams::new_with_rng(rng)
+        FtrlParams::default_with_rng(rng)
     }
 
     /// Create a new model with given parameters, number of features and custom random number generator
