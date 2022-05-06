@@ -95,13 +95,17 @@ impl<L: Label> Label for Option<L> {}
 /// This helper struct exists to distinguish probabilities from floating points. For example SVM
 /// selects regression or classification training, based on the target type, and could not
 /// distinguish them without a new-type definition.
-///
-/// # Panics
-/// Panics if probability is negative or bigger than one.
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, Default)]
 pub struct Pr(f32);
 
+/// Tries to convert float to probability type.
+///
+/// # Returns
+/// Either probability type Pr(f32) or error as Err(f32)
+///
+/// # Panics
+/// Panics if probability is negative or bigger than one.
 impl TryFrom<f32> for Pr {
     type Error = f32;
 
@@ -115,10 +119,16 @@ impl TryFrom<f32> for Pr {
 }
 
 impl Pr {
+    /// Creates probability from the given float.
+    ///
+    /// # Panics
+    /// Panics if probability is negative or bigger than one.
     pub fn new(prob: f32) -> Self {
         prob.try_into().unwrap()
     }
 
+    /// Creates probability from the given float.
+    /// Doesn't check whether it is negative or bigger than one.
     pub fn new_unchecked(prob: f32) -> Self {
         Pr(prob)
     }
