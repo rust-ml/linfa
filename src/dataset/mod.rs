@@ -103,9 +103,6 @@ pub struct Pr(f32);
 ///
 /// # Returns
 /// Either probability type Pr(f32) or error as Err(f32)
-///
-/// # Panics
-/// Panics if probability is negative or bigger than one.
 impl TryFrom<f32> for Pr {
     type Error = f32;
 
