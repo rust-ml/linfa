@@ -399,7 +399,7 @@ mod tests {
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::StandardNormal;
     use ndarray_rand::RandomExt;
-    use rand_isaac::Isaac64Rng;
+    use rand_xoshiro::Xoshiro256Plus;
 
     fn assert_matrix_orthonormal(m: &Array2<f64>) {
         assert_abs_diff_eq!(&m.t().dot(m), &Array::eye(m.ncols()), epsilon = 1e-7);
@@ -594,7 +594,7 @@ mod tests {
         let q_noise = 5;
 
         // 2 latents vars:
-        let mut rng = Isaac64Rng::seed_from_u64(100);
+        let mut rng = Xoshiro256Plus::seed_from_u64(100);
         let l1: Array1<f64> = Array1::random_using(n, StandardNormal, &mut rng);
         let l2: Array1<f64> = Array1::random_using(n, StandardNormal, &mut rng);
         let mut latents = Array::zeros((4, n));
@@ -796,7 +796,7 @@ mod tests {
     fn test_pls_constant_y() {
         // Checks constant residual error when y is constant.
         let n = 100;
-        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let mut rng = Xoshiro256Plus::seed_from_u64(42);
         let x = Array2::<f64>::random_using((n, 3), StandardNormal, &mut rng);
         let y = Array2::zeros((n, 1));
         let ds = Dataset::new(x, y);

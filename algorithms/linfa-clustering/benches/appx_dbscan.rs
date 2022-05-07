@@ -9,10 +9,10 @@ use ndarray::Array2;
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
-use rand_isaac::Isaac64Rng;
+use rand_xoshiro::Xoshiro256Plus;
 
 fn appx_dbscan_bench(c: &mut Criterion) {
-    let mut rng = Isaac64Rng::seed_from_u64(40);
+    let mut rng = Xoshiro256Plus::seed_from_u64(40);
     let cluster_sizes_and_slacks = vec![
         (10, 0.00001),
         (100, 0.00001),

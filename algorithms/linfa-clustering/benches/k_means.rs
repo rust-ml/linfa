@@ -9,7 +9,7 @@ use linfa_datasets::generate;
 use ndarray::Array2;
 use ndarray_rand::RandomExt;
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform};
-use rand_isaac::Isaac64Rng;
+use rand_xoshiro::Xoshiro256Plus;
 
 #[derive(Default)]
 struct Stats {
@@ -33,7 +33,7 @@ impl Drop for Stats {
 }
 
 fn k_means_bench(c: &mut Criterion) {
-    let mut rng = Isaac64Rng::seed_from_u64(40);
+    let mut rng = Xoshiro256Plus::seed_from_u64(40);
     let cluster_sizes = [(100, 4), (400, 10), (3000, 10)];
     let n_features = 3;
 
@@ -66,7 +66,7 @@ fn k_means_bench(c: &mut Criterion) {
 }
 
 fn k_means_incr_bench(c: &mut Criterion) {
-    let mut rng = Isaac64Rng::seed_from_u64(40);
+    let mut rng = Xoshiro256Plus::seed_from_u64(40);
     let cluster_sizes = [(100, 4), (400, 10), (3000, 10)];
     let n_features = 3;
 
@@ -116,7 +116,7 @@ fn k_means_incr_bench(c: &mut Criterion) {
 }
 
 fn k_means_init_bench(c: &mut Criterion) {
-    let mut rng = Isaac64Rng::seed_from_u64(40);
+    let mut rng = Xoshiro256Plus::seed_from_u64(40);
     let init_methods = [KMeansInit::KMeansPlusPlus, KMeansInit::KMeansPara];
     let cluster_sizes = [(100, 10), (3000, 10), (400, 30), (500, 100)];
     let n_features = 3;

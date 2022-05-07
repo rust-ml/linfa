@@ -3,7 +3,7 @@ use ndarray::{arr1, arr2, aview1, stack, Array2, ArrayView1, Axis};
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
 use ndarray_stats::DeviationExt;
 use noisy_float::{checkers::FiniteChecker, NoisyFloat};
-use rand_isaac::Isaac64Rng;
+use rand_xoshiro::Xoshiro256Plus;
 
 use linfa_nn::{distance::*, CommonNearestNeighbour, LinearSearch, NearestNeighbour};
 
@@ -134,7 +134,7 @@ fn nn_test_random<D: 'static + Distance<f64> + Clone>(
     builder: &CommonNearestNeighbour,
     dist_fn: D,
 ) {
-    let mut rng = Isaac64Rng::seed_from_u64(40);
+    let mut rng = Xoshiro256Plus::seed_from_u64(40);
     let n_points = 50000;
     let n_features = 3;
     let points = Array2::random_using((n_points, n_features), Uniform::new(-50., 50.), &mut rng);
