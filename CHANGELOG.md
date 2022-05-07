@@ -13,6 +13,7 @@ Breaking Changes
  * single-target algorithms no longer accept 2D target arrays as input
  * `cross_validate` changed to `cross_validate_single`
  * `cross_validate_multi` changed to `cross_validate`, which is now generic across single and multi-targets
+ * `Pr` has been constrained to `0. <= prob <= 1.`. Constructor `Pr(prob)` replaced with `Pr::new(prob)`, `Pr::try_from(prob)`, and `Pr::new_unchecked(prob)`
 
 Version 0.5.1 - 2022-02-28
 ========================
