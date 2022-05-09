@@ -1,12 +1,9 @@
-#[cfg(feature = "blas")]
-use ndarray_linalg::error::LinalgError;
-#[cfg(not(feature = "blas"))]
-use ndarray_linalg_rs::LinalgError;
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, ReductionError>;
 
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum ReductionError {
     #[error("At least 1 sample needed")]
     NotEnoughSamples,
@@ -14,8 +11,11 @@ pub enum ReductionError {
     EmbeddingTooSmall(usize),
     #[error("Number of steps zero in diffusion map operator")]
     StepsZero,
+    #[cfg(feature = "blas")]
     #[error(transparent)]
-    LinalgError(#[from] LinalgError),
+    LinalgBlasError(#[from] ndarray_linalg::error::LinalgError),
+    #[error(transparent)]
+    LinalgError(#[from] ndarray_linalg_rs::LinalgError),
     #[error(transparent)]
     LinfaError(#[from] linfa::error::Error),
 }

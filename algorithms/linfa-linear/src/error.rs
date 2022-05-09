@@ -6,6 +6,7 @@ pub type Result<T, F> = std::result::Result<T, LinearError<F>>;
 
 /// An error when modeling a Linear algorithm
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum LinearError<F: Float> {
     /// Errors encountered when using argmin's solver
     #[error("argmin {0}")]

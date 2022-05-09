@@ -3,6 +3,7 @@ use thiserror::Error;
 pub type Result<T> = std::result::Result<T, PreprocessingError>;
 
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum PreprocessingError {
     #[error("wrong measure ({0}) for scaler: {1}")]
     WrongMeasureForScaler(String, String),
@@ -28,8 +29,8 @@ pub enum PreprocessingError {
     IoError(#[from] std::io::Error),
     #[error("Encoding error {0}")]
     EncodingError(std::borrow::Cow<'static, str>),
-    #[error(transparent)]
     #[cfg(feature = "blas")]
+    #[error(transparent)]
     LinalgBlasError(#[from] ndarray_linalg::error::LinalgError),
     #[error(transparent)]
     LinalgError(#[from] ndarray_linalg_rs::LinalgError),

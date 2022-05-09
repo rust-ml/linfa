@@ -1,13 +1,10 @@
-#[cfg(feature = "blas")]
-use ndarray_linalg::error::LinalgError;
-#[cfg(not(feature = "blas"))]
-use ndarray_linalg_rs::LinalgError;
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, FastIcaError>;
 
 /// An error when modeling FastICA algorithm
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum FastIcaError {
     /// When there are no samples in the provided dataset
     #[error("Dataset must contain at least one sample")]
@@ -21,9 +18,12 @@ pub enum FastIcaError {
     SvdDecomposition,
     #[error("tolerance should be positive but is {0}")]
     InvalidTolerance(f32),
+    #[cfg(feature = "blas")]
+    #[error("Linalg BLAS error: {0}")]
+    LinalgBlasError(#[from] ndarray_linalg::error::LinalgError),
+    #[error("Linalg error: {0}")]
     /// Errors encountered during linear algebra operations
-    #[error("Linalg Error: {0}")]
-    Linalg(#[from] LinalgError),
+    LinalgError(#[from] ndarray_linalg_rs::LinalgError),
     #[error(transparent)]
     LinfaError(#[from] linfa::error::Error),
 }
