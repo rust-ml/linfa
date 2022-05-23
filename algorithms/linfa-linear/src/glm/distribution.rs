@@ -4,6 +4,7 @@ use ndarray::{Array1, ArrayView1};
 
 use crate::error::{LinearError, Result};
 
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct TweedieDistribution<F: Float> {
     power: F,
     lower_bound: F,
@@ -125,6 +126,12 @@ mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
     use ndarray::array;
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<TweedieDistribution<f64>>();
+    }
 
     #[test]
     fn test_distribution_error() {
