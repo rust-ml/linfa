@@ -4,6 +4,7 @@ use linfa::traits::Transformer;
 use ndarray::{Array2, ArrayBase, Axis, Data, Ix2, Zip};
 use ndarray_linalg::norm::Norm;
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 enum Norms {
     L1,
     L2,
@@ -26,6 +27,7 @@ enum Norms {
 /// // Scale dataset
 /// let dataset = scaler.transform(dataset);
 /// ```
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct NormScaler {
     norm: Norms,
 }
@@ -93,6 +95,12 @@ mod tests {
     use linfa::dataset::DatasetBase;
     use linfa::traits::Transformer;
     use ndarray::{array, Array2};
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<NormScaler>();
+    }
 
     #[test]
     fn test_norm_l2() {

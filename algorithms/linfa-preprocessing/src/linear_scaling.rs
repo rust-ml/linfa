@@ -7,7 +7,7 @@ use linfa::traits::{Fit, Transformer};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2, Zip};
 use ndarray_linalg::norm::Norm;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 /// Possible scaling methods for [LinearScaler](struct.LinearScaler.html)
 ///
 /// * Standard (with mean, with std): subtracts the mean to each feature and scales it by the inverse of its standard deviation
@@ -153,6 +153,7 @@ impl<F: Float> std::fmt::Display for ScalingMethod<F> {
 /// // scale dataset according to parameters
 /// let dataset = scaler.transform(dataset);
 /// ```
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LinearScalerParams<F: Float> {
     method: ScalingMethod<F>,
 }
@@ -228,7 +229,7 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets> Fit<ArrayBase<D, Ix2>, T, Prepro
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 /// The result of fitting a [linear scaler](struct.LinearScalerParams.html).
 /// Scales datasets with the parameters learned during fitting.
 pub struct LinearScaler<F: Float> {
@@ -301,6 +302,14 @@ mod tests {
     use linfa::dataset::DatasetBase;
     use linfa::traits::{Fit, Transformer};
     use ndarray::{array, Array2, Axis};
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<LinearScaler<f64>>();
+        has_autotraits::<LinearScalerParams<f64>>();
+        has_autotraits::<ScalingMethod<f64>>();
+    }
 
     #[test]
     fn test_max_abs() {
