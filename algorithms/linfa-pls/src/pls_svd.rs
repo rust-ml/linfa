@@ -12,7 +12,7 @@ use serde_crate::{Deserialize, Serialize};
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialOrd, PartialEq, Eq, Hash)]
 pub struct PlsSvdParams {
     n_components: usize,
     scale: bool,
@@ -91,7 +91,7 @@ impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsE
         })
     }
 }
-
+#[derive(Debug, Clone, PartialEq)]
 pub struct PlsSvd<F: Float> {
     x_mean: Array1<F>,
     x_std: Array1<F>,
@@ -149,6 +149,13 @@ mod test {
     use approx::assert_abs_diff_eq;
     use linfa_datasets::linnerud;
     use ndarray::array;
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<PlsSvd<f64>>();
+        has_autotraits::<PlsSvdParams>();
+    }
 
     #[test]
     fn test_svd() -> Result<()> {
