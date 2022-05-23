@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 /// An error when fitting with an invalid hyperparameter
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum KMeansParamsError {
     #[error("n_clusters cannot be 0")]
     NClusters,
@@ -14,7 +14,7 @@ pub enum KMeansParamsError {
 }
 
 /// An error when modeling a KMeans algorithm
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum KMeansError {
     /// When any of the hyperparameters are set the wrong value
     #[error("Invalid hyperparameter: {0}")]
@@ -29,7 +29,7 @@ pub enum KMeansError {
     LinfaError(#[from] linfa::error::Error),
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum IncrKMeansError<M: std::fmt::Debug> {
     /// When any of the hyperparameters are set the wrong value
     #[error("Invalid hyperparameter: {0}")]

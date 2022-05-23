@@ -252,6 +252,12 @@ mod tests {
     use std::collections::HashSet;
 
     #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<KMeansInit<f64>>();
+    }
+
+    #[test]
     fn test_precomputed() {
         let mut rng = Xoshiro256Plus::seed_from_u64(40);
         let centroids = array![[0.0, 1.0], [40.0, 10.0]];

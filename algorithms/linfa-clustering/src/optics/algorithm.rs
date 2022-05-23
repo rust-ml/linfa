@@ -12,7 +12,7 @@ use std::collections::BTreeSet;
 use std::ops::Index;
 use std::slice::SliceIndex;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Hash)]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -107,6 +107,18 @@ pub struct OpticsAnalysis<F> {
     /// A list of the samples in the dataset sorted and with their reachability and core distances
     /// computed.
     orderings: Vec<Sample<F>>,
+}
+
+impl<F: Float> PartialEq for OpticsAnalysis<F> {
+    fn eq(&self, other: &Self) -> bool {
+        self.orderings == other.orderings
+    }
+}
+
+impl<F: Float> PartialOrd for OpticsAnalysis<F> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.orderings.partial_cmp(&other.orderings)
+    }
 }
 
 impl<F> OpticsAnalysis<F> {
@@ -316,9 +328,22 @@ impl<F: Float, D: Distance<F>, N: NearestNeighbour> OpticsValidParams<F, D, N> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::OpticsError;
     use linfa::ParamGuard;
+    use linfa_nn::KdTree;
     use ndarray::Array2;
     use std::collections::BTreeSet;
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<OpticsAnalysis<f64>>();
+        has_autotraits::<Optics>();
+        has_autotraits::<Sample<f64>>();
+        has_autotraits::<OpticsError>();
+        has_autotraits::<OpticsParams<f64, L2Dist, KdTree>>();
+        has_autotraits::<OpticsValidParams<f64, L2Dist, KdTree>>();
+    }
 
     #[test]
     fn optics_consistency() {

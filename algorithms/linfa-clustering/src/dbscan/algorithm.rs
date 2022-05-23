@@ -9,7 +9,7 @@ use std::collections::VecDeque;
 use linfa::Float;
 use linfa::{traits::Transformer, DatasetBase};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Hash)]
 /// DBSCAN (Density-based Spatial Clustering of Applications with Noise)
 /// clusters together points which are close together with enough neighbors
 /// labelled points which are sparsely neighbored as noise. As points may be

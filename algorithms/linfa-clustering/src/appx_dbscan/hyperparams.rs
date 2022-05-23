@@ -11,7 +11,7 @@ use thiserror::Error;
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 /// The set of hyperparameters that can be specified for the execution of
 /// the [Approximated DBSCAN algorithm](struct.AppxDbscan.html).
 pub struct AppxDbscanValidParams<F: Float, N> {
@@ -21,12 +21,12 @@ pub struct AppxDbscanValidParams<F: Float, N> {
     pub(crate) nn_algo: N,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialOrd, PartialEq)]
 /// Helper struct for building a set of [Approximated DBSCAN
 /// hyperparameters](struct.AppxDbscanParams.html)
 pub struct AppxDbscanParams<F: Float, N>(AppxDbscanValidParams<F, N>);
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, Clone, Hash, PartialOrd, PartialEq, Eq)]
 pub enum AppxDbscanParamsError {
     #[error("tolerance must be greater than 0")]
     Tolerance,
