@@ -99,7 +99,7 @@ use std::ops::Mul;
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum ExitReason {
     ReachedThreshold,
     ReachedIterations,
@@ -114,6 +114,7 @@ pub enum ExitReason {
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Svm<F: Float, T> {
     pub alpha: Vec<F>,
     pub rho: F,
@@ -221,8 +222,16 @@ impl<'a, F: Float, T> fmt::Display for Svm<F, T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::Svm;
+    use crate::{Svm, SvmParams, SvmValidParams};
     use linfa::prelude::*;
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<Svm<f64, usize>>();
+        has_autotraits::<SvmParams<f64, usize>>();
+        has_autotraits::<SvmValidParams<f64, usize>>();
+    }
 
     #[test]
     fn test_iter_folding_for_classification() {

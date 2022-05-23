@@ -7,7 +7,7 @@ use serde_crate::{Deserialize, Serialize};
 use std::marker::PhantomData;
 
 /// Parameters of the solver routine
-#[derive(Clone)]
+#[derive(Clone, Copy, Debug, PartialOrd, PartialEq)]
 pub struct SolverParams<F: Float> {
     /// Stopping condition
     pub eps: F,
@@ -16,7 +16,7 @@ pub struct SolverParams<F: Float> {
 }
 
 /// Status of alpha variables of the solver
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, PartialOrd, PartialEq)]
 struct Alpha<F: Float> {
     value: F,
     upper_bound: F,
@@ -49,6 +49,7 @@ impl<F: Float> Alpha<F> {
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
+#[derive(Clone, Debug, PartialEq)]
 pub enum SeparatingHyperplane<F: Float> {
     Linear(Array1<F>),
     WeightedCombination(Array2<F>),
@@ -59,6 +60,7 @@ pub enum SeparatingHyperplane<F: Float> {
 /// We are solving the dual problem with linear constraints
 /// min_a f(a), s.t. y^Ta = d, 0 <= a_t < C, t = 1, ..., l
 /// where f(a) = a^T Q a / 2 + p^T a
+#[derive(Clone, Debug, PartialEq)]
 pub struct SolverState<'a, F: Float, K: Permutable<F>> {
     /// Gradient of each variable
     gradient: Vec<F>,
@@ -905,39 +907,43 @@ impl<'a, F: Float, K: 'a + Permutable<F>> SolverState<'a, F, K> {
     }
 }
 
-/*
 #[cfg(test)]
 mod tests {
+    use super::{SolverParams, SolverState};
     use crate::permutable_kernel::PermutableKernel;
-    use super::{SolverState, SolverParams, SvmBase};
-    use ndarray::array;
-    use linfa_kernel::{Kernel, KernelInner};
+    use crate::SeparatingHyperplane;
 
-    /// Optimize the booth function
     #[test]
-    fn test_booth_function() {
-        let kernel = array![[10., 8.], [8., 10.]];
-        let kernel = Kernel {
-            inner: KernelInner::Dense(kernel.clone()),
-            fnc: Box::new(|_,_| 0.0),
-            dataset: &kernel
-        };
-        let targets = vec![true, true];
-        let kernel = PermutableKernel::new(&kernel, targets.clone());
-
-        let p = vec![-34., -38.];
-        let params = SolverParams {
-            eps: 1e-6,
-            shrinking: false
-        };
-
-        let solver = SolverState::new(vec![1.0, 1.0], p, targets, kernel, vec![1000.0; 2], &params, false);
-
-        let res: SvmBase<f64> = solver.solve();
-
-        println!("{:?}", res.alpha);
-        println!("{}", res);
-
-
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<SolverState<f64, PermutableKernel<f64>>>();
+        has_autotraits::<SolverParams<f64>>();
+        has_autotraits::<SeparatingHyperplane<f64>>();
     }
+}
+/*
+/// Optimize the booth function
+#[test]
+fn test_booth_function() {
+    let kernel = array![[10., 8.], [8., 10.]];
+    let kernel = Kernel {
+        inner: KernelInner::Dense(kernel.clone()),
+        fnc: Box::new(|_,_| 0.0),
+        dataset: &kernel
+    };
+    let targets = vec![true, true];
+    let kernel = PermutableKernel::new(&kernel, targets.clone());
+
+    let p = vec![-34., -38.];
+    let params = SolverParams {
+        eps: 1e-6,
+        shrinking: false
+    };
+
+    let solver = SolverState::new(vec![1.0, 1.0], p, targets, kernel, vec![1000.0; 2], &params, false);
+
+    let res: SvmBase<f64> = solver.solve();
+
+    println!("{:?}", res.alpha);
+    println!("{}", res);
 }*/
