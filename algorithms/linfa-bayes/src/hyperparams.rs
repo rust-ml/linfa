@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 /// A verified hyper-parameter set ready for the estimation of a [Gaussian Naive Bayes model](crate::gaussian_nb::GaussianNb).
 ///
 /// See [`GaussianNb`](crate::gaussian_nb::GaussianNb) for information on the model and [`GaussianNbParams`](crate::hyperparams::GaussianNbParams) for information on hyperparameters.
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct GaussianNbValidParams<F, L> {
     // Required for calculation stability
     var_smoothing: F,
@@ -43,7 +43,7 @@ impl<F: Float, L> GaussianNbValidParams<F, L> {
 /// Returns [`InvalidSmoothing`](NaiveBayesError::InvalidSmoothing) if the smoothing
 /// parameter is negative.
 ///
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct GaussianNbParams<F, L>(GaussianNbValidParams<F, L>);
 
 impl<F: Float, L> Default for GaussianNbParams<F, L> {

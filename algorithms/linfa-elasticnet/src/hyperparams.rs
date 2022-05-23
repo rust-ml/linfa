@@ -15,7 +15,7 @@ use super::Result;
 /// A verified hyper-parameter set ready for the estimation of a ElasticNet regression model
 ///
 /// See [`ElasticNetParams`](crate::ElasticNetParams) for more informations.
-#[derive(Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub struct ElasticNetValidParams<F> {
     penalty: F,
     l1_ratio: F,
@@ -105,7 +105,7 @@ impl<F: Float> ElasticNetValidParams<F> {
 /// let model = checked_params.fit(&ds)?;
 /// # Ok::<(), ElasticNetError>(())
 /// ```
-#[derive(Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub struct ElasticNetParams<F>(ElasticNetValidParams<F>);
 
 impl<F: Float> Default for ElasticNetParams<F> {

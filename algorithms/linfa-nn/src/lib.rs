@@ -40,7 +40,7 @@ pub use crate::{balltree::*, kdtree::*, linear::*};
 pub(crate) type Point<'a, F> = ArrayView1<'a, F>;
 
 /// Error returned when building nearest neighbour indices
-#[derive(Error, Debug, Clone, Copy, PartialOrd, PartialEq, Eq, Hash)]
+#[derive(Error, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BuildError {
     #[error("points have dimension of 0")]
     ZeroDimension,
@@ -49,7 +49,7 @@ pub enum BuildError {
 }
 
 /// Error returned when performing spatial queries on nearest neighbour indices
-#[derive(Error, Debug, Clone, Copy, PartialOrd, PartialEq, Eq, Hash)]
+#[derive(Error, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum NnError {
     #[error("dimensions of query point and stored points are different")]
     WrongDimension,
@@ -143,7 +143,7 @@ pub trait NearestNeighbourIndex<F: Float>: Send + Sync + Unpin {
 /// let range = nn.within_range(pt.view(), 100.0).unwrap();
 /// ```
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialOrd, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),

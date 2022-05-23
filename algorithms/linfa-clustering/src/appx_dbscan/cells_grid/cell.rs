@@ -5,7 +5,7 @@ use linfa_nn::distance::{Distance, L2Dist};
 use ndarray::{Array1, ArrayView1, ArrayView2, ArrayViewMut1};
 use partitions::PartitionVec;
 
-#[derive(Clone, Debug, PartialOrd, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialOrd, PartialEq, Eq)]
 /// A point in a D dimensional euclidean space that memorizes its
 /// status: 'core' or 'non core'
 pub struct StatusPoint {

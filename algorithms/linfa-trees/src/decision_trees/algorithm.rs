@@ -1,5 +1,6 @@
 //! Linear decision trees
 //!
+use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 
@@ -113,7 +114,7 @@ impl<'a, F: Float> SortedIndex<'a, F> {
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Debug, Clone, PartialOrd)]
+#[derive(Debug, Clone)]
 /// A node in the decision tree
 pub struct TreeNode<F, L> {
     feature_idx: usize,
@@ -139,6 +140,12 @@ impl<F, L> Eq for TreeNode<F, L> {}
 impl<F, L> PartialEq for TreeNode<F, L> {
     fn eq(&self, other: &Self) -> bool {
         self.feature_idx == other.feature_idx
+    }
+}
+
+impl<F, L> PartialOrd for TreeNode<F, L> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.feature_idx.partial_cmp(&other.feature_idx)
     }
 }
 

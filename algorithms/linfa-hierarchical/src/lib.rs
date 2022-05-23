@@ -18,6 +18,7 @@
 //! `linfa-hierarchical` implements agglomerative hierarchical clustering with support of the
 //! [kodama](https://docs.rs/kodama/0.2.3/kodama/) crate.
 
+use std::cmp::Ordering;
 use std::collections::HashMap;
 
 use kodama::linkage;
@@ -38,7 +39,7 @@ mod error;
 /// The criterion defines at which point the merging process should stop. This can be either, when
 /// a certain number of clusters is reached, or the distance becomes larger than a maximal
 /// distance.
-#[derive(Clone, Debug, PartialOrd, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialOrd, PartialEq)]
 pub enum Criterion<F: Float> {
     NumClusters(usize),
     Distance(F),
@@ -49,14 +50,20 @@ pub enum Criterion<F: Float> {
 /// In this clustering algorithm, each point is first considered as a separate cluster. During each
 /// step, two points are merged into new clusters, until a stopping criterion is reached. The distance
 /// between the points is computed as the negative-log transform of the similarity kernel.
-#[derive(Default, Debug, Clone, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, PartialOrd)]
 pub struct HierarchicalCluster<T: Float>(ValidHierarchicalCluster<T>);
 
 /// Checked version of [`HierarchicalCluster`](`HierarchicalCluster`)
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct ValidHierarchicalCluster<T: Float> {
     method: Method,
     stopping: Criterion<T>,
+}
+
+impl<T: Float> PartialOrd for ValidHierarchicalCluster<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.stopping.partial_cmp(&other.stopping)
+    }
 }
 
 impl<F: Float> ParamGuard for HierarchicalCluster<F> {

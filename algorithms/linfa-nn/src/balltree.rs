@@ -318,7 +318,7 @@ mod test {
     use approx::assert_abs_diff_eq;
     use ndarray::{arr1, arr2, stack, Array1, Array2, Axis};
 
-    use crate::distance::{L1Dist, L2Dist};
+    use crate::distance::L2Dist;
 
     use super::*;
 
@@ -326,7 +326,7 @@ mod test {
     fn autotraits() {
         fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
         has_autotraits::<BallTree>();
-        has_autotraits::<BallTreeIndex<f64, L1Dist>>();
+        has_autotraits::<BallTreeIndex<f64, L2Dist>>();
         has_autotraits::<BallTreeInner<f64>>();
     }
 

@@ -33,7 +33,7 @@ use linfa::{
 };
 
 /// Kernel representation, can be either dense or sparse
-#[derive(Debug, Clone, PartialOrd, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialOrd, PartialEq, Eq, Hash)]
 pub enum KernelType {
     Dense,
     /// A sparse kernel requires to define a number of neighbours
@@ -259,7 +259,7 @@ impl<F: Float, K1: Inner<Elem = F>, K2: Inner<Elem = F>> Records for KernelBase<
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Debug, Clone, PartialOrd, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
 pub enum KernelMethod<F> {
     /// Gaussian(eps): exp(-norm(x - x')/eps)
     Gaussian(F),

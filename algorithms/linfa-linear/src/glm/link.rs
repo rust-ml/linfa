@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::float::Float;
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialOrd, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 /// Link functions used by GLM
 pub enum Link {
     /// The identity link function `g(x)=x`
@@ -60,7 +60,7 @@ impl Link {
     }
 }
 
-trait LinkFn<A>: Sync + Send + Sized + Unpin {
+trait LinkFn<A> {
     fn link(ypred: &Array1<A>) -> Array1<A>;
     fn link_derivative(ypred: &Array1<A>) -> Array1<A>;
     fn inverse(lin_pred: &Array1<A>) -> Array1<A>;

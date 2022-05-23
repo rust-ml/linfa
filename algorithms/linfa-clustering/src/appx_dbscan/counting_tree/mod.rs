@@ -4,7 +4,7 @@ use linfa_nn::distance::{Distance, L2Dist};
 use ndarray::{Array1, Array2, ArrayView1, Axis};
 use std::collections::HashMap;
 
-#[derive(PartialEq, Debug, Eq, Copy, Clone, PartialOrd, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum IntersectionType {
     FullyCovered,
     Disjoint,

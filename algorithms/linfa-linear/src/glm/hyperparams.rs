@@ -34,7 +34,7 @@ use serde::{Deserialize, Serialize};
 /// let r2 = pred.r2(&dataset).unwrap();
 /// println!("r2 from prediction: {}", r2);
 /// ```
-#[derive(Debug, Serialize, Deserialize, Clone, PartialOrd, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq)]
 pub struct TweedieRegressorValidParams<F> {
     alpha: F,
     fit_intercept: bool,
@@ -74,7 +74,7 @@ impl<F: Float> TweedieRegressorValidParams<F> {
     }
 }
 
-#[derive(Debug, Clone, PartialOrd, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct TweedieRegressorParams<F>(TweedieRegressorValidParams<F>);
 
 impl<F: Float> Default for TweedieRegressorParams<F> {

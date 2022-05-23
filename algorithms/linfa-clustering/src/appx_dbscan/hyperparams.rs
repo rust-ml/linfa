@@ -11,7 +11,7 @@ use thiserror::Error;
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 /// The set of hyperparameters that can be specified for the execution of
 /// the [Approximated DBSCAN algorithm](struct.AppxDbscan.html).
 pub struct AppxDbscanValidParams<F: Float, N> {
