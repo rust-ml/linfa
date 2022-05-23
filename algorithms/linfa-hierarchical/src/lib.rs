@@ -38,7 +38,7 @@ mod error;
 /// The criterion defines at which point the merging process should stop. This can be either, when
 /// a certain number of clusters is reached, or the distance becomes larger than a maximal
 /// distance.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialOrd, PartialEq)]
 pub enum Criterion<F: Float> {
     NumClusters(usize),
     Distance(F),
@@ -49,10 +49,11 @@ pub enum Criterion<F: Float> {
 /// In this clustering algorithm, each point is first considered as a separate cluster. During each
 /// step, two points are merged into new clusters, until a stopping criterion is reached. The distance
 /// between the points is computed as the negative-log transform of the similarity kernel.
-#[derive(Default)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct HierarchicalCluster<T: Float>(ValidHierarchicalCluster<T>);
 
 /// Checked version of [`HierarchicalCluster`](`HierarchicalCluster`)
+#[derive(Debug, Clone, PartialEq)]
 pub struct ValidHierarchicalCluster<T: Float> {
     method: Method,
     stopping: Criterion<T>,
@@ -203,12 +204,22 @@ impl<T: Float> Default for ValidHierarchicalCluster<T> {
 
 #[cfg(test)]
 mod tests {
+    use crate::HierarchicalError;
     use linfa::traits::Transformer;
     use linfa_kernel::{Kernel, KernelMethod};
     use ndarray::{Array, Axis};
     use ndarray_rand::{rand_distr::Normal, RandomExt};
 
-    use super::HierarchicalCluster;
+    use super::{Criterion, HierarchicalCluster, ValidHierarchicalCluster};
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<Criterion<f64>>();
+        has_autotraits::<HierarchicalCluster<f64>>();
+        has_autotraits::<ValidHierarchicalCluster<f64>>();
+        has_autotraits::<HierarchicalError<f64>>();
+    }
 
     #[test]
     fn test_blobs() {
