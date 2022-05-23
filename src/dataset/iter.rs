@@ -2,6 +2,7 @@ use super::{AsTargets, DatasetBase, DatasetView, FromTargetArray, Records, Targe
 use ndarray::{ArrayBase, ArrayView, ArrayView1, ArrayView2, Axis, Data, Ix2};
 use std::marker::PhantomData;
 
+#[derive(Clone)]
 pub struct Iter<'a, 'b: 'a, F, L, I> {
     records: ArrayView2<'b, F>,
     targets: ArrayView<'b, L, I>,
@@ -39,6 +40,7 @@ impl<'a, 'b: 'a, F, L, I: TargetDim> Iterator for Iter<'a, 'b, F, L, I> {
     }
 }
 
+#[derive(Clone)]
 pub struct DatasetIter<'a, 'b, R: Records, T> {
     dataset: &'b DatasetBase<R, T>,
     idx: usize,
@@ -107,7 +109,7 @@ where
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ChunksIter<'a, 'b: 'a, F, T> {
     records: ArrayView2<'a, F>,
     targets: &'a T,
