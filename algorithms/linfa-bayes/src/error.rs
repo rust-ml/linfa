@@ -5,7 +5,7 @@ use thiserror::Error;
 pub type Result<T> = std::result::Result<T, NaiveBayesError>;
 
 /// Error variants from hyper-parameter construction or model estimation
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum NaiveBayesError {
     /// Error when performing Max operation on data
     #[error("invalid statistical operation {0}")]

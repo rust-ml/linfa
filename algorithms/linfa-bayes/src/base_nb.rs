@@ -8,7 +8,7 @@ use linfa::traits::FitWith;
 use linfa::{Float, Label};
 
 // Trait computing predictions for fitted Naive Bayes models
-pub(crate) trait NaiveBayes<'a, F, L>
+pub(crate) trait NaiveBayes<'a, F, L>: Send + Sync + Unpin + Sized
 where
     F: Float,
     L: Label + Ord,
@@ -49,7 +49,7 @@ where
 
 // Common functionality for hyper-parameter sets of Naive Bayes models ready for estimation
 pub(crate) trait NaiveBayesValidParams<'a, F, L, D, T>:
-    FitWith<'a, ArrayBase<D, Ix2>, T, NaiveBayesError>
+    FitWith<'a, ArrayBase<D, Ix2>, T, NaiveBayesError> + Send + Sync + Unpin + Sized
 where
     F: Float,
     L: Label + Ord,

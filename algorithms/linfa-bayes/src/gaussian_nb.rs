@@ -230,12 +230,22 @@ pub struct GaussianNb<F, L> {
     class_info: HashMap<L, GaussianClassInfo<F>>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 struct GaussianClassInfo<F> {
     class_count: usize,
     prior: F,
     theta: Array1<F>,
     sigma: Array1<F>,
+}
+
+impl<'a, F, L> PartialEq for GaussianNb<F, L>
+where
+    F: Float,
+    L: Label + Ord,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.class_info == other.class_info
+    }
 }
 
 impl<F: Float, L: Label> GaussianNb<F, L> {
@@ -284,9 +294,21 @@ mod tests {
         DatasetView,
     };
 
+    use crate::gaussian_nb::GaussianClassInfo;
+    use crate::{GaussianNbParams, GaussianNbValidParams, NaiveBayesError};
     use approx::assert_abs_diff_eq;
     use ndarray::{array, Axis};
     use std::collections::HashMap;
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<GaussianNb<f64, usize>>();
+        has_autotraits::<GaussianClassInfo<f64>>();
+        has_autotraits::<GaussianNbParams<f64, usize>>();
+        has_autotraits::<GaussianNbValidParams<f64, usize>>();
+        has_autotraits::<NaiveBayesError>();
+    }
 
     #[test]
     fn test_gaussian_nb() -> Result<()> {

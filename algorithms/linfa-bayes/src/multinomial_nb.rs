@@ -200,12 +200,22 @@ pub struct MultinomialNb<F, L> {
     class_info: HashMap<L, MultinomialClassInfo<F>>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 struct MultinomialClassInfo<F> {
     class_count: usize,
     prior: F,
     feature_count: Array1<F>,
     feature_log_prob: Array1<F>,
+}
+
+impl<'a, F, L> PartialEq for MultinomialNb<F, L>
+where
+    F: Float,
+    L: Label + Ord,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.class_info == other.class_info
+    }
 }
 
 impl<F: Float, L: Label> MultinomialNb<F, L> {
@@ -242,9 +252,20 @@ mod tests {
         DatasetView,
     };
 
+    use crate::multinomial_nb::MultinomialClassInfo;
+    use crate::{MultinomialNbParams, MultinomialNbValidParams};
     use approx::assert_abs_diff_eq;
     use ndarray::{array, Axis};
     use std::collections::HashMap;
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<MultinomialNb<f64, usize>>();
+        has_autotraits::<MultinomialClassInfo<f64>>();
+        has_autotraits::<MultinomialNbValidParams<f64, usize>>();
+        has_autotraits::<MultinomialNbParams<f64, usize>>();
+    }
 
     #[test]
     fn test_multinomial_nb() -> Result<()> {
