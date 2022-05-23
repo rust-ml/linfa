@@ -524,7 +524,7 @@ fn multi_logistic_grad<F: Float, A: Data<Elem = F>>(
 }
 
 /// A fitted logistic regression which can make predictions
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct FittedLogisticRegression<F: Float, C: PartialOrd + Clone> {
     threshold: F,
     intercept: F,
@@ -610,7 +610,7 @@ impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
 }
 
 /// A fitted multinomial logistic regression which can make predictions
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct MultiFittedLogisticRegression<F: Float, C: PartialOrd + Clone> {
     intercept: Array1<F>,
     params: Array2<F>,
@@ -685,7 +685,7 @@ impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
     }
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, PartialOrd)]
 struct ClassLabel<F: Float, C: PartialOrd> {
     class: C,
     label: F,
@@ -777,7 +777,15 @@ mod test {
     use super::*;
     use approx::{assert_abs_diff_eq, assert_relative_eq, AbsDiffEq};
     use linfa::prelude::*;
-    use ndarray::{array, Array2};
+    use ndarray::{array, Array2, Dim, Ix};
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<LogisticRegressionParams<f64, Dim<[Ix; 0]>>>();
+        has_autotraits::<LogisticRegressionValidParams<f64, Dim<[Ix; 0]>>>();
+        has_autotraits::<ArgminParam<f64, Dim<[Ix; 0]>>>();
+    }
 
     /// Test that the logistic loss function works as expected.
     /// The expected values were obtained from running sklearn's
