@@ -7,7 +7,7 @@ use thiserror::Error;
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum FtrlError {
     #[error("l1 ratio should be in range [0, 1], but is {0}")]
     InvalidL1Ratio(f32),

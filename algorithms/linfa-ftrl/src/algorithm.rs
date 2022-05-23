@@ -223,6 +223,15 @@ mod test {
     use rand::SeedableRng;
 
     #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<FtrlParams<f64, rand_xoshiro::Xoshiro256Plus>>();
+        has_autotraits::<FtrlValidParams<f64, rand_xoshiro::Xoshiro256Plus>>();
+        has_autotraits::<Ftrl<f64>>();
+        has_autotraits::<FtrlError>();
+    }
+
+    #[test]
     fn sigmoid_works() {
         let value = 100.;
         let result = stable_sigmoid(value);
