@@ -15,7 +15,7 @@ use crate::DecisionTree;
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum SplitQuality {
     /// Measures the degree of probability of a randomly chosen point in the subtree being misclassified, defined as
     /// one minus the sum over all labels of the squared probability of encountering that label.
@@ -58,7 +58,7 @@ pub enum SplitQuality {
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct DecisionTreeValidParams<F, L> {
     split_quality: SplitQuality,
     max_depth: Option<usize>,
@@ -96,7 +96,7 @@ impl<F: Float, L> DecisionTreeValidParams<F, L> {
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct DecisionTreeParams<F, L>(DecisionTreeValidParams<F, L>);
 
 impl<F: Float, L: Label> DecisionTreeParams<F, L> {
