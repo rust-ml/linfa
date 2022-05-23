@@ -39,6 +39,7 @@ use linfa::{
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
+#[derive(Debug, Copy, Clone, PartialOrd, PartialEq, Eq, Hash)]
 pub struct PcaParams {
     embedding_size: usize,
     apply_whitening: bool,
@@ -135,7 +136,7 @@ impl<T, D: Data<Elem = f64>> Fit<ArrayBase<D, Ix2>, T, ReductionError> for PcaPa
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Pca<F> {
     embedding: Array2<F>,
     sigma: Array1<F>,
@@ -209,6 +210,7 @@ impl<F: Float, D: Data<Elem = F>, T>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{DiffusionMap, DiffusionMapParams, DiffusionMapValidParams};
     use approx::assert_abs_diff_eq;
     use linfa::{traits::Predict, Dataset};
     use ndarray::{array, Array2};
@@ -217,6 +219,17 @@ mod tests {
         RandomExt,
     };
     use rand::{rngs::SmallRng, SeedableRng};
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<DiffusionMap<f64>>();
+        has_autotraits::<DiffusionMapValidParams>();
+        has_autotraits::<DiffusionMapParams>();
+        has_autotraits::<ReductionError>();
+        has_autotraits::<PcaParams>();
+        has_autotraits::<Pca<f64>>();
+    }
 
     /// Small whitening test
     ///

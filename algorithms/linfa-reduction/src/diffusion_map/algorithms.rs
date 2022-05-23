@@ -53,6 +53,7 @@ use super::hyperparams::DiffusionMapValidParams;
 /// let embedding = mapped_kernel.embedding();
 /// ```
 ///
+#[derive(Debug, Clone, PartialEq)]
 pub struct DiffusionMap<F> {
     embedding: Array2<F>,
     eigvals: Array1<F>,
