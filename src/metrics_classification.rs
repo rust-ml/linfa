@@ -402,7 +402,7 @@ fn trapezoidal<A: NdFloat>(vals: &[(A, A)]) -> A {
 /// A Receiver Operating Characteristic for binary-label classification
 ///
 /// The ROC curve gives insight about the seperability of a binary classification task.
-#[derive(Debug, Clone, PartialOrd, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ReceiverOperatingCharacteristic {
     curve: Vec<(f32, f32)>,
     thresholds: Vec<f32>,

@@ -8,7 +8,7 @@ use thiserror::Error;
 pub type Result<T, F> = std::result::Result<T, HierarchicalError<F>>;
 
 /// Error variants from parameter construction
-#[derive(Error, Debug, Clone)]
+#[derive(Error, Debug)]
 pub enum HierarchicalError<F: Float> {
     /// Invalid stopping condition
     #[error("The stopping condition {0:?} is not valid")]

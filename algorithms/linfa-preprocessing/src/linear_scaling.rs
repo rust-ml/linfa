@@ -7,7 +7,7 @@ use linfa::traits::{Fit, Transformer};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2, Zip};
 use ndarray_linalg::norm::Norm;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 /// Possible scaling methods for [LinearScaler](struct.LinearScaler.html)
 ///
 /// * Standard (with mean, with std): subtracts the mean to each feature and scales it by the inverse of its standard deviation
@@ -153,7 +153,7 @@ impl<F: Float> std::fmt::Display for ScalingMethod<F> {
 /// // scale dataset according to parameters
 /// let dataset = scaler.transform(dataset);
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct LinearScalerParams<F: Float> {
     method: ScalingMethod<F>,
 }

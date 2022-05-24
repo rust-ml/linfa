@@ -8,7 +8,7 @@ use linfa::{param_guard::TransformGuard, ParamGuard};
 /// diffusion graph, a larger step size introduces a more global behaviour of the projection while
 /// a smaller one (especially one) just projects close obserations closely together.
 /// The second parameter is the embedding size and defines the target dimensionality.
-#[derive(Debug, Copy, Clone, PartialOrd, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DiffusionMapValidParams {
     steps: usize,
     embedding_size: usize,
@@ -31,7 +31,7 @@ impl DiffusionMapValidParams {
 /// diffusion graph, a larger step size introduces a more global behaviour of the projection while
 /// a smaller one (especially one) just projects close obserations closely together.
 /// The second parameter is the embedding size and defines the target dimensionality.
-#[derive(Debug, Copy, Clone, PartialOrd, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DiffusionMapParams(DiffusionMapValidParams);
 
 impl DiffusionMapParams {

@@ -28,7 +28,7 @@ use std::fmt::Debug;
 /// // Now you can write latex_tree to the preferred destination
 ///
 /// ```
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Tikz<'a, F: Float, L: Label + Debug> {
     legend: bool,
     complete: bool,

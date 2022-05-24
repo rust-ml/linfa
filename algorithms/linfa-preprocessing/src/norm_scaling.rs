@@ -4,7 +4,7 @@ use linfa::traits::Transformer;
 use ndarray::{Array2, ArrayBase, Axis, Data, Ix2, Zip};
 use ndarray_linalg::norm::Norm;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum Norms {
     L1,
     L2,
@@ -27,7 +27,7 @@ enum Norms {
 /// // Scale dataset
 /// let dataset = scaler.transform(dataset);
 /// ```
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NormScaler {
     norm: Norms,
 }

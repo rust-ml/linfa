@@ -77,7 +77,7 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for LinearSearchInde
 /// Implementation of linear search, which is the simplest nearest neighbour algorithm. All queries
 /// are implemented by scanning through every point, so all of them are `O(N)`. Calling
 /// `from_batch` returns a [`LinearSearchIndex`](struct.LinearSearchIndex.html).
-#[derive(Default, Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash)]
+#[derive(Default, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),

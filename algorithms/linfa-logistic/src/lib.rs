@@ -685,7 +685,7 @@ impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
     }
 }
 
-#[derive(PartialEq, Debug, Clone, PartialOrd)]
+#[derive(PartialEq, Debug, Clone)]
 struct ClassLabel<F: Float, C: PartialOrd> {
     class: C,
     label: F,

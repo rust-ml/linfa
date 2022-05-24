@@ -4,7 +4,7 @@ use thiserror::Error;
 pub type Result<T> = std::result::Result<T, TSneError>;
 
 /// Error variants from hyper-parameter construction or model estimation
-#[derive(Error, Debug, Clone)]
+#[derive(Error, Debug)]
 pub enum TSneError {
     #[error("negative perplexity")]
     NegativePerplexity,

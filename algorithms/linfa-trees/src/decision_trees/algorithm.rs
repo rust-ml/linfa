@@ -490,7 +490,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DecisionTree<F: Float, L: Label> {
     root_node: TreeNode<F, L>,
     num_features: usize,

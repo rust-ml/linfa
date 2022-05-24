@@ -9,7 +9,7 @@ use thiserror::Error;
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Debug, Clone, PartialOrd, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 /// The set of hyperparameters that can be specified for the execution of
 /// the [DBSCAN algorithm](struct.Dbscan.html).
 pub struct DbscanValidParams<F: Float, D: Distance<F>, N: NearestNeighbour> {
@@ -19,11 +19,11 @@ pub struct DbscanValidParams<F: Float, D: Distance<F>, N: NearestNeighbour> {
     pub(crate) nn_algo: N,
 }
 
-#[derive(Debug, Clone, PartialOrd, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 /// Helper struct for building a set of [DBSCAN hyperparameters](struct.DbscanParams.html)
 pub struct DbscanParams<F: Float, D: Distance<F>, N: NearestNeighbour>(DbscanValidParams<F, D, N>);
 
-#[derive(Error, Debug, Clone, PartialOrd, Eq, PartialEq, Hash)]
+#[derive(Error, Debug)]
 pub enum DbscanParamsError {
     #[error("min_points must be greater than 1")]
     MinPoints,

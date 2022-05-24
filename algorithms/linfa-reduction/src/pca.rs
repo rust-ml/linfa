@@ -39,7 +39,7 @@ use linfa::{
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Debug, Copy, Clone, PartialOrd, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PcaParams {
     embedding_size: usize,
     apply_whitening: bool,

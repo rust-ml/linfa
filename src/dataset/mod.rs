@@ -82,10 +82,7 @@ impl Float for f64 {
 ///
 /// Labels are countable, comparable and hashable. Currently null-type (no targets),
 /// boolean (binary task) and usize, strings (multi-label tasks) are supported.
-pub trait Label:
-    PartialEq + Eq + Hash + Clone + Ord + fmt::Debug + Default + Send + Sync + Unpin + Sized
-{
-}
+pub trait Label: PartialEq + Eq + Hash + Clone + Ord + fmt::Debug + Default {}
 
 impl Label for bool {}
 impl Label for usize {}

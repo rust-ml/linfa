@@ -7,7 +7,7 @@ use serde_crate::{Deserialize, Serialize};
 use std::marker::PhantomData;
 
 /// Parameters of the solver routine
-#[derive(Clone, Copy, Debug, PartialOrd, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SolverParams<F: Float> {
     /// Stopping condition
     pub eps: F,
@@ -16,7 +16,7 @@ pub struct SolverParams<F: Float> {
 }
 
 /// Status of alpha variables of the solver
-#[derive(Clone, Copy, Debug, PartialOrd, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 struct Alpha<F: Float> {
     value: F,
     upper_bound: F,

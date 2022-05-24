@@ -26,7 +26,7 @@ pub enum WhiteningMethod {
 /// Struct that can be fitted to the input data to obtain the related whitening matrix.
 /// Fitting returns a [FittedWhitener](struct.FittedWhitener.html) struct that can be used to
 /// apply the whitening transformation to the input data.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Whitener {
     method: WhiteningMethod,
 }

@@ -43,7 +43,7 @@ pub struct Platt<F, O> {
 }
 
 /// Parameters for Platt's Newton method
-#[derive(Debug, Clone, Copy, PartialOrd, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PlattValidParams<F, O> {
     maxiter: usize,
     minstep: F,
@@ -51,7 +51,7 @@ pub struct PlattValidParams<F, O> {
     phantom: PhantomData<O>,
 }
 
-#[derive(Debug, Clone, Copy, PartialOrd, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PlattParams<F, O>(PlattValidParams<F, O>);
 
 impl<F: Float, O> Default for PlattParams<F, O> {
@@ -129,7 +129,7 @@ impl<F: Float, O> ParamGuard for PlattParams<F, O> {
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Error, Debug, Clone)]
+#[derive(Error, Debug)]
 /// Platt Newton's method errors
 ///
 /// Errors occur when setting invalid parameters or the optimization process fails.

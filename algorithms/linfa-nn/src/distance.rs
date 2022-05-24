@@ -3,7 +3,7 @@ use ndarray::{Array2, ArrayBase, ArrayView, Axis, Data, Dimension, Ix2, Zip};
 use ndarray_stats::DeviationExt;
 
 /// A distance function that can be used in spatial algorithms such as nearest neighbour.
-pub trait Distance<F: Float>: Clone + Send + Sync + Unpin + Sized {
+pub trait Distance<F: Float>: Clone + Send + Sync + Unpin {
     /// Computes the distance between two points. For most spatial algorithms to work correctly,
     /// **this metric must satisfy the Triangle Inequality.**
     ///
@@ -33,7 +33,7 @@ pub trait Distance<F: Float>: Clone + Send + Sync + Unpin + Sized {
 }
 
 /// L1 or [Manhattan](https://en.wikipedia.org/wiki/Taxicab_geometry) distance
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct L1Dist;
 impl<F: Float> Distance<F> for L1Dist {
     #[inline]
@@ -43,7 +43,7 @@ impl<F: Float> Distance<F> for L1Dist {
 }
 
 /// L2 or [Euclidean](https://en.wikipedia.org/wiki/Euclidean_distance) distance
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct L2Dist;
 impl<F: Float> Distance<F> for L2Dist {
     #[inline]
@@ -68,7 +68,7 @@ impl<F: Float> Distance<F> for L2Dist {
 }
 
 /// L-infinte or [Chebyshev](https://en.wikipedia.org/wiki/Chebyshev_distance) distance
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LInfDist;
 impl<F: Float> Distance<F> for LInfDist {
     #[inline]
@@ -78,7 +78,7 @@ impl<F: Float> Distance<F> for LInfDist {
 }
 
 /// L-p or [Minkowsky](https://en.wikipedia.org/wiki/Minkowski_distance) distance
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct LpDist<F: Float>(F);
 impl<F: Float> Distance<F> for LpDist<F> {
     #[inline]

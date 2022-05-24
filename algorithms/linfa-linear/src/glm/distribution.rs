@@ -4,7 +4,7 @@ use ndarray::{Array1, ArrayView1};
 
 use crate::error::{LinearError, Result};
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TweedieDistribution<F: Float> {
     power: F,
     lower_bound: F,

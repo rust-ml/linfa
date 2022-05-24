@@ -5,7 +5,7 @@ use super::TreeNode;
 use linfa::{Float, Label};
 
 /// Level-order (BFT) iterator of nodes in a decision tree
-#[derive(Debug, Clone, PartialOrd, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct NodeIter<'a, F, L> {
     queue: Vec<&'a TreeNode<F, L>>,
 }

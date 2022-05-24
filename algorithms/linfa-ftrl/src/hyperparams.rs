@@ -3,13 +3,13 @@ use linfa::{Float, ParamGuard};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialOrd, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct FtrlParams<F: Float, R: Rng>(pub(crate) FtrlValidParams<F, R>);
 
 /// A verified hyper-parameter set ready for the estimation of a Follow the regularized leader - proximal model
 ///
 /// See [`FtrlParams`](crate::FtrlParams) for more information.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialOrd, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct FtrlValidParams<F: Float, R: Rng> {
     pub(crate) alpha: F,
     pub(crate) beta: F,

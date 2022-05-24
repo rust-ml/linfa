@@ -12,7 +12,7 @@ use std::collections::BTreeSet;
 use std::ops::Index;
 use std::slice::SliceIndex;
 
-#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),

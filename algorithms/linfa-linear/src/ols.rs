@@ -12,7 +12,7 @@ pub trait Float: linfa::Float + Lapack + Scalar {}
 impl Float for f32 {}
 impl Float for f64 {}
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialOrd, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 /// An ordinary least squares linear regression model.
 ///
 /// LinearRegression fits a linear model to minimize the residual sum of
