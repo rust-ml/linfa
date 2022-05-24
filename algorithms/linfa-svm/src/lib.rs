@@ -99,7 +99,7 @@ use std::ops::Mul;
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ExitReason {
     ReachedThreshold,
     ReachedIterations,

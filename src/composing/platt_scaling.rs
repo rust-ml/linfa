@@ -129,7 +129,7 @@ impl<F: Float, O> ParamGuard for PlattParams<F, O> {
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 /// Platt Newton's method errors
 ///
 /// Errors occur when setting invalid parameters or the optimization process fails.

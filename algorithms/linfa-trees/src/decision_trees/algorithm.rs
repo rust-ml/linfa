@@ -143,12 +143,6 @@ impl<F, L> PartialEq for TreeNode<F, L> {
     }
 }
 
-impl<F, L> PartialOrd for TreeNode<F, L> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.feature_idx.partial_cmp(&other.feature_idx)
-    }
-}
-
 impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
     fn empty_leaf(prediction: L, depth: usize) -> Self {
         TreeNode {

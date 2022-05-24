@@ -16,7 +16,7 @@ use ndarray_linalg::solve::Inverse;
 use ndarray_linalg::svd::SVD;
 use ndarray_linalg::Scalar;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum WhiteningMethod {
     Pca,
     Zca,

@@ -7,7 +7,7 @@ use encoding::DecoderTrap;
 use ndarray::{Array1, ArrayBase, Data, Ix1};
 use sprs::CsMat;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 /// Methods for computing the inverse document frequency of a vocabulary entry
 pub enum TfIdfMethod {
     /// Computes the idf as `log(1+n/1+document_frequency) + 1`. The "plus ones" inside the log
