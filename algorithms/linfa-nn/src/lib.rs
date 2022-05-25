@@ -121,13 +121,13 @@ pub trait NearestNeighbourIndex<F: Float> {
 /// ## Example
 ///
 /// ```rust
-/// use rand_isaac::Isaac64Rng;
+/// use rand_xoshiro::Xoshiro256Plus;
 /// use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
 /// use ndarray::{Array1, Array2};
 /// use linfa_nn::{distance::*, CommonNearestNeighbour, NearestNeighbour};
 ///
 /// // Use seedable RNG for generating points
-/// let mut rng = Isaac64Rng::seed_from_u64(40);
+/// let mut rng = Xoshiro256Plus::seed_from_u64(40);
 /// let n_features = 3;
 /// let distr = Uniform::new(-500., 500.);
 /// // Randomly generate points for building the index

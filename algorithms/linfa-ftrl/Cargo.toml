@@ -1,0 +1,34 @@
+[package]
+name = "linfa-ftrl"
+version = "0.5.0"
+authors = ["Liudmyla Kyrashchuk <himila@tutanota.com>"]
+
+description = "A Machine Learning framework for Rust"
+edition = "2018"
+license = "MIT/Apache-2.0"
+
+repository = "https://github.com/rust-ml/linfa"
+readme = "README.md"
+
+keywords = ["machine-learning", "linfa", "ai", "ml", "ftrl"]
+categories = ["algorithms", "mathematics", "science"]
+
+[dependencies]
+ndarray = { version = "0.15.4", features = ["serde"]}
+ndarray-rand = "0.14.0"
+argmin = { version = "0.4.7", features = ["ndarray", "ndarray-rand"]}
+thiserror = "1.0"
+rand = "0.8.5"
+rand_xoshiro = "0.6.0"
+serde = {version = "1.0.137", features = ["derive"]}
+
+linfa = { version = "0.5.0", path = "../.."}
+
+[dev-dependencies]
+criterion = "0.3"
+approx = "0.4"
+linfa-datasets = { version = "0.5.0", path = "../../datasets", features = ["winequality"] }
+
+[[bench]]
+name = "ftrl"
+harness = false

@@ -263,7 +263,7 @@ mod tests {
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::Uniform;
     use ndarray_rand::RandomExt;
-    use rand_isaac::Isaac64Rng;
+    use rand_xoshiro::Xoshiro256Plus;
 
     use linfa::{
         metrics::SingleTargetRegression,
@@ -554,7 +554,7 @@ mod tests {
 
     #[test]
     fn select_subset() {
-        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let mut rng = Xoshiro256Plus::seed_from_u64(42);
 
         // check that we are selecting the subsect of informative features
         let mut w = Array::random_using(50, Uniform::new(1., 2.), &mut rng);

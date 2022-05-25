@@ -14,7 +14,7 @@ use ndarray_rand::rand::Rng;
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
 use ndarray_stats::QuantileExt;
-use rand_isaac::Isaac64Rng;
+use rand_xoshiro::Xoshiro256Plus;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 
@@ -62,10 +62,10 @@ use serde_crate::{Deserialize, Serialize};
 /// use linfa_datasets::generate;
 /// use ndarray::{Axis, array, s, Zip};
 /// use ndarray_rand::rand::SeedableRng;
-/// use rand_isaac::Isaac64Rng;
+/// use rand_xoshiro::Xoshiro256Plus;
 /// use approx::assert_abs_diff_eq;
 ///
-/// let mut rng = Isaac64Rng::seed_from_u64(42);
+/// let mut rng = Xoshiro256Plus::seed_from_u64(42);
 /// let expected_centroids = array![[0., 1.], [-10., 20.], [-1., 10.]];
 /// let n = 200;
 ///
@@ -187,7 +187,7 @@ impl<F: Float> GaussianMixtureModel<F> {
 }
 
 impl<F: Float> GaussianMixtureModel<F> {
-    pub fn params(n_clusters: usize) -> GmmParams<F, Isaac64Rng> {
+    pub fn params(n_clusters: usize) -> GmmParams<F, Xoshiro256Plus> {
         GmmParams::new(n_clusters)
     }
 
@@ -522,7 +522,7 @@ mod tests {
 
     #[test]
     fn test_gmm_fit() {
-        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let mut rng = Xoshiro256Plus::seed_from_u64(42);
         let weights = array![0.5, 0.5];
         let means = array![[0., 0.], [5., 5.]];
         let covars = array![[[1., 0.8], [0.8, 1.]], [[1.0, -0.6], [-0.6, 1.0]]];
@@ -580,7 +580,7 @@ mod tests {
 
     #[test]
     fn test_zeroed_reg_covar_failure() {
-        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let mut rng = Xoshiro256Plus::seed_from_u64(42);
         let xt = Array2::random_using((50, 1), Uniform::new(0., 1.0), &mut rng);
         let yt = function_test_1d(&xt);
         let data = concatenate(Axis(1), &[xt.view(), yt.view()]).unwrap();
@@ -638,7 +638,7 @@ mod tests {
 
     #[test]
     fn test_centroids_prediction() {
-        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let mut rng = Xoshiro256Plus::seed_from_u64(42);
         let expected_centroids = array![[0., 1.], [-10., 20.], [-1., 10.]];
         let n = 1000;
         let blobs = DatasetBase::from(generate::blobs(n, &expected_centroids, &mut rng));
