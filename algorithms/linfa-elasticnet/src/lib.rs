@@ -1,7 +1,7 @@
 #![doc = include_str!("../README.md")]
 
 use linfa::Float;
-use ndarray::Array1;
+use ndarray::{Array1, Array2};
 
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
@@ -11,11 +11,11 @@ mod error;
 mod hyperparams;
 
 pub use error::{ElasticNetError, Result};
-pub use hyperparams::{ElasticNetParams, ElasticNetValidParams};
+pub use hyperparams::{ElasticNetParams, ElasticNetValidParams, MultiTaskElasticNetParams};
 
 #[cfg_attr(
     feature = "serde",
-    derive(Serialize, Deserialize),
+    derive(Serialize, Deserialize, Debug, Clone, PartialEq),
     serde(crate = "serde_crate")
 )]
 /// Elastic Net model
@@ -63,5 +63,46 @@ impl<F: Float> ElasticNet<F> {
     /// Create a LASSO only model
     pub fn lasso() -> ElasticNetParams<F> {
         ElasticNetParams::new().l1_ratio(F::one())
+    }
+}
+
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize, Debug, Clone, PartialEq),
+    serde(crate = "serde_crate")
+)]
+/// MultiTask Elastic Net model
+///
+/// This struct contains the parameters of a fitted multi-task elastic net model. This includes the
+/// coefficients (a 2-dimensional array), (optionally) intercept (a 1-dimensional array), duality gaps
+/// and the number of steps needed in the computation.
+///
+/// ## Model implementation
+///
+/// The block coordinate descent is widely used to solve generalized linear models optimization problems,
+/// like Group Lasso, MultiTask Ridge or MultiTask Lasso. It cycles through a group of parameters and update
+/// the groups separately, holding all the others fixed. The optimization routine stops when a criterion is
+/// satisfied (dual sub-optimality gap or change in coefficients).
+pub struct MultiTaskElasticNet<F> {
+    hyperplane: Array2<F>,
+    intercept: Array1<F>,
+    duality_gap: F,
+    n_steps: u32,
+    variance: Result<Array1<F>>,
+}
+
+impl<F: Float> MultiTaskElasticNet<F> {
+    pub fn params() -> MultiTaskElasticNetParams<F> {
+        MultiTaskElasticNetParams::new()
+    }
+
+    /// Create a multi-task ridge only model
+    pub fn ridge() -> MultiTaskElasticNetParams<F> {
+        MultiTaskElasticNetParams::new().l1_ratio(F::zero())
+    }
+
+    /// Create a multi-task Lasso only model
+    pub fn lasso() -> MultiTaskElasticNetParams<F> {
+        MultiTaskElasticNetParams::new().l1_ratio(F::one())
     }
 }

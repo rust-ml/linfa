@@ -25,6 +25,8 @@ pub enum ElasticNetError {
     InvalidPenalty(f32),
     #[error("invalid tolerance {0}")]
     InvalidTolerance(f32),
+    #[error("the target can either be a vector (ndim=1) or a matrix (ndim=2)")]
+    IncorrectTargetShape,
     #[error(transparent)]
     BaseCrate(#[from] linfa::Error),
 }
