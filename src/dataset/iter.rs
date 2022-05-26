@@ -2,15 +2,15 @@ use super::{AsTargets, DatasetBase, DatasetView, FromTargetArray, Records, Targe
 use ndarray::{ArrayBase, ArrayView, ArrayView1, ArrayView2, Axis, Data, Ix2};
 use std::marker::PhantomData;
 
-#[derive(Clone)]
-pub struct Iter<'a, 'b: 'a, F, L, I> {
+#[derive(Clone, Debug)]
+pub struct Iter<'a, 'b: 'a, F, L, I: ndarray::Dimension> {
     records: ArrayView2<'b, F>,
     targets: ArrayView<'b, L, I>,
     idx: usize,
     phantom: PhantomData<&'a ArrayView2<'b, F>>,
 }
 
-impl<'a, 'b: 'a, F, L, I> Iter<'a, 'b, F, L, I> {
+impl<'a, 'b: 'a, F, L, I: ndarray::Dimension> Iter<'a, 'b, F, L, I> {
     pub fn new(records: ArrayView2<'b, F>, targets: ArrayView<'b, L, I>) -> Iter<'a, 'b, F, L, I> {
         Iter {
             records,

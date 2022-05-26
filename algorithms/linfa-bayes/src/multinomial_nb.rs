@@ -3,6 +3,7 @@ use linfa::traits::{Fit, FitWith, PredictInplace};
 use linfa::{Float, Label};
 use ndarray::{Array1, ArrayBase, ArrayView2, Axis, Data, Ix2};
 use std::collections::HashMap;
+use std::hash::Hash;
 
 use crate::base_nb::{filter, NaiveBayes, NaiveBayesValidParams};
 use crate::error::{NaiveBayesError, Result};
@@ -195,8 +196,8 @@ where
 /// let model = checked_params.fit_with(Some(model), &ds)?;
 /// # Result::Ok(())
 /// ```
-#[derive(Debug, Clone)]
-pub struct MultinomialNb<F, L> {
+#[derive(Debug, Clone, PartialEq)]
+pub struct MultinomialNb<F: PartialEq, L: Eq + Hash> {
     class_info: HashMap<L, MultinomialClassInfo<F>>,
 }
 
@@ -206,16 +207,6 @@ struct MultinomialClassInfo<F> {
     prior: F,
     feature_count: Array1<F>,
     feature_log_prob: Array1<F>,
-}
-
-impl<'a, F, L> PartialEq for MultinomialNb<F, L>
-where
-    F: Float,
-    L: Label + Ord,
-{
-    fn eq(&self, other: &Self) -> bool {
-        self.class_info == other.class_info
-    }
 }
 
 impl<F: Float, L: Label> MultinomialNb<F, L> {

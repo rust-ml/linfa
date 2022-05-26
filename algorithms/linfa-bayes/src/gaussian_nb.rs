@@ -4,6 +4,7 @@ use linfa::{Float, Label};
 use ndarray::{Array1, ArrayBase, ArrayView2, Axis, Data, Ix2};
 use ndarray_stats::QuantileExt;
 use std::collections::HashMap;
+use std::hash::Hash;
 
 use crate::base_nb::{filter, NaiveBayes, NaiveBayesValidParams};
 use crate::error::{NaiveBayesError, Result};
@@ -225,8 +226,8 @@ where
 /// let model = checked_params.fit_with(Some(model), &ds)?;
 /// # Result::Ok(())
 /// ```
-#[derive(Debug, Clone)]
-pub struct GaussianNb<F, L> {
+#[derive(Debug, Clone, PartialEq)]
+pub struct GaussianNb<F: PartialEq, L: Eq + Hash> {
     class_info: HashMap<L, GaussianClassInfo<F>>,
 }
 
@@ -236,16 +237,6 @@ struct GaussianClassInfo<F> {
     prior: F,
     theta: Array1<F>,
     sigma: Array1<F>,
-}
-
-impl<'a, F, L> PartialEq for GaussianNb<F, L>
-where
-    F: Float,
-    L: Label + Ord,
-{
-    fn eq(&self, other: &Self) -> bool {
-        self.class_info == other.class_info
-    }
 }
 
 impl<F: Float, L: Label> GaussianNb<F, L> {
