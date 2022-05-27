@@ -40,7 +40,7 @@ impl<'a, 'b: 'a, F, L, I: TargetDim> Iterator for Iter<'a, 'b, F, L, I> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DatasetIter<'a, 'b, R: Records, T> {
     dataset: &'b DatasetBase<R, T>,
     idx: usize,
