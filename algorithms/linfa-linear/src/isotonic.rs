@@ -20,19 +20,15 @@ impl Float for f64 {}
 ///
 /// /// ## Examples
 ///
-/// Here's an example on how to train an isotonic regression model on one feature
-/// from the `diabetes` dataset.
+/// Here's an example on how to train an isotonic regression model on
+/// the first feature from the `diabetes` dataset.
 /// ```rust
 /// use linfa::{traits::Fit, traits::Predict, Dataset};
 /// use linfa_linear::IsotonicRegression;
-/// use linfa::dataset::Records;
 /// use linfa::prelude::SingleTargetRegression;
 ///
 /// let diabetes = linfa_datasets::diabetes();
-/// let feature1d = diabetes.records().column(0) // first feature of the datasets
-///                         .to_shape((diabetes.nsamples(), 1)) // form Nx1 dataset
-///                         .unwrap().to_owned();
-/// let dataset = Dataset::new(feature1d, diabetes.targets().to_owned());
+/// let dataset = diabetes.feature_iter().next().unwrap(); // get first 1D feature
 /// let model = IsotonicRegression::default().fit(&dataset).unwrap();
 /// let pred = model.predict(&dataset);
 /// let r2 = pred.r2(&dataset).unwrap();
@@ -104,7 +100,6 @@ impl<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = F>>
             J.reverse();
         };
 
-        //println!("{:#?} {:#?}", indices, J);
         let mut i: usize = 0;
         while i < (J.len() - 1) {
             let B_zero = &J[i];
@@ -138,8 +133,8 @@ impl<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = F>>
         if !incresing {
             J.reverse();
         };
-        //println!("{:#?}", J);
 
+        // Form model parameters
         let params: (Vec<F>, Vec<F>) = J
             .iter()
             .map(|e| {
@@ -154,24 +149,6 @@ impl<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = F>>
             .unzip();
         let regressor = Array1::from_vec(params.1);
         let response = Array1::from_vec(params.0);
-
-        /*
-        let mut params = Array2::from_elem((J.len(), 2), F::zero());
-        for (i, mut row) in params.axis_iter_mut(Axis(0)).enumerate() {
-            // Perform calculations and assign to `row`; this is a trivial example:
-            let (v, _, idx) = &J[i];
-            row[0] = *v;
-            row[1] = x
-                .select(Axis(0), idx)
-                .into_iter()
-                .max_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Greater))
-                .unwrap();
-        }
-        println!("{:#?}", params);
-        let regressor = params.column(0).to_owned();
-        let response = params.column(1).to_owned();
-        */
-
         Ok(FittedIsotonicRegression {
             regressor,
             response,
@@ -217,8 +194,7 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<F>>
         let y_min = response[0];
         let y_max = response[n - 1];
 
-        let regressor = &self.regressor;
-
+        // calculate a piecewise linear approximation of response
         for (i, row) in x.rows().into_iter().enumerate() {
             let val = row[0];
             if val >= x_max {
@@ -317,21 +293,4 @@ mod tests {
             epsilon = 1e-12
         );
     }
-    /*
-        #[test]
-        fn wine() {
-            let diabetes = linfa_datasets::diabetes();
-            let feature1d = diabetes
-                .records()
-                .column(0)
-                .to_shape((diabetes.nsamples(), 1))
-                .unwrap()
-                .to_owned();
-            let dataset = Dataset::new(feature1d, diabetes.targets().to_owned());
-            let model = IsotonicRegression::default().fit(&dataset).unwrap();
-            let pred = model.predict(&dataset);
-            let r2 = pred.r2(&dataset).unwrap();
-            println!("r2 from prediction: {}", r2);
-        }
-    */
 }
