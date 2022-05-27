@@ -26,7 +26,8 @@ use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2};
 #[cfg(feature = "blas")]
 use ndarray_linalg::{TruncatedOrder, TruncatedSvd};
 #[cfg(not(feature = "blas"))]
-use ndarray_linalg_rs::svd::*;
+use ndarray_linalg_rs::{lobpcg::TruncatedSvd, Order};
+use rand::{prelude::SmallRng, SeedableRng};
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 
@@ -87,22 +88,15 @@ impl<T, D: Data<Elem = f64>> Fit<ArrayBase<D, Ix2>, T, ReductionError> for PcaPa
         let mean = x.mean_axis(Axis(0)).unwrap();
         let x = x - &mean;
 
+        // estimate Singular Value Decomposition
         #[cfg(feature = "blas")]
-        let (_, sigma, mut v_t) = {
-            // estimate Singular Value Decomposition
-            let result =
-                TruncatedSvd::new(x, TruncatedOrder::Largest).decompose(self.embedding_size)?;
-            // explained variance is the spectral distribution of the eigenvalues
-            result.values_vectors()
-        };
+        let result =
+            TruncatedSvd::new(x, TruncatedOrder::Largest).decompose(self.embedding_size)?;
         #[cfg(not(feature = "blas"))]
-        let (sigma, mut v_t) = {
-            let (_, sigma, v_t) = x.svd(false, true)?.sort_svd_desc();
-            (
-                sigma.slice_move(s![..self.embedding_size]),
-                v_t.unwrap().slice_move(s![..self.embedding_size, ..]),
-            )
-        };
+        let result = TruncatedSvd::new_with_rng(x, Order::Largest, SmallRng::seed_from_u64(42))
+            .decompose(self.embedding_size)?;
+        // explained variance is the spectral distribution of the eigenvalues
+        let (_, sigma, mut v_t) = result.values_vectors();
 
         // cut singular values to avoid numerical problems
         let sigma = sigma.mapv(|x| x.max(1e-8));

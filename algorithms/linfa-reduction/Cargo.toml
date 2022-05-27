@@ -31,12 +31,12 @@ ndarray-linalg = { version = "0.14", optional = true }
 ndarray-rand = "0.14"
 num-traits = "0.2"
 thiserror = "1.0"
+rand = { version = "0.8", features = ["small_rng"] }
 
 linfa = { version = "0.5.0", path = "../.." }
 linfa-kernel = { version = "0.5.0", path = "../linfa-kernel" }
 
 [dev-dependencies]
-rand = { version = "0.8", features = ["small_rng"] }
 ndarray-npy = { version = "0.8", default-features = false }
 linfa-datasets = { version = "0.5.0", path = "../../datasets", features = ["iris", "generate"] }
 approx = { version = "0.4" }
