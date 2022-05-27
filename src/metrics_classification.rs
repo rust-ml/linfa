@@ -39,6 +39,7 @@ fn map_prediction_to_idx<L: Label>(
 /// A confusion matrix shows predictions in a matrix, where rows correspond to target and columns
 /// to predicted. Diagonal entries are correct predictions, and everything off the
 /// diagonal is a miss-classification.
+#[derive(Clone, PartialEq)]
 pub struct ConfusionMatrix<A> {
     matrix: Array2<f32>,
     members: Array1<A>,
@@ -401,6 +402,7 @@ fn trapezoidal<A: NdFloat>(vals: &[(A, A)]) -> A {
 /// A Receiver Operating Characteristic for binary-label classification
 ///
 /// The ROC curve gives insight about the seperability of a binary classification task.
+#[derive(Debug, Clone, PartialEq)]
 pub struct ReceiverOperatingCharacteristic {
     curve: Vec<(f32, f32)>,
     thresholds: Vec<f32>,

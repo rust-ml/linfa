@@ -495,6 +495,17 @@ mod tests {
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::{Distribution, StandardNormal};
 
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<GaussianMixtureModel<f64>>();
+        has_autotraits::<GmmError>();
+        has_autotraits::<GmmParams<f64, Xoshiro256Plus>>();
+        has_autotraits::<GmmValidParams<f64, Xoshiro256Plus>>();
+        has_autotraits::<GmmInitMethod>();
+        has_autotraits::<GmmCovarType>();
+    }
+
     pub struct MultivariateNormal {
         pub mean: Array1<f64>,
         pub covariance: Array2<f64>,

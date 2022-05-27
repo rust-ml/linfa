@@ -1,12 +1,22 @@
-use crate::{AppxDbscan, AppxDbscanParamsError, Dbscan};
+use crate::{AppxDbscan, AppxDbscanParams, AppxDbscanParamsError, AppxDbscanValidParams, Dbscan};
 use linfa::traits::Transformer;
 use linfa::ParamGuard;
 use linfa_datasets::generate;
+use linfa_nn::distance::L2Dist;
 use ndarray::{arr1, arr2, concatenate, s, Array1, Array2};
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::Uniform;
 use rand_xoshiro::Xoshiro256Plus;
 use std::collections::HashMap;
+
+#[test]
+fn autotraits() {
+    fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+    has_autotraits::<AppxDbscan>();
+    has_autotraits::<Dbscan>();
+    has_autotraits::<AppxDbscanValidParams<f64, L2Dist>>();
+    has_autotraits::<AppxDbscanParams<f64, L2Dist>>();
+}
 
 #[test]
 fn appx_dbscan_parity() {

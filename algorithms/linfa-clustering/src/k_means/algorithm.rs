@@ -587,6 +587,7 @@ pub(crate) fn closest_centroid<F: Float, D: Distance<F>>(
 mod tests {
     use super::super::KMeansInit;
     use super::*;
+    use crate::KMeansParamsError;
     use approx::assert_abs_diff_eq;
     use linfa_nn::distance::L1Dist;
     use ndarray::{array, concatenate, Array, Array1, Array2, Axis};
@@ -594,6 +595,15 @@ mod tests {
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::Uniform;
     use ndarray_rand::RandomExt;
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<KMeans<f64, L2Dist>>();
+        has_autotraits::<KMeansParamsError>();
+        has_autotraits::<KMeansError>();
+        has_autotraits::<IncrKMeansError<String>>();
+    }
 
     fn function_test_1d(x: &Array2<f64>) -> Array2<f64> {
         let mut y = Array2::zeros(x.dim());

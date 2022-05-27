@@ -12,7 +12,7 @@ use super::cells_grid::CellsGrid;
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 /// DBSCAN (Density-based Spatial Clustering of Applications with Noise)
 /// clusters together neighbouring points, while points in sparse regions are labelled
 /// as noise. Since points may be part of a cluster or noise the transform method returns

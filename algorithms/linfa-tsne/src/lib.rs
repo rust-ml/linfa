@@ -101,6 +101,14 @@ mod tests {
     use linfa::{dataset::Dataset, metrics::SilhouetteScore};
 
     #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<TSneParams<f64, rand::distributions::Uniform<f64>>>();
+        has_autotraits::<TSneValidParams<f64, rand::distributions::Uniform<f64>>>();
+        has_autotraits::<TSneError>();
+    }
+
+    #[test]
     fn iris_separate() -> Result<()> {
         let ds = linfa_datasets::iris();
         let rng = SmallRng::seed_from_u64(42);

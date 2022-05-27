@@ -12,7 +12,7 @@ pub trait Float: linfa::Float + Lapack + Scalar {}
 impl Float for f32 {}
 impl Float for f64 {}
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 /// An ordinary least squares linear regression model.
 ///
 /// LinearRegression fits a linear model to minimize the residual sum of
@@ -46,7 +46,7 @@ pub struct LinearRegression {
     fit_intercept: bool,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 /// A fitted linear regression model which can be used for making predictions.
 pub struct FittedLinearRegression<F> {
     intercept: F,
@@ -174,6 +174,14 @@ mod tests {
     use approx::assert_abs_diff_eq;
     use linfa::{traits::Predict, Dataset};
     use ndarray::array;
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<FittedLinearRegression<f64>>();
+        has_autotraits::<LinearRegression>();
+        has_autotraits::<LinearError<f64>>();
+    }
 
     #[test]
     fn fits_a_line_through_two_dots() {

@@ -7,6 +7,13 @@ use linfa::ParamGuard;
 use ndarray::{arr1, ArrayView};
 
 #[test]
+fn autotraits() {
+    fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+    has_autotraits::<IntersectionType>();
+    has_autotraits::<TreeStructure<f64>>();
+}
+
+#[test]
 fn counting_test() {
     let params = AppxDbscan::params(2)
         .tolerance(2.0)

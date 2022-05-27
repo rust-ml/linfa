@@ -265,11 +265,21 @@ mod tests {
     use ndarray_rand::RandomExt;
     use rand_xoshiro::Xoshiro256Plus;
 
+    use crate::{ElasticNetError, ElasticNetParams, ElasticNetValidParams};
     use linfa::{
         metrics::SingleTargetRegression,
         traits::{Fit, Predict},
         Dataset,
     };
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<ElasticNet<f64>>();
+        has_autotraits::<ElasticNetParams<f64>>();
+        has_autotraits::<ElasticNetValidParams<f64>>();
+        has_autotraits::<ElasticNetError>();
+    }
 
     fn elastic_net_objective(
         x: &Array2<f64>,

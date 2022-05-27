@@ -3,6 +3,7 @@ use std::cmp::{Ordering, Reverse};
 use linfa::Float;
 use noisy_float::{checkers::FiniteChecker, NoisyFloat};
 
+#[derive(Debug, Clone)]
 pub(crate) struct HeapElem<D: Ord, T> {
     pub(crate) dist: D,
     pub(crate) elem: T,

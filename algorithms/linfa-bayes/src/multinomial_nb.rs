@@ -3,6 +3,7 @@ use linfa::traits::{Fit, FitWith, PredictInplace};
 use linfa::{Float, Label};
 use ndarray::{Array1, ArrayBase, ArrayView2, Axis, Data, Ix2};
 use std::collections::HashMap;
+use std::hash::Hash;
 
 use crate::base_nb::{filter, NaiveBayes, NaiveBayesValidParams};
 use crate::error::{NaiveBayesError, Result};
@@ -195,12 +196,12 @@ where
 /// let model = checked_params.fit_with(Some(model), &ds)?;
 /// # Result::Ok(())
 /// ```
-#[derive(Debug, Clone)]
-pub struct MultinomialNb<F, L> {
+#[derive(Debug, Clone, PartialEq)]
+pub struct MultinomialNb<F: PartialEq, L: Eq + Hash> {
     class_info: HashMap<L, MultinomialClassInfo<F>>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 struct MultinomialClassInfo<F> {
     class_count: usize,
     prior: F,
@@ -242,9 +243,20 @@ mod tests {
         DatasetView,
     };
 
+    use crate::multinomial_nb::MultinomialClassInfo;
+    use crate::{MultinomialNbParams, MultinomialNbValidParams};
     use approx::assert_abs_diff_eq;
     use ndarray::{array, Axis};
     use std::collections::HashMap;
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<MultinomialNb<f64, usize>>();
+        has_autotraits::<MultinomialClassInfo<f64>>();
+        has_autotraits::<MultinomialNbValidParams<f64, usize>>();
+        has_autotraits::<MultinomialNbParams<f64, usize>>();
+    }
 
     #[test]
     fn test_multinomial_nb() -> Result<()> {

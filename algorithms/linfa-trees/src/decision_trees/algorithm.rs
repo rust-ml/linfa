@@ -1,5 +1,6 @@
 //! Linear decision trees
 //!
+use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 
@@ -483,7 +484,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DecisionTree<F: Float, L: Label> {
     root_node: TreeNode<F, L>,
     num_features: usize,
@@ -698,7 +699,19 @@ mod tests {
     use ndarray::{array, concatenate, s, Array, Array1, Array2, Axis};
     use rand::rngs::SmallRng;
 
+    use crate::DecisionTreeParams;
     use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<DecisionTree<f64, bool>>();
+        has_autotraits::<TreeNode<f64, bool>>();
+        has_autotraits::<DecisionTreeValidParams<f64, bool>>();
+        has_autotraits::<DecisionTreeParams<f64, bool>>();
+        has_autotraits::<NodeIter<f64, bool>>();
+        has_autotraits::<Tikz<f64, bool>>();
+    }
 
     #[test]
     fn prediction_for_rows_example() {
