@@ -12,7 +12,7 @@ pub trait Float: linfa::Float {}
 impl Float for f32 {}
 impl Float for f64 {}
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 /// An isotonic regression model.
 ///
 /// IsotonicRegression solves an isotonic regression problem using the pool
@@ -36,7 +36,7 @@ impl Float for f64 {}
 /// ```
 pub struct IsotonicRegression {}
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 /// A fitted isotonic regression model which can be used for making predictions.
 pub struct FittedIsotonicRegression<F> {
     regressor: Array1<F>,
@@ -227,6 +227,14 @@ mod tests {
     use approx::assert_abs_diff_eq;
     use linfa::{traits::Predict, Dataset};
     use ndarray::array;
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<FittedIsotonicRegression<f64>>();
+        has_autotraits::<IsotonicRegression>();
+        has_autotraits::<LinearError<f64>>();
+    }
 
     #[test]
     fn dimension_mismatch() {
