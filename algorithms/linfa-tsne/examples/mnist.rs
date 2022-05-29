@@ -1,12 +1,22 @@
-use linfa::traits::{Fit, Transformer};
-use linfa::Dataset;
-use linfa_reduction::Pca;
-use linfa_tsne::{Result, TSneParams};
-use mnist::{Mnist, MnistBuilder};
-use ndarray::Array;
-use std::{io::Write, process::Command};
+// This example is disabled for windows till mnist > 0.5 is released
+// See https://github.com/davidMcneil/mnist/issues/10
 
+#[cfg(not(target_family = "windows"))]
+use linfa_tsne::Result;
+
+#[cfg(not(target_family = "windows"))]
 fn main() -> Result<()> {
+    use linfa::traits::{Fit, Transformer};
+    use linfa::Dataset;
+    use linfa_reduction::Pca;
+    use linfa_tsne::TSneParams;
+
+    #[cfg(not(target_family = "windows"))]
+    use mnist::{Mnist, MnistBuilder};
+
+    use ndarray::Array;
+    use std::{io::Write, process::Command};
+
     // use 50k samples from the MNIST dataset
     let (trn_size, rows, cols) = (50_000usize, 28, 28);
 
@@ -55,6 +65,8 @@ fn main() -> Result<()> {
         .expect(
             "Failed to launch gnuplot. Pleasure ensure that gnuplot is installed and on the $PATH.",
         );
-
     Ok(())
 }
+
+#[cfg(target_family = "windows")]
+fn main() {}
