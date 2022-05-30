@@ -1,7 +1,7 @@
 //! Isotonic
 #![allow(non_snake_case)]
 use crate::error::{LinearError, Result};
-use ndarray::{s, stack, Array1, ArrayBase, Axis, Data, Ix1, Ix2};
+use ndarray::{stack, Array1, ArrayBase, Axis, Data, Ix1, Ix2};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 
@@ -12,7 +12,7 @@ pub trait Float: linfa::Float {}
 impl Float for f32 {}
 impl Float for f64 {}
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
 /// An isotonic regression model.
 ///
 /// IsotonicRegression solves an isotonic regression problem using the pool
@@ -41,12 +41,6 @@ pub struct IsotonicRegression {}
 pub struct FittedIsotonicRegression<F> {
     regressor: Array1<F>,
     response: Array1<F>,
-}
-
-impl Default for IsotonicRegression {
-    fn default() -> Self {
-        IsotonicRegression::new()
-    }
 }
 
 /// Configure and fit a isotonic regression model
@@ -84,9 +78,9 @@ impl<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = F>>
         assert_eq!(y.dim(), n_samples);
 
         // use correlation for determining relationship between x & y
-        let x = X.slice(s![.., 0]);
+        let x = X.column(0);
         let rho = DatasetBase::from(stack![Axis(1), x, y]).pearson_correlation();
-        let incresing = rho.get_coeffs()[0] >= F::zero();
+        let increasing = rho.get_coeffs()[0] >= F::zero();
 
         // sort data
         let indices = argsort_by(&x, |a, b| a.partial_cmp(b).unwrap_or(Ordering::Greater));
@@ -96,7 +90,7 @@ impl<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = F>>
             .iter()
             .map(|&i| (y[i], F::cast(dataset.weight_for(i)), vec![i]))
             .collect();
-        if !incresing {
+        if !increasing {
             J.reverse();
         };
 
@@ -109,7 +103,7 @@ impl<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = F>>
             } else {
                 let w0 = B_zero.1 + B_plus.1;
                 let v0 = (B_zero.0 * B_zero.1 + B_plus.0 * B_plus.1) / w0;
-                let mut i0 = B_zero.2.clone();
+                let mut i0 = B_zero.2.to_vec();
                 i0.extend(&(B_plus.2));
                 J[i] = (v0, w0, i0);
                 J.remove(i + 1);
@@ -119,7 +113,7 @@ impl<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = F>>
                     if v0 <= B_minus.0 {
                         let ww = w0 + B_minus.1;
                         let vv = (v0 * w0 + B_minus.0 * B_minus.1) / ww;
-                        let mut ii = J[idx].2.clone();
+                        let mut ii = J[idx].2.to_vec();
                         ii.extend(&(B_minus.2));
                         J[i] = (vv, ww, ii);
                         J.remove(i - 1);
@@ -130,7 +124,7 @@ impl<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = F>>
                 }
             }
         }
-        if !incresing {
+        if !increasing {
             J.reverse();
         };
 
