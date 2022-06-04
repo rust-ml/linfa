@@ -22,12 +22,13 @@
 //! ```
 //!
 use crate::error::{ReductionError, Result};
-#[cfg(not(feature = "blas"))]
-use linfa_linalg::{lobpcg::TruncatedSvd, Order};
+/*#[cfg(not(feature = "blas"))]
+use linfa_linalg::{lobpcg::TruncatedSvd, Order};*/
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2};
-#[cfg(feature = "blas")]
+//#[cfg(feature = "blas")]
 use ndarray_linalg::{TruncatedOrder, TruncatedSvd};
-use rand::{prelude::SmallRng, SeedableRng};
+/*#[cfg(not(feature = "blas"))]
+use rand::{prelude::SmallRng, SeedableRng};*/
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 
@@ -89,12 +90,12 @@ impl<T, D: Data<Elem = f64>> Fit<ArrayBase<D, Ix2>, T, ReductionError> for PcaPa
         let x = x - &mean;
 
         // estimate Singular Value Decomposition
-        #[cfg(feature = "blas")]
+        //#[cfg(feature = "blas")]
         let result =
             TruncatedSvd::new(x, TruncatedOrder::Largest).decompose(self.embedding_size)?;
-        #[cfg(not(feature = "blas"))]
+        /*#[cfg(not(feature = "blas"))]
         let result = TruncatedSvd::new_with_rng(x, Order::Largest, SmallRng::seed_from_u64(42))
-            .decompose(self.embedding_size)?;
+            .decompose(self.embedding_size)?;*/
         // explained variance is the spectral distribution of the eigenvalues
         let (_, sigma, mut v_t) = result.values_vectors();
 

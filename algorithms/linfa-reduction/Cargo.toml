@@ -14,7 +14,9 @@ categories = ["algorithms", "mathematics", "science"]
 
 [features]
 default = []
-blas = ["ndarray-linalg", "linfa/ndarray-linalg"]
+# TODO restore this after fixing no-BLAS support
+#blas = ["ndarray-linalg", "linfa/ndarray-linalg"]
+blas = []
 serde = ["serde_crate", "ndarray/serde"]
 
 [dependencies.serde_crate]
@@ -27,13 +29,13 @@ features = ["std", "derive"]
 [dependencies]
 ndarray = { version = "0.15", features = ["approx"] }
 linfa-linalg = { git = "https://github.com/rust-ml/linfa-linalg.git" }
-ndarray-linalg = { version = "0.14", optional = true }
+ndarray-linalg = { version = "0.14", optional = false } #TODO make this optional once we fix no-BLAS support
 ndarray-rand = "0.14"
 num-traits = "0.2"
 thiserror = "1.0"
 rand = { version = "0.8", features = ["small_rng"] }
 
-linfa = { version = "0.5.0", path = "../.." }
+linfa = { version = "0.5.0", path = "../..", features = ["ndarray-linalg"] } #TODO remove features after we fix no-BLAS support
 linfa-kernel = { version = "0.5.0", path = "../linfa-kernel" }
 
 [dev-dependencies]
