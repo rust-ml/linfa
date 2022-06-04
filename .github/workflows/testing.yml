@@ -34,7 +34,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --exclude linfa-reduction #TODO remove exclusion once no-BLAS is fixed for linfa-reduction
+          args: --workspace --exclude linfa-reduction --exclude linfa-tsne #TODO remove exclusion once no-BLAS is fixed for linfa-reduction
 
   testing-blas:
     name: testing-with-BLAS-${{ matrix.toolchain }}-${{ matrix.os }}
@@ -67,4 +67,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --features intel-mkl-system,linfa-clustering/blas,linfa-ica/blas,linfa-reduction/blas,linfa-linear/blas,linfa-preprocessing/blas,linfa-pls/blas,linfa-elasticnet/blas
+          args: --workspace --features intel-mkl-static,linfa-clustering/blas,linfa-ica/blas,linfa-reduction/blas,linfa-linear/blas,linfa-preprocessing/blas,linfa-pls/blas,linfa-elasticnet/blas
