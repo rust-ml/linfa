@@ -15,6 +15,7 @@ use rand::distributions::uniform::SampleUniform;
 
 use std::cmp::{Ordering, PartialOrd};
 use std::collections::{HashMap, HashSet};
+use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::hash::Hash;
 use std::iter::Sum;
@@ -51,6 +52,7 @@ pub trait Float:
     + SampleUniform
     + ScalarOperand
     + approx::AbsDiffEq
+    + std::marker::Unpin
 {
     #[cfg(feature = "ndarray-linalg")]
     type Lapack: Float + Scalar + Lapack;
@@ -88,10 +90,40 @@ impl<L: Label> Label for Option<L> {}
 /// This helper struct exists to distinguish probabilities from floating points. For example SVM
 /// selects regression or classification training, based on the target type, and could not
 /// distinguish them without a new-type definition.
+#[repr(transparent)]
 #[derive(Debug, Copy, Clone, Default)]
-pub struct Pr(pub f32);
+pub struct Pr(f32);
+
+/// Tries to convert float to probability type.
+///
+/// # Returns
+/// Either probability type Pr(f32) or error as Err(f32)
+impl TryFrom<f32> for Pr {
+    type Error = f32;
+
+    fn try_from(prob: f32) -> std::result::Result<Self, Self::Error> {
+        if (0. ..=1.).contains(&prob) {
+            Ok(Pr(prob))
+        } else {
+            Err(prob)
+        }
+    }
+}
 
 impl Pr {
+    /// Creates probability from the given float.
+    ///
+    /// # Panics
+    /// Panics if probability is negative or bigger than one.
+    pub fn new(prob: f32) -> Self {
+        prob.try_into().unwrap()
+    }
+
+    /// Creates probability from the given float.
+    /// Doesn't check whether it is negative or bigger than one.
+    pub fn new_unchecked(prob: f32) -> Self {
+        Pr(prob)
+    }
     pub fn even() -> Pr {
         Pr(0.5)
     }
@@ -138,6 +170,7 @@ impl Deref for Pr {
 /// * `R: Records`: generic over feature matrices or kernel matrices
 /// * `T`: generic over any `ndarray` matrix which can be used as targets. The `AsTargets` trait
 /// bound is omitted here to avoid some repetition in implementation `src/dataset/impl_dataset.rs`
+#[derive(Debug, Clone, PartialEq)]
 pub struct DatasetBase<R, T>
 where
     R: Records,
@@ -159,6 +192,7 @@ where
 ///
 /// * `targets`: wrapped target field
 /// * `labels`: counted labels with label-count association
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CountedTargets<L: Label, P> {
     targets: P,
     labels: Vec<HashMap<L, usize>>,
@@ -296,7 +330,7 @@ mod tests {
     use super::*;
     use crate::error::Error;
     use approx::assert_abs_diff_eq;
-    use ndarray::{arr0, array, Array1, Array2, Axis};
+    use ndarray::{array, Array1, Array2, Axis};
     use rand::{rngs::SmallRng, SeedableRng};
 
     #[test]
@@ -716,7 +750,7 @@ mod tests {
         let mut dataset: Dataset<f64, f64, Ix1> = (records, targets).into();
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 2 }];
         let acc = dataset
-            .cross_validate(5, &params, |_pred, _truth| Ok(arr0(3.)))
+            .cross_validate_single(5, &params, |_pred, _truth| Ok(3.))
             .unwrap();
         assert_eq!(acc, array![3., 3.]);
 
@@ -741,7 +775,7 @@ mod tests {
         // second one should throw an error
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 0 }];
         let acc: MockResult<Array1<_>> =
-            dataset.cross_validate(5, &params, |_pred, _truth| Ok(arr0(0.)));
+            dataset.cross_validate_single(5, &params, |_pred, _truth| Ok(0.));
 
         acc.unwrap();
     }
@@ -757,13 +791,14 @@ mod tests {
         let mut dataset: Dataset<f64, f64, Ix1> = (records, targets).into();
         // second one should throw an error
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 1 }];
-        let err: MockResult<Array1<_>> = dataset.cross_validate(5, &params, |_pred, _truth| {
-            if false {
-                Ok(arr0(0f32))
-            } else {
-                Err(Error::Parameters("eval".to_string()))
-            }
-        });
+        let err: MockResult<Array1<_>> =
+            dataset.cross_validate_single(5, &params, |_pred, _truth| {
+                if false {
+                    Ok(0f32)
+                } else {
+                    Err(Error::Parameters("eval".to_string()))
+                }
+            });
 
         err.unwrap();
     }
@@ -790,7 +825,7 @@ mod tests {
         // second one should throw an error
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 0 }];
         let err = dataset
-            .cross_validate(5, &params, |_pred, _truth| Ok(arr0(5.)))
+            .cross_validate_single(5, &params, |_pred, _truth| Ok(5.))
             .unwrap_err();
         assert_eq!(err.to_string(), "invalid parameter 0".to_string());
     }
@@ -804,9 +839,9 @@ mod tests {
         // second one should throw an error
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 1 }];
         let err = dataset
-            .cross_validate(5, &params, |_pred, _truth| {
+            .cross_validate_single(5, &params, |_pred, _truth| {
                 if false {
-                    Ok(arr0(0f32))
+                    Ok(0f32)
                 } else {
                     Err(Error::Parameters("eval".to_string()))
                 }
@@ -926,5 +961,24 @@ mod tests {
         let dataset_no_17 = dataset.with_labels(&[0, 2, 8, 9]);
         assert_eq!(dataset_no_17.nsamples(), 10);
         assert_eq!(dataset_no_17.ntargets(), 2);
+    }
+
+    #[test]
+    fn correct_probability_creation() {
+        let prob = 0.5;
+        assert_abs_diff_eq!(Pr::new(prob).0, prob);
+    }
+
+    #[test]
+    #[should_panic]
+    fn negative_probability_panics() {
+        let prob = -0.5;
+        Pr::new(prob);
+    }
+
+    #[test]
+    fn negative_probability_unchecked() {
+        let prob = -0.5;
+        assert_abs_diff_eq!(Pr::new_unchecked(prob).0, prob);
     }
 }

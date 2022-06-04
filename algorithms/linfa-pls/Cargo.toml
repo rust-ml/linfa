@@ -30,7 +30,6 @@ linfa-linalg = { git = "https://github.com/rust-ml/linfa-linalg.git" }
 ndarray-linalg = { version = "0.14", optional = true }
 ndarray-stats = "0.5"
 ndarray-rand = "0.14"
-rand_isaac = "0.3"
 num-traits = "0.2"
 paste = "1.0"
 thiserror = "1.0"
@@ -38,5 +37,5 @@ linfa = { version = "0.5.0", path = "../.." }
 
 [dev-dependencies]
 linfa-datasets = { version = "0.5.0", path = "../../datasets", features = ["linnerud"] }
-rand_isaac = "0.3"
 approx = "0.4"
+rand_xoshiro = "0.6"

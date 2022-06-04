@@ -6,6 +6,7 @@ use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, 
 use ndarray_rand::rand::distributions::{Distribution, WeightedIndex};
 use ndarray_rand::rand::Rng;
 use ndarray_rand::rand::{self, SeedableRng};
+use rand_xoshiro::Xoshiro256Plus;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
@@ -35,7 +36,7 @@ pub enum KMeansInit<F: Float> {
 
 impl<F: Float> KMeansInit<F> {
     /// Runs the chosen initialization routine
-    pub(crate) fn run<R: Rng + SeedableRng, D: Distance<F>>(
+    pub(crate) fn run<R: Rng, D: Distance<F>>(
         &self,
         dist_fn: &D,
         n_clusters: usize,
@@ -133,7 +134,7 @@ fn k_means_plusplus<F: Float, D: Distance<F>>(
 /// input point in parallel. The probability of a point becoming a centroid is the same as with
 /// KMeans++. After multiple iterations, run weighted KMeans++ on the candidates to produce the
 /// final set of centroids.
-fn k_means_para<R: Rng + SeedableRng, F: Float, D: Distance<F>>(
+fn k_means_para<R: Rng, F: Float, D: Distance<F>>(
     dist_fn: &D,
     n_clusters: usize,
     observations: ArrayView2<F>,
@@ -190,7 +191,7 @@ fn k_means_para<R: Rng + SeedableRng, F: Float, D: Distance<F>>(
 
 /// Generate candidate centroids by sampling each observation in parallel using a seedable RNG in
 /// every thread. Average number of generated candidates should equal `multiplier`.
-fn sample_subsequent_candidates<R: Rng + SeedableRng, F: Float>(
+fn sample_subsequent_candidates<R: Rng, F: Float>(
     dists: &Array1<F>,
     multiplier: F,
     seed: u64,
@@ -210,7 +211,8 @@ fn sample_subsequent_candidates<R: Rng + SeedableRng, F: Float>(
         .into_par_iter()
         .enumerate()
         .map_init(
-            || R::seed_from_u64(seed.fetch_add(1, Relaxed)),
+            // XXX we can use `jump` to have differently seeded RNGs instead of reseeding each time
+            || Xoshiro256Plus::seed_from_u64(seed.fetch_add(1, Relaxed)),
             move |rng, (i, d)| {
                 let d = *d.into_scalar();
                 let rand = F::cast(rng.gen_range(0.0..1.0));
@@ -246,12 +248,18 @@ mod tests {
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::Normal;
     use ndarray_rand::RandomExt;
-    use rand_isaac::Isaac64Rng;
+    use rand_xoshiro::Xoshiro256Plus;
     use std::collections::HashSet;
 
     #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<KMeansInit<f64>>();
+    }
+
+    #[test]
     fn test_precomputed() {
-        let mut rng = Isaac64Rng::seed_from_u64(40);
+        let mut rng = Xoshiro256Plus::seed_from_u64(40);
         let centroids = array![[0.0, 1.0], [40.0, 10.0]];
         let observations = array![[3.0, 4.0], [1.0, 3.0], [25.0, 15.0]];
         let c = KMeansInit::Precomputed(centroids.clone()).run(
@@ -266,7 +274,7 @@ mod tests {
     #[test]
     fn test_sample_subsequent_candidates() {
         let dists = array![0.0, 0.4, 0.5];
-        let candidates = sample_subsequent_candidates::<Isaac64Rng, _>(&dists, 8.0, 0);
+        let candidates = sample_subsequent_candidates::<Xoshiro256Plus, _>(&dists, 8.0, 0);
         assert_eq!(candidates, vec![1, 2]);
     }
 
@@ -283,7 +291,7 @@ mod tests {
 
     #[test]
     fn test_weighted_kmeans_plusplus() {
-        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let mut rng = Xoshiro256Plus::seed_from_u64(42);
         let obs = Array::random_using((1000, 2), Normal::new(0.0, 100.).unwrap(), &mut rng);
         let mut weights = Array1::zeros(1000);
         weights[0] = 2.0;
@@ -317,7 +325,7 @@ mod tests {
 
     // Run general tests for a given init algorithm
     fn verify_init<D: Distance<f64>>(init: KMeansInit<f64>, dist_fn: D) {
-        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let mut rng = Xoshiro256Plus::seed_from_u64(42);
         // Make sure we don't panic on degenerate data (n_clusters > n_samples)
         let degenerate_data = array![[1.0, 2.0]];
         let out = init.run(&dist_fn, 2, degenerate_data.view(), &mut rng);
@@ -366,7 +374,7 @@ mod tests {
     }
 
     fn test_compare<D: Distance<f64>>(dist_fn: D) {
-        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let mut rng = Xoshiro256Plus::seed_from_u64(42);
         let centroids = [20.0, -1000.0, 1000.0];
         let clusters: Vec<Array2<_>> = centroids
             .iter()

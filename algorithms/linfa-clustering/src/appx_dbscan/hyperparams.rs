@@ -21,7 +21,7 @@ pub struct AppxDbscanValidParams<F: Float, N> {
     pub(crate) nn_algo: N,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 /// Helper struct for building a set of [Approximated DBSCAN
 /// hyperparameters](struct.AppxDbscanParams.html)
 pub struct AppxDbscanParams<F: Float, N>(AppxDbscanValidParams<F, N>);

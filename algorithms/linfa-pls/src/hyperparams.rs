@@ -1,7 +1,7 @@
 use crate::{Algorithm, DeflationMode, Mode, PlsError};
 use linfa::{Float, ParamGuard};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct PlsValidParams<F: Float> {
     n_components: usize,
     max_iter: usize,
@@ -42,6 +42,7 @@ impl<F: Float> PlsValidParams<F> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct PlsParams<F: Float>(pub(crate) PlsValidParams<F>);
 
 impl<F: Float> PlsParams<F> {

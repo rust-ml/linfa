@@ -12,11 +12,10 @@ use ndarray::{s, Array, Array1, Array2, Array3, ArrayBase, Axis, Data, Ix2, Ix3,
 #[cfg(feature = "blas")]
 use ndarray_linalg::{cholesky::*, triangular::*};
 use ndarray_rand::rand::Rng;
-use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
 use ndarray_stats::QuantileExt;
-use rand_isaac::Isaac64Rng;
+use rand_xoshiro::Xoshiro256Plus;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 
@@ -64,10 +63,10 @@ use serde_crate::{Deserialize, Serialize};
 /// use linfa_datasets::generate;
 /// use ndarray::{Axis, array, s, Zip};
 /// use ndarray_rand::rand::SeedableRng;
-/// use rand_isaac::Isaac64Rng;
+/// use rand_xoshiro::Xoshiro256Plus;
 /// use approx::assert_abs_diff_eq;
 ///
-/// let mut rng = Isaac64Rng::seed_from_u64(42);
+/// let mut rng = Xoshiro256Plus::seed_from_u64(42);
 /// let expected_centroids = array![[0., 1.], [-10., 20.], [-1., 10.]];
 /// let n = 200;
 ///
@@ -128,7 +127,7 @@ impl<F: Float> Clone for GaussianMixtureModel<F> {
 }
 
 impl<F: Float> GaussianMixtureModel<F> {
-    fn new<D: Data<Elem = F>, R: Rng + SeedableRng + Clone, T>(
+    fn new<D: Data<Elem = F>, R: Rng + Clone, T>(
         hyperparameters: &GmmValidParams<F, R>,
         dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
         mut rng: R,
@@ -189,8 +188,12 @@ impl<F: Float> GaussianMixtureModel<F> {
 }
 
 impl<F: Float> GaussianMixtureModel<F> {
-    pub fn params(n_clusters: usize) -> GmmParams<F, Isaac64Rng> {
+    pub fn params(n_clusters: usize) -> GmmParams<F, Xoshiro256Plus> {
         GmmParams::new(n_clusters)
+    }
+
+    pub fn params_with_rng<R: Rng + Clone>(n_clusters: usize, rng: R) -> GmmParams<F, R> {
+        GmmParams::new_with_rng(n_clusters, rng)
     }
 
     pub fn weights(&self) -> &Array1<F> {
@@ -411,8 +414,8 @@ impl<F: Float> GaussianMixtureModel<F> {
     }
 }
 
-impl<F: Float, R: Rng + SeedableRng + Clone, D: Data<Elem = F>, T>
-    Fit<ArrayBase<D, Ix2>, T, GmmError> for GmmValidParams<F, R>
+impl<F: Float, R: Rng + Clone, D: Data<Elem = F>, T> Fit<ArrayBase<D, Ix2>, T, GmmError>
+    for GmmValidParams<F, R>
 {
     type Object = GaussianMixtureModel<F>;
 
@@ -505,9 +508,20 @@ mod tests {
     use ndarray_linalg::error::LinalgError;
     #[cfg(feature = "blas")]
     use ndarray_linalg::error::Result as LAResult;
-
+    use ndarray_rand::rand::prelude::ThreadRng;
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::{Distribution, StandardNormal};
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<GaussianMixtureModel<f64>>();
+        has_autotraits::<GmmError>();
+        has_autotraits::<GmmParams<f64, Xoshiro256Plus>>();
+        has_autotraits::<GmmValidParams<f64, Xoshiro256Plus>>();
+        has_autotraits::<GmmInitMethod>();
+        has_autotraits::<GmmCovarType>();
+    }
 
     pub struct MultivariateNormal {
         pub mean: Array1<f64>,
@@ -539,7 +553,7 @@ mod tests {
 
     #[test]
     fn test_gmm_fit() {
-        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let mut rng = Xoshiro256Plus::seed_from_u64(42);
         let weights = array![0.5, 0.5];
         let means = array![[0., 0.], [5., 5.]];
         let covars = array![[[1., 0.8], [0.8, 1.]], [[1.0, -0.6], [-0.6, 1.0]]];
@@ -597,7 +611,7 @@ mod tests {
 
     #[test]
     fn test_zeroed_reg_covar_failure() {
-        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let mut rng = Xoshiro256Plus::seed_from_u64(42);
         let xt = Array2::random_using((50, 1), Uniform::new(0., 1.0), &mut rng);
         let yt = function_test_1d(&xt);
         let data = concatenate(Axis(1), &[xt.view(), yt.view()]).unwrap();
@@ -659,7 +673,7 @@ mod tests {
 
     #[test]
     fn test_centroids_prediction() {
-        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let mut rng = Xoshiro256Plus::seed_from_u64(42);
         let expected_centroids = array![[0., 1.], [-10., 20.], [-1., 10.]];
         let n = 1000;
         let blobs = DatasetBase::from(generate::blobs(n, &expected_centroids, &mut rng));
@@ -734,5 +748,14 @@ mod tests {
                 .is_err(),
             "max_n_iterations must be stricly positive"
         );
+    }
+
+    fn fittable<T: Fit<Array2<f64>, (), GmmError>>(_: T) {}
+    #[test]
+    fn thread_rng_fittable() {
+        fittable(GaussianMixtureModel::params_with_rng(
+            1,
+            ThreadRng::default(),
+        ));
     }
 }

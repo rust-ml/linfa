@@ -35,7 +35,7 @@ ndarray-linalg = { version = "0.14", optional = true }
 ndarray-rand = "0.14"
 ndarray-stats = "0.5"
 num-traits = "0.2"
-rand_isaac = "0.3"
+rand_xoshiro = "0.6"
 space = "0.12"
 thiserror = "1.0"
 partitions = "0.2.4"

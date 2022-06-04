@@ -20,7 +20,7 @@ pub fn elem_dot<F: linfa::Float, A1: Data<Elem = F>, A2: Data<Elem = F>, D: Dime
         .fold(F::zero(), |acc, &a, &b| acc + a * b)
 }
 
-#[derive(Serialize, Clone, Deserialize, Debug, Default)]
+#[derive(Serialize, Clone, Deserialize, Debug, Default, PartialEq)]
 pub struct ArgminParam<F, D: Dimension>(pub Array<F, D>);
 
 impl<F, D: Dimension> ArgminParam<F, D> {

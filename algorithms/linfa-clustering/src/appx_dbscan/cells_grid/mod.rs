@@ -15,6 +15,7 @@ pub type CellVector<F> = PartitionVec<Cell<F>>;
 /// A structure that memorizes all non empty cells by their index's hash
 pub type CellTable = HashMap<Array1<i64>, usize>;
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct CellsGrid<F: Float> {
     table: CellTable,
     cells: CellVector<F>,

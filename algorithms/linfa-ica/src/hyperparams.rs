@@ -9,7 +9,7 @@ use serde_crate::{Deserialize, Serialize};
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FastIcaValidParams<F: Float> {
     ncomponents: Option<usize>,
     gfunc: GFunc,
@@ -40,7 +40,7 @@ impl<F: Float> FastIcaValidParams<F> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FastIcaParams<F: Float>(FastIcaValidParams<F>);
 
 impl<F: Float> Default for FastIcaParams<F> {

@@ -6,8 +6,10 @@ use crate::float::Float;
 
 /// A generalized logistic regression type that specializes as either binomial logistic regression
 /// or multinomial logistic regression.
+#[derive(Debug, Clone, PartialEq)]
 pub struct LogisticRegressionParams<F: Float, D: Dimension>(LogisticRegressionValidParams<F, D>);
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct LogisticRegressionValidParams<F: Float, D: Dimension> {
     pub(crate) alpha: F,
     pub(crate) fit_intercept: bool,

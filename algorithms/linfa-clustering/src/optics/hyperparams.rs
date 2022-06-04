@@ -47,6 +47,7 @@ impl<F: Float, D, N> OpticsValidParams<F, D, N> {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
 pub struct OpticsParams<F, D, N>(OpticsValidParams<F, D, N>);
 
 impl<F: Float, D, N> OpticsParams<F, D, N> {

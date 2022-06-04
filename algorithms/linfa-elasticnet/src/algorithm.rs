@@ -272,13 +272,23 @@ mod tests {
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::Uniform;
     use ndarray_rand::RandomExt;
-    use rand_isaac::Isaac64Rng;
+    use rand_xoshiro::Xoshiro256Plus;
 
+    use crate::{ElasticNetError, ElasticNetParams, ElasticNetValidParams};
     use linfa::{
         metrics::SingleTargetRegression,
         traits::{Fit, Predict},
         Dataset,
     };
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<ElasticNet<f64>>();
+        has_autotraits::<ElasticNetParams<f64>>();
+        has_autotraits::<ElasticNetValidParams<f64>>();
+        has_autotraits::<ElasticNetError>();
+    }
 
     fn elastic_net_objective(
         x: &Array2<f64>,
@@ -563,7 +573,7 @@ mod tests {
 
     #[test]
     fn select_subset() {
-        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let mut rng = Xoshiro256Plus::seed_from_u64(42);
 
         // check that we are selecting the subsect of informative features
         let mut w = Array::random_using(50, Uniform::new(1., 2.), &mut rng);

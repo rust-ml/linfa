@@ -23,6 +23,7 @@ use ndarray_linalg::{
     Scalar,
 };
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum WhiteningMethod {
     Pca,
     Zca,
@@ -32,6 +33,7 @@ pub enum WhiteningMethod {
 /// Struct that can be fitted to the input data to obtain the related whitening matrix.
 /// Fitting returns a [FittedWhitener](struct.FittedWhitener.html) struct that can be used to
 /// apply the whitening transformation to the input data.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Whitener {
     method: WhiteningMethod,
 }
@@ -160,6 +162,7 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets> Fit<ArrayBase<D, Ix2>, T, Prepro
 /// // transform dataset according to whitening parameters
 /// let dataset = whitener.transform(dataset);
 /// ```
+#[derive(Debug, Clone, PartialEq)]
 pub struct FittedWhitener<F: Float> {
     transformation_matrix: Array2<F>,
     mean: Array1<F>,
@@ -220,6 +223,14 @@ mod tests {
         #[cfg(not(feature = "blas"))]
         let inv = cov(x).invc_inplace().unwrap();
         inv
+    }
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<Whitener>();
+        has_autotraits::<WhiteningMethod>();
+        has_autotraits::<FittedWhitener<f64>>();
     }
 
     #[test]

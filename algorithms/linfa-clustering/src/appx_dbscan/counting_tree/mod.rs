@@ -4,14 +4,14 @@ use linfa_nn::distance::{Distance, L2Dist};
 use ndarray::{Array1, Array2, ArrayView1, Axis};
 use std::collections::HashMap;
 
-#[derive(PartialEq, Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum IntersectionType {
     FullyCovered,
     Disjoint,
     Intersecting,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 /// Tree structure that divides the space in nested cells to perform approximate range counting
 /// Each member of this structure is a node in the tree
 pub struct TreeStructure<F: Float> {

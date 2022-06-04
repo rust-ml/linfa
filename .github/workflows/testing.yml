@@ -4,14 +4,17 @@ name: Run Tests
 
 jobs:
   testing:
-    name: testing
-    runs-on: ubuntu-18.04
+    name: testing-${{ matrix.toolchain }}-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         toolchain:
           - 1.54.0
           - stable
+        os:
+          - ubuntu-18.04
+          - windows-2019
 
     steps:
       - name: Checkout sources
@@ -28,20 +31,20 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace
+          args: --workspace --exclude linfa-reduction #TODO remove exclusion once no-BLAS is fixed for linfa-reduction
 
   testing-blas:
-    name: testing with BLAS
-    runs-on: ubuntu-18.04
-    container:
-      image: rustmath/mkl-rust:1.43.0
-      options: --security-opt seccomp=unconfined
+    name: testing-with-BLAS-${{ matrix.toolchain }}-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         toolchain:
           - 1.54.0
           - stable
+        os:
+          - ubuntu-18.04
+          - windows-2019
 
     steps:
       - name: Checkout sources

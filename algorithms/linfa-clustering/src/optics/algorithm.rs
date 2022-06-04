@@ -12,7 +12,7 @@ use std::collections::BTreeSet;
 use std::ops::Index;
 use std::slice::SliceIndex;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -102,14 +102,14 @@ impl<F: Float> Ord for Sample<F> {
 /// access their core and reachability distances. The ordering of the points also doesn't match
 /// that of the dataset instead ordering based on the clustering structure worked out during
 /// analysis.
-#[derive(Clone, Debug)]
-pub struct OpticsAnalysis<F> {
+#[derive(Clone, Debug, PartialEq)]
+pub struct OpticsAnalysis<F: Float> {
     /// A list of the samples in the dataset sorted and with their reachability and core distances
     /// computed.
     orderings: Vec<Sample<F>>,
 }
 
-impl<F> OpticsAnalysis<F> {
+impl<F: Float> OpticsAnalysis<F> {
     /// Extracts a slice containing all samples in the dataset
     pub fn as_slice(&self) -> &[Sample<F>] {
         self.orderings.as_slice()
@@ -121,7 +121,7 @@ impl<F> OpticsAnalysis<F> {
     }
 }
 
-impl<I, F> Index<I> for OpticsAnalysis<F>
+impl<I, F: Float> Index<I> for OpticsAnalysis<F>
 where
     I: SliceIndex<[Sample<F>]>,
 {
@@ -316,9 +316,22 @@ impl<F: Float, D: Distance<F>, N: NearestNeighbour> OpticsValidParams<F, D, N> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::OpticsError;
     use linfa::ParamGuard;
+    use linfa_nn::KdTree;
     use ndarray::Array2;
     use std::collections::BTreeSet;
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<OpticsAnalysis<f64>>();
+        has_autotraits::<Optics>();
+        has_autotraits::<Sample<f64>>();
+        has_autotraits::<OpticsError>();
+        has_autotraits::<OpticsParams<f64, L2Dist, KdTree>>();
+        has_autotraits::<OpticsValidParams<f64, L2Dist, KdTree>>();
+    }
 
     #[test]
     fn optics_consistency() {
