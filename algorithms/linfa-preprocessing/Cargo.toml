@@ -20,7 +20,7 @@ blas = ["ndarray-linalg", "linfa/ndarray-linalg"]
 linfa = { version = "0.5.0", path = "../.." }
 ndarray = { version = "0.15", features = ["approx"] }
 ndarray-linalg = { version = "0.14", optional = true }
-ndarray-linalg-rs = { git = "https://github.com/rust-ml/ndarray-linalg-rs.git" }
+linfa-linalg = { git = "https://github.com/rust-ml/linfa-linalg.git" }
 ndarray-stats = "0.5"
 thiserror = "1.0"
 approx = { version = "0.4" }

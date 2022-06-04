@@ -22,11 +22,11 @@
 //! ```
 //!
 use crate::error::{ReductionError, Result};
+#[cfg(not(feature = "blas"))]
+use linfa_linalg::{lobpcg::TruncatedSvd, Order};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2};
 #[cfg(feature = "blas")]
 use ndarray_linalg::{TruncatedOrder, TruncatedSvd};
-#[cfg(not(feature = "blas"))]
-use ndarray_linalg_rs::{lobpcg::TruncatedSvd, Order};
 use rand::{prelude::SmallRng, SeedableRng};
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};

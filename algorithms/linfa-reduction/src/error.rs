@@ -15,7 +15,7 @@ pub enum ReductionError {
     #[error(transparent)]
     LinalgBlasError(#[from] ndarray_linalg::error::LinalgError),
     #[error(transparent)]
-    LinalgError(#[from] ndarray_linalg_rs::LinalgError),
+    LinalgError(#[from] linfa_linalg::LinalgError),
     #[error(transparent)]
     LinfaError(#[from] linfa::error::Error),
 }

@@ -5,11 +5,11 @@ use linfa::{
     traits::*,
     Float,
 };
+#[cfg(not(feature = "blas"))]
+use linfa_linalg::{eigh::*, svd::*};
 use ndarray::{Array, Array1, Array2, ArrayBase, Axis, Data, Ix2};
 #[cfg(feature = "blas")]
 use ndarray_linalg::{eigh::Eigh, solveh::UPLO, svd::SVD};
-#[cfg(not(feature = "blas"))]
-use ndarray_linalg_rs::{eigh::*, svd::*};
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
 use ndarray_stats::QuantileExt;
 use rand_isaac::Isaac64Rng;

@@ -1,10 +1,10 @@
 use approx::{abs_diff_eq, abs_diff_ne};
 use linfa::dataset::AsSingleTargets;
+#[cfg(not(feature = "blas"))]
+use linfa_linalg::qr::QRInto;
 use ndarray::{s, Array1, ArrayBase, ArrayView1, ArrayView2, Axis, CowArray, Data, Ix1, Ix2};
 #[cfg(feature = "blas")]
 use ndarray_linalg::InverseHInto;
-#[cfg(not(feature = "blas"))]
-use ndarray_linalg_rs::qr::QRInto;
 
 use linfa::dataset::{WithLapack, WithoutLapack};
 use linfa::traits::{Fit, PredictInplace};

@@ -10,17 +10,17 @@ use crate::error::{PreprocessingError, Result};
 use linfa::dataset::{AsTargets, Records, WithLapack, WithoutLapack};
 use linfa::traits::{Fit, Transformer};
 use linfa::{DatasetBase, Float};
+#[cfg(not(feature = "blas"))]
+use linfa_linalg::{
+    cholesky::{CholeskyInplace, InverseCInplace},
+    svd::SVD,
+};
 use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
 #[cfg(feature = "blas")]
 use ndarray_linalg::{
     cholesky::{CholeskyInto, InverseCInto, UPLO},
     svd::SVD,
     Scalar,
-};
-#[cfg(not(feature = "blas"))]
-use ndarray_linalg_rs::{
-    cholesky::{CholeskyInplace, InverseCInplace},
-    svd::SVD,
 };
 
 pub enum WhiteningMethod {

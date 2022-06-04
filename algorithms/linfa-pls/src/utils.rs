@@ -2,11 +2,11 @@ use linfa::{
     dataset::{WithLapack, WithoutLapack},
     DatasetBase, Float,
 };
+#[cfg(not(feature = "blas"))]
+use linfa_linalg::svd::*;
 use ndarray::{s, Array1, Array2, ArrayBase, ArrayView2, Axis, Data, DataMut, Ix1, Ix2, Zip};
 #[cfg(feature = "blas")]
 use ndarray_linalg::svd::*;
-#[cfg(not(feature = "blas"))]
-use ndarray_linalg_rs::svd::*;
 use ndarray_stats::QuantileExt;
 
 pub fn outer<F: Float>(

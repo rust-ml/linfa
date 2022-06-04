@@ -6,11 +6,11 @@ use crate::k_means::KMeans;
 #[cfg(feature = "blas")]
 use linfa::dataset::{WithLapack, WithoutLapack};
 use linfa::{prelude::*, DatasetBase, Float};
+#[cfg(not(feature = "blas"))]
+use linfa_linalg::{cholesky::*, triangular::*};
 use ndarray::{s, Array, Array1, Array2, Array3, ArrayBase, Axis, Data, Ix2, Ix3, Zip};
 #[cfg(feature = "blas")]
 use ndarray_linalg::{cholesky::*, triangular::*};
-#[cfg(not(feature = "blas"))]
-use ndarray_linalg_rs::{cholesky::*, triangular::*};
 use ndarray_rand::rand::Rng;
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::Uniform;
@@ -497,14 +497,14 @@ mod tests {
     use linfa_datasets::generate;
     use ndarray::{array, concatenate, ArrayView1, ArrayView2, Axis};
 
+    #[cfg(not(feature = "blas"))]
+    use linfa_linalg::LinalgError;
+    #[cfg(not(feature = "blas"))]
+    use linfa_linalg::Result as LAResult;
     #[cfg(feature = "blas")]
     use ndarray_linalg::error::LinalgError;
     #[cfg(feature = "blas")]
     use ndarray_linalg::error::Result as LAResult;
-    #[cfg(not(feature = "blas"))]
-    use ndarray_linalg_rs::LinalgError;
-    #[cfg(not(feature = "blas"))]
-    use ndarray_linalg_rs::Result as LAResult;
 
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::{Distribution, StandardNormal};

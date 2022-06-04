@@ -6,14 +6,14 @@
 //! diffusion graph with the (i, j) entry the probability that a diffusion happens from point i to
 //! j.
 //!
-use ndarray::{Array1, Array2};
-#[cfg(feature = "blas")]
-use ndarray_linalg::{eigh::EighInto, lobpcg, lobpcg::LobpcgResult, Scalar, TruncatedOrder, UPLO};
 #[cfg(not(feature = "blas"))]
-use ndarray_linalg_rs::{
+use linfa_linalg::{
     eigh::*,
     lobpcg::{self, LobpcgResult, Order as TruncatedOrder},
 };
+use ndarray::{Array1, Array2};
+#[cfg(feature = "blas")]
+use ndarray_linalg::{eigh::EighInto, lobpcg, lobpcg::LobpcgResult, Scalar, TruncatedOrder, UPLO};
 use ndarray_rand::{rand_distr::Uniform, RandomExt};
 
 use linfa::dataset::{WithLapack, WithoutLapack};

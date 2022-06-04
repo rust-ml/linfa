@@ -4,11 +4,11 @@ use crate::error::{LinearError, Result};
 #[cfg(feature = "blas")]
 use linfa::dataset::{WithLapack, WithoutLapack};
 use linfa::Float;
+#[cfg(not(feature = "blas"))]
+use linfa_linalg::qr::LeastSquaresQrInto;
 use ndarray::{concatenate, s, Array, Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2};
 #[cfg(feature = "blas")]
 use ndarray_linalg::LeastSquaresSvdInto;
-#[cfg(not(feature = "blas"))]
-use ndarray_linalg_rs::qr::LeastSquaresQrInto;
 use serde::{Deserialize, Serialize};
 
 use linfa::dataset::{AsSingleTargets, DatasetBase};

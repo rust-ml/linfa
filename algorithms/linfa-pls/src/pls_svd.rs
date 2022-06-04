@@ -2,11 +2,11 @@ use crate::errors::{PlsError, Result};
 use crate::{utils, Float};
 use linfa::dataset::{WithLapack, WithoutLapack};
 use linfa::{dataset::Records, traits::Fit, traits::Transformer, DatasetBase};
+#[cfg(not(feature = "blas"))]
+use linfa_linalg::svd::*;
 use ndarray::{s, Array1, Array2, ArrayBase, Data, Ix2};
 #[cfg(feature = "blas")]
 use ndarray_linalg::svd::*;
-#[cfg(not(feature = "blas"))]
-use ndarray_linalg_rs::svd::*;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 

@@ -9,11 +9,11 @@ use linfa::{
     traits::Transformer,
     Dataset, DatasetBase, Float,
 };
+#[cfg(not(feature = "blas"))]
+use linfa_linalg::svd::*;
 use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
 #[cfg(feature = "blas")]
 use ndarray_linalg::svd::*;
-#[cfg(not(feature = "blas"))]
-use ndarray_linalg_rs::svd::*;
 use ndarray_stats::QuantileExt;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};

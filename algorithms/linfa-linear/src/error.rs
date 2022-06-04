@@ -27,5 +27,5 @@ pub enum LinearError<F: Float> {
     #[cfg(feature = "blas")]
     LinalgBlasError(#[from] ndarray_linalg::error::LinalgError),
     #[error(transparent)]
-    LinalgError(#[from] ndarray_linalg_rs::LinalgError),
+    LinalgError(#[from] linfa_linalg::LinalgError),
 }

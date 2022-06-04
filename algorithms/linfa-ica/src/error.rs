@@ -23,7 +23,7 @@ pub enum FastIcaError {
     LinalgBlasError(#[from] ndarray_linalg::error::LinalgError),
     #[error("Linalg error: {0}")]
     /// Errors encountered during linear algebra operations
-    LinalgError(#[from] ndarray_linalg_rs::LinalgError),
+    LinalgError(#[from] linfa_linalg::LinalgError),
     #[error(transparent)]
     LinfaError(#[from] linfa::error::Error),
 }
