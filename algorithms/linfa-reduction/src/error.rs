@@ -11,7 +11,7 @@ pub enum ReductionError {
     EmbeddingTooSmall(usize),
     #[error("Number of steps zero in diffusion map operator")]
     StepsZero,
-    //#[cfg(feature = "blas")]
+    #[cfg(feature = "blas")]
     #[error(transparent)]
     LinalgBlasError(#[from] ndarray_linalg::error::LinalgError),
     #[error(transparent)]

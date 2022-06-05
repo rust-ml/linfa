@@ -6,13 +6,13 @@
 //! diffusion graph with the (i, j) entry the probability that a diffusion happens from point i to
 //! j.
 //!
-/*#[cfg(not(feature = "blas"))]
+#[cfg(not(feature = "blas"))]
 use linfa_linalg::{
     eigh::*,
     lobpcg::{self, LobpcgResult, Order as TruncatedOrder},
-};*/
+};
 use ndarray::{Array1, Array2};
-//#[cfg(feature = "blas")]
+#[cfg(feature = "blas")]
 use ndarray_linalg::{eigh::EighInto, lobpcg, lobpcg::LobpcgResult, Scalar, TruncatedOrder, UPLO};
 use ndarray_rand::{rand_distr::Uniform, RandomExt};
 
@@ -126,7 +126,7 @@ fn compute_diffusion_map<F: Float>(
 
         let matrix = matrix.with_lapack();
         // Calculate the eigen decomposition sorted from largest to lowest
-        //#[cfg(feature = "blas")]
+        #[cfg(feature = "blas")]
         let (vals, vecs) = {
             let (vals, vecs) = matrix.eigh_into(UPLO::Lower).unwrap();
             (
@@ -134,8 +134,8 @@ fn compute_diffusion_map<F: Float>(
                 vecs.slice_move(s![.., ..; -1]),
             )
         };
-        /*#[cfg(not(feature = "blas"))]
-        let (vals, vecs) = matrix.eigh_into().unwrap().sort_eig_desc();*/
+        #[cfg(not(feature = "blas"))]
+        let (vals, vecs) = matrix.eigh_into().unwrap().sort_eig_desc();
         (
             vals.slice_move(s![1..=embedding_size]),
             vecs.slice_move(s![.., 1..=embedding_size]),
@@ -173,18 +173,18 @@ fn compute_diffusion_map<F: Float>(
             x,
             |_| {},
             None,
-            1e-15,
+            1e-7,
             200,
             TruncatedOrder::Largest,
         );
 
         let (vals, vecs) = match result {
-            //#[cfg(feature = "blas")]
+            #[cfg(feature = "blas")]
             LobpcgResult::Ok(vals, vecs, _) | LobpcgResult::Err(vals, vecs, _, _) => (vals, vecs),
-            /*#[cfg(not(feature = "blas"))]
+            #[cfg(not(feature = "blas"))]
             LobpcgResult::Ok(lobpcg) | LobpcgResult::Err((_, Some(lobpcg))) => {
                 (lobpcg.eigvals, lobpcg.eigvecs)
-            }*/
+            }
             _ => panic!("Eigendecomposition failed!"),
         };
 

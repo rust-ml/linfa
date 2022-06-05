@@ -26,8 +26,6 @@ Each BLAS backend has two features available. The feature allows you to choose b
 
 An example set of Cargo flags for enabling the Intel MKL backend is `--features blas,linfa/intel-mkl-system`. Note that the backend features are defined on the `linfa` crate.
 
-**NOTE**: Due to current issues with the pure-Rust implementation, this crate will always use external BLAS backend even without the `blas` feature. **This means the BLAS backend feature must be enabled to use this crate.**
-
 ## Examples
 
 There is an usage example in the `examples/` directory. To run, use:
