@@ -22,4 +22,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: bench
-          args: iai --all --exclude linfa-reduction --exclude linfa-tsne
+          args: iai --all
