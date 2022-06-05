@@ -31,7 +31,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --exclude linfa-reduction #TODO remove exclusion once no-BLAS is fixed for linfa-reduction
+          args: --workspace
 
   testing-blas:
     name: testing-with-BLAS-${{ matrix.toolchain }}-${{ matrix.os }}
