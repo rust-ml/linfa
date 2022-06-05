@@ -61,4 +61,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --features intel-mkl-system,linfa-clustering/blas,linfa-ica/blas,linfa-reduction/blas,linfa-linear/blas,linfa-preprocessing/blas,linfa-pls/blas,linfa-elasticnet/blas
+          args: --workspace --features intel-mkl-static,linfa-clustering/blas,linfa-ica/blas,linfa-reduction/blas,linfa-linear/blas,linfa-preprocessing/blas,linfa-pls/blas,linfa-elasticnet/blas
