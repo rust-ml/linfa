@@ -440,104 +440,188 @@ mod tests {
         ()
     }
 
-    #[test]
-    fn best_example1_incr_pva() {
-        let dataset = Dataset::new(
-            array![[3.3f64], [3.3], [3.3], [6.], [7.5], [7.5]],
-            array![4., 5., 1., 6., 8., 7.0],
+    fn best_example1<R: IR>(reg: &IsotonicRegression<R>) {
+        let (X, y, regr, resp, yy, V, w) = (
+            array![[3.3f64], [3.3], [3.3], [6.], [7.5], [7.5]], // X
+            array![4., 5., 1., 6., 8., 7.0],                    // y
+            array![3.3, 6., 7.5],                               // regressor
+            array![10.0 / 3.0, 6., 7.5],                        // response
+            array![10. / 3., 10. / 3., 10. / 3., 6., 7.5, 7.5], // predict X
+            array![[2.0f64], [5.], [7.], [9.]],                 // newX
+            array![10. / 3., 5.01234567901234, 7., 7.5],        // predict newX
         );
 
-        let reg = IsotonicRegression::<PVA>::new();
+        let dataset = Dataset::new(X, y);
 
         let model = reg.fit(&dataset).unwrap();
-        assert_abs_diff_eq!(model.regressor, &array![3.3, 6., 7.5], epsilon = 1e-12);
-        assert_abs_diff_eq!(
-            model.response,
-            &array![10.0 / 3.0, 6., 7.5],
-            epsilon = 1e-12
-        );
+        assert_abs_diff_eq!(model.regressor, &regr, epsilon = 1e-12);
+        assert_abs_diff_eq!(model.response, &resp, epsilon = 1e-12);
 
         let result = model.predict(dataset.records());
-        assert_abs_diff_eq!(
-            result,
-            &array![10. / 3., 10. / 3., 10. / 3., 6., 7.5, 7.5],
-            epsilon = 1e-12
+        assert_abs_diff_eq!(result, &yy, epsilon = 1e-12);
+
+        let result = model.predict(&V);
+        assert_abs_diff_eq!(result, &w, epsilon = 1e-12);
+    }
+
+    fn best_example1_decr<R: IR>(reg: &IsotonicRegression<R>) {
+        let (X, y, regr, resp, yy, V, w) = (
+            array![[7.5], [7.5], [6.], [3.3], [3.3], [3.3]], // X
+            array![4., 5., 1., 6., 8., 7.0],                 // y
+            array![3.3, 6., 7.5],                            // regressor
+            array![10.0 / 3.0, 6., 7.5],                     // response
+            array![10. / 3., 10. / 3., 10. / 3., 6., 7.5, 7.5], // predict X
+            array![[2.0f64], [5.], [7.], [9.]],              // newX
+            array![10. / 3., 5.01234567901234, 7., 7.5],     // predict newX
         );
 
-        let xs = array![[2.0f64], [5.], [7.0], [9.0]];
-        let result = model.predict(&xs);
-        assert_abs_diff_eq!(
-            result,
-            &array![10. / 3., 5.01234567901234, 7., 7.5],
-            epsilon = 1e-12
+        let dataset = Dataset::new(X, y);
+
+        let model = reg.fit(&dataset).unwrap();
+        assert_abs_diff_eq!(model.regressor, &regr, epsilon = 1e-12);
+        assert_abs_diff_eq!(model.response, &resp, epsilon = 1e-12);
+
+        let result = model.predict(dataset.records());
+        assert_abs_diff_eq!(result, &yy, epsilon = 1e-12);
+
+        let result = model.predict(&V);
+        assert_abs_diff_eq!(result, &w, epsilon = 1e-12);
+    }
+
+    fn example2_incr<R: IR>(reg: &IsotonicRegression<R>) {
+        let is_pva = std::any::type_name::<R>().ends_with("PVA");
+        let (X, y, regr, resp, yy) = (
+            array![[1.0f64], [2.], [3.], [4.], [5.], [6.], [7.], [8.], [9.]],
+            array![1., 2., 6., 2., 1., 2., 8., 2., 1.0],
+            if is_pva {
+                array![1., 2., 6., 9.]
+            } else {
+                array![6., 9.]
+            },
+            if is_pva {
+                array![1., 2., 2.75, 11. / 3.]
+            } else {
+                array![7. / 3., 11. / 3.]
+            },
+            if is_pva {
+                array![
+                    1.,
+                    2.,
+                    2.1875,
+                    2.375,
+                    2.5625,
+                    2.75,
+                    55. / 18.,
+                    121. / 36.,
+                    11. / 3.
+                ]
+            } else {
+                let v1 = 7. / 3.;
+                array![v1, v1, v1, v1, v1, v1, 25. / 9., 29. / 9., 11. / 3.]
+            },
         );
+
+        let dataset = Dataset::new(X, y);
+
+        let model = reg.fit(&dataset).unwrap();
+        assert_abs_diff_eq!(model.regressor, &regr, epsilon = 1e-12);
+        assert_abs_diff_eq!(model.response, &resp, epsilon = 1e-12);
+
+        let result = model.predict(dataset.records());
+        assert_abs_diff_eq!(result, &yy, epsilon = 1e-12);
+    }
+
+    fn example2_decr<R: IR>(reg: &IsotonicRegression<R>) {
+        let is_pva = std::any::type_name::<R>().ends_with("PVA");
+        let (X, y, regr, resp, yy) = (
+            array![[1.0f64], [2.], [3.], [4.], [5.], [6.], [7.], [8.], [9.]],
+            array![1., 2., 6., 2., 1., 2., 8., 2., 1.0],
+            if is_pva {
+                array![1., 2., 6., 9.]
+            } else {
+                array![6., 9.]
+            },
+            if is_pva {
+                array![1., 2., 2.75, 11. / 3.]
+            } else {
+                array![7. / 3., 11. / 3.]
+            },
+            if is_pva {
+                array![
+                    1.,
+                    2.,
+                    2.1875,
+                    2.375,
+                    2.5625,
+                    2.75,
+                    55. / 18.,
+                    121. / 36.,
+                    11. / 3.
+                ]
+            } else {
+                let v1 = 7. / 3.;
+                array![v1, v1, v1, v1, v1, v1, 25. / 9., 29. / 9., 11. / 3.]
+            },
+        );
+
+        let dataset = Dataset::new(X, y);
+
+        let model = reg.fit(&dataset).unwrap();
+        assert_abs_diff_eq!(model.regressor, &regr, epsilon = 1e-12);
+        assert_abs_diff_eq!(model.response, &resp, epsilon = 1e-12);
+
+        let result = model.predict(dataset.records());
+        assert_abs_diff_eq!(result, &yy, epsilon = 1e-12);
+    }
+
+    #[test]
+    fn best_example1_incr_pva() {
+        let reg = IsotonicRegression::<PVA>::new();
+        best_example1(&reg);
     }
 
     #[test]
     fn best_example1_incr_algoa() {
         let reg = IsotonicRegression::<AlgorithmA>::new();
-        let dataset = Dataset::new(
-            array![[3.3f64], [3.3], [3.3], [6.], [7.5], [7.5]],
-            array![4., 5., 1., 6., 8., 7.0],
-        );
-        let model = reg.fit(&dataset).unwrap();
-        assert_abs_diff_eq!(model.regressor, &array![3.3, 6., 7.5], epsilon = 1e-12);
-        assert_abs_diff_eq!(
-            model.response,
-            &array![10.0 / 3.0, 6., 7.5],
-            epsilon = 1e-12
-        );
-
-        let result = model.predict(dataset.records());
-        assert_abs_diff_eq!(
-            result,
-            &array![10. / 3., 10. / 3., 10. / 3., 6., 7.5, 7.5],
-            epsilon = 1e-12
-        );
-
-        let xs = array![[2.0f64], [5.], [7.0], [9.0]];
-        let result = model.predict(&xs);
-        assert_abs_diff_eq!(
-            result,
-            &array![10. / 3., 5.01234567901234, 7., 7.5],
-            epsilon = 1e-12
-        );
+        best_example1(&reg);
     }
 
     #[test]
-    fn example2_incr() {
-        let reg = IsotonicRegression::default();
-        let dataset = Dataset::new(
-            array![[1.0f64], [2.], [3.], [4.], [5.], [6.], [7.], [8.], [9.]],
-            array![1., 2., 6., 2., 1., 2., 8., 2., 1.0],
-        );
-        //let dataset = Dataset::new(
-        //    array![[1.0f64], [2.], [3.], [2.], [1.], [2.], [3.], [2.], [1.]],
-        //    array![1., 3., 2., 4., 5., 1., 6., 8., 7.0],
-        //);
-        let model = reg.fit(&dataset).unwrap();
-        assert_abs_diff_eq!(model.regressor, &array![1., 2., 6., 9.], epsilon = 1e-12);
-        assert_abs_diff_eq!(
-            model.response,
-            &array![1., 2., 2.75, 11. / 3.],
-            epsilon = 1e-12
-        );
+    fn best_example1_decr_pva() {
+        let reg = IsotonicRegression::<PVA>::new();
+        best_example1_decr(&reg);
+    }
 
-        let result = model.predict(dataset.records());
-        assert_abs_diff_eq!(
-            result,
-            &array![
-                1.,
-                2.,
-                2.1875,
-                2.375,
-                2.5625,
-                2.75,
-                55. / 18.,
-                121. / 36.,
-                11. / 3.
-            ],
-            epsilon = 1e-12
-        );
+    #[test]
+    #[ignore]
+    fn best_example1_decr_algoa() {
+        let reg = IsotonicRegression::<AlgorithmA>::new();
+        best_example1_decr(&reg);
+    }
+
+    #[test]
+    fn example2_incr_pva() {
+        let reg = IsotonicRegression::default();
+        example2_incr(&reg);
+    }
+
+    #[test]
+    fn example2_incr_algoa() {
+        let reg = IsotonicRegression::<AlgorithmA>::new();
+        example2_incr(&reg);
+    }
+
+    #[test]
+    #[ignore]
+    fn example2_decr_pva() {
+        let reg = IsotonicRegression::default();
+        example2_decr(&reg);
+    }
+
+    #[test]
+    #[ignore]
+    fn example2_decr_algoa() {
+        let reg = IsotonicRegression::<AlgorithmA>::new();
+        example2_decr(&reg);
     }
 }
