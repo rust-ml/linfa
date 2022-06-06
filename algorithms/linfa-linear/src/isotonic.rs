@@ -60,7 +60,6 @@ impl IR for AlgorithmA {
             AvU[ii] = (ys[ui] * w + AvU[ii + 1] * wsum) / (wsum + w);
             wsum += w;
         }
-        //println!("y:{:?}\nAvU:{:?}", y, AvU);
 
         let mut V = Vec::<F>::new();
         let mut W = Vec::<F>::new();
@@ -70,8 +69,6 @@ impl IR for AlgorithmA {
         let mut j = 1; // Uj
         while i + j < n {
             let AvB0 = AvU[i];
-            //println!("AvB0: {AvB0}, i:{i}, j:{j}, AvUj:{}", AvU[i + j]);
-            //println!("i:{i} j:{j}, V:{:?} W:{:?}, J:{:?}", V, W, J_index);
             if AvU[i + j] <= AvB0 {
                 // Step 1
                 j += 1;
@@ -85,7 +82,6 @@ impl IR for AlgorithmA {
 
                 // Step 2.1
                 let (mut AvB_minus, mut B_minus_w) = waverage(&ys, weights, i, J_index[i], &index);
-
                 let mut P_B_minus_index = i;
                 let AvP_B_minus = *V.last().unwrap_or(&F::neg_infinity());
                 while V.len() > 0 && AvB_minus < AvP_B_minus {
@@ -93,9 +89,6 @@ impl IR for AlgorithmA {
                         P_B_minus_index -= 1;
                         let AvP_B_minus = V.pop().unwrap();
                         let P_B_minus_w = W.pop().unwrap();
-                        //println!(
-                        //        "AvB-:{AvB_minus}*{B_minus_w}, AvP(B-):{AvP_B_minus}*{P_B_minus_w}, P(B-)[{P_B_minus_index}]"
-                        //    );
 
                         // New Av(B-)
                         AvB_minus = (AvB_minus * B_minus_w + AvP_B_minus * P_B_minus_w)
@@ -106,10 +99,6 @@ impl IR for AlgorithmA {
                         let P_B_minus_start = J_index[P_B_minus_index];
                         J_index[P_B_minus_start] = B_minus_index;
                         J_index[B_minus_index] = P_B_minus_index;
-                        //println!(
-                        //    "P(B-)[{P_B_minus_index}], V:{:?} W:{:?}, J:{:?}",
-                        //    V, W, J_index
-                        //);
                     }
                 }
 
@@ -117,10 +106,8 @@ impl IR for AlgorithmA {
                 W.push(B_minus_w);
                 i = B_minus_index + 1;
                 j = 1;
-                //println!("i:{i} j:{j}, V:{:?} W:{:?}, J:{:?}", V, W, J_index);
             }
         }
-        //println!("AA] i:{i}, j:{j} {:?}", J_index);
 
         // Last block average
         let (AvB_minus, _) = waverage(&ys, weights, i, J_index[i], &index);
@@ -149,9 +136,6 @@ impl IR for PVA {
         let mut J_index: Vec<usize> = (0..n).collect();
         let mut i = 0;
         let (mut AvB_zero, mut W_B_zero) = waverage(&ys, weights, i, i, &index);
-        //println!("Y:{:?}", ys);
-        //println!("I:{:?}", index);
-        //println!("y:{:?}", ys.select(Axis(0), &index));
         while i < n {
             // Step 1
             let j = J_index[i];
@@ -161,17 +145,12 @@ impl IR for PVA {
             }
             let l = J_index[k];
             let (AvB_plus, W_B_plus) = waverage(&ys, weights, k, l, &index);
-            //println!("i:{i} j:{j}, k:{k}, l:{l}, Av(B₀):{AvB_zero}[{W_B_zero}], Av(B₊):{AvB_plus}[{W_B_plus}]");
             if AvB_zero <= AvB_plus {
                 V.push(AvB_zero);
                 W.push(W_B_zero);
                 AvB_zero = AvB_plus;
                 W_B_zero = W_B_plus;
                 i = k;
-                //println!(
-                //    "i:{i} Av(B₀):{AvB_zero}[{W_B_zero}], Av(B₊):{AvB_plus}[{W_B_plus}], {:?}",
-                //    J_index
-                //);
             } else {
                 // Step 2
                 J_index[i] = l;
@@ -179,10 +158,10 @@ impl IR for PVA {
                 AvB_zero = AvB_zero * W_B_zero + AvB_plus * W_B_plus;
                 W_B_zero += W_B_plus;
                 AvB_zero /= W_B_zero;
-                //println!("i:{i} j:{j}, k:{k}, l:{l}, Av(B₀):{AvB_zero}[{W_B_zero}], {:?}", J_index);
+
                 // Step 2.1
                 let mut AvB_minus = *V.last().unwrap_or(&F::neg_infinity());
-                while V.len() > 0 && AvB_zero <= AvB_minus {
+                while V.len() > 0 && AvB_zero < AvB_minus {
                     AvB_minus = V.pop().unwrap();
                     let W_B_minus = W.pop().unwrap();
                     i = J_index[J_index[l] - 1];
@@ -191,10 +170,8 @@ impl IR for PVA {
                     AvB_zero = AvB_zero * W_B_zero + AvB_minus * W_B_minus;
                     W_B_zero += W_B_minus;
                     AvB_zero /= W_B_zero;
-                    //println!("i:{i} j:{j}, Av(B₀):{AvB_zero}[{W_B_zero}], Av(B₋):{AvB_minus}[{W_B_minus}], {:?}", J_index);
                 }
             }
-            //println!("i:{i} V:{:?} W:{:?}, J:{:?}", V, W, J_index);
         }
 
         // Last block average
@@ -465,14 +442,23 @@ mod tests {
     }
 
     fn best_example1_decr<R: IR>(reg: &IsotonicRegression<R>) {
+        let is_pva = std::any::type_name::<R>().ends_with("PVA");
         let (X, y, regr, resp, yy, V, w) = (
             array![[7.5], [7.5], [6.], [3.3], [3.3], [3.3]], // X
             array![4., 5., 1., 6., 8., 7.0],                 // y
-            array![3.3, 6., 7.5],                            // regressor
-            array![10.0 / 3.0, 6., 7.5],                     // response
-            array![10. / 3., 10. / 3., 10. / 3., 6., 7.5, 7.5], // predict X
-            array![[2.0f64], [5.], [7.], [9.]],              // newX
-            array![10. / 3., 5.01234567901234, 7., 7.5],     // predict newX
+            if is_pva {
+                array![7.5, 3.3, 3.3]
+            } else {
+                array![7.5, 3.3]
+            },
+            if is_pva {
+                array![10.0 / 3.0, 7., 7.]
+            } else {
+                array![10.0 / 3.0, 7.]
+            },
+            array![7., 7., 7., 7., 7., 7.],     // predict X
+            array![[2.], [3.], [3.3], [7.]],    // newX
+            array![10. / 3., 10. / 3., 7., 7.], // predict newX
         );
 
         let dataset = Dataset::new(X, y);
@@ -533,34 +519,24 @@ mod tests {
 
     fn example2_decr<R: IR>(reg: &IsotonicRegression<R>) {
         let is_pva = std::any::type_name::<R>().ends_with("PVA");
+        let (v1, v2) = (11. / 3., 7. / 3.);
         let (X, y, regr, resp, yy) = (
-            array![[1.0f64], [2.], [3.], [4.], [5.], [6.], [7.], [8.], [9.]],
+            array![[9.0], [8.], [7.], [6.], [5.], [4.], [3.], [2.], [1.]],
             array![1., 2., 6., 2., 1., 2., 8., 2., 1.0],
             if is_pva {
-                array![1., 2., 6., 9.]
+                array![9., 8., 7., 3.]
             } else {
-                array![6., 9.]
+                array![9., 3.]
             },
             if is_pva {
-                array![1., 2., 2.75, 11. / 3.]
+                array![1., 2., 2.75, v1]
             } else {
-                array![7. / 3., 11. / 3.]
+                array![v2, v1]
             },
             if is_pva {
-                array![
-                    1.,
-                    2.,
-                    2.1875,
-                    2.375,
-                    2.5625,
-                    2.75,
-                    55. / 18.,
-                    121. / 36.,
-                    11. / 3.
-                ]
+                array![v1, v1, v1, v1, v1, v1, v1, 1., 1.]
             } else {
-                let v1 = 7. / 3.;
-                array![v1, v1, v1, v1, v1, v1, 25. / 9., 29. / 9., 11. / 3.]
+                array![v1, v1, v1, v1, v1, v1, v1, v2, v2]
             },
         );
 
@@ -593,7 +569,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn best_example1_decr_algoa() {
         let reg = IsotonicRegression::<AlgorithmA>::new();
         best_example1_decr(&reg);
@@ -612,14 +587,12 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn example2_decr_pva() {
         let reg = IsotonicRegression::default();
         example2_decr(&reg);
     }
 
     #[test]
-    #[ignore]
     fn example2_decr_algoa() {
         let reg = IsotonicRegression::<AlgorithmA>::new();
         example2_decr(&reg);
