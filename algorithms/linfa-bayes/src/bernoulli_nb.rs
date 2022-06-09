@@ -8,6 +8,7 @@ use std::hash::Hash;
 use crate::base_nb::{filter, NaiveBayes, NaiveBayesValidParams};
 use crate::error::{NaiveBayesError, Result};
 use crate::hyperparams::{BernoulliNbParams, BernoulliNbValidParams};
+use crate::multinomial_nb::MultinomialClassInfo;
 
 impl<'a, F, L, D, T> NaiveBayesValidParams<'a, F, L, D, T> for BernoulliNbValidParams<F, L>
 where
@@ -77,7 +78,7 @@ where
             let mut class_info = model
                 .class_info
                 .entry(class)
-                .or_insert_with(BernoulliClassInfo::default);
+                .or_insert_with(MultinomialClassInfo::default);
             let (feature_log_prob, feature_count) =
                 self.update_feature_log_prob(class_info, xclass.view());
             // We now update the total counts of each feature, feature
@@ -123,7 +124,7 @@ where
     // Update log probabilities of features given class
     fn update_feature_log_prob(
         &self,
-        info_old: &BernoulliClassInfo<F>,
+        info_old: &MultinomialClassInfo<F>,
         x_new: ArrayView2<F>,
     ) -> (Array1<F>, Array1<F>) {
         // Deconstruct old state
@@ -207,16 +208,8 @@ where
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct BernoulliNb<F: PartialEq, L: Eq + Hash> {
-    class_info: HashMap<L, BernoulliClassInfo<F>>,
+    class_info: HashMap<L, MultinomialClassInfo<F>>,
     binarize: Option<F>,
-}
-
-#[derive(Debug, Default, Clone, PartialEq)]
-struct BernoulliClassInfo<F> {
-    class_count: usize,
-    prior: F,
-    feature_count: Array1<F>,
-    feature_log_prob: Array1<F>,
 }
 
 impl<F: Float, L: Label> BernoulliNb<F, L> {
@@ -269,7 +262,6 @@ mod tests {
         DatasetView,
     };
 
-    use crate::bernoulli_nb::BernoulliClassInfo;
     use crate::{BernoulliNbParams, BernoulliNbValidParams};
     use approx::assert_abs_diff_eq;
     use ndarray::array;
@@ -279,7 +271,6 @@ mod tests {
     fn autotraits() {
         fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
         has_autotraits::<BernoulliNb<f64, usize>>();
-        has_autotraits::<BernoulliClassInfo<f64>>();
         has_autotraits::<BernoulliNbValidParams<f64, usize>>();
         has_autotraits::<BernoulliNbParams<f64, usize>>();
     }

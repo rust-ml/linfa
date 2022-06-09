@@ -202,11 +202,11 @@ pub struct MultinomialNb<F: PartialEq, L: Eq + Hash> {
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
-struct MultinomialClassInfo<F> {
-    class_count: usize,
-    prior: F,
-    feature_count: Array1<F>,
-    feature_log_prob: Array1<F>,
+pub struct MultinomialClassInfo<F> {
+    pub class_count: usize,
+    pub prior: F,
+    pub feature_count: Array1<F>,
+    pub feature_log_prob: Array1<F>,
 }
 
 impl<F: Float, L: Label> MultinomialNb<F, L> {
