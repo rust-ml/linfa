@@ -1,15 +1,16 @@
 use linfa::dataset::{AsSingleTargets, DatasetBase, Labels};
 use linfa::traits::{Fit, FitWith, PredictInplace};
 use linfa::{Float, Label};
-use ndarray::{Array1, ArrayBase, ArrayView2, Axis, Data, Ix2};
+use ndarray::{Array1, ArrayBase, ArrayView2, Axis, Data, Ix2, OwnedRepr};
 use std::collections::HashMap;
 use std::hash::Hash;
 
 use crate::base_nb::{filter, NaiveBayes, NaiveBayesValidParams};
 use crate::error::{NaiveBayesError, Result};
-use crate::hyperparams::{MultinomialNbParams, MultinomialNbValidParams};
+use crate::hyperparams::{BernoulliNbParams, BernoulliNbValidParams};
+use crate::multinomial_nb::MultinomialClassInfo;
 
-impl<'a, F, L, D, T> NaiveBayesValidParams<'a, F, L, D, T> for MultinomialNbValidParams<F, L>
+impl<'a, F, L, D, T> NaiveBayesValidParams<'a, F, L, D, T> for BernoulliNbValidParams<F, L>
 where
     F: Float,
     L: Label + 'a,
@@ -18,14 +19,14 @@ where
 {
 }
 
-impl<F, L, D, T> Fit<ArrayBase<D, Ix2>, T, NaiveBayesError> for MultinomialNbValidParams<F, L>
+impl<F, L, D, T> Fit<ArrayBase<D, Ix2>, T, NaiveBayesError> for BernoulliNbValidParams<F, L>
 where
     F: Float,
     L: Label + Ord,
     D: Data<Elem = F>,
     T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
 {
-    type Object = MultinomialNb<F, L>;
+    type Object = BernoulliNb<F, L>;
     // Thin wrapper around the corresponding method of NaiveBayesValidParams
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
         let model = NaiveBayesValidParams::fit(self, dataset, None)?;
@@ -34,15 +35,15 @@ where
 }
 
 impl<'a, F, L, D, T> FitWith<'a, ArrayBase<D, Ix2>, T, NaiveBayesError>
-    for MultinomialNbValidParams<F, L>
+    for BernoulliNbValidParams<F, L>
 where
     F: Float,
     L: Label + 'a,
     D: Data<Elem = F>,
     T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
 {
-    type ObjectIn = Option<MultinomialNb<F, L>>;
-    type ObjectOut = Option<MultinomialNb<F, L>>;
+    type ObjectIn = Option<BernoulliNb<F, L>>;
+    type ObjectOut = Option<BernoulliNb<F, L>>;
 
     fn fit_with(
         &self,
@@ -54,33 +55,40 @@ where
 
         let mut model = match model_in {
             Some(temp) => temp,
-            None => MultinomialNb {
+            None => BernoulliNb {
                 class_info: HashMap::new(),
+                binarize: self.binarize().to_owned(),
             },
         };
 
-        let yunique = dataset.labels();
+        // Binarize data if the threshold is set
+        let xbin = model.binarize(&x);
 
+        // Calculate feature log probabilities
+        let yunique = dataset.labels();
         for class in yunique {
             // We filter for records that correspond to the current class
-            let xclass = filter(x.view(), y.view(), &class);
-            // We count the number of occurences of the class
+            let xclass = filter(xbin.view(), y.view(), &class);
+
+            // We count the number of occurrences of the class
             let nclass = xclass.nrows();
 
-            // We compute the feature log probabilities and feature counts on the slice corresponding to the current class
+            // We compute the feature log probabilities and feature counts on
+            // the slice corresponding to the current class
             let mut class_info = model
                 .class_info
                 .entry(class)
                 .or_insert_with(MultinomialClassInfo::default);
             let (feature_log_prob, feature_count) =
                 self.update_feature_log_prob(class_info, xclass.view());
-            // We now update the total counts of each feature, feature log probabilities, and class count
+            // We now update the total counts of each feature, feature
+            // log probabilities, and class count
             class_info.feature_log_prob = feature_log_prob;
             class_info.feature_count = feature_count;
             class_info.class_count += nclass;
         }
 
-        // We update the priors
+        // Update the priors
         let class_count_sum = model
             .class_info
             .values()
@@ -93,13 +101,15 @@ where
     }
 }
 
-impl<F: Float, L: Label, D> PredictInplace<ArrayBase<D, Ix2>, Array1<L>> for MultinomialNb<F, L>
+impl<F: Float, L: Label, D> PredictInplace<ArrayBase<D, Ix2>, Array1<L>> for BernoulliNb<F, L>
 where
     D: Data<Elem = F>,
 {
     // Thin wrapper around the corresponding method of NaiveBayes
     fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<L>) {
-        NaiveBayes::predict_inplace(self, x, y);
+        // Binarize data if the threshold is set
+        let xbin = self.binarize(&x);
+        NaiveBayes::predict_inplace(self, &xbin, y);
     }
 
     fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<L> {
@@ -107,7 +117,7 @@ where
     }
 }
 
-impl<'a, F, L> MultinomialNbValidParams<F, L>
+impl<'a, F, L> BernoulliNbValidParams<F, L>
 where
     F: Float,
 {
@@ -142,17 +152,17 @@ where
         };
         // Apply smoothing to feature counts
         let feature_count_smoothed = feature_count.clone() + self.alpha();
-        // Compute total count over all (smoothed) features
-        let count = feature_count_smoothed.sum();
+        // Compute total count (smoothed)
+        let count = F::cast(x_new.nrows()) + self.alpha() * F::cast(2);
         // Compute log probabilities of each feature
         let feature_log_prob = feature_count_smoothed.mapv(|x| x.ln() - F::cast(count).ln());
         (feature_log_prob.to_owned(), feature_count.to_owned())
     }
 }
 
-/// Fitted Multinomial Naive Bayes classifier.
+/// Fitted Bernoulli Naive Bayes classifier.
 ///
-/// See [MultinomialNbParams] for more information on the hyper-parameters.
+/// See [BernoulliNbParams] for more information on the hyper-parameters.
 ///
 /// # Model assumptions
 ///
@@ -162,11 +172,11 @@ where
 ///
 /// # Model usage example
 ///
-/// The example below creates a set of hyperparameters, and then uses it to fit a Multinomial Naive
-/// Bayes classifier on provided data.
+/// The example below creates a set of hyperparameters, and then uses it to fit
+/// a Bernoulli Naive Bayes classifier on provided data.
 ///
 /// ```rust
-/// use linfa_bayes::{MultinomialNbParams, MultinomialNbValidParams, Result};
+/// use linfa_bayes::{BernoulliNbParams, BernoulliNbValidParams, Result};
 /// use linfa::prelude::*;
 /// use ndarray::array;
 ///
@@ -182,7 +192,7 @@ where
 /// let ds = DatasetView::new(x.view(), y.view());
 ///
 /// // create a new parameter set with smoothing parameter equals `1`
-/// let unchecked_params = MultinomialNbParams::new()
+/// let unchecked_params = BernoulliNbParams::new()
 ///     .alpha(1.0);
 ///
 /// // fit model with unchecked parameter set
@@ -197,26 +207,33 @@ where
 /// # Result::Ok(())
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct MultinomialNb<F: PartialEq, L: Eq + Hash> {
+pub struct BernoulliNb<F: PartialEq, L: Eq + Hash> {
     class_info: HashMap<L, MultinomialClassInfo<F>>,
+    binarize: Option<F>,
 }
 
-#[derive(Debug, Default, Clone, PartialEq)]
-pub struct MultinomialClassInfo<F> {
-    pub class_count: usize,
-    pub prior: F,
-    pub feature_count: Array1<F>,
-    pub feature_log_prob: Array1<F>,
-}
-
-impl<F: Float, L: Label> MultinomialNb<F, L> {
+impl<F: Float, L: Label> BernoulliNb<F, L> {
     /// Construct a new set of hyperparameters
-    pub fn params() -> MultinomialNbParams<F, L> {
-        MultinomialNbParams::new()
+    pub fn params() -> BernoulliNbParams<F, L> {
+        BernoulliNbParams::new()
+    }
+
+    // Binarize data if the threshold is set
+    fn binarize<'a, D>(&'a self, x: &'a ArrayBase<D, Ix2>) -> ArrayBase<OwnedRepr<F>, Ix2>
+    where
+        D: Data<Elem = F>,
+    {
+        let thr = self.binarize.unwrap_or(F::zero());
+        let xbin = x.map(|v| if v > &thr { F::one() } else { F::zero() });
+        return if self.binarize.is_some() {
+            xbin.to_owned()
+        } else {
+            x.to_owned()
+        };
     }
 }
 
-impl<'a, F, L> NaiveBayes<'a, F, L> for MultinomialNb<F, L>
+impl<'a, F, L> NaiveBayes<'a, F, L> for BernoulliNb<F, L>
 where
     F: Float,
     L: Label + Ord,
@@ -225,10 +242,12 @@ where
     fn joint_log_likelihood(&self, x: ArrayView2<F>) -> HashMap<&L, Array1<F>> {
         let mut joint_log_likelihood = HashMap::new();
         for (class, info) in self.class_info.iter() {
-            // Combine feature log probabilities and class priors to get log-likelihood for each class
-            let jointi = info.prior.ln();
-            let nij = x.dot(&info.feature_log_prob);
-            joint_log_likelihood.insert(class, nij + jointi);
+            // Combine feature log probabilities, their negatives, and class priors to
+            // get log-likelihood for each class
+            let neg_prob = info.feature_log_prob.map(|lp| (F::one() - lp.exp()).ln());
+            let feature_log_prob = &info.feature_log_prob - &neg_prob;
+            let jll = x.dot(&feature_log_prob);
+            joint_log_likelihood.insert(class, jll + info.prior.ln() + neg_prob.sum());
         }
 
         joint_log_likelihood
@@ -237,63 +256,48 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{MultinomialNb, NaiveBayes, Result};
+    use super::{BernoulliNb, NaiveBayes, Result};
     use linfa::{
-        traits::{Fit, FitWith, Predict},
+        traits::{Fit, Predict},
         DatasetView,
     };
 
-    use crate::multinomial_nb::MultinomialClassInfo;
-    use crate::{MultinomialNbParams, MultinomialNbValidParams};
+    use crate::{BernoulliNbParams, BernoulliNbValidParams};
     use approx::assert_abs_diff_eq;
-    use ndarray::{array, Axis};
+    use ndarray::array;
     use std::collections::HashMap;
 
     #[test]
     fn autotraits() {
         fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
-        has_autotraits::<MultinomialNb<f64, usize>>();
-        has_autotraits::<MultinomialClassInfo<f64>>();
-        has_autotraits::<MultinomialNbValidParams<f64, usize>>();
-        has_autotraits::<MultinomialNbParams<f64, usize>>();
+        has_autotraits::<BernoulliNb<f64, usize>>();
+        has_autotraits::<BernoulliNbValidParams<f64, usize>>();
+        has_autotraits::<BernoulliNbParams<f64, usize>>();
     }
 
     #[test]
-    fn test_multinomial_nb() -> Result<()> {
-        let x = array![[1., 0.], [2., 0.], [3., 0.], [0., 1.], [0., 2.], [0., 3.]];
-        let y = array![1, 1, 1, 2, 2, 2];
-
+    fn test_bernoulli_nb() -> Result<()> {
+        let x = array![[1., 0.], [0., 0.], [1., 1.], [0., 1.]];
+        let y = array![1, 1, 2, 2];
         let data = DatasetView::new(x.view(), y.view());
-        let fitted_clf = MultinomialNb::params().fit(&data)?;
-        let pred = fitted_clf.predict(&x);
 
+        let params = BernoulliNb::params().binarize(None);
+        let fitted_clf = params.fit(&data)?;
+        assert!(&fitted_clf.binarize.is_none());
+
+        let pred = fitted_clf.predict(&x);
         assert_abs_diff_eq!(pred, y);
 
         let jll = fitted_clf.joint_log_likelihood(x.view());
         let mut expected = HashMap::new();
-        // Computed with sklearn.naive_bayes.MultinomialNB
         expected.insert(
             &1usize,
-            array![
-                -0.82667857,
-                -0.96020997,
-                -1.09374136,
-                -2.77258872,
-                -4.85203026,
-                -6.93147181
-            ],
+            (array![0.1875f64, 0.1875, 0.0625, 0.0625]).map(|v| v.ln()),
         );
 
         expected.insert(
             &2usize,
-            array![
-                -2.77258872,
-                -4.85203026,
-                -6.93147181,
-                -0.82667857,
-                -0.96020997,
-                -1.09374136
-            ],
+            (array![0.0625f64, 0.0625, 0.1875, 0.1875,]).map(|v| v.ln()),
         );
 
         for (key, value) in jll.iter() {
@@ -304,54 +308,28 @@ mod tests {
     }
 
     #[test]
-    fn test_mnb_fit_with() -> Result<()> {
-        let x = array![[1., 0.], [2., 0.], [3., 0.], [0., 1.], [0., 2.], [0., 3.]];
-        let y = array![1, 1, 1, 2, 2, 2];
+    fn test_text_class() -> Result<()> {
+        // From https://nlp.stanford.edu/IR-book/html/htmledition/naive-bayes-text-classification-1.html#tab:nbtoy
+        let train = array![
+            // C, B, S, M, T, J
+            [2., 1., 0., 0., 0., 0.0f64],
+            [2., 0., 1., 0., 0., 0.],
+            [1., 0., 0., 1., 0., 0.],
+            [1., 0., 0., 0., 1., 1.],
+        ];
+        let y = array![1, 1, 1, 2];
+        let test = array![[3., 0., 0., 0., 1., 1.0f64]];
 
-        let clf = MultinomialNb::params();
+        let data = DatasetView::new(train.view(), y.view());
+        let fitted_clf = BernoulliNb::params().fit(&data)?;
+        let pred = fitted_clf.predict(&test);
 
-        let model = x
-            .axis_chunks_iter(Axis(0), 2)
-            .zip(y.axis_chunks_iter(Axis(0), 2))
-            .map(|(a, b)| DatasetView::new(a, b))
-            .fold(None, |current, d| clf.fit_with(current, &d).unwrap())
-            .unwrap();
+        assert_abs_diff_eq!(pred, array![2]);
 
-        let pred = model.predict(&x);
-
-        assert_abs_diff_eq!(pred, y);
-
-        let jll = model.joint_log_likelihood(x.view());
-
-        let mut expected = HashMap::new();
-        // Computed with sklearn.naive_bayes.MultinomialNB
-        expected.insert(
-            &1usize,
-            array![
-                -0.82667857,
-                -0.96020997,
-                -1.09374136,
-                -2.77258872,
-                -4.85203026,
-                -6.93147181
-            ],
-        );
-
-        expected.insert(
-            &2usize,
-            array![
-                -2.77258872,
-                -4.85203026,
-                -6.93147181,
-                -0.82667857,
-                -0.96020997,
-                -1.09374136
-            ],
-        );
-
-        for (key, value) in jll.iter() {
-            assert_abs_diff_eq!(value, expected.get(key).unwrap(), epsilon = 1e-6);
-        }
+        // See: https://nlp.stanford.edu/IR-book/html/htmledition/the-bernoulli-model-1.html
+        let jll = fitted_clf.joint_log_likelihood(fitted_clf.binarize(&test).view());
+        assert_abs_diff_eq!(jll.get(&1).unwrap()[0].exp(), 0.005, epsilon = 1e-3);
+        assert_abs_diff_eq!(jll.get(&2).unwrap()[0].exp(), 0.022, epsilon = 1e-3);
 
         Ok(())
     }
