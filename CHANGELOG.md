@@ -3,9 +3,8 @@ Unreleased
 
 Changes
 -----------
- * BLAS backend no longer require to build some algorithm crates
- * add `blas` feature flag on relevant crates to use BLAS backend instead of Rust linalg implementation
  * remove `SeedableRng` trait bound from `KMeans` and `GaussianMixture`
+ * BLAS backend no longer required to build Linfa
 
 Breaking Changes
 -----------
