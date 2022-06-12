@@ -4,7 +4,10 @@ use crate::error::{PreprocessingError, Result};
 use approx::abs_diff_eq;
 use linfa::dataset::{AsTargets, DatasetBase, Float, WithLapack};
 use linfa::traits::{Fit, Transformer};
+#[cfg(not(feature = "blas"))]
+use linfa_linalg::norm::Norm;
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2, Zip};
+#[cfg(feature = "blas")]
 use ndarray_linalg::norm::Norm;
 
 #[derive(Clone, Debug, PartialEq)]

@@ -9,7 +9,10 @@ use linfa::{
     traits::Transformer,
     Dataset, DatasetBase, Float,
 };
+#[cfg(not(feature = "blas"))]
+use linfa_linalg::svd::*;
 use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
+#[cfg(feature = "blas")]
 use ndarray_linalg::svd::*;
 use ndarray_stats::QuantileExt;
 #[cfg(feature = "serde")]
@@ -26,16 +29,17 @@ pub(crate) struct Pls<F: Float> {
     x_std: Array1<F>,
     y_mean: Array1<F>,
     y_std: Array1<F>,
-    x_weights: Array2<F>,  // U
-    y_weights: Array2<F>,  // V
-    x_scores: Array2<F>,   // xi
-    y_scores: Array2<F>,   // Omega
+    x_weights: Array2<F>, // U
+    y_weights: Array2<F>, // V
+    #[cfg(test)]
+    x_scores: Array2<F>, // xi
+    #[cfg(test)]
+    y_scores: Array2<F>, // Omega
     x_loadings: Array2<F>, // Gamma
     y_loadings: Array2<F>, // Delta
     x_rotations: Array2<F>,
     y_rotations: Array2<F>,
     coefficients: Array2<F>,
-    n_iters: Array1<usize>,
 }
 
 #[derive(PartialEq, Debug, Clone, Copy, Eq, Hash)]
@@ -289,14 +293,15 @@ impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsE
             y_std,
             x_weights,
             y_weights,
+            #[cfg(test)]
             x_scores,
+            #[cfg(test)]
             y_scores,
             x_loadings,
             y_loadings,
             x_rotations,
             y_rotations,
             coefficients,
-            n_iters,
         })
     }
 }
@@ -380,10 +385,12 @@ impl<F: Float> PlsValidParams<F> {
         let c = x.t().dot(y);
 
         let c = c.with_lapack();
-        let (u, _, vt) = c.svd(true, true)?;
-        // safe unwrap because both parameters are set to true in above call
-        let u = u.unwrap().column(0).to_owned().without_lapack();
-        let vt = vt.unwrap().row(0).to_owned().without_lapack();
+        let (u, s, vt) = c.svd(true, true)?;
+        // Extract the SVD component corresponding to the largest singular-value
+        // XXX We should compute the partial SVD instead of full SVD
+        let max = s.argmax()?;
+        let u = u.unwrap().column(max).to_owned().without_lapack();
+        let vt = vt.unwrap().row(max).to_owned().without_lapack();
 
         Ok((u, vt))
     }
@@ -756,10 +763,10 @@ mod tests {
     }
 
     #[test]
-    fn test_cca() -> Result<()> {
+    fn test_cca() {
         // values checked against scikit-learn 0.24.1 CCA
         let ds = linnerud();
-        let cca = Pls::cca(3).fit(&ds)?;
+        let cca = Pls::cca(3).fit(&ds).unwrap();
         let ds = cca.transform(ds);
         let expected_x = array![
             [0.09597886, 0.13862931, -1.0311966],
@@ -784,7 +791,6 @@ mod tests {
             [-0.53730151, -0.10896789, -0.92590428]
         ];
         assert_abs_diff_eq!(expected_x, ds.records(), epsilon = 1e-2);
-        Ok(())
     }
 
     #[test]

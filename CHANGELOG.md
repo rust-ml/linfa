@@ -2,11 +2,12 @@ Unreleased
 ========================
 
 Changes
-----------------------
-* remove `SeedableRng` trait bound from `KMeans` and `GaussianMixture`
+-----------
+ * remove `SeedableRng` trait bound from `KMeans` and `GaussianMixture`
+ * BLAS backend no longer required to build Linfa
 
 Breaking Changes
-----------------------
+-----------
  * parametrize `AsTargets` by the dimensionality of the targets and introduce `AsSingleTargets` and `AsMultiTargets`
  * 1D target arrays are no longer converted to 2D when constructing `Dataset`s
  * `Dataset` and `DatasetView` can now be parametrized by target dimensionality, with 2D being the default

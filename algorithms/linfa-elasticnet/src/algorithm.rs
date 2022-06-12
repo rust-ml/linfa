@@ -1,8 +1,12 @@
 use approx::{abs_diff_eq, abs_diff_ne};
 use linfa::dataset::AsSingleTargets;
+#[cfg(not(feature = "blas"))]
+use linfa_linalg::qr::QRInto;
 use ndarray::{s, Array1, ArrayBase, ArrayView1, ArrayView2, Axis, CowArray, Data, Ix1, Ix2};
-use ndarray_linalg::{Inverse, Lapack};
+#[cfg(feature = "blas")]
+use ndarray_linalg::InverseHInto;
 
+use linfa::dataset::{WithLapack, WithoutLapack};
 use linfa::traits::{Fit, PredictInplace};
 use linfa::{dataset::Records, DatasetBase, Float};
 
@@ -10,7 +14,7 @@ use super::{hyperparams::ElasticNetValidParams, ElasticNet, ElasticNetError, Res
 
 impl<F, D, T> Fit<ArrayBase<D, Ix2>, T, ElasticNetError> for ElasticNetValidParams<F>
 where
-    F: Float + Lapack,
+    F: Float,
     D: Data<Elem = F>,
     T: AsSingleTargets<Elem = F>,
 {
@@ -215,7 +219,7 @@ fn duality_gap<'a, F: Float>(
     gap
 }
 
-fn variance_params<F: Float + Lapack, T: AsSingleTargets<Elem = F>, D: Data<Elem = F>>(
+fn variance_params<F: Float, T: AsSingleTargets<Elem = F>, D: Data<Elem = F>>(
     ds: &DatasetBase<ArrayBase<D, Ix2>, T>,
     y_est: Array1<F>,
 ) -> Result<Array1<F>> {
@@ -232,10 +236,15 @@ fn variance_params<F: Float + Lapack, T: AsSingleTargets<Elem = F>, D: Data<Elem
 
     let var_target = (&target - &y_est).mapv(|x| x * x).sum() / F::cast(nsamples - nfeatures);
 
-    let inv_cov = ds.records().t().dot(ds.records()).inv();
+    // `A.t * A` always produces a symmetric matrix
+    let ds2 = ds.records().t().dot(ds.records()).with_lapack();
+    #[cfg(feature = "blas")]
+    let inv_cov = ds2.invh_into();
+    #[cfg(not(feature = "blas"))]
+    let inv_cov = (|| ds2.qr_into()?.inverse())();
 
     match inv_cov {
-        Ok(inv_cov) => Ok(inv_cov.diag().mapv(|x| var_target * x)),
+        Ok(inv_cov) => Ok(inv_cov.without_lapack().diag().mapv(|x| var_target * x)),
         Err(_) => Err(ElasticNetError::IllConditioned),
     }
 }

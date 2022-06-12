@@ -1,6 +1,5 @@
 use argmin::prelude::{ArgminAdd, ArgminDot, ArgminFloat, ArgminMul, ArgminNorm, ArgminSub};
 use ndarray::{Array1, NdFloat};
-use ndarray_linalg::Lapack;
 use num_traits::float::FloatConst;
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
@@ -11,7 +10,6 @@ pub trait Float:
     ArgminFloat
     + FloatConst
     + NdFloat
-    + Lapack
     + Default
     + Clone
     + FromPrimitive

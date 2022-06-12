@@ -18,6 +18,7 @@ categories = ["algorithms", "mathematics", "science"]
 
 [features]
 default = []
+blas = ["ndarray-linalg", "linfa/ndarray-linalg"]
 serde = ["serde_crate", "ndarray/serde", "linfa-nn/serde"]
 
 [dependencies.serde_crate]
@@ -29,7 +30,8 @@ features = ["std", "derive"]
 
 [dependencies]
 ndarray = { version = "0.15", features = ["rayon", "approx"]}
-ndarray-linalg = "0.14"
+linfa-linalg = { version = "0.1", default-features = false }
+ndarray-linalg = { version = "0.14", optional = true }
 ndarray-rand = "0.14"
 ndarray-stats = "0.5"
 num-traits = "0.2"
@@ -37,7 +39,7 @@ rand_xoshiro = "0.6"
 space = "0.12"
 thiserror = "1.0"
 partitions = "0.2.4"
-linfa = { version = "0.5.0", path = "../..", features = ["ndarray-linalg"] }
+linfa = { version = "0.5.0", path = "../.." }
 linfa-nn = { version = "0.5.0", path = "../linfa-nn" }
 noisy_float = "0.2.0"
 

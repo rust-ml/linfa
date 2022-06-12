@@ -1,7 +1,10 @@
 //! Sample normalization methods
 use linfa::dataset::{AsTargets, DatasetBase, Float, WithLapack, WithoutLapack};
 use linfa::traits::Transformer;
+#[cfg(not(feature = "blas"))]
+use linfa_linalg::norm::Norm;
 use ndarray::{Array2, ArrayBase, Axis, Data, Ix2, Zip};
+#[cfg(feature = "blas")]
 use ndarray_linalg::norm::Norm;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

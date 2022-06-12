@@ -23,6 +23,10 @@ Implementation choices, algorithmic details and a tutorial can be found
 
 **WARNING:** Currently the Approximated DBSCAN implementation is slower than the normal DBSCAN implementation. Therefore DBSCAN should always be used over Approximated DBSCAN.
 
+## BLAS/Lapack backend
+
+See [this section](../../README.md#blaslapack-backend) to enable an external BLAS/LAPACK backend.
+
 ## License
 Dual-licensed to be compatible with the Rust project.
 

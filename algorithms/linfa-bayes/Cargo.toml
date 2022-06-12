@@ -11,7 +11,7 @@ keywords = ["factorization", "machine-learning", "linfa", "unsupervised"]
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
-ndarray = { version = "0.15" , features = ["blas", "approx"]}
+ndarray = { version = "0.15" , features = ["approx"]}
 ndarray-stats = "0.5"
 thiserror = "1.0"
 

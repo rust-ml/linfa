@@ -10,11 +10,18 @@ use crate::error::{PreprocessingError, Result};
 use linfa::dataset::{AsTargets, Records, WithLapack, WithoutLapack};
 use linfa::traits::{Fit, Transformer};
 use linfa::{DatasetBase, Float};
+#[cfg(not(feature = "blas"))]
+use linfa_linalg::{
+    cholesky::{CholeskyInplace, InverseCInplace},
+    svd::SVD,
+};
 use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
-use ndarray_linalg::cholesky::{Cholesky, UPLO};
-use ndarray_linalg::solve::Inverse;
-use ndarray_linalg::svd::SVD;
-use ndarray_linalg::Scalar;
+#[cfg(feature = "blas")]
+use ndarray_linalg::{
+    cholesky::{CholeskyInto, InverseCInto, UPLO},
+    svd::SVD,
+    Scalar,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum WhiteningMethod {
@@ -79,7 +86,9 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets> Fit<ArrayBase<D, Ix2>, T, Prepro
 
                 // Safe because the second argument in the above call is set to true
                 let mut v_t = v_t.unwrap().without_lapack();
-                let s = s.mapv(Scalar::from_real).without_lapack();
+                #[cfg(feature = "blas")]
+                let s = s.mapv(Scalar::from_real);
+                let s = s.without_lapack();
 
                 let s = s.mapv(|x: F| x.max(F::cast(1e-8)));
 
@@ -96,7 +105,9 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets> Fit<ArrayBase<D, Ix2>, T, Prepro
 
                 // Safe because the first argument in the above call is set to true
                 let u = u.unwrap().without_lapack();
-                let s = s.mapv(Scalar::from_real).without_lapack();
+                #[cfg(feature = "blas")]
+                let s = s.mapv(Scalar::from_real);
+                let s = s.without_lapack();
 
                 let s = s.mapv(|x: F| (F::one() / x.sqrt()).max(F::cast(1e-8)));
                 let lambda: Array2<F> = Array2::<F>::eye(s.len()) * s;
@@ -104,7 +115,23 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets> Fit<ArrayBase<D, Ix2>, T, Prepro
             }
             WhiteningMethod::Cholesky => {
                 let sigma = sigma.t().dot(&sigma) / F::Lapack::cast(x.nsamples() - 1);
-                sigma.inv()?.cholesky(UPLO::Upper)?.without_lapack()
+                // sigma must be positive definite for us to call cholesky on its inverse, so invc
+                // is allowed here
+                #[cfg(feature = "blas")]
+                let out = sigma
+                    .invc_into()?
+                    .cholesky_into(UPLO::Upper)?
+                    .without_lapack();
+                #[cfg(not(feature = "blas"))]
+                let mut sigma = sigma;
+                #[cfg(not(feature = "blas"))]
+                let out = sigma
+                    .invc_inplace()?
+                    .reversed_axes()
+                    .cholesky_into()?
+                    .reversed_axes()
+                    .without_lapack();
+                out
             }
         };
 
@@ -191,7 +218,11 @@ mod tests {
     }
 
     fn inv_cov<D: Data<Elem = f64>>(x: &ArrayBase<D, Ix2>) -> Array2<f64> {
-        cov(x).inv().unwrap()
+        #[cfg(feature = "blas")]
+        let inv = cov(x).invc_into().unwrap();
+        #[cfg(not(feature = "blas"))]
+        let inv = cov(x).invc_inplace().unwrap();
+        inv
     }
 
     #[test]
