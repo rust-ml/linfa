@@ -8,8 +8,8 @@ New Algorithms
 
 Changes
 -----------
+ * **BLAS backend no longer required to build Linfa**
  * remove `SeedableRng` trait bound from `KMeans` and `GaussianMixture`
- * BLAS backend no longer required to build Linfa
  * replace uses of Isaac RNG with Xoshiro RNG
 
 Breaking Changes
