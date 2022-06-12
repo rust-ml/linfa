@@ -1,10 +1,16 @@
-Unreleased
+Version 0.6.0 - 2022-06-12
 ========================
+
+New Algorithms
+-----------
+ * Multinomial Naive Bayes added to `linfa-bayes` by [@sgrigory]
+ * Follow The Regularized Leader added as `linfa-ftrl` by [@MilaKyr]
 
 Changes
 -----------
  * remove `SeedableRng` trait bound from `KMeans` and `GaussianMixture`
  * BLAS backend no longer required to build Linfa
+ * replace uses of Isaac RNG with Xoshiro RNG
 
 Breaking Changes
 -----------
