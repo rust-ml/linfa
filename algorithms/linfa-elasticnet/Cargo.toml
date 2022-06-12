@@ -1,6 +1,6 @@
 [package]
 name = "linfa-elasticnet"
-version = "0.5.0"
+version = "0.6.0"
 authors = [
     "Paul Körbitz / Google <koerbitz@google.com>",
     "Lorenz Schmidt <bytesnake@mailbox.org>"
@@ -37,9 +37,9 @@ num-traits = "0.2"
 approx = "0.4"
 thiserror = "1.0"
 
-linfa = { version = "0.5.0", path = "../.." }
+linfa = { version = "0.6.0", path = "../.." }
 
 [dev-dependencies]
-linfa-datasets = { version = "0.5.0", path = "../../datasets", features = ["diabetes"] }
+linfa-datasets = { version = "0.6.0", path = "../../datasets", features = ["diabetes"] }
 ndarray-rand = "0.14"
 rand_xoshiro = "0.6"

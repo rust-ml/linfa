@@ -1,6 +1,6 @@
 [package]
 name = "linfa-bayes"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["VasanthakumarV <vasanth260m12@gmail.com>"]
 description = "Collection of Naive Bayes Algorithms"
 edition = "2018"
@@ -15,8 +15,8 @@ ndarray = { version = "0.15" , features = ["approx"]}
 ndarray-stats = "0.5"
 thiserror = "1.0"
 
-linfa = { version = "0.5.0", path = "../.." }
+linfa = { version = "0.6.0", path = "../.." }
 
 [dev-dependencies]
 approx = "0.4"
-linfa-datasets = { version = "0.5.0", path = "../../datasets", features = ["winequality"] }
+linfa-datasets = { version = "0.6.0", path = "../../datasets", features = ["winequality"] }

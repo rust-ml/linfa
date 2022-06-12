@@ -1,6 +1,6 @@
 [package]
 name = "linfa-nn"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["YuhanLiin <yuhanliin+github@protonmail.com>"]
 edition = "2018"
 description = "A collection of nearest neighbour algorithms"
@@ -33,7 +33,7 @@ thiserror = "1.0"
 
 kdtree = "0.6.0"
 
-linfa = { version = "0.5.0", path = "../.." }
+linfa = { version = "0.6.0", path = "../.." }
 
 [dev-dependencies]
 approx = "0.4"
