@@ -51,6 +51,20 @@ We believe that only a significant community effort can nurture, build, and sust
 
 If this strikes a chord with you, please take a look at the [roadmap](https://github.com/rust-ml/linfa/issues/7) and get involved!
 
+## BLAS/Lapack backend
+
+Some algorithm crates need to use an external library for linear algebra routines. By default, we use a pure-Rust implementation. However, you can also choose an external BLAS/LAPACK backend library instead, by enabling the `blas` feature and a feature corresponding to your BLAS backend. Currently you can choose between the following BLAS/LAPACK backends: `openblas`, `netblas` or `intel-mkl`.
+
+|Backend  | Linux | Windows | macOS |
+|:--------|:-----:|:-------:|:-----:|
+|OpenBLAS |✔️      |-        |-      |
+|Netlib   |✔️      |-        |-      |
+|Intel MKL|✔️      |✔️        |✔️      |
+
+Each BLAS backend has two features available. The feature allows you to choose between linking the BLAS library in your system or statically building the library. For example, the features for the `intel-mkl` backend are `intel-mkl-static` and `intel-mkl-system`.
+
+An example set of Cargo flags for enabling the Intel MKL backend on an algorithm crate is `--features blas,linfa/intel-mkl-system`. Note that the BLAS backend features are defined on the `linfa` crate, and should only be specified for the final executable.
+
 # License
 Dual-licensed to be compatible with the Rust project.
 
