@@ -100,7 +100,7 @@ impl<'a, F: Float> SortedIndex<'a, F> {
     ) -> Self {
         let sliced_column: Vec<F> = x.index_axis(Axis(1), feature_idx).to_vec();
         let mut pairs: Vec<(usize, F)> = sliced_column.into_iter().enumerate().collect();
-        pairs.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Greater));
+        pairs.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Greater));
 
         SortedIndex {
             sorted_values: pairs,

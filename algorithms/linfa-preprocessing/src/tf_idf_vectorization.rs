@@ -93,7 +93,7 @@ impl TfIdfVectorizer {
     }
 
     /// Specifies the minimum and maximum (relative) document frequencies that each vocabulary entry must satisfy.
-    /// `min_freq` and `max_freq` must lie in [0;1] and `min_freq` should not be greater than `max_freq`
+    /// `min_freq` and `max_freq` must lie in `0..=1` and `min_freq` should not be greater than `max_freq`
     pub fn document_frequency(self, min_freq: f32, max_freq: f32) -> Self {
         Self {
             count_vectorizer: self.count_vectorizer.document_frequency(min_freq, max_freq),

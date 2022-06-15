@@ -14,8 +14,9 @@ use ndarray_linalg::norm::Norm;
 /// Possible scaling methods for [LinearScaler](struct.LinearScaler.html)
 ///
 /// * Standard (with mean, with std): subtracts the mean to each feature and scales it by the inverse of its standard deviation
-/// * MinMax (min, max): scales each feature to fit in the range [min,max], default values are [0,1]
-/// * MaxAbs: scales each feature by the inverse of its maximum absolute value, so that it fits the range [-1,1]
+/// * MinMax (min, max): scales each feature to fit in the range `min..=max`, default values are
+/// `0..=1`
+/// * MaxAbs: scales each feature by the inverse of its maximum absolute value, so that it fits the range `-1..=1`
 pub enum ScalingMethod<F: Float> {
     Standard(bool, bool),
     MinMax(F, F),
@@ -196,7 +197,7 @@ impl<F: Float> LinearScaler<F> {
         }
     }
 
-    /// Initializes a MinMax scaler with range [0,1]
+    /// Initializes a MinMax scaler with range `0..=1`
     pub fn min_max() -> LinearScalerParams<F> {
         LinearScalerParams {
             method: ScalingMethod::MinMax(F::zero(), F::one()),

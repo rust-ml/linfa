@@ -1,10 +1,11 @@
 [package]
 name = "linfa"
-version = "0.5.0"
+version = "0.6.0"
 authors = [
     "Luca Palmieri <rust@lpalmieri.com>",
     "Lorenz Schmidt <bytesnake@mailbox.org>",
-    "Paul Körbitz <koerbitz@google.com>"
+    "Paul Körbitz <koerbitz@google.com>",
+    "Yuhan Lin <yuhanliin@protonmail.com>"
 ]
 description = "A Machine Learning framework for Rust"
 edition = "2018"

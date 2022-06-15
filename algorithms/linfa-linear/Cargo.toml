@@ -1,6 +1,6 @@
 [package]
 name = "linfa-linear"
-version = "0.5.0"
+version = "0.6.0"
 authors = [
     "Paul Körbitz / Google <koerbitz@google.com>",
     "VasanthakumarV <vasanth260m12@gmail.com>"
@@ -28,8 +28,8 @@ argmin = { version = "0.4.6", features = ["ndarray", "ndarray-rand"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 thiserror = "1.0"
 
-linfa = { version = "0.5.0", path = "../..", features=["serde"] }
+linfa = { version = "0.6.0", path = "../..", features=["serde"] }
 
 [dev-dependencies]
-linfa-datasets = { version = "0.5.0", path = "../../datasets", features = ["diabetes"] }
+linfa-datasets = { version = "0.6.0", path = "../../datasets", features = ["diabetes"] }
 approx = "0.4"
