@@ -28,7 +28,7 @@ impl<F: Float, D: Data<Elem = F>, T> Fit<ArrayBase<D, Ix2>, T, FastIcaError>
     ///
     /// # Errors
     ///
-    /// If the [`FastIca::ncomponents`] is set to a number greater than the minimum of
+    /// If the [`FastIcaValidParams::ncomponents`] is set to a number greater than the minimum of
     /// the number of rows and columns
     ///
     /// If the `alpha` value set for [`GFunc::Logcosh`] is not between 1 and 2

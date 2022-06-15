@@ -40,7 +40,7 @@ pub struct Ftrl<F: Float> {
 
 impl<F: Float> Ftrl<F> {
     /// Create a default parameter set for construction of Follow The Regularized Leader - proximal model
-    /// The description can be found here https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/41159.pdf
+    /// The description can be found [here](https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/41159.pdf)
     ///
     /// It requires data preprocessing done in the separate step.
 
