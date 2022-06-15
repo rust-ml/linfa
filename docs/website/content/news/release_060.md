@@ -1,6 +1,6 @@
 +++
 title = "Release 0.6.0"
-date = "2022-06-12"
+date = "2022-06-15"
 +++
 
 Linfa's 0.6.0 release removes the mandatory dependency on external BLAS libraries (such as `intel-mkl`) by using a pure-Rust linear algebra library. It also adds the Naive Multinomial Bayes and Follow The Regularized Leader algorithms. Additionally, the `AsTargets` trait has been separated into `AsSingleTargets` and `AsMultiTargets`.
