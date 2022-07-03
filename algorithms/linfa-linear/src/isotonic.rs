@@ -12,177 +12,69 @@ pub trait Float: linfa::Float {}
 impl Float for f32 {}
 impl Float for f64 {}
 
-// Isotonic regression (IR) algorithms
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
-pub struct PVA;
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
-pub struct AlgorithmA;
-
-// IR trait
-pub trait IR {
-    fn evaluate<F, D>(
-        &self,
-        y: &ArrayBase<D, Ix1>,
-        weights: Option<&[f32]>,
-        index: &Vec<usize>,
-    ) -> (Vec<F>, Vec<usize>)
-    where
-        F: Float,
-        D: Data<Elem = F>;
-}
-
-/// An implementation of algorithm A from Best (1990)
-/// for solving IRC problem
-impl IR for AlgorithmA {
-    fn evaluate<F, D>(
-        &self,
-        ys: &ArrayBase<D, Ix1>,
-        weights: Option<&[f32]>,
-        index: &Vec<usize>,
-    ) -> (Vec<F>, Vec<usize>)
-    where
-        F: Float,
-        D: Data<Elem = F>,
-    {
-        let n = ys.len();
-
-        // Precompute partial averages
-        let mut AvU = vec![F::zero(); n + 1];
-        let mut wsum = F::zero();
-        for i in 1..=n {
-            let ii = n - i;
-            let ui = index[ii];
-            let w = if weights.is_none() {
-                F::one()
-            } else {
-                F::cast(weights.unwrap()[ui])
-            };
-            AvU[ii] = (ys[ui] * w + AvU[ii + 1] * wsum) / (wsum + w);
-            wsum += w;
-        }
-
-        let mut V = Vec::<F>::new();
-        let mut W = Vec::<F>::new();
-        let mut J_index = vec![0_usize; n];
-        J_index[0] = n - 1;
-        let mut i = 0; // B0
-        let mut j = 1; // Uj
-        while i + j < n {
-            let AvB0 = AvU[i];
-            if AvU[i + j] <= AvB0 {
-                // Step 1
-                j += 1;
-            } else {
-                // Step 2
-                let B_minus_index = i + j - 1;
-                J_index[i] = B_minus_index; // B- = L_j
-                J_index[B_minus_index] = i;
-                J_index[B_minus_index + 1] = n - 1; // B0 = U_j
-                J_index[n - 1] = B_minus_index + 1;
-
-                // Step 2.1
-                let (mut AvB_minus, mut B_minus_w) = waverage(&ys, weights, i, J_index[i], &index);
-                let mut P_B_minus_index = i;
-                let AvP_B_minus = *V.last().unwrap_or(&F::neg_infinity());
-                while V.len() > 0 && AvB_minus < AvP_B_minus {
-                    if AvB_minus <= AvP_B_minus {
-                        P_B_minus_index -= 1;
-                        let AvP_B_minus = V.pop().unwrap();
-                        let P_B_minus_w = W.pop().unwrap();
-
-                        // New Av(B-)
-                        AvB_minus = (AvB_minus * B_minus_w + AvP_B_minus * P_B_minus_w)
-                            / (B_minus_w + P_B_minus_w);
-                        B_minus_w += P_B_minus_w;
-
-                        // New B-
-                        let P_B_minus_start = J_index[P_B_minus_index];
-                        J_index[P_B_minus_start] = B_minus_index;
-                        J_index[B_minus_index] = P_B_minus_index;
-                    }
-                }
-
-                V.push(AvB_minus);
-                W.push(B_minus_w);
-                i = B_minus_index + 1;
-                j = 1;
-            }
-        }
-
-        // Last block average
-        let (AvB_minus, _) = waverage(&ys, weights, i, J_index[i], &index);
-        V.push(AvB_minus);
-
-        (V, J_index)
-    }
-}
-
 /// An implementation of PVA algorithm from Best (1990)
 /// for solving IRC problem
-impl IR for PVA {
-    fn evaluate<F, D>(
-        &self,
-        ys: &ArrayBase<D, Ix1>,
-        weights: Option<&[f32]>,
-        index: &Vec<usize>,
-    ) -> (Vec<F>, Vec<usize>)
-    where
-        F: Float,
-        D: Data<Elem = F>,
-    {
-        let n = ys.len();
-        let mut V = Vec::<F>::new();
-        let mut W = Vec::<F>::new();
-        let mut J_index: Vec<usize> = (0..n).collect();
-        let mut i = 0;
-        let (mut AvB_zero, mut W_B_zero) = waverage(&ys, weights, i, i, &index);
-        while i < n {
-            // Step 1
-            let j = J_index[i];
-            let k = j + 1;
-            if k == n {
-                break;
-            }
-            let l = J_index[k];
-            let (AvB_plus, W_B_plus) = waverage(&ys, weights, k, l, &index);
-            if AvB_zero <= AvB_plus {
-                V.push(AvB_zero);
-                W.push(W_B_zero);
-                AvB_zero = AvB_plus;
-                W_B_zero = W_B_plus;
-                i = k;
-            } else {
-                // Step 2
-                J_index[i] = l;
-                J_index[l] = i;
-                AvB_zero = AvB_zero * W_B_zero + AvB_plus * W_B_plus;
-                W_B_zero += W_B_plus;
-                AvB_zero /= W_B_zero;
+fn pva<F, D>(
+    ys: &ArrayBase<D, Ix1>,
+    weights: Option<&[f32]>,
+    index: &Vec<usize>,
+) -> (Vec<F>, Vec<usize>)
+where
+    F: Float,
+    D: Data<Elem = F>,
+{
+    let n = ys.len();
+    let mut V = Vec::<F>::new();
+    let mut W = Vec::<F>::new();
+    let mut J_index: Vec<usize> = (0..n).collect();
+    let mut i = 0;
+    let (mut AvB_zero, mut W_B_zero) = waverage(&ys, weights, i, i, &index);
+    while i < n {
+        // Step 1
+        let j = J_index[i];
+        let k = j + 1;
+        if k == n {
+            break;
+        }
+        let l = J_index[k];
+        let (AvB_plus, W_B_plus) = waverage(&ys, weights, k, l, &index);
+        if AvB_zero <= AvB_plus {
+            V.push(AvB_zero);
+            W.push(W_B_zero);
+            AvB_zero = AvB_plus;
+            W_B_zero = W_B_plus;
+            i = k;
+        } else {
+            // Step 2
+            J_index[i] = l;
+            J_index[l] = i;
+            AvB_zero = AvB_zero * W_B_zero + AvB_plus * W_B_plus;
+            W_B_zero += W_B_plus;
+            AvB_zero /= W_B_zero;
 
-                // Step 2.1
-                let mut AvB_minus = *V.last().unwrap_or(&F::neg_infinity());
-                while V.len() > 0 && AvB_zero < AvB_minus {
-                    AvB_minus = V.pop().unwrap();
-                    let W_B_minus = W.pop().unwrap();
-                    i = J_index[J_index[l] - 1];
-                    J_index[l] = i;
-                    J_index[i] = l;
-                    AvB_zero = AvB_zero * W_B_zero + AvB_minus * W_B_minus;
-                    W_B_zero += W_B_minus;
-                    AvB_zero /= W_B_zero;
-                }
+            // Step 2.1
+            let mut AvB_minus = *V.last().unwrap_or(&F::neg_infinity());
+            while V.len() > 0 && AvB_zero < AvB_minus {
+                AvB_minus = V.pop().unwrap();
+                let W_B_minus = W.pop().unwrap();
+                i = J_index[J_index[l] - 1];
+                J_index[l] = i;
+                J_index[i] = l;
+                AvB_zero = AvB_zero * W_B_zero + AvB_minus * W_B_minus;
+                W_B_zero += W_B_minus;
+                AvB_zero /= W_B_zero;
             }
         }
-
-        // Last block average
-        let (AvB_minus, _) = waverage(&ys, weights, i, J_index[i], &index);
-        V.push(AvB_minus);
-
-        (V, J_index)
     }
+
+    // Last block average
+    let (AvB_minus, _) = waverage(&ys, weights, i, J_index[i], &index);
+    V.push(AvB_minus);
+
+    (V, J_index)
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
 /// An isotonic regression model.
 ///
 /// IsotonicRegression solves an isotonic regression problem using the pool
@@ -204,9 +96,7 @@ impl IR for PVA {
 /// let r2 = pred.r2(&dataset).unwrap();
 /// println!("r2 from prediction: {}", r2);
 /// ```
-pub struct IsotonicRegression<A: IR = PVA> {
-    algo: A,
-}
+pub struct IsotonicRegression {}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 /// A fitted isotonic regression model which can be used for making predictions.
@@ -215,22 +105,15 @@ pub struct FittedIsotonicRegression<F> {
     response: Array1<F>,
 }
 
-/// Configure and fit a isotonic regression model
-impl<A: IR + Default> IsotonicRegression<A> {
+impl IsotonicRegression {
     /// Create a default isotonic regression model.
-    pub fn new() -> IsotonicRegression<A> {
-        IsotonicRegression { algo: A::default() }
+    pub fn new() -> IsotonicRegression {
+        IsotonicRegression {}
     }
 }
 
-impl Default for IsotonicRegression {
-    fn default() -> Self {
-        <IsotonicRegression>::new()
-    }
-}
-
-impl<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = F>, A: IR>
-    Fit<ArrayBase<D, Ix2>, T, LinearError<F>> for IsotonicRegression<A>
+impl<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = F>>
+    Fit<ArrayBase<D, Ix2>, T, LinearError<F>> for IsotonicRegression
 {
     type Object = FittedIsotonicRegression<F>;
 
@@ -267,7 +150,7 @@ impl<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = F>, A: IR>
         };
 
         // Construct response value using particular algorithm
-        let (V, J_index) = self.algo.evaluate(&y, dataset.weights(), &indices);
+        let (V, J_index) = pva(&y, dataset.weights(), &indices);
         let response = Array1::from_vec(V.clone());
 
         // Construct regressor array
@@ -395,14 +278,14 @@ mod tests {
     fn autotraits() {
         fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
         has_autotraits::<FittedIsotonicRegression<f64>>();
-        has_autotraits::<IsotonicRegression<AlgorithmA>>();
+        has_autotraits::<IsotonicRegression>();
         has_autotraits::<LinearError<f64>>();
     }
 
     #[test]
     #[should_panic]
     fn dimension_mismatch() {
-        let reg = <IsotonicRegression>::new();
+        let reg = IsotonicRegression::new();
         let dataset = Dataset::new(array![[3.3f64, 0.], [3.3, 0.]], array![4., 5.]);
         let _res = reg.fit(&dataset);
         ()
@@ -417,7 +300,9 @@ mod tests {
         ()
     }
 
-    fn best_example1<R: IR>(reg: &IsotonicRegression<R>) {
+    #[test]
+    fn best_example1() {
+        let reg = IsotonicRegression::new();
         let (X, y, regr, resp, yy, V, w) = (
             array![[3.3f64], [3.3], [3.3], [6.], [7.5], [7.5]], // X
             array![4., 5., 1., 6., 8., 7.0],                    // y
@@ -441,21 +326,14 @@ mod tests {
         assert_abs_diff_eq!(result, &w, epsilon = 1e-12);
     }
 
-    fn best_example1_decr<R: IR>(reg: &IsotonicRegression<R>) {
-        let is_pva = std::any::type_name::<R>().ends_with("PVA");
+    #[test]
+    fn best_example1_decr() {
+        let reg = IsotonicRegression::default();
         let (X, y, regr, resp, yy, V, w) = (
             array![[7.5], [7.5], [6.], [3.3], [3.3], [3.3]], // X
             array![4., 5., 1., 6., 8., 7.0],                 // y
-            if is_pva {
-                array![7.5, 3.3, 3.3]
-            } else {
-                array![7.5, 3.3]
-            },
-            if is_pva {
-                array![10.0 / 3.0, 7., 7.]
-            } else {
-                array![10.0 / 3.0, 7.]
-            },
+            array![7.5, 3.3, 3.3],
+            array![10.0 / 3.0, 7., 7.],
             array![7., 7., 7., 7., 7., 7.],     // predict X
             array![[2.], [3.], [3.3], [7.]],    // newX
             array![10. / 3., 10. / 3., 7., 7.], // predict newX
@@ -474,37 +352,25 @@ mod tests {
         assert_abs_diff_eq!(result, &w, epsilon = 1e-12);
     }
 
-    fn example2_incr<R: IR>(reg: &IsotonicRegression<R>) {
-        let is_pva = std::any::type_name::<R>().ends_with("PVA");
+    #[test]
+    fn example2_incr() {
+        let reg = IsotonicRegression::default();
         let (X, y, regr, resp, yy) = (
             array![[1.0f64], [2.], [3.], [4.], [5.], [6.], [7.], [8.], [9.]],
             array![1., 2., 6., 2., 1., 2., 8., 2., 1.0],
-            if is_pva {
-                array![1., 2., 6., 9.]
-            } else {
-                array![6., 9.]
-            },
-            if is_pva {
-                array![1., 2., 2.75, 11. / 3.]
-            } else {
-                array![7. / 3., 11. / 3.]
-            },
-            if is_pva {
-                array![
-                    1.,
-                    2.,
-                    2.1875,
-                    2.375,
-                    2.5625,
-                    2.75,
-                    55. / 18.,
-                    121. / 36.,
-                    11. / 3.
-                ]
-            } else {
-                let v1 = 7. / 3.;
-                array![v1, v1, v1, v1, v1, v1, 25. / 9., 29. / 9., 11. / 3.]
-            },
+            array![1., 2., 6., 9.],
+            array![1., 2., 2.75, 11. / 3.],
+            array![
+                1.,
+                2.,
+                2.1875,
+                2.375,
+                2.5625,
+                2.75,
+                55. / 18.,
+                121. / 36.,
+                11. / 3.
+            ],
         );
 
         let dataset = Dataset::new(X, y);
@@ -517,27 +383,16 @@ mod tests {
         assert_abs_diff_eq!(result, &yy, epsilon = 1e-12);
     }
 
-    fn example2_decr<R: IR>(reg: &IsotonicRegression<R>) {
-        let is_pva = std::any::type_name::<R>().ends_with("PVA");
-        let (v1, v2) = (11. / 3., 7. / 3.);
+    #[test]
+    fn example2_decr() {
+        let reg = IsotonicRegression::default();
+        let v1 = 11. / 3.;
         let (X, y, regr, resp, yy) = (
             array![[9.0], [8.], [7.], [6.], [5.], [4.], [3.], [2.], [1.]],
             array![1., 2., 6., 2., 1., 2., 8., 2., 1.0],
-            if is_pva {
-                array![9., 8., 7., 3.]
-            } else {
-                array![9., 3.]
-            },
-            if is_pva {
-                array![1., 2., 2.75, v1]
-            } else {
-                array![v2, v1]
-            },
-            if is_pva {
-                array![v1, v1, v1, v1, v1, v1, v1, 1., 1.]
-            } else {
-                array![v1, v1, v1, v1, v1, v1, v1, v2, v2]
-            },
+            array![9., 8., 7., 3.],
+            array![1., 2., 2.75, v1],
+            array![v1, v1, v1, v1, v1, v1, v1, 1., 1.],
         );
 
         let dataset = Dataset::new(X, y);
@@ -548,53 +403,5 @@ mod tests {
 
         let result = model.predict(dataset.records());
         assert_abs_diff_eq!(result, &yy, epsilon = 1e-12);
-    }
-
-    #[test]
-    fn best_example1_incr_pva() {
-        let reg = IsotonicRegression::<PVA>::new();
-        best_example1(&reg);
-    }
-
-    #[test]
-    fn best_example1_incr_algoa() {
-        let reg = IsotonicRegression::<AlgorithmA>::new();
-        best_example1(&reg);
-    }
-
-    #[test]
-    fn best_example1_decr_pva() {
-        let reg = IsotonicRegression::<PVA>::new();
-        best_example1_decr(&reg);
-    }
-
-    #[test]
-    fn best_example1_decr_algoa() {
-        let reg = IsotonicRegression::<AlgorithmA>::new();
-        best_example1_decr(&reg);
-    }
-
-    #[test]
-    fn example2_incr_pva() {
-        let reg = IsotonicRegression::default();
-        example2_incr(&reg);
-    }
-
-    #[test]
-    fn example2_incr_algoa() {
-        let reg = IsotonicRegression::<AlgorithmA>::new();
-        example2_incr(&reg);
-    }
-
-    #[test]
-    fn example2_decr_pva() {
-        let reg = IsotonicRegression::default();
-        example2_decr(&reg);
-    }
-
-    #[test]
-    fn example2_decr_algoa() {
-        let reg = IsotonicRegression::<AlgorithmA>::new();
-        example2_decr(&reg);
     }
 }
