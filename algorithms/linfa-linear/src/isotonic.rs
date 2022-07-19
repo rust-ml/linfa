@@ -80,7 +80,7 @@ where
 /// IsotonicRegression solves an isotonic regression problem using the pool
 /// adjacent violators algorithm.
 ///
-/// /// ## Examples
+/// ## Examples
 ///
 /// Here's an example on how to train an isotonic regression model on
 /// the first feature from the `diabetes` dataset.
@@ -96,6 +96,11 @@ where
 /// let r2 = pred.r2(&dataset).unwrap();
 /// println!("r2 from prediction: {}", r2);
 /// ```
+///
+/// ## References
+///
+/// Best, M.J., Chakravarti, N. Active set algorithms for isotonic regression;
+/// A unifying framework. Mathematical Programming 47, 425–439 (1990).
 pub struct IsotonicRegression {}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
