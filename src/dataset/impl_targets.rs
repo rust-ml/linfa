@@ -13,7 +13,7 @@ use ndarray::{
 impl TargetDim for Ix1 {}
 impl TargetDim for Ix2 {}
 
-impl<'a, L, S: Data<Elem = L>, I: TargetDim> AsTargets for ArrayBase<S, I> {
+impl<L, S: Data<Elem = L>, I: TargetDim> AsTargets for ArrayBase<S, I> {
     type Elem = L;
     type Ix = I;
 
