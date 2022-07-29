@@ -80,10 +80,10 @@ impl<F: Float> Distance<F> for LInfDist {
 /// L-p or [Minkowsky](https://en.wikipedia.org/wiki/Minkowski_distance) distance
 #[derive(Debug, Clone, PartialEq)]
 pub struct LpDist<F: Float>(pub F);
-impl <F: Float> LpDist<F>{
-	pub fn new(p: F) -> Self {
-		LpDist(p)
-	}
+impl<F: Float> LpDist<F> {
+    pub fn new(p: F) -> Self {
+        LpDist(p)
+    }
 }
 impl<F: Float> Distance<F> for LpDist<F> {
     #[inline]
