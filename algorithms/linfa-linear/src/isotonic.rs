@@ -2,11 +2,12 @@
 #![allow(non_snake_case)]
 use crate::error::{LinearError, Result};
 use ndarray::{s, stack, Array1, ArrayBase, Axis, Data, Ix1, Ix2};
-use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 
 use linfa::dataset::{AsSingleTargets, DatasetBase};
 use linfa::traits::{Fit, PredictInplace};
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 pub trait Float: linfa::Float {}
 impl Float for f32 {}
@@ -74,7 +75,12 @@ where
     (V, J_index)
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 /// An isotonic regression model.
 ///
 /// IsotonicRegression solves an isotonic regression problem using the pool
@@ -103,7 +109,12 @@ where
 /// A unifying framework. Mathematical Programming 47, 425–439 (1990).
 pub struct IsotonicRegression {}
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 /// A fitted isotonic regression model which can be used for making predictions.
 pub struct FittedIsotonicRegression<F> {
     regressor: Array1<F>,

@@ -1,6 +1,7 @@
 use crate::{glm::link::Link, LinearError, TweedieRegressor};
 use linfa::{Float, ParamGuard};
-use serde::{Deserialize, Serialize};
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 /// Generalized Linear Model (GLM) with a Tweedie distribution
 ///
@@ -34,7 +35,12 @@ use serde::{Deserialize, Serialize};
 /// let r2 = pred.r2(&dataset).unwrap();
 /// println!("r2 from prediction: {}", r2);
 /// ```
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub struct TweedieRegressorValidParams<F> {
     alpha: F,
     fit_intercept: bool,
