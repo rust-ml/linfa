@@ -180,7 +180,7 @@ mod test {
             scalar * dist.distance(a.view(), b.view())
         )
     }
-    fn test_simmetry<D: Distance<f64>>(dist: &D) {
+    fn test_symmetry<D: Distance<f64>>(dist: &D) {
         let a = arr1(&[0.5, 6.6]);
         let b = arr1(&[4.4, 3.0]);
         assert_eq!(
@@ -198,7 +198,7 @@ mod test {
         test_infinite_distance(&dist);
         test_triangle_inequality(&dist);
         test_absolute_homogeneity(&dist);
-        test_simmetry(&dist);
+        test_symmetry(&dist);
     }
 
     #[test]
@@ -232,7 +232,7 @@ mod test {
         assert_eq!(dist.distance(a.view(), b.view()), 2.0);
 
         test_triangle_inequality(&dist);
-        test_simmetry(&dist);
+        test_symmetry(&dist);
     }
 
     #[test]
