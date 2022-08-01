@@ -77,7 +77,7 @@ impl<F: Float> Distance<F> for LInfDist {
     }
 }
 
-// L-0 or [Hamming](https://en.wikipedia.org/wiki/Hamming_distance)
+/// L-0 or [Hamming](https://en.wikipedia.org/wiki/Hamming_distance)
 #[derive(Debug, Clone, PartialEq)]
 pub struct L0Dist;
 impl<F: Float> Distance<F> for L0Dist {
