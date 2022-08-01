@@ -67,7 +67,7 @@ impl<F: Float> Distance<F> for L2Dist {
     }
 }
 
-/// L-infinte or [Chebyshev](https://en.wikipedia.org/wiki/Chebyshev_distance) distance
+/// L-infinite or [Chebyshev](https://en.wikipedia.org/wiki/Chebyshev_distance) distance
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LInfDist;
 impl<F: Float> Distance<F> for LInfDist {
@@ -77,6 +77,21 @@ impl<F: Float> Distance<F> for LInfDist {
     }
 }
 
+// L-0 or [Hamming](https://en.wikipedia.org/wiki/Hamming_distance)
+#[derive(Debug, Clone, PartialEq)]
+pub struct L0Dist;
+impl<F: Float> Distance<F> for L0Dist {
+    #[inline]
+    fn distance<D: Dimension>(&self, a: ArrayView<F, D>, b: ArrayView<F, D>) -> F {
+        Zip::from(&a).and(&b).fold(F::zero(), |acc, &a, &b| {
+            if (a - b).is_zero() {
+                acc
+            } else {
+                acc + F::one()
+            }
+        })
+    }
+}
 /// L-p or [Minkowsky](https://en.wikipedia.org/wiki/Minkowski_distance) distance
 #[derive(Debug, Clone, PartialEq)]
 pub struct LpDist<F: Float>(pub F);
@@ -88,6 +103,9 @@ impl<F: Float> LpDist<F> {
 impl<F: Float> Distance<F> for LpDist<F> {
     #[inline]
     fn distance<D: Dimension>(&self, a: ArrayView<F, D>, b: ArrayView<F, D>) -> F {
+        if self.0.is_zero() {
+            return L0Dist.distance(a, b);
+        }
         Zip::from(&a)
             .and(&b)
             .fold(F::zero(), |acc, &a, &b| acc + (a - b).abs().powf(self.0))
@@ -122,6 +140,7 @@ pub fn to_gaussian_similarity<F: Float>(
 
 #[cfg(test)]
 mod test {
+
     use approx::assert_abs_diff_eq;
     use ndarray::arr1;
 
@@ -136,17 +155,7 @@ mod test {
         has_autotraits::<LpDist<f64>>();
     }
 
-    fn dist_test<D: Distance<f64>>(dist: D, result: f64) {
-        let a = arr1(&[0.5, 6.6]);
-        let b = arr1(&[4.4, 3.0]);
-        let ab = dist.distance(a.view(), b.view());
-        assert_abs_diff_eq!(ab, result, epsilon = 1e-3);
-        assert_abs_diff_eq!(dist.rdist_to_dist(dist.dist_to_rdist(ab)), ab);
-
-        let a = arr1(&[f64::INFINITY, 6.6]);
-        let b = arr1(&[4.4, f64::NEG_INFINITY]);
-        assert!(dist.distance(a.view(), b.view()).is_infinite());
-
+    fn test_triangle_inequality<D: Distance<f64>>(dist: &D) {
         // Triangle equality
         let a = arr1(&[0.5, 6.6]);
         let b = arr1(&[4.4, 3.0]);
@@ -155,6 +164,41 @@ mod test {
         let bc = dist.distance(b.view(), c.view());
         let ac = dist.distance(a.view(), c.view());
         assert!(ab + bc > ac)
+    }
+
+    fn test_infinite_distance<D: Distance<f64>>(dist: &D) {
+        let a = arr1(&[f64::INFINITY, 6.6]);
+        let b = arr1(&[4.4, f64::NEG_INFINITY]);
+        assert!(dist.distance(a.view(), b.view()).is_infinite());
+    }
+    fn test_absolute_homogeneity<D: Distance<f64>>(dist: &D) {
+        let scalar = 5.0;
+        let a = arr1(&[0.5, 6.6]);
+        let b = arr1(&[4.4, 3.0]);
+        assert_eq!(
+            dist.distance((a.clone() * scalar).view(), (b.clone() * scalar).view()),
+            scalar * dist.distance(a.view(), b.view())
+        )
+    }
+    fn test_simmetry<D: Distance<f64>>(dist: &D) {
+        let a = arr1(&[0.5, 6.6]);
+        let b = arr1(&[4.4, 3.0]);
+        assert_eq!(
+            dist.distance(a.view(), b.view()),
+            dist.distance(b.view(), a.view())
+        );
+    }
+    fn dist_test<D: Distance<f64>>(dist: D, result: f64) {
+        let a = arr1(&[0.5, 6.6]);
+        let b = arr1(&[4.4, 3.0]);
+        let ab = dist.distance(a.view(), b.view());
+        assert_abs_diff_eq!(ab, result, epsilon = 1e-3);
+        assert_abs_diff_eq!(dist.rdist_to_dist(dist.dist_to_rdist(ab)), ab);
+
+        test_infinite_distance(&dist);
+        test_triangle_inequality(&dist);
+        test_absolute_homogeneity(&dist);
+        test_simmetry(&dist);
     }
 
     #[test]
@@ -175,6 +219,28 @@ mod test {
     #[test]
     fn linf_dist() {
         dist_test(LInfDist, 3.9);
+    }
+
+    #[test]
+    fn l0_dist_properties() {
+        // This norm does not accomplish with infinite distance test or absolute
+        // homogeneity property
+
+        let dist = L0Dist;
+        let a = arr1(&[0.5, 6.6]);
+        let b = arr1(&[4.4, 3.0]);
+        assert_eq!(dist.distance(a.view(), b.view()), 2.0);
+
+        test_triangle_inequality(&dist);
+        test_simmetry(&dist);
+    }
+
+    #[test]
+    #[should_panic]
+    fn l0_dist_non_properties() {
+        let dist = L0Dist;
+        test_infinite_distance(&dist);
+        test_absolute_homogeneity(&dist);
     }
 
     #[test]
