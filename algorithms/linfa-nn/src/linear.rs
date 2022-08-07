@@ -7,7 +7,7 @@ use noisy_float::NoisyFloat;
 use serde_crate::{Deserialize, Serialize};
 
 use crate::{
-    distance::Distance, heap_elem::MinHeapElem, BuildError, NearestNeighbour,
+    distance::Distance, heap_elem::MinHeapElem, BuildError, NearestNeighbour, NearestNeighbourBox,
     NearestNeighbourIndex, NnError, Point,
 };
 
@@ -98,11 +98,10 @@ impl NearestNeighbour for LinearSearch {
         batch: &'a ArrayBase<DT, Ix2>,
         leaf_size: usize,
         dist_fn: D,
-    ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError> {
+    ) -> Result<NearestNeighbourBox<'a, F>, BuildError> {
         if leaf_size == 0 {
             return Err(BuildError::EmptyLeaf);
         }
-        LinearSearchIndex::new(batch, dist_fn)
-            .map(|v| Box::new(v) as Box<dyn NearestNeighbourIndex<F>>)
+        LinearSearchIndex::new(batch, dist_fn).map(|v| Box::new(v) as NearestNeighbourBox<F>)
     }
 }
