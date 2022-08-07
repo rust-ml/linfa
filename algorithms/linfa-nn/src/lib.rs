@@ -38,6 +38,7 @@ pub mod distance;
 pub use crate::{balltree::*, kdtree::*, linear::*};
 
 pub(crate) type Point<'a, F> = ArrayView1<'a, F>;
+pub(crate) type NearestNeighbourBox<'a, F> = Box<dyn 'a + Send + Sync + NearestNeighbourIndex<F>>;
 
 /// Error returned when building nearest neighbour indices
 #[derive(Error, Debug)]
@@ -71,7 +72,7 @@ pub trait NearestNeighbour: std::fmt::Debug + Send + Sync + Unpin {
         batch: &'a ArrayBase<DT, Ix2>,
         leaf_size: usize,
         dist_fn: D,
-    ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError>;
+    ) -> Result<NearestNeighbourBox<'a, F>, BuildError>;
 
     /// Builds a spatial index using a default leaf size. See `from_batch_with_leaf_size` for more
     /// information.
@@ -79,7 +80,7 @@ pub trait NearestNeighbour: std::fmt::Debug + Send + Sync + Unpin {
         &self,
         batch: &'a ArrayBase<DT, Ix2>,
         dist_fn: D,
-    ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError> {
+    ) -> Result<NearestNeighbourBox<'a, F>, BuildError> {
         self.from_batch_with_leaf_size(batch, 2usize.pow(4), dist_fn)
     }
 }
@@ -164,7 +165,7 @@ impl NearestNeighbour for CommonNearestNeighbour {
         batch: &'a ArrayBase<DT, Ix2>,
         leaf_size: usize,
         dist_fn: D,
-    ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError> {
+    ) -> Result<NearestNeighbourBox<'a, F>, BuildError> {
         match self {
             Self::LinearSearch => LinearSearch.from_batch_with_leaf_size(batch, leaf_size, dist_fn),
             Self::KdTree => KdTree.from_batch_with_leaf_size(batch, leaf_size, dist_fn),
@@ -181,7 +182,7 @@ mod tests {
     fn autotraits() {
         fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
         has_autotraits::<CommonNearestNeighbour>();
-        has_autotraits::<Box<dyn NearestNeighbourIndex<f64>>>();
+        has_autotraits::<NearestNeighbourBox<'static, f64>>();
         has_autotraits::<BuildError>();
         has_autotraits::<NnError>();
     }

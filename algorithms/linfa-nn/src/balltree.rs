@@ -10,7 +10,7 @@ use serde_crate::{Deserialize, Serialize};
 use crate::{
     distance::Distance,
     heap_elem::{MaxHeapElem, MinHeapElem},
-    BuildError, NearestNeighbour, NearestNeighbourIndex, NnError, Point,
+    BuildError, NearestNeighbour, NearestNeighbourBox, NearestNeighbourIndex, NnError, Point,
 };
 
 // Partition the points using median value
@@ -307,9 +307,8 @@ impl NearestNeighbour for BallTree {
         batch: &'a ArrayBase<DT, Ix2>,
         leaf_size: usize,
         dist_fn: D,
-    ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError> {
-        BallTreeIndex::new(batch, leaf_size, dist_fn)
-            .map(|v| Box::new(v) as Box<dyn NearestNeighbourIndex<F>>)
+    ) -> Result<NearestNeighbourBox<'a, F>, BuildError> {
+        BallTreeIndex::new(batch, leaf_size, dist_fn).map(|v| Box::new(v) as NearestNeighbourBox<F>)
     }
 }
 
