@@ -21,6 +21,8 @@
 //! let dataset = embedding.predict(dataset);
 //! ```
 //!
+use std::marker::PhantomData;
+
 use crate::error::{ReductionError, Result};
 #[cfg(not(feature = "blas"))]
 use linfa_linalg::{lobpcg::TruncatedSvd, Order};
@@ -44,12 +46,13 @@ use linfa::{
     serde(crate = "serde_crate")
 )]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PcaParams {
+pub struct PcaParams<F> {
     embedding_size: usize,
     apply_whitening: bool,
+    _float: PhantomData<F>,
 }
 
-impl PcaParams {
+impl<F> PcaParams<F> {
     /// Apply whitening to the embedding vector
     ///
     /// Whitening will scale the eigenvalues of the transformation such that the covariance will be
@@ -59,6 +62,37 @@ impl PcaParams {
 
         self
     }
+}
+
+/// Fitted Principal Component Analysis model
+///
+/// The model contains the mean and hyperplane for the projection of data.
+///
+/// # Example
+///
+/// ```
+/// use linfa::traits::{Fit, Predict};
+/// use linfa_reduction::Pca;
+///
+/// let dataset = linfa_datasets::iris();
+///
+/// // apply PCA projection along a line which maximizes the spread of the data
+/// let embedding = Pca::params(1)
+///     .fit(&dataset).unwrap();
+///
+/// // reduce dimensionality of the dataset
+/// let dataset = embedding.predict(dataset);
+/// ```
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
+#[derive(Debug, Clone, PartialEq)]
+pub struct Pca<F> {
+    embedding: Array2<F>,
+    sigma: Array1<F>,
+    mean: Array1<F>,
 }
 
 /// Fit a PCA model given a dataset
@@ -73,7 +107,7 @@ impl PcaParams {
 /// # Returns
 ///
 /// A fitted PCA model with origin and hyperplane
-impl<T, D: Data<Elem = f64>> Fit<ArrayBase<D, Ix2>, T, ReductionError> for PcaParams {
+impl<T, D: Data<Elem = f64>> Fit<ArrayBase<D, Ix2>, T, ReductionError> for PcaParams<f64> {
     type Object = Pca<f64>;
 
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Pca<f64>> {
@@ -119,65 +153,38 @@ impl<T, D: Data<Elem = f64>> Fit<ArrayBase<D, Ix2>, T, ReductionError> for PcaPa
     }
 }
 
-/// Fitted Principal Component Analysis model
-///
-/// The model contains the mean and hyperplane for the projection of data.
-///
-/// # Example
-///
-/// ```
-/// use linfa::traits::{Fit, Predict};
-/// use linfa_reduction::Pca;
-///
-/// let dataset = linfa_datasets::iris();
-///
-/// // apply PCA projection along a line which maximizes the spread of the data
-/// let embedding = Pca::params(1)
-///     .fit(&dataset).unwrap();
-///
-/// // reduce dimensionality of the dataset
-/// let dataset = embedding.predict(dataset);
-/// ```
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
-#[derive(Debug, Clone, PartialEq)]
-pub struct Pca<F> {
-    embedding: Array2<F>,
-    sigma: Array1<F>,
-    mean: Array1<F>,
-}
-
-impl Pca<f64> {
+impl<F: Float> Pca<F> {
     /// Create default parameter set
     ///
     /// # Parameters
     ///
     ///  * `embedding_size`: the target dimensionality
-    pub fn params(embedding_size: usize) -> PcaParams {
+    pub fn params(embedding_size: usize) -> PcaParams<F> {
         PcaParams {
             embedding_size,
             apply_whitening: false,
+            _float: PhantomData,
         }
     }
 
     /// Return the amount of explained variance per element
-    pub fn explained_variance(&self) -> Array1<f64> {
-        self.sigma.mapv(|x| x * x / (self.sigma.len() as f64 - 1.0))
+    pub fn explained_variance(&self) -> Array1<F> {
+        self.sigma
+            .mapv(|x| x * x / F::from(self.sigma.len() - 1).unwrap())
     }
 
     /// Return the normalized amount of explained variance per element
-    pub fn explained_variance_ratio(&self) -> Array1<f64> {
-        let ex_var = self.sigma.mapv(|x| x * x / (self.sigma.len() as f64 - 1.0));
+    pub fn explained_variance_ratio(&self) -> Array1<F> {
+        let ex_var = self
+            .sigma
+            .mapv(|x| x * x / F::from(self.sigma.len() - 1).unwrap());
         let sum_ex_var = ex_var.sum();
 
         ex_var / sum_ex_var
     }
 
     /// Return the singular values
-    pub fn singular_values(&self) -> &Array1<f64> {
+    pub fn singular_values(&self) -> &Array1<F> {
         &self.sigma
     }
 }
@@ -234,7 +241,7 @@ mod tests {
         has_autotraits::<DiffusionMapValidParams>();
         has_autotraits::<DiffusionMapParams>();
         has_autotraits::<ReductionError>();
-        has_autotraits::<PcaParams>();
+        has_autotraits::<PcaParams<f32>>();
         has_autotraits::<Pca<f64>>();
     }
 
