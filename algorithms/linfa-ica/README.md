@@ -20,6 +20,10 @@ There is an usage example in the `examples/` directory. To run, use:
 $ cargo run --release --example fast_ica
 ```
 
+## BLAS/Lapack backend
+
+See [this section](../../README.md#blaslapack-backend) to enable an external BLAS/LAPACK backend.
+
 ## License
 Dual-licensed to be compatible with the Rust project.
 

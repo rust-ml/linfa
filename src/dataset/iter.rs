@@ -1,16 +1,17 @@
-use super::{AsTargets, DatasetBase, DatasetView, FromTargetArray, Records};
-use ndarray::{s, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
+use super::{AsTargets, DatasetBase, DatasetView, FromTargetArray, Records, TargetDim};
+use ndarray::{ArrayBase, ArrayView, ArrayView1, ArrayView2, Axis, Data, Ix2};
 use std::marker::PhantomData;
 
-pub struct Iter<'a, 'b: 'a, F, L> {
+#[derive(Clone, Debug)]
+pub struct Iter<'a, 'b: 'a, F, L, I: ndarray::Dimension> {
     records: ArrayView2<'b, F>,
-    targets: ArrayView2<'b, L>,
+    targets: ArrayView<'b, L, I>,
     idx: usize,
     phantom: PhantomData<&'a ArrayView2<'b, F>>,
 }
 
-impl<'a, 'b: 'a, F, L> Iter<'a, 'b, F, L> {
-    pub fn new(records: ArrayView2<'b, F>, targets: ArrayView2<'b, L>) -> Iter<'a, 'b, F, L> {
+impl<'a, 'b: 'a, F, L, I: ndarray::Dimension> Iter<'a, 'b, F, L, I> {
+    pub fn new(records: ArrayView2<'b, F>, targets: ArrayView<'b, L, I>) -> Iter<'a, 'b, F, L, I> {
         Iter {
             records,
             targets,
@@ -20,8 +21,8 @@ impl<'a, 'b: 'a, F, L> Iter<'a, 'b, F, L> {
     }
 }
 
-impl<'a, 'b: 'a, F, L> Iterator for Iter<'a, 'b, F, L> {
-    type Item = (ArrayView1<'a, F>, ArrayView1<'a, L>);
+impl<'a, 'b: 'a, F, L, I: TargetDim> Iterator for Iter<'a, 'b, F, L, I> {
+    type Item = (ArrayView1<'a, F>, ArrayView<'a, L, I::Smaller>);
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.records.nsamples() <= self.idx {
@@ -30,15 +31,16 @@ impl<'a, 'b: 'a, F, L> Iterator for Iter<'a, 'b, F, L> {
 
         self.idx += 1;
         let records = self.records.reborrow();
-        let targets = self.targets.reborrow();
+        let targets = self.targets.clone().reborrow();
 
         Some((
-            records.slice_move(s![self.idx - 1, ..]),
-            targets.slice_move(s![self.idx - 1, ..]),
+            records.index_axis_move(Axis(0), self.idx - 1),
+            targets.index_axis_move(Axis(0), self.idx - 1),
         ))
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct DatasetIter<'a, 'b, R: Records, T> {
     dataset: &'b DatasetBase<R, T>,
     idx: usize,
@@ -63,9 +65,9 @@ impl<'a, 'b: 'a, R: Records, T> DatasetIter<'a, 'b, R, T> {
 impl<'a, 'b: 'a, F: 'a, L: 'a, D, T> Iterator for DatasetIter<'a, 'b, ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
-    T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
+    T: FromTargetArray<'a, Elem = L>,
 {
-    type Item = DatasetView<'a, F, L>;
+    type Item = DatasetView<'a, F, L, T::Ix>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if !self.target_or_feature && self.dataset.ntargets() <= self.idx {
@@ -77,15 +79,16 @@ where
         }
 
         let mut records = self.dataset.records.view();
-        let mut targets = self.dataset.targets.as_multi_targets();
+        let mut targets = self.dataset.targets.as_targets();
         let feature_names;
         let weights = self.dataset.weights.clone();
 
         if !self.target_or_feature {
-            targets.slice_collapse(s![.., self.idx]);
+            // This branch should only run for 2D targets
+            targets.collapse_axis(Axis(1), self.idx);
             feature_names = self.dataset.feature_names.clone();
         } else {
-            records.slice_collapse(s![.., self.idx]);
+            records.collapse_axis(Axis(1), self.idx);
             if self.dataset.feature_names.len() == records.len_of(Axis(1)) {
                 feature_names = vec![self.dataset.feature_names[self.idx].clone()];
             } else {
@@ -106,7 +109,7 @@ where
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ChunksIter<'a, 'b: 'a, F, T> {
     records: ArrayView2<'a, F>,
     targets: &'a T,
@@ -136,7 +139,7 @@ impl<'a, 'b: 'a, F, T> ChunksIter<'a, 'b, F, T> {
 
 impl<'a, 'b: 'a, F, E: 'b, T> Iterator for ChunksIter<'a, 'b, F, T>
 where
-    T: AsTargets<Elem = E> + FromTargetArray<'b, E>,
+    T: AsTargets<Elem = E> + FromTargetArray<'b>,
 {
     type Item = DatasetBase<ArrayView2<'a, F>, T::View>;
 
@@ -147,7 +150,7 @@ where
 
         let (mut records, mut targets) = (
             self.records.reborrow(),
-            self.targets.as_multi_targets().reborrow(),
+            self.targets.as_targets().reborrow(),
         );
         records.slice_axis_inplace(
             self.axis,

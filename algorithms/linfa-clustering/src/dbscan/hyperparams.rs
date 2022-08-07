@@ -9,7 +9,7 @@ use thiserror::Error;
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 /// The set of hyperparameters that can be specified for the execution of
 /// the [DBSCAN algorithm](struct.Dbscan.html).
 pub struct DbscanValidParams<F: Float, D: Distance<F>, N: NearestNeighbour> {
@@ -19,7 +19,7 @@ pub struct DbscanValidParams<F: Float, D: Distance<F>, N: NearestNeighbour> {
     pub(crate) nn_algo: N,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 /// Helper struct for building a set of [DBSCAN hyperparameters](struct.DbscanParams.html)
 pub struct DbscanParams<F: Float, D: Distance<F>, N: NearestNeighbour>(DbscanValidParams<F, D, N>);
 
@@ -106,9 +106,17 @@ impl<F: Float, D: Distance<F>, N: NearestNeighbour> DbscanValidParams<F, D, N> {
 
 #[cfg(test)]
 mod tests {
-    use linfa_nn::{distance::L2Dist, CommonNearestNeighbour};
+    use linfa_nn::{distance::L2Dist, CommonNearestNeighbour, KdTree};
 
     use super::*;
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<DbscanParamsError>();
+        has_autotraits::<DbscanParams<f64, L2Dist, KdTree>>();
+        has_autotraits::<DbscanValidParams<f64, L2Dist, KdTree>>();
+    }
 
     #[test]
     fn tolerance_cannot_be_zero() {

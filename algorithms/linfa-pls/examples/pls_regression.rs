@@ -4,14 +4,14 @@ use ndarray::{Array, Array1, Array2};
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::StandardNormal;
 use ndarray_rand::RandomExt;
-use rand_isaac::Isaac64Rng;
+use rand_xoshiro::Xoshiro256Plus;
 
 #[allow(clippy::many_single_char_names)]
 fn main() -> Result<()> {
     let n = 1000;
     let q = 3;
     let p = 10;
-    let mut rng = Isaac64Rng::seed_from_u64(42);
+    let mut rng = Xoshiro256Plus::seed_from_u64(42);
 
     // X shape (n, p) random
     let x: Array2<f64> = Array::random_using((n, p), StandardNormal, &mut rng);

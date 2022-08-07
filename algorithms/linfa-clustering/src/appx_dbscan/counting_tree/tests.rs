@@ -1,4 +1,4 @@
-use crate::AppxDbscanParams;
+use crate::AppxDbscan;
 
 use super::*;
 
@@ -7,8 +7,15 @@ use linfa::ParamGuard;
 use ndarray::{arr1, ArrayView};
 
 #[test]
+fn autotraits() {
+    fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+    has_autotraits::<IntersectionType>();
+    has_autotraits::<TreeStructure<f64>>();
+}
+
+#[test]
 fn counting_test() {
-    let params = AppxDbscanParams::new(2)
+    let params = AppxDbscan::params(2)
         .tolerance(2.0)
         .slack(0.1)
         .check()
@@ -26,29 +33,29 @@ fn counting_test() {
     let central = ArrayView::from(&central_fixed);
     let far_fixed = [10.0 * l, 10.0 * l];
     let far = ArrayView::from(&far_fixed);
-    assert!(root1.approximate_range_counting(&q, &params) > 0);
-    assert!(root2.approximate_range_counting(&q2, &params) > 0);
-    assert!(root1.approximate_range_counting(&central, &params) > 0);
-    assert!(root2.approximate_range_counting(&central, &params) > 0);
-    assert_eq!(root1.approximate_range_counting(&far, &params), 0);
-    assert_eq!(root2.approximate_range_counting(&far, &params), 0);
-    assert_eq!(root1.approximate_range_counting(&q2, &params), 0);
-    assert_eq!(root2.approximate_range_counting(&q, &params), 0);
-    assert!(root1.approximate_range_counting(&ArrayView::from(&[2.0 * l, 2.0 * l]), &params) > 0);
+    assert!(root1.approximate_range_counting(q, &params) > 0);
+    assert!(root2.approximate_range_counting(q2, &params) > 0);
+    assert!(root1.approximate_range_counting(central, &params) > 0);
+    assert!(root2.approximate_range_counting(central, &params) > 0);
+    assert_eq!(root1.approximate_range_counting(far, &params), 0);
+    assert_eq!(root2.approximate_range_counting(far, &params), 0);
+    assert_eq!(root1.approximate_range_counting(q2, &params), 0);
+    assert_eq!(root2.approximate_range_counting(q, &params), 0);
+    assert!(root1.approximate_range_counting(ArrayView::from(&[2.0 * l, 2.0 * l]), &params) > 0);
     assert_eq!(
-        root1.approximate_range_counting(&ArrayView::from(&[3.0 * l, 3.0 * l]), &params),
+        root1.approximate_range_counting(ArrayView::from(&[3.0 * l, 3.0 * l]), &params),
         0
     );
     assert_eq!(
-        root1.approximate_range_counting(&ArrayView::from(&[2.5 * l, 2.5 * l]), &params),
+        root1.approximate_range_counting(ArrayView::from(&[2.5 * l, 2.5 * l]), &params),
         0
     );
     assert_eq!(
-        root1.approximate_range_counting(&ArrayView::from(&[2.2 * l, 2.2 * l]), &params),
+        root1.approximate_range_counting(ArrayView::from(&[2.2 * l, 2.2 * l]), &params),
         0
     );
     assert_eq!(
-        root1.approximate_range_counting(&ArrayView::from(&[2.11 * l, 2.11 * l]), &params),
+        root1.approximate_range_counting(ArrayView::from(&[2.11 * l, 2.11 * l]), &params),
         0
     );
 }
@@ -57,7 +64,7 @@ fn counting_test() {
 fn edge_points_counting_test() {
     let epsilon: f64 = 1.0;
     let slack = 0.00001;
-    let params = AppxDbscanParams::new(2)
+    let params = AppxDbscan::params(2)
         .tolerance(epsilon)
         .slack(slack)
         .check()
@@ -67,14 +74,14 @@ fn edge_points_counting_test() {
     let left: Array1<f64> = Array1::from_shape_vec(2, vec![-0.6, 0.0]).unwrap();
 
     let root = TreeStructure::build_structure(vec![central.view()], &params);
-    assert!(root.approximate_range_counting(&left.view(), &params) > 0);
+    assert!(root.approximate_range_counting(left.view(), &params) > 0);
 
     let central: Array1<f64> =
         Array1::from_shape_vec(6, vec![5.0, 29.0, 4.0, 7.0, 3.0, 1.0]).unwrap();
     let left: Array1<f64> = Array1::from_shape_vec(6, vec![5.0, 29.0, 4.0, 7.0, 3.0, 2.0]).unwrap();
 
     let root = TreeStructure::build_structure(vec![central.view()], &params);
-    assert!(root.approximate_range_counting(&left.view(), &params) > 0);
+    assert!(root.approximate_range_counting(left.view(), &params) > 0);
 }
 
 #[test]
@@ -134,7 +141,7 @@ fn get_corners_test() {
 
 #[test]
 fn determine_intersection_test() {
-    let params = AppxDbscanParams::new(2)
+    let params = AppxDbscan::params(2)
         .tolerance(2.0)
         .slack(0.1)
         .check()
@@ -148,28 +155,28 @@ fn determine_intersection_test() {
     let cell_index_4 = arr1(&[1, 2]);
     let expected_type = IntersectionType::FullyCovered;
     let intersection = determine_intersection(
-        &q,
+        q,
         &params,
         &cell_center_from_cell_index(cell_index_1.view(), l),
         l,
     );
     assert_eq!(intersection, expected_type);
     let intersection = determine_intersection(
-        &q,
+        q,
         &params,
         &cell_center_from_cell_index(cell_index_2.view(), l),
         l,
     );
     assert_eq!(intersection, expected_type);
     let intersection = determine_intersection(
-        &q,
+        q,
         &params,
         &cell_center_from_cell_index(cell_index_3.view(), l),
         l,
     );
     assert_eq!(intersection, expected_type);
     let intersection = determine_intersection(
-        &q,
+        q,
         &params,
         &cell_center_from_cell_index(cell_index_4.view(), l),
         l,
@@ -181,28 +188,28 @@ fn determine_intersection_test() {
     let cell_index_4 = arr1(&[2, 1]);
     let expected_type = IntersectionType::Intersecting;
     let intersection = determine_intersection(
-        &q,
+        q,
         &params,
         &cell_center_from_cell_index(cell_index_1.view(), l),
         l,
     );
     assert_eq!(intersection, expected_type);
     let intersection = determine_intersection(
-        &q,
+        q,
         &params,
         &cell_center_from_cell_index(cell_index_2.view(), l),
         l,
     );
     assert_eq!(intersection, expected_type);
     let intersection = determine_intersection(
-        &q,
+        q,
         &params,
         &cell_center_from_cell_index(cell_index_3.view(), l),
         l,
     );
     assert_eq!(intersection, expected_type);
     let intersection = determine_intersection(
-        &q,
+        q,
         &params,
         &cell_center_from_cell_index(cell_index_4.view(), l),
         l,
@@ -214,28 +221,28 @@ fn determine_intersection_test() {
     let cell_index_4 = arr1(&[-2, 1]);
     let expected_type = IntersectionType::Disjoint;
     let intersection = determine_intersection(
-        &q,
+        q,
         &params,
         &cell_center_from_cell_index(cell_index_1.view(), l),
         l,
     );
     assert_eq!(intersection, expected_type);
     let intersection = determine_intersection(
-        &q,
+        q,
         &params,
         &cell_center_from_cell_index(cell_index_2.view(), l),
         l,
     );
     assert_eq!(intersection, expected_type);
     let intersection = determine_intersection(
-        &q,
+        q,
         &params,
         &cell_center_from_cell_index(cell_index_3.view(), l),
         l,
     );
     assert_eq!(intersection, expected_type);
     let intersection = determine_intersection(
-        &q,
+        q,
         &params,
         &cell_center_from_cell_index(cell_index_4.view(), l),
         l,

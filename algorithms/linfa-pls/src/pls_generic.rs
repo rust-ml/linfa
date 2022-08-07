@@ -9,7 +9,10 @@ use linfa::{
     traits::Transformer,
     Dataset, DatasetBase, Float,
 };
+#[cfg(not(feature = "blas"))]
+use linfa_linalg::svd::*;
 use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
+#[cfg(feature = "blas")]
 use ndarray_linalg::svd::*;
 use ndarray_stats::QuantileExt;
 #[cfg(feature = "serde")]
@@ -20,37 +23,38 @@ use serde_crate::{Deserialize, Serialize};
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Pls<F: Float> {
     x_mean: Array1<F>,
     x_std: Array1<F>,
     y_mean: Array1<F>,
     y_std: Array1<F>,
-    x_weights: Array2<F>,  // U
-    y_weights: Array2<F>,  // V
-    x_scores: Array2<F>,   // xi
-    y_scores: Array2<F>,   // Omega
+    x_weights: Array2<F>, // U
+    y_weights: Array2<F>, // V
+    #[cfg(test)]
+    x_scores: Array2<F>, // xi
+    #[cfg(test)]
+    y_scores: Array2<F>, // Omega
     x_loadings: Array2<F>, // Gamma
     y_loadings: Array2<F>, // Delta
     x_rotations: Array2<F>,
     y_rotations: Array2<F>,
     coefficients: Array2<F>,
-    n_iters: Array1<usize>,
 }
 
-#[derive(PartialEq, Debug, Clone, Copy)]
+#[derive(PartialEq, Debug, Clone, Copy, Eq, Hash)]
 pub enum Algorithm {
     Nipals,
     Svd,
 }
 
-#[derive(PartialEq, Debug, Clone, Copy)]
+#[derive(PartialEq, Debug, Clone, Copy, Eq, Hash)]
 pub(crate) enum DeflationMode {
     Regression,
     Canonical,
 }
 
-#[derive(PartialEq, Debug, Clone, Copy)]
+#[derive(PartialEq, Debug, Clone, Copy, Eq, Hash)]
 pub(crate) enum Mode {
     A,
     B,
@@ -289,14 +293,15 @@ impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsE
             y_std,
             x_weights,
             y_weights,
+            #[cfg(test)]
             x_scores,
+            #[cfg(test)]
             y_scores,
             x_loadings,
             y_loadings,
             x_rotations,
             y_rotations,
             coefficients,
-            n_iters,
         })
     }
 }
@@ -312,13 +317,14 @@ impl<F: Float> PlsValidParams<F> {
     ) -> Result<(Array1<F>, Array1<F>, usize)> {
         let eps = F::epsilon();
 
-        let mut y_score = Array1::ones(y.ncols());
+        let mut y_score = None;
         for col in y.t().rows() {
             if *col.mapv(|v| v.abs()).max().unwrap() > eps {
-                y_score = col.to_owned();
+                y_score = Some(col.to_owned());
                 break;
             }
         }
+        let mut y_score = y_score.ok_or(PlsError::PowerMethodConstantResidualError())?;
 
         let mut x_pinv = None;
         let mut y_pinv = None;
@@ -379,10 +385,12 @@ impl<F: Float> PlsValidParams<F> {
         let c = x.t().dot(y);
 
         let c = c.with_lapack();
-        let (u, _, vt) = c.svd(true, true)?;
-        // safe unwrap because both parameters are set to true in above call
-        let u = u.unwrap().column(0).to_owned().without_lapack();
-        let vt = vt.unwrap().row(0).to_owned().without_lapack();
+        let (u, s, vt) = c.svd(true, true)?;
+        // Extract the SVD component corresponding to the largest singular-value
+        // XXX We should compute the partial SVD instead of full SVD
+        let max = s.argmax()?;
+        let u = u.unwrap().column(max).to_owned().without_lapack();
+        let vt = vt.unwrap().row(max).to_owned().without_lapack();
 
         Ok((u, vt))
     }
@@ -398,7 +406,16 @@ mod tests {
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::StandardNormal;
     use ndarray_rand::RandomExt;
-    use rand_isaac::Isaac64Rng;
+    use rand_xoshiro::Xoshiro256Plus;
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<PlsParams<f64>>();
+        has_autotraits::<PlsValidParams<f64>>();
+        has_autotraits::<Pls<f64>>();
+        has_autotraits::<PlsError>();
+    }
 
     fn assert_matrix_orthonormal(m: &Array2<f64>) {
         assert_abs_diff_eq!(&m.t().dot(m), &Array::eye(m.ncols()), epsilon = 1e-7);
@@ -593,7 +610,7 @@ mod tests {
         let q_noise = 5;
 
         // 2 latents vars:
-        let mut rng = Isaac64Rng::seed_from_u64(100);
+        let mut rng = Xoshiro256Plus::seed_from_u64(100);
         let l1: Array1<f64> = Array1::random_using(n, StandardNormal, &mut rng);
         let l2: Array1<f64> = Array1::random_using(n, StandardNormal, &mut rng);
         let mut latents = Array::zeros((4, n));
@@ -746,10 +763,10 @@ mod tests {
     }
 
     #[test]
-    fn test_cca() -> Result<()> {
+    fn test_cca() {
         // values checked against scikit-learn 0.24.1 CCA
         let ds = linnerud();
-        let cca = Pls::cca(3).fit(&ds)?;
+        let cca = Pls::cca(3).fit(&ds).unwrap();
         let ds = cca.transform(ds);
         let expected_x = array![
             [0.09597886, 0.13862931, -1.0311966],
@@ -774,7 +791,6 @@ mod tests {
             [-0.53730151, -0.10896789, -0.92590428]
         ];
         assert_abs_diff_eq!(expected_x, ds.records(), epsilon = 1e-2);
-        Ok(())
     }
 
     #[test]
@@ -789,5 +805,19 @@ mod tests {
         assert_abs_diff_eq!(ds.records(), ds_orig.records(), epsilon = 1e-6);
         assert_abs_diff_eq!(ds.targets(), ds_orig.targets(), epsilon = 1e-6);
         Ok(())
+    }
+
+    #[test]
+    fn test_pls_constant_y() {
+        // Checks constant residual error when y is constant.
+        let n = 100;
+        let mut rng = Xoshiro256Plus::seed_from_u64(42);
+        let x = Array2::<f64>::random_using((n, 3), StandardNormal, &mut rng);
+        let y = Array2::zeros((n, 1));
+        let ds = Dataset::new(x, y);
+        assert!(matches!(
+            Pls::regression(2).fit(&ds).unwrap_err(),
+            PlsError::PowerMethodConstantResidualError()
+        ));
     }
 }

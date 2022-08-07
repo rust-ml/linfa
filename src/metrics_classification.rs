@@ -9,6 +9,7 @@ use std::fmt;
 use ndarray::prelude::*;
 use ndarray::Data;
 
+use crate::dataset::AsSingleTargets;
 use crate::dataset::{AsTargets, DatasetBase, Label, Labels, Pr, Records};
 use crate::error::{Error, Result};
 
@@ -38,6 +39,7 @@ fn map_prediction_to_idx<L: Label>(
 /// A confusion matrix shows predictions in a matrix, where rows correspond to target and columns
 /// to predicted. Diagonal entries are correct predictions, and everything off the
 /// diagonal is a miss-classification.
+#[derive(Clone, PartialEq)]
 pub struct ConfusionMatrix<A> {
     matrix: Array2<f32>,
     members: Array1<A>,
@@ -65,13 +67,16 @@ impl<A> ConfusionMatrix<A> {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```rust
+    /// use linfa::prelude::*;
+    /// use ndarray::array;
+    ///
     /// // create dummy classes 0 and 1
     /// let prediction = array![0, 1, 1, 1, 0, 0, 1];
     /// let ground_truth = array![0, 0, 1, 0, 1, 0, 1];
     ///
     /// // create confusion matrix
-    /// let cm = prediction.into_confusion_matrix(&ground_truth);
+    /// let cm = prediction.confusion_matrix(&ground_truth).unwrap();
     ///
     /// // print precision for label 0
     /// println!("{:?}", cm.precision());
@@ -107,13 +112,16 @@ impl<A> ConfusionMatrix<A> {
     ///
     /// # Example
     ///
-    /// ```rust, ignore
+    /// ```rust
+    /// use linfa::prelude::*;
+    /// use ndarray::array;
+    ///
     /// // create dummy classes 0 and 1
     /// let prediction = array![0, 1, 1, 1, 0, 0, 1];
     /// let ground_truth = array![0, 0, 1, 0, 1, 0, 1];
     ///
     /// // create confusion matrix
-    /// let cm = prediction.into_confusion_matrix(&ground_truth);
+    /// let cm = prediction.confusion_matrix(&ground_truth).unwrap();
     ///
     /// // print recall for label 0
     /// println!("{:?}", cm.recall());
@@ -264,7 +272,7 @@ pub trait ToConfusionMatrix<A, T> {
 impl<L: Label, S, T> ToConfusionMatrix<L, ArrayBase<S, Ix1>> for T
 where
     S: Data<Elem = L>,
-    T: AsTargets<Elem = L> + Labels<Elem = L>,
+    T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
 {
     fn confusion_matrix(&self, ground_truth: ArrayBase<S, Ix1>) -> Result<ConfusionMatrix<L>> {
         self.confusion_matrix(&ground_truth)
@@ -274,10 +282,10 @@ where
 impl<L: Label, S, T> ToConfusionMatrix<L, &ArrayBase<S, Ix1>> for T
 where
     S: Data<Elem = L>,
-    T: AsTargets<Elem = L> + Labels<Elem = L>,
+    T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
 {
     fn confusion_matrix(&self, ground_truth: &ArrayBase<S, Ix1>) -> Result<ConfusionMatrix<L>> {
-        let targets = self.try_single_target()?;
+        let targets = self.as_single_targets();
         if targets.len() != ground_truth.len() {
             return Err(Error::MismatchedShapes(targets.len(), ground_truth.len()));
         }
@@ -307,16 +315,15 @@ impl<L: Label, R, R2, T, T2> ToConfusionMatrix<L, &DatasetBase<R, T>> for Datase
 where
     R: Records,
     R2: Records,
-    T: AsTargets<Elem = L>,
-    T2: AsTargets<Elem = L> + Labels<Elem = L>,
+    T: AsSingleTargets<Elem = L>,
+    T2: AsSingleTargets<Elem = L> + Labels<Elem = L>,
 {
     fn confusion_matrix(&self, ground_truth: &DatasetBase<R, T>) -> Result<ConfusionMatrix<L>> {
-        self.targets()
-            .confusion_matrix(ground_truth.try_single_target()?)
+        self.targets().confusion_matrix(ground_truth.as_targets())
     }
 }
 
-impl<L: Label, S: Data<Elem = L>, T: AsTargets<Elem = L> + Labels<Elem = L>, R: Records>
+impl<L: Label, S: Data<Elem = L>, T: AsSingleTargets<Elem = L> + Labels<Elem = L>, R: Records>
     ToConfusionMatrix<L, &DatasetBase<R, T>> for ArrayBase<S, Ix1>
 {
     fn confusion_matrix(&self, ground_truth: &DatasetBase<R, T>) -> Result<ConfusionMatrix<L>> {
@@ -395,6 +402,7 @@ fn trapezoidal<A: NdFloat>(vals: &[(A, A)]) -> A {
 /// A Receiver Operating Characteristic for binary-label classification
 ///
 /// The ROC curve gives insight about the seperability of a binary classification task.
+#[derive(Debug, Clone, PartialEq)]
 pub struct ReceiverOperatingCharacteristic {
     curve: Vec<(f32, f32)>,
     thresholds: Vec<f32>,
@@ -419,10 +427,11 @@ impl ReceiverOperatingCharacteristic {
 
 /// Classification for binary-labels
 ///
-/// This contains Receiver-Operating-Characterstics curves as these only work for binary
+/// This contains Receiver-Operating-Characterstics curves and log loss as those only work for binary
 /// classification tasks.
 pub trait BinaryClassification<T> {
     fn roc(&self, y: T) -> Result<ReceiverOperatingCharacteristic>;
+    fn log_loss(&self, y: T) -> Result<f32>;
 }
 
 impl BinaryClassification<&[bool]> for &[Pr] {
@@ -469,24 +478,58 @@ impl BinaryClassification<&[bool]> for &[Pr] {
             thresholds: thresholds.into_iter().map(|x| *x).collect(),
         })
     }
+
+    fn log_loss(&self, y: &[bool]) -> Result<f32> {
+        let probabilities = aview1(self);
+        probabilities.log_loss(y)
+    }
 }
 
 impl<D: Data<Elem = Pr>> BinaryClassification<&[bool]> for ArrayBase<D, Ix1> {
     fn roc(&self, y: &[bool]) -> Result<ReceiverOperatingCharacteristic> {
         self.as_slice().unwrap().roc(y)
     }
+
+    fn log_loss(&self, y: &[bool]) -> Result<f32> {
+        assert_eq!(
+            self.len(),
+            y.len(),
+            "The number of predicted points must match the length of target."
+        );
+        let len = self.len();
+        if len == 0 {
+            Err(Error::NotEnoughSamples)
+        } else {
+            let sum: f32 = self
+                .iter()
+                .map(|v| (*v).clamp(f32::EPSILON, 1. - f32::EPSILON))
+                .zip(y.iter())
+                .map(|(a, b)| if *b { -a.ln() } else { -(1. - a).ln() })
+                .sum();
+            Ok(sum / len as f32)
+        }
+    }
 }
 
-impl<R: Records, R2: Records, T: AsTargets<Elem = bool>, T2: AsTargets<Elem = Pr>>
+impl<R: Records, R2: Records, T: AsSingleTargets<Elem = bool>, T2: AsSingleTargets<Elem = Pr>>
     BinaryClassification<&DatasetBase<R, T>> for DatasetBase<R2, T2>
 {
     fn roc(&self, y: &DatasetBase<R, T>) -> Result<ReceiverOperatingCharacteristic> {
-        let targets = self.try_single_target()?;
+        let targets = self.as_targets();
         let targets = targets.as_slice().unwrap();
-        let y_targets = y.try_single_target()?;
+        let y_targets = y.as_targets();
         let y_targets = y_targets.as_slice().unwrap();
 
         targets.roc(y_targets)
+    }
+
+    /// Log loss of the probabilities of the binary target
+    fn log_loss(&self, y: &DatasetBase<R, T>) -> Result<f32> {
+        let probabilities = self.as_single_targets();
+        let y_targets = y.as_targets();
+        let y_targets = y_targets.as_slice().unwrap();
+
+        probabilities.log_loss(y_targets)
     }
 }
 
@@ -595,7 +638,7 @@ mod tests {
 
     #[test]
     fn test_roc_curve() {
-        let predicted = ArrayView1::from(&[0.1, 0.3, 0.5, 0.7, 0.8, 0.9]).mapv(Pr);
+        let predicted = ArrayView1::from(&[0.1, 0.3, 0.5, 0.7, 0.8, 0.9]).mapv(Pr::new);
 
         let groundtruth = vec![false, true, false, true, true, true];
 
@@ -616,7 +659,7 @@ mod tests {
     #[test]
     fn test_roc_auc() {
         let mut rng = SmallRng::seed_from_u64(42);
-        let predicted = Array1::linspace(0.0, 1.0, 1000).mapv(Pr);
+        let predicted = Array1::linspace(0.0, 1.0, 1000).mapv(Pr::new);
 
         let range = Uniform::new(0, 2);
 
@@ -659,5 +702,32 @@ mod tests {
         {
             assert_cm_eq(x, r, &bin_labels);
         }
+    }
+
+    #[test]
+    fn log_loss() {
+        let ground_truth = &[false, false, false, false, true, true, true, true, true];
+        let predicted =
+            ArrayView1::from(&[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]).mapv(Pr::new);
+
+        let logloss = predicted.log_loss(ground_truth).unwrap();
+        assert_abs_diff_eq!(logloss, 0.34279516);
+    }
+
+    #[test]
+    #[should_panic]
+    fn log_loss_empty() {
+        let ground_truth = &[];
+        let predicted = ArrayView1::from(&[]).mapv(Pr::new);
+        predicted.log_loss(ground_truth).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn log_loss_with_different_lengths() {
+        let ground_truth = &[false, false, false, false, true, true, true, true];
+        let predicted =
+            ArrayView1::from(&[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]).mapv(Pr::new);
+        predicted.log_loss(ground_truth).unwrap();
     }
 }

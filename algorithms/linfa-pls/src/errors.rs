@@ -1,3 +1,6 @@
+#[cfg(not(feature = "blas"))]
+use linfa_linalg::LinalgError;
+#[cfg(feature = "blas")]
 use ndarray_linalg::error::LinalgError;
 use thiserror::Error;
 pub type Result<T> = std::result::Result<T, PlsError>;
@@ -14,6 +17,8 @@ pub enum PlsError {
     ZeroMaxIter,
     #[error("Singular vector computation power method: max iterations ({0}) reached")]
     PowerMethodNotConvergedError(usize),
+    #[error("Constant residual detected in power method")]
+    PowerMethodConstantResidualError(),
     #[error(transparent)]
     LinalgError(#[from] LinalgError),
     #[error(transparent)]

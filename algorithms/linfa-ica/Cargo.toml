@@ -1,6 +1,6 @@
 [package]
 name = "linfa-ica"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["VasanthakumarV <vasanth260m12@gmail.com>"]
 description = "A collection of Independent Component Analysis (ICA) algorithms"
 edition = "2018"
@@ -14,7 +14,8 @@ categories = ["algorithms", "mathematics", "science"]
 
 [features]
 default = []
-serde = ["serde_crate", "ndarray/serde"]                                                     
+blas = ["ndarray-linalg", "linfa/ndarray-linalg"]
+serde = ["serde_crate", "ndarray/serde"]
 
 [dependencies.serde_crate]
 package = "serde"
@@ -24,15 +25,16 @@ default-features = false
 features = ["std", "derive"]
 
 [dependencies]
-ndarray = { version = "0.15", default-features = false }
-ndarray-linalg = "0.14"
+ndarray = { version = "0.15" }
+linfa-linalg = { version = "0.1", default-features = false }
+ndarray-linalg = { version = "0.14", optional = true }
 ndarray-rand = "0.14"
 ndarray-stats = "0.5"
 num-traits = "0.2"
-rand_isaac = "0.3"
+rand_xoshiro = "0.6"
 thiserror = "1.0"
 
-linfa = { version = "0.5.0", path = "../..", features = ["ndarray-linalg"] }
+linfa = { version = "0.6.0", path = "../.." }
 
 [dev-dependencies]
 ndarray-npy = { version = "0.8", default-features = false }

@@ -16,7 +16,7 @@ fn main() -> Result<()> {
 
     // get the mean r2 validation score across all folds for each model
     let r2_values =
-        dataset.cross_validate(5, &models, |prediction, truth| prediction.r2(&truth))?;
+        dataset.cross_validate_single(5, &models, |prediction, truth| prediction.r2(&truth))?;
 
     for (ratio, r2) in ratios.iter().zip(r2_values.iter()) {
         println!("L1 ratio: {}, r2 score: {}", ratio, r2);

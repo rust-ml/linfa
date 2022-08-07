@@ -17,7 +17,7 @@ Decision Trees (DTs) are a non-parametric supervised learning method used for cl
 There is an example in the `examples/` directory showing how to use decision trees. To run, use:
 
 ```bash
-$ cargo run --release --example decision_tree --features linfa/intel-mkl-system 
+$ cargo run --release --example decision_tree
 ```
 
 This generates the following tree: 

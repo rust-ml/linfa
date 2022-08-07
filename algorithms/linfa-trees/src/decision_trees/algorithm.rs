@@ -1,15 +1,17 @@
 //! Linear decision trees
 //!
+use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 
+use linfa::dataset::AsSingleTargets;
 use ndarray::{Array1, ArrayBase, Axis, Data, Ix1, Ix2};
 
 use super::NodeIter;
 use super::Tikz;
 use super::{DecisionTreeValidParams, SplitQuality};
 use linfa::{
-    dataset::{AsTargets, Labels, Records},
+    dataset::{Labels, Records},
     error::Error,
     error::Result,
     traits::*,
@@ -98,7 +100,7 @@ impl<'a, F: Float> SortedIndex<'a, F> {
     ) -> Self {
         let sliced_column: Vec<F> = x.index_axis(Axis(1), feature_idx).to_vec();
         let mut pairs: Vec<(usize, F)> = sliced_column.into_iter().enumerate().collect();
-        pairs.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Greater));
+        pairs.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Greater));
 
         SortedIndex {
             sorted_values: pairs,
@@ -196,7 +198,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
     }
 
     /// Recursively fits the node
-    fn fit<D: Data<Elem = F>, T: AsTargets<Elem = L> + Labels<Elem = L>>(
+    fn fit<D: Data<Elem = F>, T: AsSingleTargets<Elem = L> + Labels<Elem = L>>(
         data: &DatasetBase<ArrayBase<D, Ix2>, T>,
         mask: &RowMask,
         hyperparameters: &DecisionTreeValidParams<F, L>,
@@ -208,7 +210,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
         // set our prediction for this subset to the modal class
         let prediction = find_modal_class(&parent_class_freq);
         // get targets from dataset
-        let target = data.try_single_target()?;
+        let target = data.as_single_targets();
 
         // return empty leaf when we don't have enough samples or the maximal depth is reached
         if (mask.nsamples as f32) < hyperparameters.min_weight_split()
@@ -482,7 +484,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DecisionTree<F: Float, L: Label> {
     root_node: TreeNode<F, L>,
     num_features: usize,
@@ -513,7 +515,7 @@ impl<'a, F: Float, L: Label + 'a + std::fmt::Debug, D, T> Fit<ArrayBase<D, Ix2>,
     for DecisionTreeValidParams<F, L>
 where
     D: Data<Elem = F>,
-    T: AsTargets<Elem = L> + Labels<Elem = L>,
+    T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
 {
     type Object = DecisionTree<F, L>;
 
@@ -697,7 +699,19 @@ mod tests {
     use ndarray::{array, concatenate, s, Array, Array1, Array2, Axis};
     use rand::rngs::SmallRng;
 
+    use crate::DecisionTreeParams;
     use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<DecisionTree<f64, bool>>();
+        has_autotraits::<TreeNode<f64, bool>>();
+        has_autotraits::<DecisionTreeValidParams<f64, bool>>();
+        has_autotraits::<DecisionTreeParams<f64, bool>>();
+        has_autotraits::<NodeIter<f64, bool>>();
+        has_autotraits::<Tikz<f64, bool>>();
+    }
 
     #[test]
     fn prediction_for_rows_example() {

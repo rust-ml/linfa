@@ -1,6 +1,6 @@
 [package]
 name = "linfa-reduction"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["Lorenz Schmidt <bytesnake@mailbox.org>"]
 description = "A collection of dimensionality reduction techniques"
 edition = "2018"
@@ -14,7 +14,7 @@ categories = ["algorithms", "mathematics", "science"]
 
 [features]
 default = []
-
+blas = ["ndarray-linalg", "linfa/ndarray-linalg"]
 serde = ["serde_crate", "ndarray/serde"]
 
 [dependencies.serde_crate]
@@ -25,17 +25,18 @@ default-features = false
 features = ["std", "derive"]
 
 [dependencies]
-ndarray = { version = "0.15", default-features = false, features = ["approx"] }
-ndarray-linalg = "0.14"
+ndarray = { version = "0.15", features = ["approx"] }
+linfa-linalg = { version = "0.1" }
+ndarray-linalg = { version = "0.14", optional = true }
 ndarray-rand = "0.14"
 num-traits = "0.2"
 thiserror = "1.0"
+rand = { version = "0.8", features = ["small_rng"] }
 
-linfa = { version = "0.5.0", path = "../..", features = ["ndarray-linalg"] }
-linfa-kernel = { version = "0.5.0", path = "../linfa-kernel" }
+linfa = { version = "0.6.0", path = "../.." }
+linfa-kernel = { version = "0.6.0", path = "../linfa-kernel" }
 
 [dev-dependencies]
-rand = { version = "0.8", features = ["small_rng"] }
 ndarray-npy = { version = "0.8", default-features = false }
-linfa-datasets = { version = "0.5.0", path = "../../datasets", features = ["iris"] }
-approx = { version = "0.4", default-features = false, features = ["std"] }
+linfa-datasets = { version = "0.6.0", path = "../../datasets", features = ["iris", "generate"] }
+approx = { version = "0.4" }

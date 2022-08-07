@@ -1,16 +1,18 @@
-use crate::appx_dbscan::clustering::AppxDbscanLabeler;
 use crate::appx_dbscan::{AppxDbscanParams, AppxDbscanValidParams};
 use linfa::{traits::Transformer, DatasetBase, Float};
+use linfa_nn::{CommonNearestNeighbour, NearestNeighbour};
 use ndarray::{Array1, ArrayBase, Data, Ix2};
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
+
+use super::cells_grid::CellsGrid;
 
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 /// DBSCAN (Density-based Spatial Clustering of Applications with Noise)
 /// clusters together neighbouring points, while points in sparse regions are labelled
 /// as noise. Since points may be part of a cluster or noise the transform method returns
@@ -31,6 +33,9 @@ use serde_crate::{Deserialize, Serialize};
 /// border points are not assigned deterministically, it may happen that the two
 /// results still differ (in terms of border points) for very small values
 /// of `slack`.
+///
+/// Unlike regular DBSCAN, this algorithm only works with Euclidean (L2) distances, not other
+/// distance functions.
 ///
 /// ## The algorithm
 ///
@@ -54,23 +59,24 @@ use serde_crate::{Deserialize, Serialize};
 /// Let's do a walkthrough of an example running the approximated DBSCAN on some data.
 ///
 /// ```rust
-/// use linfa_clustering::{AppxDbscan, generate_blobs};
+/// use linfa_clustering::AppxDbscan;
 /// use linfa::traits::Transformer;
+/// use linfa_datasets::generate;
 /// use ndarray::{Axis, array, s};
 /// use ndarray_rand::rand::SeedableRng;
-/// use rand_isaac::Isaac64Rng;
+/// use rand_xoshiro::Xoshiro256Plus;
 /// use approx::assert_abs_diff_eq;
 ///
 /// // Our random number generator, seeded for reproducibility
 /// let seed = 42;
-/// let mut rng = Isaac64Rng::seed_from_u64(seed);
+/// let mut rng = Xoshiro256Plus::seed_from_u64(seed);
 ///
 /// // `expected_centroids` has shape `(n_centroids, n_features)`
 /// // i.e. three points in the 2-dimensional plane
 /// let expected_centroids = array![[0., 1.], [-10., 20.], [-1., 10.]];
 /// // Let's generate a synthetic dataset: three blobs of observations
 /// // (100 points each) centered around our `expected_centroids`
-/// let observations = generate_blobs(100, &expected_centroids, &mut rng);
+/// let observations = generate::blobs(100, &expected_centroids, &mut rng);
 ///
 /// // Let's configure and run our AppxDbscan algorithm
 /// // We use the builder pattern to specify the hyperparameters
@@ -91,29 +97,34 @@ impl AppxDbscan {
     /// Defaults are provided if the optional parameters are not specified:
     /// * `tolerance = 1e-4`
     /// * `slack = 1e-2`
-    pub fn params<F: Float>(min_points: usize) -> AppxDbscanParams<F> {
-        AppxDbscanParams::new(min_points)
+    /// * `nn_algo = KdTree`
+    pub fn params<F: Float>(min_points: usize) -> AppxDbscanParams<F, CommonNearestNeighbour> {
+        AppxDbscanParams::new(min_points, CommonNearestNeighbour::KdTree)
+    }
+
+    pub fn params_with<F: Float, N>(min_points: usize, nn_algo: N) -> AppxDbscanParams<F, N> {
+        AppxDbscanParams::new(min_points, nn_algo)
     }
 }
 
-impl<F: Float, D: Data<Elem = F>> Transformer<&ArrayBase<D, Ix2>, Array1<Option<usize>>>
-    for AppxDbscanValidParams<F>
+impl<F: Float, D: Data<Elem = F>, N: NearestNeighbour>
+    Transformer<&ArrayBase<D, Ix2>, Array1<Option<usize>>> for AppxDbscanValidParams<F, N>
 {
     fn transform(&self, observations: &ArrayBase<D, Ix2>) -> Array1<Option<usize>> {
         if observations.dim().0 == 0 {
             return Array1::from_elem(0, None);
         }
 
-        let labeler = AppxDbscanLabeler::new(&observations.view(), self);
-        labeler.into_labels()
+        let mut grid = CellsGrid::new(observations.view(), self);
+        self.label(&mut grid, observations.view())
     }
 }
 
-impl<F: Float, D: Data<Elem = F>, T>
+impl<F: Float, D: Data<Elem = F>, N: NearestNeighbour, T>
     Transformer<
         DatasetBase<ArrayBase<D, Ix2>, T>,
         DatasetBase<ArrayBase<D, Ix2>, Array1<Option<usize>>>,
-    > for AppxDbscanValidParams<F>
+    > for AppxDbscanValidParams<F, N>
 {
     fn transform(
         &self,

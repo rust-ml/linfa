@@ -12,12 +12,12 @@ There are usage examples in the `examples/` directory.
 
 To run the two-class example, use:
 ```bash
-$ cargo run --example winequality --features linfa/<blas-library>
+$ cargo run --example winequality
 ```
 
 To run the multinomial example, use:
 ```bash
-$ cargo run --example winequality_multi --features linfa/<blas-library>
+$ cargo run --example winequality_multi
 ```
 
 ## License

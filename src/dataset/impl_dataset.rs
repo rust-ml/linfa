@@ -1,14 +1,11 @@
 use super::{
     super::traits::{Predict, PredictInplace},
     iter::{ChunksIter, DatasetIter, Iter},
-    AsTargets, AsTargetsMut, CountedTargets, Dataset, DatasetBase, DatasetView, Float,
-    FromTargetArray, Label, Labels, Records, Result,
+    AsSingleTargets, AsTargets, AsTargetsMut, CountedTargets, Dataset, DatasetBase, DatasetView,
+    Float, FromTargetArray, Label, Labels, Records, Result, TargetDim,
 };
 use crate::traits::Fit;
-use ndarray::{
-    concatenate, s, Array, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, ArrayViewMut2, Axis,
-    Data, DataMut, Dimension, Ix1, Ix2, OwnedRepr,
-};
+use ndarray::{concatenate, prelude::*, Data, DataMut, Dimension};
 use rand::{seq::SliceRandom, Rng};
 use std::collections::HashMap;
 use std::ops::AddAssign;
@@ -25,8 +22,8 @@ impl<R: Records, S> DatasetBase<R, S> {
     /// ```ignore
     /// let dataset = Dataset::new(records, targets);
     /// ```
-    pub fn new<T: IntoTargets<S>>(records: R, targets: T) -> DatasetBase<R, S> {
-        let targets = targets.into();
+    pub fn new(records: R, targets: S) -> DatasetBase<R, S> {
+        let targets = targets;
 
         DatasetBase {
             records,
@@ -140,7 +137,7 @@ impl<L, R: Records, T: AsTargets<Elem = L>> DatasetBase<R, T> {
     ///
     /// A modified dataset with new target type.
     ///
-    pub fn map_targets<S, G: FnMut(&L) -> S>(self, fnc: G) -> DatasetBase<R, Array2<S>> {
+    pub fn map_targets<S, G: FnMut(&L) -> S>(self, fnc: G) -> DatasetBase<R, Array<S, T::Ix>> {
         let DatasetBase {
             records,
             targets,
@@ -149,7 +146,7 @@ impl<L, R: Records, T: AsTargets<Elem = L>> DatasetBase<R, T> {
             ..
         } = self;
 
-        let targets = targets.as_multi_targets();
+        let targets = targets.as_targets();
 
         DatasetBase {
             records,
@@ -170,7 +167,11 @@ impl<L, R: Records, T: AsTargets<Elem = L>> DatasetBase<R, T> {
     /// ```
     ///
     pub fn ntargets(&self) -> usize {
-        self.targets.as_multi_targets().len_of(Axis(1))
+        if T::Ix::NDIM.unwrap() == 1 {
+            1
+        } else {
+            self.targets.as_targets().len_of(Axis(1))
+        }
     }
 }
 
@@ -185,6 +186,10 @@ where
     /// iterator runs once for each data point and, while doing so, holds an reference to the owned
     /// dataset.
     ///
+    /// For multi-target datasets, the yielded target value is `ArrayView1` consisting of the
+    /// different targets. For single-target datasets, the target value is `ArrayView0` containing
+    /// the single target.
+    ///
     /// # Example
     /// ```
     /// let dataset = linfa_datasets::iris();
@@ -193,20 +198,20 @@ where
     ///     println!("{} => {}", x, y);
     /// }
     /// ```
-    pub fn sample_iter(&'a self) -> Iter<'a, '_, F, T::Elem> {
-        Iter::new(self.records.view(), self.targets.as_multi_targets())
+    pub fn sample_iter(&'a self) -> Iter<'a, '_, F, T::Elem, T::Ix> {
+        Iter::new(self.records.view(), self.targets.as_targets())
     }
 }
 
 impl<'a, F: 'a, L: 'a, D, T> DatasetBase<ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
-    T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
+    T: AsTargets<Elem = L> + FromTargetArray<'a>,
 {
     /// Creates a view of a dataset
     pub fn view(&'a self) -> DatasetBase<ArrayView2<'a, F>, T::View> {
         let records = self.records().view();
-        let targets = T::new_targets_view(self.as_multi_targets());
+        let targets = T::new_targets_view(self.as_targets());
 
         DatasetBase::new(records, targets)
             .with_feature_names(self.feature_names.clone())
@@ -226,7 +231,6 @@ where
     /// This functions creates an iterator which produces dataset views complete records, but only
     /// a single target each. Useful to train multiple single target models for a multi-target
     /// dataset.
-    ///
     pub fn target_iter(&'a self) -> DatasetIter<'a, '_, ArrayBase<D, Ix2>, T> {
         DatasetIter::new(self, false)
     }
@@ -234,24 +238,26 @@ where
 
 impl<L, R: Records, T: AsTargets<Elem = L>> AsTargets for DatasetBase<R, T> {
     type Elem = L;
+    type Ix = T::Ix;
 
-    fn as_multi_targets(&self) -> ArrayView2<'_, Self::Elem> {
-        self.targets.as_multi_targets()
+    fn as_targets(&self) -> ArrayView<Self::Elem, Self::Ix> {
+        self.targets.as_targets()
     }
 }
 
 impl<L, R: Records, T: AsTargetsMut<Elem = L>> AsTargetsMut for DatasetBase<R, T> {
     type Elem = L;
+    type Ix = T::Ix;
 
-    fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<'_, Self::Elem> {
-        self.targets.as_multi_targets_mut()
+    fn as_targets_mut(&mut self) -> ArrayViewMut<Self::Elem, Self::Ix> {
+        self.targets.as_targets_mut()
     }
 }
 
 #[allow(clippy::type_complexity)]
 impl<'a, L: 'a, F, T> DatasetBase<ArrayView2<'a, F>, T>
 where
-    T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
+    T: AsTargets<Elem = L> + FromTargetArray<'a>,
 {
     /// Split dataset into two disjoint chunks
     ///
@@ -268,7 +274,7 @@ where
     ) {
         let n = (self.nsamples() as f32 * ratio).ceil() as usize;
         let (records_first, records_second) = self.records.view().split_at(Axis(0), n);
-        let (targets_first, targets_second) = self.targets.as_multi_targets().split_at(Axis(0), n);
+        let (targets_first, targets_second) = self.targets.as_targets().split_at(Axis(0), n);
 
         let targets_first = T::new_targets_view(targets_first);
         let targets_second = T::new_targets_view(targets_second);
@@ -305,31 +311,27 @@ impl<L: Label, T: Labels<Elem = L>, R: Records> Labels for DatasetBase<R, T> {
 impl<'a, 'b: 'a, F, L: Label, T, D> DatasetBase<ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
-    T: AsTargets<Elem = L> + Labels<Elem = L>,
+    T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
 {
     /// Produce N boolean targets from multi-class targets
     ///
     /// Some algorithms (like SVM) don't support multi-class targets. This function splits a
-    /// dataset into multiple binary target view of the same dataset.
+    /// dataset into multiple binary single-target views of the same dataset.
     pub fn one_vs_all(
         &self,
     ) -> Result<
         Vec<(
             L,
-            DatasetBase<ArrayView2<'_, F>, CountedTargets<bool, Array2<bool>>>,
+            DatasetBase<ArrayView2<'_, F>, CountedTargets<bool, Array1<bool>>>,
         )>,
     > {
-        let targets = self.targets().try_single_target()?;
+        let targets = self.targets().as_single_targets();
 
         Ok(self
             .labels()
             .into_iter()
             .map(|label| {
-                let targets = targets
-                    .iter()
-                    .map(|x| x == &label)
-                    .collect::<Array1<_>>()
-                    .insert_axis(Axis(1));
+                let targets = targets.iter().map(|x| x == &label).collect::<Array1<_>>();
 
                 let targets = CountedTargets::new(targets);
 
@@ -359,7 +361,7 @@ impl<L: Label, R: Records, S: AsTargets<Elem = L>> DatasetBase<R, S> {
 
         for (elms, val) in self
             .targets
-            .as_multi_targets()
+            .as_targets()
             .axis_iter(Axis(0))
             .enumerate()
             .filter(|(i, _)| *mask.get(*i).unwrap_or(&true))
@@ -384,10 +386,10 @@ impl<L: Label, R: Records, S: AsTargets<Elem = L>> DatasetBase<R, S> {
 }
 
 impl<F, D: Data<Elem = F>, I: Dimension> From<ArrayBase<D, I>>
-    for DatasetBase<ArrayBase<D, I>, Array2<()>>
+    for DatasetBase<ArrayBase<D, I>, Array1<()>>
 {
     fn from(records: ArrayBase<D, I>) -> Self {
-        let empty_targets = Array2::default((records.len_of(Axis(0)), 1));
+        let empty_targets = Array1::default(records.len_of(Axis(0)));
         DatasetBase {
             records,
             targets: empty_targets,
@@ -397,13 +399,13 @@ impl<F, D: Data<Elem = F>, I: Dimension> From<ArrayBase<D, I>>
     }
 }
 
-impl<F, E, D, S> From<(ArrayBase<D, Ix2>, ArrayBase<S, Ix2>)>
-    for DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, Ix2>>
+impl<F, E, D, S, I: TargetDim> From<(ArrayBase<D, Ix2>, ArrayBase<S, I>)>
+    for DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, I>>
 where
     D: Data<Elem = F>,
     S: Data<Elem = E>,
 {
-    fn from(rec_tar: (ArrayBase<D, Ix2>, ArrayBase<S, Ix2>)) -> Self {
+    fn from(rec_tar: (ArrayBase<D, Ix2>, ArrayBase<S, I>)) -> Self {
         DatasetBase {
             records: rec_tar.0,
             targets: rec_tar.1,
@@ -413,26 +415,10 @@ where
     }
 }
 
-impl<F, E, D, S> From<(ArrayBase<D, Ix2>, ArrayBase<S, Ix1>)>
-    for DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, Ix2>>
-where
-    D: Data<Elem = F>,
-    S: Data<Elem = E>,
-{
-    fn from(rec_tar: (ArrayBase<D, Ix2>, ArrayBase<S, Ix1>)) -> Self {
-        DatasetBase {
-            records: rec_tar.0,
-            targets: rec_tar.1.insert_axis(Axis(1)),
-            weights: Array1::zeros(0),
-            feature_names: Vec::new(),
-        }
-    }
-}
-
 impl<'b, F: Clone, E: Copy + 'b, D, T> DatasetBase<ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
-    T: AsTargets<Elem = E> + FromTargetArray<'b, E>,
+    T: FromTargetArray<'b, Elem = E>,
     T::Owned: AsTargets,
 {
     /// Apply bootstrapping for samples and features
@@ -455,8 +441,7 @@ where
         &'b self,
         sample_feature_size: (usize, usize),
         rng: &'b mut R,
-    ) -> impl Iterator<Item = DatasetBase<Array2<F>, <T as FromTargetArray<'b, E>>::Owned>> + 'b
-    {
+    ) -> impl Iterator<Item = DatasetBase<Array2<F>, <T as FromTargetArray<'b>>::Owned>> + 'b {
         std::iter::repeat(()).map(move |_| {
             // sample with replacement
             let indices = (0..sample_feature_size.0)
@@ -464,7 +449,7 @@ where
                 .collect::<Vec<_>>();
 
             let records = self.records().select(Axis(0), &indices);
-            let targets = T::new_targets(self.as_multi_targets().select(Axis(0), &indices));
+            let targets = T::new_targets(self.as_targets().select(Axis(0), &indices));
 
             let indices = (0..sample_feature_size.1)
                 .map(|_| rng.gen_range(0..self.nfeatures()))
@@ -496,8 +481,7 @@ where
         &'b self,
         num_samples: usize,
         rng: &'b mut R,
-    ) -> impl Iterator<Item = DatasetBase<Array2<F>, <T as FromTargetArray<'b, E>>::Owned>> + 'b
-    {
+    ) -> impl Iterator<Item = DatasetBase<Array2<F>, <T as FromTargetArray<'b>>::Owned>> + 'b {
         std::iter::repeat(()).map(move |_| {
             // sample with replacement
             let indices = (0..num_samples)
@@ -505,7 +489,7 @@ where
                 .collect::<Vec<_>>();
 
             let records = self.records().select(Axis(0), &indices);
-            let targets = T::new_targets(self.as_multi_targets().select(Axis(0), &indices));
+            let targets = T::new_targets(self.as_targets().select(Axis(0), &indices));
 
             DatasetBase::new(records, targets)
         })
@@ -531,10 +515,9 @@ where
         &'b self,
         num_features: usize,
         rng: &'b mut R,
-    ) -> impl Iterator<Item = DatasetBase<Array2<F>, <T as FromTargetArray<'b, E>>::Owned>> + 'b
-    {
+    ) -> impl Iterator<Item = DatasetBase<Array2<F>, <T as FromTargetArray<'b>>::Owned>> + 'b {
         std::iter::repeat(()).map(move |_| {
-            let targets = T::new_targets(self.as_multi_targets().to_owned());
+            let targets = T::new_targets(self.as_targets().to_owned());
 
             let indices = (0..num_features)
                 .map(|_| rng.gen_range(0..self.nfeatures()))
@@ -560,7 +543,7 @@ where
         indices.shuffle(rng);
 
         let records = self.records().select(Axis(0), &indices);
-        let targets = self.as_multi_targets().select(Axis(0), &indices);
+        let targets = self.as_targets().select(Axis(0), &indices);
         let targets = T::new_targets(targets);
 
         DatasetBase::new(records, targets)
@@ -568,11 +551,11 @@ where
 
     #[allow(clippy::type_complexity)]
     /// Performs K-folding on the dataset.
-    /// The dataset is divided into `k` "fold", each containing
-    /// `(dataset size)/k` samples, used to generate `k` training-validation
-    /// dataset pairs. Each pair contains a validation `Dataset` with `k` samples,
-    ///  the ones contained in the i-th fold, and a training `Dataset` composed by the
-    /// union of all the samples in the remaining folds.
+    ///
+    /// The dataset is divided into `k` "folds", each containing `(dataset size)/k` samples, used
+    /// to generate `k` training-validation dataset pairs. Each pair contains a validation
+    /// `Dataset` with `k` samples, the ones contained in the i-th fold, and a training `Dataset`
+    /// composed by the union of all the samples in the remaining folds.
     ///
     /// ### Parameters
     ///
@@ -586,12 +569,12 @@ where
     ///
     /// ```rust
     /// use linfa::dataset::DatasetView;
-    /// use ndarray::array;
+    /// use ndarray::{Ix1, array};
     ///
     /// let records = array![[1.,1.], [2.,1.], [3.,2.], [4.,1.],[5., 3.], [6.,2.]];
     /// let targets = array![1, 1, 0, 1, 0, 0];
     ///
-    /// let dataset : DatasetView<f64, usize> = (records.view(), targets.view()).into();
+    /// let dataset : DatasetView<f64, usize, Ix1> = (records.view(), targets.view()).into();
     /// let accuracies = dataset.fold(3).into_iter().map(|(train, valid)| {
     ///     // Here you can train your model and perform validation
     ///     
@@ -608,7 +591,7 @@ where
         DatasetBase<Array2<F>, T::Owned>,
         DatasetBase<Array2<F>, T::Owned>,
     )> {
-        let targets = self.as_multi_targets();
+        let targets = self.as_targets();
         let fold_size = targets.len() / k;
         let mut res = Vec::new();
 
@@ -630,7 +613,7 @@ where
                 // validation
                 DatasetBase::new(
                     records_chunks[0].into_owned(),
-                    T::new_targets(targets_chunks[0].into_owned()),
+                    T::new_targets(targets_chunks[0].clone().into_owned()),
                 ),
             ));
 
@@ -650,7 +633,7 @@ where
     pub fn to_owned(&self) -> DatasetBase<Array2<F>, T::Owned> {
         DatasetBase::new(
             self.records().to_owned(),
-            T::new_targets(self.as_multi_targets().to_owned()),
+            T::new_targets(self.as_targets().to_owned()),
         )
     }
 }
@@ -667,14 +650,15 @@ macro_rules! assist_swap_array2 {
     };
 }
 
-impl<'a, F: 'a + Clone, E: Copy + 'a, D, S> DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, Ix2>>
+impl<'a, F: 'a + Clone, E: Copy + 'a, D, S, I: TargetDim>
+    DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, I>>
 where
     D: DataMut<Elem = F>,
     S: DataMut<Elem = E>,
 {
-    /// Allows to perform k-folding cross validation on fittable algorithms.
+    /// Performs k-folding cross validation on fittable algorithms.
     ///
-    /// Given in input a dataset, a value of k and the desired params for the fittable
+    /// Given a dataset as input, a value of k and the desired params for the fittable
     /// algorithm, returns an iterator over the k trained models and the
     /// associated validation set.
     ///
@@ -705,7 +689,7 @@ where
     /// ```rust
     /// use linfa::traits::Fit;
     /// use linfa::dataset::{Dataset, DatasetView, Records};
-    /// use ndarray::{array, ArrayView1, ArrayView2};
+    /// use ndarray::{array, ArrayView1, ArrayView2, Ix1};
     /// use linfa::Error;
     ///
     /// struct MockFittable {}
@@ -714,11 +698,10 @@ where
     ///    mock_var: usize,
     /// }
     ///
-    ///
-    /// impl<'a> Fit<ArrayView2<'a,f64>, ArrayView2<'a, f64>, linfa::error::Error> for MockFittable {
+    /// impl<'a> Fit<ArrayView2<'a,f64>, ArrayView1<'a, f64>, linfa::error::Error> for MockFittable {
     ///     type Object = MockFittableResult;
     ///
-    ///     fn fit(&self, training_data: &DatasetView<f64, f64>) -> Result<Self::Object, linfa::error::Error> {
+    ///     fn fit(&self, training_data: &DatasetView<f64, f64, Ix1>) -> Result<Self::Object, linfa::error::Error> {
     ///         Ok(MockFittableResult {
     ///             mock_var: training_data.nsamples(),
     ///         })
@@ -727,19 +710,19 @@ where
     ///
     /// let records = array![[1.,1.], [2.,2.], [3.,3.], [4.,4.], [5.,5.]];
     /// let targets = array![1.,2.,3.,4.,5.];
-    /// let mut dataset: Dataset<f64, f64> = (records, targets).into();
+    /// let mut dataset: Dataset<f64, f64, Ix1> = (records, targets).into();
     /// let params = MockFittable {};
     ///
-    ///for (model,validation_set) in dataset.iter_fold(5, |v| params.fit(&v).unwrap()){
+    /// for (model,validation_set) in dataset.iter_fold(5, |v| params.fit(v).unwrap()){
     ///     // Here you can use `model` and `validation_set` to
     ///     // assert the performance of the chosen algorithm
     /// }
     /// ```
-    pub fn iter_fold<O, C: Fn(&DatasetView<F, E>) -> O>(
+    pub fn iter_fold<O, C: Fn(&DatasetView<F, E, I>) -> O>(
         &'a mut self,
         k: usize,
         fit_closure: C,
-    ) -> impl Iterator<Item = (O, DatasetBase<ArrayView2<F>, ArrayView2<E>>)> {
+    ) -> impl Iterator<Item = (O, DatasetBase<ArrayView2<F>, ArrayView<E, I>>)> {
         assert!(k > 0);
         assert!(k <= self.nsamples());
         let samples_count = self.nsamples();
@@ -747,12 +730,13 @@ where
 
         let features = self.nfeatures();
         let targets = self.ntargets();
+        let tshape = self.targets.raw_dim();
 
         let mut objs: Vec<O> = Vec::new();
 
         {
             let records_sl = self.records.as_slice_mut().unwrap();
-            let mut targets_sl2 = self.targets.as_multi_targets_mut();
+            let mut targets_sl2 = self.targets.as_targets_mut();
             let targets_sl = targets_sl2.as_slice_mut().unwrap();
 
             for i in 0..k {
@@ -766,8 +750,8 @@ where
                             records_sl.split_at(fold_size * features).1,
                         )
                         .unwrap(),
-                        ArrayView2::from_shape(
-                            (samples_count - fold_size, targets),
+                        ArrayView::from_shape(
+                            tshape.clone().nsamples(samples_count - fold_size),
                             targets_sl.split_at(fold_size * targets).1,
                         )
                         .unwrap(),
@@ -785,25 +769,30 @@ where
         objs.into_iter().zip(self.sample_chunks(fold_size))
     }
 
-    /// Cross validation for multi-target algorithms
+    /// Cross validation for single and multi-target algorithms
     ///
-    /// Given a list of fittable models, cross validation
-    /// is used to compare their performance according to some
-    /// performance metric. To do so, k-folding is applied to the
-    /// dataset and, for each fold, each model is trained on the training set
-    /// and its performance is evaluated on the validation set. The performances
-    /// collected for each model are then averaged over the number of folds.
+    /// Given a list of fittable models, cross validation is used to compare their performance
+    /// according to some performance metric. To do so, k-folding is applied to the dataset and,
+    /// for each fold, each model is trained on the training set and its performance is evaluated
+    /// on the validation set. The performances collected for each model are then averaged over the
+    /// number of folds.
+    ///
+    /// For single-target datasets, [`Dataset::cross_validate_single`] is recommended.
     ///
     /// ### Parameters:
     ///
     /// - `k`: the number of folds to apply
     /// - `parameters`: a list of models to compare
-    /// - `eval`: closure used to evaluate the performance of each trained model
+    /// - `eval`: closure used to evaluate the performance of each trained model. This closure is
+    /// called on the model output and validation targets of each fold and outputs the performance
+    /// score for each target. For single-target dataset the signature is `(Array1, Array1) ->
+    /// Array0`. For multi-target dataset the signature is `(Array2, Array2) -> Array1`.
     ///
     /// ### Returns
     ///
-    /// An array of model performances, in the same order as the models in input, if no errors occur.
-    /// The performance of each model is given as an array of performances, one for each target.
+    /// An array of model performances, for each model and each target, if no errors occur.
+    /// For multi-target dataset, the array has dimensions `(n_models, n_targets)`. For
+    /// single-target dataset, the array has dimensions `(n_models)`.
     /// Otherwise, it might return an Error in one of the following cases:
     ///
     /// - An error occurred during the fitting of one model
@@ -814,29 +803,56 @@ where
     /// ```rust, ignore
     ///
     /// use linfa::prelude::*;
+    /// use ndarray::arr0;
+    /// # use ndarray::{array, ArrayView1, ArrayView2, Ix1};
+    ///
+    /// # struct MockFittable {}
+    ///
+    /// # struct MockFittableResult {
+    /// #    mock_var: usize,
+    /// # }
+    ///
+    /// # impl<'a> Fit<ArrayView2<'a,f64>, ArrayView1<'a, f64>, linfa::error::Error> for MockFittable {
+    /// #     type Object = MockFittableResult;
+    ///
+    /// #     fn fit(&self, training_data: &DatasetView<f64, f64, Ix1>) -> Result<Self::Object, linfa::error::Error> {
+    /// #         Ok(MockFittableResult {
+    /// #             mock_var: training_data.nsamples(),
+    /// #         })
+    /// #     }
+    /// # }
+    ///
+    /// # let model1 = MockFittable {};
+    /// # let model2 = MockFittable {};
     ///
     /// // mutability needed for fast cross validation
     /// let mut dataset = linfa_datasets::diabetes();
     ///
-    /// let models = vec![model1, model2, ... ];
+    /// let models = vec![model1, model2];
     ///
-    /// let r2_scores = dataset.cross_validate_multi(5,&models, |prediction, truth| prediction.r2(truth))?;
+    /// let r2_scores = dataset.cross_validate(5, &models, |prediction, truth| prediction.r2(truth).map(arr0))?;
     ///
     /// ```
-    pub fn cross_validate_multi<O, ER, M, FACC, C>(
+    pub fn cross_validate<O, ER, M, FACC, C>(
         &'a mut self,
         k: usize,
         parameters: &[M],
         eval: C,
-    ) -> std::result::Result<Array2<FACC>, ER>
+    ) -> std::result::Result<Array<FACC, I>, ER>
     where
         ER: std::error::Error + std::convert::From<crate::error::Error>,
-        M: for<'c> Fit<ArrayView2<'c, F>, ArrayView2<'c, E>, ER, Object = O>,
-        O: for<'d> PredictInplace<ArrayView2<'a, F>, Array2<E>>,
+        M: for<'c> Fit<ArrayView2<'c, F>, ArrayView<'c, E, I>, ER, Object = O>,
+        O: for<'d> PredictInplace<ArrayView2<'a, F>, Array<E, I>>,
         FACC: Float,
-        C: Fn(&Array2<E>, &ArrayView2<E>) -> std::result::Result<Array1<FACC>, crate::error::Error>,
+        C: Fn(
+            &Array<E, I>,
+            &ArrayView<E, I>,
+        ) -> std::result::Result<Array<FACC, I::Smaller>, crate::error::Error>,
     {
-        let mut evaluations = Array2::from_elem((parameters.len(), self.ntargets()), FACC::zero());
+        let mut evaluations = Array::from_elem(
+            self.targets.raw_dim().nsamples(parameters.len()),
+            FACC::zero(),
+        );
         let folds_evaluations: std::result::Result<Vec<_>, ER> = self
             .iter_fold(k, |train| {
                 let fit_result: std::result::Result<Vec<_>, ER> =
@@ -846,15 +862,18 @@ where
             .map(|(models, valid)| {
                 let targets = valid.targets();
                 let models = models?;
+                // XXX diverges from master branch
                 let mut eval_predictions =
-                    Array2::from_elem((models.len(), targets.len()), FACC::zero());
+                    Array::from_elem(targets.raw_dim().nsamples(models.len()), FACC::zero());
                 for (i, model) in models.iter().enumerate() {
                     let predicted = model.predict(valid.records());
                     let eval_pred = match eval(&predicted, targets) {
                         Err(e) => Err(ER::from(e)),
                         Ok(res) => Ok(res),
                     }?;
-                    eval_predictions.row_mut(i).add_assign(&eval_pred);
+                    eval_predictions
+                        .index_axis_mut(Axis(0), i)
+                        .add_assign(&eval_pred);
                 }
                 Ok(eval_predictions)
             })
@@ -865,129 +884,34 @@ where
         }
         Ok(evaluations / FACC::from(k).unwrap())
     }
+}
 
-    /// Cross validation for single target algorithms
-    ///
-    /// Given a list of fittable models, cross validation
-    /// is used to compare their performance according to some
-    /// performance metric. To do so, k-folding is applied to the
-    /// dataset and, for each fold, each model is trained on the training set
-    /// and its performance is evaluated on the validation set. The performances
-    /// collected for each model are then averaged over the number of folds.
-    ///
-    /// ### Parameters:
-    ///
-    /// - `k`: the number of folds to apply
-    /// - `parameters`: a list of models to compare
-    /// - `eval`: closure used to evaluate the performance of each trained model. For single target
-    ///    datasets, this closure is called once for each fold.
-    ///    For multi-target datasets the closure is called, in each fold, once for every different target.
-    ///    If there is the need to use different evaluations for each target, take a look at the
-    ///    [`cross_validate_multi`](struct.DatasetBase.html#method.cross_validate_multi) method.
-    ///
-    /// ### Returns
-    ///
-    /// On succesful evalutation it returns an array of model performances, in the same order as the models in input.
-    ///
-    /// It returns an Error in one of the following cases:
-    ///
-    /// - An error occurred during the fitting of one model
-    /// - An error occurred inside the evaluation closure
-    ///
-    /// ### Example
-    ///
-    /// ```rust, ignore
-    ///
-    /// use linfa::prelude::*;
-    ///
-    /// // mutability needed for fast cross validation
-    /// let mut dataset = linfa_datasets::diabetes();
-    ///
-    /// let models = vec![model1, model2, ... ];
-    ///
-    /// let r2_scores = dataset.cross_validate(5,&models, |prediction, truth| prediction.r2(truth))?;
-    ///
-    /// ```
-    pub fn cross_validate<O, ER, M, FACC, C, I>(
+impl<'a, F: 'a + Clone, E: Copy + 'a, D, S> DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, Ix1>>
+where
+    D: DataMut<Elem = F>,
+    S: DataMut<Elem = E>,
+{
+    /// Specialized version of `cross_validate` for single-target datasets. Allows the evaluation
+    /// closure to return a float without wrapping it in `arr0`. See [`Dataset.cross_validate`] for
+    /// more details.
+    pub fn cross_validate_single<O, ER, M, FACC, C>(
         &'a mut self,
         k: usize,
         parameters: &[M],
         eval: C,
-    ) -> std::result::Result<ArrayBase<OwnedRepr<FACC>, I>, ER>
+    ) -> std::result::Result<Array1<FACC>, ER>
     where
         ER: std::error::Error + std::convert::From<crate::error::Error>,
-        M: for<'c> Fit<ArrayView2<'c, F>, ArrayView2<'c, E>, ER, Object = O>,
-        O: for<'d> PredictInplace<ArrayView2<'a, F>, ArrayBase<OwnedRepr<E>, I>>,
+        M: for<'c> Fit<ArrayView2<'c, F>, ArrayView1<'c, E>, ER, Object = O>,
+        O: for<'d> PredictInplace<ArrayView2<'a, F>, Array1<E>>,
         FACC: Float,
-        C: Fn(&ArrayView1<E>, &ArrayView1<E>) -> std::result::Result<FACC, crate::error::Error>,
-        I: Dimension,
+        C: Fn(&Array1<E>, &ArrayView1<E>) -> std::result::Result<FACC, crate::error::Error>,
     {
-        // construct shape as either vector or matrix
-        let mut shape = match I::NDIM {
-            Some(1) | Some(2) => Ok(I::zeros(I::NDIM.unwrap())),
-            _ => Err(crate::Error::NdShape(ndarray::ShapeError::from_kind(
-                ndarray::ErrorKind::IncompatibleShape,
-            ))),
-        }?;
-
-        // assign shape form of output
-        let mut tmp = shape.as_array_view_mut();
-        tmp[0] = parameters.len();
-        if tmp.len() == 2 {
-            tmp[1] = self.ntargets();
-        }
-
-        let folds_evaluations = self
-            .iter_fold(k, |train| {
-                let fit_result: std::result::Result<Vec<_>, ER> =
-                    parameters.iter().map(|p| p.fit(train)).collect();
-                fit_result
-            })
-            .map(|(models, valid)| {
-                let targets = valid.as_multi_targets();
-                let models = models?;
-
-                let eval_predictions = models
-                    .iter()
-                    .map(|m| {
-                        let nsamples = valid.nsamples();
-                        let predicted = m.predict(valid.records());
-
-                        // reshape to ensure that matrix has two dimensions
-                        let ntargets = if predicted.ndim() == 1 {
-                            1
-                        } else {
-                            predicted.len_of(Axis(1))
-                        };
-
-                        let predicted: Array2<_> =
-                            predicted.into_shape((nsamples, ntargets)).unwrap();
-
-                        predicted
-                            .columns()
-                            .into_iter()
-                            .zip(targets.columns().into_iter())
-                            .map(|(p, t)| eval(&p.view(), &t).map_err(ER::from))
-                            .collect()
-                    })
-                    .collect::<std::result::Result<Vec<Vec<FACC>>, ER>>()?
-                    .into_iter()
-                    .flatten()
-                    .collect();
-
-                Ok(Array::from_shape_vec(shape.clone(), eval_predictions).unwrap())
-            })
-            .collect::<std::result::Result<Vec<_>, ER>>();
-
-        let res = folds_evaluations?
-            .into_iter()
-            .fold(Array::<FACC, _>::zeros(shape.clone()), std::ops::Add::add);
-
-        Ok(res / FACC::cast(k))
+        self.cross_validate(k, parameters, |a, b| eval(a, b).map(arr0))
     }
 }
 
-impl<F, E> Dataset<F, E> {
+impl<F, E, I: TargetDim> Dataset<F, E, I> {
     /// Split dataset into two disjoint chunks
     ///
     /// This function splits the observations in a dataset into two disjoint chunks. The splitting
@@ -1004,8 +928,21 @@ impl<F, E> Dataset<F, E> {
     /// ### Returns
     ///  
     /// The input Dataset split into two according to the input ratio.
+    ///
+    /// ### Panics
+    ///
+    /// Panic occurs when the input record or targets are not in row-major layout.
     pub fn split_with_ratio(mut self, ratio: f32) -> (Self, Self) {
-        let (nfeatures, ntargets) = (self.nfeatures(), self.ntargets());
+        assert!(
+            self.records.is_standard_layout(),
+            "records not in row-major layout"
+        );
+        assert!(
+            self.targets.is_standard_layout(),
+            "targets not in row-major layout"
+        );
+
+        let nfeatures = self.nfeatures();
 
         let n1 = (self.nsamples() as f32 * ratio).ceil() as usize;
         let n2 = self.nsamples() - n1;
@@ -1020,11 +957,13 @@ impl<F, E> Dataset<F, E> {
         let second = Array2::from_shape_vec((n2, nfeatures), second_array_buf).unwrap();
 
         // split targets into two disjoint Vec
+        let dim1 = self.targets.raw_dim().nsamples(n1);
+        let dim2 = self.targets.raw_dim().nsamples(n2);
         let mut array_buf = self.targets.into_raw_vec();
-        let second_array_buf = array_buf.split_off(n1 * ntargets);
+        let second_array_buf = array_buf.split_off(dim1.size());
 
-        let first_targets = Array2::from_shape_vec((n1, ntargets), array_buf).unwrap();
-        let second_targets = Array2::from_shape_vec((n2, ntargets), second_array_buf).unwrap();
+        let first_targets = Array::from_shape_vec(dim1, array_buf).unwrap();
+        let second_targets = Array::from_shape_vec(dim2, second_array_buf).unwrap();
 
         // split weights into two disjoint Vec
         let second_weights = if self.weights.len() == n1 + n2 {
@@ -1106,21 +1045,5 @@ impl<L: Label, S: Labels<Elem = L>> CountedTargets<L, S> {
         let labels = targets.label_count();
 
         CountedTargets { targets, labels }
-    }
-}
-
-pub trait IntoTargets<T> {
-    fn into(self) -> T;
-}
-
-impl<F, D: Data<Elem = F>> IntoTargets<ArrayBase<D, Ix2>> for ArrayBase<D, Ix1> {
-    fn into(self) -> ArrayBase<D, Ix2> {
-        self.insert_axis(Axis(1))
-    }
-}
-
-impl<T> IntoTargets<T> for T {
-    fn into(self) -> T {
-        self
     }
 }

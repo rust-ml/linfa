@@ -1,9 +1,9 @@
 use linfa::Float;
-use ndarray::{ArrayView, Dimension, Zip};
+use ndarray::{Array2, ArrayBase, ArrayView, Axis, Data, Dimension, Ix2, Zip};
 use ndarray_stats::DeviationExt;
 
 /// A distance function that can be used in spatial algorithms such as nearest neighbour.
-pub trait Distance<F: Float>: Clone + Send + Sync {
+pub trait Distance<F: Float>: Clone + Send + Sync + Unpin {
     /// Computes the distance between two points. For most spatial algorithms to work correctly,
     /// **this metric must satisfy the Triangle Inequality.**
     ///
@@ -33,7 +33,7 @@ pub trait Distance<F: Float>: Clone + Send + Sync {
 }
 
 /// L1 or [Manhattan](https://en.wikipedia.org/wiki/Taxicab_geometry) distance
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct L1Dist;
 impl<F: Float> Distance<F> for L1Dist {
     #[inline]
@@ -43,7 +43,7 @@ impl<F: Float> Distance<F> for L1Dist {
 }
 
 /// L2 or [Euclidean](https://en.wikipedia.org/wiki/Euclidean_distance) distance
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct L2Dist;
 impl<F: Float> Distance<F> for L2Dist {
     #[inline]
@@ -68,7 +68,7 @@ impl<F: Float> Distance<F> for L2Dist {
 }
 
 /// L-infinte or [Chebyshev](https://en.wikipedia.org/wiki/Chebyshev_distance) distance
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LInfDist;
 impl<F: Float> Distance<F> for LInfDist {
     #[inline]
@@ -79,7 +79,12 @@ impl<F: Float> Distance<F> for LInfDist {
 
 /// L-p or [Minkowsky](https://en.wikipedia.org/wiki/Minkowski_distance) distance
 #[derive(Debug, Clone, PartialEq)]
-pub struct LpDist<F: Float>(F);
+pub struct LpDist<F: Float>(pub F);
+impl<F: Float> LpDist<F> {
+    pub fn new(p: F) -> Self {
+        LpDist(p)
+    }
+}
 impl<F: Float> Distance<F> for LpDist<F> {
     #[inline]
     fn distance<D: Dimension>(&self, a: ArrayView<F, D>, b: ArrayView<F, D>) -> F {
@@ -90,12 +95,46 @@ impl<F: Float> Distance<F> for LpDist<F> {
     }
 }
 
+/// Computes a similarity matrix with gaussian kernel and scaling parameter `eps`
+///
+/// The generated matrix is a upper triangular matrix with dimension NxN (number of observations) and contains the similarity between all permutations of observations
+/// similarity
+pub fn to_gaussian_similarity<F: Float>(
+    observations: &ArrayBase<impl Data<Elem = F>, Ix2>,
+    eps: F,
+    dist_fn: &impl Distance<F>,
+) -> Array2<F> {
+    let n_observations = observations.len_of(Axis(0));
+    let mut similarity = Array2::eye(n_observations);
+
+    for i in 0..n_observations {
+        for j in 0..n_observations {
+            let a = observations.row(i);
+            let b = observations.row(j);
+
+            let distance = dist_fn.distance(a, b);
+            similarity[(i, j)] = (-distance / eps).exp();
+        }
+    }
+
+    similarity
+}
+
 #[cfg(test)]
 mod test {
     use approx::assert_abs_diff_eq;
     use ndarray::arr1;
 
     use super::*;
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<L1Dist>();
+        has_autotraits::<L2Dist>();
+        has_autotraits::<LInfDist>();
+        has_autotraits::<LpDist<f64>>();
+    }
 
     fn dist_test<D: Distance<f64>>(dist: D, result: f64) {
         let a = arr1(&[0.5, 6.6]);

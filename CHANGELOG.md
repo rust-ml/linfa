@@ -1,3 +1,37 @@
+Version 0.6.0 - 2022-06-15
+========================
+
+New Algorithms
+-----------
+ * Multinomial Naive Bayes added to `linfa-bayes` by [@sgrigory]
+ * Follow The Regularized Leader added as `linfa-ftrl` by [@MilaKyr]
+
+Changes
+-----------
+ * **BLAS backend no longer required to build Linfa**
+ * remove `SeedableRng` trait bound from `KMeans` and `GaussianMixture`
+ * replace uses of Isaac RNG with Xoshiro RNG
+
+Breaking Changes
+-----------
+ * parametrize `AsTargets` by the dimensionality of the targets and introduce `AsSingleTargets` and `AsMultiTargets`
+ * `Dataset` and `DatasetView` can now be parametrized by target dimensionality, with 2D being the default
+ * single-target algorithms no longer accept 2D target arrays as input
+ * `cross_validate` changed to `cross_validate_single`, `cross_validate_multi` changed to `cross_validate`
+ * `Pr` has been constrained to `0. <= prob <= 1.` with new constructors
+
+Version 0.5.1 - 2022-02-28
+========================
+
+Note that the commits for this release are in the `0-5-1` branch.
+
+Changes
+-----------
+ * remove `Float` trait bound from many `Dataset` impls, making non-float datasets usable
+ * fix build errors in 0.5.0 caused by breaking minor releases from dependencies
+ * fix bug in k-means where the termination condition of the algorithm was calculated incorrectly
+ * fix build failure when building `linfa` alone, caused by incorrect feature selection for `ndarray`
+
 Version 0.5.0 - 2021-10-20
 ========================
 

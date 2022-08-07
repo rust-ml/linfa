@@ -59,7 +59,7 @@ pub enum NnError {
 /// distance between points is calculated using a provided distance function. The index implements
 /// the [`NearestNeighbourIndex`](trait.NearestNeighbourIndex.html) trait and allows for efficient
 /// computing of nearest neighbour and range queries.
-pub trait NearestNeighbour: std::fmt::Debug {
+pub trait NearestNeighbour: std::fmt::Debug + Send + Sync + Unpin {
     /// Builds a spatial index using a MxN two-dimensional array representing M points with N
     /// dimensions. Also takes `leaf_size`, which specifies the number of elements in the leaf
     /// nodes of tree-like index structures.
@@ -87,7 +87,7 @@ pub trait NearestNeighbour: std::fmt::Debug {
 /// A spatial index structure over a set of points, created by `NearestNeighbour`. Allows efficient
 /// computation of nearest neighbour and range queries over the set of points. Individual points
 /// are represented as one-dimensional array views.
-pub trait NearestNeighbourIndex<F: Float> {
+pub trait NearestNeighbourIndex<F: Float>: Send + Sync + Unpin {
     /// Returns the `k` points in the index that are the closest to the provided point, along with
     /// their positions in the original dataset. Points are returned in ascending order of the
     /// distance away from the provided points, and less than `k` points will be returned if the
@@ -121,13 +121,13 @@ pub trait NearestNeighbourIndex<F: Float> {
 /// ## Example
 ///
 /// ```rust
-/// use rand_isaac::Isaac64Rng;
+/// use rand_xoshiro::Xoshiro256Plus;
 /// use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
 /// use ndarray::{Array1, Array2};
 /// use linfa_nn::{distance::*, CommonNearestNeighbour, NearestNeighbour};
 ///
 /// // Use seedable RNG for generating points
-/// let mut rng = Isaac64Rng::seed_from_u64(40);
+/// let mut rng = Xoshiro256Plus::seed_from_u64(40);
 /// let n_features = 3;
 /// let distr = Uniform::new(-500., 500.);
 /// // Randomly generate points for building the index
@@ -143,7 +143,7 @@ pub trait NearestNeighbourIndex<F: Float> {
 /// let range = nn.within_range(pt.view(), 100.0).unwrap();
 /// ```
 #[non_exhaustive]
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -170,5 +170,19 @@ impl NearestNeighbour for CommonNearestNeighbour {
             Self::KdTree => KdTree.from_batch_with_leaf_size(batch, leaf_size, dist_fn),
             Self::BallTree => BallTree.from_batch_with_leaf_size(batch, leaf_size, dist_fn),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<CommonNearestNeighbour>();
+        has_autotraits::<Box<dyn NearestNeighbourIndex<f64>>>();
+        has_autotraits::<BuildError>();
+        has_autotraits::<NnError>();
     }
 }

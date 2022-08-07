@@ -21,7 +21,7 @@ fn main() -> Result<()> {
 
     // use cross validation to compute the validation accuracy of each model. The
     // accuracy of each model will be averaged across the folds, 5 in this case
-    let accuracies = dataset.cross_validate(5, &models, |prediction, truth| {
+    let accuracies = dataset.cross_validate_single(5, &models, |prediction, truth| {
         Ok(prediction.confusion_matrix(truth)?.accuracy())
     })?;
 

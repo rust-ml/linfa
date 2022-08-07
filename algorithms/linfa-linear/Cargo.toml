@@ -1,6 +1,6 @@
 [package]
 name = "linfa-linear"
-version = "0.5.0"
+version = "0.6.0"
 authors = [
     "Paul Körbitz / Google <koerbitz@google.com>",
     "VasanthakumarV <vasanth260m12@gmail.com>"
@@ -16,16 +16,20 @@ readme = "README.md"
 keywords = ["machine-learning", "linfa", "ai", "ml", "linear"]
 categories = ["algorithms", "mathematics", "science"]
 
+[features]
+blas = ["ndarray-linalg", "linfa/ndarray-linalg", "argmin/ndarray-linalg"]
+
 [dependencies]
-ndarray = { version = "0.15", features = ["blas", "approx"] }
-ndarray-linalg = "0.14"
+ndarray = { version = "0.15", features = ["approx"] }
+linfa-linalg = { version = "0.1", default-features = false }
+ndarray-linalg = { version = "0.14", optional = true }
 num-traits = "0.2"
-argmin = { version = "0.4.6", features = ["ndarrayl"] }
+argmin = { version = "0.4.6", features = ["ndarray", "ndarray-rand"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 thiserror = "1.0"
 
-linfa = { version = "0.5.0", path = "../..", features=["serde"] }
+linfa = { version = "0.6.0", path = "../..", features=["serde"] }
 
 [dev-dependencies]
-linfa-datasets = { version = "0.5.0", path = "../../datasets", features = ["diabetes"] }
+linfa-datasets = { version = "0.6.0", path = "../../datasets", features = ["diabetes"] }
 approx = "0.4"

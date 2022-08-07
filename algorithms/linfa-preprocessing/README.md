@@ -30,6 +30,10 @@ $ cargo run --release --example scaling
 $ cargo run --release --example whitening
 ```
 
+## BLAS/Lapack backend
+
+See [this section](../../README.md#blaslapack-backend) to enable an external BLAS/LAPACK backend.
+
 ## License
 Dual-licensed to be compatible with the Rust project.
 

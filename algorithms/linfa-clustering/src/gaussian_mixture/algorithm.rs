@@ -3,19 +3,19 @@ use crate::gaussian_mixture::hyperparams::{
     GmmCovarType, GmmInitMethod, GmmParams, GmmValidParams,
 };
 use crate::k_means::KMeans;
-use linfa::{
-    dataset::{WithLapack, WithoutLapack},
-    prelude::*,
-    DatasetBase, Float,
-};
+#[cfg(feature = "blas")]
+use linfa::dataset::{WithLapack, WithoutLapack};
+use linfa::{prelude::*, DatasetBase, Float};
+#[cfg(not(feature = "blas"))]
+use linfa_linalg::{cholesky::*, triangular::*};
 use ndarray::{s, Array, Array1, Array2, Array3, ArrayBase, Axis, Data, Ix2, Ix3, Zip};
-use ndarray_linalg::{cholesky::*, triangular::*, Lapack, Scalar};
+#[cfg(feature = "blas")]
+use ndarray_linalg::{cholesky::*, triangular::*};
 use ndarray_rand::rand::Rng;
-use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
 use ndarray_stats::QuantileExt;
-use rand_isaac::Isaac64Rng;
+use rand_xoshiro::Xoshiro256Plus;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 
@@ -59,18 +59,19 @@ use serde_crate::{Deserialize, Serialize};
 /// ```rust
 /// use linfa::DatasetBase;
 /// use linfa::prelude::*;
-/// use linfa_clustering::{GmmValidParams, GaussianMixtureModel, generate_blobs};
+/// use linfa_clustering::{GmmValidParams, GaussianMixtureModel};
+/// use linfa_datasets::generate;
 /// use ndarray::{Axis, array, s, Zip};
 /// use ndarray_rand::rand::SeedableRng;
-/// use rand_isaac::Isaac64Rng;
+/// use rand_xoshiro::Xoshiro256Plus;
 /// use approx::assert_abs_diff_eq;
 ///
-/// let mut rng = Isaac64Rng::seed_from_u64(42);
+/// let mut rng = Xoshiro256Plus::seed_from_u64(42);
 /// let expected_centroids = array![[0., 1.], [-10., 20.], [-1., 10.]];
 /// let n = 200;
 ///
 /// // We generate a dataset from points normally distributed around some distant centroids.  
-/// let dataset = DatasetBase::from(generate_blobs(n, &expected_centroids, &mut rng));
+/// let dataset = DatasetBase::from(generate::blobs(n, &expected_centroids, &mut rng));
 ///
 /// // Our GMM is expected to have a number of clusters equals the number of centroids
 /// // used to generate the dataset
@@ -126,7 +127,7 @@ impl<F: Float> Clone for GaussianMixtureModel<F> {
 }
 
 impl<F: Float> GaussianMixtureModel<F> {
-    fn new<D: Data<Elem = F>, R: Rng + SeedableRng + Clone, T>(
+    fn new<D: Data<Elem = F>, R: Rng + Clone, T>(
         hyperparameters: &GmmValidParams<F, R>,
         dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
         mut rng: R,
@@ -187,8 +188,12 @@ impl<F: Float> GaussianMixtureModel<F> {
 }
 
 impl<F: Float> GaussianMixtureModel<F> {
-    pub fn params(n_clusters: usize) -> GmmParams<F, Isaac64Rng> {
+    pub fn params(n_clusters: usize) -> GmmParams<F, Xoshiro256Plus> {
         GmmParams::new(n_clusters)
+    }
+
+    pub fn params_with_rng<R: Rng + Clone>(n_clusters: usize, rng: R) -> GmmParams<F, R> {
+        GmmParams::new_with_rng(n_clusters, rng)
     }
 
     pub fn weights(&self) -> &Array1<F> {
@@ -260,10 +265,18 @@ impl<F: Float> GaussianMixtureModel<F> {
         let n_features = covariances.shape()[1];
         let mut precisions_chol = Array::zeros((n_clusters, n_features, n_features));
         for (k, covariance) in covariances.outer_iter().enumerate() {
-            let decomp = covariance.with_lapack().cholesky(UPLO::Lower)?;
-            let sol = decomp
-                .solve_triangular(UPLO::Lower, Diag::NonUnit, &Array::eye(n_features))?
-                .without_lapack();
+            #[cfg(feature = "blas")]
+            let sol = {
+                let decomp = covariance.with_lapack().cholesky(UPLO::Lower)?;
+                decomp
+                    .solve_triangular_into(UPLO::Lower, Diag::NonUnit, Array::eye(n_features))?
+                    .without_lapack()
+            };
+            #[cfg(not(feature = "blas"))]
+            let sol = {
+                let decomp = covariance.cholesky()?;
+                decomp.solve_triangular_into(Array::eye(n_features), UPLO::Lower)?
+            };
 
             precisions_chol.slice_mut(s![k, .., ..]).assign(&sol.t());
         }
@@ -401,8 +414,8 @@ impl<F: Float> GaussianMixtureModel<F> {
     }
 }
 
-impl<F: Float, R: Rng + SeedableRng + Clone, D: Data<Elem = F>, T>
-    Fit<ArrayBase<D, Ix2>, T, GmmError> for GmmValidParams<F, R>
+impl<F: Float, R: Rng + Clone, D: Data<Elem = F>, T> Fit<ArrayBase<D, Ix2>, T, GmmError>
+    for GmmValidParams<F, R>
 {
     type Object = GaussianMixtureModel<F>;
 
@@ -457,7 +470,7 @@ impl<F: Float, R: Rng + SeedableRng + Clone, D: Data<Elem = F>, T>
     }
 }
 
-impl<F: Float + Lapack + Scalar, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<usize>>
+impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<usize>>
     for GaussianMixtureModel<F>
 {
     fn predict_inplace(&self, observations: &ArrayBase<D, Ix2>, targets: &mut Array1<usize>) {
@@ -469,7 +482,7 @@ impl<F: Float + Lapack + Scalar, D: Data<Elem = F>> PredictInplace<ArrayBase<D, 
 
         let (_, log_resp) = self.estimate_log_prob_resp(observations);
         *targets = log_resp
-            .mapv(Scalar::exp)
+            .mapv(F::exp)
             .map_axis(Axis(1), |row| row.argmax().unwrap());
     }
 
@@ -481,14 +494,34 @@ impl<F: Float + Lapack + Scalar, D: Data<Elem = F>> PredictInplace<ArrayBase<D, 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::generate_blobs;
     use approx::{abs_diff_eq, assert_abs_diff_eq};
+    #[cfg(feature = "blas")]
     use lax::error::Error;
+    use linfa_datasets::generate;
     use ndarray::{array, concatenate, ArrayView1, ArrayView2, Axis};
+
+    #[cfg(not(feature = "blas"))]
+    use linfa_linalg::LinalgError;
+    #[cfg(not(feature = "blas"))]
+    use linfa_linalg::Result as LAResult;
+    #[cfg(feature = "blas")]
     use ndarray_linalg::error::LinalgError;
+    #[cfg(feature = "blas")]
     use ndarray_linalg::error::Result as LAResult;
+    use ndarray_rand::rand::prelude::ThreadRng;
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::{Distribution, StandardNormal};
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<GaussianMixtureModel<f64>>();
+        has_autotraits::<GmmError>();
+        has_autotraits::<GmmParams<f64, Xoshiro256Plus>>();
+        has_autotraits::<GmmValidParams<f64, Xoshiro256Plus>>();
+        has_autotraits::<GmmInitMethod>();
+        has_autotraits::<GmmCovarType>();
+    }
 
     pub struct MultivariateNormal {
         pub mean: Array1<f64>,
@@ -498,7 +531,10 @@ mod tests {
     }
     impl MultivariateNormal {
         pub fn new(mean: &ArrayView1<f64>, covariance: &ArrayView2<f64>) -> LAResult<Self> {
+            #[cfg(feature = "blas")]
             let lower = covariance.cholesky(UPLO::Lower)?;
+            #[cfg(not(feature = "blas"))]
+            let lower = covariance.cholesky()?;
             Ok(MultivariateNormal {
                 mean: mean.to_owned(),
                 covariance: covariance.to_owned(),
@@ -517,7 +553,7 @@ mod tests {
 
     #[test]
     fn test_gmm_fit() {
-        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let mut rng = Xoshiro256Plus::seed_from_u64(42);
         let weights = array![0.5, 0.5];
         let means = array![[0., 0.], [5., 5.]];
         let covars = array![[[1., 0.8], [0.8, 1.]], [[1.0, -0.6], [-0.6, 1.0]]];
@@ -575,7 +611,7 @@ mod tests {
 
     #[test]
     fn test_zeroed_reg_covar_failure() {
-        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let mut rng = Xoshiro256Plus::seed_from_u64(42);
         let xt = Array2::random_using((50, 1), Uniform::new(0., 1.0), &mut rng);
         let yt = function_test_1d(&xt);
         let data = concatenate(Axis(1), &[xt.view(), yt.view()]).unwrap();
@@ -587,16 +623,18 @@ mod tests {
             .with_rng(rng.clone())
             .fit(&dataset);
 
-        assert!(
-            match gmm.expect_err("should generate an error with reg_covar being nul") {
-                GmmError::LinalgError(e) => match e {
-                    LinalgError::Lapack(Error::LapackComputationalFailure { return_code: 2 }) =>
-                        true,
-                    _ => panic!("should be a lapack error 2"),
-                },
-                _ => panic!("should be a linear algebra error"),
+        match gmm.expect_err("should generate an error with reg_covar being nul") {
+            GmmError::LinalgError(e) => {
+                #[cfg(feature = "blas")]
+                assert!(matches!(
+                    e,
+                    LinalgError::Lapack(Error::LapackComputationalFailure { return_code: 2 })
+                ));
+                #[cfg(not(feature = "blas"))]
+                assert!(matches!(e, LinalgError::NotPositiveDefinite));
             }
-        );
+            e => panic!("should be a linear algebra error: {:?}", e),
+        }
         // Test it passes when default value is used
         assert!(GaussianMixtureModel::params(3)
             .with_rng(rng)
@@ -616,16 +654,18 @@ mod tests {
             .reg_covariance(0.)
             .fit(&dataset);
 
-        assert!(
-            match gmm.expect_err("should generate an error with reg_covar being nul") {
-                GmmError::LinalgError(e) => match e {
-                    LinalgError::Lapack(Error::LapackComputationalFailure { return_code: 1 }) =>
-                        true,
-                    _ => panic!("should be a lapack error 1"),
-                },
-                _ => panic!("should be a linear algebra error"),
+        #[cfg(feature = "blas")]
+        match gmm.expect_err("should generate an error with reg_covar being nul") {
+            GmmError::LinalgError(e) => {
+                assert!(matches!(
+                    e,
+                    LinalgError::Lapack(Error::LapackComputationalFailure { return_code: 1 })
+                ));
             }
-        );
+            e => panic!("should be a linear algebra error: {:?}", e),
+        }
+        #[cfg(not(feature = "blas"))]
+        gmm.expect_err("should generate an error with reg_covar being nul");
 
         // Test it passes when default value is used
         assert!(GaussianMixtureModel::params(1).fit(&dataset).is_ok());
@@ -633,10 +673,10 @@ mod tests {
 
     #[test]
     fn test_centroids_prediction() {
-        let mut rng = Isaac64Rng::seed_from_u64(42);
+        let mut rng = Xoshiro256Plus::seed_from_u64(42);
         let expected_centroids = array![[0., 1.], [-10., 20.], [-1., 10.]];
         let n = 1000;
-        let blobs = DatasetBase::from(generate_blobs(n, &expected_centroids, &mut rng));
+        let blobs = DatasetBase::from(generate::blobs(n, &expected_centroids, &mut rng));
 
         let n_clusters = expected_centroids.len_of(Axis(0));
         let gmm = GaussianMixtureModel::params(n_clusters)
@@ -708,5 +748,14 @@ mod tests {
                 .is_err(),
             "max_n_iterations must be stricly positive"
         );
+    }
+
+    fn fittable<T: Fit<Array2<f64>, (), GmmError>>(_: T) {}
+    #[test]
+    fn thread_rng_fittable() {
+        fittable(GaussianMixtureModel::params_with_rng(
+            1,
+            ThreadRng::default(),
+        ));
     }
 }

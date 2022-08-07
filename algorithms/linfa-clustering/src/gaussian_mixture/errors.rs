@@ -1,4 +1,7 @@
 use crate::k_means::KMeansError;
+#[cfg(not(feature = "blas"))]
+use linfa_linalg::LinalgError;
+#[cfg(feature = "blas")]
 use ndarray_linalg::error::LinalgError;
 use thiserror::Error;
 pub type Result<T> = std::result::Result<T, GmmError>;

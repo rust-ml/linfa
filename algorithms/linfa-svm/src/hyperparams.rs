@@ -33,6 +33,7 @@ use std::marker::PhantomData;
 ///     .fit(&dataset);
 /// ```
 ///
+#[derive(Debug, Clone, PartialEq)]
 pub struct SvmValidParams<F: Float, T> {
     c: Option<(F, F)>,
     nu: Option<(F, F)>,
@@ -64,6 +65,7 @@ impl<F: Float, T> SvmValidParams<F, T> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct SvmParams<F: Float, T>(SvmValidParams<F, T>);
 
 impl<F: Float, T> SvmParams<F, T> {

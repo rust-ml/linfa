@@ -4,20 +4,20 @@ name: Check For Build Errors
 
 jobs:
   check:
-    name: check
-    runs-on: ubuntu-latest
-    if: github.event.pull_request.draft == false
+    name: check-${{ matrix.toolchain }}-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        toolchain:
-          - 1.54.0
+        toolchain: 
+          - 1.57.0
           - stable
-        experimental: [false]
-        include:
-          - toolchain: nightly
-            experimental: true
-    continue-on-error: ${{ matrix.experimental }}
+          - nightly
+        os:
+          - ubuntu-latest
+          - windows-latest
+
+    continue-on-error: ${{ matrix.toolchain == 'nightly' }}
 
     steps:
       - name: Checkout sources
@@ -30,15 +30,23 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           override: true
 
+      - name: Log active toolchain
+        run: rustup show
+
+      # Check if linfa compiles by itself without uniting dependency features with other crates
+      - name: Run cargo check on linfa
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+
       - name: Run cargo check (no features)
         uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --workspace
+          args: --workspace --all-targets
 
       - name: Run cargo check (with serde)
-        if: ${{ matrix.toolchain != '1.54.0' }} # The following args don't work on older versions of Cargo
         uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --workspace --features "linfa-clustering/serde linfa-ica/serde linfa-kernel/serde linfa-reduction/serde linfa-svm/serde linfa-elasticnet/serde linfa-pls/serde linfa-trees/serde linfa-nn/serde"
+          args: --workspace --all-targets --features "linfa-clustering/serde linfa-ica/serde linfa-kernel/serde linfa-reduction/serde linfa-svm/serde linfa-elasticnet/serde linfa-pls/serde linfa-trees/serde linfa-nn/serde"

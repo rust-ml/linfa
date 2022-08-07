@@ -6,6 +6,7 @@ pub type Result<T, F> = std::result::Result<T, LinearError<F>>;
 
 /// An error when modeling a Linear algorithm
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum LinearError<F: Float> {
     /// Errors encountered when using argmin's solver
     #[error("argmin {0}")]
@@ -23,5 +24,8 @@ pub enum LinearError<F: Float> {
     #[error("some value(s) of y are out of the valid range for power value {0}")]
     InvalidTargetRange(F),
     #[error(transparent)]
-    LinalgError(#[from] ndarray_linalg::error::LinalgError),
+    #[cfg(feature = "blas")]
+    LinalgBlasError(#[from] ndarray_linalg::error::LinalgError),
+    #[error(transparent)]
+    LinalgError(#[from] linfa_linalg::LinalgError),
 }

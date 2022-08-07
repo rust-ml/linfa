@@ -1,5 +1,6 @@
 use linfa::prelude::*;
-use linfa_reduction::{utils::generate_blobs, Pca};
+use linfa_datasets::generate;
+use linfa_reduction::Pca;
 
 use ndarray::array;
 use ndarray_npy::write_npy;
@@ -14,7 +15,7 @@ fn main() {
     // For each our expected centroids, generate `n` data points around it (a "blob")
     let expected_centroids = array![[10., 10.], [1., 12.], [20., 30.], [-20., 30.],];
     let n = 10;
-    let dataset = Dataset::from(generate_blobs(n, &expected_centroids, &mut rng));
+    let dataset = Dataset::from(generate::blobs(n, &expected_centroids, &mut rng));
 
     let embedding: Pca<f64> = Pca::params(1).fit(&dataset).unwrap();
     let embedding = embedding.predict(&dataset);

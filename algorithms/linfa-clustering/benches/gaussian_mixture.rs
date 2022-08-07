@@ -4,15 +4,16 @@ use criterion::{
 };
 use linfa::traits::Fit;
 use linfa::DatasetBase;
-use linfa_clustering::{generate_blobs, GaussianMixtureModel};
+use linfa_clustering::GaussianMixtureModel;
+use linfa_datasets::generate;
 use ndarray::Array2;
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
-use rand_isaac::Isaac64Rng;
+use rand_xoshiro::Xoshiro256Plus;
 
 fn gaussian_mixture_bench(c: &mut Criterion) {
-    let mut rng = Isaac64Rng::seed_from_u64(40);
+    let mut rng = Xoshiro256Plus::seed_from_u64(40);
     let cluster_sizes = vec![10, 100, 1000, 10000];
 
     let mut benchmark = c.benchmark_group("gaussian_mixture");
@@ -28,7 +29,7 @@ fn gaussian_mixture_bench(c: &mut Criterion) {
                 let centroids =
                     Array2::random_using((n_clusters, n_features), Uniform::new(-30., 30.), rng);
                 let dataset: DatasetBase<_, _> =
-                    (generate_blobs(cluster_size, &centroids, rng)).into();
+                    (generate::blobs(cluster_size, &centroids, rng)).into();
                 bencher.iter(|| {
                     black_box(
                         GaussianMixtureModel::params(n_clusters)

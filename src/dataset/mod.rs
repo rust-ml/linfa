@@ -3,24 +3,25 @@
 //! This module implements the dataset struct and various helper traits to extend its
 //! functionality.
 use ndarray::{
-    Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2,
-    Axis, CowArray, Ix2, Ix3, OwnedRepr, ScalarOperand,
+    Array, Array1, ArrayBase, ArrayView, ArrayView1, ArrayView2, ArrayViewMut, ArrayViewMut1,
+    ArrayViewMut2, CowArray, Ix1, Ix2, Ix3, NdFloat, OwnedRepr, RemoveAxis, ScalarOperand,
 };
 
 #[cfg(feature = "ndarray-linalg")]
 use ndarray_linalg::{Lapack, Scalar};
 
-use num_traits::{AsPrimitive, FromPrimitive, NumAssignOps, NumCast, Signed};
+use num_traits::{AsPrimitive, FromPrimitive, NumCast, Signed};
 use rand::distributions::uniform::SampleUniform;
 
 use std::cmp::{Ordering, PartialOrd};
 use std::collections::{HashMap, HashSet};
+use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::hash::Hash;
 use std::iter::Sum;
 use std::ops::{AddAssign, Deref, DivAssign, MulAssign, SubAssign};
 
-use crate::error::{Error, Result};
+use crate::error::Result;
 
 mod impl_dataset;
 mod impl_records;
@@ -37,17 +38,11 @@ pub use lapack_bounds::*;
 /// implement them for 32bit and 64bit floating points. They are used in records of a dataset and, for
 /// regression task, in the targets as well.
 pub trait Float:
-    FromPrimitive
-    + num_traits::Float
-    + PartialOrd
-    + Sync
-    + Send
+    NdFloat
+    + FromPrimitive
     + Default
-    + fmt::Display
-    + fmt::Debug
     + Signed
     + Sum
-    + NumAssignOps
     + AsPrimitive<usize>
     + for<'a> AddAssign<&'a Self>
     + for<'a> MulAssign<&'a Self>
@@ -57,6 +52,7 @@ pub trait Float:
     + SampleUniform
     + ScalarOperand
     + approx::AbsDiffEq
+    + std::marker::Unpin
 {
     #[cfg(feature = "ndarray-linalg")]
     type Lapack: Float + Scalar + Lapack;
@@ -94,10 +90,40 @@ impl<L: Label> Label for Option<L> {}
 /// This helper struct exists to distinguish probabilities from floating points. For example SVM
 /// selects regression or classification training, based on the target type, and could not
 /// distinguish them without a new-type definition.
+#[repr(transparent)]
 #[derive(Debug, Copy, Clone, Default)]
-pub struct Pr(pub f32);
+pub struct Pr(f32);
+
+/// Tries to convert float to probability type.
+///
+/// # Returns
+/// Either probability type Pr(f32) or error as Err(f32)
+impl TryFrom<f32> for Pr {
+    type Error = f32;
+
+    fn try_from(prob: f32) -> std::result::Result<Self, Self::Error> {
+        if (0. ..=1.).contains(&prob) {
+            Ok(Pr(prob))
+        } else {
+            Err(prob)
+        }
+    }
+}
 
 impl Pr {
+    /// Creates probability from the given float.
+    ///
+    /// # Panics
+    /// Panics if probability is negative or bigger than one.
+    pub fn new(prob: f32) -> Self {
+        prob.try_into().unwrap()
+    }
+
+    /// Creates probability from the given float.
+    /// Doesn't check whether it is negative or bigger than one.
+    pub fn new_unchecked(prob: f32) -> Self {
+        Pr(prob)
+    }
     pub fn even() -> Pr {
         Pr(0.5)
     }
@@ -144,6 +170,7 @@ impl Deref for Pr {
 /// * `R: Records`: generic over feature matrices or kernel matrices
 /// * `T`: generic over any `ndarray` matrix which can be used as targets. The `AsTargets` trait
 /// bound is omitted here to avoid some repetition in implementation `src/dataset/impl_dataset.rs`
+#[derive(Debug, Clone, PartialEq)]
 pub struct DatasetBase<R, T>
 where
     R: Records,
@@ -165,6 +192,7 @@ where
 ///
 /// * `targets`: wrapped target field
 /// * `labels`: counted labels with label-count association
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CountedTargets<L: Label, P> {
     targets: P,
     labels: Vec<HashMap<L, usize>>,
@@ -174,18 +202,19 @@ pub struct CountedTargets<L: Label, P> {
 ///
 /// The most commonly used typed of dataset. It contains a number of records
 /// stored as an `Array2` and each record may correspond to multiple targets. The
-/// targets are stored as an `Array2`.
-pub type Dataset<D, T> = DatasetBase<ArrayBase<OwnedRepr<D>, Ix2>, ArrayBase<OwnedRepr<T>, Ix2>>;
+/// targets are stored as an `Array1` or `Array2`.
+pub type Dataset<D, T, I = Ix2> =
+    DatasetBase<ArrayBase<OwnedRepr<D>, Ix2>, ArrayBase<OwnedRepr<T>, I>>;
 
 /// DatasetView
 ///
 /// A read only view of a Dataset
-pub type DatasetView<'a, D, T> = DatasetBase<ArrayView<'a, D, Ix2>, ArrayView<'a, T, Ix2>>;
+pub type DatasetView<'a, D, T, I = Ix2> = DatasetBase<ArrayView<'a, D, Ix2>, ArrayView<'a, T, I>>;
 
 /// DatasetPr
 ///
 /// Dataset with probabilities as targets. Useful for multiclass probabilities.
-/// It stores records as an `Array2` of elements of type `D`, and targets as an `Array1`
+/// It stores records as an `Array2` of elements of type `D`, and targets as an `Array3`
 /// of elements of type `Pr`
 pub type DatasetPr<D, L> =
     DatasetBase<ArrayBase<OwnedRepr<D>, Ix2>, CountedTargets<L, ArrayBase<OwnedRepr<Pr>, Ix3>>>;
@@ -198,27 +227,35 @@ pub trait Records: Sized {
     fn nfeatures(&self) -> usize;
 }
 
-/// Return a reference to single or multiple target variables
+pub trait TargetDim: RemoveAxis {
+    fn nsamples(mut self, nsamples: usize) -> Self {
+        self.as_array_view_mut()[0] = nsamples;
+        self
+    }
+}
+
+/// Return a reference to single or multiple target variables.
+///
+/// This is generic over the dimension of the target array to support both single-target and
+/// multi-target variables.
 pub trait AsTargets {
     type Elem;
+    type Ix: TargetDim;
 
-    /// Returns a view on targets as two-dimensional array
-    fn as_multi_targets(&self) -> ArrayView2<Self::Elem>;
+    fn as_targets(&self) -> ArrayView<Self::Elem, Self::Ix>;
+}
 
-    /// Convert to single target, fails for more than one target
-    ///
-    /// # Returns
-    ///
-    /// May return a single target with the same label type, but returns an
-    /// `Error::MultipleTargets` in case that there are more than a single target.
-    fn try_single_target(&self) -> Result<ArrayView1<Self::Elem>> {
-        let multi_targets = self.as_multi_targets();
+/// Return a reference to single-target variables.
+pub trait AsSingleTargets: AsTargets<Ix = Ix1> {
+    fn as_single_targets(&self) -> ArrayView1<Self::Elem> {
+        self.as_targets()
+    }
+}
 
-        if multi_targets.len_of(Axis(1)) > 1 {
-            return Err(Error::MultipleTargets);
-        }
-
-        Ok(multi_targets.index_axis_move(Axis(1), 0))
+/// Return a reference to multi-target variables.
+pub trait AsMultiTargets: AsTargets<Ix = Ix2> {
+    fn as_multi_targets(&self) -> ArrayView2<Self::Elem> {
+        self.as_targets()
     }
 }
 
@@ -227,30 +264,37 @@ pub trait AsTargets {
 /// This is implemented for objects which can act as targets and created from a target matrix. For
 /// targets represented as `ndarray` matrix this is identity, for counted labels, i.e.
 /// `TargetsWithLabels`, it creates the corresponding wrapper struct.
-pub trait FromTargetArray<'a, F> {
+pub trait FromTargetArray<'a>: AsTargets {
     type Owned;
     type View;
 
     /// Create self object from new target array
-    fn new_targets(targets: Array2<F>) -> Self::Owned;
-    fn new_targets_view(targets: ArrayView2<'a, F>) -> Self::View;
+    fn new_targets(targets: Array<Self::Elem, Self::Ix>) -> Self::Owned;
+    fn new_targets_view(targets: ArrayView<'a, Self::Elem, Self::Ix>) -> Self::View;
 }
 
+/// Return a mutable reference to single or multiple target variables.
+///
+/// This is generic over the dimension of the target array to support both single-target and
+/// multi-target variables.
 pub trait AsTargetsMut {
     type Elem;
+    type Ix: TargetDim;
 
-    /// Returns a mutable view on targets as two-dimensional array
-    fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<Self::Elem>;
+    fn as_targets_mut(&mut self) -> ArrayViewMut<Self::Elem, Self::Ix>;
+}
 
-    /// Convert to single target, fails for more than one target
-    fn try_single_target_mut(&mut self) -> Result<ArrayViewMut1<Self::Elem>> {
-        let multi_targets = self.as_multi_targets_mut();
+/// Returns a mutable reference to single-target variables.
+pub trait AsSingleTargetsMut: AsTargetsMut<Ix = Ix1> {
+    fn as_single_targets_mut(&mut self) -> ArrayViewMut1<Self::Elem> {
+        self.as_targets_mut()
+    }
+}
 
-        if multi_targets.len_of(Axis(1)) > 1 {
-            return Err(Error::MultipleTargets);
-        }
-
-        Ok(multi_targets.index_axis_move(Axis(1), 0))
+/// Returns a mutable reference to multi-target variables.
+pub trait AsMultiTargetsMut: AsTargetsMut<Ix = Ix2> {
+    fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<Self::Elem> {
+        self.as_targets_mut()
     }
 }
 
@@ -284,8 +328,9 @@ pub trait Labels {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::Error;
     use approx::assert_abs_diff_eq;
-    use ndarray::{array, Array1, Array2};
+    use ndarray::{array, Array1, Array2, Axis};
     use rand::{rngs::SmallRng, SeedableRng};
 
     #[test]
@@ -340,8 +385,8 @@ mod tests {
 
         // Split with ratio
         let (train, val) = dataset.split_with_ratio(0.25);
-        assert_eq!(train.targets().dim().0, 13);
-        assert_eq!(val.targets().dim().0, 37);
+        assert_eq!(train.targets().dim(), 13);
+        assert_eq!(val.targets().dim(), 37);
         assert_eq!(train.records().dim().0, 13);
         assert_eq!(val.records().dim().0, 37);
 
@@ -402,7 +447,7 @@ mod tests {
         let dataset = Dataset::from((records, targets));
 
         // view ,Split with ratio view
-        let view: DatasetView<f64, f64> = dataset.view();
+        let view: DatasetView<f64, f64, Ix1> = dataset.view();
 
         let (train, val) = view.split_with_ratio(0.5);
         assert_eq!(train.targets().len(), 25);
@@ -413,7 +458,7 @@ mod tests {
         // ------ Labels ------
         let dataset_multiclass =
             Dataset::from((array![[1., 2.], [2., 1.], [0., 0.]], array![0, 1, 2]));
-        let view: DatasetView<f64, usize> = dataset_multiclass.view();
+        let view: DatasetView<f64, usize, Ix1> = dataset_multiclass.view();
 
         // One Vs All
         let datasets_one_vs_all = view.one_vs_all()?;
@@ -428,7 +473,7 @@ mod tests {
             array![0, 1, 2, 2],
         ));
 
-        let view: DatasetView<f64, usize> = dataset_multiclass.view();
+        let view: DatasetView<f64, usize, Ix1> = dataset_multiclass.view();
 
         // Frequencies with mask
         let freqs = view.label_frequencies_with_mask(&[true, true, true, true]);
@@ -455,8 +500,8 @@ mod tests {
         {
             assert_eq!(train.records().dim(), (25, 2));
             assert_eq!(val.records().dim(), (25, 2));
-            assert_eq!(train.targets().dim(), (25, 1));
-            assert_eq!(val.targets().dim(), (25, 1));
+            assert_eq!(train.targets().dim(), 25);
+            assert_eq!(val.targets().dim(), 25);
         }
         assert_eq!(Dataset::from((records, targets)).fold(10).len(), 10);
 
@@ -470,12 +515,12 @@ mod tests {
         {
             assert_eq!(val.records.row(0)[0] as usize, (i + 1));
             assert_eq!(val.records.row(0)[1] as usize, (i + 1));
-            assert_eq!(val.targets.column(0)[0] as usize, (i + 1));
+            assert_eq!(val.targets[0] as usize, (i + 1));
 
             for j in 0..4 {
                 assert!(train.records.row(j)[0] as usize != (i + 1));
                 assert!(train.records.row(j)[1] as usize != (i + 1));
-                assert!(train.targets.column(0)[j] as usize != (i + 1));
+                assert!(train.targets[j] as usize != (i + 1));
             }
         }
     }
@@ -489,7 +534,7 @@ mod tests {
 
         let res = dataset
             .target_iter()
-            .map(|x| x.try_single_target().unwrap().to_owned())
+            .map(|x| x.as_targets().remove_axis(Axis(1)).to_owned())
             .collect::<Vec<_>>();
 
         assert_eq!(res, &[array![1, 3, 5], array![2, 4, 6]]);
@@ -544,12 +589,29 @@ mod tests {
 
     type MockResult<T> = std::result::Result<T, MockError>;
 
+    impl<'a> Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>, MockError> for MockFittable {
+        type Object = MockFittableResult;
+
+        fn fit(
+            &self,
+            training_data: &DatasetView<f64, f64, Ix1>,
+        ) -> std::result::Result<Self::Object, MockError> {
+            if self.mock_var == 0 {
+                Err(MockError::LinfaError(Error::Parameters("0".to_string())))
+            } else {
+                Ok(MockFittableResult {
+                    mock_var: training_data.nsamples(),
+                })
+            }
+        }
+    }
+
     impl<'a> Fit<ArrayView2<'a, f64>, ArrayView2<'a, f64>, MockError> for MockFittable {
         type Object = MockFittableResult;
 
         fn fit(
             &self,
-            training_data: &DatasetView<f64, f64>,
+            training_data: &DatasetView<f64, f64, Ix2>,
         ) -> std::result::Result<Self::Object, MockError> {
             if self.mock_var == 0 {
                 Err(MockError::LinfaError(Error::Parameters("0".to_string())))
@@ -596,7 +658,7 @@ mod tests {
         let records =
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let mut dataset: Dataset<f64, f64, Ix1> = (records, targets).into();
         let params = MockFittable { mock_var: 1 };
 
         for (i, (model, validation_set)) in
@@ -605,9 +667,9 @@ mod tests {
             assert_eq!(model.mock_var, 4);
             assert_eq!(validation_set.records().row(0)[0] as usize, i + 1);
             assert_eq!(validation_set.records().row(0)[1] as usize, i + 1);
-            assert_eq!(validation_set.targets().column(0)[0] as usize, i + 1);
+            assert_eq!(validation_set.targets()[0] as usize, i + 1);
             assert_eq!(validation_set.records().dim(), (1, 2));
-            assert_eq!(validation_set.targets().dim(), (1, 1));
+            assert_eq!(validation_set.targets().dim(), 1);
         }
     }
 
@@ -616,7 +678,7 @@ mod tests {
         let records =
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let mut dataset: Dataset<f64, f64, Ix1> = (records, targets).into();
         let params = MockFittable { mock_var: 1 };
 
         // If we request three folds from a dataset with 5 samples it will cut the
@@ -628,9 +690,9 @@ mod tests {
             assert_eq!(model.mock_var, 4);
             assert_eq!(validation_set.records().row(0)[0] as usize, i + 1);
             assert_eq!(validation_set.records().row(0)[1] as usize, i + 1);
-            assert_eq!(validation_set.targets().column(0)[0] as usize, i + 1);
+            assert_eq!(validation_set.targets()[0] as usize, i + 1);
             assert_eq!(validation_set.records().dim(), (1, 2));
-            assert_eq!(validation_set.targets().dim(), (1, 1));
+            assert_eq!(validation_set.targets().dim(), 1);
             assert!(i < 3);
         }
 
@@ -641,9 +703,9 @@ mod tests {
             assert_eq!(model.mock_var, 4);
             assert_eq!(validation_set.records().row(0)[0] as usize, i + 1);
             assert_eq!(validation_set.records().row(0)[1] as usize, i + 1);
-            assert_eq!(validation_set.targets().column(0)[0] as usize, i + 1);
+            assert_eq!(validation_set.targets()[0] as usize, i + 1);
             assert_eq!(validation_set.records().dim(), (1, 2));
-            assert_eq!(validation_set.targets().dim(), (1, 1));
+            assert_eq!(validation_set.targets().dim(), 1);
             assert!(i < 4);
         }
 
@@ -653,7 +715,7 @@ mod tests {
             dataset.iter_fold(2, |v| params.fit(v).unwrap()).enumerate()
         {
             assert_eq!(model.mock_var, 3);
-            assert_eq!(validation_set.targets().dim(), (2, 1));
+            assert_eq!(validation_set.targets().dim(), 2);
             assert!(i < 2);
         }
     }
@@ -664,7 +726,7 @@ mod tests {
         let records =
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let mut dataset: Dataset<f64, f64, Ix1> = (records, targets).into();
         let params = MockFittable { mock_var: 1 };
         let _ = dataset.iter_fold(0, |v| params.fit(v)).enumerate();
     }
@@ -675,7 +737,7 @@ mod tests {
         let records =
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let mut dataset: Dataset<f64, f64, Ix1> = (records, targets).into();
         let params = MockFittable { mock_var: 1 };
         let _ = dataset.iter_fold(6, |v| params.fit(v)).enumerate();
     }
@@ -685,10 +747,10 @@ mod tests {
         let records =
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let mut dataset: Dataset<f64, f64, Ix1> = (records, targets).into();
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 2 }];
         let acc = dataset
-            .cross_validate(5, &params, |_pred, _truth| Ok(3.))
+            .cross_validate_single(5, &params, |_pred, _truth| Ok(3.))
             .unwrap();
         assert_eq!(acc, array![3., 3.]);
 
@@ -697,7 +759,7 @@ mod tests {
 
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 2 }];
         let acc = dataset
-            .cross_validate(2, &params, |_pred, _truth| Ok(3.))
+            .cross_validate(2, &params, |_pred, _truth| Ok(array![3., 3.]))
             .unwrap();
         assert_eq!(acc, array![[3., 3.], [3., 3.]]);
     }
@@ -709,10 +771,11 @@ mod tests {
         let records =
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let mut dataset: Dataset<f64, f64, Ix1> = (records, targets).into();
         // second one should throw an error
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 0 }];
-        let acc: MockResult<Array1<_>> = dataset.cross_validate(5, &params, |_pred, _truth| Ok(0.));
+        let acc: MockResult<Array1<_>> =
+            dataset.cross_validate_single(5, &params, |_pred, _truth| Ok(0.));
 
         acc.unwrap();
     }
@@ -725,16 +788,17 @@ mod tests {
         let records =
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let mut dataset: Dataset<f64, f64, Ix1> = (records, targets).into();
         // second one should throw an error
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 1 }];
-        let err: MockResult<Array1<_>> = dataset.cross_validate(5, &params, |_pred, _truth| {
-            if false {
-                Ok(0f32)
-            } else {
-                Err(Error::Parameters("eval".to_string()))
-            }
-        });
+        let err: MockResult<Array1<_>> =
+            dataset.cross_validate_single(5, &params, |_pred, _truth| {
+                if false {
+                    Ok(0f32)
+                } else {
+                    Err(Error::Parameters("eval".to_string()))
+                }
+            });
 
         err.unwrap();
     }
@@ -747,7 +811,7 @@ mod tests {
         let mut dataset: Dataset<f64, f64> = (records, targets).into();
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 2 }];
         let acc = dataset
-            .cross_validate_multi(5, &params, |_pred, _truth| Ok(array![5., 6.]))
+            .cross_validate(5, &params, |_pred, _truth| Ok(array![5., 6.]))
             .unwrap();
         assert_eq!(acc.dim(), (params.len(), dataset.ntargets()));
         assert_eq!(acc, array![[5., 6.], [5., 6.]])
@@ -757,11 +821,11 @@ mod tests {
         let records =
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let mut dataset: Dataset<f64, f64, Ix1> = (records, targets).into();
         // second one should throw an error
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 0 }];
         let err = dataset
-            .cross_validate_multi(5, &params, |_pred, _truth| Ok(array![5.]))
+            .cross_validate_single(5, &params, |_pred, _truth| Ok(5.))
             .unwrap_err();
         assert_eq!(err.to_string(), "invalid parameter 0".to_string());
     }
@@ -771,13 +835,13 @@ mod tests {
         let records =
             Array2::from_shape_vec((5, 2), vec![1., 1., 2., 2., 3., 3., 4., 4., 5., 5.]).unwrap();
         let targets = Array1::from_shape_vec(5, vec![1., 2., 3., 4., 5.]).unwrap();
-        let mut dataset: Dataset<f64, f64> = (records, targets).into();
+        let mut dataset: Dataset<f64, f64, Ix1> = (records, targets).into();
         // second one should throw an error
         let params = vec![MockFittable { mock_var: 1 }, MockFittable { mock_var: 1 }];
         let err = dataset
-            .cross_validate_multi(5, &params, |_pred, _truth| {
+            .cross_validate_single(5, &params, |_pred, _truth| {
                 if false {
-                    Ok(array![0f32])
+                    Ok(0f32)
                 } else {
                     Err(Error::Parameters("eval".to_string()))
                 }
@@ -800,7 +864,7 @@ mod tests {
             [2., 9.],
             [0., 10.]
         ];
-        let targets = array![0, 1, 2, 0, 1, 2, 0, 1, 2, 0].insert_axis(Axis(1));
+        let targets = array![0, 1, 2, 0, 1, 2, 0, 1, 2, 0];
         let dataset = DatasetBase::from((records, targets));
         assert_eq!(dataset.nsamples(), 10);
         assert_eq!(dataset.ntargets(), 1);
@@ -811,10 +875,7 @@ mod tests {
             dataset_no_0.records,
             array![[1., 2.], [2., 3.], [1., 5.], [2., 6.], [1., 8.], [2., 9.]]
         );
-        assert_abs_diff_eq!(
-            dataset_no_0.try_single_target().unwrap(),
-            array![1, 2, 1, 2, 1, 2]
-        );
+        assert_abs_diff_eq!(dataset_no_0.as_single_targets(), array![1, 2, 1, 2, 1, 2]);
         let dataset_no_1 = dataset.with_labels(&[0, 2]);
         assert_eq!(dataset_no_1.nsamples(), 7);
         assert_eq!(dataset_no_1.ntargets(), 1);
@@ -831,7 +892,7 @@ mod tests {
             ]
         );
         assert_abs_diff_eq!(
-            dataset_no_1.try_single_target().unwrap(),
+            dataset_no_1.as_single_targets(),
             array![0, 2, 0, 2, 0, 2, 0]
         );
         let dataset_no_2 = dataset.with_labels(&[0, 1]);
@@ -850,7 +911,7 @@ mod tests {
             ]
         );
         assert_abs_diff_eq!(
-            dataset_no_2.try_single_target().unwrap(),
+            dataset_no_2.as_single_targets(),
             array![0, 1, 0, 1, 0, 1, 0]
         );
     }
@@ -900,5 +961,24 @@ mod tests {
         let dataset_no_17 = dataset.with_labels(&[0, 2, 8, 9]);
         assert_eq!(dataset_no_17.nsamples(), 10);
         assert_eq!(dataset_no_17.ntargets(), 2);
+    }
+
+    #[test]
+    fn correct_probability_creation() {
+        let prob = 0.5;
+        assert_abs_diff_eq!(Pr::new(prob).0, prob);
+    }
+
+    #[test]
+    #[should_panic]
+    fn negative_probability_panics() {
+        let prob = -0.5;
+        Pr::new(prob);
+    }
+
+    #[test]
+    fn negative_probability_unchecked() {
+        let prob = -0.5;
+        assert_abs_diff_eq!(Pr::new_unchecked(prob).0, prob);
     }
 }

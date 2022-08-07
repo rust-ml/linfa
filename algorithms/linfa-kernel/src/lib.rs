@@ -33,7 +33,7 @@ use linfa::{
 };
 
 /// Kernel representation, can be either dense or sparse
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum KernelType {
     Dense,
     /// A sparse kernel requires to define a number of neighbours
@@ -47,6 +47,7 @@ pub enum KernelType {
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
+#[derive(Debug, Clone, PartialEq)]
 pub struct KernelBase<K1: Inner, K2: Inner>
 where
     K1::Elem: Float,
@@ -258,7 +259,7 @@ impl<F: Float, K1: Inner<Elem = F>, K2: Inner<Elem = F>> Records for KernelBase<
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum KernelMethod<F> {
     /// Gaussian(eps): exp(-norm(x - x')/eps)
     Gaussian(F),
@@ -291,6 +292,7 @@ impl<F: Float> KernelMethod<F> {
 }
 
 /// Defines the set of parameters needed to build a kernel
+#[derive(Debug, Clone, PartialEq)]
 pub struct KernelParams<F, N = CommonNearestNeighbour> {
     /// Whether to construct a dense or sparse kernel
     kind: KernelType,
@@ -409,7 +411,7 @@ impl<'a, F: Float, T: AsTargets, N: NearestNeighbour>
     }
 }
 
-impl<'a, F: Float, L: 'a, T: AsTargets<Elem = L> + FromTargetArray<'a, L>, N: NearestNeighbour>
+impl<'a, F: Float, L: 'a, T: AsTargets<Elem = L> + FromTargetArray<'a>, N: NearestNeighbour>
     Transformer<&'a DatasetBase<Array2<F>, T>, DatasetBase<Kernel<F>, T::View>>
     for KernelParams<F, N>
 {
@@ -432,7 +434,7 @@ impl<'a, F: Float, L: 'a, T: AsTargets<Elem = L> + FromTargetArray<'a, L>, N: Ne
     /// not between 1 and #records-1
     fn transform(&self, x: &'a DatasetBase<Array2<F>, T>) -> DatasetBase<Kernel<F>, T::View> {
         let kernel = Kernel::new(x.records.view(), self);
-        DatasetBase::new(kernel, T::new_targets_view(x.as_multi_targets()))
+        DatasetBase::new(kernel, T::new_targets_view(x.as_targets()))
     }
 }
 
@@ -443,7 +445,7 @@ impl<
         'b,
         F: Float,
         L: 'b,
-        T: AsTargets<Elem = L> + FromTargetArray<'b, L>,
+        T: AsTargets<Elem = L> + FromTargetArray<'b>,
         N: NearestNeighbour,
     > Transformer<&'b DatasetBase<ArrayView2<'a, F>, T>, DatasetBase<Kernel<F>, T::View>>
     for KernelParams<F, N>
@@ -471,7 +473,7 @@ impl<
     ) -> DatasetBase<Kernel<F>, T::View> {
         let kernel = Kernel::new(x.records.view(), self);
 
-        DatasetBase::new(kernel, T::new_targets_view(x.as_multi_targets()))
+        DatasetBase::new(kernel, T::new_targets_view(x.as_targets()))
     }
 }
 
@@ -528,6 +530,18 @@ mod tests {
     use linfa_nn::{BallTree, KdTree};
     use ndarray::{Array1, Array2};
     use std::f64::consts;
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<KernelType>();
+        has_autotraits::<KernelBase<ArrayView2<f64>, ArrayView2<f64>>>();
+        has_autotraits::<KernelMethod<f64>>();
+        has_autotraits::<KernelParams<f64, f64>>();
+        has_autotraits::<KernelView<f64>>();
+        has_autotraits::<KernelInner<ArrayView2<f64>, ArrayView2<f64>>>();
+        has_autotraits::<Kernel<f64>>();
+    }
 
     #[test]
     fn sparse_from_fn_test() {
@@ -850,11 +864,7 @@ mod tests {
         check_kernel_from_dataset_view_type(&input.view(), KernelType::Sparse(3));
     }
 
-    fn check_kernel_from_dataset_type<
-        'a,
-        L: 'a,
-        T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
-    >(
+    fn check_kernel_from_dataset_type<'a, L: 'a, T: AsTargets<Elem = L> + FromTargetArray<'a>>(
         input: &'a DatasetBase<Array2<f64>, T>,
         k_type: KernelType,
     ) {
@@ -889,7 +899,7 @@ mod tests {
     fn check_kernel_from_dataset_view_type<
         'a,
         L: 'a,
-        T: AsTargets<Elem = L> + FromTargetArray<'a, L>,
+        T: AsTargets<Elem = L> + FromTargetArray<'a>,
     >(
         input: &'a DatasetBase<ArrayView2<'a, f64>, T>,
         k_type: KernelType,

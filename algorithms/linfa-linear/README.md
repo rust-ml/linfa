@@ -17,9 +17,13 @@
 There is an usage example in the `examples/` directory. To run, use:
 
 ```bash
-$ cargo run --features openblas --example diabetes
+$ cargo run --example diabetes
 $ cargo run --example glm
 ```
+
+## BLAS/Lapack backend
+
+See [this section](../../README.md#blaslapack-backend) to enable an external BLAS/LAPACK backend.
 
 ## License
 Dual-licensed to be compatible with the Rust project.
