@@ -19,9 +19,9 @@
 pub mod error;
 
 use crate::error::{Error, Result};
-use argmin::prelude::*;
+use argmin::core::{CostFunction, Executor, Gradient, IterState, OptimizationResult, Solver};
 use argmin::solver::linesearch::MoreThuenteLineSearch;
-use argmin::solver::quasinewton::lbfgs::LBFGS;
+use argmin::solver::quasinewton::LBFGS;
 use linfa::dataset::AsSingleTargets;
 use linfa::prelude::DatasetBase;
 use linfa::traits::{Fit, PredictInplace};
@@ -96,9 +96,16 @@ impl<F: Float, D: Dimension> Default for LogisticRegressionParams<F, D> {
     }
 }
 
-type LBFGSType<F, D> = LBFGS<MoreThuenteLineSearch<ArgminParam<F, D>, F>, ArgminParam<F, D>, F>;
+type LBFGSType<F, D> = LBFGS<
+    MoreThuenteLineSearch<ArgminParam<F, D>, ArgminParam<F, D>, F>,
+    ArgminParam<F, D>,
+    ArgminParam<F, D>,
+    F,
+>;
 type LBFGSType1<F> = LBFGSType<F, Ix1>;
 type LBFGSType2<F> = LBFGSType<F, Ix2>;
+
+type OptimResultType<O, S, P, F> = OptimizationResult<O, S, IterState<P, P, (), (), F>>;
 
 impl<F: Float, D: Dimension> LogisticRegressionValidParams<F, D> {
     /// Create the initial parameters, either from a user supplied array
@@ -167,20 +174,22 @@ impl<F: Float, D: Dimension> LogisticRegressionValidParams<F, D> {
 
     /// Create the LBFGS solver using MoreThuenteLineSearch and set gradient
     /// tolerance.
-    fn setup_solver(&self) -> LBFGSType<F, D> {
+    fn setup_solver(&self) -> Result<LBFGSType<F, D>> {
         let linesearch = MoreThuenteLineSearch::new();
-        LBFGS::new(linesearch, 10).with_tol_grad(self.gradient_tolerance)
+        LBFGS::new(linesearch, 10)
+            .with_tolerance_grad(self.gradient_tolerance)
+            .map_err(|err| err.into())
     }
 
     /// Run the LBFGS solver until it converges or runs out of iterations.
-    fn run_solver<P: SolvableProblem>(
+    fn run_solver<O: SolvableProblem<D, F>>(
         &self,
-        problem: P,
-        solver: P::Solver,
-        init_params: P::Param,
-    ) -> Result<ArgminResult<P>> {
-        Executor::new(problem, solver, init_params)
-            .max_iters(self.max_iterations)
+        problem: O,
+        solver: O::Solver,
+        init_params: O::Param,
+    ) -> Result<OptimResultType<O, O::Solver, O::Param, F>> {
+        Executor::new(problem, solver)
+            .configure(|state| state.param(init_params).max_iters(self.max_iterations))
             .run()
             .map_err(|err| err.into())
     }
@@ -212,11 +221,11 @@ impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsSingleTargets<El
         let (labels, target) = label_classes(y)?;
         self.validate_data(x, &target)?;
         let problem = self.setup_problem(x, target);
-        let solver = self.setup_solver();
+        let solver = self.setup_solver()?;
         let init_params = self.setup_init_params(x.ncols());
         let result = self.run_solver(problem, solver, ArgminParam(init_params))?;
 
-        let params = result.state().best_param.as_array();
+        let params = result.state().best_param.as_ref().unwrap().as_array();
         let (w, intercept) = convert_params(x.ncols(), params);
         Ok(FittedLogisticRegression::new(
             *intercept.view().into_scalar(),
@@ -246,11 +255,11 @@ impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsSingleTargets<El
         let (classes, target) = label_classes_multi(y)?;
         self.validate_data(x, &target)?;
         let problem = self.setup_problem(x, target);
-        let solver = self.setup_solver();
+        let solver = self.setup_solver()?;
         let init_params = self.setup_init_params((x.ncols(), classes.len()));
         let result = self.run_solver(problem, solver, ArgminParam(init_params))?;
 
-        let params = result.state().best_param.as_array();
+        let params = result.state().best_param.as_ref().unwrap().as_array();
         let (w, intercept) = convert_params(x.ncols(), params);
         Ok(MultiFittedLogisticRegression::new(
             intercept.to_owned(),
@@ -713,59 +722,76 @@ struct LogisticRegressionProblem<'a, F: Float, A: Data<Elem = F>, D: Dimension> 
 type LogisticRegressionProblem1<'a, F, A> = LogisticRegressionProblem<'a, F, A, Ix1>;
 type LogisticRegressionProblem2<'a, F, A> = LogisticRegressionProblem<'a, F, A, Ix2>;
 
-impl<'a, F: Float, A: Data<Elem = F>> ArgminOp for LogisticRegressionProblem1<'a, F, A> {
+impl<'a, F: Float, A: Data<Elem = F>> CostFunction for LogisticRegressionProblem1<'a, F, A> {
     type Param = ArgminParam<F, Ix1>;
     type Output = F;
-    type Hessian = ();
-    type Jacobian = Array1<F>;
-    type Float = F;
 
     /// Apply the cost function to a parameter `p`
-    fn apply(&self, p: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
+    fn cost(&self, p: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
         let w = p.as_array();
         let cost = logistic_loss(self.x, &self.target, self.alpha, w);
         Ok(cost)
     }
+}
+
+impl<'a, F: Float, A: Data<Elem = F>> Gradient for LogisticRegressionProblem1<'a, F, A> {
+    type Param = ArgminParam<F, Ix1>;
+    type Gradient = ArgminParam<F, Ix1>;
 
     /// Compute the gradient at parameter `p`.
-    fn gradient(&self, p: &Self::Param) -> std::result::Result<Self::Param, argmin::core::Error> {
+    fn gradient(
+        &self,
+        p: &Self::Param,
+    ) -> std::result::Result<Self::Gradient, argmin::core::Error> {
         let w = p.as_array();
         let grad = ArgminParam(logistic_grad(self.x, &self.target, self.alpha, w));
         Ok(grad)
     }
 }
 
-impl<'a, F: Float, A: Data<Elem = F>> ArgminOp for LogisticRegressionProblem2<'a, F, A> {
+impl<'a, F: Float, A: Data<Elem = F>> CostFunction for LogisticRegressionProblem2<'a, F, A> {
     type Param = ArgminParam<F, Ix2>;
     type Output = F;
-    type Hessian = ();
-    type Jacobian = Array1<F>;
-    type Float = F;
 
     /// Apply the cost function to a parameter `p`
-    fn apply(&self, p: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
+    fn cost(&self, p: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
         let w = p.as_array();
         let cost = multi_logistic_loss(self.x, &self.target, self.alpha, w);
         Ok(cost)
     }
+}
+
+impl<'a, F: Float, A: Data<Elem = F>> Gradient for LogisticRegressionProblem2<'a, F, A> {
+    type Param = ArgminParam<F, Ix2>;
+    type Gradient = ArgminParam<F, Ix2>;
 
     /// Compute the gradient at parameter `p`.
-    fn gradient(&self, p: &Self::Param) -> std::result::Result<Self::Param, argmin::core::Error> {
+    fn gradient(
+        &self,
+        p: &Self::Param,
+    ) -> std::result::Result<Self::Gradient, argmin::core::Error> {
         let w = p.as_array();
         let grad = ArgminParam(multi_logistic_grad(self.x, &self.target, self.alpha, w));
         Ok(grad)
     }
 }
 
-trait SolvableProblem: ArgminOp + Sized {
-    type Solver: Solver<Self>;
+trait SolvableProblem<D: Dimension, F: Float>: Sized {
+    type Param: Clone;
+    type Solver: Solver<Self, IterState<Self::Param, Self::Param, (), (), F>>;
 }
 
-impl<'a, F: Float, A: Data<Elem = F>> SolvableProblem for LogisticRegressionProblem1<'a, F, A> {
+impl<'a, F: Float, A: Data<Elem = F>> SolvableProblem<Ix1, F>
+    for LogisticRegressionProblem1<'a, F, A>
+{
+    type Param = ArgminParam<F, Ix1>;
     type Solver = LBFGSType1<F>;
 }
 
-impl<'a, F: Float, A: Data<Elem = F>> SolvableProblem for LogisticRegressionProblem2<'a, F, A> {
+impl<'a, F: Float, A: Data<Elem = F>> SolvableProblem<Ix2, F>
+    for LogisticRegressionProblem2<'a, F, A>
+{
+    type Param = ArgminParam<F, Ix2>;
     type Solver = LBFGSType2<F>;
 }
 
