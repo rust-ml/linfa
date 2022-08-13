@@ -1,6 +1,6 @@
 use approx::{abs_diff_eq, abs_diff_ne};
 use ndarray::{
-    s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, CowArray, Data, Dimension, Ix1, Ix2,
+    s, Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, Axis, CowArray, Data, Ix1, Ix2,
 };
 use ndarray_linalg::{Inverse, Lapack};
 
@@ -49,7 +49,7 @@ where
         let y_est = dataset.records().dot(&hyperplane) + intercept;
 
         // try to calculate the variance
-        let variance = variance_params(dataset, y_est);
+        let variance = variance_params(dataset, y_est.view());
 
         Ok(ElasticNet {
             hyperplane,
@@ -106,7 +106,7 @@ where
         let y_est = dataset.records().dot(&hyperplane) + &intercept;
 
         // try to calculate the variance
-        let variance = variance_params(dataset, y_est);
+        let variance = variance_params(dataset, y_est.view());
 
         Ok(MultiTaskElasticNet {
             hyperplane,
@@ -390,7 +390,7 @@ fn block_coordinate_descent<'a, F: Float>(
     (w, gap, n_steps)
 }
 
-fn block_soft_thresholding<'a, F: Float>(x: ArrayView1<'a, F>, threshold: F) -> Array1<F> {
+fn block_soft_thresholding<F: Float>(x: ArrayView1<F>, threshold: F) -> Array1<F> {
     let norm_x = x.dot(&x).sqrt();
     if norm_x < threshold {
         return Array1::<F>::zeros(x.len());
@@ -465,7 +465,7 @@ fn duality_gap_mtl<'a, F: Float>(
 
 fn variance_params<F: Float + Lapack, T: AsTargets<Elem = F>, D: Data<Elem = F>>(
     ds: &DatasetBase<ArrayBase<D, Ix2>, T>,
-    y_est: T,
+    y_est: ArrayView<F, T::Ix>,
 ) -> Result<Array1<F>> {
     let nfeatures = ds.nfeatures();
     let nsamples = ds.nsamples();
