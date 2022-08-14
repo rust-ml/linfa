@@ -84,6 +84,7 @@ impl<F: Float> ElasticNet<F> {
 /// like Group Lasso, MultiTask Ridge or MultiTask Lasso. It cycles through a group of parameters and update
 /// the groups separately, holding all the others fixed. The optimization routine stops when a criterion is
 /// satisfied (dual sub-optimality gap or change in coefficients).
+#[derive(Debug, Clone)]
 pub struct MultiTaskElasticNet<F> {
     hyperplane: Array2<F>,
     intercept: Array1<F>,
