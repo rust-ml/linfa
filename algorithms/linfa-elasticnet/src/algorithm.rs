@@ -1,4 +1,5 @@
 use approx::{abs_diff_eq, abs_diff_ne};
+use linfa_linalg::norm::Norm;
 #[cfg(not(feature = "blas"))]
 use linfa_linalg::qr::QRInto;
 use ndarray::linalg::general_mat_mul;
@@ -418,7 +419,7 @@ fn duality_gap<'a, F: Float>(
     let l2_reg = (F::one() - l1_ratio) * penalty * n_samples;
     let xta = x.t().dot(&r) - &w * l2_reg;
 
-    let dual_norm_xta = xta.fold(F::zero(), |abs_max, &x| abs_max.max(x.abs()));
+    let dual_norm_xta = xta.norm_max();
     let r_norm2 = r.dot(&r);
     let w_norm2 = w.dot(&w);
     let (const_, mut gap) = if dual_norm_xta > l1_reg {
@@ -428,7 +429,7 @@ fn duality_gap<'a, F: Float>(
     } else {
         (F::one(), r_norm2)
     };
-    let l1_norm = w.iter().map(|w_i| w_i.abs()).sum();
+    let l1_norm = w.norm_l1();
     gap += l1_reg * l1_norm - const_ * r.dot(&y)
         + half * l2_reg * (F::one() + const_ * const_) * w_norm2;
     gap
@@ -448,9 +449,7 @@ fn duality_gap_mtl<'a, F: Float>(
     let l2_reg = (F::one() - l1_ratio) * penalty * n_samples;
     let xta = x.t().dot(&r) - &w * l2_reg;
 
-    let dual_norm_xta = xta
-        .map_axis(Axis(1), |x| x.dot(&x).sqrt())
-        .fold(F::zero(), |max_norm, &nrm| max_norm.max(nrm));
+    let dual_norm_xta = xta.map_axis(Axis(1), |x| x.dot(&x).sqrt()).norm_max();
     let r_norm2 = r.iter().map(|rij| rij.powi(2)).sum();
     let w_norm2 = w.iter().map(|wij| wij.powi(2)).sum();
     let (const_, mut gap) = if dual_norm_xta > l1_reg {
