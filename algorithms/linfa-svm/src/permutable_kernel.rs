@@ -14,6 +14,7 @@ pub trait Permutable<F: Float> {
 ///
 /// This struct wraps a kernel matrix with access indices. The working set can shrink during the
 /// optimization and it is therefore necessary to reorder entries.
+#[derive(Debug, Clone, PartialEq)]
 pub struct PermutableKernel<F: Float> {
     kernel: Kernel<F>,
     kernel_diag: Array1<F>,
@@ -81,6 +82,7 @@ impl<F: Float> Permutable<F> for PermutableKernel<F> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct PermutableKernelOneClass<F: Float> {
     kernel: Kernel<F>,
     kernel_diag: Array1<F>,
@@ -136,6 +138,7 @@ impl<F: Float> Permutable<F> for PermutableKernelOneClass<F> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct PermutableKernelRegression<F: Float> {
     kernel: Kernel<F>,
     kernel_diag: Array1<F>,
@@ -216,9 +219,18 @@ impl<'a, F: Float> Permutable<F> for PermutableKernelRegression<F> {
 #[cfg(test)]
 mod tests {
     use super::{Permutable, PermutableKernel};
+    use crate::permutable_kernel::{PermutableKernelOneClass, PermutableKernelRegression};
     use approx::assert_abs_diff_eq;
     use linfa_kernel::{Kernel, KernelInner, KernelMethod};
     use ndarray::array;
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<PermutableKernel<f64>>();
+        has_autotraits::<PermutableKernelOneClass<f64>>();
+        has_autotraits::<PermutableKernelRegression<f64>>();
+    }
 
     #[test]
     fn test_permutable_kernel() {

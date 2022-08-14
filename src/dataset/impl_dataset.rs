@@ -5,10 +5,7 @@ use super::{
     Float, FromTargetArray, Label, Labels, Records, Result, TargetDim,
 };
 use crate::traits::Fit;
-use ndarray::{
-    concatenate, s, Array, Array1, Array2, ArrayBase, ArrayView, ArrayView2, ArrayViewMut, Axis,
-    Data, DataMut, Dimension, Ix2,
-};
+use ndarray::{concatenate, prelude::*, Data, DataMut, Dimension};
 use rand::{seq::SliceRandom, Rng};
 use std::collections::HashMap;
 use std::ops::AddAssign;
@@ -780,6 +777,8 @@ where
     /// on the validation set. The performances collected for each model are then averaged over the
     /// number of folds.
     ///
+    /// For single-target datasets, [`Dataset::cross_validate_single`] is recommended.
+    ///
     /// ### Parameters:
     ///
     /// - `k`: the number of folds to apply
@@ -884,6 +883,31 @@ where
             evaluations.add_assign(&fold_evaluation)
         }
         Ok(evaluations / FACC::from(k).unwrap())
+    }
+}
+
+impl<'a, F: 'a + Clone, E: Copy + 'a, D, S> DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, Ix1>>
+where
+    D: DataMut<Elem = F>,
+    S: DataMut<Elem = E>,
+{
+    /// Specialized version of `cross_validate` for single-target datasets. Allows the evaluation
+    /// closure to return a float without wrapping it in `arr0`. See [`Dataset.cross_validate`] for
+    /// more details.
+    pub fn cross_validate_single<O, ER, M, FACC, C>(
+        &'a mut self,
+        k: usize,
+        parameters: &[M],
+        eval: C,
+    ) -> std::result::Result<Array1<FACC>, ER>
+    where
+        ER: std::error::Error + std::convert::From<crate::error::Error>,
+        M: for<'c> Fit<ArrayView2<'c, F>, ArrayView1<'c, E>, ER, Object = O>,
+        O: for<'d> PredictInplace<ArrayView2<'a, F>, Array1<E>>,
+        FACC: Float,
+        C: Fn(&Array1<E>, &ArrayView1<E>) -> std::result::Result<FACC, crate::error::Error>,
+    {
+        self.cross_validate(k, parameters, |a, b| eval(a, b).map(arr0))
     }
 }
 

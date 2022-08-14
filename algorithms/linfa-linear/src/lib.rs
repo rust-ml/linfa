@@ -11,6 +11,7 @@
 //! `linfa-linear` currently provides an implementation of the following regression algorithms:
 //! - Ordinary Least Squares
 //! - Generalized Linear Models (GLM)
+//! - Isotonic
 //!
 //! ## Examples
 //!
@@ -24,8 +25,10 @@
 mod error;
 mod float;
 mod glm;
+mod isotonic;
 mod ols;
 
 pub use error::*;
 pub use glm::*;
+pub use isotonic::*;
 pub use ols::*;

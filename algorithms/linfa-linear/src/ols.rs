@@ -1,18 +1,20 @@
 //! Ordinary Least Squares
 #![allow(non_snake_case)]
 use crate::error::{LinearError, Result};
+#[cfg(feature = "blas")]
+use linfa::dataset::{WithLapack, WithoutLapack};
+use linfa::Float;
+#[cfg(not(feature = "blas"))]
+use linfa_linalg::qr::LeastSquaresQrInto;
 use ndarray::{concatenate, s, Array, Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2};
-use ndarray_linalg::{Lapack, LeastSquaresSvdInto, Scalar};
+#[cfg(feature = "blas")]
+use ndarray_linalg::LeastSquaresSvdInto;
 use serde::{Deserialize, Serialize};
 
 use linfa::dataset::{AsSingleTargets, DatasetBase};
 use linfa::traits::{Fit, PredictInplace};
 
-pub trait Float: linfa::Float + Lapack + Scalar {}
-impl Float for f32 {}
-impl Float for f64 {}
-
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 /// An ordinary least squares linear regression model.
 ///
 /// LinearRegression fits a linear model to minimize the residual sum of
@@ -46,7 +48,7 @@ pub struct LinearRegression {
     fit_intercept: bool,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 /// A fitted linear regression model which can be used for making predictions.
 pub struct FittedLinearRegression<F> {
     intercept: F,
@@ -128,9 +130,17 @@ where
     // ensure that B = C
     let (X, y) = (X.view_mut(), y.view_mut());
 
-    X.least_squares_into(y)
-        .map(|x| x.solution)
-        .map_err(|err| err.into())
+    #[cfg(not(feature = "blas"))]
+    let out = X
+        .least_squares_into(y.insert_axis(Axis(1)))?
+        .remove_axis(Axis(1));
+    #[cfg(feature = "blas")]
+    let out = X
+        .with_lapack()
+        .least_squares_into(y.with_lapack())
+        .map(|x| x.solution)?
+        .without_lapack();
+    Ok(out)
 }
 
 /// View the fitted parameters and make predictions with a fitted
@@ -174,6 +184,14 @@ mod tests {
     use approx::assert_abs_diff_eq;
     use linfa::{traits::Predict, Dataset};
     use ndarray::array;
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<FittedLinearRegression<f64>>();
+        has_autotraits::<LinearRegression>();
+        has_autotraits::<LinearError<f64>>();
+    }
 
     #[test]
     fn fits_a_line_through_two_dots() {

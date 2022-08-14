@@ -9,7 +9,7 @@ Linfa's 0.5.0 release adds initial support for the OPTICS algorithm, multinomial
 
 ## New algorithms
 
-[OPTICS](https://en.wikipedia.org/wiki/OPTICS_algorithm) is an algorithm for finding density-based clusters. It can produce reachability-plots, hierarchical structure of clusters. Analysing data without prior assumption of any distribution is a common use-case. The algorithm is added to `linfa-clustering` and an example can be find at [linfa-clustering/examples/optics.rs](https://github.com/rust-ml/linfa/blob/master/algorithms/linfa-clustering/examples/optics.rs).
+[OPTICS](https://en.wikipedia.org/wiki/OPTICS_algorithm) is an algorithm for finding density-based clusters. It can produce reachability-plots, hierarchical structure of clusters. Analysing data without prior assumption of any distribution is a common use-case. The algorithm is added to `linfa-clustering` and an example can be found at [linfa-clustering/examples/optics.rs](https://github.com/rust-ml/linfa/blob/master/algorithms/linfa-clustering/examples/optics.rs).
 
 Extending logistic regression to the multinomial distribution generalizes it to [multiclass problems](https://en.wikipedia.org/wiki/Multinomial_logistic_regression). This release adds support for multinomial logistic regression to `linfa-logistic`, you can experiment with the example at [linfa-logistic/examples/winequality_multi.rs](https://github.com/rust-ml/linfa/blob/master/algorithms/linfa-logistic/examples/winequality_multi.rs).
 

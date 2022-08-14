@@ -172,7 +172,7 @@ impl<'a, A: Float> ArgminOp for TweedieProblem<'a, A> {
 }
 
 /// Fitted Tweedie regressor model for scoring
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct TweedieRegressor<A> {
     /// Estimated coefficients for the linear predictor
     pub coef: Array1<A>,
@@ -204,9 +204,18 @@ impl<A: Float, D: Data<Elem = A>> PredictInplace<ArrayBase<D, Ix2>, Array1<A>>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::glm::hyperparams::TweedieRegressorParams;
     use approx::assert_abs_diff_eq;
     use linfa::Dataset;
     use ndarray::{array, Array2};
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<TweedieRegressor<f64>>();
+        has_autotraits::<TweedieRegressorValidParams<f64>>();
+        has_autotraits::<TweedieRegressorParams<f64>>();
+    }
 
     macro_rules! test_tweedie {
         ($($name:ident: {power: $power:expr, intercept: $intercept:expr,},)*) => {

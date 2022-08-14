@@ -43,6 +43,7 @@ pub struct Platt<F, O> {
 }
 
 /// Parameters for Platt's Newton method
+#[derive(Debug, Clone, PartialEq)]
 pub struct PlattValidParams<F, O> {
     maxiter: usize,
     minstep: F,
@@ -50,6 +51,7 @@ pub struct PlattValidParams<F, O> {
     phantom: PhantomData<O>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct PlattParams<F, O>(PlattValidParams<F, O>);
 
 impl<F: Float, O> Default for PlattParams<F, O> {
@@ -221,9 +223,9 @@ pub fn platt_predict<F: Float>(x: F, a: F, b: F) -> Pr {
 
     // avoid numerical problems for large f_apb
     if f_apb >= 0.0 {
-        Pr((-f_apb).exp() / (1.0 + (-f_apb).exp()))
+        Pr::new((-f_apb).exp() / (1.0 + (-f_apb).exp()))
     } else {
-        Pr(1.0 / (1.0 + f_apb.exp()))
+        Pr::new(1.0 / (1.0 + f_apb.exp()))
     }
 }
 

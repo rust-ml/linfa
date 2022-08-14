@@ -5,7 +5,7 @@ use linfa_nn::distance::{Distance, L2Dist};
 use ndarray::{Array1, ArrayView1, ArrayView2, ArrayViewMut1};
 use partitions::PartitionVec;
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 /// A point in a D dimensional euclidean space that memorizes its
 /// status: 'core' or 'non core'
 pub struct StatusPoint {
@@ -31,7 +31,7 @@ impl StatusPoint {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 /// Informations regarding the cell used in various stages of the approximate DBSCAN
 /// algorithm if it is a core cell
 pub struct CoreCellInfo<F: Float> {
@@ -41,7 +41,7 @@ pub struct CoreCellInfo<F: Float> {
     i_cluster: usize,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 /// A cell from a grid that partitions the D dimensional euclidean space.
 pub struct Cell<F: Float> {
     /// The index of the intervals of the D dimensional axes where this cell lies

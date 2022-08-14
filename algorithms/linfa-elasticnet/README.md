@@ -15,12 +15,16 @@ This library contains an elastic net implementation for linear regression models
 See also:
  * [Wikipedia on Elastic net](https://en.wikipedia.org/wiki/Elastic_net_regularization)
 
+## BLAS/Lapack backend
+
+See [this section](../../README.md#blaslapack-backend) to enable an external BLAS/LAPACK backend.
+
 ## Examples
 
 There is an usage example in the `examples/` directory. To run, use:
 
 ```bash
-$ cargo run --features linfa/intel-mkl-system --example elasticnet
+$ cargo run --example elasticnet
 ```
 
 <details>

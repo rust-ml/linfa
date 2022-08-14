@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::float::Float;
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 /// Link functions used by GLM
 pub enum Link {
     /// The identity link function `g(x)=x`
@@ -158,6 +158,15 @@ mod tests {
                 }
             )*
         };
+    }
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<Link>();
+        has_autotraits::<IdentityLink>();
+        has_autotraits::<LogLink>();
+        has_autotraits::<LogitLink>();
     }
 
     test_links! [

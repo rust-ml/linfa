@@ -1,8 +1,18 @@
 use crate::AppxDbscan;
 
 use super::*;
+use crate::appx_dbscan::cells_grid::cell::CoreCellInfo;
 use linfa::prelude::ParamGuard;
 use ndarray::{arr2, Array2};
+
+#[test]
+fn autotraits() {
+    fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+    has_autotraits::<AppxDbscan>();
+    has_autotraits::<StatusPoint>();
+    has_autotraits::<CoreCellInfo<f64>>();
+    has_autotraits::<Cell<f64>>();
+}
 
 #[test]
 fn find_cells_test() {

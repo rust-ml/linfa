@@ -15,6 +15,7 @@ use super::Result;
 /// A verified hyper-parameter set ready for the estimation of a ElasticNet regression model
 ///
 /// See [`ElasticNetParams`](crate::ElasticNetParams) for more informations.
+#[derive(Clone, Debug, PartialEq)]
 pub struct ElasticNetValidParamsBase<F, const MULTI_TASK: bool> {
     penalty: F,
     l1_ratio: F,

@@ -227,6 +227,7 @@ impl CountVectorizerParams {
 
 /// Counts the occurrences of each vocabulary entry, learned during fitting, in a sequence of documents. Each vocabulary entry is mapped
 /// to an integer value that is used to index the count in the result.
+#[derive(Debug, Clone)]
 pub struct CountVectorizer {
     pub(crate) vocabulary: HashMap<String, (usize, usize)>,
     pub(crate) vec_vocabulary: Vec<String>,

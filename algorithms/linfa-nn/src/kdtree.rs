@@ -4,7 +4,8 @@ use ndarray::{aview1, ArrayBase, Data, Ix2};
 use serde_crate::{Deserialize, Serialize};
 
 use crate::{
-    distance::Distance, BuildError, NearestNeighbour, NearestNeighbourIndex, NnError, Point,
+    distance::Distance, BuildError, NearestNeighbour, NearestNeighbourBox, NearestNeighbourIndex,
+    NnError, Point,
 };
 
 /// Spatial indexing structure created by [`KdTree`](struct.KdTree.html)
@@ -95,7 +96,7 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for KdTreeIndex<'a, 
 ///
 /// Unlike other `NearestNeighbour` implementations, `KdTree` requires that points be laid out
 /// contiguously in memory and will panic otherwise.
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -116,8 +117,7 @@ impl NearestNeighbour for KdTree {
         batch: &'a ArrayBase<DT, Ix2>,
         leaf_size: usize,
         dist_fn: D,
-    ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError> {
-        KdTreeIndex::new(batch, leaf_size, dist_fn)
-            .map(|v| Box::new(v) as Box<dyn NearestNeighbourIndex<F>>)
+    ) -> Result<NearestNeighbourBox<'a, F>, BuildError> {
+        KdTreeIndex::new(batch, leaf_size, dist_fn).map(|v| Box::new(v) as NearestNeighbourBox<F>)
     }
 }

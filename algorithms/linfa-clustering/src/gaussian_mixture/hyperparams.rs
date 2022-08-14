@@ -1,6 +1,6 @@
 use crate::gaussian_mixture::errors::{GmmError, Result};
 use ndarray_rand::rand::{Rng, SeedableRng};
-use rand_isaac::Isaac64Rng;
+use rand_xoshiro::Xoshiro256Plus;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 
@@ -11,7 +11,7 @@ use linfa::{Float, ParamGuard};
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 /// A specifier for the type of the relation between components' covariances.
 pub enum GmmCovarType {
     /// each component has its own general covariance matrix
@@ -23,7 +23,7 @@ pub enum GmmCovarType {
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 /// A specifier for the method used for the initialization of the fitting algorithm of GMM
 pub enum GmmInitMethod {
     /// GMM fitting algorithm is initalized with the esult of the [KMeans](struct.KMeans.html) clustering.
@@ -37,7 +37,7 @@ pub enum GmmInitMethod {
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 /// The set of hyperparameters that can be specified for the execution of
 /// the [GMM algorithm](struct.GaussianMixtureModel.html).
 pub struct GmmValidParams<F: Float, R: Rng> {
@@ -90,20 +90,19 @@ impl<F: Float, R: Rng + Clone> GmmValidParams<F, R> {
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 /// The set of hyperparameters that can be specified for the execution of
 /// the [GMM algorithm](struct.GaussianMixtureModel.html).
 pub struct GmmParams<F: Float, R: Rng>(GmmValidParams<F, R>);
 
-impl<F: Float> GmmParams<F, Isaac64Rng> {
-    #[allow(clippy::new_ret_no_self)]
-    pub fn new(n_clusters: usize) -> GmmParams<F, Isaac64Rng> {
-        Self::new_with_rng(n_clusters, Isaac64Rng::seed_from_u64(42))
+impl<F: Float> GmmParams<F, Xoshiro256Plus> {
+    pub fn new(n_clusters: usize) -> Self {
+        Self::new_with_rng(n_clusters, Xoshiro256Plus::seed_from_u64(42))
     }
 }
 
 impl<F: Float, R: Rng + Clone> GmmParams<F, R> {
-    fn new_with_rng(n_clusters: usize, rng: R) -> GmmParams<F, R> {
+    pub fn new_with_rng(n_clusters: usize, rng: R) -> GmmParams<F, R> {
         Self(GmmValidParams {
             n_clusters,
             covar_type: GmmCovarType::Full,

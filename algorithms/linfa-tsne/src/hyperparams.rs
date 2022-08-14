@@ -31,6 +31,7 @@ use crate::TSneError;
 /// ```
 
 /// A verified hyper-parameter set ready for prediction
+#[derive(Debug, Clone, PartialEq)]
 pub struct TSneValidParams<F, R> {
     embedding_size: usize,
     approx_threshold: F,
@@ -66,6 +67,7 @@ impl<F: Float, R> TSneValidParams<F, R> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct TSneParams<F, R>(TSneValidParams<F, R>);
 
 impl<F: Float> TSneParams<F, SmallRng> {

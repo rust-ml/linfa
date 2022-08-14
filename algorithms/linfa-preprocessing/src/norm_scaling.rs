@@ -1,9 +1,13 @@
 //! Sample normalization methods
 use linfa::dataset::{AsTargets, DatasetBase, Float, WithLapack, WithoutLapack};
 use linfa::traits::Transformer;
+#[cfg(not(feature = "blas"))]
+use linfa_linalg::norm::Norm;
 use ndarray::{Array2, ArrayBase, Axis, Data, Ix2, Zip};
+#[cfg(feature = "blas")]
 use ndarray_linalg::norm::Norm;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum Norms {
     L1,
     L2,
@@ -26,6 +30,7 @@ enum Norms {
 /// // Scale dataset
 /// let dataset = scaler.transform(dataset);
 /// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NormScaler {
     norm: Norms,
 }
@@ -93,6 +98,12 @@ mod tests {
     use linfa::dataset::DatasetBase;
     use linfa::traits::Transformer;
     use ndarray::{array, Array2};
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<NormScaler>();
+    }
 
     #[test]
     fn test_norm_l2() {

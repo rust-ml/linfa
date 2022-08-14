@@ -9,7 +9,7 @@ use std::collections::VecDeque;
 use linfa::Float;
 use linfa::{traits::Transformer, DatasetBase};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 /// DBSCAN (Density-based Spatial Clustering of Applications with Noise)
 /// clusters together points which are close together with enough neighbors
 /// labelled points which are sparsely neighbored as noise. As points may be
@@ -46,12 +46,12 @@ use linfa::{traits::Transformer, DatasetBase};
 /// use linfa_datasets::generate;
 /// use ndarray::{Axis, array, s};
 /// use ndarray_rand::rand::SeedableRng;
-/// use rand_isaac::Isaac64Rng;
+/// use rand_xoshiro::Xoshiro256Plus;
 /// use approx::assert_abs_diff_eq;
 ///
 /// // Our random number generator, seeded for reproducibility
 /// let seed = 42;
-/// let mut rng = Isaac64Rng::seed_from_u64(seed);
+/// let mut rng = Xoshiro256Plus::seed_from_u64(seed);
 ///
 /// // `expected_centroids` has shape `(n_centroids, n_features)`
 /// // i.e. three points in the 2-dimensional plane

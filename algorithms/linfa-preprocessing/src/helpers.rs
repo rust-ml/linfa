@@ -1,11 +1,13 @@
 /// Given a sequence of words, the list can be iterated to obtain all the n-grams in the sequence,
 /// starting from n-grams of lenght `min` up to n_grams of length `max`.
+#[derive(Debug, Clone, PartialEq)]
 pub struct NGramList<'a> {
     min: usize,
     max: usize,
     list: Vec<&'a str>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct NGramListIntoIterator<'a> {
     list: NGramList<'a>,
     index: usize,
@@ -89,6 +91,14 @@ macro_rules! column_for_word {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<NGramList>();
+        has_autotraits::<NGramListIntoIterator>();
+    }
+
     #[test]
     fn test_ngram_queue() {
         let words = vec![

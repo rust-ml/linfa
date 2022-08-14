@@ -7,12 +7,12 @@ use noisy_float::NoisyFloat;
 use serde_crate::{Deserialize, Serialize};
 
 use crate::{
-    distance::Distance, heap_elem::MinHeapElem, BuildError, NearestNeighbour,
+    distance::Distance, heap_elem::MinHeapElem, BuildError, NearestNeighbour, NearestNeighbourBox,
     NearestNeighbourIndex, NnError, Point,
 };
 
 /// Spatial indexing structure created by [`LinearSearch`](struct.LinearSearch.html)
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct LinearSearchIndex<'a, F: Float, D: Distance<F>>(ArrayView2<'a, F>, D);
 
 impl<'a, F: Float, D: Distance<F>> LinearSearchIndex<'a, F, D> {
@@ -77,7 +77,7 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for LinearSearchInde
 /// Implementation of linear search, which is the simplest nearest neighbour algorithm. All queries
 /// are implemented by scanning through every point, so all of them are `O(N)`. Calling
 /// `from_batch` returns a [`LinearSearchIndex`](struct.LinearSearchIndex.html).
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -98,11 +98,10 @@ impl NearestNeighbour for LinearSearch {
         batch: &'a ArrayBase<DT, Ix2>,
         leaf_size: usize,
         dist_fn: D,
-    ) -> Result<Box<dyn 'a + NearestNeighbourIndex<F>>, BuildError> {
+    ) -> Result<NearestNeighbourBox<'a, F>, BuildError> {
         if leaf_size == 0 {
             return Err(BuildError::EmptyLeaf);
         }
-        LinearSearchIndex::new(batch, dist_fn)
-            .map(|v| Box::new(v) as Box<dyn NearestNeighbourIndex<F>>)
+        LinearSearchIndex::new(batch, dist_fn).map(|v| Box::new(v) as NearestNeighbourBox<F>)
     }
 }

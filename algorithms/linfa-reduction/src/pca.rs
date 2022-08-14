@@ -22,8 +22,12 @@
 //! ```
 //!
 use crate::error::{ReductionError, Result};
+#[cfg(not(feature = "blas"))]
+use linfa_linalg::{lobpcg::TruncatedSvd, Order};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2};
+#[cfg(feature = "blas")]
 use ndarray_linalg::{TruncatedOrder, TruncatedSvd};
+use rand::{prelude::SmallRng, SeedableRng};
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 
@@ -39,6 +43,7 @@ use linfa::{
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PcaParams {
     embedding_size: usize,
     apply_whitening: bool,
@@ -85,9 +90,12 @@ impl<T, D: Data<Elem = f64>> Fit<ArrayBase<D, Ix2>, T, ReductionError> for PcaPa
         let x = x - &mean;
 
         // estimate Singular Value Decomposition
+        #[cfg(feature = "blas")]
         let result =
             TruncatedSvd::new(x, TruncatedOrder::Largest).decompose(self.embedding_size)?;
-
+        #[cfg(not(feature = "blas"))]
+        let result = TruncatedSvd::new_with_rng(x, Order::Largest, SmallRng::seed_from_u64(42))
+            .decompose(self.embedding_size)?;
         // explained variance is the spectral distribution of the eigenvalues
         let (_, sigma, mut v_t) = result.values_vectors();
 
@@ -135,7 +143,7 @@ impl<T, D: Data<Elem = f64>> Fit<ArrayBase<D, Ix2>, T, ReductionError> for PcaPa
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Pca<F> {
     embedding: Array2<F>,
     sigma: Array1<F>,
@@ -209,6 +217,7 @@ impl<F: Float, D: Data<Elem = F>, T>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{DiffusionMap, DiffusionMapParams, DiffusionMapValidParams};
     use approx::assert_abs_diff_eq;
     use linfa::{traits::Predict, Dataset};
     use ndarray::{array, Array2};
@@ -217,6 +226,17 @@ mod tests {
         RandomExt,
     };
     use rand::{rngs::SmallRng, SeedableRng};
+
+    #[test]
+    fn autotraits() {
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
+        has_autotraits::<DiffusionMap<f64>>();
+        has_autotraits::<DiffusionMapValidParams>();
+        has_autotraits::<DiffusionMapParams>();
+        has_autotraits::<ReductionError>();
+        has_autotraits::<PcaParams>();
+        has_autotraits::<Pca<f64>>();
+    }
 
     /// Small whitening test
     ///
