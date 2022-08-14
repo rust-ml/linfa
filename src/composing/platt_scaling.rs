@@ -36,6 +36,7 @@ use thiserror::Error;
 ///
 /// The scaling factors `A` and `B` are estimated with the Newton's method, presented in the
 /// following paper: <https://www.csie.ntu.edu.tw/~cjlin/papers/plattprob.pdf>
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Platt<F, O> {
     a: F,
     b: F,
@@ -43,7 +44,7 @@ pub struct Platt<F, O> {
 }
 
 /// Parameters for Platt's Newton method
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlattValidParams<F, O> {
     maxiter: usize,
     minstep: F,
@@ -51,7 +52,7 @@ pub struct PlattValidParams<F, O> {
     phantom: PhantomData<O>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlattParams<F, O>(PlattValidParams<F, O>);
 
 impl<F: Float, O> Default for PlattParams<F, O> {
