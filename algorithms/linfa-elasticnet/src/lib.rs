@@ -15,7 +15,7 @@ pub use hyperparams::{ElasticNetParams, ElasticNetValidParams, MultiTaskElasticN
 
 #[cfg_attr(
     feature = "serde",
-    derive(Serialize, Deserialize, Debug, Clone, PartialEq),
+    derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
 /// Elastic Net model
@@ -69,7 +69,7 @@ impl<F: Float> ElasticNet<F> {
 
 #[cfg_attr(
     feature = "serde",
-    derive(Serialize, Deserialize, Debug, Clone, PartialEq),
+    derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
 /// MultiTask Elastic Net model
