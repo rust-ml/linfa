@@ -2,8 +2,7 @@ use approx::{abs_diff_eq, abs_diff_ne};
 #[cfg(not(feature = "blas"))]
 use linfa_linalg::qr::QRInto;
 use ndarray::{
-    s, Array, Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, Axis, CowArray, Data,
-    Dimension, Ix2, RemoveAxis,
+    s, Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, Axis, CowArray, Data, Ix1, Ix2,
 };
 #[cfg(feature = "blas")]
 use ndarray_linalg::InverseHInto;
@@ -50,7 +49,6 @@ where
             self.l1_ratio(),
             self.penalty(),
         );
-        let intercept = intercept.into_scalar();
 
         let y_est = dataset.records().dot(&hyperplane) + intercept;
 
@@ -87,7 +85,18 @@ where
     /// for new feature values.
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
         let targets = dataset.targets().as_multi_targets();
-        let (intercept, y) = compute_intercept(self.with_intercept(), targets);
+        let nsamples = dataset.nsamples();
+        let ntasks = targets.ncols();
+
+        let mut intercept = Array1::<F>::zeros(ntasks);
+        let mut y = Array2::<F>::zeros((nsamples, ntasks));
+
+        for t in 0..ntasks {
+            let (intercept_t, y_t) =
+                compute_intercept(self.with_intercept(), targets.slice(s![.., t]));
+            intercept[t] = intercept_t;
+            y.slice_mut(s![.., t]).assign(&y_t);
+        }
 
         let (hyperplane, duality_gap, n_steps) = block_coordinate_descent(
             dataset.records().view(),
@@ -499,27 +508,18 @@ fn variance_params<F: Float, T: AsTargets<Elem = F>, D: Data<Elem = F>>(
     }
 }
 
-/// Compute the intercept as the mean of `y` along each column and center `y` if an intercept
-/// should be used, use 0 as intercept and leave `y` unchanged otherwise.
-/// If `y` is 2D, mean is 1D and center is 2D. If `y` is 1D, mean is a number and center is 1D.
-fn compute_intercept<F: Float, I: RemoveAxis>(
+/// Compute the intercept as the mean of `y` and center `y` if an intercept should
+/// be used, use `0.0` as intercept and leave `y` unchanged otherwise.
+pub fn compute_intercept<F: Float>(
     with_intercept: bool,
-    y: ArrayView<F, I>,
-) -> (Array<F, I::Smaller>, CowArray<F, I>)
-where
-    I::Smaller: Dimension<Larger = I>,
-{
+    y: ArrayView1<F>,
+) -> (F, CowArray<F, Ix1>) {
     if with_intercept {
-        let y_mean = y
-            // Take the mean of each column (1D array counts as 1 column)
-            .mean_axis(Axis(0))
-            .expect("Axis 0 length of 0")
-            // Insert row axis to enable y_mean to be broadcasted in the next subtraction
-            .insert_axis(Axis(0));
-        let y_centered = &y - &y_mean;
-        (y_mean.remove_axis(Axis(0)), y_centered.into())
+        let y_mean = y.mean().unwrap();
+        let y_centered = &y - y_mean;
+        (y_mean, y_centered.into())
     } else {
-        (Array::zeros(y.raw_dim().remove_axis(Axis(0))), y.into())
+        (F::zero(), y.into())
     }
 }
 
