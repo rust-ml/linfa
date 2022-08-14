@@ -1,13 +1,13 @@
 use linfa::prelude::*;
-use linfa_elasticnet::{ElasticNet, Result};
+use linfa_elasticnet::{MultiTaskElasticNet, Result};
 
 fn main() -> Result<()> {
     // load Diabetes dataset
-    let (train, valid) = linfa_datasets::diabetes().split_with_ratio(0.90);
+    let (train, valid) = linfa_datasets::linnerud().split_with_ratio(0.90);
 
-    // train pure LASSO model with 0.3 penalty
-    let model = ElasticNet::params()
-        .penalty(0.3)
+    // train pure LASSO model with 0.1 penalty
+    let model = MultiTaskElasticNet::params()
+        .penalty(0.1)
         .l1_ratio(1.0)
         .fit(&train)?;
 
