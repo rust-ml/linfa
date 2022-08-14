@@ -149,7 +149,7 @@ impl<F: Float, const MULTI_TASK: bool> ElasticNetParamsBase<F, MULTI_TASK> {
         })
     }
 
-    /// Set the overall parameter penalty parameter of the elastic net.
+    /// Set the overall parameter penalty parameter of the elastic net, otherwise known as `alpha`.
     /// Use `l1_ratio` to configure how the penalty distributed to L1 and L2
     /// regularization.
     pub fn penalty(mut self, penalty: F) -> Self {
