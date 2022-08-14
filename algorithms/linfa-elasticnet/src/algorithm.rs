@@ -1,6 +1,7 @@
 use approx::{abs_diff_eq, abs_diff_ne};
 #[cfg(not(feature = "blas"))]
 use linfa_linalg::qr::QRInto;
+use ndarray::linalg::general_mat_mul;
 use ndarray::{
     s, Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, Axis, CowArray, Data, Ix1, Ix2,
 };
@@ -354,26 +355,35 @@ fn block_coordinate_descent<'a, F: Float>(
             if abs_diff_eq!(norm_cols_x[j], F::zero()) {
                 continue;
             }
-            let old_w_j: ArrayView1<F> = w.slice(s![j, ..]);
-            let x_j: ArrayView1<F> = x.slice(s![.., j]);
+            let mut old_w_j = w.slice_mut(s![j, ..]);
+            let x_j = x.slice(s![.., j]);
             let norm_old_w_j = old_w_j.dot(&old_w_j).sqrt();
             if abs_diff_ne!(norm_old_w_j, F::zero()) {
-                for i in 0..x.shape()[0] {
-                    r.slice_mut(s![i, ..]).scaled_add(x_j[i], &old_w_j);
-                }
+                general_mat_mul(
+                    F::one(),
+                    &x_j.view().insert_axis(Axis(1)),
+                    &old_w_j.view().insert_axis(Axis(0)),
+                    F::one(),
+                    &mut r,
+                );
+                //for i in 0..x.shape()[0] {
+                //r.slice_mut(s![i, ..]).scaled_add(x_j[i], &old_w_j);
+                //}
             }
             let tmp = x_j.dot(&r);
-            w.slice_mut(s![j, ..]).assign(
+            old_w_j.assign(
                 &(block_soft_thresholding(tmp.view(), n_samples * l1_ratio * penalty)
                     / (norm_cols_x[j] + n_samples * (F::one() - l1_ratio) * penalty)),
             );
-            let norm_w_j = w.slice(s![j, ..]).dot(&w.slice(s![j, ..])).sqrt();
+            let norm_w_j = old_w_j.dot(&old_w_j).sqrt();
             if abs_diff_ne!(norm_w_j, F::zero()) {
-                for i in 0..x.shape()[0] {
-                    for t in 0..n_tasks {
-                        r[[i, t]] -= x_j[i] * w[[j, t]];
-                    }
-                }
+                general_mat_mul(
+                    -F::one(),
+                    &x_j.insert_axis(Axis(1)),
+                    &old_w_j.insert_axis(Axis(0)),
+                    F::one(),
+                    &mut r,
+                );
             }
             let d_w_j = (norm_w_j - norm_old_w_j).abs();
             d_w_max = F::max(d_w_max, d_w_j);
