@@ -19,6 +19,7 @@ jobs:
 
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@${{ matrix.toolchain }}
+        with:
           components: rustfmt, clippy
 
       - name: Run cargo fmt
