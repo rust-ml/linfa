@@ -24,29 +24,17 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Install toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.toolchain }}
-          override: true
+        uses: dtolnay/rust-toolchain@${{ matrix.toolchain }}
 
       - name: Log active toolchain
         run: rustup show
 
       # Check if linfa compiles by itself without uniting dependency features with other crates
       - name: Run cargo check on linfa
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
+        run: cargo check
 
       - name: Run cargo check (no features)
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --workspace --all-targets
+        run: cargo check --workspace --all-targets
 
       - name: Run cargo check (with serde)
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --workspace --all-targets --features "linfa-clustering/serde linfa-ica/serde linfa-kernel/serde linfa-reduction/serde linfa-svm/serde linfa-elasticnet/serde linfa-pls/serde linfa-trees/serde linfa-nn/serde"
+        run: cargo check --workspace --all-targets --features "linfa-clustering/serde linfa-ica/serde linfa-kernel/serde linfa-reduction/serde linfa-svm/serde linfa-elasticnet/serde linfa-pls/serde linfa-trees/serde linfa-nn/serde"

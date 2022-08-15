@@ -18,24 +18,14 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Install toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.toolchain }}
-          override: true
+        uses: dtolnay/rust-toolchain@${{ matrix.toolchain }}
           components: rustfmt, clippy
 
       - name: Run cargo fmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+        run: cargo fmt --all -- --check
 
       - name: Run cargo clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --all-targets -- -D warnings
+        run: clippy --all-targets -- -D warnings
 
   coverage:
     name: coverage
@@ -47,11 +37,8 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Install toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Get rustc version
         id: rustc-version
         run: echo "::set-output name=version::$(cargo --version | cut -d ' ' -f 2)"

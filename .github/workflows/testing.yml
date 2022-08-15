@@ -21,17 +21,10 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Install toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.toolchain }}
-          override: true
+        uses: dtolnay/rust-toolchain@${{ matrix.toolchain }}
 
       - name: Run cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --release --workspace
+        run: cargo test --release --workspace
 
   testing-blas:
     name: testing-with-BLAS-${{ matrix.toolchain }}-${{ matrix.os }}
@@ -51,14 +44,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Install toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.toolchain }}
-          override: true
+        run: dtolnay/rust-toolchain@${{ matrix.toolchain }}
 
       - name: Run cargo test with BLAS enabled
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --release --workspace --features intel-mkl-static,linfa-clustering/blas,linfa-ica/blas,linfa-reduction/blas,linfa-linear/blas,linfa-preprocessing/blas,linfa-pls/blas,linfa-elasticnet/blas
+        run: cargo test --release --workspace --features intel-mkl-static,linfa-clustering/blas,linfa-ica/blas,linfa-reduction/blas,linfa-linear/blas,linfa-preprocessing/blas,linfa-pls/blas,linfa-elasticnet/blas

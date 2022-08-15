@@ -29,18 +29,11 @@ jobs:
         uses: actions/checkout@master
 
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
+        uses: dtolnay/rust-toolchain@@stable
           components: rustfmt, rust-src
 
       - name: Build Documentation
-        uses: actions-rs/cargo@v1
-        with:
-          command: doc
-          args: --all --no-deps
+        run: cargo doc --all --no-deps
 
       - name: Copy Rust Documentation to Zola
         run: cp -R "target/doc/" "docs/website/static/rustdocs/"
