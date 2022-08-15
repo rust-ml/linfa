@@ -46,7 +46,9 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Install toolchain
-        run: dtolnay/rust-toolchain@${{ matrix.toolchain }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
 
       - name: Run cargo test with BLAS enabled
         run: cargo test --release --workspace --features intel-mkl-static,linfa-clustering/blas,linfa-ica/blas,linfa-reduction/blas,linfa-linear/blas,linfa-preprocessing/blas,linfa-pls/blas,linfa-elasticnet/blas
