@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@master
 
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@master

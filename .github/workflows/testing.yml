@@ -13,12 +13,12 @@ jobs:
           - 1.57.0
           - stable
         os:
-          - ubuntu-18.04
-          - windows-2019
+          - ubuntu-latest
+          - windows-latest
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@master
 
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@master
@@ -38,12 +38,12 @@ jobs:
           - 1.57.0
           - stable
         os:
-          - ubuntu-18.04
-          - windows-2019
+          - ubuntu-latest
+          - windows-latest
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@master
 
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@master
