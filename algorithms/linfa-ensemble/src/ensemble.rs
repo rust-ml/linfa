@@ -12,6 +12,8 @@ use std::{
     collections::HashMap,
     hash::Hash,
 };
+use rand::Rng;
+use rand::rngs::ThreadRng;
 
 pub struct EnsembleLearner<M> {
     pub models: Vec<M>,
@@ -21,12 +23,11 @@ impl<M> EnsembleLearner<M> {
 
     // Generates prediction iterator returning predictions from each model
     pub fn generate_predictions<'b, R: Records, T>(&'b self, x: &'b R) -> impl Iterator<Item = T> + 'b
-    where M: Predict<&'b R, T> + PredictInplace<R, T> {
+    where M: Predict<&'b R, T> {
         self.models.iter().map(move |m| m.predict(x))
     }
 
     // Consumes prediction iterator to return all predictions
-    // Orders predictions by total number of models giving that prediciton
     pub fn aggregate_predictions<Ys: Iterator>(&self, ys: Ys)
     -> impl Iterator<Item = Vec<(Array<<Ys::Item as AsTargets>::Elem, <<Ys::Item as AsTargets>::Ix as Dimension>::Smaller >, usize)>>
     where
@@ -53,6 +54,7 @@ impl<M> EnsembleLearner<M> {
             xs
         })
     }
+
 }
 
 impl<F: Clone, T, M>
@@ -66,8 +68,8 @@ where
         let mut y_array = y.as_targets_mut();
         assert_eq!(
             x.nrows(),
-            y_array.len(),
-            "The number of data points must match the number of output targets."
+            y_array.len_of(Axis(0)),
+            "The number of data points must match the number of outputs."
         );
 
         let mut predictions = self.generate_predictions(x);
@@ -85,39 +87,45 @@ where
     }
 }
 
-pub struct EnsembleLearnerParams<P> {
+pub struct EnsembleLearnerParams<P, R: Rng + Clone> {
     pub ensemble_size: usize,
     pub bootstrap_proportion: f64,
-    pub model_params: Option<P>,
+    pub model_params: P,
+    pub rng: R
 }
 
-impl<P> EnsembleLearnerParams<P> {
-    pub fn new() -> EnsembleLearnerParams<P> {
+impl<P> EnsembleLearnerParams<P, ThreadRng> {
+    pub fn new(model_params: P) -> EnsembleLearnerParams<P, ThreadRng> {
+        return Self::new_fixed_rng(model_params, rand::thread_rng())
+    }
+}
+
+impl<P, R: Rng + Clone> EnsembleLearnerParams<P, R> {
+    pub fn new_fixed_rng(model_params: P, rng: R) -> EnsembleLearnerParams<P, R> {
         EnsembleLearnerParams {
             ensemble_size: 1,
             bootstrap_proportion: 1.0,
-            model_params: None,
+            model_params: model_params,
+            rng: rng
         }
     }
 
-    pub fn ensemble_size(&mut self, size: usize) -> &mut EnsembleLearnerParams<P> {
+    pub fn ensemble_size(&mut self, size: usize) -> &mut EnsembleLearnerParams<P, R> {
+        assert!(size > 0, "ensemble_size cannot be less than 1. Ensembles must consist of at least one model.");
         self.ensemble_size = size;
         self
     }
 
-    pub fn bootstrap_proportion(&mut self, proportion: f64) -> &mut EnsembleLearnerParams<P> {
+    pub fn bootstrap_proportion(&mut self, proportion: f64) -> &mut EnsembleLearnerParams<P, R> {
+        assert!(proportion > 0.0, "bootstrap_proportion must be greater than 0. Must provide some data to each model.");
         self.bootstrap_proportion = proportion;
         self
     }
 
-    pub fn model_params(&mut self, params: P) -> &mut EnsembleLearnerParams<P> {
-        self.model_params = Some(params);
-        self
-    }
 }
 
-impl<D, T, P: Fit<Array2<D>, T::Owned, Error>>
-     Fit<Array2<D>, T, Error> for EnsembleLearnerParams<P>
+impl<D, T, P: Fit<Array2<D>, T::Owned, Error>, R: Rng + Clone>
+     Fit<Array2<D>, T, Error> for EnsembleLearnerParams<P, R>
 where
     D: Clone,
     T: FromTargetArrayOwned,
@@ -127,20 +135,16 @@ where
     type Object = EnsembleLearner<P::Object>;
 
     fn fit(&self, dataset: &DatasetBase<Array2<D>, T>) -> Result<Self::Object, Error> {
-        assert!(
-            self.model_params.is_some(),
-            "Must define an underlying model for ensemble learner",
-        );
 
         let mut models = Vec::new();
-        let rng =  &mut rand::thread_rng();
+        let mut rng = self.rng.clone();
 
-        let dataset_size = ((dataset.records.shape()[0] as f64) * self.bootstrap_proportion) as usize;
+        let dataset_size = ((dataset.records.shape()[0] as f64) * self.bootstrap_proportion).ceil() as usize;
 
-        let iter = dataset.bootstrap_samples(dataset_size, rng);
+        let iter = dataset.bootstrap_samples(dataset_size, &mut rng);
 
         for train in iter {
-            let model = self.model_params.as_ref().unwrap().fit(&train).unwrap();
+            let model = self.model_params.fit(&train).unwrap();
             models.push(model);
 
             if models.len() == self.ensemble_size {
