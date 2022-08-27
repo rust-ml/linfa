@@ -351,6 +351,7 @@ fn block_coordinate_descent<'a, F: Float>(
             let x_j = x.slice(s![.., j]);
             let norm_old_w_j = old_w_j.dot(&old_w_j).sqrt();
             if abs_diff_ne!(norm_old_w_j, F::zero()) {
+                // r += outer(x_j, old_w_j)
                 general_mat_mul(
                     F::one(),
                     &x_j.view().insert_axis(Axis(1)),
@@ -358,9 +359,6 @@ fn block_coordinate_descent<'a, F: Float>(
                     F::one(),
                     &mut r,
                 );
-                //for i in 0..x.shape()[0] {
-                //r.slice_mut(s![i, ..]).scaled_add(x_j[i], &old_w_j);
-                //}
             }
             let tmp = x_j.dot(&r);
             old_w_j.assign(
@@ -369,6 +367,7 @@ fn block_coordinate_descent<'a, F: Float>(
             );
             let norm_w_j = old_w_j.dot(&old_w_j).sqrt();
             if abs_diff_ne!(norm_w_j, F::zero()) {
+                // r -= outer(x_j, old_w_j)
                 general_mat_mul(
                     -F::one(),
                     &x_j.insert_axis(Axis(1)),
@@ -396,6 +395,7 @@ fn block_coordinate_descent<'a, F: Float>(
     (w, gap, n_steps)
 }
 
+// Algorithm based off of this post: https://math.stackexchange.com/questions/2045579/deriving-block-soft-threshold-from-l-2-norm-prox-operator
 fn block_soft_thresholding<F: Float>(x: ArrayView1<F>, threshold: F) -> Array1<F> {
     let norm_x = x.dot(&x).sqrt();
     if norm_x < threshold {
@@ -450,8 +450,8 @@ fn duality_gap_mtl<'a, F: Float>(
     let xta = x.t().dot(&r) - &w * l2_reg;
 
     let dual_norm_xta = xta.map_axis(Axis(1), |x| x.dot(&x).sqrt()).norm_max();
-    let r_norm2 = r.iter().map(|rij| rij.powi(2)).sum();
-    let w_norm2 = w.iter().map(|wij| wij.powi(2)).sum();
+    let r_norm2 = r.iter().map(|rij| rij * rij).sum();
+    let w_norm2 = w.iter().map(|wij| wij * wij).sum();
     let (const_, mut gap) = if dual_norm_xta > l1_reg {
         let const_ = l1_reg / dual_norm_xta;
         let a_norm2 = r_norm2 * const_ * const_;
@@ -600,7 +600,7 @@ mod tests {
         let mut resid = x.dot(beta);
         resid = &resid * -1.;
         resid = &resid - intercept + y;
-        let mut datafit = resid.iter().map(|rij| rij.powi(2)).sum();
+        let mut datafit = resid.iter().map(|rij| rij * rij).sum();
         datafit /= 2.0 * x.shape()[0] as f64;
         datafit
     }
@@ -614,7 +614,7 @@ mod tests {
     }
 
     fn elastic_net_mtl_penalty(beta: &Array2<f64>, alpha: f64) -> f64 {
-        let frob_norm: f64 = beta.iter().map(|beta_ij| beta_ij.powi(2)).sum();
+        let frob_norm: f64 = beta.iter().map(|beta_ij| beta_ij * beta_ij).sum();
         let l21_norm = beta
             .map_axis(Axis(1), |beta_j| (beta_j.dot(&beta_j)).sqrt())
             .sum();
