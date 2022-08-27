@@ -450,8 +450,8 @@ fn duality_gap_mtl<'a, F: Float>(
     let xta = x.t().dot(&r) - &w * l2_reg;
 
     let dual_norm_xta = xta.map_axis(Axis(1), |x| x.dot(&x).sqrt()).norm_max();
-    let r_norm2 = r.iter().map(|rij| rij * rij).sum();
-    let w_norm2 = w.iter().map(|wij| wij * wij).sum();
+    let r_norm2 = r.iter().map(|&rij| rij * rij).sum();
+    let w_norm2 = w.iter().map(|&wij| wij * wij).sum();
     let (const_, mut gap) = if dual_norm_xta > l1_reg {
         let const_ = l1_reg / dual_norm_xta;
         let a_norm2 = r_norm2 * const_ * const_;
