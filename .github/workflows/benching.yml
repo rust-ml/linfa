@@ -5,21 +5,14 @@ name: Run iai Benches
 jobs:
   testing:
     name: benching
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@master
 
       - name: Install toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Run cargo bench iai
-        uses: actions-rs/cargo@v1
-        with:
-          command: bench
-          args: iai --all
+        run: cargo bench iai --all
