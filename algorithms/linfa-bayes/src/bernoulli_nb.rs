@@ -1,14 +1,14 @@
 use linfa::dataset::{AsSingleTargets, DatasetBase, Labels};
 use linfa::traits::{Fit, FitWith, PredictInplace};
 use linfa::{Float, Label};
-use ndarray::{Array1, ArrayBase, ArrayView2, Axis, Data, Ix2, OwnedRepr};
+use ndarray::{Array1, ArrayBase, ArrayView2, CowArray, Data, Ix2};
 use std::collections::HashMap;
 use std::hash::Hash;
 
-use crate::base_nb::{filter, NaiveBayes, NaiveBayesValidParams};
+use crate::base_nb::{NaiveBayes, NaiveBayesValidParams};
 use crate::error::{NaiveBayesError, Result};
 use crate::hyperparams::{BernoulliNbParams, BernoulliNbValidParams};
-use crate::multinomial_nb::MultinomialClassInfo;
+use crate::{filter, ClassHistogram};
 
 impl<'a, F, L, D, T> NaiveBayesValidParams<'a, F, L, D, T> for BernoulliNbValidParams<F, L>
 where
@@ -62,7 +62,7 @@ where
         };
 
         // Binarize data if the threshold is set
-        let xbin = model.binarize(x);
+        let xbin = model.binarize(x).to_owned();
 
         // Calculate feature log probabilities
         let yunique = dataset.labels();
@@ -70,22 +70,13 @@ where
             // We filter for records that correspond to the current class
             let xclass = filter(xbin.view(), y.view(), &class);
 
-            // We count the number of occurrences of the class
-            let nclass = xclass.nrows();
-
             // We compute the feature log probabilities and feature counts on
             // the slice corresponding to the current class
-            let mut class_info = model
+            model
                 .class_info
                 .entry(class)
-                .or_insert_with(MultinomialClassInfo::default);
-            let (feature_log_prob, feature_count) =
-                self.update_feature_log_prob(class_info, xclass.view());
-            // We now update the total counts of each feature, feature
-            // log probabilities, and class count
-            class_info.feature_log_prob = feature_log_prob;
-            class_info.feature_count = feature_count;
-            class_info.class_count += nclass;
+                .or_insert_with(ClassHistogram::default)
+                .update_with_smoothing(xclass.view(), self.alpha(), true);
         }
 
         // Update the priors
@@ -94,6 +85,7 @@ where
             .values()
             .map(|x| x.class_count)
             .sum::<usize>();
+
         for info in model.class_info.values_mut() {
             info.prior = F::cast(info.class_count) / F::cast(class_count_sum);
         }
@@ -114,49 +106,6 @@ where
 
     fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<L> {
         Array1::default(x.nrows())
-    }
-}
-
-impl<F, L> BernoulliNbValidParams<F, L>
-where
-    F: Float,
-{
-    // Update log probabilities of features given class
-    fn update_feature_log_prob(
-        &self,
-        info_old: &MultinomialClassInfo<F>,
-        x_new: ArrayView2<F>,
-    ) -> (Array1<F>, Array1<F>) {
-        // Deconstruct old state
-        let (count_old, feature_log_prob_old, feature_count_old) = (
-            &info_old.class_count,
-            &info_old.feature_log_prob,
-            &info_old.feature_count,
-        );
-
-        // If incoming data is empty no updates required
-        if x_new.nrows() == 0 {
-            return (
-                feature_log_prob_old.to_owned(),
-                feature_count_old.to_owned(),
-            );
-        }
-
-        let feature_count_new = x_new.sum_axis(Axis(0));
-
-        // If previous batch was empty, we send the new feature count calculated
-        let feature_count = if count_old > &0 {
-            feature_count_old + feature_count_new
-        } else {
-            feature_count_new
-        };
-        // Apply smoothing to feature counts
-        let feature_count_smoothed = feature_count.clone() + self.alpha();
-        // Compute total count (smoothed)
-        let count = F::cast(x_new.nrows()) + self.alpha() * F::cast(2);
-        // Compute log probabilities of each feature
-        let feature_log_prob = feature_count_smoothed.mapv(|x| x.ln() - F::cast(count).ln());
-        (feature_log_prob.to_owned(), feature_count.to_owned())
     }
 }
 
@@ -208,7 +157,7 @@ where
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct BernoulliNb<F: PartialEq, L: Eq + Hash> {
-    class_info: HashMap<L, MultinomialClassInfo<F>>,
+    class_info: HashMap<L, ClassHistogram<F>>,
     binarize: Option<F>,
 }
 
@@ -219,16 +168,16 @@ impl<F: Float, L: Label> BernoulliNb<F, L> {
     }
 
     // Binarize data if the threshold is set
-    fn binarize<'a, D>(&'a self, x: &'a ArrayBase<D, Ix2>) -> ArrayBase<OwnedRepr<F>, Ix2>
+    fn binarize<'a, D>(&'a self, x: &'a ArrayBase<D, Ix2>) -> CowArray<'a, F, Ix2>
     where
         D: Data<Elem = F>,
     {
         let thr = self.binarize.unwrap_or_else(F::zero);
         let xbin = x.map(|v| if v > &thr { F::one() } else { F::zero() });
         if self.binarize.is_some() {
-            xbin.to_owned()
+            CowArray::from(xbin)
         } else {
-            x.to_owned()
+            CowArray::from(x)
         }
     }
 }

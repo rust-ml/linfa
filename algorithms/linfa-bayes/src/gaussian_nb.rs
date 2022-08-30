@@ -6,8 +6,9 @@ use ndarray_stats::QuantileExt;
 use std::collections::HashMap;
 use std::hash::Hash;
 
-use crate::base_nb::{filter, NaiveBayes, NaiveBayesValidParams};
+use crate::base_nb::{NaiveBayes, NaiveBayesValidParams};
 use crate::error::{NaiveBayesError, Result};
+use crate::filter;
 use crate::hyperparams::{GaussianNbParams, GaussianNbValidParams};
 
 impl<'a, F, L, D, T> NaiveBayesValidParams<'a, F, L, D, T> for GaussianNbValidParams<F, L>
@@ -281,8 +282,7 @@ mod tests {
     use super::{GaussianNb, NaiveBayes, Result};
     use linfa::{
         traits::{Fit, FitWith, Predict},
-        DatasetView,
-        Error,
+        DatasetView, Error,
     };
 
     use crate::gaussian_nb::GaussianClassInfo;
