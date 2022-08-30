@@ -27,10 +27,10 @@ where
     T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
 {
     type Object = BernoulliNb<F, L>;
+
     // Thin wrapper around the corresponding method of NaiveBayesValidParams
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
-        let model = NaiveBayesValidParams::fit(self, dataset, None)?;
-        Ok(model.unwrap())
+        NaiveBayesValidParams::fit(self, dataset, None)
     }
 }
 
@@ -43,7 +43,7 @@ where
     T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
 {
     type ObjectIn = Option<BernoulliNb<F, L>>;
-    type ObjectOut = Option<BernoulliNb<F, L>>;
+    type ObjectOut = BernoulliNb<F, L>;
 
     fn fit_with(
         &self,
@@ -57,12 +57,12 @@ where
             Some(temp) => temp,
             None => BernoulliNb {
                 class_info: HashMap::new(),
-                binarize: self.binarize().to_owned(),
+                binarize: self.binarize(),
             },
         };
 
         // Binarize data if the threshold is set
-        let xbin = model.binarize(&x);
+        let xbin = model.binarize(x);
 
         // Calculate feature log probabilities
         let yunique = dataset.labels();
@@ -97,7 +97,7 @@ where
         for info in model.class_info.values_mut() {
             info.prior = F::cast(info.class_count) / F::cast(class_count_sum);
         }
-        Ok(Some(model))
+        Ok(model)
     }
 }
 
@@ -108,7 +108,7 @@ where
     // Thin wrapper around the corresponding method of NaiveBayes
     fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<L>) {
         // Binarize data if the threshold is set
-        let xbin = self.binarize(&x);
+        let xbin = self.binarize(x);
         NaiveBayes::predict_inplace(self, &xbin, y);
     }
 
@@ -117,7 +117,7 @@ where
     }
 }
 
-impl<'a, F, L> BernoulliNbValidParams<F, L>
+impl<F, L> BernoulliNbValidParams<F, L>
 where
     F: Float,
 {
@@ -223,13 +223,13 @@ impl<F: Float, L: Label> BernoulliNb<F, L> {
     where
         D: Data<Elem = F>,
     {
-        let thr = self.binarize.unwrap_or(F::zero());
+        let thr = self.binarize.unwrap_or_else(F::zero);
         let xbin = x.map(|v| if v > &thr { F::one() } else { F::zero() });
-        return if self.binarize.is_some() {
+        if self.binarize.is_some() {
             xbin.to_owned()
         } else {
             x.to_owned()
-        };
+        }
     }
 }
 
