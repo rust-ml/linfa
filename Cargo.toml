@@ -44,8 +44,7 @@ ndarray = { version = "0.15", features = ["approx"] }
 ndarray-linalg = { version = "0.14", optional = true }
 
 thiserror = "1.0"
-# Temporary fix for compatibility issue between intel-mkl-tool and anyhow (https://github.com/rust-math/intel-mkl-src/issues/68)
-anyhow = { version = "<=1.0.48" }
+anyhow = { version = "1.0.58" }
 
 [dependencies.serde_crate]
 package = "serde"
