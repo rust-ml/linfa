@@ -271,8 +271,8 @@ fn coordinate_descent<'a, F: Float>(
     l1_ratio: F,
     penalty: F,
 ) -> (Array1<F>, F, u32) {
-    let n_samples = F::cast(x.shape()[0]);
-    let n_features = x.shape()[1];
+    let n_samples = F::cast(x.nrows());
+    let n_features = x.ncols();
     // the parameters of the model
     let mut w = Array1::<F>::zeros(n_features);
     // the residuals: `y - X*w` (since w=0, this is just `y` for now),
@@ -327,9 +327,9 @@ fn block_coordinate_descent<'a, F: Float>(
     l1_ratio: F,
     penalty: F,
 ) -> (Array2<F>, F, u32) {
-    let n_samples = F::cast(x.shape()[0]);
-    let n_features = x.shape()[1];
-    let n_tasks = y.shape()[1];
+    let n_samples = F::cast(x.nrows());
+    let n_features = x.ncols();
+    let n_tasks = y.ncols();
     // the parameters of the model
     let mut w = Array2::<F>::zeros((n_features, n_tasks));
     // the residuals: `Y - XW` (since W=0, this is just `Y` for now),
@@ -414,7 +414,7 @@ fn duality_gap<'a, F: Float>(
     penalty: F,
 ) -> F {
     let half = F::cast(0.5);
-    let n_samples = F::cast(x.shape()[0]);
+    let n_samples = F::cast(x.nrows());
     let l1_reg = l1_ratio * penalty * n_samples;
     let l2_reg = (F::one() - l1_ratio) * penalty * n_samples;
     let xta = x.t().dot(&r) - &w * l2_reg;
@@ -444,7 +444,7 @@ fn duality_gap_mtl<'a, F: Float>(
     penalty: F,
 ) -> F {
     let half = F::cast(0.5);
-    let n_samples = F::cast(x.shape()[0]);
+    let n_samples = F::cast(x.nrows());
     let l1_reg = l1_ratio * penalty * n_samples;
     let l2_reg = (F::one() - l1_ratio) * penalty * n_samples;
     let xta = x.t().dot(&r) - &w * l2_reg;
@@ -601,7 +601,7 @@ mod tests {
         resid = &resid * -1.;
         resid = &resid - intercept + y;
         let mut datafit = resid.iter().map(|rij| rij * rij).sum();
-        datafit /= 2.0 * x.shape()[0] as f64;
+        datafit /= 2.0 * x.nrows() as f64;
         datafit
     }
 
