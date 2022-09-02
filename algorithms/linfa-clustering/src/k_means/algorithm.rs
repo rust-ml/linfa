@@ -248,7 +248,8 @@ impl<F: Float, R: Rng + Clone, DA: Data<Elem = F>, T, D: Distance<F>>
                 self.init_method()
                     .run(self.dist_fn(), self.n_clusters(), observations, &mut rng);
             let mut converged_iter: Option<u64> = None;
-            for n_iter in 0..self.max_n_iterations() {
+            let mut n_iter = 0;
+            while n_iter < self.max_n_iterations() {
                 update_memberships_and_dists(
                     self.dist_fn(),
                     &centroids,
@@ -262,7 +263,8 @@ impl<F: Float, R: Rng + Clone, DA: Data<Elem = F>, T, D: Distance<F>>
                     .dist_fn()
                     .distance(centroids.view(), new_centroids.view());
                 centroids = new_centroids;
-                if distance < self.tolerance() {
+                n_iter += 1;
+                if distance < self.tolerance() || n_iter == self.max_n_iterations() {
                     converged_iter = Some(n_iter);
                     break;
                 }
@@ -849,6 +851,23 @@ mod tests {
             .init_method(KMeansInit::Precomputed(array![[0., 0.]]));
         let data = DatasetBase::from(array![[1., 1.], [11., 11.]]);
         assert!(params.fit_with(None, &data).is_ok());
+    }
+
+    #[test]
+    fn test_max_n_iterations() {
+        let mut rng = Xoshiro256Plus::seed_from_u64(42); 
+        let xt = Array::random_using(100, Uniform::new(0., 1.0), &mut rng).insert_axis(Axis(1));
+        let yt = function_test_1d(&xt);
+        let data = concatenate(Axis(1), &[xt.view(), yt.view()]).unwrap();
+        let dataset = DatasetBase::from(data.clone()); 
+        // For data created using the above rng and seed, for 6 clusters, it would take 8 iterations to converge.
+        // However, when specifying max_n_iterations as 5, the algorithm should stop early gracefully.
+        let _model = KMeans::params_with(6, rng.clone(), L2Dist)
+            .n_runs(1)
+            .max_n_iterations(5)
+            .init_method(KMeansInit::Random)
+            .fit(&dataset)
+            .expect("KMeans fitted");
     }
 
     fn fittable<T: Fit<Array2<f64>, (), KMeansError>>(_: T) {}
