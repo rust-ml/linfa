@@ -23,10 +23,12 @@ impl<F: Float, D: Dimension> ParamGuard for LogisticRegressionParams<F, D> {
     type Error = Error;
 
     fn check_ref(&self) -> Result<&Self::Checked, Self::Error> {
-        if !self.0.alpha.is_finite() || self.0.alpha < F::zero() {
+        if !self.0.alpha.is_finite() || self.0.alpha < <F as num_traits::Zero>::zero() {
             return Err(Error::InvalidAlpha);
         }
-        if !self.0.gradient_tolerance.is_finite() || self.0.gradient_tolerance <= F::zero() {
+        if !self.0.gradient_tolerance.is_finite()
+            || self.0.gradient_tolerance <= <F as num_traits::Zero>::zero()
+        {
             return Err(Error::InvalidGradientTolerance);
         }
         if let Some(params) = self.0.initial_params.as_ref() {

@@ -7,7 +7,7 @@
 //! Unfortunately, this requires that we re-implement some traits from Argmin.
 
 use crate::float::Float;
-use argmin_math::{ArgminAdd, ArgminDot, ArgminMul, ArgminNorm, ArgminSub};
+use argmin_math::{ArgminAdd, ArgminDot, ArgminL2Norm, ArgminMul, ArgminSub};
 use ndarray::{Array, ArrayBase, Data, Dimension, Zip};
 
 pub fn elem_dot<F: linfa::Float, A1: Data<Elem = F>, A2: Data<Elem = F>, D: Dimension>(
@@ -47,8 +47,8 @@ impl<F: Float, D: Dimension> ArgminDot<ArgminParam<F, D>, F> for ArgminParam<F, 
     }
 }
 
-impl<F: Float, D: Dimension> ArgminNorm<F> for ArgminParam<F, D> {
-    fn norm(&self) -> F {
+impl<F: Float, D: Dimension> ArgminL2Norm<F> for ArgminParam<F, D> {
+    fn l2_norm(&self) -> F {
         num_traits::Float::sqrt(elem_dot(&self.0, &self.0))
     }
 }
