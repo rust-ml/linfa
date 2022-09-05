@@ -11,11 +11,10 @@ fn main() {
     let bootstrap_proportion = 0.7;
 
     //Create ensemble learner
-    let mut learner = EnsembleLearnerParams::new();
+    let mut learner = EnsembleLearnerParams::new(DecisionTree::params());
     learner
         .ensemble_size(ensemble_size)
-        .bootstrap_proportion(bootstrap_proportion)
-        .model_params(DecisionTree::params());
+        .bootstrap_proportion(bootstrap_proportion);
 
     //Load dataset
     let mut rng = SmallRng::seed_from_u64(42);
