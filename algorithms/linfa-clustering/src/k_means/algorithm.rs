@@ -236,20 +236,17 @@ impl<F: Float, R: Rng + Clone, DA: Data<Elem = F>, T, D: Distance<F>>
 
         let mut min_inertia = F::infinity();
         let mut best_centroids = None;
-        let mut best_iter = None;
         let mut memberships = Array1::zeros(n_samples);
         let mut dists = Array1::zeros(n_samples);
 
         let n_runs = self.n_runs();
 
         for _ in 0..n_runs {
-            let mut inertia = min_inertia;
             let mut centroids =
                 self.init_method()
                     .run(self.dist_fn(), self.n_clusters(), observations, &mut rng);
-            let mut converged_iter: Option<u64> = None;
             let mut n_iter = 0;
-            while n_iter < self.max_n_iterations() {
+            let inertia = loop {
                 update_memberships_and_dists(
                     self.dist_fn(),
                     &centroids,
@@ -258,17 +255,15 @@ impl<F: Float, R: Rng + Clone, DA: Data<Elem = F>, T, D: Distance<F>>
                     &mut dists,
                 );
                 let new_centroids = compute_centroids(&centroids, &observations, &memberships);
-                inertia = dists.sum();
                 let distance = self
                     .dist_fn()
                     .distance(centroids.view(), new_centroids.view());
                 centroids = new_centroids;
                 n_iter += 1;
                 if distance < self.tolerance() || n_iter == self.max_n_iterations() {
-                    converged_iter = Some(n_iter);
-                    break;
+                    break dists.sum();
                 }
-            }
+            };
 
             // We keep the centroids which minimize the inertia (defined as the sum of
             // the squared distances of the closest centroid for all observations)
@@ -276,27 +271,23 @@ impl<F: Float, R: Rng + Clone, DA: Data<Elem = F>, T, D: Distance<F>>
             if inertia < min_inertia {
                 min_inertia = inertia;
                 best_centroids = Some(centroids.clone());
-                best_iter = converged_iter;
             }
         }
 
-        match best_iter {
-            Some(_n_iter) => match best_centroids {
-                Some(centroids) => {
-                    let mut cluster_count = Array1::zeros(self.n_clusters());
-                    memberships
-                        .iter()
-                        .for_each(|&c| cluster_count[c] += F::one());
-                    Ok(KMeans {
-                        centroids,
-                        cluster_count,
-                        inertia: min_inertia / F::cast(dataset.nsamples()),
-                        dist_fn: self.dist_fn().clone(),
-                    })
-                }
-                _ => Err(KMeansError::InertiaError),
-            },
-            None => Err(KMeansError::NotConverged),
+        match best_centroids {
+            Some(centroids) => {
+                let mut cluster_count = Array1::zeros(self.n_clusters());
+                memberships
+                    .iter()
+                    .for_each(|&c| cluster_count[c] += F::one());
+                Ok(KMeans {
+                    centroids,
+                    cluster_count,
+                    inertia: min_inertia / F::cast(dataset.nsamples()),
+                    dist_fn: self.dist_fn().clone(),
+                })
+            }
+            _ => Err(KMeansError::InertiaError),
         }
     }
 }
@@ -855,11 +846,11 @@ mod tests {
 
     #[test]
     fn test_max_n_iterations() {
-        let mut rng = Xoshiro256Plus::seed_from_u64(42); 
+        let mut rng = Xoshiro256Plus::seed_from_u64(42);
         let xt = Array::random_using(100, Uniform::new(0., 1.0), &mut rng).insert_axis(Axis(1));
         let yt = function_test_1d(&xt);
         let data = concatenate(Axis(1), &[xt.view(), yt.view()]).unwrap();
-        let dataset = DatasetBase::from(data.clone()); 
+        let dataset = DatasetBase::from(data.clone());
         // For data created using the above rng and seed, for 6 clusters, it would take 8 iterations to converge.
         // However, when specifying max_n_iterations as 5, the algorithm should stop early gracefully.
         let _model = KMeans::params_with(6, rng.clone(), L2Dist)
