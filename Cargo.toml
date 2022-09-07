@@ -44,7 +44,6 @@ ndarray = { version = "0.15", features = ["approx"] }
 ndarray-linalg = { version = "0.14", optional = true }
 
 thiserror = "1.0"
-anyhow = { version = "1.0.58" }
 
 [dependencies.serde_crate]
 package = "serde"
