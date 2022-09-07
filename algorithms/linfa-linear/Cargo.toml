@@ -22,7 +22,7 @@ blas = ["ndarray-linalg", "linfa/ndarray-linalg", "argmin/ndarray-linalg"]
 [dependencies]
 ndarray = { version = "0.15", features = ["approx"] }
 linfa-linalg = { version = "0.1", default-features = false }
-ndarray-linalg = { version = "0.14", optional = true }
+ndarray-linalg = { version = "0.15", optional = true }
 num-traits = "0.2"
 argmin = { version = "0.4.6", features = ["ndarray", "ndarray-rand"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
