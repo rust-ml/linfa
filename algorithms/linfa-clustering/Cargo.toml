@@ -31,7 +31,7 @@ features = ["std", "derive"]
 [dependencies]
 ndarray = { version = "0.15", features = ["rayon", "approx"]}
 linfa-linalg = { version = "0.1", default-features = false }
-ndarray-linalg = { version = "0.14", optional = true }
+ndarray-linalg = { version = "0.15", optional = true }
 ndarray-rand = "0.14"
 ndarray-stats = "0.5"
 num-traits = "0.2"
@@ -49,7 +49,7 @@ linfa-datasets = { version = "0.6.0", path = "../../datasets", features = ["gene
 criterion = "0.3.5"
 serde_json = "1"
 approx = "0.4"
-lax = "0.2.0"
+lax = "0.15.0"
 
 [[bench]]
 name = "k_means"
