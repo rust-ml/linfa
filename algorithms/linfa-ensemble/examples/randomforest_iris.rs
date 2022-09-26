@@ -1,5 +1,5 @@
 use linfa::prelude::{Fit, Predict, ToConfusionMatrix};
-use linfa_ensemble::{EnsembleLearnerParams};
+use linfa_ensemble::EnsembleLearnerParams;
 use linfa_trees::DecisionTree;
 use ndarray_rand::rand::SeedableRng;
 use rand::rngs::SmallRng;
@@ -10,12 +10,6 @@ fn main() {
     //Proportion of training data given to each model
     let bootstrap_proportion = 0.7;
 
-    //Create ensemble learner
-    let mut learner = EnsembleLearnerParams::new(DecisionTree::params());
-    learner
-        .ensemble_size(ensemble_size)
-        .bootstrap_proportion(bootstrap_proportion);
-
     //Load dataset
     let mut rng = SmallRng::seed_from_u64(42);
     let (train, test) = linfa_datasets::iris()
@@ -23,7 +17,11 @@ fn main() {
         .split_with_ratio(0.8);
 
     //Train ensemble learner model
-    let model = learner.fit(&train).unwrap();
+    let model = EnsembleLearnerParams::new(DecisionTree::params())
+        .ensemble_size(ensemble_size)
+        .bootstrap_proportion(bootstrap_proportion)
+        .fit(&train)
+        .unwrap();
 
     //Return highest ranking predictions
     let final_predictions_ensemble = model.predict(&test);

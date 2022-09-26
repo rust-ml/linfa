@@ -1,35 +1,43 @@
 use linfa::{
     dataset::{AsTargets, AsTargetsMut, FromTargetArrayOwned, Records},
-    error::{Error},
+    error::{Error, Result},
     traits::*,
-    DatasetBase,
+    DatasetBase, ParamGuard,
 };
-use ndarray::{
-    Array2, Axis, Array, Dimension
-};
-use std::{
-    cmp::Eq,
-    collections::HashMap,
-    hash::Hash,
-};
-use rand::Rng;
+use ndarray::{Array, Array2, Axis, Dimension};
 use rand::rngs::ThreadRng;
+use rand::Rng;
+use std::{cmp::Eq, collections::HashMap, hash::Hash};
 
 pub struct EnsembleLearner<M> {
     pub models: Vec<M>,
 }
 
 impl<M> EnsembleLearner<M> {
-
     // Generates prediction iterator returning predictions from each model
-    pub fn generate_predictions<'b, R: Records, T>(&'b self, x: &'b R) -> impl Iterator<Item = T> + 'b
-    where M: Predict<&'b R, T> {
+    pub fn generate_predictions<'b, R: Records, T>(
+        &'b self,
+        x: &'b R,
+    ) -> impl Iterator<Item = T> + 'b
+    where
+        M: Predict<&'b R, T>,
+    {
         self.models.iter().map(move |m| m.predict(x))
     }
 
     // Consumes prediction iterator to return all predictions
-    pub fn aggregate_predictions<Ys: Iterator>(&self, ys: Ys)
-    -> impl Iterator<Item = Vec<(Array<<Ys::Item as AsTargets>::Elem, <<Ys::Item as AsTargets>::Ix as Dimension>::Smaller >, usize)>>
+    pub fn aggregate_predictions<Ys: Iterator>(
+        &self,
+        ys: Ys,
+    ) -> impl Iterator<
+        Item = Vec<(
+            Array<
+                <Ys::Item as AsTargets>::Elem,
+                <<Ys::Item as AsTargets>::Ix as Dimension>::Smaller,
+            >,
+            usize,
+        )>,
+    >
     where
         Ys::Item: AsTargets,
         <Ys::Item as AsTargets>::Elem: Copy + Eq + Hash,
@@ -44,7 +52,9 @@ impl<M> EnsembleLearner<M> {
                 if prediction_maps.len() == i {
                     prediction_maps.push(HashMap::new());
                 }
-                *prediction_maps[i].entry(y.as_targets().index_axis(Axis(0), i).to_owned()).or_insert(0) += 1;
+                *prediction_maps[i]
+                    .entry(y.as_targets().index_axis(Axis(0), i).to_owned())
+                    .or_insert(0) += 1;
             }
         }
 
@@ -54,11 +64,9 @@ impl<M> EnsembleLearner<M> {
             xs
         })
     }
-
 }
 
-impl<F: Clone, T, M>
-PredictInplace<Array2<F>, T> for EnsembleLearner<M>
+impl<F: Clone, T, M> PredictInplace<Array2<F>, T> for EnsembleLearner<M>
 where
     M: PredictInplace<Array2<F>, T>,
     <T as AsTargets>::Elem: Copy + Eq + Hash,
@@ -75,7 +83,10 @@ where
         let mut predictions = self.generate_predictions(x);
         let aggregated_predictions = self.aggregate_predictions(&mut predictions);
 
-        for (target, output) in y_array.axis_iter_mut(Axis(0)).zip(aggregated_predictions.into_iter()) {
+        for (target, output) in y_array
+            .axis_iter_mut(Axis(0))
+            .zip(aggregated_predictions.into_iter())
+        {
             for (t, o) in target.into_iter().zip(output[0].0.iter()) {
                 *t = *o;
             }
@@ -87,45 +98,72 @@ where
     }
 }
 
-pub struct EnsembleLearnerParams<P, R: Rng + Clone> {
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct EnsembleLearnerValidParams<P, R> {
     pub ensemble_size: usize,
     pub bootstrap_proportion: f64,
     pub model_params: P,
-    pub rng: R
+    pub rng: R,
 }
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct EnsembleLearnerParams<P, R>(EnsembleLearnerValidParams<P, R>);
 
 impl<P> EnsembleLearnerParams<P, ThreadRng> {
     pub fn new(model_params: P) -> EnsembleLearnerParams<P, ThreadRng> {
-        return Self::new_fixed_rng(model_params, rand::thread_rng())
+        return Self::new_fixed_rng(model_params, rand::thread_rng());
     }
 }
 
 impl<P, R: Rng + Clone> EnsembleLearnerParams<P, R> {
     pub fn new_fixed_rng(model_params: P, rng: R) -> EnsembleLearnerParams<P, R> {
-        EnsembleLearnerParams {
+        Self(EnsembleLearnerValidParams {
             ensemble_size: 1,
             bootstrap_proportion: 1.0,
             model_params: model_params,
-            rng: rng
+            rng: rng,
+        })
+    }
+
+    pub fn ensemble_size(mut self, size: usize) -> Self {
+        self.0.ensemble_size = size;
+        self
+    }
+
+    pub fn bootstrap_proportion(mut self, proportion: f64) -> Self {
+        self.0.bootstrap_proportion = proportion;
+        self
+    }
+}
+
+impl<P, R> ParamGuard for EnsembleLearnerParams<P, R> {
+    type Checked = EnsembleLearnerValidParams<P, R>;
+    type Error = Error;
+
+    fn check_ref(&self) -> Result<&Self::Checked> {
+        if self.0.bootstrap_proportion > 1.0 || self.0.bootstrap_proportion <= 0.0 {
+            Err(Error::Parameters(format!(
+                "Bootstrap proportion should be greater than zero and less than or equal to one, but was {}",
+                self.0.bootstrap_proportion
+            )))
+        } else if self.0.ensemble_size < 1 {
+            Err(Error::Parameters(format!(
+                "Ensemble size should be less than one, but was {}",
+                self.0.ensemble_size
+            )))
+        } else {
+            Ok(&self.0)
         }
     }
 
-    pub fn ensemble_size(&mut self, size: usize) -> &mut EnsembleLearnerParams<P, R> {
-        assert!(size > 0, "ensemble_size cannot be less than 1. Ensembles must consist of at least one model.");
-        self.ensemble_size = size;
-        self
+    fn check(self) -> Result<Self::Checked> {
+        self.check_ref()?;
+        Ok(self.0)
     }
-
-    pub fn bootstrap_proportion(&mut self, proportion: f64) -> &mut EnsembleLearnerParams<P, R> {
-        assert!(proportion > 0.0, "bootstrap_proportion must be greater than 0. Must provide some data to each model.");
-        self.bootstrap_proportion = proportion;
-        self
-    }
-
 }
 
-impl<D, T, P: Fit<Array2<D>, T::Owned, Error>, R: Rng + Clone>
-     Fit<Array2<D>, T, Error> for EnsembleLearnerParams<P, R>
+impl<D, T, P: Fit<Array2<D>, T::Owned, Error>, R: Rng + Clone> Fit<Array2<D>, T, Error>
+    for EnsembleLearnerValidParams<P, R>
 where
     D: Clone,
     T: FromTargetArrayOwned,
@@ -134,12 +172,15 @@ where
 {
     type Object = EnsembleLearner<P::Object>;
 
-    fn fit(&self, dataset: &DatasetBase<Array2<D>, T>) -> Result<Self::Object, Error> {
-
+    fn fit(
+        &self,
+        dataset: &DatasetBase<Array2<D>, T>,
+    ) -> core::result::Result<Self::Object, Error> {
         let mut models = Vec::new();
         let mut rng = self.rng.clone();
 
-        let dataset_size = ((dataset.records.shape()[0] as f64) * self.bootstrap_proportion).ceil() as usize;
+        let dataset_size =
+            ((dataset.records.nrows() as f64) * self.bootstrap_proportion).ceil() as usize;
 
         let iter = dataset.bootstrap_samples(dataset_size, &mut rng);
 
@@ -148,7 +189,7 @@ where
             models.push(model);
 
             if models.len() == self.ensemble_size {
-                break
+                break;
             }
         }
 
