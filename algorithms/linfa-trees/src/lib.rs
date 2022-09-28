@@ -14,7 +14,7 @@
 //!
 //! # Current state
 //!
-//! `linfa-trees` currently provides an [implementation](struct.DecisionTree.html) of single-tree fitting for classification.
+//! `linfa-trees` currently provides an [implementation](DecisionTree) of single-tree fitting for classification.
 //!
 
 mod decision_trees;

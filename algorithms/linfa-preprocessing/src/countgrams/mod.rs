@@ -20,7 +20,7 @@ mod hyperparams;
 
 impl CountVectorizerValidParams {
     /// Learns a vocabulary from the documents in `x`, according to the specified attributes and maps each
-    /// vocabulary entry to an integer value, producing a [CountVectorizer](struct.CountVectorizer.html).
+    /// vocabulary entry to an integer value, producing a [CountVectorizer](CountVectorizer).
     ///
     /// Returns an error if:
     /// * one of the `n_gram` boundaries is set to zero or the minimum value is greater than the maximum value
@@ -48,7 +48,7 @@ impl CountVectorizerValidParams {
     }
 
     /// Learns a vocabulary from the documents contained in the files in `input`, according to the specified attributes and maps each
-    /// vocabulary entry to an integer value, producing a [CountVectorizer](struct.CountVectorizer.html).
+    /// vocabulary entry to an integer value, producing a [CountVectorizer](CountVectorizer).
     ///
     /// The files will be read using the specified `encoding`, and any sequence unrecognized by the encoding will be handled
     /// according to `trap`.
@@ -93,8 +93,8 @@ impl CountVectorizerValidParams {
         })
     }
 
-    /// Produces a [CountVectorizer](struct.CountVectorizer.html) with the input vocabulary.
-    /// All struct attributes are ignored in the fitting but will be used by the [CountVectorizer](struct.CountVectorizer.html)
+    /// Produces a [CountVectorizer](CountVectorizer) with the input vocabulary.
+    /// All struct attributes are ignored in the fitting but will be used by the [CountVectorizer](CountVectorizer)
     /// to transform any text to be examined. As such this will return an error in the same cases as the `fit` method.
     pub fn fit_vocabulary<T: ToString>(&self, words: &[T]) -> Result<CountVectorizer> {
         let mut vocabulary: HashMap<String, (usize, usize)> = HashMap::with_capacity(words.len());
@@ -179,7 +179,7 @@ impl CountVectorizerValidParams {
 
 impl CountVectorizerParams {
     /// Learns a vocabulary from the documents in `x`, according to the specified attributes and maps each
-    /// vocabulary entry to an integer value, producing a [CountVectorizer](struct.CountVectorizer.html).
+    /// vocabulary entry to an integer value, producing a [CountVectorizer](CountVectorizer).
     ///
     /// Returns an error if:
     /// * one of the `n_gram` boundaries is set to zero or the minimum value is greater than the maximum value
@@ -194,7 +194,7 @@ impl CountVectorizerParams {
     }
 
     /// Learns a vocabulary from the documents contained in the files in `input`, according to the specified attributes and maps each
-    /// vocabulary entry to an integer value, producing a [CountVectorizer](struct.CountVectorizer.html).
+    /// vocabulary entry to an integer value, producing a [CountVectorizer](CountVectorizer).
     ///
     /// The files will be read using the specified `encoding`, and any sequence unrecognized by the encoding will be handled
     /// according to `trap`.
@@ -216,8 +216,8 @@ impl CountVectorizerParams {
             .and_then(|params| params.fit_files(input, encoding, trap))
     }
 
-    /// Produces a [CountVectorizer](struct.CountVectorizer.html) with the input vocabulary.
-    /// All struct attributes are ignored in the fitting but will be used by the [CountVectorizer](struct.CountVectorizer.html)
+    /// Produces a [CountVectorizer](CountVectorizer) with the input vocabulary.
+    /// All struct attributes are ignored in the fitting but will be used by the [CountVectorizer](CountVectorizer)
     /// to transform any text to be examined. As such this will return an error in the same cases as the `fit` method.
     pub fn fit_vocabulary<T: ToString>(&self, words: &[T]) -> Result<CountVectorizer> {
         self.check_ref()

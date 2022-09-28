@@ -15,7 +15,7 @@ use serde_crate::{Deserialize, Serialize};
 )]
 #[derive(Clone, Debug, PartialEq)]
 /// The set of hyperparameters that can be specified for the execution of
-/// the [K-means algorithm](struct.KMeans.html).
+/// the [K-means algorithm](crate::KMeans).
 pub struct KMeansValidParams<F: Float, R: Rng, D: Distance<F>> {
     /// Number of time the k-means algorithm will be run with different centroid seeds.
     n_runs: usize,
@@ -38,8 +38,8 @@ pub struct KMeansValidParams<F: Float, R: Rng, D: Distance<F>> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-/// An helper struct used to construct a set of [valid hyperparameters](struct.KMeansParams.html) for
-/// the [K-means algorithm](struct.KMeans.html) (using the builder pattern).
+/// An helper struct used to construct a set of [valid hyperparameters](KMeansParams) for
+/// the [K-means algorithm](crate::KMeans) (using the builder pattern).
 pub struct KMeansParams<F: Float, R: Rng, D: Distance<F>>(KMeansValidParams<F, R, D>);
 
 impl<F: Float, R: Rng, D: Distance<F>> KMeansParams<F, R, D> {

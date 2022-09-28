@@ -14,9 +14,9 @@
 //! ## Current state
 //!
 //! Right now `linfa-nn` provides the following algorithms:
-//! * [Linear Scan](struct.LinearSearch.html)
-//! * [KD Tree](struct.KdTree.html)
-//! * [Ball Tree](struct.BallTree.html)
+//! * [Linear Scan](LinearSearch)
+//! * [KD Tree](KdTree)
+//! * [Ball Tree](BallTree)
 //!
 //! The [`CommonNearestNeighbour`](struct.CommonNearestNeighbour) enum should be used to dispatch
 //! between all of the above algorithms flexibly.
@@ -58,7 +58,7 @@ pub enum NnError {
 
 /// Nearest neighbour algorithm builds a spatial index structure out of a batch of points. The
 /// distance between points is calculated using a provided distance function. The index implements
-/// the [`NearestNeighbourIndex`](trait.NearestNeighbourIndex.html) trait and allows for efficient
+/// the [`NearestNeighbourIndex`](NearestNeighbourIndex) trait and allows for efficient
 /// computing of nearest neighbour and range queries.
 pub trait NearestNeighbour: std::fmt::Debug + Send + Sync + Unpin {
     /// Builds a spatial index using a MxN two-dimensional array representing M points with N
@@ -115,7 +115,7 @@ pub trait NearestNeighbourIndex<F: Float>: Send + Sync + Unpin {
     ) -> Result<Vec<(Point<F>, usize)>, NnError>;
 }
 
-/// Enum that dispatches to one of the crate's [`NearestNeighbour`](trait.NearestNeighbour.html)
+/// Enum that dispatches to one of the crate's [`NearestNeighbour`](NearestNeighbour)
 /// implementations based on value. This enum should be used instead of using types like
 /// `LinearSearch` and `KdTree` directly.
 ///

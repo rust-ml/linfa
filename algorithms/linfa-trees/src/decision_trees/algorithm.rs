@@ -446,7 +446,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
 ///   containing all observations with `feature <= split value` and the right one containing the rest.
 /// * If no suitable split is found, the node is marked as leaf and its prediction is set to be the most common label in the node;
 ///
-/// The [quality score](enum.SplitQuality.html) used can be specified in the [parameters](struct.DecisionTreeParams.html).
+/// The [quality score](SplitQuality) used can be specified in the [parameters](crate::DecisionTreeParams).
 ///
 /// ### Predictions
 ///
@@ -456,7 +456,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
 /// ### Additional constraints
 ///
 /// In order to avoid overfitting the training data, some additional constraints on the quality/quantity of splits can be added to the tree.
-/// A description of these additional rules is provided in the [parameters](struct.DecisionTreeParams.html) page.
+/// A description of these additional rules is provided in the [parameters](crate::DecisionTreeParams) page.
 ///
 /// ### Example
 ///
@@ -615,7 +615,7 @@ impl<F: Float, L: Label> DecisionTree<F, L> {
         self.iter_nodes().filter(|node| node.is_leaf()).count()
     }
 
-    /// Generates a [`Tikz`](struct.Tikz.html) structure to print the
+    /// Generates a [`Tikz`](Tikz) structure to print the
     /// fitted tree in Tex using tikz and forest, with the following default parameters:
     ///
     /// * `legend=false`
