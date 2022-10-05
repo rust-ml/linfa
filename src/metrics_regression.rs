@@ -14,7 +14,7 @@ use std::ops::Sub;
 /// Regression metrices trait for single targets.
 ///
 /// It is possible to compute the listed mectrics between two 1D arrays.
-/// To compare bi-dimensional arrays use [`MultiTargetRegression`](trait.MultiTargetRegression.html).
+/// To compare bi-dimensional arrays use [`MultiTargetRegression`](MultiTargetRegression).
 pub trait SingleTargetRegression<F: Float, T: AsSingleTargets<Elem = F>>:
     AsSingleTargets<Elem = F>
 {
@@ -124,7 +124,7 @@ impl<F: Float, T: AsSingleTargets<Elem = F>, T2: AsSingleTargets<Elem = F>, D: D
 /// Regression metrices trait for multiple targets.
 ///
 /// It is possible to compute the listed mectrics between two 2D arrays.
-/// To compare single-dimensional arrays use [`SingleTargetRegression`](trait.SingleTargetRegression.html).
+/// To compare single-dimensional arrays use [`SingleTargetRegression`](SingleTargetRegression).
 pub trait MultiTargetRegression<F: Float, T: AsMultiTargets<Elem = F>>:
     AsMultiTargets<Elem = F>
 {
