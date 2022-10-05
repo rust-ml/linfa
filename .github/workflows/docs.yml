@@ -2,7 +2,7 @@
 on:
   push:
     branches:
-    - master 
+    - master
   pull_request:
 
 name: Build website with Zola, build rust docs and publish to GH pages
@@ -14,12 +14,18 @@ jobs:
     steps:
       - name: 'Checkout'
         uses: actions/checkout@master
+
       - name: 'Build only' 
         uses: shalzz/zola-deploy-action@master
         env:
           BUILD_DIR: docs/website/
           TOKEN: ${{ secrets.TOKEN }}
           BUILD_ONLY: true
+
+      - name: Build Documentation
+        run: cargo doc --workspace --all --no-deps
+        env:
+          RUSTDOCFLAGS: -D warnings
 
   build_and_deploy:
     runs-on: ubuntu-latest
@@ -34,7 +40,9 @@ jobs:
           components: rustfmt, rust-src
 
       - name: Build Documentation
-        run: cargo doc --all --no-deps
+        run: cargo doc --workspace --all --no-deps
+        env:
+          RUSTDOCFLAGS: -D warnings
 
       - name: Copy Rust Documentation to Zola
         run: cp -R "target/doc/" "docs/website/static/rustdocs/"
