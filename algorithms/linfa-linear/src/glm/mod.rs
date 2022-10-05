@@ -8,7 +8,7 @@ use crate::error::{LinearError, Result};
 use crate::float::{ArgminParam, Float};
 use distribution::TweedieDistribution;
 pub use hyperparams::TweedieRegressorParams;
-use hyperparams::TweedieRegressorValidParams;
+pub use hyperparams::TweedieRegressorValidParams;
 use linfa::dataset::AsSingleTargets;
 pub use link::Link;
 

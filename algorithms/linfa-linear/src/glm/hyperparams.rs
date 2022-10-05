@@ -2,6 +2,7 @@ use crate::{glm::link::Link, LinearError, TweedieRegressor};
 use linfa::{Float, ParamGuard};
 use serde::{Deserialize, Serialize};
 
+/// The set of hyperparameters that can be specified for the execution of the Tweedie Regressor.
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct TweedieRegressorValidParams<F> {
     alpha: F,
@@ -42,6 +43,7 @@ impl<F: Float> TweedieRegressorValidParams<F> {
     }
 }
 
+/// The set of hyperparameters that can be specified for the execution of the Tweedie Regressor.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TweedieRegressorParams<F>(TweedieRegressorValidParams<F>);
 
