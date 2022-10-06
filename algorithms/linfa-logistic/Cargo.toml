@@ -38,4 +38,5 @@ approx = "0.4"
 linfa-datasets = { version = "0.7.1", path = "../../datasets", features = [
     "winequality",
 ] }
+
 rmp-serde = "1"
