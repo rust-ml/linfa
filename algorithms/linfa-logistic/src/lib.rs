@@ -526,7 +526,8 @@ fn multi_logistic_grad<F: Float, A: Data<Elem = F>>(
 
 /// A fitted logistic regression which can make predictions
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
-pub struct FittedLogisticRegression<F, C: PartialOrd + Clone> {
+#[serde(bound(deserialize = "C: Deserialize<'de>"))]
+pub struct FittedLogisticRegression<F: Float, C: PartialOrd + Clone> {
     threshold: F,
     intercept: F,
     params: Array1<F>,

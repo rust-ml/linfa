@@ -9,10 +9,12 @@ use serde::{Deserialize, Serialize};
 /// A generalized logistic regression type that specializes as either binomial logistic regression
 /// or multinomial logistic regression.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct LogisticRegressionParams<F, D: Dimension>(LogisticRegressionValidParams<F, D>);
+#[serde(bound(deserialize = "D: Deserialize<'de>"))]
+pub struct LogisticRegressionParams<F: Float, D: Dimension>(LogisticRegressionValidParams<F, D>);
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct LogisticRegressionValidParams<F, D: Dimension> {
+#[serde(bound(deserialize = "D: Deserialize<'de>"))]
+pub struct LogisticRegressionValidParams<F: Float, D: Dimension> {
     pub(crate) alpha: F,
     pub(crate) fit_intercept: bool,
     pub(crate) max_iterations: u64,
