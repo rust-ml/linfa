@@ -30,6 +30,7 @@ use ndarray::{
     Dimension, IntoDimension, Ix1, Ix2, RemoveAxis, Slice, Zip,
 };
 use ndarray_stats::QuantileExt;
+use serde::{Deserialize, Serialize};
 use std::default::Default;
 
 mod argmin_param;
@@ -524,8 +525,8 @@ fn multi_logistic_grad<F: Float, A: Data<Elem = F>>(
 }
 
 /// A fitted logistic regression which can make predictions
-#[derive(PartialEq, Debug, Clone)]
-pub struct FittedLogisticRegression<F: Float, C: PartialOrd + Clone> {
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+pub struct FittedLogisticRegression<F, C: PartialOrd + Clone> {
     threshold: F,
     intercept: F,
     params: Array1<F>,
@@ -610,8 +611,8 @@ impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
 }
 
 /// A fitted multinomial logistic regression which can make predictions
-#[derive(PartialEq, Debug, Clone)]
-pub struct MultiFittedLogisticRegression<F: Float, C: PartialOrd + Clone> {
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+pub struct MultiFittedLogisticRegression<F, C: PartialOrd + Clone> {
     intercept: Array1<F>,
     params: Array2<F>,
     classes: Vec<C>,
@@ -685,8 +686,8 @@ impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
     }
 }
 
-#[derive(PartialEq, Debug, Clone)]
-struct ClassLabel<F: Float, C: PartialOrd> {
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+struct ClassLabel<F, C: PartialOrd> {
     class: C,
     label: F,
 }
@@ -1066,6 +1067,15 @@ mod test {
             &res.predict(dataset.records()),
             dataset.targets().as_single_targets()
         );
+
+        // Test serialization
+        let ser = rmp_serde::to_vec(&res).unwrap();
+        let unser: FittedLogisticRegression<f32, f32> = rmp_serde::from_slice(&ser).unwrap();
+
+        let x = array![[1.0]];
+        let y_hat = unser.predict(&x);
+
+        assert!(y_hat[0] == 0.0);
     }
 
     #[test]
