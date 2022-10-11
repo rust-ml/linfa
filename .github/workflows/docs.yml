@@ -23,7 +23,7 @@ jobs:
           BUILD_ONLY: true
 
       - name: Build Documentation
-        run: cargo doc --workspace --all --no-deps
+        run: cargo doc --workspace --no-deps
         env:
           RUSTDOCFLAGS: -D warnings
 
@@ -40,7 +40,7 @@ jobs:
           components: rustfmt, rust-src
 
       - name: Build Documentation
-        run: cargo doc --workspace --all --no-deps
+        run: cargo doc --workspace --no-deps
         env:
           RUSTDOCFLAGS: -D warnings
 
