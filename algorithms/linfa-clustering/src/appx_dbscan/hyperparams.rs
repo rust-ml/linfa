@@ -13,7 +13,7 @@ use thiserror::Error;
 )]
 #[derive(Clone, Debug, PartialEq)]
 /// The set of hyperparameters that can be specified for the execution of
-/// the [Approximated DBSCAN algorithm](struct.AppxDbscan.html).
+/// the [Approximated DBSCAN algorithm](crate::AppxDbscan).
 pub struct AppxDbscanValidParams<F: Float, N> {
     pub(crate) tolerance: F,
     pub(crate) min_points: usize,
@@ -23,7 +23,7 @@ pub struct AppxDbscanValidParams<F: Float, N> {
 
 #[derive(Debug, Clone, PartialEq)]
 /// Helper struct for building a set of [Approximated DBSCAN
-/// hyperparameters](struct.AppxDbscanParams.html)
+/// hyperparameters](AppxDbscanParams)
 pub struct AppxDbscanParams<F: Float, N>(AppxDbscanValidParams<F, N>);
 
 #[derive(Debug, Error)]

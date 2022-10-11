@@ -26,7 +26,7 @@ pub enum GmmCovarType {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 /// A specifier for the method used for the initialization of the fitting algorithm of GMM
 pub enum GmmInitMethod {
-    /// GMM fitting algorithm is initalized with the esult of the [KMeans](struct.KMeans.html) clustering.
+    /// GMM fitting algorithm is initalized with the result of the [KMeans](crate::KMeans) clustering.
     KMeans,
     /// GMM fitting algorithm is initialized randomly.
     Random,
@@ -39,7 +39,7 @@ pub enum GmmInitMethod {
 )]
 #[derive(Clone, Debug, PartialEq)]
 /// The set of hyperparameters that can be specified for the execution of
-/// the [GMM algorithm](struct.GaussianMixtureModel.html).
+/// the [GMM algorithm](crate::GaussianMixtureModel).
 pub struct GmmValidParams<F: Float, R: Rng> {
     n_clusters: usize,
     covar_type: GmmCovarType,
@@ -92,7 +92,7 @@ impl<F: Float, R: Rng + Clone> GmmValidParams<F, R> {
 )]
 #[derive(Clone, Debug, PartialEq)]
 /// The set of hyperparameters that can be specified for the execution of
-/// the [GMM algorithm](struct.GaussianMixtureModel.html).
+/// the [GMM algorithm](crate::GaussianMixtureModel).
 pub struct GmmParams<F: Float, R: Rng>(GmmValidParams<F, R>);
 
 impl<F: Float> GmmParams<F, Xoshiro256Plus> {

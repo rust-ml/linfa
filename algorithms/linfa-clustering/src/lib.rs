@@ -13,11 +13,11 @@
 //! ## Current state
 //!
 //! Right now `linfa-clustering` provides the following clustering algorithms:
-//! * [K-Means](struct.KMeans.html)
-//! * [DBSCAN](struct.Dbscan.html)
-//! * [Approximated DBSCAN](struct.AppxDbscan.html)
-//! * [Gaussian-Mixture-Model](struct.GaussianMixtureModel.html)
-//! * [OPTICS](struct.OpticsAnalysis.html)
+//! * [K-Means](KMeans)
+//! * [DBSCAN](Dbscan)
+//! * [Approximated DBSCAN](AppxDbscan)
+//! * [Gaussian-Mixture-Model](GaussianMixtureModel)
+//! * [OPTICS](OpticsAnalysis)
 //!
 //! Implementation choices, algorithmic details and tutorials can be found in the page dedicated to the specific algorithms.
 mod appx_dbscan;

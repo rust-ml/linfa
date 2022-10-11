@@ -41,7 +41,7 @@ use serde_crate::{Deserialize, Serialize};
 /// that is maximising the probability that the dataset is drawn from our mixture of normal distributions.
 ///
 /// After an initialization step which can be either from random distribution or from the result
-/// of the [KMeans](struct.KMeans.html) algorithm (which is the default value of the `init_method` parameter).
+/// of the [KMeans](KMeans) algorithm (which is the default value of the `init_method` parameter).
 /// The core EM iterative algorithm for Gaussian Mixture is a fixed-point two-step algorithm:
 ///
 /// 1. Expectation step: compute the expectation of the likelihood of the current gaussian mixture model wrt the dataset.
