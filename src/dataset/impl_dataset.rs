@@ -30,6 +30,7 @@ impl<R: Records, S> DatasetBase<R, S> {
             targets,
             weights: Array1::zeros(0),
             feature_names: Vec::new(),
+            sample_names: Vec::new(),
         }
     }
 
@@ -70,6 +71,19 @@ impl<R: Records, S> DatasetBase<R, S> {
         }
     }
 
+    /// Returns sample names
+    ///
+    /// A row name gives a human-readable string describing the sample.
+    pub fn sample_names(&self) -> Vec<String> {
+        if !self.sample_names.is_empty() {
+            self.sample_names.clone()
+        } else {
+            (0..self.records.nsamples())
+                .map(|idx| format!("sample-{}", idx))
+                .collect()
+        }
+    }
+
     /// Return records of a dataset
     ///
     /// The records are data points from which predictions are made. This functions returns a
@@ -88,6 +102,7 @@ impl<R: Records, S> DatasetBase<R, S> {
             targets: self.targets,
             weights: Array1::zeros(0),
             feature_names: Vec::new(),
+            sample_names: Vec::new(),
         }
     }
 
@@ -100,6 +115,7 @@ impl<R: Records, S> DatasetBase<R, S> {
             targets,
             weights: self.weights,
             feature_names: self.feature_names,
+            sample_names: self.sample_names,
         }
     }
 
@@ -115,6 +131,29 @@ impl<R: Records, S> DatasetBase<R, S> {
         let feature_names = names.into_iter().map(|x| x.into()).collect();
 
         self.feature_names = feature_names;
+
+        self
+    }
+
+    /// Updates the row names of a dataset
+    ///
+    /// ## Panics
+    ///
+    /// This method will panic for any of the following three reasons:
+    ///
+    /// - If the names vector length is different to nsamples
+    pub fn with_sample_names<I: Into<String>>(mut self, names: Vec<I>) -> DatasetBase<R, S> {
+        if names.len() == self.records().nsamples() {
+            let sample_names = names.into_iter().map(|x| x.into()).collect();
+
+            self.sample_names = sample_names;
+        } else if !names.is_empty() {
+            panic!(
+                "Sample names vector length, {}, is different to nsamples, {}.",
+                names.len(),
+                self.records().nsamples()
+            );
+        }
 
         self
     }
@@ -143,6 +182,7 @@ impl<L, R: Records, T: AsTargets<Elem = L>> DatasetBase<R, T> {
             targets,
             weights,
             feature_names,
+            sample_names,
             ..
         } = self;
 
@@ -153,6 +193,7 @@ impl<L, R: Records, T: AsTargets<Elem = L>> DatasetBase<R, T> {
             targets: targets.map(fnc),
             weights,
             feature_names,
+            sample_names,
         }
     }
 
@@ -215,6 +256,7 @@ where
 
         DatasetBase::new(records, targets)
             .with_feature_names(self.feature_names.clone())
+            .with_sample_names(self.sample_names.clone())
             .with_weights(self.weights.clone())
     }
 
@@ -287,13 +329,26 @@ where
         } else {
             (Array1::zeros(0), Array1::zeros(0))
         };
+
+        let (first_sample_names, second_sample_names) =
+            if self.sample_names.len() == self.nsamples() {
+                (
+                    self.sample_names.iter().take(n).collect(),
+                    self.sample_names.iter().skip(n).collect(),
+                )
+            } else {
+                (Vec::new(), Vec::new())
+            };
+
         let dataset1 = DatasetBase::new(records_first, targets_first)
             .with_weights(first_weights)
-            .with_feature_names(self.feature_names.clone());
+            .with_feature_names(self.feature_names.clone())
+            .with_sample_names(first_sample_names);
 
         let dataset2 = DatasetBase::new(records_second, targets_second)
             .with_weights(second_weights)
-            .with_feature_names(self.feature_names.clone());
+            .with_feature_names(self.feature_names.clone())
+            .with_sample_names(second_sample_names);
 
         (dataset1, dataset2)
     }
@@ -339,6 +394,7 @@ where
                     label,
                     DatasetBase::new(self.records().view(), targets)
                         .with_feature_names(self.feature_names.clone())
+                        .with_sample_names(self.sample_names.clone())
                         .with_weights(self.weights.clone()),
                 )
             })
@@ -395,6 +451,7 @@ impl<F, D: Data<Elem = F>, I: Dimension> From<ArrayBase<D, I>>
             targets: empty_targets,
             weights: Array1::zeros(0),
             feature_names: Vec::new(),
+            sample_names: Vec::new(),
         }
     }
 }
@@ -411,6 +468,7 @@ where
             targets: rec_tar.1,
             weights: Array1::zeros(0),
             feature_names: Vec::new(),
+            sample_names: Vec::new(),
         }
     }
 }
@@ -977,12 +1035,26 @@ impl<F, E, I: TargetDim> Dataset<F, E, I> {
             Array1::zeros(0)
         };
 
+        // split sample_names into two disjoint Vec
+        let second_sample_names = if self.sample_names.len() == n1 + n2 {
+            let mut sample_names = self.sample_names;
+
+            let sample_names2 = sample_names.split_off(n1);
+            self.sample_names = sample_names;
+
+            sample_names2
+        } else {
+            Vec::new()
+        };
+
         // create new datasets with attached weights
         let dataset1 = Dataset::new(first, first_targets)
             .with_weights(self.weights)
+            .with_sample_names(self.sample_names)
             .with_feature_names(feature_names.clone());
         let dataset2 = Dataset::new(second, second_targets)
             .with_weights(second_weights)
+            .with_sample_names(second_sample_names)
             .with_feature_names(feature_names);
 
         (dataset1, dataset2)

@@ -154,7 +154,7 @@ impl Deref for Pr {
 /// This is the fundamental structure of a dataset. It contains a number of records about the data
 /// and may contain targets, weights and feature names. In order to keep the type complexity low
 /// the dataset base is only generic over the records and targets and introduces a trait bound on
-/// the records. `weights` and `feature_names`, on the other hand, are always assumed to be owned
+/// the records. `weights`, `feature_names` and `sample_names`, on the other hand, are always assumed to be owned
 /// and copied when views are created.
 ///
 /// # Fields
@@ -164,6 +164,7 @@ impl Deref for Pr {
 /// * `targets`: a two-/one-dimension matrix with dimensionality (nsamples, ntargets)
 /// * `weights`: optional weights for each sample with dimensionality (nsamples)
 /// * `feature_names`: optional descriptive feature names with dimensionality (nfeatures)
+/// * `sample_names`: optional descriptive sample names with dimensionality (nsamples)
 ///
 /// # Trait bounds
 ///
@@ -180,6 +181,7 @@ where
 
     pub weights: Array1<f32>,
     feature_names: Vec<String>,
+    sample_names: Vec<String>,
 }
 
 /// Targets with precomputed, counted labels

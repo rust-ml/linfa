@@ -30,10 +30,14 @@ pub fn iris() -> Dataset<f64, usize, Ix1> {
     );
 
     let feature_names = vec!["sepal length", "sepal width", "petal length", "petal width"];
+    let sample_names = (0..data.nrows())
+        .map(|idx| format!("sample-{idx}"))
+        .collect();
 
     Dataset::new(data, targets)
         .map_targets(|x| *x as usize)
         .with_feature_names(feature_names)
+        .with_sample_names(sample_names)
 }
 
 #[cfg(feature = "diabetes")]
@@ -57,8 +61,13 @@ pub fn diabetes() -> Dataset<f64, f64, Ix1> {
         "lamotrigine",
         "blood sugar level",
     ];
+    let sample_names = (0..data.nrows())
+        .map(|idx| format!("sample-{idx}"))
+        .collect();
 
-    Dataset::new(data, targets).with_feature_names(feature_names)
+    Dataset::new(data, targets)
+        .with_feature_names(feature_names)
+        .with_sample_names(sample_names)
 }
 
 #[cfg(feature = "winequality")]
@@ -85,10 +94,14 @@ pub fn winequality() -> Dataset<f64, usize, Ix1> {
         "sulphates",
         "alcohol",
     ];
+    let sample_names = (0..data.nrows())
+        .map(|idx| format!("sample-{idx}"))
+        .collect();
 
     Dataset::new(data, targets)
         .map_targets(|x| *x as usize)
         .with_feature_names(feature_names)
+        .with_sample_names(sample_names)
 }
 
 #[cfg(feature = "linnerud")]
@@ -112,8 +125,13 @@ pub fn linnerud() -> Dataset<f64, f64> {
     let output_array = array_from_buf(&output_data[..]);
 
     let feature_names = vec!["Chins", "Situps", "Jumps"];
+    let sample_names = (0..input_array.nrows())
+        .map(|idx| format!("sample-{idx}"))
+        .collect();
 
-    Dataset::new(input_array, output_array).with_feature_names(feature_names)
+    Dataset::new(input_array, output_array)
+        .with_feature_names(feature_names)
+        .with_sample_names(sample_names)
 }
 
 #[cfg(test)]

@@ -231,6 +231,7 @@ where
             weights: Array1::from(weights),
             targets,
             feature_names: self.feature_names.clone(),
+            sample_names: self.sample_names.clone(),
         }
     }
 }
