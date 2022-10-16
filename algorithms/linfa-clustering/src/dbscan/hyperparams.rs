@@ -11,7 +11,7 @@ use thiserror::Error;
 )]
 #[derive(Debug, Clone, PartialEq)]
 /// The set of hyperparameters that can be specified for the execution of
-/// the [DBSCAN algorithm](struct.Dbscan.html).
+/// the [DBSCAN algorithm](crate::Dbscan).
 pub struct DbscanValidParams<F: Float, D: Distance<F>, N: NearestNeighbour> {
     pub(crate) tolerance: F,
     pub(crate) min_points: usize,
@@ -20,7 +20,7 @@ pub struct DbscanValidParams<F: Float, D: Distance<F>, N: NearestNeighbour> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-/// Helper struct for building a set of [DBSCAN hyperparameters](struct.DbscanParams.html)
+/// Helper struct for building a set of [DBSCAN hyperparameters](DbscanParams)
 pub struct DbscanParams<F: Float, D: Distance<F>, N: NearestNeighbour>(DbscanValidParams<F, D, N>);
 
 #[derive(Error, Debug)]

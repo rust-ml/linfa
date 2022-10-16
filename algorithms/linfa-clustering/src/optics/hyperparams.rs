@@ -10,7 +10,7 @@ use serde_crate::{Deserialize, Serialize};
     serde(crate = "serde_crate")
 )]
 /// The set of hyperparameters that can be specified for the execution of
-/// the [OPTICS algorithm](struct.Optics.html).
+/// the [OPTICS algorithm](crate::Optics).
 pub struct OpticsValidParams<F, D, N> {
     /// Distance between points for them to be considered neighbours.
     tolerance: F,

@@ -30,7 +30,7 @@ pub enum SplitQuality {
 }
 
 /// The set of hyperparameters that can be specified for fitting a
-/// [decision tree](struct.DecisionTree.html).
+/// [decision tree](DecisionTree).
 ///
 /// ### Example
 ///

@@ -5,7 +5,7 @@
 //! `linfa-logistic` is a crate in the [`linfa`](https://crates.io/crates/linfa) ecosystem, an effort to create a toolkit for classical Machine Learning implemented in pure Rust, akin to Python's `scikit-learn`.
 //!
 //! ## Current state
-//! `linfa-logistic` provides a pure Rust implementation of a [binomial logistic regression model](struct.LogisticRegression.html) and a [multinomial logistic regression model](struct.MultiLogisticRegression).
+//! `linfa-logistic` provides a pure Rust implementation of a [binomial logistic regression model](LogisticRegression) and a [multinomial logistic regression model](MultiLogisticRegression).
 //!
 //! ## Examples
 //!
@@ -49,7 +49,7 @@ use hyperparams::{LogisticRegressionParams, LogisticRegressionValidParams};
 ///
 /// Logistic regression is used in binary classification
 /// by interpreting the predicted value as the probability that the sample
-/// has label `1`. A threshold can be set in the [fitted model](struct.FittedLogisticRegression.html) to decide the minimum
+/// has label `1`. A threshold can be set in the [fitted model](FittedLogisticRegression) to decide the minimum
 /// probability needed to classify a sample as `1`, which defaults to `0.5`.
 ///
 /// In this implementation any binary set of labels can be used, not necessarily `0` and `1`.
