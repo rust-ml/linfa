@@ -641,11 +641,10 @@ mod tests {
         let ground_truth = Array1::from(vec![1, 1, 0, 1, 0, 1]);
         let predicted = Array1::from(vec![0, 0, 0, 0, 0, 0]);
 
-        let x = predicted.confusion_matrix(ground_truth).unwrap();
-
+        let x = ground_truth.confusion_matrix(predicted).unwrap();
         let f1 = x.f1_score();
 
-        assert!(f1.is_nan());
+        assert_eq!(f1, 0.5);
     }
 
     #[test]
