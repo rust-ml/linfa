@@ -290,7 +290,7 @@ where
             return Err(Error::MismatchedShapes(targets.len(), ground_truth.len()));
         }
 
-        let classes = self.labels();
+        let classes = self.combined_labels(ground_truth.labels());
 
         let indices = map_prediction_to_idx(
             targets.as_slice().unwrap(),
@@ -634,6 +634,19 @@ mod tests {
             &array![4.0 / 5.0, 6.0 / 7.0],
             &labels,
         );
+    }
+
+    #[test]
+    fn test_division_by_zero_cm() {
+        let ground_truth = Array1::from(vec![1, 1, 0, 1, 0, 1]);
+        let predicted = Array1::from(vec![0, 0, 0, 0, 0, 0]);
+        let labels = array![0, 1];
+
+        let x = predicted.confusion_matrix(ground_truth).unwrap();
+
+        let f1 = x.f1_score();
+
+        assert!(f1.is_nan());
     }
 
     #[test]
