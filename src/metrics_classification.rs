@@ -640,7 +640,6 @@ mod tests {
     fn test_division_by_zero_cm() {
         let ground_truth = Array1::from(vec![1, 1, 0, 1, 0, 1]);
         let predicted = Array1::from(vec![0, 0, 0, 0, 0, 0]);
-        let labels = array![0, 1];
 
         let x = predicted.confusion_matrix(ground_truth).unwrap();
 
