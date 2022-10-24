@@ -70,6 +70,7 @@ pub trait SingleTargetRegression<F: Float, T: AsSingleTargets<Elem = F>>:
     }
 
     /// Mean absolute percentage error between two continuous variables
+    /// MAPE = 1/N * SUM(abs((y_hat - y) / y))
     fn mean_absolute_percentage_error(&self, compare_to: &T) -> Result<F> {
         self.as_single_targets()
             .sub(&compare_to.as_single_targets())
@@ -187,6 +188,7 @@ pub trait MultiTargetRegression<F: Float, T: AsMultiTargets<Elem = F>>:
     }
 
     /// Mean absolute percentage error between two continuous variables
+    /// MAPE = 1/N * SUM(abs((y_hat - y) / y))
     fn mean_absolute_percentage_error(&self, other: &T) -> Result<Array1<F>> {
         self.as_multi_targets()
             .axis_iter(Axis(1))
