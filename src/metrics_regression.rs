@@ -74,12 +74,8 @@ pub trait SingleTargetRegression<F: Float, T: AsSingleTargets<Elem = F>>:
     fn mean_absolute_percentage_error(&self, compare_to: &T) -> Result<F> {
         self.as_single_targets()
             .sub(&compare_to.as_single_targets())
+            .div(&self.as_single_targets())
             .mapv(|x| x.abs())
-            .div(
-                &self
-                    .as_single_targets()
-                    .mapv(|x| x.abs().max(F::min_positive_value())),
-            )
             .mean()
             .ok_or(Error::NotEnoughSamples)
     }
@@ -275,12 +271,12 @@ mod tests {
 
     #[test]
     fn test_mean_absolute_percentage_error() {
-        let a = array![0.0, 0.1, 0.2, 0.3, 0.4];
+        let a = array![0.5, 0.1, 0.2, 0.3, 0.4];
         let b = array![0.1, 0.2, 0.3, 0.4, 0.5];
 
         assert_abs_diff_eq!(
             a.mean_absolute_percentage_error(&b).unwrap(),
-            8.98846567431158e305,
+            0.5766666666666667,
             epsilon = 1e-5
         );
     }
