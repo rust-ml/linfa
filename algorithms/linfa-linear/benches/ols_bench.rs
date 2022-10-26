@@ -2,7 +2,7 @@ use iai::black_box;
 use linfa::dataset::Dataset;
 use linfa::traits::Fit;
 use linfa_linear::LinearRegression;
-use ndarray::{Array; Ix1};
+use ndarray::{Array, Ix1};
 use std::error::Error;
 
 fn create_dataset(sample_size: usize) -> Dataset<f64, f64, Ix1> {
