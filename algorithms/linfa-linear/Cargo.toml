@@ -33,3 +33,8 @@ linfa = { version = "0.6.0", path = "../..", features=["serde"] }
 [dev-dependencies]
 linfa-datasets = { version = "0.6.0", path = "../../datasets", features = ["diabetes"] }
 approx = "0.4"
+iai = "0.1" 
+
+[[bench]]
+name = "ols_bench"
+harness = false
