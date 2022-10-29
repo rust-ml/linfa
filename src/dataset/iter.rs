@@ -77,16 +77,17 @@ where
         if self.target_or_feature && self.dataset.nfeatures() <= self.idx {
             return None;
         }
-
         let mut records = self.dataset.records.view();
         let mut targets = self.dataset.targets.as_targets();
         let feature_names;
+        let mut target_names = vec!["class".to_string()];
         let weights = self.dataset.weights.clone();
 
         if !self.target_or_feature {
             // This branch should only run for 2D targets
             targets.collapse_axis(Axis(1), self.idx);
             feature_names = self.dataset.feature_names.clone();
+            target_names = self.dataset.target_names.clone();
         } else {
             records.collapse_axis(Axis(1), self.idx);
             if self.dataset.feature_names.len() == records.len_of(Axis(1)) {
@@ -103,6 +104,7 @@ where
             targets,
             weights,
             feature_names,
+            target_names,
         };
 
         Some(dataset_view)
