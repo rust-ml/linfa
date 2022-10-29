@@ -165,6 +165,7 @@ impl Deref for Pr {
 /// * `targets`: a two-/one-dimension matrix with dimensionality (nsamples, ntargets)
 /// * `weights`: optional weights for each sample with dimensionality (nsamples)
 /// * `feature_names`: optional descriptive feature names with dimensionality (nfeatures)
+/// * `target_names`: optional descriptive target names with dimensionality (1)
 ///
 /// # Trait bounds
 ///
@@ -181,6 +182,7 @@ where
 
     pub weights: Array1<f32>,
     feature_names: Vec<String>,
+    target_names: Vec<String>,
 }
 
 /// Targets with precomputed, counted labels
@@ -344,6 +346,13 @@ mod tests {
         assert!(dataset.into_single_target().targets.shape() == [10]);
     }
 
+    
+    #[test]
+    fn set_target_name() {
+        let dataset = Dataset::new(array![[1., 2.], [1., 2.]], array![0., 1.]).with_target_names("test")
+        assert_eq!(dataset.target_names(), "test");
+    }
+    
     #[test]
     fn dataset_implements_required_methods() {
         let mut rng = SmallRng::seed_from_u64(42);
