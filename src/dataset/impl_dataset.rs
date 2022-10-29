@@ -78,7 +78,7 @@ impl<R: Records, S> DatasetBase<R, S> {
         if !self.target_names.is_empty() {
             self.target_names.clone()
         } else {
-            "class"
+            vec!["class".to_string()]
         }
     }
     /// Return records of a dataset
@@ -366,8 +366,8 @@ where
                     label,
                     DatasetBase::new(self.records().view(), targets)
                         .with_feature_names(self.feature_names.clone())
-                        .with_weights(self.weights.clone()),
-                        .with_target_names(self.target_names.clone())
+                        .with_weights(self.weights.clone())
+                        .with_target_names(self.target_names.clone()),
                 )
             })
             .collect())
