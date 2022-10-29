@@ -30,6 +30,7 @@ impl<R: Records, S> DatasetBase<R, S> {
             targets,
             weights: Array1::zeros(0),
             feature_names: Vec::new(),
+            target_names: Vec::new(),
         }
     }
 
@@ -70,6 +71,16 @@ impl<R: Records, S> DatasetBase<R, S> {
         }
     }
 
+    /// Returns target names
+    ///
+    /// A target name gives a human-readable string describing the purpose of a single target.
+    pub fn target_names(&self) -> Vec<String> {
+        if !self.target_names.is_empty() {
+            self.target_names.clone()
+        } else {
+            "class"
+        }
+    }
     /// Return records of a dataset
     ///
     /// The records are data points from which predictions are made. This functions returns a
@@ -81,13 +92,14 @@ impl<R: Records, S> DatasetBase<R, S> {
     /// Updates the records of a dataset
     ///
     /// This function overwrites the records in a dataset. It also invalidates the weights and
-    /// feature names.
+    /// feature/target names.
     pub fn with_records<T: Records>(self, records: T) -> DatasetBase<T, S> {
         DatasetBase {
             records,
             targets: self.targets,
             weights: Array1::zeros(0),
             feature_names: Vec::new(),
+            target_names: Vec::new(),
         }
     }
 
@@ -100,6 +112,7 @@ impl<R: Records, S> DatasetBase<R, S> {
             targets,
             weights: self.weights,
             feature_names: self.feature_names,
+            target_names: self.target_names,
         }
     }
 
@@ -115,6 +128,15 @@ impl<R: Records, S> DatasetBase<R, S> {
         let feature_names = names.into_iter().map(|x| x.into()).collect();
 
         self.feature_names = feature_names;
+
+        self
+    }
+    
+    /// Updates the target names of a dataset
+    pub fn with_target_names<I: Into<String>>(mut self, names: Vec<I>) -> DatasetBase<R, S> {
+        let target_names = names.into_iter().map(|x| x.into()).collect();
+
+        self.target_names = target_names;
 
         self
     }
@@ -143,6 +165,7 @@ impl<L, R: Records, T: AsTargets<Elem = L>> DatasetBase<R, T> {
             targets,
             weights,
             feature_names,
+            target_names,
             ..
         } = self;
 
@@ -153,6 +176,7 @@ impl<L, R: Records, T: AsTargets<Elem = L>> DatasetBase<R, T> {
             targets: targets.map(fnc),
             weights,
             feature_names,
+            target_names,
         }
     }
 
@@ -216,6 +240,7 @@ where
         DatasetBase::new(records, targets)
             .with_feature_names(self.feature_names.clone())
             .with_weights(self.weights.clone())
+            .with_target_names(self.target_names.clone())
     }
 
     /// Iterate over features
@@ -289,11 +314,13 @@ where
         };
         let dataset1 = DatasetBase::new(records_first, targets_first)
             .with_weights(first_weights)
-            .with_feature_names(self.feature_names.clone());
+            .with_feature_names(self.feature_names.clone())
+            .with_target_names(self.target_names.clone());
 
         let dataset2 = DatasetBase::new(records_second, targets_second)
             .with_weights(second_weights)
-            .with_feature_names(self.feature_names.clone());
+            .with_feature_names(self.feature_names.clone())
+            .with_target_names(self.target_names.clone());
 
         (dataset1, dataset2)
     }
@@ -340,6 +367,7 @@ where
                     DatasetBase::new(self.records().view(), targets)
                         .with_feature_names(self.feature_names.clone())
                         .with_weights(self.weights.clone()),
+                        .with_target_names(self.target_names.clone())
                 )
             })
             .collect())
@@ -395,6 +423,7 @@ impl<F, D: Data<Elem = F>, I: Dimension> From<ArrayBase<D, I>>
             targets: empty_targets,
             weights: Array1::zeros(0),
             feature_names: Vec::new(),
+            target_names: Vec::new(),
         }
     }
 }
@@ -411,6 +440,7 @@ where
             targets: rec_tar.1,
             weights: Array1::zeros(0),
             feature_names: Vec::new(),
+            target_names: Vec::new(),
         }
     }
 }
