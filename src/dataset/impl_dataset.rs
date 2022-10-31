@@ -22,7 +22,7 @@ impl<R: Records, S> DatasetBase<R, S> {
     /// ```ignore
     /// let dataset = Dataset::new(records, targets);
     /// ```
-    pub fn new(records: R, targets: S ) -> DatasetBase<R, S> {
+    pub fn new(records: R, targets: S) -> DatasetBase<R, S> {
         let targets = targets;
 
         DatasetBase {
@@ -70,7 +70,6 @@ impl<R: Records, S> DatasetBase<R, S> {
                 .collect()
         }
     }
-
 
     /// Return records of a dataset
     ///
@@ -122,7 +121,7 @@ impl<R: Records, S> DatasetBase<R, S> {
 
         self
     }
-    
+
     /// Updates the target names of a dataset
     pub fn with_target_names<I: Into<String>>(mut self, names: Vec<I>) -> DatasetBase<R, S> {
         let target_names = names.into_iter().map(|x| x.into()).collect();
@@ -169,7 +168,6 @@ impl<L, R: Records, T: AsTargets<Elem = L>> DatasetBase<R, T> {
             feature_names,
             target_names,
         }
-
     }
 
     /// Returns target names

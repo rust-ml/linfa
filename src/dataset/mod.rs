@@ -334,14 +334,14 @@ mod tests {
     use approx::assert_abs_diff_eq;
     use ndarray::{array, Array1, Array2, Axis};
     use rand::{rngs::SmallRng, SeedableRng};
-    
+
     #[test]
     fn set_target_name() {
         let dataset = Dataset::new(array![[1., 2.], [1., 2.]], array![0., 1.])
             .with_target_names(vec!["test"]);
         assert_eq!(dataset.target_names, vec!["test"]);
     }
-    
+
     #[test]
     fn dataset_implements_required_methods() {
         let mut rng = SmallRng::seed_from_u64(42);
