@@ -346,14 +346,13 @@ mod tests {
         assert!(dataset.into_single_target().targets.shape() == [10]);
     }
 
-    
     #[test]
     fn set_target_name() {
         let dataset = Dataset::new(array![[1., 2.], [1., 2.]], array![0., 1.])
             .with_target_names(vec!["test"]);
         assert_eq!(dataset.target_names, vec!["test"]);
     }
-    
+
     #[test]
     fn dataset_implements_required_methods() {
         let mut rng = SmallRng::seed_from_u64(42);
