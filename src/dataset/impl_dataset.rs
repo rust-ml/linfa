@@ -22,7 +22,7 @@ impl<R: Records, S> DatasetBase<R, S> {
     /// ```ignore
     /// let dataset = Dataset::new(records, targets);
     /// ```
-    pub fn new(records: R, targets: S) -> DatasetBase<R, S> {
+    pub fn new(records: R, targets: S ) -> DatasetBase<R, S> {
         let targets = targets;
 
         DatasetBase {
@@ -71,18 +71,7 @@ impl<R: Records, S> DatasetBase<R, S> {
         }
     }
 
-    /// Returns target names
-    ///
-    /// A target name gives a human-readable string describing the purpose of a single target.
-    pub fn target_names(&self) -> Vec<String> {
-        if !self.target_names.is_empty() {
-            self.target_names.clone()
-        } else {
-            (0..self.ntargets())
-                .map(|idx| format!("class-{}", idx))
-                .collect()
-        }
-    }
+
     /// Return records of a dataset
     ///
     /// The records are data points from which predictions are made. This functions returns a
@@ -179,6 +168,20 @@ impl<L, R: Records, T: AsTargets<Elem = L>> DatasetBase<R, T> {
             weights,
             feature_names,
             target_names,
+        }
+
+    }
+
+    /// Returns target names
+    ///
+    /// A target name gives a human-readable string describing the purpose of a single target.
+    pub fn target_names(&self) -> Vec<String> {
+        if !self.target_names.is_empty() {
+            self.target_names.clone()
+        } else {
+            (0..self.ntargets())
+                .map(|idx| format!("class-{}", idx))
+                .collect()
         }
     }
 
