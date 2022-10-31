@@ -78,7 +78,9 @@ impl<R: Records, S> DatasetBase<R, S> {
         if !self.target_names.is_empty() {
             self.target_names.clone()
         } else {
-            vec!["class".to_string()]
+            (0..self.ntargets())
+                .map(|idx| format!("class-{}", idx))
+                .collect()
         }
     }
     /// Return records of a dataset
