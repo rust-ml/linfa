@@ -483,9 +483,9 @@ mod tests {
     use super::*;
     use approx::{abs_diff_eq, assert_abs_diff_eq};
     use linfa_datasets::generate;
-    use ndarray::{array, concatenate, ArrayView1, ArrayView2, Axis};
     use linfa_linalg::LinalgError;
     use linfa_linalg::Result as LAResult;
+    use ndarray::{array, concatenate, ArrayView1, ArrayView2, Axis};
     use ndarray_rand::rand::prelude::ThreadRng;
     use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::{Distribution, StandardNormal};
