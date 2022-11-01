@@ -164,7 +164,7 @@ impl Deref for Pr {
 /// * `targets`: a two-/one-dimension matrix with dimensionality (nsamples, ntargets)
 /// * `weights`: optional weights for each sample with dimensionality (nsamples)
 /// * `feature_names`: optional descriptive feature names with dimensionality (nfeatures)
-/// * `target_names`: optional descriptive target names with dimensionality (1)
+/// * `target_names`: optional descriptive target names with dimensionality (ntargets)
 ///
 /// # Trait bounds
 ///
@@ -539,7 +539,7 @@ mod tests {
         let dataset = Dataset::new(
             array![[1., 2., 3., 4.], [5., 6., 7., 8.], [9., 10., 11., 12.]],
             array![[1, 2], [3, 4], [5, 6]],
-        );
+        ).with_target_names(vec!["a", "b"]);
 
         let res = dataset
             .target_iter()
@@ -547,6 +547,13 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(res, &[array![1, 3, 5], array![2, 4, 6]]);
+
+        let mut iter = dataset.target_iter();
+        let first = iter.next();
+        let second = iter.next();
+        
+        assert_eq!(vec!["a"], first.unwrap().target_names());
+        assert_eq!(vec!["b"], second.unwrap().target_names());
 
         let res = dataset
             .feature_iter()
