@@ -183,14 +183,8 @@ impl<L, R: Records, T: AsTargets<Elem = L>> DatasetBase<R, T> {
     /// Returns target names
     ///
     /// A target name gives a human-readable string describing the purpose of a single target.
-    pub fn target_names(&self) -> Vec<String> {
-        if !self.target_names.is_empty() {
-            self.target_names.clone()
-        } else {
-            (0..self.ntargets())
-                .map(|idx| format!("class-{}", idx))
-                .collect()
-        }
+    pub fn target_names(&self) -> &[String] {
+        &self.target_names
     }
 
     /// Return the number of targets in the dataset
