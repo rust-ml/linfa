@@ -343,6 +343,12 @@ mod tests {
     }
 
     #[test]
+    fn empty_target_name() {
+        let dataset = Dataset::new(array![[1., 2.], [1., 2.]], array![[0., 1.], [2., 3.]]);
+        assert_eq!(dataset.target_names, Vec::<String>::new());
+    }
+
+    #[test]
     fn dataset_implements_required_methods() {
         let mut rng = SmallRng::seed_from_u64(42);
 
