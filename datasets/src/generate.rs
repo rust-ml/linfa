@@ -70,8 +70,5 @@ where
     let features = Array::random((num_rows, num_feats), feat_distr);
     let targets = Array::random((num_rows, num_targets), target_distr);
 
-    println!("{:#?}", features);
-    println!("{:#?}", targets);
-
     Dataset::new(features, targets)
 }
