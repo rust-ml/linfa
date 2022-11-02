@@ -1,9 +1,11 @@
 //! Utility functions for randomly generating datasets
 
+use linfa::Dataset;
 use ndarray::{s, Array, Array2, ArrayBase, Data, Ix1, Ix2};
 use ndarray_rand::rand::Rng;
 use ndarray_rand::rand_distr::{Distribution, StandardNormal};
 use ndarray_rand::RandomExt;
+use rand::distributions::Distribution as randDistribution;
 
 /// Special case of `blobs_with_distribution` with a standard normal distribution.
 pub fn blobs(
@@ -52,4 +54,24 @@ fn make_blob(
     let shape = (blob_size, blob_centroid.len());
     let origin_blob: Array2<f64> = Array::random_using(shape, distribution, rng);
     origin_blob + blob_centroid
+}
+
+fn make_dataset<X, Y>(
+    num_rows: usize,
+    num_feats: usize,
+    num_targets: usize,
+    feat_distr: X,
+    target_distr: Y,
+) -> Dataset<f64, f64>
+where
+    X: randDistribution<f64>,
+    Y: randDistribution<f64>,
+{
+    let features = Array::random((num_rows, num_feats), feat_distr);
+    let targets = Array::random((num_rows, num_targets), target_distr);
+
+    println!("{:#?}", features);
+    println!("{:#?}", targets);
+
+    Dataset::new(features, targets)
 }
