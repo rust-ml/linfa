@@ -2,10 +2,9 @@
 
 use linfa::Dataset;
 use ndarray::{s, Array, Array2, ArrayBase, Data, Ix1, Ix2};
-use ndarray_rand::rand::Rng;
+use ndarray_rand::rand::{Rng, distributions::Distribution as randDistribution};
 use ndarray_rand::rand_distr::{Distribution, StandardNormal};
 use ndarray_rand::RandomExt;
-use rand::distributions::Distribution as randDistribution;
 
 /// Special case of `blobs_with_distribution` with a standard normal distribution.
 pub fn blobs(
@@ -56,6 +55,12 @@ fn make_blob(
     origin_blob + blob_centroid
 }
 
+/// Generates a random Linfa::Dataset (ds). The ds values are determined by the provided statistical distributions.
+/// 
+/// # Example
+/// ```
+/// make_dataset(5, 5, 2, feat_distr, target_distr);
+/// ``` 
 fn make_dataset<X, Y>(
     num_rows: usize,
     num_feats: usize,

@@ -62,5 +62,3 @@ members = [
     "datasets",
 ]
 
-[profile.release]
-opt-level = 3
