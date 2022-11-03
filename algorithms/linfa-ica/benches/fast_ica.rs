@@ -1,16 +1,12 @@
-use linfa::{
-    dataset::DatasetBase,
-    traits::Fit,
-};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use linfa::{dataset::DatasetBase, traits::Fit};
 use linfa_ica::fast_ica::{FastIca, GFunc};
 use ndarray::{array, concatenate};
 use ndarray::{Array, Array2, Axis};
-use rand_xoshiro::Xoshiro256Plus;
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
-use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use rand_xoshiro::Xoshiro256Plus;
 
 fn perform_ica(size: usize) -> () {
-
     let sources_mixed = create_data(size);
 
     let ica = FastIca::params().gfunc(GFunc::Logcosh(1.0));
@@ -51,7 +47,6 @@ fn create_data(nsamples: usize) -> Array2<f64> {
 }
 
 fn bench(c: &mut Criterion) {
-
     let mut group = c.benchmark_group("fast_ica_bench");
     for size in [1_000, 10_000, 100_000].iter() {
         group.bench_with_input(BenchmarkId::new("fast-ica-{}", size), size, |b, &size| {
