@@ -78,7 +78,7 @@ fn make_dataset<X, Y>(
     num_rows: usize,
     num_feats: usize,
     num_targets: usize,
-    featrandtr: X,
+    feat_distr: X,
     target_distr: Y,
 ) -> Dataset<f64, f64>
 where
