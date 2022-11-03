@@ -59,6 +59,10 @@ fn make_blob(
 /// 
 /// # Example
 /// ```
+/// use statrs::distribution::{DiscreteUniform, Laplace};
+/// use ndarray_rand::rand_distr::Distribution as randDistribution;
+/// let feat_distr = Laplace::new(0.5, 5. ).unwrap();
+/// let target_distr = DiscreteUniform::new(0, 5).unwrap();
 /// make_dataset(5, 5, 2, feat_distr, target_distr);
 /// ``` 
 fn make_dataset<X, Y>(
