@@ -15,7 +15,6 @@ csv = "1.1"
 flate2 = "1.0"
 ndarray-rand = { version = "0.14", optional = true }
 statrs = {version = "0.16.0", optional = true }
-rand = { version = "0.8", optional = true }
 
 
 [dev-dependencies]
