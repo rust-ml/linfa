@@ -2,7 +2,7 @@
 
 use linfa::Dataset;
 use ndarray::{s, Array, Array2, ArrayBase, Data, Ix1, Ix2};
-use ndarray_rand::rand::{Rng, distributions::Distribution as randDistribution};
+use ndarray_rand::rand::{distributions::Distribution as randDistribution, Rng};
 use ndarray_rand::rand_distr::{Distribution, StandardNormal};
 use ndarray_rand::RandomExt;
 
@@ -56,14 +56,14 @@ fn make_blob(
 }
 
 /// Generates a random Linfa::Dataset (ds). The ds values are determined by the provided statistical distributions.
-/// 
+///
 /// Arguments order:
 ///     1 - num_rows
 ///     2 - num_feats
 ///     3 - num_targets
 ///     4 - feat_distr
 ///     5 - target_distr
-/// 
+///
 /// # Example
 /// ```
 /// use statrs::distribution::{DiscreteUniform, Laplace};
@@ -71,7 +71,7 @@ fn make_blob(
 /// let feat_distr = Laplace::new(0.5, 5. ).unwrap();
 /// let target_distr = DiscreteUniform::new(0, 5).unwrap();
 /// make_dataset(5, 5, 2, feat_distr, target_distr);
-/// ``` 
+/// ```
 fn make_dataset<X, Y>(
     num_rows: usize,
     num_feats: usize,
