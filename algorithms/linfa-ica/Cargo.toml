@@ -42,5 +42,5 @@ paste = "1.0"
 criterion = "0.4"
 
 [[bench]]
-name = "fast-ica"
+name = "fast_ica"
 harness = false
