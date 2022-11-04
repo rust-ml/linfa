@@ -9,7 +9,7 @@ use rand_xoshiro::Xoshiro256Plus;
 fn perform_ica_cube(size: usize) {
     let sources_mixed = create_data(size);
 
-    let ica = FastIca::params().gfunc(GFunc::Cube).random_seed();
+    let ica = FastIca::params().gfunc(GFunc::Cube).random_state(10);
 
     let ica = ica.fit(&DatasetBase::from(sources_mixed.view()));
 }
@@ -17,7 +17,7 @@ fn perform_ica_cube(size: usize) {
 fn perform_ica_exp(size: usize) {
     let sources_mixed = create_data(size);
 
-    let ica = FastIca::params().gfunc(GFunc::Exp).random_seed();
+    let ica = FastIca::params().gfunc(GFunc::Exp).random_state(10);
 
     let ica = ica.fit(&DatasetBase::from(sources_mixed.view()));
 }
@@ -25,7 +25,7 @@ fn perform_ica_exp(size: usize) {
 fn perform_ica_logcosh(size: usize) {
     let sources_mixed = create_data(size);
 
-    let ica = FastIca::params().gfunc(GFunc::Logcosh(1.0)).random_seed();
+    let ica = FastIca::params().gfunc(GFunc::Logcosh(1.0)).random_state(10);
 
     let ica = ica.fit(&DatasetBase::from(sources_mixed.view()));
 }
