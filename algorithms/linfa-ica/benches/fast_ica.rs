@@ -25,7 +25,9 @@ fn perform_ica_exp(size: usize) {
 fn perform_ica_logcosh(size: usize) {
     let sources_mixed = create_data(size);
 
-    let ica = FastIca::params().gfunc(GFunc::Logcosh(1.0)).random_state(10);
+    let ica = FastIca::params()
+        .gfunc(GFunc::Logcosh(1.0))
+        .random_state(10);
 
     let ica = ica.fit(&DatasetBase::from(sources_mixed.view()));
 }
