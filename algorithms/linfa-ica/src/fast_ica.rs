@@ -209,7 +209,7 @@ impl<F: Float> PredictInplace<Array2<F>, Array2<F>> for FastIca<F> {
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum GFunc {
     Logcosh(f64),
     Exp,
