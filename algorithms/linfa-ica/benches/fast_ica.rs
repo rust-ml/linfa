@@ -6,28 +6,10 @@ use ndarray::{Array, Array2, Axis};
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
 use rand_xoshiro::Xoshiro256Plus;
 
-fn perform_ica_cube(size: usize) {
+fn perform_ica(size: usize, gfunc: GFunc) {
     let sources_mixed = create_data(size);
 
-    let ica = FastIca::params().gfunc(GFunc::Cube).random_state(10);
-
-    let ica = ica.fit(&DatasetBase::from(sources_mixed.view()));
-}
-
-fn perform_ica_exp(size: usize) {
-    let sources_mixed = create_data(size);
-
-    let ica = FastIca::params().gfunc(GFunc::Exp).random_state(10);
-
-    let ica = ica.fit(&DatasetBase::from(sources_mixed.view()));
-}
-
-fn perform_ica_logcosh(size: usize) {
-    let sources_mixed = create_data(size);
-
-    let ica = FastIca::params()
-        .gfunc(GFunc::Logcosh(1.0))
-        .random_state(10);
+    let ica = FastIca::params().gfunc(gfunc).random_state(10);
 
     let ica = ica.fit(&DatasetBase::from(sources_mixed.view()));
 }
@@ -64,34 +46,19 @@ fn create_data(nsamples: usize) -> Array2<f64> {
     sources_mixed
 }
 
-fn logcosh_bench(c: &mut Criterion) {
-    let mut group = c.benchmark_group("Fast ICA");
-    for size in [1_000, 10_000, 100_000].iter() {
-        group.bench_with_input(BenchmarkId::new("GFunc_LogCosH", size), size, |b, &size| {
-            b.iter(|| perform_ica_logcosh(size));
-        });
+fn bench(c: &mut Criterion) {
+    for (gfunc, name) in [(GFunc::Cube, "GFunc_Cube"), (GFunc::Logcosh(1.0), "GFunc_Logcosh"), (GFunc::Exp, "Exp")] {
+        let mut group = c.benchmark_group("Fast ICA");
+        let sizes: [usize; 3] = [1_000, 10_000, 100_000];
+        for size in sizes {
+            let input = (size, gfunc);
+            group.bench_with_input(BenchmarkId::new(name, size), &input, |b, (size, gfunc)| {
+                b.iter(|| perform_ica(*size, *gfunc));
+            });
+        }
+        group.finish();
     }
-    group.finish();
 }
 
-fn cube_bench(c: &mut Criterion) {
-    let mut group = c.benchmark_group("Fast ICA");
-    for size in [1_000, 10_000, 100_000].iter() {
-        group.bench_with_input(BenchmarkId::new("GFunc_Cube", size), size, |b, &size| {
-            b.iter(|| perform_ica_cube(size));
-        });
-    }
-    group.finish();
-}
-
-fn exp_bench(c: &mut Criterion) {
-    let mut group = c.benchmark_group("Fast ICA");
-    for size in [1_000, 10_000, 100_000].iter() {
-        group.bench_with_input(BenchmarkId::new("GFunc_Exp", size), size, |b, &size| {
-            b.iter(|| perform_ica_exp(size));
-        });
-    }
-    group.finish();
-}
-criterion_group!(benches, logcosh_bench, cube_bench, exp_bench);
+criterion_group!(benches, bench);
 criterion_main!(benches);
