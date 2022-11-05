@@ -47,7 +47,11 @@ fn create_data(nsamples: usize) -> Array2<f64> {
 }
 
 fn bench(c: &mut Criterion) {
-    for (gfunc, name) in [(GFunc::Cube, "GFunc_Cube"), (GFunc::Logcosh(1.0), "GFunc_Logcosh"), (GFunc::Exp, "Exp")] {
+    for (gfunc, name) in [
+        (GFunc::Cube, "GFunc_Cube"),
+        (GFunc::Logcosh(1.0), "GFunc_Logcosh"),
+        (GFunc::Exp, "Exp"),
+    ] {
         let mut group = c.benchmark_group("Fast ICA");
         let sizes: [usize; 3] = [1_000, 10_000, 100_000];
         for size in sizes {
