@@ -665,7 +665,7 @@ mod tests {
 
         // randomly sample ground truth
         let ground_truth = (0..1000)
-            .map(|_| rng.sample(&range) == 1)
+            .map(|_| rng.sample(range) == 1)
             .collect::<Vec<_>>();
 
         // ROC Area-Under-Curve should be approximately 0.5

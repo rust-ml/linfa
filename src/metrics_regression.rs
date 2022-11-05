@@ -9,7 +9,7 @@ use crate::{
 };
 use ndarray::prelude::*;
 use ndarray::Data;
-use std::ops::Sub;
+use std::ops::{Div, Sub};
 
 /// Regression metrices trait for single targets.
 ///
@@ -67,6 +67,17 @@ pub trait SingleTargetRegression<F: Float, T: AsSingleTargets<Elem = F>>:
         } else {
             Ok(abs_error[mid])
         }
+    }
+
+    /// Mean absolute percentage error between two continuous variables
+    /// MAPE = 1/N * SUM(abs((y_hat - y) / y))
+    fn mean_absolute_percentage_error(&self, compare_to: &T) -> Result<F> {
+        self.as_single_targets()
+            .sub(&compare_to.as_single_targets())
+            .div(&self.as_single_targets())
+            .mapv(|x| x.abs())
+            .mean()
+            .ok_or(Error::NotEnoughSamples)
     }
 
     /// R squared coefficient, is the proportion of the variance in the dependent variable that is
@@ -172,6 +183,16 @@ pub trait MultiTargetRegression<F: Float, T: AsMultiTargets<Elem = F>>:
             .collect()
     }
 
+    /// Mean absolute percentage error between two continuous variables
+    /// MAPE = 1/N * SUM(abs((y_hat - y) / y))
+    fn mean_absolute_percentage_error(&self, other: &T) -> Result<Array1<F>> {
+        self.as_multi_targets()
+            .axis_iter(Axis(1))
+            .zip(other.as_multi_targets().axis_iter(Axis(1)))
+            .map(|(a, b)| a.mean_absolute_percentage_error(&b))
+            .collect()
+    }
+
     /// R squared coefficient, is the proportion of the variance in the dependent variable that is
     /// predictable from the independent variable
     fn r2(&self, other: &T) -> Result<Array1<F>> {
@@ -220,6 +241,7 @@ mod tests {
         assert_abs_diff_eq!(a.median_absolute_error(&a).unwrap(), 0.0f32);
         assert_abs_diff_eq!(a.r2(&a).unwrap(), 1.0f32);
         assert_abs_diff_eq!(a.explained_variance(&a).unwrap(), 1.0f32);
+        assert_abs_diff_eq!(a.mean_absolute_percentage_error(&a).unwrap(), 0.0f32);
     }
 
     #[test]
@@ -245,6 +267,18 @@ mod tests {
         let b = array![0.1, 0.2, 0.3, 0.4, 0.5];
 
         assert_abs_diff_eq!(a.mean_squared_error(&b).unwrap(), 0.01, epsilon = 1e-5);
+    }
+
+    #[test]
+    fn test_mean_absolute_percentage_error() {
+        let a = array![0.5, 0.1, 0.2, 0.3, 0.4];
+        let b = array![0.1, 0.2, 0.3, 0.4, 0.5];
+
+        assert_abs_diff_eq!(
+            a.mean_absolute_percentage_error(&b).unwrap(),
+            0.5766666666666667,
+            epsilon = 1e-5
+        );
     }
 
     #[test]
@@ -286,6 +320,23 @@ mod tests {
         let abs_err_from_ds = prediction.mean_squared_error(st_dataset.targets()).unwrap();
         assert_abs_diff_eq!(abs_err_from_arr1, 0.036);
         assert_abs_diff_eq!(abs_err_from_arr1, abs_err_from_ds);
+    }
+
+    #[test]
+    fn test_mean_absolute_percentage_error_for_single_targets() {
+        let records = array![[0.0, 0.0], [0.1, 0.1], [0.2, 0.2], [0.3, 0.3], [0.4, 0.4]];
+        let targets = array![0.0, 0.1, 0.2, 0.3, 0.4];
+        let st_dataset: DatasetBase<_, _> = (records.view(), targets).into();
+        let prediction = array![0.1, 0.3, 0.2, 0.5, 0.7];
+        let pct_err_from_arr1 = prediction
+            .mean_absolute_percentage_error(st_dataset.targets())
+            .unwrap();
+        let prediction: DatasetBase<_, _> = (records.view(), prediction).into();
+        let pct_err_from_ds = prediction
+            .mean_absolute_percentage_error(st_dataset.targets())
+            .unwrap();
+        assert_abs_diff_eq!(pct_err_from_arr1, 0.49904761904761896);
+        assert_abs_diff_eq!(pct_err_from_arr1, pct_err_from_ds);
     }
 
     #[test]
