@@ -1,8 +1,8 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use linfa::traits::Fit;
+use linfa::Dataset;
 use linfa_datasets::generate::make_dataset;
 use linfa_pls::PlsRegression;
-use linfa::Dataset;
 use statrs::distribution::{DiscreteUniform, Laplace};
 
 #[allow(unused_must_use)]
@@ -14,9 +14,7 @@ fn perform_pls(num_rows: usize) {
     let targets = dataset.targets.into_shape((num_rows, 1)).unwrap();
     let features = dataset.records;
     let dataset = Dataset::new(features, targets);
-    let model = PlsRegression::params(3)
-        .scale(true)
-        .max_iterations(200);
+    let model = PlsRegression::params(3).scale(true).max_iterations(200);
     model.fit(&dataset);
 }
 
