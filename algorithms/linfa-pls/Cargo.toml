@@ -39,3 +39,9 @@ linfa = { version = "0.6.0", path = "../.." }
 linfa-datasets = { version = "0.6.0", path = "../../datasets", features = ["linnerud"] }
 approx = "0.4"
 rand_xoshiro = "0.6"
+criterion = "0.4.0"
+statrs = "0.16.0"
+
+[[bench]]
+name = "pls"
+harness = false
