@@ -35,7 +35,6 @@ linfa-datasets = { version = "0.6.0", path = "../../datasets", features = ["diab
 approx = "0.4"
 criterion = "0.4.0" 
 statrs = "0.16.0"
-ndarray-rand = "0.14"
 
 [[bench]]
 name = "ols_bench"
