@@ -57,7 +57,7 @@ fn make_blob(
     let origin_blob: Array2<f64> = Array::random_using(shape, distribution, rng);
     origin_blob + blob_centroid
 }
-
+#[allow(clippy::type_complexity)]
 /// Generates a random Linfa::Dataset (ds). The ds values are determined by the provided statistical distributions.
 ///
 /// # Example
