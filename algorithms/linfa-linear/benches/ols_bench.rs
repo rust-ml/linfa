@@ -1,19 +1,14 @@
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use linfa::traits::Fit;
-use linfa::Dataset;
-use linfa_linear::LinearRegression;
-use ndarray::Array;
-use ndarray_rand::RandomExt;
 use statrs::distribution::{DiscreteUniform, Laplace};
+use linfa_datasets::generate::make_dataset;
+use linfa::traits::Fit;
+use linfa_linear::LinearRegression;
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
 fn perform_ols(num_rows: usize) {
-    let feat_distr = Laplace::new(0.5, 5.).unwrap();
+    let feat_distr = Laplace::new(0.5, 5. ).unwrap();
     let target_distr = DiscreteUniform::new(0, 5).unwrap();
-    let targets = Array::random(num_rows, target_distr);
     let num_feats: usize = 5;
-
-    let features = Array::random((num_rows, num_feats), feat_distr);
-    let dataset = Dataset::new(features, targets);
+    let dataset = make_dataset(num_rows, num_feats, feat_distr, target_distr);
     let lin_reg = LinearRegression::new();
     let _model = lin_reg.fit(&dataset);
 }
