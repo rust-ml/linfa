@@ -22,7 +22,7 @@ fn bench(c: &mut Criterion) {
     let mut group = c.benchmark_group("Linfa_pls");
     let sizes: [usize; 3] = [1_000, 10_000, 100_000];
     for size in sizes {
-        group.bench_with_input(BenchmarkId::new("SVD", size), &size, |b, size| {
+        group.bench_with_input(BenchmarkId::new("Regression", size), &size, |b, size| {
             b.iter(|| perform_pls(*size));
         });
     }
