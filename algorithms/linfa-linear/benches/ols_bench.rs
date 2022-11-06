@@ -1,11 +1,11 @@
-use statrs::distribution::{DiscreteUniform, Laplace};
-use linfa_datasets::generate::make_dataset;
-use linfa::traits::Fit;
-use linfa_linear::LinearRegression;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use linfa::traits::Fit;
+use linfa_datasets::generate::make_dataset;
+use linfa_linear::LinearRegression;
+use statrs::distribution::{DiscreteUniform, Laplace};
 
 fn perform_ols(num_rows: usize) {
-    let feat_distr = Laplace::new(0.5, 5. ).unwrap();
+    let feat_distr = Laplace::new(0.5, 5.).unwrap();
     let target_distr = DiscreteUniform::new(0, 5).unwrap();
     let num_feats: usize = 5;
     let dataset = make_dataset(num_rows, num_feats, feat_distr, target_distr);
