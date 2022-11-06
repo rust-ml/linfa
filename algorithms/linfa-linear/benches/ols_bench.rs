@@ -1,41 +1,34 @@
-use iai::black_box;
-use linfa::dataset::Dataset;
+use statrs::distribution::{DiscreteUniform, Laplace};
 use linfa::traits::Fit;
 use linfa_linear::LinearRegression;
-use ndarray::{Array, Ix1};
-use std::error::Error;
+use linfa::Dataset;
+use ndarray::Array;
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use ndarray_rand::RandomExt;
 
-fn create_dataset(sample_size: usize) -> Dataset<f64, f64, Ix1> {
-    let num_cols: usize = 5;
-
-    let array = Array::from_elem((sample_size, num_cols), 7.);
-    let targets = Array::from_elem(sample_size, 7.);
-    Dataset::new(array, targets)
-}
-
-fn iai_ols_1_000_bench() -> Result<(), Box<dyn Error>> {
-    let dataset = create_dataset(1_000);
+fn perform_ols(num_rows: usize) {
+    let feat_distr = Laplace::new(0.5, 5. ).unwrap();
+    let target_distr = DiscreteUniform::new(0, 5).unwrap();
+    let targets;
+    let num_feats: usize = 5;
+    targets = Array::random(num_rows, target_distr);
+    
+    let features = Array::random((num_rows, num_feats), feat_distr);
+    let dataset = Dataset::new(features, targets);
     let lin_reg = LinearRegression::new();
-    lin_reg.fit(&black_box(dataset))?;
-    Ok(())
+    let _model = lin_reg.fit(&dataset);
 }
 
-fn iai_ols_10_000_bench() -> Result<(), Box<dyn Error>> {
-    let dataset = create_dataset(10_000);
-    let lin_reg = LinearRegression::new();
-    lin_reg.fit(&black_box(dataset))?;
-    Ok(())
+fn bench(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Linfa_linear");
+    let sizes: [usize; 3] = [1_000, 10_000, 100_000];
+    for size in sizes {
+        group.bench_with_input(BenchmarkId::new("OLS", size), &size, |b, size| {
+            b.iter(|| perform_ols(*size));
+        });
+    }
+    group.finish();
 }
 
-fn iai_ols_100_000_bench() -> Result<(), Box<dyn Error>> {
-    let dataset = create_dataset(100_000);
-    let lin_reg = LinearRegression::new();
-    lin_reg.fit(&black_box(dataset))?;
-    Ok(())
-}
-
-iai::main!(
-    iai_ols_1_000_bench,
-    iai_ols_10_000_bench,
-    iai_ols_100_000_bench
-);
+criterion_group!(benches, bench);
+criterion_main!(benches);
