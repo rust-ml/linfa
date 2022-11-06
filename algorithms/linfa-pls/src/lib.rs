@@ -37,7 +37,6 @@
 //! let exercices = array![[14., 146., 61.], [6., 80., 60.]];
 //! let physio_measures = pls.predict(exercices);
 //! ```
-//! 
 mod errors;
 mod hyperparams;
 mod pls_generic;
