@@ -120,6 +120,16 @@ impl<R: Records, S> DatasetBase<R, S> {
     }
 }
 
+impl<X, Y> Dataset<X, Y> {
+    // Converts Ix2 targets to Ix1. Only works for targets with shape of form [X, 1]
+    pub fn convert_targets(self) -> Dataset<X, Y, Ix1> {
+        let nsamples = self.records.nsamples();
+        let targets = self.targets.into_shape(nsamples).unwrap();
+        let features = self.records;
+        Dataset::new(features, targets)
+    }
+}
+
 impl<L, R: Records, T: AsTargets<Elem = L>> DatasetBase<R, T> {
     /// Map targets with a function `f`
     ///
