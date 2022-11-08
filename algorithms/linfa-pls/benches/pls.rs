@@ -36,6 +36,7 @@ fn bench(c: &mut Criterion) {
     let mut group = c.benchmark_group("Linfa_pls");
     for (alg, name) in [(Algorithm::Nipals, "Nipals"), (Algorithm::Svd, "Svd")] {
         let sizes: [usize; 3] = [1_000, 10_000, 100_000];
+        let num_feats: [usize; 2] = [5, 10];
 
         let feat_distr = Laplace::new(0.5, 5.).unwrap();
         let target_distr = DiscreteUniform::new(0, 5).unwrap();
@@ -48,36 +49,42 @@ fn bench(c: &mut Criterion) {
         pls_cca_id.push_str(name);
 
         for size in sizes {
-            let dataset = make_dataset(size, 5, feat_distr, target_distr);
-            let targets = dataset.targets.into_shape((size, 1)).unwrap();
-            let features = dataset.records;
-            let dataset = Dataset::new(features, targets);
-            let input = (dataset, alg);
+            for num_feat in num_feats {
+                let suffix = format!("{}Feats", num_feat);
+                let mut func_name = pls_regression_id.clone();
+                func_name.push_str(&suffix);
+                let dataset = make_dataset(size, num_feat, 1, feat_distr, target_distr);
+                let input = (dataset, alg);
 
-            group.bench_with_input(
-                BenchmarkId::new(&pls_regression_id, size),
-                &input,
-                |b, (dataset, alg)| {
-                    b.iter(|| pls_regression(dataset, *alg));
-                },
-            );
+                group.bench_with_input(
+                    BenchmarkId::new(&func_name, size),
+                    &input,
+                    |b, (dataset, alg)| {
+                        b.iter(|| pls_regression(dataset, *alg));
+                    },
+                );
 
-            group.bench_with_input(
-                BenchmarkId::new(&pls_canonical_id, size),
-                &input,
-                |b, (dataset, alg)| {
-                    b.iter(|| pls_canonical(dataset, *alg));
-                },
-            );
+                let mut func_name = pls_canonical_id.clone();
+                func_name.push_str(&suffix);
+                group.bench_with_input(
+                    BenchmarkId::new(&func_name, size),
+                    &input,
+                    |b, (dataset, alg)| {
+                        b.iter(|| pls_canonical(dataset, *alg));
+                    },
+                );
 
-            group.bench_with_input(
-                BenchmarkId::new(&pls_cca_id, size),
-                &input,
-                |b, (dataset, alg)| {
-                    b.iter(|| pls_cca(dataset, *alg));
-                },
-            );
-        }
+                let mut func_name = pls_cca_id.clone();
+                func_name.push_str(&suffix);
+                group.bench_with_input(
+                    BenchmarkId::new(&func_name, size),
+                    &input,
+                    |b, (dataset, alg)| {
+                        b.iter(|| pls_cca(dataset, *alg));
+                    },
+                );
+            }
+            }
     }
     group.finish();
 }
