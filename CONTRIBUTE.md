@@ -158,13 +158,13 @@ let sol = decomp
 
 It is important to the project that we have benchmarks in place to evaluate the benefit of performance related changes. To make that process easier we provide some guidelines for writing benchmarks.
 
-1. Test for a variety of sample sizes for most algorithms [1_000, 10_000, 20_000] will be sufficient
-2. Test of variety feature dimensions
-    - Spatial algorithms: [3, 5, 8]
+1. Test for a variety of sample sizes for most algorithms [1_000, 10_000, 20_000] will be sufficient. For algorithms where it's not too slow, use 100k instead of 20k.
+2. Test for a variety of feature dimensions. Two is usually enough for most algorithms. The following are suggested feature dimensions to use for different types of algorithms:
+    - Spatial algorithms: [3, 8]
     - Dimentionality reduction algorithms: [10, 20, 50]
     - Others: [5, 10]
-3. Use Criterion
-4. Test various alg implementations
-5. Set a random seed for algorithm if applicable
-6. Test multi-target case if algorithm supports it: [4 targets]
+3. Use Criterion. Iai another popular benchmarking tool is not being actively maintained at the moment and at the time of this writing it hasn't been updated since Feb 25, 2021.
+4. Test various alg implementations for instance Pls has the following algorithms: Nipals and Svd.
+5. For algorithms that require an RNG or random seed as input, use a constant seed for reproducibility
+6. In most cases we only want to benchmark 1D or 2D targets. When benchmarking 2D targets the 2nd axis should be within the following range: [2, 4].
 7. In `BenchmarkId` include the values used to parametrize the benchmark. For example if we're doing Pls then we may have something like `Canonical-Nipals-5feats-1_000samples`
