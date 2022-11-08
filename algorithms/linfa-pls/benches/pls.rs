@@ -84,7 +84,7 @@ fn bench(c: &mut Criterion) {
                     },
                 );
             }
-            }
+        }
     }
     group.finish();
 }
