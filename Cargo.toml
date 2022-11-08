@@ -54,7 +54,8 @@ features = ["std", "derive"]
 
 [dev-dependencies]
 ndarray-rand = "0.14"
-linfa-datasets = { path = "datasets", features = ["winequality", "iris", "diabetes"] }
+linfa-datasets = { path = "datasets", features = ["winequality", "iris", "diabetes", "generate"] }
+statrs = "0.16.0"
 
 [workspace]
 members = [
