@@ -168,3 +168,4 @@ It is important to the project that we have benchmarks in place to evaluate the 
 5. For algorithms that require an RNG or random seed as input, use a constant seed for reproducibility
 6. When benchmarking multi-target the target count should be within the following range: [2, 4].
 7. In `BenchmarkId` include the values used to parametrize the benchmark. For example if we're doing Pls then we may have something like `Canonical-Nipals-5feats-1_000samples`
+8. Pass data as an argument to the function being benched. This will prevent Criterion from including data creation time as part of the benchmark.
