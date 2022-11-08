@@ -37,7 +37,7 @@ linfa = { version = "0.6.0", path = "../.." }
 
 [dev-dependencies]
 approx = "0.4"
-criterion = "0.3.5"
+criterion = "0.4.0"
 rand_xoshiro = "0.6"
 ndarray-rand = "0.14"
 
