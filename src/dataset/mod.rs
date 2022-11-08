@@ -330,8 +330,18 @@ mod tests {
     use super::*;
     use crate::error::Error;
     use approx::assert_abs_diff_eq;
+    use linfa_datasets::generate::make_dataset;
     use ndarray::{array, Array1, Array2, Axis};
     use rand::{rngs::SmallRng, SeedableRng};
+    use statrs::distribution::{DiscreteUniform, Laplace};
+
+    #[test]
+    fn into_single_target() {
+        let feat_distr = Laplace::new(0.5, 5.).unwrap();
+        let target_distr = DiscreteUniform::new(0, 5).unwrap();
+        let dataset = make_dataset(10, 5, 1, feat_distr, target_distr);
+        assert!(dataset.into_single_target().targets.shape() == [10]);
+    }
 
     #[test]
     fn dataset_implements_required_methods() {
