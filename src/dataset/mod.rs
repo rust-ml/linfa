@@ -336,11 +336,11 @@ mod tests {
     use statrs::distribution::{DiscreteUniform, Laplace};
 
     #[test]
-    fn convert_targets() {
+    fn into_single_target() {
         let feat_distr = Laplace::new(0.5, 5.).unwrap();
         let target_distr = DiscreteUniform::new(0, 5).unwrap();
         let dataset = make_dataset(10, 5, 1, feat_distr, target_distr);
-        assert!(dataset.convert_targets().targets.shape() == [10]);
+        assert!(dataset.into_single_target().targets.shape() == [10]);
     }
 
     #[test]

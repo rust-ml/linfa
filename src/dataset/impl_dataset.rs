@@ -121,8 +121,8 @@ impl<R: Records, S> DatasetBase<R, S> {
 }
 
 impl<X, Y> Dataset<X, Y> {
-    // Converts Ix2 targets to Ix1. Only works for targets with shape of form [X, 1]
-    pub fn convert_targets(self) -> Dataset<X, Y, Ix1> {
+    // Convert 2D targets to 1D. Only works for targets with shape of form [X, 1], panics otherwise.
+    pub fn into_single_target(self) -> Dataset<X, Y, Ix1> {
         let nsamples = self.records.nsamples();
         let targets = self.targets.into_shape(nsamples).unwrap();
         let features = self.records;
