@@ -1,8 +1,7 @@
 //! Utility functions for randomly generating datasets
 
 use linfa::Dataset;
-use linfa::DatasetBase;
-use ndarray::{s, Array, Array2, ArrayBase, Data, Dim, Ix1, Ix2, OwnedRepr};
+use ndarray::{s, Array, Array2, ArrayBase, Data, Ix1, Ix2};
 use ndarray_rand::{
     rand::Rng,
     rand_distr::{Distribution, StandardNormal},
@@ -57,7 +56,7 @@ fn make_blob(
     let origin_blob: Array2<f64> = Array::random_using(shape, distribution, rng);
     origin_blob + blob_centroid
 }
-#[allow(clippy::type_complexity)]
+
 /// Generates a random Linfa::Dataset (ds). The ds values are determined by the provided statistical distributions.
 ///
 /// # Example
@@ -67,23 +66,21 @@ fn make_blob(
 /// use linfa_datasets::generate::make_dataset;
 /// let feat_distr = Laplace::new(0.5, 5. ).unwrap();
 /// let target_distr = DiscreteUniform::new(0, 5).unwrap();
-/// make_dataset(5, 5, feat_distr, target_distr);
+/// make_dataset(5, 5, 2, feat_distr, target_distr);
 /// ```
 pub fn make_dataset<X, Y>(
     num_rows: usize,
     num_feats: usize,
+    num_targets: usize,
     feat_distr: X,
     target_distr: Y,
-) -> DatasetBase<
-    ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>>,
-    ArrayBase<OwnedRepr<f64>, Dim<[usize; 1]>>,
->
+) -> Dataset<f64, f64>
 where
     X: Distribution<f64>,
     Y: Distribution<f64>,
 {
-    let targets = Array::random(num_rows, target_distr);
     let features = Array::random((num_rows, num_feats), feat_distr);
+    let targets = Array::random((num_rows, num_targets), target_distr);
 
     Dataset::new(features, targets)
 }
