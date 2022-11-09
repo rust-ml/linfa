@@ -36,7 +36,7 @@ fn bench(c: &mut Criterion) {
     let mut group = c.benchmark_group("Linfa_pls");
     let params: [(usize, usize); 4] = [(1_000, 5), (10_000, 5), (100_000, 5), (100_000, 10)];
 
-    for (alg, name) in [(Algorithm::Nipals, "Nipals"), (Algorithm::Svd, "Svd")] {
+    for (alg, name) in [(Algorithm::Nipals, "Nipals-"), (Algorithm::Svd, "Svd-")] {
         let feat_distr = Laplace::new(0.5, 5.).unwrap();
         let target_distr = DiscreteUniform::new(0, 5).unwrap();
 
