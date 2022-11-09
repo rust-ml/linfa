@@ -578,7 +578,6 @@ impl<F: Float, C: PartialOrd + Clone> FittedLogisticRegression<F, C> {
     /// model was fitted.
     pub fn predict_probabilities<A: Data<Elem = F>>(&self, x: &ArrayBase<A, Ix2>) -> Array1<F> {
         let mut probs = x.dot(&self.params) + self.intercept;
-        dbg!(&probs, &x, &self.params);
         probs.mapv_inplace(logistic);
         probs
     }
