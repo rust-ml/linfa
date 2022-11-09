@@ -5,6 +5,7 @@ use ndarray::{array, concatenate};
 use ndarray::{Array, Array2, Axis};
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
 use rand_xoshiro::Xoshiro256Plus;
+use pprof::criterion::{PProfProfiler, Output};
 
 fn perform_ica(size: usize, gfunc: GFunc) {
     let sources_mixed = create_data(size);

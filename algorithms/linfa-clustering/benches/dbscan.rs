@@ -10,6 +10,7 @@ use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
 use rand_xoshiro::Xoshiro256Plus;
+use pprof::criterion::{PProfProfiler, Output};
 
 fn dbscan_bench(c: &mut Criterion) {
     let mut rng = Xoshiro256Plus::seed_from_u64(40);
@@ -46,7 +47,7 @@ fn dbscan_bench(c: &mut Criterion) {
 
 criterion_group! {
     name = benches;
-    config = Criterion::default();
+    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
     targets = dbscan_bench
 }
 criterion_main!(benches);

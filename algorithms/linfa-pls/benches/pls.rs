@@ -5,6 +5,7 @@ use linfa_datasets::generate::make_dataset;
 use linfa_pls::Algorithm;
 use linfa_pls::{PlsCanonical, PlsCca, PlsRegression};
 use statrs::distribution::{DiscreteUniform, Laplace};
+use pprof::criterion::{PProfProfiler, Output};
 
 #[allow(unused_must_use)]
 fn pls_regression(dataset: &Dataset<f64, f64>, alg: Algorithm) {
@@ -86,5 +87,9 @@ fn bench(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench);
+criterion_group!{
+    name = benches;
+    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    targets = bench
+}
 criterion_main!(benches);
