@@ -40,6 +40,7 @@
 mod errors;
 mod hyperparams;
 mod pls_generic;
+pub use pls_generic::*;
 mod pls_svd;
 mod utils;
 
