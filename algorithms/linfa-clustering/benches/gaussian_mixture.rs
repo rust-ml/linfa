@@ -48,11 +48,15 @@ fn gaussian_mixture_bench(c: &mut Criterion) {
     benchmark.finish();
 }
 
+#[cfg(not(target_os = "windows"))]
 criterion_group! {
-  name = benches;
+  name = not_win_benches;
   config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
   targets = gaussian_mixture_bench
 }
+#[cfg(not(target_os = "windows"))]
+criterion_group!(not_win_benches, gaussian_mixture_bench);
 #[cfg(target_os = "windows")]
-criterion_group!(benches, gaussian_mixture_bench);
-criterion_main!(benches);
+criterion_group!(win_benches, gaussian_mixture_bench);
+#[cfg(target_os = "windows")]
+criterion_main!(win_benches);

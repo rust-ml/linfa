@@ -48,10 +48,13 @@ fn dbscan_bench(c: &mut Criterion) {
 
 #[cfg(not(target_os = "windows"))]
 criterion_group! {
-    name = benches;
+    name = not_win_benches;
     config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
     targets = dbscan_bench
 }
 #[cfg(target_os = "windows")]
-criterion_group!(benches, dbscan_bench);
-criterion_main!(benches);
+criterion_group!(win_benches, dbscan_bench);
+#[cfg(not(target_os = "windows"))]
+criterion_main!(not_win_benches);
+#[cfg(target_os = "windows")]
+criterion_main!(win_benches);

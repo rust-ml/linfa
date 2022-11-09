@@ -157,16 +157,20 @@ fn k_means_init_bench(c: &mut Criterion) {
     }
 }
 
+#[cfg(not(target_os = "windows"))]
 criterion_group! {
-    name = benches;
+    name = not_win_benches;
     config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
     targets = k_means_bench, k_means_init_bench, k_means_incr_bench
 }
+#[cfg(not(target_os = "windows"))]
+criterion_main!(not_win_benches);
 #[cfg(target_os = "windows")]
 criterion_group!(
-    benches,
+    win_benches,
     k_means_bench,
     k_means_init_bench,
     k_means_incr_bench
 );
-criterion_main!(benches);
+#[cfg(target_os = "windows")]
+criterion_main!(win_benches);
