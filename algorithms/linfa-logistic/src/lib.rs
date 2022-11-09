@@ -273,46 +273,53 @@ where
     T: AsSingleTargets<Elem = C>,
     C: Ord + Clone,
 {
-    let y_single_target = y.as_single_targets();
-    let mut classes: Vec<&C> = vec![];
-    let mut target_vec = vec![];
-    let mut use_negative_label: bool = true;
-    for item in y_single_target {
-        if let Some(last_item) = classes.last() {
-            if *last_item != item {
-                use_negative_label = !use_negative_label;
-            }
+    let y = y.as_single_targets();
+
+    // find binary classes of our target dataset
+    let classes = y.iter().fold(Some((None, None)), |map, elm| {
+        match map {
+            Some((Some((n, val)), x)) if n == elm => Some((Some((n, val+1)), x)),
+            Some((x, Some((n, val)))) if n == elm => Some((x, Some((n, val+1)))),
+            Some((Some(x), None)) => Some((Some(x), Some((elm, 1)))),
+            Some((None, None)) => Some((Some((elm, 1)), None)),
+            _ => None,
         }
-        if !classes.contains(&item) {
-            classes.push(item);
-        }
-        target_vec.push(if use_negative_label {
-            F::NEGATIVE_LABEL
-        } else {
+    });
+
+    // unwrap classes, 
+    // None => we found more than two classes,
+    // Some(_, None)|Some(None,_) => we found less than two classes
+    let (pos_class, neg_class) = match classes {
+        Some((Some(a), Some(b))) => (a,b),
+        _ => return Err(Error::WrongNumberOfClasses)
+    };
+
+    let mut target_array = y.into_iter().map(|x| {
+        if x == pos_class.0 {
             F::POSITIVE_LABEL
-        });
-    }
-    if classes.len() != 2 {
-        return Err(Error::WrongNumberOfClasses);
-    }
-    let mut target_array = Array1::from(target_vec);
-    let labels = if classes[0] < classes[1] {
-        (F::NEGATIVE_LABEL, F::POSITIVE_LABEL)
-    } else {
+        } else {
+            F::NEGATIVE_LABEL
+        }
+    }).collect::<Array1<_>>();
+
+    let labels = if pos_class.1 < neg_class.1 {
         // If we found the larger class first, flip the sign in the target
         // vector, so that -1.0 is always the label for the smaller class
         // and 1.0 the label for the larger class
         target_array *= -F::one();
+        (F::NEGATIVE_LABEL, F::POSITIVE_LABEL)
+    } else {
         (F::POSITIVE_LABEL, F::NEGATIVE_LABEL)
     };
+
     Ok((
         vec![
             ClassLabel {
-                class: classes[0].clone(),
+                class: pos_class.0.clone(),
                 label: labels.0,
             },
             ClassLabel {
-                class: classes[1].clone(),
+                class: neg_class.0.clone(),
                 label: labels.1,
             },
         ],
@@ -571,6 +578,7 @@ impl<F: Float, C: PartialOrd + Clone> FittedLogisticRegression<F, C> {
     /// model was fitted.
     pub fn predict_probabilities<A: Data<Elem = F>>(&self, x: &ArrayBase<A, Ix2>) -> Array1<F> {
         let mut probs = x.dot(&self.params) + self.intercept;
+        dbg!(&probs, &x, &self.params);
         probs.mapv_inplace(logistic);
         probs
     }
@@ -920,7 +928,7 @@ mod test {
         let dataset = Dataset::new(x, y);
         let res = log_reg.fit(&dataset).unwrap();
         assert_abs_diff_eq!(res.intercept(), 0.0);
-        assert!(res.params().abs_diff_eq(&array![0.681], 1e-3));
+        assert!(res.params().abs_diff_eq(&array![-0.681], 1e-3));
         assert_eq!(
             &res.predict(dataset.records()),
             dataset.targets().as_single_targets()
@@ -967,6 +975,17 @@ mod test {
             &res.predict(dataset.records()),
             dataset.targets().as_single_targets()
         );
+    }
+
+    #[test]
+    fn simple_example_3() {
+        let x = array![[1.0], [0.0], [1.0], [0.0]];
+        let y = array![1,0,1,0];
+        let dataset = DatasetBase::new(x,y);
+        let model = LogisticRegression::default().fit(&dataset).unwrap();
+
+        let pred = model.predict(&dataset.records);
+        assert_eq!(dataset.targets(), pred);
     }
 
     #[test]
@@ -1087,7 +1106,7 @@ mod test {
         let dataset = Dataset::new(x, y);
         let res = log_reg.fit(&dataset).unwrap();
         assert_abs_diff_eq!(res.intercept(), 0.0_f32);
-        assert!(res.params().abs_diff_eq(&array![0.682_f32], 1e-3));
+        assert!(res.params().abs_diff_eq(&array![-0.682_f32], 1e-3));
         assert_eq!(
             &res.predict(dataset.records()),
             dataset.targets().as_single_targets()
@@ -1279,4 +1298,5 @@ mod test {
             }
         ));
     }
+
 }
