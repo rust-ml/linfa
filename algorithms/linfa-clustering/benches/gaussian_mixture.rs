@@ -10,6 +10,7 @@ use ndarray::Array2;
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
+#[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};
 use rand_xoshiro::Xoshiro256Plus;
 
@@ -52,4 +53,6 @@ criterion_group! {
   config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
   targets = gaussian_mixture_bench
 }
+#[cfg(target_os = "windows")]
+criterion_group!(benches, gaussian_mixture_bench);
 criterion_main!(benches);

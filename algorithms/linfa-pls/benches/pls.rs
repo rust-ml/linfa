@@ -4,6 +4,7 @@ use linfa::Dataset;
 use linfa_datasets::generate::make_dataset;
 use linfa_pls::Algorithm;
 use linfa_pls::{PlsCanonical, PlsCca, PlsRegression};
+#[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};
 use statrs::distribution::{DiscreteUniform, Laplace};
 
