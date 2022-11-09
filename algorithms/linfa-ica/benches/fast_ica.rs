@@ -4,8 +4,8 @@ use linfa_ica::fast_ica::{FastIca, GFunc};
 use ndarray::{array, concatenate};
 use ndarray::{Array, Array2, Axis};
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
+use pprof::criterion::{Output, PProfProfiler};
 use rand_xoshiro::Xoshiro256Plus;
-use pprof::criterion::{PProfProfiler, Output};
 
 fn perform_ica(size: usize, gfunc: GFunc) {
     let sources_mixed = create_data(size);

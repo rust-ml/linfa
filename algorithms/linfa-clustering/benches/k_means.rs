@@ -9,8 +9,8 @@ use linfa_datasets::generate;
 use ndarray::Array2;
 use ndarray_rand::RandomExt;
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform};
+use pprof::criterion::{Output, PProfProfiler};
 use rand_xoshiro::Xoshiro256Plus;
-use pprof::criterion::{PProfProfiler, Output};
 
 #[derive(Default)]
 struct Stats {
