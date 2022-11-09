@@ -163,5 +163,10 @@ criterion_group! {
     targets = k_means_bench, k_means_init_bench, k_means_incr_bench
 }
 #[cfg(target_os = "windows")]
-criterion_group!(benches, k_means_bench, k_means_init_bench, k_means_incr_bench);
+criterion_group!(
+    benches,
+    k_means_bench,
+    k_means_init_bench,
+    k_means_incr_bench
+);
 criterion_main!(benches);
