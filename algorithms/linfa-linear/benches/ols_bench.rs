@@ -1,10 +1,10 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use linfa::traits::Fit;
+use linfa::Dataset;
 use linfa_datasets::generate::make_dataset;
 use linfa_linear::{LinearRegression, TweedieRegressor};
-use statrs::distribution::{DiscreteUniform, Laplace};
-use linfa::Dataset;
 use ndarray::Ix1;
+use statrs::distribution::{DiscreteUniform, Laplace};
 
 #[allow(unused_must_use)]
 fn perform_ols(dataset: &Dataset<f64, f64, Ix1>) {
@@ -34,7 +34,7 @@ fn bench(c: &mut Criterion) {
             let suffix = format!("{}Feats", num_feat);
             let mut func_name = ols_id.clone();
             func_name.push_str(&suffix);
-            
+
             let dataset = make_dataset(size, num_feat, 1, feat_distr, target_distr);
             let dataset = dataset.into_single_target();
 
