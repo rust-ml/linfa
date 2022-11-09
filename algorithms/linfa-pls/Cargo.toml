@@ -45,7 +45,6 @@ statrs = "0.16.0"
 [target.'cfg(not(windows))'.dev-dependencies]
 pprof = { version = "0.11.0", features = ["flamegraph", "criterion"] }
 
-[target.'cfg(not(windows))'.bench]
 [[bench]]
 name = "pls"
 harness = false
