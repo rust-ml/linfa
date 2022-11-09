@@ -276,31 +276,32 @@ where
     let y = y.as_single_targets();
 
     // find binary classes of our target dataset
-    let classes = y.iter().fold(Some((None, None)), |map, elm| {
-        match map {
-            Some((Some((n, val)), x)) if n == elm => Some((Some((n, val+1)), x)),
-            Some((x, Some((n, val)))) if n == elm => Some((x, Some((n, val+1)))),
-            Some((Some(x), None)) => Some((Some(x), Some((elm, 1)))),
-            Some((None, None)) => Some((Some((elm, 1)), None)),
-            _ => None,
-        }
+    let classes = y.iter().fold(Some((None, None)), |map, elm| match map {
+        Some((Some((n, val)), x)) if n == elm => Some((Some((n, val + 1)), x)),
+        Some((x, Some((n, val)))) if n == elm => Some((x, Some((n, val + 1)))),
+        Some((Some(x), None)) => Some((Some(x), Some((elm, 1)))),
+        Some((None, None)) => Some((Some((elm, 1)), None)),
+        _ => None,
     });
 
-    // unwrap classes, 
+    // unwrap classes,
     // None => we found more than two classes,
     // Some(_, None)|Some(None,_) => we found less than two classes
     let (pos_class, neg_class) = match classes {
-        Some((Some(a), Some(b))) => (a,b),
-        _ => return Err(Error::WrongNumberOfClasses)
+        Some((Some(a), Some(b))) => (a, b),
+        _ => return Err(Error::WrongNumberOfClasses),
     };
 
-    let mut target_array = y.into_iter().map(|x| {
-        if x == pos_class.0 {
-            F::POSITIVE_LABEL
-        } else {
-            F::NEGATIVE_LABEL
-        }
-    }).collect::<Array1<_>>();
+    let mut target_array = y
+        .into_iter()
+        .map(|x| {
+            if x == pos_class.0 {
+                F::POSITIVE_LABEL
+            } else {
+                F::NEGATIVE_LABEL
+            }
+        })
+        .collect::<Array1<_>>();
 
     let labels = if pos_class.1 < neg_class.1 {
         // If we found the larger class first, flip the sign in the target
@@ -979,8 +980,8 @@ mod test {
     #[test]
     fn simple_example_3() {
         let x = array![[1.0], [0.0], [1.0], [0.0]];
-        let y = array![1,0,1,0];
-        let dataset = DatasetBase::new(x,y);
+        let y = array![1, 0, 1, 0];
+        let dataset = DatasetBase::new(x, y);
         let model = LogisticRegression::default().fit(&dataset).unwrap();
 
         let pred = model.predict(&dataset.records);
@@ -1297,5 +1298,4 @@ mod test {
             }
         ));
     }
-
 }
