@@ -40,7 +40,7 @@ linfa = { version = "0.6.0", path = "../.." }
 ndarray-npy = { version = "0.8", default-features = false }
 paste = "1.0"
 criterion = "0.4.0"
-pprof = { version = "0.11.0", features = ["inferno"] }
+pprof = { version = "0.11.0", features = ["inferno", "criterion"] }
 
 [[bench]]
 name = "fast_ica"
