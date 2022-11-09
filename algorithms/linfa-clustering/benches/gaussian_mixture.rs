@@ -54,9 +54,9 @@ criterion_group! {
   config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
   targets = gaussian_mixture_bench
 }
-#[cfg(not(target_os = "windows"))]
-criterion_group!(not_win_benches, gaussian_mixture_bench);
 #[cfg(target_os = "windows")]
 criterion_group!(win_benches, gaussian_mixture_bench);
 #[cfg(target_os = "windows")]
 criterion_main!(win_benches);
+#[cfg(not(target_os = "windows"))]
+criterion_main!(not_win_benches);
