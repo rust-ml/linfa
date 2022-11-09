@@ -11,7 +11,7 @@ fn perform_ols(dataset: &Dataset<f64, f64>) {
     model.fit(dataset);
 }
 
-fn perform_glm(dataset: &Dataset<f64, f64, Ix>) {
+fn perform_glm(dataset: &Dataset<f64, f64>) {
     let model = TweedieRegressor::params().power(0.).alpha(0.);
     model.fit(dataset);
 }
