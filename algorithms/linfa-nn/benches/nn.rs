@@ -101,7 +101,7 @@ fn within_range_bench(c: &mut Criterion) {
 #[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
-    config = config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
     targets = nn_build_bench, k_nearest_bench, within_range_bench
 }
 #[cfg(target_os = "windows")]
