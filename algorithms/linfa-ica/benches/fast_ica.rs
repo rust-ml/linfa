@@ -13,7 +13,7 @@ fn perform_ica(size: usize, gfunc: GFunc) {
 
     let ica = FastIca::params().gfunc(gfunc).random_state(10);
 
-    let ica = ica.fit(&DatasetBase::from(sources_mixed.view()));
+    ica.fit(&DatasetBase::from(sources_mixed.view())).unwrap();
 }
 
 fn create_data(nsamples: usize) -> Array2<f64> {
@@ -68,15 +68,11 @@ fn bench(c: &mut Criterion) {
 
 #[cfg(not(target_os = "windows"))]
 criterion_group! {
-    name = not_win_benches;
+    name = benches;
     config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
     targets = bench
 }
-
 #[cfg(target_os = "windows")]
-criterion_group!(win_benches, bench);
+criterion_group!(benches, bench);
 
-#[cfg(not(target_os = "windows"))]
-criterion_main!(not_win_benches);
-#[cfg(target_os = "windows")]
-criterion_main!(win_benches);
+criterion_main!(benches);
