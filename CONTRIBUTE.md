@@ -156,6 +156,7 @@ let sol = decomp
 
 ## Benchmarking
 
+### Building Benchmarks
 It is important to the project that we have benchmarks in place to evaluate the benefit of performance related changes. To make that process easier we provide some guidelines for writing benchmarks.
 
 1. Test for a variety of sample sizes for most algorithms [1_000, 10_000, 20_000] will be sufficient. For algorithms where it's not too slow, use 100k instead of 20k.
@@ -169,3 +170,34 @@ It is important to the project that we have benchmarks in place to evaluate the 
 6. When benchmarking multi-target the target count should be within the following range: [2, 4].
 7. In `BenchmarkId` include the values used to parametrize the benchmark. For example if we're doing Pls then we may have something like `Canonical-Nipals-5feats-1_000samples`
 8. Pass data as an argument to the function being benched. This will prevent Criterion from including data creation time as part of the benchmark.
+9. Add a profiler see [here](https://github.com/tikv/pprof-rs#integrate-with-criterion) for an example on how to do so with pprof, Criterion, and Flamegraph.
+
+### Running Benchmarks
+When running benchmarks sometimes you will want to profile the code execution. Assuming you have done so for the linfa-ica package you can run the following to get your profiling results as a flamegraph.
+
+`cargo bench -p linfa-ica --bench fast_ica -q -- --profile-time 30`
+
+If you are interested in running a regular criterion bench for linfa-ica then you can run the following
+
+`cargo bench -p linfa-ica`
+
+### Reporting Benchmark Metrics
+It is important that we have a consistent methodology for reporting benchmarks below is a template that should aid reviewers.
+
+```
+### Context
+In a bullet list describe the following:
+1. Run on battery charge or while plugged in
+2. Power saving mode
+3. If the computer was idle during benchmark
+4. If the computer was overheating
+5. Hardware specs
+
+### Bench Command Run (Non Blas)
+bench results (code format)
+
+### Bench Command Run (Blas)
+bench results (code format)
+
+[Attached Flamegraphs if profile runs were also done]
+```
