@@ -97,5 +97,4 @@ criterion_group! {
 #[cfg(target_os = "windows")]
 criterion_group!(benches, bench);
 
-#[cfg(not(target_os = "windows"))]
 criterion_main!(benches);
