@@ -65,6 +65,7 @@ criterion_group! {
     config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
     targets = bench
 }
+#[cfg(target_os = "windows")]
 criterion_group!(benches, bench);
 
 criterion_main!(benches);
