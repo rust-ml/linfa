@@ -163,8 +163,6 @@ criterion_group! {
     config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
     targets = k_means_bench, k_means_init_bench, k_means_incr_bench
 }
-#[cfg(not(target_os = "windows"))]
-criterion_main!(not_win_benches);
 #[cfg(target_os = "windows")]
 criterion_group!(
     win_benches,
@@ -172,5 +170,8 @@ criterion_group!(
     k_means_init_bench,
     k_means_incr_bench
 );
+
+#[cfg(not(target_os = "windows"))]
+criterion_main!(not_win_benches);
 #[cfg(target_os = "windows")]
 criterion_main!(win_benches);

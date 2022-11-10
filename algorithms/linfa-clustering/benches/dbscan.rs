@@ -54,6 +54,7 @@ criterion_group! {
 }
 #[cfg(target_os = "windows")]
 criterion_group!(win_benches, dbscan_bench);
+
 #[cfg(not(target_os = "windows"))]
 criterion_main!(not_win_benches);
 #[cfg(target_os = "windows")]

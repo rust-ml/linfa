@@ -56,6 +56,7 @@ criterion_group! {
 }
 #[cfg(target_os = "windows")]
 criterion_group!(win_benches, gaussian_mixture_bench);
+
 #[cfg(target_os = "windows")]
 criterion_main!(win_benches);
 #[cfg(not(target_os = "windows"))]
