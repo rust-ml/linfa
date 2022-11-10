@@ -173,7 +173,7 @@ It is important to the project that we have benchmarks in place to evaluate the 
 9. Add a profiler see [here](https://github.com/tikv/pprof-rs#integrate-with-criterion) for an example on how to do so with pprof, Criterion, and Flamegraph.
 
 ### Running Benchmarks
-When running benchmarks sometimes you will want to profile the code execution. Assuming you have done so for the linfa-ica package you can run the following to get your profiling results as a flamegraph.
+When running benchmarks sometimes you will want to profile the code execution. Assuming you have followed step 9 to add a pprof profiling hook for the linfa-ica package you can run the following to get your profiling results as a flamegraph.
 
 `cargo bench -p linfa-ica --bench fast_ica -q -- --profile-time 30`
 
