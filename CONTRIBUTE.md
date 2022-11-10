@@ -193,10 +193,7 @@ In a bullet list describe the following:
 4. If the computer was overheating
 5. Hardware specs
 
-### Bench Command Run (Non Blas)
-bench results (code format)
-
-### Bench Command Run (Blas)
+### Bench Command Run
 bench results (code format)
 
 [Attached Flamegraphs if profile runs were also done]
