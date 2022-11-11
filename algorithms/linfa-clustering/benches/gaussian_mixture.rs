@@ -11,12 +11,20 @@ use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
 use rand_xoshiro::Xoshiro256Plus;
+use std::time::Duration;
 
 fn gaussian_mixture_bench(c: &mut Criterion) {
     let mut rng = Xoshiro256Plus::seed_from_u64(40);
     let cluster_sizes = vec![10, 100, 1000, 10000];
 
     let mut benchmark = c.benchmark_group("gaussian_mixture");
+    benchmark
+        .significance_level(0.02)
+        .sample_size(200)
+        .measurement_time(Duration::new(10, 0))
+        .confidence_level(0.97)
+        .warm_up_time(Duration::new(10, 0))
+        .noise_threshold(0.05);
     benchmark.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
     for cluster_size in cluster_sizes {
         let rng = &mut rng;

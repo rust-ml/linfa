@@ -10,6 +10,7 @@ use ndarray::Array2;
 use ndarray_rand::RandomExt;
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform};
 use rand_xoshiro::Xoshiro256Plus;
+use std::time::Duration;
 
 #[derive(Default)]
 struct Stats {
@@ -122,6 +123,14 @@ fn k_means_init_bench(c: &mut Criterion) {
     let n_features = 3;
 
     let mut benchmark = c.benchmark_group("k_means_init");
+    benchmark
+        .significance_level(0.02)
+        .sample_size(200)
+        .measurement_time(Duration::new(10, 0))
+        .confidence_level(0.97)
+        .warm_up_time(Duration::new(10, 0))
+        .noise_threshold(0.05);
+
     benchmark.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
     for init in &init_methods {
         for &(cluster_size, n_clusters) in &cluster_sizes {

@@ -8,6 +8,14 @@ use std::time::Duration;
 fn nn_build_bench(c: &mut Criterion) {
     let mut rng = Xoshiro256Plus::seed_from_u64(40);
     let mut benchmark = c.benchmark_group("nn_build");
+    benchmark
+        .significance_level(0.02)
+        .sample_size(200)
+        .measurement_time(Duration::new(10, 0))
+        .confidence_level(0.97)
+        .warm_up_time(Duration::new(10, 0))
+        .noise_threshold(0.05);
+
     let n_features = 3;
     let algorithms = &[
         (CommonNearestNeighbour::KdTree, "kdtree"),
@@ -35,6 +43,14 @@ fn nn_build_bench(c: &mut Criterion) {
 fn k_nearest_bench(c: &mut Criterion) {
     let mut rng = Xoshiro256Plus::seed_from_u64(40);
     let mut benchmark = c.benchmark_group("k_nearest");
+    benchmark
+        .significance_level(0.02)
+        .sample_size(200)
+        .measurement_time(Duration::new(10, 0))
+        .confidence_level(0.97)
+        .warm_up_time(Duration::new(10, 0))
+        .noise_threshold(0.05);
+        
     let n_features = 3;
     let distr = Uniform::new(-500., 500.);
 

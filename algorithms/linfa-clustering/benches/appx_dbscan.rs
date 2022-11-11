@@ -10,6 +10,7 @@ use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
 use rand_xoshiro::Xoshiro256Plus;
+use std::time::Duration;
 
 fn appx_dbscan_bench(c: &mut Criterion) {
     let mut rng = Xoshiro256Plus::seed_from_u64(40);
@@ -21,7 +22,15 @@ fn appx_dbscan_bench(c: &mut Criterion) {
     ];
 
     let mut benchmark = c.benchmark_group("appx_dbscan");
-    benchmark.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
+    benchmark
+        .significance_level(0.02)
+        .sample_size(200)
+        .measurement_time(Duration::new(10, 0))
+        .confidence_level(0.97)
+        .warm_up_time(Duration::new(10, 0))
+        .noise_threshold(0.05)
+        .plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
+
     for cluster_size_and_slack in cluster_sizes_and_slacks {
         let rng = &mut rng;
         benchmark.bench_with_input(
