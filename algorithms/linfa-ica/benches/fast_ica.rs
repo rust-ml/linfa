@@ -5,6 +5,7 @@ use ndarray::{array, concatenate};
 use ndarray::{Array, Array2, Axis};
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
 use rand_xoshiro::Xoshiro256Plus;
+use std::time::Duration;
 
 fn perform_ica(size: usize, gfunc: GFunc) {
     let sources_mixed = create_data(size);
@@ -53,6 +54,14 @@ fn bench(c: &mut Criterion) {
         (GFunc::Exp, "Exp"),
     ] {
         let mut group = c.benchmark_group("Fast ICA");
+        group
+            .significance_level(0.02)
+            .sample_size(150)
+            .measurement_time(Duration::new(15, 0))
+            .confidence_level(0.97)
+            .warm_up_time(Duration::new(7, 0))
+            .noise_threshold(0.05);
+
         let sizes: [usize; 3] = [1_000, 10_000, 100_000];
         for size in sizes {
             let input = (size, gfunc);

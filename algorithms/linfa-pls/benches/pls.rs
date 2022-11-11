@@ -5,6 +5,7 @@ use linfa_datasets::generate::make_dataset;
 use linfa_pls::Algorithm;
 use linfa_pls::{PlsCanonical, PlsCca, PlsRegression};
 use statrs::distribution::{DiscreteUniform, Laplace};
+use std::time::Duration;
 
 #[allow(unused_must_use)]
 fn pls_regression(dataset: &Dataset<f64, f64>, alg: Algorithm) {
@@ -34,7 +35,13 @@ fn pls_cca(dataset: &Dataset<f64, f64>, alg: Algorithm) {
 
 fn bench(c: &mut Criterion) {
     let mut group = c.benchmark_group("Linfa_pls");
-    let params: [(usize, usize); 4] = [(1_000, 5), (10_000, 5), (100_000, 5), (100_000, 10)];
+    group
+        .significance_level(0.02)
+        .sample_size(150)
+        .measurement_time(Duration::new(15, 0))
+        .confidence_level(0.97)
+        .warm_up_time(Duration::new(7, 0))
+        .noise_threshold(0.05);
 
     for (alg, name) in [(Algorithm::Nipals, "Nipals-"), (Algorithm::Svd, "Svd-")] {
         let feat_distr = Laplace::new(0.5, 5.).unwrap();
