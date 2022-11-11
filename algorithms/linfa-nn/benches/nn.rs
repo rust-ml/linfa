@@ -52,7 +52,7 @@ fn k_nearest_bench(c: &mut Criterion) {
         .confidence_level(0.97)
         .warm_up_time(Duration::new(10, 0))
         .noise_threshold(0.05);
-        
+
     let n_features = 3;
     let distr = Uniform::new(-500., 500.);
 

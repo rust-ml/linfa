@@ -7,9 +7,9 @@ use ndarray::{Array1, Array2};
 use ndarray_rand::{
     rand::distributions::Uniform, rand::rngs::SmallRng, rand::SeedableRng, RandomExt,
 };
-use std::time::Duration;
 #[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};
+use std::time::Duration;
 
 fn fit_without_prior_model(c: &mut Criterion) {
     let mut rng = SmallRng::seed_from_u64(42);
