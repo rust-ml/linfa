@@ -56,10 +56,10 @@ fn bench(c: &mut Criterion) {
         let mut group = c.benchmark_group("Fast ICA");
         group
             .significance_level(0.02)
-            .sample_size(150)
-            .measurement_time(Duration::new(15, 0))
+            .sample_size(200)
+            .measurement_time(Duration::new(10, 0))
             .confidence_level(0.97)
-            .warm_up_time(Duration::new(7, 0))
+            .warm_up_time(Duration::new(10, 0))
             .noise_threshold(0.05);
 
         let sizes: [usize; 3] = [1_000, 10_000, 100_000];
