@@ -7,6 +7,7 @@ use ndarray::{Array1, Array2};
 use ndarray_rand::{
     rand::distributions::Uniform, rand::rngs::SmallRng, rand::SeedableRng, RandomExt,
 };
+use std::time::Duration;
 
 fn fit_without_prior_model(c: &mut Criterion) {
     let mut rng = SmallRng::seed_from_u64(42);
@@ -57,6 +58,14 @@ fn predict(c: &mut Criterion) {
     let params = Ftrl::params();
     let valid_params = params.clone().check().unwrap();
     let mut group = c.benchmark_group("Ftrl");
+    group
+        .significance_level(0.02)
+        .sample_size(200)
+        .measurement_time(Duration::new(10, 0))
+        .confidence_level(0.97)
+        .warm_up_time(Duration::new(10, 0))
+        .noise_threshold(0.05);
+
     let sizes: Vec<(usize, usize)> = vec![(10, 1_000), (50, 5_000), (100, 10_000)];
     for (nfeatures, nrows) in sizes.iter() {
         let model = Ftrl::new(valid_params.clone(), *nfeatures);

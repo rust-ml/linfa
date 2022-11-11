@@ -3,6 +3,7 @@ use linfa_nn::{distance::*, CommonNearestNeighbour, NearestNeighbour};
 use ndarray::{Array1, Array2};
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
 use rand_xoshiro::Xoshiro256Plus;
+use std::time::Duration;
 
 fn nn_build_bench(c: &mut Criterion) {
     let mut rng = Xoshiro256Plus::seed_from_u64(40);
@@ -67,6 +68,14 @@ fn k_nearest_bench(c: &mut Criterion) {
 fn within_range_bench(c: &mut Criterion) {
     let mut rng = Xoshiro256Plus::seed_from_u64(40);
     let mut benchmark = c.benchmark_group("within_range");
+    benchmark
+        .significance_level(0.02)
+        .sample_size(200)
+        .measurement_time(Duration::new(10, 0))
+        .confidence_level(0.97)
+        .warm_up_time(Duration::new(10, 0))
+        .noise_threshold(0.05);
+
     let n_features = 3;
     let distr = Uniform::new(-50., 50.);
 

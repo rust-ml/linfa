@@ -6,6 +6,7 @@ use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::{StandardNormal, Uniform};
 use ndarray_rand::RandomExt;
 use rand::rngs::SmallRng;
+use std::time::Duration;
 
 fn generate_blobs(means: &Array2<f64>, samples: usize, mut rng: &mut SmallRng) -> Array2<f64> {
     let out = means
@@ -31,7 +32,13 @@ fn decision_tree_bench(c: &mut Criterion) {
 
     // Benchmark training time 10 times for each training sample size
     let mut group = c.benchmark_group("decision_tree");
-    group.sample_size(10);
+    group
+        .significance_level(0.02)
+        .sample_size(200)
+        .measurement_time(Duration::new(10, 0))
+        .confidence_level(0.97)
+        .warm_up_time(Duration::new(10, 0))
+        .noise_threshold(0.05);
 
     for n in training_set_sizes.iter() {
         let centroids =
