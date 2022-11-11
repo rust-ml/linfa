@@ -41,6 +41,9 @@ ndarray-npy = { version = "0.8", default-features = false }
 paste = "1.0"
 criterion = "0.4.0"
 
+[target.'cfg(not(windows))'.dev-dependencies]
+pprof = { version = "0.11.0", features = ["flamegraph", "criterion"] }
+
 [[bench]]
 name = "fast_ica"
 harness = false

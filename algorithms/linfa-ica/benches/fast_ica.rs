@@ -4,6 +4,8 @@ use linfa_ica::fast_ica::{FastIca, GFunc};
 use ndarray::{array, concatenate};
 use ndarray::{Array, Array2, Axis};
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
+#[cfg(not(target_os = "windows"))]
+use pprof::criterion::{Output, PProfProfiler};
 use rand_xoshiro::Xoshiro256Plus;
 
 fn perform_ica(size: usize, gfunc: GFunc) {
@@ -11,7 +13,7 @@ fn perform_ica(size: usize, gfunc: GFunc) {
 
     let ica = FastIca::params().gfunc(gfunc).random_state(10);
 
-    let ica = ica.fit(&DatasetBase::from(sources_mixed.view()));
+    ica.fit(&DatasetBase::from(sources_mixed.view())).unwrap();
 }
 
 fn create_data(nsamples: usize) -> Array2<f64> {
@@ -64,5 +66,13 @@ fn bench(c: &mut Criterion) {
     }
 }
 
+#[cfg(not(target_os = "windows"))]
+criterion_group! {
+    name = benches;
+    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    targets = bench
+}
+#[cfg(target_os = "windows")]
 criterion_group!(benches, bench);
+
 criterion_main!(benches);

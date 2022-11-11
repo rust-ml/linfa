@@ -42,6 +42,9 @@ rand_xoshiro = "0.6"
 criterion = "0.4.0"
 statrs = "0.16.0"
 
+[target.'cfg(not(windows))'.dev-dependencies]
+pprof = { version = "0.11.0", features = ["flamegraph", "criterion"] }
+
 [[bench]]
 name = "pls"
 harness = false
