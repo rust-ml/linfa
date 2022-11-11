@@ -33,8 +33,10 @@ linfa = { version = "0.6.0", path = "../.." }
 rand = { version = "0.8", features = ["small_rng"] }
 criterion = "0.4.0"
 approx = "0.4"
-
 linfa-datasets = { version = "0.6.0", path = "../../datasets/", features = ["iris"] }
+
+[target.'cfg(not(windows))'.dev-dependencies]
+pprof = { version = "0.11.0", features = ["flamegraph", "criterion"] }
 
 [[bench]]
 name = "decision_tree"

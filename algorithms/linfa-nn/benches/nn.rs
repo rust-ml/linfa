@@ -2,6 +2,8 @@ use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use linfa_nn::{distance::*, CommonNearestNeighbour, NearestNeighbour};
 use ndarray::{Array1, Array2};
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
+#[cfg(not(target_os = "windows"))]
+use pprof::criterion::{Output, PProfProfiler};
 use rand_xoshiro::Xoshiro256Plus;
 use std::time::Duration;
 
@@ -121,9 +123,13 @@ fn within_range_bench(c: &mut Criterion) {
     }
 }
 
+#[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
-    config = Criterion::default();
+    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
     targets = nn_build_bench, k_nearest_bench, within_range_bench
 }
+#[cfg(target_os = "windows")]
+criterion_group!(benches, nn_build_bench, k_nearest_bench, within_range_bench);
+
 criterion_main!(benches);

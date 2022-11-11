@@ -36,6 +36,9 @@ approx = "0.4"
 criterion = "0.4.0" 
 statrs = "0.16.0"
 
+[target.'cfg(not(windows))'.dev-dependencies]
+pprof = { version = "0.11.0", features = ["flamegraph", "criterion"] }
+
 [[bench]]
 name = "ols_bench"
 harness = false

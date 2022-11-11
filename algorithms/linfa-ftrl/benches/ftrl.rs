@@ -8,6 +8,8 @@ use ndarray_rand::{
     rand::distributions::Uniform, rand::rngs::SmallRng, rand::SeedableRng, RandomExt,
 };
 use std::time::Duration;
+#[cfg(not(target_os = "windows"))]
+use pprof::criterion::{Output, PProfProfiler};
 
 fn fit_without_prior_model(c: &mut Criterion) {
     let mut rng = SmallRng::seed_from_u64(42);
@@ -109,9 +111,18 @@ fn get_dataset(
     Dataset::new(features, target)
 }
 
+#[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
-    config = Criterion::default();
+    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
     targets = fit_without_prior_model, fit_with_prior_model, predict
 }
+#[cfg(target_os = "windows")]
+criterion_group!(
+    benches,
+    fit_without_prior_model,
+    fit_with_prior_model,
+    predict
+);
+
 criterion_main!(benches);
