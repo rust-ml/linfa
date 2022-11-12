@@ -22,9 +22,6 @@ pub enum KMeansError {
     /// When inertia computation fails
     #[error("Fitting failed: No inertia improvement (-inf)")]
     InertiaError,
-    /// When fitting algorithm does not converge
-    #[error("Fitting failed: Did not converge. Try different init parameters or check for degenerate data.")]
-    NotConverged,
     #[error(transparent)]
     LinfaError(#[from] linfa::error::Error),
 }

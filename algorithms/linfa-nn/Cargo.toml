@@ -37,9 +37,12 @@ linfa = { version = "0.6.0", path = "../.." }
 
 [dev-dependencies]
 approx = "0.4"
-criterion = "0.3.5"
+criterion = "0.4.0"
 rand_xoshiro = "0.6"
 ndarray-rand = "0.14"
+
+[target.'cfg(not(windows))'.dev-dependencies]
+pprof = { version = "0.11.0", features = ["flamegraph", "criterion"] }
 
 [[bench]]
 name = "nn"

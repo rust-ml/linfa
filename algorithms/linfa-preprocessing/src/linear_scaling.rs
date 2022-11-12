@@ -11,7 +11,7 @@ use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2, Zip};
 use ndarray_linalg::norm::Norm;
 
 #[derive(Clone, Debug, PartialEq)]
-/// Possible scaling methods for [LinearScaler](struct.LinearScaler.html)
+/// Possible scaling methods for [LinearScaler](LinearScaler)
 ///
 /// * Standard (with mean, with std): subtracts the mean to each feature and scales it by the inverse of its standard deviation
 /// * MinMax (min, max): scales each feature to fit in the range `min..=max`, default values are
@@ -140,7 +140,7 @@ impl<F: Float> std::fmt::Display for ScalingMethod<F> {
     }
 }
 
-/// Linear Scaler: learns scaling parameters, according to the specified [method](enum.ScalingMethod.html), from a dataset, producing a [fitted linear scaler](struct.LinearScaler.html)
+/// Linear Scaler: learns scaling parameters, according to the specified [method](ScalingMethod), from a dataset, producing a [fitted linear scaler](LinearScaler)
 /// that can be used to scale different datasets using the same parameters.
 ///
 ///
@@ -226,7 +226,7 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets> Fit<ArrayBase<D, Ix2>, T, Prepro
 {
     type Object = LinearScaler<F>;
 
-    /// Fits the input dataset accordng to the scaler [method](enum.ScalingMethod.html). Will return an error
+    /// Fits the input dataset accordng to the scaler [method](ScalingMethod). Will return an error
     /// if the dataset does not contain any samples or (in the case of MinMax scaling) if the specified range is not valid.
     fn fit(&self, x: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
         self.method.fit(x.records())
@@ -234,7 +234,7 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets> Fit<ArrayBase<D, Ix2>, T, Prepro
 }
 
 #[derive(Debug, Clone, PartialEq)]
-/// The result of fitting a [linear scaler](struct.LinearScalerParams.html).
+/// The result of fitting a [linear scaler](LinearScalerParams).
 /// Scales datasets with the parameters learned during fitting.
 pub struct LinearScaler<F: Float> {
     offsets: Array1<F>,
@@ -253,7 +253,7 @@ impl<F: Float> LinearScaler<F> {
         &self.scales
     }
 
-    /// Returns the method used for fitting. Useful for printing, since [ScalingMethod](enum.ScalingMethod.html) implements `Display`
+    /// Returns the method used for fitting. Useful for printing, since [ScalingMethod](ScalingMethod) implements `Display`
     pub fn method(&self) -> &ScalingMethod<F> {
         &self.method
     }

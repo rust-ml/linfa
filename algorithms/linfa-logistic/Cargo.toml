@@ -26,3 +26,4 @@ linfa = { version = "0.6.0", path = "../..", features=["serde"] }
 [dev-dependencies]
 approx = "0.4"
 linfa-datasets = { version = "0.6.0", path = "../../datasets", features = ["winequality"] }
+rmp-serde = "1"

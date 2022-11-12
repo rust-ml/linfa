@@ -7,7 +7,8 @@ mod link;
 use crate::error::{LinearError, Result};
 use crate::float::{ArgminParam, Float};
 use distribution::TweedieDistribution;
-use hyperparams::TweedieRegressorValidParams;
+pub use hyperparams::TweedieRegressorParams;
+pub use hyperparams::TweedieRegressorValidParams;
 use linfa::dataset::AsSingleTargets;
 pub use link::Link;
 
@@ -171,7 +172,38 @@ impl<'a, A: Float> ArgminOp for TweedieProblem<'a, A> {
     }
 }
 
-/// Fitted Tweedie regressor model for scoring
+/// Generalized Linear Model (GLM) with a Tweedie distribution
+///
+/// The Regressor can be used to model different GLMs depending on
+/// [`power`](TweedieRegressorParams),
+/// which determines the underlying distribution.
+///
+/// | Power  | Distribution           |
+/// | ------ | ---------------------- |
+/// | 0      | Normal                 |
+/// | 1      | Poisson                |
+/// | (1, 2) | Compound Poisson Gamma |
+/// | 2      | Gamma                  |
+/// | 3      | Inverse Gaussian       |
+///
+/// NOTE: No distribution exists between 0 and 1
+///
+/// Learn more from sklearn's excellent [User Guide](https://scikit-learn.org/stable/modules/linear_model.html#generalized-linear-regression)
+///
+/// ## Examples
+///
+/// Here's an example on how to train a GLM on the `diabetes` dataset
+/// ```rust
+/// use linfa::traits::{Fit, Predict};
+/// use linfa_linear::TweedieRegressor;
+/// use linfa::prelude::SingleTargetRegression;
+///
+/// let dataset = linfa_datasets::diabetes();
+/// let model = TweedieRegressor::params().fit(&dataset).unwrap();
+/// let pred = model.predict(&dataset);
+/// let r2 = pred.r2(&dataset).unwrap();
+/// println!("r2 from prediction: {}", r2);
+/// ```
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct TweedieRegressor<A> {
     /// Estimated coefficients for the linear predictor

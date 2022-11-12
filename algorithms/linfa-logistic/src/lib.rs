@@ -5,7 +5,7 @@
 //! `linfa-logistic` is a crate in the [`linfa`](https://crates.io/crates/linfa) ecosystem, an effort to create a toolkit for classical Machine Learning implemented in pure Rust, akin to Python's `scikit-learn`.
 //!
 //! ## Current state
-//! `linfa-logistic` provides a pure Rust implementation of a [binomial logistic regression model](struct.LogisticRegression.html) and a [multinomial logistic regression model](struct.MultiLogisticRegression).
+//! `linfa-logistic` provides a pure Rust implementation of a [binomial logistic regression model](LogisticRegression) and a [multinomial logistic regression model](MultiLogisticRegression).
 //!
 //! ## Examples
 //!
@@ -30,6 +30,7 @@ use ndarray::{
     Dimension, IntoDimension, Ix1, Ix2, RemoveAxis, Slice, Zip,
 };
 use ndarray_stats::QuantileExt;
+use serde::{Deserialize, Serialize};
 use std::default::Default;
 
 mod argmin_param;
@@ -48,7 +49,7 @@ use hyperparams::{LogisticRegressionParams, LogisticRegressionValidParams};
 ///
 /// Logistic regression is used in binary classification
 /// by interpreting the predicted value as the probability that the sample
-/// has label `1`. A threshold can be set in the [fitted model](struct.FittedLogisticRegression.html) to decide the minimum
+/// has label `1`. A threshold can be set in the [fitted model](FittedLogisticRegression) to decide the minimum
 /// probability needed to classify a sample as `1`, which defaults to `0.5`.
 ///
 /// In this implementation any binary set of labels can be used, not necessarily `0` and `1`.
@@ -524,7 +525,8 @@ fn multi_logistic_grad<F: Float, A: Data<Elem = F>>(
 }
 
 /// A fitted logistic regression which can make predictions
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+#[serde(bound(deserialize = "C: Deserialize<'de>"))]
 pub struct FittedLogisticRegression<F: Float, C: PartialOrd + Clone> {
     threshold: F,
     intercept: F,
@@ -610,8 +612,8 @@ impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
 }
 
 /// A fitted multinomial logistic regression which can make predictions
-#[derive(PartialEq, Debug, Clone)]
-pub struct MultiFittedLogisticRegression<F: Float, C: PartialOrd + Clone> {
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+pub struct MultiFittedLogisticRegression<F, C: PartialOrd + Clone> {
     intercept: Array1<F>,
     params: Array2<F>,
     classes: Vec<C>,
@@ -685,8 +687,8 @@ impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
     }
 }
 
-#[derive(PartialEq, Debug, Clone)]
-struct ClassLabel<F: Float, C: PartialOrd> {
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+struct ClassLabel<F, C: PartialOrd> {
     class: C,
     label: F,
 }
@@ -1066,6 +1068,15 @@ mod test {
             &res.predict(dataset.records()),
             dataset.targets().as_single_targets()
         );
+
+        // Test serialization
+        let ser = rmp_serde::to_vec(&res).unwrap();
+        let unser: FittedLogisticRegression<f32, f32> = rmp_serde::from_slice(&ser).unwrap();
+
+        let x = array![[1.0]];
+        let y_hat = unser.predict(&x);
+
+        assert!(y_hat[0] == 0.0);
     }
 
     #[test]

@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        toolchain: 
+        toolchain:
           - 1.59.0
           - stable
           - nightly

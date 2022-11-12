@@ -2,38 +2,7 @@ use crate::{glm::link::Link, LinearError, TweedieRegressor};
 use linfa::{Float, ParamGuard};
 use serde::{Deserialize, Serialize};
 
-/// Generalized Linear Model (GLM) with a Tweedie distribution
-///
-/// The Regressor can be used to model different GLMs depending on
-/// [`power`](struct.TweedieRegressor.html#method.power),
-/// which determines the underlying distribution.
-///
-/// | Power  | Distribution           |
-/// | ------ | ---------------------- |
-/// | 0      | Normal                 |
-/// | 1      | Poisson                |
-/// | (1, 2) | Compound Poisson Gamma |
-/// | 2      | Gamma                  |
-/// | 3      | Inverse Gaussian       |
-///
-/// NOTE: No distribution exists between 0 and 1
-///
-/// Learn more from sklearn's excellent [User Guide](https://scikit-learn.org/stable/modules/linear_model.html#generalized-linear-regression)
-///
-/// ## Examples
-///
-/// Here's an example on how to train a GLM on the `diabetes` dataset
-/// ```rust
-/// use linfa::traits::{Fit, Predict};
-/// use linfa_linear::TweedieRegressor;
-/// use linfa::prelude::SingleTargetRegression;
-///
-/// let dataset = linfa_datasets::diabetes();
-/// let model = TweedieRegressor::params().fit(&dataset).unwrap();
-/// let pred = model.predict(&dataset);
-/// let r2 = pred.r2(&dataset).unwrap();
-/// println!("r2 from prediction: {}", r2);
-/// ```
+/// The set of hyperparameters that can be specified for the execution of the Tweedie Regressor.
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct TweedieRegressorValidParams<F> {
     alpha: F,
@@ -74,6 +43,7 @@ impl<F: Float> TweedieRegressorValidParams<F> {
     }
 }
 
+/// The set of hyperparameters that can be specified for the execution of the Tweedie Regressor.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TweedieRegressorParams<F>(TweedieRegressorValidParams<F>);
 

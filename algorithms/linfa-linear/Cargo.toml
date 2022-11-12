@@ -22,7 +22,7 @@ blas = ["ndarray-linalg", "linfa/ndarray-linalg", "argmin/ndarray-linalg"]
 [dependencies]
 ndarray = { version = "0.15", features = ["approx"] }
 linfa-linalg = { version = "0.1", default-features = false }
-ndarray-linalg = { version = "0.14", optional = true }
+ndarray-linalg = { version = "0.15", optional = true }
 num-traits = "0.2"
 argmin = { version = "0.4.6", features = ["ndarray", "ndarray-rand"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
@@ -33,3 +33,12 @@ linfa = { version = "0.6.0", path = "../..", features=["serde"] }
 [dev-dependencies]
 linfa-datasets = { version = "0.6.0", path = "../../datasets", features = ["diabetes"] }
 approx = "0.4"
+criterion = "0.4.0" 
+statrs = "0.16.0"
+
+[target.'cfg(not(windows))'.dev-dependencies]
+pprof = { version = "0.11.0", features = ["flamegraph", "criterion"] }
+
+[[bench]]
+name = "ols_bench"
+harness = false
