@@ -12,7 +12,7 @@ use super::Result;
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ElasticNetValidParamsBase<F, const MULTI_TASK: bool> {
     penalty: F,
     l1_ratio: F,
@@ -53,7 +53,7 @@ impl<F: Float, const MULTI_TASK: bool> ElasticNetValidParamsBase<F, MULTI_TASK> 
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ElasticNetParamsBase<F, const MULTI_TASK: bool>(
     ElasticNetValidParamsBase<F, MULTI_TASK>,
 );
@@ -69,18 +69,18 @@ pub struct ElasticNetParamsBase<F, const MULTI_TASK: bool>(
 ///
 /// The parameter set can be verified into a
 /// [`ElasticNetValidParams`](crate::hyperparams::ElasticNetValidParams) by calling
-/// [ParamGuard::check](Self::check). It is also possible to directly fit a model with
+/// [ParamGuard::check](Self::check()). It is also possible to directly fit a model with
 /// [Fit::fit](linfa::traits::Fit::fit) which implicitely verifies the parameter set prior to the
 /// model estimation and forwards any error.
 ///
 /// # Parameters
 /// | Name | Default | Purpose | Range |
 /// | :--- | :--- | :---| :--- |
-/// | [penalty](Self::penalty) | `1.0` | Overall parameter penalty | `[0, inf)` |
-/// | [l1_ratio](Self::l1_ratio) | `0.5` | Distribution of penalty to L1 and L2 regularizations | `[0.0, 1.0]` |
-/// | [with_intercept](Self::with_intercept) | `true` | Enable intercept | `false`, `true` |
-/// | [tolerance](Self::tolerance) | `1e-4` | Absolute change of any of the parameters | `(0, inf)` |
-/// | [max_iterations](Self::max_iterations) | `1000` | Maximum number of iterations | `[1, inf)` |
+/// | [penalty](Self::penalty()) | `1.0` | Overall parameter penalty | `[0, inf)` |
+/// | [l1_ratio](Self::l1_ratio()) | `0.5` | Distribution of penalty to L1 and L2 regularizations | `[0.0, 1.0]` |
+/// | [with_intercept](Self::with_intercept()) | `true` | Enable intercept | `false`, `true` |
+/// | [tolerance](Self::tolerance()) | `1e-4` | Absolute change of any of the parameters | `(0, inf)` |
+/// | [max_iterations](Self::max_iterations()) | `1000` | Maximum number of iterations | `[1, inf)` |
 ///
 /// # Errors
 ///

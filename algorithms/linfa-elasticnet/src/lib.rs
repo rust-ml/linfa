@@ -11,7 +11,10 @@ mod error;
 mod hyperparams;
 
 pub use error::{ElasticNetError, Result};
-pub use hyperparams::{ElasticNetParams, ElasticNetValidParams, MultiTaskElasticNetParams};
+pub use hyperparams::{
+    ElasticNetParams, ElasticNetParamsBase, ElasticNetValidParams, ElasticNetValidParamsBase,
+    MultiTaskElasticNetParams, MultiTaskElasticNetValidParams,
+};
 
 #[cfg_attr(
     feature = "serde",
