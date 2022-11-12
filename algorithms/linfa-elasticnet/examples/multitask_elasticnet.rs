@@ -3,7 +3,7 @@ use linfa_elasticnet::{MultiTaskElasticNet, Result};
 
 fn main() -> Result<()> {
     // load Diabetes dataset
-    let (train, valid) = linfa_datasets::linnerud().split_with_ratio(0.90);
+    let (train, valid) = linfa_datasets::linnerud().split_with_ratio(0.80);
 
     // train pure LASSO model with 0.1 penalty
     let model = MultiTaskElasticNet::params()
@@ -18,7 +18,7 @@ fn main() -> Result<()> {
 
     // validate
     let y_est = model.predict(&valid);
-    println!("predicted variance: {}", valid.r2(&y_est)?);
+    println!("predicted variance: {}", y_est.r2(&valid)?);
 
     Ok(())
 }
