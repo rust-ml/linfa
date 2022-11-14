@@ -44,7 +44,7 @@ fn bench(c: &mut Criterion) {
         .warm_up_time(Duration::new(10, 0))
         .noise_threshold(0.05);
 
-    let params: [(usize, usize); 4] = [(1_000, 5), (10_000, 5), (100_000, 5), (100_000, 10)];
+    let params: [(usize, usize); 3] = [(10_000, 5), (100_000, 5), (100_000, 10)];
 
     for (alg, name) in [(Algorithm::Nipals, "Nipals-"), (Algorithm::Svd, "Svd-")] {
         let feat_distr = Laplace::new(0.5, 5.).unwrap();
