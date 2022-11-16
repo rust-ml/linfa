@@ -171,17 +171,18 @@ It is important to the project that we have benchmarks in place to evaluate the 
 7. In `BenchmarkId` include the values used to parametrize the benchmark. For example if we're doing Pls then we may have something like `Canonical-Nipals-5feats-1_000samples`
 8. Pass data as an argument to the function being benched. This will prevent Criterion from including data creation time as part of the benchmark.
 9. Add a profiler see [here](https://github.com/tikv/pprof-rs#integrate-with-criterion) for an example on how to do so with pprof, Criterion, and Flamegraph.
-10. Use the benchmark feature to configure your benchmark groups and profiler. See the bench in linfa-pls as an example of this. In most cases you can just copy and paste portions of the configuration aspects of that code. If other configurations are desired it is still easily customizable and explained in the pprof and Criterion documentation.
+10. Use the benchmark feature to configure your benchmark groups and profiler. See the bench in linfa-pls as an example of this. In most cases you can just copy and paste portions of thecode. If other configurations are desired it is still easily customizable and explained in the pprof and Criterion documentation.
+
+Feel free to use the pls bench as a guideline. Note tha it uses functions get get default configurations for profiling and benchmarking. 
 
 ### Running Benchmarks
-*Note you must first install cargo criterion with `cargo install cargo-criterion`*
-When running benchmarks sometimes you will want to profile the code execution. Assuming you have followed step 9 to add a pprof profiling hook for the linfa-ica package you can run the following to get your profiling results as a flamegraph.
+When running benchmarks sometimes you will want to profile the code execution. Assuming you have followed step 9 to add a pprof profiling hook for the linfa-ica package you can run the following to get your profiling results as a flamegraph. Be advised that at the time of writing this profiling will not work on Windows machines.
 
-`cargo criterion -p linfa-ica --bench fast_ica -- --profile-time 30`
+`cargo bench -p linfa-ica --bench fast_ica -q -- --profile-time 30`
 
 If you are interested in running a regular criterion bench for linfa-ica then you can run the following
 
-`cargo criterion -p linfa-ica`
+`cargo bench -p linfa-ica`
 
 ### Reporting Benchmark Metrics
 It is important that we have a consistent methodology for reporting benchmarks below is a template that should aid reviewers.
