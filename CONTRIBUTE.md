@@ -176,11 +176,11 @@ It is important to the project that we have benchmarks in place to evaluate the 
 ### Running Benchmarks
 When running benchmarks sometimes you will want to profile the code execution. Assuming you have followed step 9 to add a pprof profiling hook for the linfa-ica package you can run the following to get your profiling results as a flamegraph.
 
-`cargo bench -p linfa-ica --bench fast_ica -q -- --profile-time 30`
+`cargo criterion bench -p linfa-ica --bench fast_ica -- --profile-time 30`
 
 If you are interested in running a regular criterion bench for linfa-ica then you can run the following
 
-`cargo bench -p linfa-ica`
+`cargo criterion bench -p linfa-ica`
 
 ### Reporting Benchmark Metrics
 It is important that we have a consistent methodology for reporting benchmarks below is a template that should aid reviewers.
