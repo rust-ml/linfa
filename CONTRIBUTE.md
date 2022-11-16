@@ -172,6 +172,8 @@ It is important to the project that we have benchmarks in place to evaluate the 
 8. Pass data as an argument to the function being benched. This will prevent Criterion from including data creation time as part of the benchmark.
 9. Add a profiler see [here](https://github.com/tikv/pprof-rs#integrate-with-criterion) for an example on how to do so with pprof, Criterion, and Flamegraph.
 
+Feel free to use the pls bench as a guideline. Note that it uses functions get get default configurations for profiling and benchmarking. In most cases you can copy and paste such those portions of code. If other configurations are desired it is still easily customizable and explained in the pprof and Criterion documentation.
+
 ### Running Benchmarks
 When running benchmarks sometimes you will want to profile the code execution. Assuming you have followed step 9 to add a pprof profiling hook for the linfa-ica package you can run the following to get your profiling results as a flamegraph.
 
