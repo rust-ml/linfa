@@ -21,17 +21,9 @@ fn appx_dbscan_bench(c: &mut Criterion) {
         /*(10000, 0.1),*/
     ];
 
-    let (sample_size, measurement_time, confidence_level, warm_up_time, noise_threshold) =
-        config::get_default_benchmark_configs();
-
     let mut benchmark = c.benchmark_group("appx_dbscan");
-    benchmark
-        .sample_size(sample_size)
-        .measurement_time(measurement_time)
-        .confidence_level(confidence_level)
-        .warm_up_time(warm_up_time)
-        .noise_threshold(noise_threshold)
-        .plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
+    config::set_default_benchmark_configs(&mut benchmark);
+    benchmark.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
 
     for cluster_size_and_slack in cluster_sizes_and_slacks {
         let rng = &mut rng;

@@ -53,16 +53,8 @@ fn bench(c: &mut Criterion) {
         (GFunc::Logcosh(1.0), "GFunc_Logcosh"),
         (GFunc::Exp, "Exp"),
     ] {
-        let (sample_size, measurement_time, confidence_level, warm_up_time, noise_threshold) =
-            config::get_default_benchmark_configs();
-
         let mut group = c.benchmark_group("Fast ICA");
-        group
-            .sample_size(sample_size)
-            .measurement_time(measurement_time)
-            .confidence_level(confidence_level)
-            .warm_up_time(warm_up_time)
-            .noise_threshold(noise_threshold);
+        config::set_default_benchmark_configs(&mut group);
 
         let sizes: [usize; 3] = [1_000, 10_000, 100_000];
         for size in sizes {

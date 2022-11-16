@@ -11,17 +11,10 @@ use ndarray_rand::{
 
 fn fit_without_prior_model(c: &mut Criterion) {
     let mut rng = SmallRng::seed_from_u64(42);
-    let params = Ftrl::params();
-    let (sample_size, measurement_time, confidence_level, warm_up_time, noise_threshold) =
-        config::get_default_benchmark_configs();
+    let params = Ftrl::params();;
 
     let mut group = c.benchmark_group("Ftrl with no initial model");
-    group
-        .sample_size(sample_size)
-        .measurement_time(measurement_time)
-        .confidence_level(confidence_level)
-        .warm_up_time(warm_up_time)
-        .noise_threshold(noise_threshold);
+    config::set_default_benchmark_configs(&mut group);
 
     let sizes: Vec<(usize, usize)> = vec![(10, 1_000), (50, 5_000), (100, 10_000)];
 
@@ -43,15 +36,10 @@ fn fit_with_prior_model(c: &mut Criterion) {
     let mut rng = SmallRng::seed_from_u64(42);
     let params = Ftrl::params();
     let valid_params = params.clone().check().unwrap();
-    let (sample_size, measurement_time, confidence_level, warm_up_time, noise_threshold) =
-        config::get_default_benchmark_configs();
+
     let mut group = c.benchmark_group("Ftrl incremental model training");
-    group
-        .sample_size(sample_size)
-        .measurement_time(measurement_time)
-        .confidence_level(confidence_level)
-        .warm_up_time(warm_up_time)
-        .noise_threshold(noise_threshold);
+    config::set_default_benchmark_configs(&mut group);
+
     let sizes: Vec<(usize, usize)> = vec![(10, 1_000), (50, 5_000), (100, 10_000)];
 
     for (nfeatures, nrows) in sizes.iter() {
@@ -74,16 +62,10 @@ fn fit_with_prior_model(c: &mut Criterion) {
 fn predict(c: &mut Criterion) {
     let mut rng = SmallRng::seed_from_u64(42);
     let params = Ftrl::params();
-    let (sample_size, measurement_time, confidence_level, warm_up_time, noise_threshold) =
-        config::get_default_benchmark_configs();
+
     let valid_params = params.clone().check().unwrap();
     let mut group = c.benchmark_group("Ftrl");
-    group
-        .sample_size(sample_size)
-        .measurement_time(measurement_time)
-        .confidence_level(confidence_level)
-        .warm_up_time(warm_up_time)
-        .noise_threshold(noise_threshold);
+    config::set_default_benchmark_configs(&mut group);
 
     let sizes: Vec<(usize, usize)> = vec![(10, 1_000), (50, 5_000), (100, 10_000)];
     for (nfeatures, nrows) in sizes.iter() {

@@ -38,17 +38,9 @@ fn k_means_bench(c: &mut Criterion) {
     let cluster_sizes = [(100, 4), (400, 10), (3000, 10)];
     let n_features = 3;
 
-    let (sample_size, measurement_time, confidence_level, warm_up_time, noise_threshold) =
-        config::get_default_benchmark_configs();
-
     let mut benchmark = c.benchmark_group("naive_k_means");
-    benchmark
-        .sample_size(sample_size)
-        .measurement_time(measurement_time)
-        .confidence_level(confidence_level)
-        .warm_up_time(warm_up_time)
-        .noise_threshold(noise_threshold)
-        .plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
+    config::set_default_benchmark_configs(&mut benchmark);
+    benchmark.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
 
     for &(cluster_size, n_clusters) in &cluster_sizes {
         let rng = &mut rng;
@@ -81,16 +73,10 @@ fn k_means_incr_bench(c: &mut Criterion) {
     let cluster_sizes = [(100, 4), (400, 10), (3000, 10)];
     let n_features = 3;
 
-    let (sample_size, measurement_time, confidence_level, warm_up_time, noise_threshold) =
-        config::get_default_benchmark_configs();
     let mut benchmark = c.benchmark_group("incremental_k_means");
-    benchmark
-        .sample_size(sample_size)
-        .measurement_time(measurement_time)
-        .confidence_level(confidence_level)
-        .warm_up_time(warm_up_time)
-        .noise_threshold(noise_threshold)
-        .plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
+    config::set_default_benchmark_configs(&mut benchmark);
+    benchmark.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
+    
     for &(cluster_size, n_clusters) in &cluster_sizes {
         let rng = &mut rng;
         let centroids =
@@ -140,16 +126,9 @@ fn k_means_init_bench(c: &mut Criterion) {
     let cluster_sizes = [(100, 10), (3000, 10), (400, 30), (500, 100)];
     let n_features = 3;
 
-    let (sample_size, measurement_time, confidence_level, warm_up_time, noise_threshold) =
-        config::get_default_benchmark_configs();
     let mut benchmark = c.benchmark_group("k_means_init");
-    benchmark
-        .sample_size(sample_size)
-        .measurement_time(measurement_time)
-        .confidence_level(confidence_level)
-        .warm_up_time(warm_up_time)
-        .noise_threshold(noise_threshold)
-        .plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
+    config::set_default_benchmark_configs(&mut benchmark);
+    benchmark.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
     for init in &init_methods {
         for &(cluster_size, n_clusters) in &cluster_sizes {
             let rng = &mut rng;

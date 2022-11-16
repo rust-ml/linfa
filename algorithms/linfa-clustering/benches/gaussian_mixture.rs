@@ -17,18 +17,9 @@ fn gaussian_mixture_bench(c: &mut Criterion) {
     let mut rng = Xoshiro256Plus::seed_from_u64(40);
     let cluster_sizes = vec![10, 100, 1000, 10000];
 
-    let (sample_size, measurement_time, confidence_level, warm_up_time, noise_threshold) =
-        config::get_default_benchmark_configs();
-
     let mut benchmark = c.benchmark_group("gaussian_mixture");
-    benchmark
-        .sample_size(sample_size)
-        .measurement_time(measurement_time)
-        .confidence_level(confidence_level)
-        .warm_up_time(warm_up_time)
-        .noise_threshold(noise_threshold)
-        .noise_threshold(0.05)
-        .plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
+    config::set_default_benchmark_configs(&mut benchmark);
+    benchmark.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
 
     for cluster_size in cluster_sizes {
         let rng = &mut rng;

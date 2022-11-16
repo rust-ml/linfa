@@ -34,16 +34,8 @@ fn pls_cca(dataset: &Dataset<f64, f64>, alg: Algorithm) {
 }
 
 fn bench(c: &mut Criterion) {
-    let (sample_size, measurement_time, confidence_level, warm_up_time, noise_threshold) =
-        config::get_default_benchmark_configs();
-
     let mut group = c.benchmark_group("Linfa_pls");
-    group
-        .sample_size(sample_size)
-        .measurement_time(measurement_time)
-        .confidence_level(confidence_level)
-        .warm_up_time(warm_up_time)
-        .noise_threshold(noise_threshold);
+    config::set_default_benchmark_configs(&mut group);
 
     let params: [(usize, usize); 3] = [(10_000, 5), (100_000, 5), (100_000, 10)];
     for (alg, name) in [(Algorithm::Nipals, "Nipals-"), (Algorithm::Svd, "Svd-")] {

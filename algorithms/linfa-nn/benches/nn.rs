@@ -6,17 +6,10 @@ use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
 use rand_xoshiro::Xoshiro256Plus;
 
 fn nn_build_bench(c: &mut Criterion) {
-    let (sample_size, measurement_time, confidence_level, warm_up_time, noise_threshold) =
-        config::get_default_benchmark_configs();
 
     let mut rng = Xoshiro256Plus::seed_from_u64(40);
     let mut benchmark = c.benchmark_group("nn_build");
-    benchmark
-        .sample_size(sample_size)
-        .measurement_time(measurement_time)
-        .confidence_level(confidence_level)
-        .warm_up_time(warm_up_time)
-        .noise_threshold(noise_threshold);
+    config::set_default_benchmark_configs(&mut benchmark);
 
     let n_features = 3;
     let algorithms = &[
@@ -43,17 +36,9 @@ fn nn_build_bench(c: &mut Criterion) {
 }
 
 fn k_nearest_bench(c: &mut Criterion) {
-    let (sample_size, measurement_time, confidence_level, warm_up_time, noise_threshold) =
-        config::get_default_benchmark_configs();
-
     let mut rng = Xoshiro256Plus::seed_from_u64(40);
     let mut benchmark = c.benchmark_group("k_nearest");
-    benchmark
-        .sample_size(sample_size)
-        .measurement_time(measurement_time)
-        .confidence_level(confidence_level)
-        .warm_up_time(warm_up_time)
-        .noise_threshold(noise_threshold);
+    config::set_default_benchmark_configs(&mut benchmark);
 
     let n_features = 3;
     let distr = Uniform::new(-500., 500.);
@@ -86,17 +71,9 @@ fn k_nearest_bench(c: &mut Criterion) {
 }
 
 fn within_range_bench(c: &mut Criterion) {
-    let (sample_size, measurement_time, confidence_level, warm_up_time, noise_threshold) =
-        config::get_default_benchmark_configs();
-
     let mut rng = Xoshiro256Plus::seed_from_u64(40);
     let mut benchmark = c.benchmark_group("within_range");
-    benchmark
-        .sample_size(sample_size)
-        .measurement_time(measurement_time)
-        .confidence_level(confidence_level)
-        .warm_up_time(warm_up_time)
-        .noise_threshold(noise_threshold);
+    config::set_default_benchmark_configs(&mut benchmark);
 
     let n_features = 3;
     let distr = Uniform::new(-50., 50.);

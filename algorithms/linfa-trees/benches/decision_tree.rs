@@ -30,17 +30,10 @@ fn decision_tree_bench(c: &mut Criterion) {
     // Use the default configuration
     let hyperparams = DecisionTree::params();
 
-    let (sample_size, measurement_time, confidence_level, warm_up_time, noise_threshold) =
-        config::get_default_benchmark_configs();
 
     // Benchmark training time 10 times for each training sample size
     let mut group = c.benchmark_group("decision_tree");
-    group
-        .sample_size(sample_size)
-        .measurement_time(measurement_time)
-        .confidence_level(confidence_level)
-        .warm_up_time(warm_up_time)
-        .noise_threshold(noise_threshold);
+    config::set_default_benchmark_configs(&mut group);
 
     for n in training_set_sizes.iter() {
         let centroids =
