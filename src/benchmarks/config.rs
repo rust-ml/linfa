@@ -6,7 +6,7 @@ use std::time::Duration;
 
 #[cfg(not(target_os = "windows"))]
 pub fn get_default_profiling_configs() -> Criterion {
-    Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)))
 }
 
 pub fn get_default_benchmark_configs() -> (usize, Duration, f64, Duration, f64) {
