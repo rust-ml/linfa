@@ -171,7 +171,7 @@ It is important to the project that we have benchmarks in place to evaluate the 
 7. In `BenchmarkId` include the values used to parametrize the benchmark. For example if we're doing Pls then we may have something like `Canonical-Nipals-5feats-1_000samples`
 8. Pass data as an argument to the function being benched. This will prevent Criterion from including data creation time as part of the benchmark.
 9. Add a profiler see [here](https://github.com/tikv/pprof-rs#integrate-with-criterion) for an example on how to do so with pprof, Criterion, and Flamegraph.
-10. Use the `benchmarks` feature of the linfa crate to configure your benchmark groups and profiler. See the bench in linfa-pls as an example of this. In most cases you can just copy and paste the configuration portions of the code. If other configurations are desired it is still easily customizable and explained in the pprof and Criterion documentation.
+10. Use the `benchmarks` feature of the linfa crate to configure your benchmark groups and profiler. See the bench in linfa-pls as an example of this. In most cases you can just copy and paste the configuration portions of the code. If other configurations are desired it is still easily customizable and explained in the pprof and Criterion documentations.
 
 Feel free to use the pls bench as a guideline. Note that it uses the config::set_default_benchmark_configs and config::get_default_profiling_configs functions to configure benchmarking and profiling respectively.
 
