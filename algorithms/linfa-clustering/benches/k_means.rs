@@ -76,7 +76,7 @@ fn k_means_incr_bench(c: &mut Criterion) {
     let mut benchmark = c.benchmark_group("incremental_k_means");
     config::set_default_benchmark_configs(&mut benchmark);
     benchmark.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
-    
+
     for &(cluster_size, n_clusters) in &cluster_sizes {
         let rng = &mut rng;
         let centroids =

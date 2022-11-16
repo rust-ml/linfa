@@ -6,7 +6,6 @@ use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
 use rand_xoshiro::Xoshiro256Plus;
 
 fn nn_build_bench(c: &mut Criterion) {
-
     let mut rng = Xoshiro256Plus::seed_from_u64(40);
     let mut benchmark = c.benchmark_group("nn_build");
     config::set_default_benchmark_configs(&mut benchmark);

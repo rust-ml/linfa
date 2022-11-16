@@ -11,7 +11,7 @@ use ndarray_rand::{
 
 fn fit_without_prior_model(c: &mut Criterion) {
     let mut rng = SmallRng::seed_from_u64(42);
-    let params = Ftrl::params();;
+    let params = Ftrl::params();
 
     let mut group = c.benchmark_group("Ftrl with no initial model");
     config::set_default_benchmark_configs(&mut group);

@@ -1,6 +1,6 @@
 #[cfg(feature = "benchmarks")]
 pub mod config {
-    use criterion::{BenchmarkGroup, Criterion, measurement::WallTime};
+    use criterion::{measurement::WallTime, BenchmarkGroup, Criterion};
     #[cfg(not(target_os = "windows"))]
     use pprof::criterion::{Output, PProfProfiler};
     use std::time::Duration;
@@ -25,4 +25,3 @@ pub mod config {
             .noise_threshold(noise_threshold);
     }
 }
-

@@ -30,7 +30,6 @@ fn decision_tree_bench(c: &mut Criterion) {
     // Use the default configuration
     let hyperparams = DecisionTree::params();
 
-
     // Benchmark training time 10 times for each training sample size
     let mut group = c.benchmark_group("decision_tree");
     config::set_default_benchmark_configs(&mut group);
