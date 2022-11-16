@@ -1,4 +1,5 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use linfa::benchmarks::config;
 use linfa::{dataset::DatasetBase, traits::Fit};
 use linfa_ica::fast_ica::{FastIca, GFunc};
 use ndarray::{array, concatenate};
@@ -7,7 +8,6 @@ use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
 #[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};
 use rand_xoshiro::Xoshiro256Plus;
-use std::time::Duration;
 
 fn perform_ica(size: usize, gfunc: GFunc) {
     let sources_mixed = create_data(size);
@@ -55,14 +55,16 @@ fn bench(c: &mut Criterion) {
         (GFunc::Logcosh(1.0), "GFunc_Logcosh"),
         (GFunc::Exp, "Exp"),
     ] {
+        let (sample_size, measurement_time, confidence_level, warm_up_time, noise_threshold) =
+            config::get_default_benchmark_configs();
+
         let mut group = c.benchmark_group("Fast ICA");
         group
-            .significance_level(0.02)
-            .sample_size(200)
-            .measurement_time(Duration::new(10, 0))
-            .confidence_level(0.97)
-            .warm_up_time(Duration::new(10, 0))
-            .noise_threshold(0.05);
+            .sample_size(sample_size)
+            .measurement_time(measurement_time)
+            .confidence_level(confidence_level)
+            .warm_up_time(warm_up_time)
+            .noise_threshold(noise_threshold);
 
         let sizes: [usize; 3] = [1_000, 10_000, 100_000];
         for size in sizes {

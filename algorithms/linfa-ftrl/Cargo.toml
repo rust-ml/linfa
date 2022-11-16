@@ -28,9 +28,7 @@ linfa = { version = "0.6.0", path = "../.."}
 criterion = "0.4.0"
 approx = "0.4"
 linfa-datasets = { version = "0.6.0", path = "../../datasets", features = ["winequality"] }
-
-[target.'cfg(not(windows))'.dev-dependencies]
-pprof = { version = "0.11.0", features = ["flamegraph", "criterion"] }
+linfa = { version = "0.6.0", path = "../..", features = ["benchmarks"] }
 
 [[bench]]
 name = "ftrl"

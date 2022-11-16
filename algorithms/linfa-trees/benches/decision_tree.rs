@@ -1,4 +1,5 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use linfa::benchmarks::config;
 use linfa::prelude::*;
 use linfa_trees::DecisionTree;
 use ndarray::{concatenate, Array, Array1, Array2, Axis};
@@ -8,7 +9,6 @@ use ndarray_rand::RandomExt;
 #[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};
 use rand::rngs::SmallRng;
-use std::time::Duration;
 
 fn generate_blobs(means: &Array2<f64>, samples: usize, mut rng: &mut SmallRng) -> Array2<f64> {
     let out = means
@@ -32,15 +32,17 @@ fn decision_tree_bench(c: &mut Criterion) {
     // Use the default configuration
     let hyperparams = DecisionTree::params();
 
+    let (sample_size, measurement_time, confidence_level, warm_up_time, noise_threshold) =
+        config::get_default_benchmark_configs();
+
     // Benchmark training time 10 times for each training sample size
     let mut group = c.benchmark_group("decision_tree");
     group
-        .significance_level(0.02)
-        .sample_size(200)
-        .measurement_time(Duration::new(10, 0))
-        .confidence_level(0.97)
-        .warm_up_time(Duration::new(10, 0))
-        .noise_threshold(0.05);
+        .sample_size(sample_size)
+        .measurement_time(measurement_time)
+        .confidence_level(confidence_level)
+        .warm_up_time(warm_up_time)
+        .noise_threshold(noise_threshold);
 
     for n in training_set_sizes.iter() {
         let centroids =

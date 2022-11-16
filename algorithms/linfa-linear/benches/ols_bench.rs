@@ -1,4 +1,5 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use linfa::benchmarks::config;
 use linfa::traits::Fit;
 use linfa::Dataset;
 use linfa_datasets::generate::make_dataset;
@@ -7,7 +8,6 @@ use ndarray::Ix1;
 #[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};
 use statrs::distribution::{DiscreteUniform, Laplace};
-use std::time::Duration;
 
 #[allow(unused_must_use)]
 fn perform_ols(dataset: &Dataset<f64, f64, Ix1>) {
@@ -22,14 +22,16 @@ fn perform_glm(dataset: &Dataset<f64, f64, Ix1>) {
 }
 
 fn bench(c: &mut Criterion) {
+    let (sample_size, measurement_time, confidence_level, warm_up_time, noise_threshold) =
+        config::get_default_benchmark_configs();
+
     let mut group = c.benchmark_group("Linfa_linear");
     group
-        .significance_level(0.02)
-        .sample_size(200)
-        .measurement_time(Duration::new(10, 0))
-        .confidence_level(0.97)
-        .warm_up_time(Duration::new(10, 0))
-        .noise_threshold(0.05);
+        .sample_size(sample_size)
+        .measurement_time(measurement_time)
+        .confidence_level(confidence_level)
+        .warm_up_time(warm_up_time)
+        .noise_threshold(noise_threshold);
 
     let params: [(usize, usize); 4] = [(1_000, 5), (10_000, 5), (100_000, 5), (100_000, 10)];
 

@@ -1,13 +1,11 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use linfa::benchmarks::config;
 use linfa::traits::Fit;
 use linfa::Dataset;
 use linfa_datasets::generate::make_dataset;
 use linfa_pls::Algorithm;
 use linfa_pls::{PlsCanonical, PlsCca, PlsRegression};
-#[cfg(not(target_os = "windows"))]
-use pprof::criterion::{Output, PProfProfiler};
 use statrs::distribution::{DiscreteUniform, Laplace};
-use std::time::Duration;
 
 #[allow(unused_must_use)]
 fn pls_regression(dataset: &Dataset<f64, f64>, alg: Algorithm) {
@@ -36,14 +34,17 @@ fn pls_cca(dataset: &Dataset<f64, f64>, alg: Algorithm) {
 }
 
 fn bench(c: &mut Criterion) {
+    let (sample_size, measurement_time, confidence_level, warm_up_time, noise_threshold) =
+        config::get_default_benchmark_configs();
+
     let mut group = c.benchmark_group("Linfa_pls");
     group
-        .sample_size(200)
-        .measurement_time(Duration::new(10, 0))
-        .confidence_level(0.97)
-        .warm_up_time(Duration::new(10, 0))
-        .noise_threshold(0.05);
-        
+        .sample_size(sample_size)
+        .measurement_time(measurement_time)
+        .confidence_level(confidence_level)
+        .warm_up_time(warm_up_time)
+        .noise_threshold(noise_threshold);
+
     let params: [(usize, usize); 3] = [(10_000, 5), (100_000, 5), (100_000, 10)];
     for (alg, name) in [(Algorithm::Nipals, "Nipals-"), (Algorithm::Svd, "Svd-")] {
         let feat_distr = Laplace::new(0.5, 5.).unwrap();
@@ -98,7 +99,7 @@ fn bench(c: &mut Criterion) {
 #[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    config = get_default_profiling_configs();
     targets = bench
 }
 #[cfg(target_os = "windows")]

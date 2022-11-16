@@ -1,4 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use linfa::benchmarks::config;
 use linfa::prelude::Predict;
 use linfa::traits::FitWith;
 use linfa::{Dataset, DatasetBase, ParamGuard};
@@ -9,19 +10,21 @@ use ndarray_rand::{
 };
 #[cfg(not(target_os = "windows"))]
 use pprof::criterion::{Output, PProfProfiler};
-use std::time::Duration;
 
 fn fit_without_prior_model(c: &mut Criterion) {
     let mut rng = SmallRng::seed_from_u64(42);
     let params = Ftrl::params();
+    let (sample_size, measurement_time, confidence_level, warm_up_time, noise_threshold) =
+        config::get_default_benchmark_configs();
+
     let mut group = c.benchmark_group("Ftrl with no initial model");
     group
-        .significance_level(0.02)
-        .sample_size(200)
-        .measurement_time(Duration::new(10, 0))
-        .confidence_level(0.97)
-        .warm_up_time(Duration::new(10, 0))
-        .noise_threshold(0.05);
+        .sample_size(sample_size)
+        .measurement_time(measurement_time)
+        .confidence_level(confidence_level)
+        .warm_up_time(warm_up_time)
+        .noise_threshold(noise_threshold);
+
     let sizes: Vec<(usize, usize)> = vec![(10, 1_000), (50, 5_000), (100, 10_000)];
 
     for (nfeatures, nrows) in sizes.iter() {
@@ -42,14 +45,15 @@ fn fit_with_prior_model(c: &mut Criterion) {
     let mut rng = SmallRng::seed_from_u64(42);
     let params = Ftrl::params();
     let valid_params = params.clone().check().unwrap();
+    let (sample_size, measurement_time, confidence_level, warm_up_time, noise_threshold) =
+        config::get_default_benchmark_configs();
     let mut group = c.benchmark_group("Ftrl incremental model training");
     group
-        .significance_level(0.02)
-        .sample_size(200)
-        .measurement_time(Duration::new(10, 0))
-        .confidence_level(0.97)
-        .warm_up_time(Duration::new(10, 0))
-        .noise_threshold(0.05);
+        .sample_size(sample_size)
+        .measurement_time(measurement_time)
+        .confidence_level(confidence_level)
+        .warm_up_time(warm_up_time)
+        .noise_threshold(noise_threshold);
     let sizes: Vec<(usize, usize)> = vec![(10, 1_000), (50, 5_000), (100, 10_000)];
 
     for (nfeatures, nrows) in sizes.iter() {
@@ -72,15 +76,16 @@ fn fit_with_prior_model(c: &mut Criterion) {
 fn predict(c: &mut Criterion) {
     let mut rng = SmallRng::seed_from_u64(42);
     let params = Ftrl::params();
+    let (sample_size, measurement_time, confidence_level, warm_up_time, noise_threshold) =
+        config::get_default_benchmark_configs();
     let valid_params = params.clone().check().unwrap();
     let mut group = c.benchmark_group("Ftrl");
     group
-        .significance_level(0.02)
-        .sample_size(200)
-        .measurement_time(Duration::new(10, 0))
-        .confidence_level(0.97)
-        .warm_up_time(Duration::new(10, 0))
-        .noise_threshold(0.05);
+        .sample_size(sample_size)
+        .measurement_time(measurement_time)
+        .confidence_level(confidence_level)
+        .warm_up_time(warm_up_time)
+        .noise_threshold(noise_threshold);
 
     let sizes: Vec<(usize, usize)> = vec![(10, 1_000), (50, 5_000), (100, 10_000)];
     for (nfeatures, nrows) in sizes.iter() {
