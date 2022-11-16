@@ -174,6 +174,7 @@ It is important to the project that we have benchmarks in place to evaluate the 
 10. Use the benchmark feature to configure your benchmark groups and profiler. See the bench in linfa-pls as an example of this. In most cases you can just copy and paste portions of the configuration aspects of that code. If other configurations are desired it is still easily customizable and explained in the pprof and Criterion documentation.
 
 ### Running Benchmarks
+*Note you must first install cargo criterion with `cargo install cargo-criterion`*
 When running benchmarks sometimes you will want to profile the code execution. Assuming you have followed step 9 to add a pprof profiling hook for the linfa-ica package you can run the following to get your profiling results as a flamegraph.
 
 `cargo criterion bench -p linfa-ica --bench fast_ica -- --profile-time 30`
