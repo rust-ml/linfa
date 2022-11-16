@@ -3,8 +3,6 @@ use linfa::benchmarks::config;
 use linfa_nn::{distance::*, CommonNearestNeighbour, NearestNeighbour};
 use ndarray::{Array1, Array2};
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
-#[cfg(not(target_os = "windows"))]
-use pprof::criterion::{Output, PProfProfiler};
 use rand_xoshiro::Xoshiro256Plus;
 
 fn nn_build_bench(c: &mut Criterion) {
@@ -45,15 +43,17 @@ fn nn_build_bench(c: &mut Criterion) {
 }
 
 fn k_nearest_bench(c: &mut Criterion) {
+    let (sample_size, measurement_time, confidence_level, warm_up_time, noise_threshold) =
+        config::get_default_benchmark_configs();
+
     let mut rng = Xoshiro256Plus::seed_from_u64(40);
     let mut benchmark = c.benchmark_group("k_nearest");
     benchmark
-        .significance_level(0.02)
-        .sample_size(200)
-        .measurement_time(Duration::new(10, 0))
-        .confidence_level(0.97)
-        .warm_up_time(Duration::new(10, 0))
-        .noise_threshold(0.05);
+        .sample_size(sample_size)
+        .measurement_time(measurement_time)
+        .confidence_level(confidence_level)
+        .warm_up_time(warm_up_time)
+        .noise_threshold(noise_threshold);
 
     let n_features = 3;
     let distr = Uniform::new(-500., 500.);
@@ -86,15 +86,17 @@ fn k_nearest_bench(c: &mut Criterion) {
 }
 
 fn within_range_bench(c: &mut Criterion) {
+    let (sample_size, measurement_time, confidence_level, warm_up_time, noise_threshold) =
+        config::get_default_benchmark_configs();
+
     let mut rng = Xoshiro256Plus::seed_from_u64(40);
     let mut benchmark = c.benchmark_group("within_range");
     benchmark
-        .significance_level(0.02)
-        .sample_size(200)
-        .measurement_time(Duration::new(10, 0))
-        .confidence_level(0.97)
-        .warm_up_time(Duration::new(10, 0))
-        .noise_threshold(0.05);
+        .sample_size(sample_size)
+        .measurement_time(measurement_time)
+        .confidence_level(confidence_level)
+        .warm_up_time(warm_up_time)
+        .noise_threshold(noise_threshold);
 
     let n_features = 3;
     let distr = Uniform::new(-50., 50.);
@@ -128,7 +130,7 @@ fn within_range_bench(c: &mut Criterion) {
 #[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    config = get_default_profiling_configs();
     targets = nn_build_bench, k_nearest_bench, within_range_bench
 }
 #[cfg(target_os = "windows")]

@@ -10,8 +10,6 @@ use linfa_datasets::generate;
 use ndarray::Array2;
 use ndarray_rand::RandomExt;
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform};
-#[cfg(not(target_os = "windows"))]
-use pprof::criterion::{Output, PProfProfiler};
 use rand_xoshiro::Xoshiro256Plus;
 
 #[derive(Default)]
@@ -187,7 +185,7 @@ fn k_means_init_bench(c: &mut Criterion) {
 #[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    config = get_default_profiling_configs();
     targets = k_means_bench, k_means_init_bench, k_means_incr_bench
 }
 #[cfg(target_os = "windows")]

@@ -8,8 +8,6 @@ use ndarray::{Array1, Array2};
 use ndarray_rand::{
     rand::distributions::Uniform, rand::rngs::SmallRng, rand::SeedableRng, RandomExt,
 };
-#[cfg(not(target_os = "windows"))]
-use pprof::criterion::{Output, PProfProfiler};
 
 fn fit_without_prior_model(c: &mut Criterion) {
     let mut rng = SmallRng::seed_from_u64(42);
@@ -119,7 +117,7 @@ fn get_dataset(
 #[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    config = get_default_profiling_configs();
     targets = fit_without_prior_model, fit_with_prior_model, predict
 }
 #[cfg(target_os = "windows")]

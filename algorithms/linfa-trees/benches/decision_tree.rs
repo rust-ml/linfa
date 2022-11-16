@@ -6,8 +6,6 @@ use ndarray::{concatenate, Array, Array1, Array2, Axis};
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::{StandardNormal, Uniform};
 use ndarray_rand::RandomExt;
-#[cfg(not(target_os = "windows"))]
-use pprof::criterion::{Output, PProfProfiler};
 use rand::rngs::SmallRng;
 
 fn generate_blobs(means: &Array2<f64>, samples: usize, mut rng: &mut SmallRng) -> Array2<f64> {
@@ -66,7 +64,7 @@ fn decision_tree_bench(c: &mut Criterion) {
 #[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    config = get_default_profiling_configs();
     targets = decision_tree_bench
 }
 #[cfg(target_os = "windows")]

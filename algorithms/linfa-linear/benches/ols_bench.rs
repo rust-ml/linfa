@@ -5,8 +5,6 @@ use linfa::Dataset;
 use linfa_datasets::generate::make_dataset;
 use linfa_linear::{LinearRegression, TweedieRegressor};
 use ndarray::Ix1;
-#[cfg(not(target_os = "windows"))]
-use pprof::criterion::{Output, PProfProfiler};
 use statrs::distribution::{DiscreteUniform, Laplace};
 
 #[allow(unused_must_use)]
@@ -73,7 +71,7 @@ fn bench(c: &mut Criterion) {
 #[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    config = get_default_profiling_configs();
     targets = bench
 }
 #[cfg(target_os = "windows")]

@@ -10,8 +10,6 @@ use ndarray::Array2;
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
-#[cfg(not(target_os = "windows"))]
-use pprof::criterion::{Output, PProfProfiler};
 use rand_xoshiro::Xoshiro256Plus;
 
 fn dbscan_bench(c: &mut Criterion) {
@@ -60,7 +58,7 @@ fn dbscan_bench(c: &mut Criterion) {
 #[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    config = get_default_profiling_configs();
     targets = dbscan_bench
 }
 #[cfg(target_os = "windows")]
