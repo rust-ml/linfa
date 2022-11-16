@@ -117,7 +117,7 @@ fn get_dataset(
 #[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
-    config = get_default_profiling_configs();
+    config = config::get_default_profiling_configs();
     targets = fit_without_prior_model, fit_with_prior_model, predict
 }
 #[cfg(target_os = "windows")]

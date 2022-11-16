@@ -130,7 +130,7 @@ fn within_range_bench(c: &mut Criterion) {
 #[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
-    config = get_default_profiling_configs();
+    config = config::get_default_profiling_configs();
     targets = nn_build_bench, k_nearest_bench, within_range_bench
 }
 #[cfg(target_os = "windows")]

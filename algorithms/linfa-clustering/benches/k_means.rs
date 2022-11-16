@@ -185,7 +185,7 @@ fn k_means_init_bench(c: &mut Criterion) {
 #[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
-    config = get_default_profiling_configs();
+    config = config::get_default_profiling_configs();
     targets = k_means_bench, k_means_init_bench, k_means_incr_bench
 }
 #[cfg(target_os = "windows")]

@@ -64,7 +64,7 @@ fn decision_tree_bench(c: &mut Criterion) {
 #[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
-    config = get_default_profiling_configs();
+    config = config::get_default_profiling_configs();
     targets = decision_tree_bench
 }
 #[cfg(target_os = "windows")]

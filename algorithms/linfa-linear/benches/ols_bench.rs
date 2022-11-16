@@ -71,7 +71,7 @@ fn bench(c: &mut Criterion) {
 #[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
-    config = get_default_profiling_configs();
+    config = config::get_default_profiling_configs();
     targets = bench
 }
 #[cfg(target_os = "windows")]
