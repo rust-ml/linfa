@@ -1,12 +1,11 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use linfa::benchmarks::config;
 use linfa::prelude::*;
 use linfa_trees::DecisionTree;
 use ndarray::{concatenate, Array, Array1, Array2, Axis};
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::{StandardNormal, Uniform};
 use ndarray_rand::RandomExt;
-#[cfg(not(target_os = "windows"))]
-use pprof::criterion::{Output, PProfProfiler};
 use rand::rngs::SmallRng;
 
 fn generate_blobs(means: &Array2<f64>, samples: usize, mut rng: &mut SmallRng) -> Array2<f64> {
@@ -33,7 +32,7 @@ fn decision_tree_bench(c: &mut Criterion) {
 
     // Benchmark training time 10 times for each training sample size
     let mut group = c.benchmark_group("decision_tree");
-    group.sample_size(10);
+    config::set_default_benchmark_configs(&mut group);
 
     for n in training_set_sizes.iter() {
         let centroids =
@@ -57,7 +56,7 @@ fn decision_tree_bench(c: &mut Criterion) {
 #[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    config = config::get_default_profiling_configs();
     targets = decision_tree_bench
 }
 #[cfg(target_os = "windows")]

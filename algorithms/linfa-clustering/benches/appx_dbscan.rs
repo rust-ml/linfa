@@ -2,6 +2,7 @@ use criterion::{
     black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
     PlotConfiguration,
 };
+use linfa::benchmarks::config;
 use linfa::traits::Transformer;
 use linfa_clustering::AppxDbscan;
 use linfa_datasets::generate;
@@ -9,8 +10,6 @@ use ndarray::Array2;
 use ndarray_rand::rand::SeedableRng;
 use ndarray_rand::rand_distr::Uniform;
 use ndarray_rand::RandomExt;
-#[cfg(not(target_os = "windows"))]
-use pprof::criterion::{Output, PProfProfiler};
 use rand_xoshiro::Xoshiro256Plus;
 
 fn appx_dbscan_bench(c: &mut Criterion) {
@@ -23,7 +22,9 @@ fn appx_dbscan_bench(c: &mut Criterion) {
     ];
 
     let mut benchmark = c.benchmark_group("appx_dbscan");
+    config::set_default_benchmark_configs(&mut benchmark);
     benchmark.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
+
     for cluster_size_and_slack in cluster_sizes_and_slacks {
         let rng = &mut rng;
         benchmark.bench_with_input(
@@ -53,7 +54,7 @@ fn appx_dbscan_bench(c: &mut Criterion) {
 #[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    config = config::get_default_profiling_configs();
     targets = appx_dbscan_bench
 }
 #[cfg(target_os = "windows")]

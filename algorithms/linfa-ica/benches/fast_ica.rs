@@ -1,11 +1,10 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use linfa::benchmarks::config;
 use linfa::{dataset::DatasetBase, traits::Fit};
 use linfa_ica::fast_ica::{FastIca, GFunc};
 use ndarray::{array, concatenate};
 use ndarray::{Array, Array2, Axis};
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
-#[cfg(not(target_os = "windows"))]
-use pprof::criterion::{Output, PProfProfiler};
 use rand_xoshiro::Xoshiro256Plus;
 
 fn perform_ica(size: usize, gfunc: GFunc) {
@@ -55,6 +54,8 @@ fn bench(c: &mut Criterion) {
         (GFunc::Exp, "Exp"),
     ] {
         let mut group = c.benchmark_group("Fast ICA");
+        config::set_default_benchmark_configs(&mut group);
+
         let sizes: [usize; 3] = [1_000, 10_000, 100_000];
         for size in sizes {
             let input = (size, gfunc);
@@ -69,7 +70,7 @@ fn bench(c: &mut Criterion) {
 #[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    config = config::get_default_profiling_configs();
     targets = bench
 }
 #[cfg(target_os = "windows")]

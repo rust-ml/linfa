@@ -40,9 +40,7 @@ approx = "0.4"
 criterion = "0.4.0"
 rand_xoshiro = "0.6"
 ndarray-rand = "0.14"
-
-[target.'cfg(not(windows))'.dev-dependencies]
-pprof = { version = "0.11.0", features = ["flamegraph", "criterion"] }
+linfa = { version = "0.6.0", path = "../..", features = ["benchmarks"] }
 
 [[bench]]
 name = "nn"

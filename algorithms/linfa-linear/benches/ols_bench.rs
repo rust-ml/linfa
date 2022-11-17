@@ -1,11 +1,10 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use linfa::benchmarks::config;
 use linfa::traits::Fit;
 use linfa::Dataset;
 use linfa_datasets::generate::make_dataset;
 use linfa_linear::{LinearRegression, TweedieRegressor};
 use ndarray::Ix1;
-#[cfg(not(target_os = "windows"))]
-use pprof::criterion::{Output, PProfProfiler};
 use statrs::distribution::{DiscreteUniform, Laplace};
 
 #[allow(unused_must_use)]
@@ -22,6 +21,8 @@ fn perform_glm(dataset: &Dataset<f64, f64, Ix1>) {
 
 fn bench(c: &mut Criterion) {
     let mut group = c.benchmark_group("Linfa_linear");
+    config::set_default_benchmark_configs(&mut group);
+
     let params: [(usize, usize); 4] = [(1_000, 5), (10_000, 5), (100_000, 5), (100_000, 10)];
 
     let feat_distr = Laplace::new(0.5, 5.).unwrap();
@@ -62,7 +63,7 @@ fn bench(c: &mut Criterion) {
 #[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    config = config::get_default_profiling_configs();
     targets = bench
 }
 #[cfg(target_os = "windows")]

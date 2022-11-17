@@ -1,4 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use linfa::benchmarks::config;
 use linfa::prelude::Predict;
 use linfa::traits::FitWith;
 use linfa::{Dataset, DatasetBase, ParamGuard};
@@ -7,13 +8,14 @@ use ndarray::{Array1, Array2};
 use ndarray_rand::{
     rand::distributions::Uniform, rand::rngs::SmallRng, rand::SeedableRng, RandomExt,
 };
-#[cfg(not(target_os = "windows"))]
-use pprof::criterion::{Output, PProfProfiler};
 
 fn fit_without_prior_model(c: &mut Criterion) {
     let mut rng = SmallRng::seed_from_u64(42);
     let params = Ftrl::params();
+
     let mut group = c.benchmark_group("Ftrl with no initial model");
+    config::set_default_benchmark_configs(&mut group);
+
     let sizes: Vec<(usize, usize)> = vec![(10, 1_000), (50, 5_000), (100, 10_000)];
 
     for (nfeatures, nrows) in sizes.iter() {
@@ -34,7 +36,10 @@ fn fit_with_prior_model(c: &mut Criterion) {
     let mut rng = SmallRng::seed_from_u64(42);
     let params = Ftrl::params();
     let valid_params = params.clone().check().unwrap();
+
     let mut group = c.benchmark_group("Ftrl incremental model training");
+    config::set_default_benchmark_configs(&mut group);
+
     let sizes: Vec<(usize, usize)> = vec![(10, 1_000), (50, 5_000), (100, 10_000)];
 
     for (nfeatures, nrows) in sizes.iter() {
@@ -57,8 +62,11 @@ fn fit_with_prior_model(c: &mut Criterion) {
 fn predict(c: &mut Criterion) {
     let mut rng = SmallRng::seed_from_u64(42);
     let params = Ftrl::params();
+
     let valid_params = params.clone().check().unwrap();
     let mut group = c.benchmark_group("Ftrl");
+    config::set_default_benchmark_configs(&mut group);
+
     let sizes: Vec<(usize, usize)> = vec![(10, 1_000), (50, 5_000), (100, 10_000)];
     for (nfeatures, nrows) in sizes.iter() {
         let model = Ftrl::new(valid_params.clone(), *nfeatures);
@@ -91,7 +99,7 @@ fn get_dataset(
 #[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    config = config::get_default_profiling_configs();
     targets = fit_without_prior_model, fit_with_prior_model, predict
 }
 #[cfg(target_os = "windows")]

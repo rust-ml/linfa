@@ -1,14 +1,15 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use linfa::benchmarks::config;
 use linfa_nn::{distance::*, CommonNearestNeighbour, NearestNeighbour};
 use ndarray::{Array1, Array2};
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
-#[cfg(not(target_os = "windows"))]
-use pprof::criterion::{Output, PProfProfiler};
 use rand_xoshiro::Xoshiro256Plus;
 
 fn nn_build_bench(c: &mut Criterion) {
     let mut rng = Xoshiro256Plus::seed_from_u64(40);
     let mut benchmark = c.benchmark_group("nn_build");
+    config::set_default_benchmark_configs(&mut benchmark);
+
     let n_features = 3;
     let algorithms = &[
         (CommonNearestNeighbour::KdTree, "kdtree"),
@@ -36,6 +37,8 @@ fn nn_build_bench(c: &mut Criterion) {
 fn k_nearest_bench(c: &mut Criterion) {
     let mut rng = Xoshiro256Plus::seed_from_u64(40);
     let mut benchmark = c.benchmark_group("k_nearest");
+    config::set_default_benchmark_configs(&mut benchmark);
+
     let n_features = 3;
     let distr = Uniform::new(-500., 500.);
 
@@ -69,6 +72,8 @@ fn k_nearest_bench(c: &mut Criterion) {
 fn within_range_bench(c: &mut Criterion) {
     let mut rng = Xoshiro256Plus::seed_from_u64(40);
     let mut benchmark = c.benchmark_group("within_range");
+    config::set_default_benchmark_configs(&mut benchmark);
+
     let n_features = 3;
     let distr = Uniform::new(-50., 50.);
 
@@ -101,7 +106,7 @@ fn within_range_bench(c: &mut Criterion) {
 #[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    config = config::get_default_profiling_configs();
     targets = nn_build_bench, k_nearest_bench, within_range_bench
 }
 #[cfg(target_os = "windows")]

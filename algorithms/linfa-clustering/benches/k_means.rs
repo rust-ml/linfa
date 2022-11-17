@@ -2,6 +2,7 @@ use criterion::{
     black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
     PlotConfiguration,
 };
+use linfa::benchmarks::config;
 use linfa::prelude::*;
 use linfa::DatasetBase;
 use linfa_clustering::{IncrKMeansError, KMeans, KMeansInit};
@@ -9,8 +10,6 @@ use linfa_datasets::generate;
 use ndarray::Array2;
 use ndarray_rand::RandomExt;
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform};
-#[cfg(not(target_os = "windows"))]
-use pprof::criterion::{Output, PProfProfiler};
 use rand_xoshiro::Xoshiro256Plus;
 
 #[derive(Default)]
@@ -40,7 +39,9 @@ fn k_means_bench(c: &mut Criterion) {
     let n_features = 3;
 
     let mut benchmark = c.benchmark_group("naive_k_means");
+    config::set_default_benchmark_configs(&mut benchmark);
     benchmark.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
+
     for &(cluster_size, n_clusters) in &cluster_sizes {
         let rng = &mut rng;
         let centroids =
@@ -73,7 +74,9 @@ fn k_means_incr_bench(c: &mut Criterion) {
     let n_features = 3;
 
     let mut benchmark = c.benchmark_group("incremental_k_means");
+    config::set_default_benchmark_configs(&mut benchmark);
     benchmark.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
+
     for &(cluster_size, n_clusters) in &cluster_sizes {
         let rng = &mut rng;
         let centroids =
@@ -124,6 +127,7 @@ fn k_means_init_bench(c: &mut Criterion) {
     let n_features = 3;
 
     let mut benchmark = c.benchmark_group("k_means_init");
+    config::set_default_benchmark_configs(&mut benchmark);
     benchmark.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
     for init in &init_methods {
         for &(cluster_size, n_clusters) in &cluster_sizes {
@@ -160,7 +164,7 @@ fn k_means_init_bench(c: &mut Criterion) {
 #[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    config = config::get_default_profiling_configs();
     targets = k_means_bench, k_means_init_bench, k_means_incr_bench
 }
 #[cfg(target_os = "windows")]

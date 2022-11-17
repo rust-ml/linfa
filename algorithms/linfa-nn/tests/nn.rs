@@ -1,5 +1,5 @@
 use approx::assert_abs_diff_eq;
-use ndarray::{arr1, arr2, aview1, stack, Array2, ArrayView1, Axis};
+use ndarray::{arr1, arr2, aview1, stack, Array2, ArrayBase, ArrayView1, Axis, Dim, ViewRepr};
 use ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
 use ndarray_stats::DeviationExt;
 use noisy_float::{checkers::FiniteChecker, NoisyFloat};
@@ -110,7 +110,10 @@ fn nn_test_degenerate(builder: &CommonNearestNeighbour) {
         .into_iter()
         .map(|(p, _)| p.reborrow())
         .collect::<Vec<_>>();
-    assert_eq!(out, Vec::<ArrayView1<_>>::new());
+    assert_eq!(
+        out,
+        Vec::<ArrayBase<ViewRepr<&f64>, Dim<[usize; 1]>>>::new()
+    );
     let out = nn
         .within_range(pt, 20.0)
         .unwrap()

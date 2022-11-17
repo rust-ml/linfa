@@ -62,6 +62,9 @@ pub use param_guard::ParamGuard;
 #[cfg(feature = "ndarray-linalg")]
 pub use ndarray_linalg as linalg;
 
+#[cfg(feature = "benchmarks")]
+pub mod benchmarks;
+
 /// Common metrics functions for classification and regression
 pub mod metrics {
     pub use crate::metrics_classification::{

@@ -21,7 +21,7 @@ exclude = [".github/"]
 
 [features]
 default = []
-
+benchmarks = ["criterion", "pprof"]
 netlib-static = ["blas", "ndarray-linalg/netlib-static"]
 netlib-system = ["blas", "ndarray-linalg/netlib-system"]
 
@@ -45,6 +45,8 @@ ndarray-linalg = { version = "0.15", optional = true }
 
 thiserror = "1.0"
 
+criterion = { version = "0.4.0", optional = true}
+
 [dependencies.serde_crate]
 package = "serde"
 optional = true
@@ -56,6 +58,9 @@ features = ["std", "derive"]
 ndarray-rand = "0.14"
 linfa-datasets = { path = "datasets", features = ["winequality", "iris", "diabetes", "generate"] }
 statrs = "0.16.0"
+
+[target.'cfg(not(windows))'.dependencies]
+pprof = { version = "0.11.0", features = ["flamegraph", "criterion"], optional = true}
 
 [workspace]
 members = [
