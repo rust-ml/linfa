@@ -1,4 +1,5 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use linfa::benchmarks::config;
 use linfa::prelude::*;
 use linfa_trees::DecisionTree;
 use ndarray::{concatenate, Array, Array1, Array2, Axis};
@@ -31,7 +32,7 @@ fn decision_tree_bench(c: &mut Criterion) {
 
     // Benchmark training time 10 times for each training sample size
     let mut group = c.benchmark_group("decision_tree");
-    group.sample_size(10);
+    config::set_default_benchmark_configs(&mut group);
 
     for n in training_set_sizes.iter() {
         let centroids =
@@ -52,5 +53,13 @@ fn decision_tree_bench(c: &mut Criterion) {
     group.finish();
 }
 
+#[cfg(not(target_os = "windows"))]
+criterion_group! {
+    name = benches;
+    config = config::get_default_profiling_configs();
+    targets = decision_tree_bench
+}
+#[cfg(target_os = "windows")]
 criterion_group!(benches, decision_tree_bench);
+
 criterion_main!(benches);

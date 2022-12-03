@@ -31,10 +31,10 @@ linfa = { version = "0.6.1", path = "../.." }
 
 [dev-dependencies]
 rand = { version = "0.8", features = ["small_rng"] }
-criterion = "0.3.5"
+criterion = "0.4.0"
 approx = "0.4"
-
 linfa-datasets = { version = "0.6.1", path = "../../datasets/", features = ["iris"] }
+linfa = { version = "0.6.1", path = "../..", features = ["benchmarks"] }
 
 [[bench]]
 name = "decision_tree"

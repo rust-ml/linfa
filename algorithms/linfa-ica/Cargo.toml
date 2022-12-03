@@ -39,3 +39,9 @@ linfa = { version = "0.6.1", path = "../.." }
 [dev-dependencies]
 ndarray-npy = { version = "0.8", default-features = false }
 paste = "1.0"
+criterion = "0.4.0"
+linfa = { version = "0.6.0", path = "../..", features = ["benchmarks"] }
+
+[[bench]]
+name = "fast_ica"
+harness = false

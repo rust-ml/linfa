@@ -26,7 +26,7 @@ Additionally, this crate provides utility functions to randomly generate test da
 
 To use one of the provided datasets in your project add the `linfa-datasets` crate to your `Cargo.toml` and enable the corresponding feature:
 ```
-linfa-datasets = { version = "0.3.1", features = ["winequality"] }
+linfa-datasets = { version = "0.x", features = ["winequality"] }
 ```
 You can then use the dataset in your working code:
 ```rust
@@ -36,3 +36,7 @@ fn main() {
     /// ...
 }
 ```
+
+## Data generation
+
+To generate datasets randomly, enable the `generate` feature on `linfa-datasets`. The API is in the `generate` module of the crate.

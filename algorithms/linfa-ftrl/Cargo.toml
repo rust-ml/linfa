@@ -25,9 +25,10 @@ serde = {version = "1.0.137", features = ["derive"]}
 linfa = { version = "0.6.1", path = "../.."}
 
 [dev-dependencies]
-criterion = "0.3"
+criterion = "0.4.0"
 approx = "0.4"
 linfa-datasets = { version = "0.6.1", path = "../../datasets", features = ["winequality"] }
+linfa = { version = "0.6.1", path = "../..", features = ["benchmarks"] }
 
 [[bench]]
 name = "ftrl"
