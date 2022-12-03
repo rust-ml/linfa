@@ -1,3 +1,18 @@
+Version 0.6.1 - 2022-12-03
+========================
+New Algorithms
+-----------
+ * Isotonic regression added to `linfa-linear` by [@wildart]
+ * Mean absolute percentage error (MAPE) added to `linfa` by [@bernado-sb]
+
+Changes
+-----------
+ * add constructor for `LpDist`
+ * add `Send + Sync` to trait objects returned by `linfa-nn`
+ * remove `anyhow <= 1.0.48` version restriction
+ * bump `ndarray` to 0.15
+ * fix `serde` support for `LogisticRegression`
+
 Version 0.6.0 - 2022-06-15
 ========================
 
