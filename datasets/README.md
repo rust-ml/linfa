@@ -25,29 +25,25 @@ Additionally, this crate provides utility functions to randomly generate test da
 ## Using a dataset
 
 To use one of the provided datasets in your project add the `linfa-datasets` crate to your `Cargo.toml` and enable the corresponding feature:
-```
+```ignore
 linfa-datasets = { version = "0.x", features = ["winequality"] }
 ```
 You can then use the dataset in your working code:
-```rust
-fn main() {
-    let (train, valid) = linfa_datasets::winequality()
-        .split_with_ratio(0.8);
-    /// ...
-}
+```rust,ignore
+let (train, valid) = linfa_datasets::winequality()
+    .split_with_ratio(0.8);
 ```
 
 ## Reading from a file
 
 `linfa-datasets` is also capable of reading 2D arrays from CSV files:
-```rust
+```rust,no_run
 use std::fs::File;
+use std::io::Read;
 
-fn main() {
-    let file = File::open("data.csv.gz");
-    // Read the array from a GZipped CSV file with a header and separated by commas
-    let array = linfa_datasets::array_from_gz_csv(file, true, b',').unwrap();
-}
+let file = File::open("data.csv.gz").unwrap();
+// Read the array from a GZipped CSV file with a header and separated by commas
+let array = linfa_datasets::array_from_gz_csv(file, true, b',').unwrap();
 ```
 
 ## Data generation
