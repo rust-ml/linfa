@@ -35,20 +35,8 @@
 //!     .split_with_ratio(0.8);
 //! ```
 
-#[cfg(any(
-    feature = "iris",
-    feature = "diabetes",
-    feature = "winequality",
-    feature = "linnerud"
-))]
 pub mod dataset;
 #[cfg(feature = "generate")]
 pub mod generate;
 
-#[cfg(any(
-    feature = "iris",
-    feature = "diabetes",
-    feature = "winequality",
-    feature = "linnerud"
-))]
 pub use dataset::*;
