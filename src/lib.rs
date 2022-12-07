@@ -36,6 +36,7 @@
 //! | [tsne](https://docs.rs/linfa-tsne/) | Dimensionality reduction| Tested | Unsupervised learning | Contains exact solution and Barnes-Hut approximation t-SNE |
 //! | [preprocessing](https://docs.rs/linfa-preprocessing/) |Normalization & Vectorization| Tested | Pre-processing | Contains data normalization/whitening and count vectorization/tf-idf|
 //! | [nn](https://docs.rs/linfa-nn/) | Nearest Neighbours & Distances | Tested / Benchmarked | Pre-processing | Spatial index structures and distance functions |
+//! | [ftrl](algorithms/linfa-ftrl/) | Follow The Reguralized Leader - proximal | Tested  / Benchmarked | Partial fit | Contains L1 and L2 regularization. Possible incremental update |
 //!
 //! We believe that only a significant community effort can nurture, build, and sustain a machine learning ecosystem in Rust - there is no other way forward.
 //!

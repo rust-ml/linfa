@@ -18,23 +18,32 @@ Currently the following datasets are provided:
 | linnerud | The linnerud dataset contains samples from 20 middle-aged men in a fitness club. Their physical capability, as well as biological measures are related. | 20, 3, 3 | Regression | [here](https://core.ac.uk/download/pdf/20641325.pdf) |
 
 The purpose of this crate is to faciliate dataset loading and make it as simple as possible. Loaded datasets are returned as a 
-[`linfa::Dataset`](https://docs.rs/linfa/latest/linfa/dataset/type.Dataset.html) structure with named features.
+[`linfa::Dataset`](https://docs.rs/linfa/latest/linfa/dataset/type.Dataset.html) structure with named features. The crate also includes helper functions for reading arrays from CSV files.
 
 Additionally, this crate provides utility functions to randomly generate test datasets.
 
 ## Using a dataset
 
 To use one of the provided datasets in your project add the `linfa-datasets` crate to your `Cargo.toml` and enable the corresponding feature:
-```
+```ignore
 linfa-datasets = { version = "0.x", features = ["winequality"] }
 ```
 You can then use the dataset in your working code:
-```rust
-fn main() {
-    let (train, valid) = linfa_datasets::winequality()
-        .split_with_ratio(0.8);
-    /// ...
-}
+```rust,ignore
+let (train, valid) = linfa_datasets::winequality()
+    .split_with_ratio(0.8);
+```
+
+## Reading from a file
+
+`linfa-datasets` is also capable of reading 2D arrays from CSV files:
+```rust,no_run
+use std::fs::File;
+use std::io::Read;
+
+let file = File::open("data.csv.gz").unwrap();
+// Read the array from a GZipped CSV file with a header and separated by commas
+let array = linfa_datasets::array_from_gz_csv(file, true, b',').unwrap();
 ```
 
 ## Data generation

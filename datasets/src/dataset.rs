@@ -1,20 +1,36 @@
+use std::io::Read;
+
 use csv::ReaderBuilder;
 use flate2::read::GzDecoder;
 use linfa::Dataset;
 use ndarray::prelude::*;
-use ndarray_csv::Array2Reader;
+use ndarray_csv::{Array2Reader, ReadError};
 
-fn array_from_buf(buf: &[u8]) -> Array2<f64> {
+/// Convert Gzipped CSV bytes into 2D array
+pub fn array_from_gz_csv<R: Read>(
+    gz: R,
+    has_headers: bool,
+    separator: u8,
+) -> Result<Array2<f64>, ReadError> {
     // unzip file
-    let file = GzDecoder::new(buf);
-    // create a CSV reader with headers and `,` as delimiter
+    let file = GzDecoder::new(gz);
+    array_from_csv(file, has_headers, separator)
+}
+
+/// Convert CSV bytes into 2D array
+pub fn array_from_csv<R: Read>(
+    csv: R,
+    has_headers: bool,
+    separator: u8,
+) -> Result<Array2<f64>, ReadError> {
+    // parse CSV
     let mut reader = ReaderBuilder::new()
-        .has_headers(true)
-        .delimiter(b',')
-        .from_reader(file);
+        .has_headers(has_headers)
+        .delimiter(separator)
+        .from_reader(csv);
 
     // extract ndarray
-    reader.deserialize_array2_dynamic().unwrap()
+    reader.deserialize_array2_dynamic()
 }
 
 #[cfg(feature = "iris")]
@@ -22,7 +38,7 @@ fn array_from_buf(buf: &[u8]) -> Array2<f64> {
 // The `.csv` data is two dimensional: Axis(0) denotes y-axis (rows), Axis(1) denotes x-axis (columns)
 pub fn iris() -> Dataset<f64, usize, Ix1> {
     let data = include_bytes!("../data/iris.csv.gz");
-    let array = array_from_buf(&data[..]);
+    let array = array_from_gz_csv(&data[..], true, b',').unwrap();
 
     let (data, targets) = (
         array.slice(s![.., 0..4]).to_owned(),
@@ -40,10 +56,13 @@ pub fn iris() -> Dataset<f64, usize, Ix1> {
 /// Read in the diabetes dataset from dataset path
 pub fn diabetes() -> Dataset<f64, f64, Ix1> {
     let data = include_bytes!("../data/diabetes_data.csv.gz");
-    let data = array_from_buf(&data[..]);
+    let data = array_from_gz_csv(&data[..], true, b',').unwrap();
 
     let targets = include_bytes!("../data/diabetes_target.csv.gz");
-    let targets = array_from_buf(&targets[..]).column(0).to_owned();
+    let targets = array_from_gz_csv(&targets[..], true, b',')
+        .unwrap()
+        .column(0)
+        .to_owned();
 
     let feature_names = vec![
         "age",
@@ -65,7 +84,7 @@ pub fn diabetes() -> Dataset<f64, f64, Ix1> {
 /// Read in the winequality dataset from dataset path
 pub fn winequality() -> Dataset<f64, usize, Ix1> {
     let data = include_bytes!("../data/winequality-red.csv.gz");
-    let array = array_from_buf(&data[..]);
+    let array = array_from_gz_csv(&data[..], true, b',').unwrap();
 
     let (data, targets) = (
         array.slice(s![.., 0..11]).to_owned(),
@@ -106,10 +125,10 @@ pub fn winequality() -> Dataset<f64, usize, Ix1> {
 /// Tenenhaus (1998). La regression PLS: theorie et pratique. Paris: Editions Technip. Table p 15.
 pub fn linnerud() -> Dataset<f64, f64> {
     let input_data = include_bytes!("../data/linnerud_exercise.csv.gz");
-    let input_array = array_from_buf(&input_data[..]);
+    let input_array = array_from_gz_csv(&input_data[..], true, b',').unwrap();
 
     let output_data = include_bytes!("../data/linnerud_physiological.csv.gz");
-    let output_array = array_from_buf(&output_data[..]);
+    let output_array = array_from_gz_csv(&output_data[..], true, b',').unwrap();
 
     let feature_names = vec!["Chins", "Situps", "Jumps"];
 
