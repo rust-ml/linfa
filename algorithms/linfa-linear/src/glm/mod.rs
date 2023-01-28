@@ -5,14 +5,18 @@ mod hyperparams;
 mod link;
 
 use crate::error::{LinearError, Result};
-use crate::float::{ArgminParam, Float};
+use crate::float::Float;
+use argmin_math::{
+    ArgminAdd, ArgminDot, ArgminL1Norm, ArgminL2Norm, ArgminMinMax, ArgminMul, ArgminSignum,
+    ArgminSub, ArgminZero,
+};
 use distribution::TweedieDistribution;
 pub use hyperparams::TweedieRegressorParams;
 pub use hyperparams::TweedieRegressorValidParams;
 use linfa::dataset::AsSingleTargets;
 pub use link::Link;
 
-use argmin::core::{ArgminOp, Executor};
+use argmin::core::{CostFunction, Executor, Gradient};
 use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::LBFGS;
 use ndarray::{array, concatenate, s};
@@ -24,6 +28,19 @@ use linfa::DatasetBase;
 
 impl<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = F>>
     Fit<ArrayBase<D, Ix2>, T, LinearError<F>> for TweedieRegressorValidParams<F>
+where
+    Array1<F>: ArgminAdd<Array1<F>, Array1<F>>
+        + ArgminSub<Array1<F>, Array1<F>>
+        + ArgminSub<F, Array1<F>>
+        + ArgminAdd<F, Array1<F>>
+        + ArgminMul<F, Array1<F>>
+        + ArgminMul<Array1<F>, Array1<F>>
+        + ArgminDot<Array1<F>, F>
+        + ArgminL2Norm<F>
+        + ArgminL1Norm<F>
+        + ArgminSignum
+        + ArgminMinMax,
+    F: ArgminMul<Array1<F>, Array1<F>> + ArgminZero,
 {
     type Object = TweedieRegressor<F>;
 
@@ -65,12 +82,12 @@ impl<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = F>>
         // position x and gradient ∇f(x), where generally the history
         // size m can be small (often m < 10)
         // For our problem we set m as 7
-        let solver = LBFGS::new(linesearch, 7).with_tol_grad(F::cast(self.tol()));
+        let solver = LBFGS::new(linesearch, 7).with_tolerance_grad(F::cast(self.tol()))?;
 
-        let result = Executor::new(problem, solver, ArgminParam(coef))
-            .max_iters(self.max_iter() as u64)
+        let mut result = Executor::new(problem, solver)
+            .configure(|state| state.param(coef).max_iters(self.max_iter() as u64))
             .run()?;
-        coef = result.state.get_best_param().as_array().to_owned();
+        coef = result.state.take_best_param().unwrap();
 
         if self.fit_intercept() {
             Ok(TweedieRegressor {
@@ -116,12 +133,9 @@ impl<'a, A: Float> TweedieProblem<'a, A> {
     }
 }
 
-impl<'a, A: Float> ArgminOp for TweedieProblem<'a, A> {
-    type Param = ArgminParam<A>;
+impl<'a, A: Float> CostFunction for TweedieProblem<'a, A> {
+    type Param = Array1<A>;
     type Output = A;
-    type Hessian = ();
-    type Jacobian = Array1<A>;
-    type Float = A;
 
     // This function calculates the value of the objective function we are trying
     // to minimize,
@@ -130,9 +144,7 @@ impl<'a, A: Float> ArgminOp for TweedieProblem<'a, A> {
     //
     // - `p` is the parameter we are optimizing (coefficients and intercept)
     // - `alpha` is the regularization hyperparameter
-    fn apply(&self, p: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
-        let p = p.as_array();
-
+    fn cost(&self, p: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
         let (ypred, _, offset) = self.ypred(p);
 
         let dev = self.dist.deviance(self.y, ypred.view())?;
@@ -145,10 +157,13 @@ impl<'a, A: Float> ArgminOp for TweedieProblem<'a, A> {
 
         Ok(obj)
     }
+}
+
+impl<'a, A: Float> Gradient for TweedieProblem<'a, A> {
+    type Param = Array1<A>;
+    type Gradient = Array1<A>;
 
     fn gradient(&self, p: &Self::Param) -> std::result::Result<Self::Param, argmin::core::Error> {
-        let p = p.as_array();
-
         let (ypred, lin_pred, offset) = self.ypred(p);
 
         let devp;
@@ -168,7 +183,7 @@ impl<'a, A: Float> ArgminOp for TweedieProblem<'a, A> {
         objp.slice_mut(s![offset..])
             .zip_mut_with(&pscaled, |x, y| *x += *y);
 
-        Ok(ArgminParam(objp))
+        Ok(objp)
     }
 }
 

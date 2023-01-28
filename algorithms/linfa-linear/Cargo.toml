@@ -17,14 +17,15 @@ keywords = ["machine-learning", "linfa", "ai", "ml", "linear"]
 categories = ["algorithms", "mathematics", "science"]
 
 [features]
-blas = ["ndarray-linalg", "linfa/ndarray-linalg", "argmin/ndarray-linalg"]
+blas = ["ndarray-linalg", "linfa/ndarray-linalg"]
 
 [dependencies]
 ndarray = { version = "0.15", features = ["approx"] }
 linfa-linalg = { version = "0.1", default-features = false }
 ndarray-linalg = { version = "0.15", optional = true }
 num-traits = "0.2"
-argmin = { version = "0.4.6", features = ["ndarray", "ndarray-rand"] }
+argmin = { version = "0.8.0", features = ["serde1"] }
+argmin-math = { version = "0.3.0", features = ["ndarray_v0_15-nolinalg-serde"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 thiserror = "1.0"
 
