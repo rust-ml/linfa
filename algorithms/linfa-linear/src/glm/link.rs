@@ -1,11 +1,17 @@
 //! Link functions used by GLM
 
 use ndarray::Array1;
-use serde::{Deserialize, Serialize};
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 use crate::float::Float;
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 /// Link functions used by GLM
 pub enum Link {
     /// The identity link function `g(x)=x`

@@ -21,7 +21,8 @@ use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::LBFGS;
 use ndarray::{array, concatenate, s};
 use ndarray::{Array, Array1, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
-use serde::{Deserialize, Serialize};
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 use linfa::traits::*;
 use linfa::DatasetBase;
@@ -219,7 +220,12 @@ impl<'a, A: Float> Gradient for TweedieProblem<'a, A> {
 /// let r2 = pred.r2(&dataset).unwrap();
 /// println!("r2 from prediction: {}", r2);
 /// ```
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub struct TweedieRegressor<A> {
     /// Estimated coefficients for the linear predictor
     pub coef: Array1<A>,
