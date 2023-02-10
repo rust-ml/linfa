@@ -32,8 +32,8 @@ ndarray = { version = "0.15", features = ["approx"] }
 linfa-linalg = { version = "0.1", default-features = false }
 ndarray-linalg = { version = "0.15", optional = true }
 num-traits = "0.2"
-argmin = { version = "0.8.0", default-features = false }
-argmin-math = { version = "0.3.0", features = ["ndarray_v0_15-nolinalg"] }
+argmin = { version = "0.7", default-features = false }
+argmin-math = { version = "0.2", features = ["ndarray_v0_15-nolinalg"] }
 thiserror = "1.0"
 
 linfa = { version = "0.6.1", path = "../.." }
