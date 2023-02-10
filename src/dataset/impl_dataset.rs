@@ -65,7 +65,7 @@ impl<R: Records, S> DatasetBase<R, S> {
             self.feature_names.clone()
         } else {
             (0..self.records.nfeatures())
-                .map(|idx| format!("feature-{}", idx))
+                .map(|idx| format!("feature-{idx}"))
                 .collect()
         }
     }
