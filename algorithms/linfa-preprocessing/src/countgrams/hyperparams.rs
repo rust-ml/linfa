@@ -4,6 +4,40 @@ use regex::Regex;
 use std::cell::{Ref, RefCell};
 use std::collections::HashSet;
 
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
+
+#[derive(Clone, Debug)]
+#[cfg(not(feature = "serde"))]
+struct SerdeRegex(Regex);
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(crate = "serde_crate")]
+#[cfg(feature = "serde")]
+struct SerdeRegex(serde_regex::Serde<Regex>);
+
+#[cfg(not(feature = "serde"))]
+impl SerdeRegex {
+    fn new(re: &str) -> Result<Self, regex::Error> {
+        Ok(Self(Regex::new(re)?))
+    }
+
+    fn as_re(&self) -> &Regex {
+        &self.0
+    }
+}
+
+#[cfg(feature = "serde")]
+impl SerdeRegex {
+    fn new(re: &str) -> Result<Self, regex::Error> {
+        Ok(Self(serde_regex::Serde(Regex::new(re)?)))
+    }
+
+    fn as_re(&self) -> &Regex {
+        use std::ops::Deref;
+        &self.0.deref()
+    }
+}
+
 /// Count vectorizer: learns a vocabulary from a sequence of documents (or file paths) and maps each
 /// vocabulary entry to an integer value, producing a [CountVectorizer](crate::CountVectorizer) that can
 /// be used to count the occurrences of each vocabulary entry in any sequence of documents. Alternatively a user-specified vocabulary can
@@ -23,11 +57,16 @@ use std::collections::HashSet;
 /// * `normalize`: if true, all charachters in the documents used for fitting will be normalized according to unicode's NFKD normalization. Defaults to `true`.
 /// * `document_frequency`: specifies the minimum and maximum (relative) document frequencies that each vocabulary entry must satisfy. Defaults to `(0., 1.)` (i.e. 0% minimum and 100% maximum)
 /// * `stopwords`: optional list of entries to be excluded from the generated vocabulary. Defaults to `None`
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Clone, Debug)]
 pub struct CountVectorizerValidParams {
     convert_to_lowercase: bool,
     split_regex_expr: String,
-    split_regex: RefCell<Option<Regex>>,
+    split_regex: RefCell<Option<SerdeRegex>>,
     n_gram_range: (usize, usize),
     normalize: bool,
     document_frequency: (f32, f32),
@@ -40,7 +79,7 @@ impl CountVectorizerValidParams {
     }
 
     pub fn split_regex(&self) -> Ref<'_, Regex> {
-        Ref::map(self.split_regex.borrow(), |x| x.as_ref().unwrap())
+        Ref::map(self.split_regex.borrow(), |x| x.as_ref().unwrap().as_re())
     }
 
     pub fn n_gram_range(&self) -> (usize, usize) {
@@ -60,6 +99,11 @@ impl CountVectorizerValidParams {
     }
 }
 
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Clone, Debug)]
 pub struct CountVectorizerParams(CountVectorizerValidParams);
 
@@ -145,7 +189,7 @@ impl ParamGuard for CountVectorizerParams {
                 min_freq, max_freq,
             ))
         } else {
-            *self.0.split_regex.borrow_mut() = Some(Regex::new(&self.0.split_regex_expr)?);
+            *self.0.split_regex.borrow_mut() = Some(SerdeRegex::new(&self.0.split_regex_expr)?);
 
             Ok(&self.0)
         }
