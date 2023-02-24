@@ -51,11 +51,6 @@ impl<F: Float, L> GaussianNbValidParams<F, L> {
 /// Returns [`InvalidSmoothing`](NaiveBayesError::InvalidSmoothing) if the smoothing
 /// parameter is negative.
 ///
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GaussianNbParams<F, L>(GaussianNbValidParams<F, L>);
 
@@ -148,11 +143,6 @@ impl<F: Float, L> MultinomialNbValidParams<F, L> {
 /// Returns [`InvalidSmoothing`](NaiveBayesError::InvalidSmoothing) if the smoothing
 /// parameter is negative.
 ///
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MultinomialNbParams<F, L>(MultinomialNbValidParams<F, L>);
 
