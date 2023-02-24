@@ -21,7 +21,7 @@ exclude = [".github/"]
 
 [features]
 default = []
-benchmarks = ["criterion", "pprof", "inferno"]
+benchmarks = ["criterion", "pprof"]
 netlib-static = ["blas", "ndarray-linalg/netlib-static"]
 netlib-system = ["blas", "ndarray-linalg/netlib-system"]
 
@@ -60,9 +60,7 @@ linfa-datasets = { path = "datasets", features = ["winequality", "iris", "diabet
 statrs = "0.16.0"
 
 [target.'cfg(not(windows))'.dependencies]
-pprof = { version = "0.11.0", features = ["flamegraph", "criterion"], optional = true }
-# Restrict version of inferno (dep of pprof). Newer versions of inferno break on Rust 1.62
-inferno = { version = "<=0.11.4", default-features = false, optional = true }
+pprof = { version = "0.11.0", features = ["flamegraph", "criterion"], optional = true}
 
 [workspace]
 members = [
