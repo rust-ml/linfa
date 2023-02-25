@@ -7,6 +7,14 @@ use ndarray::{Array2, ArrayBase, Axis, Data, Ix2, Zip};
 #[cfg(feature = "blas")]
 use ndarray_linalg::norm::Norm;
 
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
+
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Norms {
     L1,
@@ -30,6 +38,11 @@ enum Norms {
 /// // Scale dataset
 /// let dataset = scaler.transform(dataset);
 /// ```
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NormScaler {
     norm: Norms,

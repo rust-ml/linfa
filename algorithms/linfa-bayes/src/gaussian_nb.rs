@@ -10,6 +10,9 @@ use crate::base_nb::{filter, NaiveBayes, NaiveBayesValidParams};
 use crate::error::{NaiveBayesError, Result};
 use crate::hyperparams::{GaussianNbParams, GaussianNbValidParams};
 
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
+
 impl<'a, F, L, D, T> NaiveBayesValidParams<'a, F, L, D, T> for GaussianNbValidParams<F, L>
 where
     F: Float,
@@ -226,11 +229,21 @@ where
 /// let model = checked_params.fit_with(Some(model), &ds)?;
 /// # Result::Ok(())
 /// ```
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Debug, Clone, PartialEq)]
 pub struct GaussianNb<F: PartialEq, L: Eq + Hash> {
     class_info: HashMap<L, GaussianClassInfo<F>>,
 }
 
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Debug, Default, Clone, PartialEq)]
 struct GaussianClassInfo<F> {
     class_count: usize,

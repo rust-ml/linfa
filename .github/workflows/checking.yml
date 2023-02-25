@@ -10,7 +10,7 @@ jobs:
       fail-fast: false
       matrix:
         toolchain:
-          - 1.59.0
+          - 1.64.0
           - stable
           - nightly
         os:
@@ -39,4 +39,4 @@ jobs:
         run: cargo check --workspace --all-targets
 
       - name: Run cargo check (with serde)
-        run: cargo check --workspace --all-targets --features "linfa-clustering/serde linfa-ica/serde linfa-kernel/serde linfa-reduction/serde linfa-svm/serde linfa-elasticnet/serde linfa-pls/serde linfa-trees/serde linfa-nn/serde linfa-linear/serde"
+        run: cargo check --workspace --all-targets --features "linfa-clustering/serde linfa-ica/serde linfa-kernel/serde linfa-reduction/serde linfa-svm/serde linfa-elasticnet/serde linfa-pls/serde linfa-trees/serde linfa-nn/serde linfa-linear/serde linfa-preprocessing/serde linfa-bayes/serde"

@@ -10,7 +10,15 @@ use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2, Zip};
 #[cfg(feature = "blas")]
 use ndarray_linalg::norm::Norm;
 
-#[derive(Clone, Debug, PartialEq)]
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
+
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 /// Possible scaling methods for [LinearScaler](LinearScaler)
 ///
 /// * Standard (with mean, with std): subtracts the mean to each feature and scales it by the inverse of its standard deviation
@@ -157,7 +165,12 @@ impl<F: Float> std::fmt::Display for ScalingMethod<F> {
 /// // scale dataset according to parameters
 /// let dataset = scaler.transform(dataset);
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LinearScalerParams<F: Float> {
     method: ScalingMethod<F>,
 }
@@ -233,7 +246,12 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets> Fit<ArrayBase<D, Ix2>, T, Prepro
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 /// The result of fitting a [linear scaler](LinearScalerParams).
 /// Scales datasets with the parameters learned during fitting.
 pub struct LinearScaler<F: Float> {
