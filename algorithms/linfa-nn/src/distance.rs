@@ -2,6 +2,9 @@ use linfa::Float;
 use ndarray::{Array2, ArrayBase, ArrayView, Axis, Data, Dimension, Ix2, Zip};
 use ndarray_stats::DeviationExt;
 
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
+
 /// A distance function that can be used in spatial algorithms such as nearest neighbour.
 pub trait Distance<F: Float>: Clone + Send + Sync + Unpin {
     /// Computes the distance between two points. For most spatial algorithms to work correctly,
@@ -33,6 +36,11 @@ pub trait Distance<F: Float>: Clone + Send + Sync + Unpin {
 }
 
 /// L1 or [Manhattan](https://en.wikipedia.org/wiki/Taxicab_geometry) distance
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct L1Dist;
 impl<F: Float> Distance<F> for L1Dist {
@@ -43,6 +51,11 @@ impl<F: Float> Distance<F> for L1Dist {
 }
 
 /// L2 or [Euclidean](https://en.wikipedia.org/wiki/Euclidean_distance) distance
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct L2Dist;
 impl<F: Float> Distance<F> for L2Dist {
@@ -68,6 +81,11 @@ impl<F: Float> Distance<F> for L2Dist {
 }
 
 /// L-infinte or [Chebyshev](https://en.wikipedia.org/wiki/Chebyshev_distance) distance
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LInfDist;
 impl<F: Float> Distance<F> for LInfDist {
@@ -78,6 +96,11 @@ impl<F: Float> Distance<F> for LInfDist {
 }
 
 /// L-p or [Minkowsky](https://en.wikipedia.org/wiki/Minkowski_distance) distance
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Debug, Clone, PartialEq)]
 pub struct LpDist<F: Float>(pub F);
 impl<F: Float> LpDist<F> {
