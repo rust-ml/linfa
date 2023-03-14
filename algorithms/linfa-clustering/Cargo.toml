@@ -37,7 +37,7 @@ num-traits = "0.2"
 rand_xoshiro = "0.6"
 space = "0.12"
 thiserror = "1.0"
-partitions = "0.2.4"
+#partitions = "0.2.4" This one will break in a future version of Rust and has no replacement
 linfa = { version = "0.6.1", path = "../.." }
 linfa-nn = { version = "0.6.1", path = "../linfa-nn" }
 noisy_float = "0.2.0"
