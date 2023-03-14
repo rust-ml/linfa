@@ -60,9 +60,5 @@ name = "dbscan"
 harness = false
 
 [[bench]]
-name = "appx_dbscan"
-harness = false
-
-[[bench]]
 name = "gaussian_mixture"
 harness = false
