@@ -267,7 +267,7 @@ impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsSingleTargets<El
 /// class.
 ///
 /// It is an error to have more than two classes.
-fn label_classes<F, T, C>(y: T) -> Result<(ClassLabels<F, C>, Array1<F>)>
+fn label_classes<F, T, C>(y: T) -> Result<(BinaryClassLabels<F, C>, Array1<F>)>
 where
     F: Float,
     T: AsSingleTargets<Elem = C>,
@@ -311,27 +311,27 @@ where
         })
         .collect::<Array1<_>>();
 
-    let labels = if pos_class.1 < neg_class.1 {
+    let (pos_cl, neg_cl) = if pos_class.1 < neg_class.1 {
         // If we found the larger class first, flip the sign in the target
         // vector, so that -1.0 is always the label for the smaller class
         // and 1.0 the label for the larger class
         target_array *= -F::one();
-        (F::NEGATIVE_LABEL, F::POSITIVE_LABEL)
+        (neg_class.0.clone(), pos_class.0.clone())
     } else {
-        (F::POSITIVE_LABEL, F::NEGATIVE_LABEL)
+        (pos_class.0.clone(), neg_class.0.clone())
     };
 
     Ok((
-        vec![
-            ClassLabel {
-                class: pos_class.0.clone(),
-                label: labels.0,
+        BinaryClassLabels {
+            pos: ClassLabel {
+                class: pos_cl,
+                label: F::POSITIVE_LABEL,
             },
-            ClassLabel {
-                class: neg_class.0.clone(),
-                label: labels.1,
+            neg: ClassLabel {
+                class: neg_cl,
+                label: F::NEGATIVE_LABEL,
             },
-        ],
+        },
         target_array,
     ))
 }
@@ -547,14 +547,14 @@ pub struct FittedLogisticRegression<F: Float, C: PartialOrd + Clone> {
     threshold: F,
     intercept: F,
     params: Array1<F>,
-    labels: ClassLabels<F, C>,
+    labels: BinaryClassLabels<F, C>,
 }
 
 impl<F: Float, C: PartialOrd + Clone> FittedLogisticRegression<F, C> {
     fn new(
         intercept: F,
         params: Array1<F>,
-        labels: ClassLabels<F, C>,
+        labels: BinaryClassLabels<F, C>,
     ) -> FittedLogisticRegression<F, C> {
         FittedLogisticRegression {
             threshold: F::cast(0.5),
@@ -609,8 +609,8 @@ impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
             "Number of data features must match the number of features the model was trained with."
         );
 
-        let pos_class = class_from_label(&self.labels, F::POSITIVE_LABEL);
-        let neg_class = class_from_label(&self.labels, F::NEGATIVE_LABEL);
+        let pos_class = &self.labels.pos.class;
+        let neg_class = &self.labels.neg.class;
         Zip::from(&self.predict_probabilities(x))
             .and(y)
             .for_each(|prob, out| {
@@ -709,15 +709,10 @@ struct ClassLabel<F, C: PartialOrd> {
     label: F,
 }
 
-type ClassLabels<F, C> = Vec<ClassLabel<F, C>>;
-
-fn class_from_label<F: Float, C: PartialOrd + Clone>(labels: &[ClassLabel<F, C>], label: F) -> C {
-    labels
-        .iter()
-        .find(|cl| cl.label == label)
-        .unwrap()
-        .class
-        .clone()
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+struct BinaryClassLabels<F, C: PartialOrd> {
+    pos: ClassLabel<F, C>,
+    neg: ClassLabel<F, C>,
 }
 
 /// Internal representation of a logistic regression problem.
@@ -1243,6 +1238,17 @@ mod test {
             &res.predict(dataset.records()),
             dataset.targets().as_single_targets()
         );
+    }
+
+    #[test]
+    fn simple_multi_example_2() {
+        let x = array![[1.0], [0.0], [1.0], [0.0]];
+        let y = array![1, 0, 1, 0];
+        let dataset = DatasetBase::new(x, y);
+        let model = MultiLogisticRegression::default().fit(&dataset).unwrap();
+
+        let pred = model.predict(&dataset.records);
+        assert_eq!(dataset.targets(), pred);
     }
 
     #[test]
