@@ -44,8 +44,6 @@ pub use pls_generic::*;
 mod pls_svd;
 mod utils;
 
-use crate::pls_generic::*;
-
 use linfa::{traits::Fit, traits::PredictInplace, traits::Transformer, DatasetBase, Float};
 use ndarray::{Array2, ArrayBase, Data, Ix2};
 
