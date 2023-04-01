@@ -1,9 +1,15 @@
 use crate::{glm::link::Link, LinearError, TweedieRegressor};
 use linfa::{Float, ParamGuard};
-use serde::{Deserialize, Serialize};
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 /// The set of hyperparameters that can be specified for the execution of the Tweedie Regressor.
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub struct TweedieRegressorValidParams<F> {
     alpha: F,
     fit_intercept: bool,

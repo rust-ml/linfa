@@ -16,6 +16,9 @@ use crate::helpers::NGramList;
 pub use hyperparams::{CountVectorizerParams, CountVectorizerValidParams};
 use linfa::ParamGuard;
 
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
+
 mod hyperparams;
 
 impl CountVectorizerValidParams {
@@ -70,7 +73,7 @@ impl CountVectorizerValidParams {
         let mut vocabulary: HashMap<String, (usize, usize)> = HashMap::new();
         let documents_count = input.len();
         for path in input {
-            let mut file = std::fs::File::open(&path)?;
+            let mut file = std::fs::File::open(path)?;
             let mut document_bytes = Vec::new();
             file.read_to_end(&mut document_bytes)?;
             let document = encoding::decode(&document_bytes, trap, encoding).0;
@@ -227,6 +230,11 @@ impl CountVectorizerParams {
 
 /// Counts the occurrences of each vocabulary entry, learned during fitting, in a sequence of documents. Each vocabulary entry is mapped
 /// to an integer value that is used to index the count in the result.
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Debug, Clone)]
 pub struct CountVectorizer {
     pub(crate) vocabulary: HashMap<String, (usize, usize)>,
@@ -306,7 +314,7 @@ impl CountVectorizer {
         sprs_vectorized.reserve_outer_dim_exact(input.len());
         let regex = self.properties.split_regex();
         for (_file_index, file_path) in input.iter().enumerate() {
-            let mut file = std::fs::File::open(&file_path).unwrap();
+            let mut file = std::fs::File::open(file_path).unwrap();
             let mut document_bytes = Vec::new();
             file.read_to_end(&mut document_bytes).unwrap();
             let document = encoding::decode(&document_bytes, trap, encoding).0.unwrap();

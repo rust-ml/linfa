@@ -9,12 +9,18 @@ use linfa_linalg::qr::LeastSquaresQrInto;
 use ndarray::{concatenate, s, Array, Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2};
 #[cfg(feature = "blas")]
 use ndarray_linalg::LeastSquaresSvdInto;
-use serde::{Deserialize, Serialize};
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 use linfa::dataset::{AsSingleTargets, DatasetBase};
 use linfa::traits::{Fit, PredictInplace};
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 /// An ordinary least squares linear regression model.
 ///
 /// LinearRegression fits a linear model to minimize the residual sum of
@@ -48,7 +54,12 @@ pub struct LinearRegression {
     fit_intercept: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 /// A fitted linear regression model which can be used for making predictions.
 pub struct FittedLinearRegression<F> {
     intercept: F,

@@ -1,6 +1,6 @@
 [package]
 name = "linfa-linear"
-version = "0.6.0"
+version = "0.6.1"
 authors = [
     "Paul Körbitz / Google <koerbitz@google.com>",
     "VasanthakumarV <vasanth260m12@gmail.com>"
@@ -17,24 +17,33 @@ keywords = ["machine-learning", "linfa", "ai", "ml", "linear"]
 categories = ["algorithms", "mathematics", "science"]
 
 [features]
-blas = ["ndarray-linalg", "linfa/ndarray-linalg", "argmin/ndarray-linalg"]
+blas = ["ndarray-linalg", "linfa/ndarray-linalg"]
+serde = ["serde_crate", "linfa/serde", "ndarray/serde", "argmin/serde1"]
+
+[dependencies.serde_crate]
+package = "serde"
+optional = true
+version = "1.0"
+default-features = false
+features = ["std", "derive"]
 
 [dependencies]
 ndarray = { version = "0.15", features = ["approx"] }
 linfa-linalg = { version = "0.1", default-features = false }
 ndarray-linalg = { version = "0.15", optional = true }
 num-traits = "0.2"
-argmin = { version = "0.4.6", features = ["ndarray", "ndarray-rand"] }
-serde = { version = "1.0", default-features = false, features = ["derive"] }
+argmin = { version = "0.7", default-features = false }
+argmin-math = { version = "0.2", features = ["ndarray_v0_15-nolinalg"] }
 thiserror = "1.0"
 
-linfa = { version = "0.6.0", path = "../..", features=["serde"] }
+linfa = { version = "0.6.1", path = "../.." }
 
 [dev-dependencies]
-linfa-datasets = { version = "0.6.0", path = "../../datasets", features = ["diabetes"] }
+linfa-datasets = { version = "0.6.1", path = "../../datasets", features = ["diabetes"] }
 approx = "0.4"
 criterion = "0.4.0" 
 statrs = "0.16.0"
+linfa = { version = "0.6.0", path = "../..", features = ["benchmarks"] }
 
 [[bench]]
 name = "ols_bench"

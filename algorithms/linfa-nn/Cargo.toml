@@ -1,6 +1,6 @@
 [package]
 name = "linfa-nn"
-version = "0.6.0"
+version = "0.6.1"
 authors = ["YuhanLiin <yuhanliin+github@protonmail.com>"]
 edition = "2018"
 description = "A collection of nearest neighbour algorithms"
@@ -33,13 +33,14 @@ thiserror = "1.0"
 
 kdtree = "0.6.0"
 
-linfa = { version = "0.6.0", path = "../.." }
+linfa = { version = "0.6.1", path = "../.." }
 
 [dev-dependencies]
 approx = "0.4"
 criterion = "0.4.0"
 rand_xoshiro = "0.6"
 ndarray-rand = "0.14"
+linfa = { version = "0.6.0", path = "../..", features = ["benchmarks"] }
 
 [[bench]]
 name = "nn"

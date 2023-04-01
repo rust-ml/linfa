@@ -1,4 +1,5 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use linfa::benchmarks::config;
 use linfa::{dataset::DatasetBase, traits::Fit};
 use linfa_ica::fast_ica::{FastIca, GFunc};
 use ndarray::{array, concatenate};
@@ -11,7 +12,7 @@ fn perform_ica(size: usize, gfunc: GFunc) {
 
     let ica = FastIca::params().gfunc(gfunc).random_state(10);
 
-    let ica = ica.fit(&DatasetBase::from(sources_mixed.view()));
+    ica.fit(&DatasetBase::from(sources_mixed.view())).unwrap();
 }
 
 fn create_data(nsamples: usize) -> Array2<f64> {
@@ -53,6 +54,8 @@ fn bench(c: &mut Criterion) {
         (GFunc::Exp, "Exp"),
     ] {
         let mut group = c.benchmark_group("Fast ICA");
+        config::set_default_benchmark_configs(&mut group);
+
         let sizes: [usize; 3] = [1_000, 10_000, 100_000];
         for size in sizes {
             let input = (size, gfunc);
@@ -64,5 +67,13 @@ fn bench(c: &mut Criterion) {
     }
 }
 
+#[cfg(not(target_os = "windows"))]
+criterion_group! {
+    name = benches;
+    config = config::get_default_profiling_configs();
+    targets = bench
+}
+#[cfg(target_os = "windows")]
 criterion_group!(benches, bench);
+
 criterion_main!(benches);
