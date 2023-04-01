@@ -261,7 +261,7 @@ impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsSingleTargets<El
     }
 }
 
-/// Identify the distinct values of the classes  `y` and associate
+/// Identify the distinct values of the classes `y` and associate
 /// the target labels `-1.0` and `1.0` to it. -1.0 always labels the
 /// smaller class (by PartialOrd) and 1.0 always labels the larger
 /// class.
@@ -275,21 +275,29 @@ where
 {
     let y = y.as_single_targets();
 
+    // counts the instances of two distinct class labels
+    let mut binary_classes = [None, None];
     // find binary classes of our target dataset
-    let classes = y.iter().fold(Some((None, None)), |map, elm| match map {
-        Some((Some((n, val)), x)) if n == elm => Some((Some((n, val + 1)), x)),
-        Some((x, Some((n, val)))) if n == elm => Some((x, Some((n, val + 1)))),
-        Some((Some(x), None)) => Some((Some(x), Some((elm, 1)))),
-        Some((None, None)) => Some((Some((elm, 1)), None)),
-        _ => None,
-    });
+    for class in y {
+        binary_classes = match binary_classes {
+            // count the first class label
+            [None, None] => [Some((class, 1)), None],
+            // if the class has already been counted, increment the count
+            [Some((c, count)), c2] if c == class => [Some((class, count + 1)), c2],
+            [c1, Some((c, count))] if c == class => [c1, Some((class, count + 1))],
+            // count the second class label
+            [Some(c1), None] => [Some(c1), Some((class, 1))],
 
-    // unwrap classes,
-    // None => we found more than two classes,
-    // Some(_, None)|Some(None,_) => we found less than two classes
-    let (pos_class, neg_class) = match classes {
-        Some((Some(a), Some(b))) => (a, b),
-        _ => return Err(Error::WrongNumberOfClasses),
+            // should not be possible
+            [None, Some(_)] => unreachable!("impossible binary class array"),
+            // found 3rd distinct class
+            [Some(_), Some(_)] => return Err(Error::TooManyClasses),
+        };
+    }
+
+    let (pos_class, neg_class) = match binary_classes {
+        [Some(a), Some(b)] => (a, b),
+        _ => return Err(Error::TooFewClasses),
     };
 
     let mut target_array = y
@@ -620,7 +628,7 @@ impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
 }
 
 /// A fitted multinomial logistic regression which can make predictions
-#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct MultiFittedLogisticRegression<F, C: PartialOrd + Clone> {
     intercept: Array1<F>,
     params: Array2<F>,

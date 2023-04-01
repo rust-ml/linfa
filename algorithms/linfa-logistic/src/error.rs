@@ -5,8 +5,10 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     #[error(transparent)]
     LinfaError(#[from] linfa::Error),
-    #[error("Expected exactly two classes for logistic regression")]
-    WrongNumberOfClasses,
+    #[error("More than two classes for logistic regression")]
+    TooManyClasses,
+    #[error("Fewer than two classes for logistic regression")]
+    TooFewClasses,
     #[error(transparent)]
     ArgMinError(#[from] argmin::core::Error),
     #[error("Expected `x` and `y` to have same number of rows, got {0} != {1}")]
