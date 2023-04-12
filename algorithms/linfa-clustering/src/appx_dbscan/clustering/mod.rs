@@ -29,11 +29,15 @@ impl<F: Float, N: NearestNeighbour> AppxDbscanValidParams<F, N> {
         }
         let mut labels = Array1::from_elem(observations.dim().0, None);
         let mut current_cluster_i: usize = 0;
-        for set in grid.cells_mut().all_sets_mut() {
+        for cell_indices_set in grid.cells_mut().indices().sets() {
             let mut core_cells_count = 0;
-            for cell in set.filter(|(_, c)| c.is_core()).map(|(_, c)| c) {
-                cell.assign_to_cluster(current_cluster_i, &mut labels.view_mut());
-                core_cells_count += 1;
+            for cell_index in cell_indices_set {
+                let cell = &mut grid.cells_mut()[cell_index];
+
+                if cell.is_core() {
+                    cell.assign_to_cluster(current_cluster_i, &mut labels.view_mut());
+                    core_cells_count += 1;
+                }
             }
             if core_cells_count > 0 {
                 current_cluster_i += 1;

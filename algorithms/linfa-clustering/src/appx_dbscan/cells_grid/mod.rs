@@ -4,14 +4,15 @@ use std::collections::HashMap;
 
 use crate::appx_dbscan::counting_tree::get_base_cell_index;
 use crate::AppxDbscanValidParams;
+use disjoint::DisjointSetVec;
 use linfa::Float;
 use linfa_nn::{distance::L2Dist, NearestNeighbour};
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use partitions::PartitionVec;
 
 use cell::{Cell, StatusPoint};
 
-pub type CellVector<F> = PartitionVec<Cell<F>>;
+pub type CellVector<F> = DisjointSetVec<Cell<F>>;
+
 /// A structure that memorizes all non empty cells by their index's hash
 pub type CellTable = HashMap<Array1<i64>, usize>;
 
@@ -31,7 +32,7 @@ impl<F: Float> CellsGrid<F> {
     ) -> CellsGrid<F> {
         let mut grid = CellsGrid {
             table: CellTable::with_capacity(points.dim().0),
-            cells: PartitionVec::with_capacity(points.dim().0),
+            cells: CellVector::with_capacity(points.dim().0),
             dimensionality: points.ncols(),
             labeled: false,
         };
@@ -105,11 +106,11 @@ impl<F: Float> CellsGrid<F> {
         &self.labeled
     }
 
-    pub fn cells(&self) -> &PartitionVec<Cell<F>> {
+    pub fn cells(&self) -> &CellVector<F> {
         &self.cells
     }
 
-    pub fn cells_mut(&mut self) -> &mut PartitionVec<Cell<F>> {
+    pub fn cells_mut(&mut self) -> &mut CellVector<F> {
         &mut self.cells
     }
 
@@ -141,12 +142,12 @@ impl<F: Float> CellsGrid<F> {
             let neighbours_indexes = self.cells[*cell_i].neighbours_indexes().clone();
             for n_index in neighbours_indexes {
                 let neighbour = self.cells.get(n_index).unwrap();
-                if !neighbour.is_core() || self.cells.same_set(*cell_i, n_index) {
+                if !neighbour.is_core() || self.cells.is_joined(*cell_i, n_index) {
                     continue;
                 }
                 for point in curr_cell_points.iter().filter(|p| p.is_core()) {
                     if neighbour.approximate_range_counting(points.row(point.index()), params) > 0 {
-                        self.cells.union(*cell_i, n_index);
+                        self.cells.join(*cell_i, n_index);
                         break;
                     }
                 }

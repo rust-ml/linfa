@@ -1,9 +1,9 @@
+use super::CellVector;
 use crate::appx_dbscan::counting_tree::TreeStructure;
 use crate::AppxDbscanValidParams;
 use linfa::Float;
 use linfa_nn::distance::{Distance, L2Dist};
 use ndarray::{Array1, ArrayView1, ArrayView2, ArrayViewMut1};
-use partitions::PartitionVec;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 /// A point in a D dimensional euclidean space that memorizes its
@@ -124,7 +124,7 @@ impl<F: Float> Cell<F> {
 
     pub fn label<N>(
         &mut self,
-        cells: &PartitionVec<Cell<F>>,
+        cells: &CellVector<F>,
         points: ArrayView2<F>,
         params: &AppxDbscanValidParams<F, N>,
     ) {
@@ -160,7 +160,7 @@ impl<F: Float> Cell<F> {
     /// memorized in the cell
     fn label_sparse<N>(
         &mut self,
-        cells: &PartitionVec<Cell<F>>,
+        cells: &CellVector<F>,
         points: ArrayView2<F>,
         params: &AppxDbscanValidParams<F, N>,
     ) {
