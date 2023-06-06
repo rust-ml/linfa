@@ -189,7 +189,7 @@ where
             .records()
             .rows()
             .into_iter()
-            .zip(targets.axis_iter(Axis(0)).into_iter())
+            .zip(targets.axis_iter(Axis(0)))
             .enumerate()
         {
             let any_exists = t.iter().any(|a| labels.contains(a));

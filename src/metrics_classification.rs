@@ -613,7 +613,7 @@ mod tests {
         assert_abs_diff_eq!(x.accuracy(), 5.0 / 6.0_f32);
         assert_abs_diff_eq!(
             x.mcc(),
-            (2. * 3. - 1. * 0.) / (2.0f32 * 3. * 3. * 4.).sqrt() as f32
+            (2. * 3. - 1. * 0.) / (2.0f32 * 3. * 3. * 4.).sqrt()
         );
 
         assert_split_eq(
@@ -676,7 +676,7 @@ mod tests {
 
         // randomly sample ground truth
         let ground_truth = (0..1000)
-            .map(|_| rng.sample(&range) == 1)
+            .map(|_| rng.sample(range) == 1)
             .collect::<Vec<_>>();
 
         // ROC Area-Under-Curve should be approximately 0.5

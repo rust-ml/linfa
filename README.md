@@ -45,7 +45,7 @@ Where does `linfa` stand right now? [Are we learning yet?](http://www.arewelearn
 | [tsne](algorithms/linfa-tsne/) | Dimensionality reduction| Tested | Unsupervised learning | Contains exact solution and Barnes-Hut approximation t-SNE |
 | [preprocessing](algorithms/linfa-preprocessing/) |Normalization & Vectorization| Tested / Benchmarked | Pre-processing | Contains data normalization/whitening and count vectorization/tf-idf |
 | [nn](algorithms/linfa-nn/) | Nearest Neighbours & Distances | Tested / Benchmarked | Pre-processing | Spatial index structures and distance functions |
-| [ftrl](algorithms/linfa-ftrl/) | Follow The Reguralized Leader - proximal | Tested  / Benchmarked | Partial fit | Contains L1 and L2 regularization. Possible incremental update |
+| [ftrl](algorithms/linfa-ftrl/) | Follow The Regularized Leader - proximal | Tested  / Benchmarked | Partial fit | Contains L1 and L2 regularization. Possible incremental update |
 
 We believe that only a significant community effort can nurture, build, and sustain a machine learning ecosystem in Rust - there is no other way forward.
 

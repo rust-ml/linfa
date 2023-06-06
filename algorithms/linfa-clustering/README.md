@@ -14,18 +14,15 @@ You can find a roadmap (and a selection of good first issues)
 `linfa-clustering` currently provides implementation of the following clustering algorithms, in addition to a couple of helper functions: 
 - K-Means
 - DBSCAN
-- Approximated DBSCAN
+- Approximated DBSCAN (Currently an alias for DBSCAN, due to its superior performance)
 - Gaussian Mixture Model
 
 
 Implementation choices, algorithmic details and a tutorial can be found 
 [here](https://docs.rs/linfa-clustering).
 
-**WARNING:** Currently the Approximated DBSCAN implementation is slower than the normal DBSCAN implementation. Therefore DBSCAN should always be used over Approximated DBSCAN.
-
 ## BLAS/Lapack backend
-
-See [this section](../../README.md#blaslapack-backend) to enable an external BLAS/LAPACK backend.
+We found that the pure Rust implementation maintained similar performance to the BLAS/LAPACK version and have removed it with this [PR](https://github.com/rust-ml/linfa/pull/257). Thus, to reduce code complexity BLAS support has been removed for this module.
 
 ## License
 Dual-licensed to be compatible with the Rust project.

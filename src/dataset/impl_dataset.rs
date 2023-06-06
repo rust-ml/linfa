@@ -65,7 +65,7 @@ impl<R: Records, S> DatasetBase<R, S> {
             self.feature_names.clone()
         } else {
             (0..self.records.nfeatures())
-                .map(|idx| format!("feature-{}", idx))
+                .map(|idx| format!("feature-{idx}"))
                 .collect()
         }
     }
@@ -117,6 +117,16 @@ impl<R: Records, S> DatasetBase<R, S> {
         self.feature_names = feature_names;
 
         self
+    }
+}
+
+impl<X, Y> Dataset<X, Y> {
+    // Convert 2D targets to 1D. Only works for targets with shape of form [X, 1], panics otherwise.
+    pub fn into_single_target(self) -> Dataset<X, Y, Ix1> {
+        let nsamples = self.records.nsamples();
+        let targets = self.targets.into_shape(nsamples).unwrap();
+        let features = self.records;
+        Dataset::new(features, targets)
     }
 }
 

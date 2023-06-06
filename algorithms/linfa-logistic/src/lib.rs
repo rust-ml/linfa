@@ -261,61 +261,77 @@ impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsSingleTargets<El
     }
 }
 
-/// Identify the distinct values of the classes  `y` and associate
+/// Identify the distinct values of the classes `y` and associate
 /// the target labels `-1.0` and `1.0` to it. -1.0 always labels the
 /// smaller class (by PartialOrd) and 1.0 always labels the larger
 /// class.
 ///
 /// It is an error to have more than two classes.
-fn label_classes<F, T, C>(y: T) -> Result<(ClassLabels<F, C>, Array1<F>)>
+fn label_classes<F, T, C>(y: T) -> Result<(BinaryClassLabels<F, C>, Array1<F>)>
 where
     F: Float,
     T: AsSingleTargets<Elem = C>,
     C: Ord + Clone,
 {
-    let y_single_target = y.as_single_targets();
-    let mut classes: Vec<&C> = vec![];
-    let mut target_vec = vec![];
-    let mut use_negative_label: bool = true;
-    for item in y_single_target {
-        if let Some(last_item) = classes.last() {
-            if *last_item != item {
-                use_negative_label = !use_negative_label;
+    let y = y.as_single_targets();
+
+    // counts the instances of two distinct class labels
+    let mut binary_classes = [None, None];
+    // find binary classes of our target dataset
+    for class in y {
+        binary_classes = match binary_classes {
+            // count the first class label
+            [None, None] => [Some((class, 1)), None],
+            // if the class has already been counted, increment the count
+            [Some((c, count)), c2] if c == class => [Some((class, count + 1)), c2],
+            [c1, Some((c, count))] if c == class => [c1, Some((class, count + 1))],
+            // count the second class label
+            [Some(c1), None] => [Some(c1), Some((class, 1))],
+
+            // should not be possible
+            [None, Some(_)] => unreachable!("impossible binary class array"),
+            // found 3rd distinct class
+            [Some(_), Some(_)] => return Err(Error::TooManyClasses),
+        };
+    }
+
+    let (pos_class, neg_class) = match binary_classes {
+        [Some(a), Some(b)] => (a, b),
+        _ => return Err(Error::TooFewClasses),
+    };
+
+    let mut target_array = y
+        .into_iter()
+        .map(|x| {
+            if x == pos_class.0 {
+                F::POSITIVE_LABEL
+            } else {
+                F::NEGATIVE_LABEL
             }
-        }
-        if !classes.contains(&item) {
-            classes.push(item);
-        }
-        target_vec.push(if use_negative_label {
-            F::NEGATIVE_LABEL
-        } else {
-            F::POSITIVE_LABEL
-        });
-    }
-    if classes.len() != 2 {
-        return Err(Error::WrongNumberOfClasses);
-    }
-    let mut target_array = Array1::from(target_vec);
-    let labels = if classes[0] < classes[1] {
-        (F::NEGATIVE_LABEL, F::POSITIVE_LABEL)
-    } else {
+        })
+        .collect::<Array1<_>>();
+
+    let (pos_cl, neg_cl) = if pos_class.1 < neg_class.1 {
         // If we found the larger class first, flip the sign in the target
         // vector, so that -1.0 is always the label for the smaller class
         // and 1.0 the label for the larger class
         target_array *= -F::one();
-        (F::POSITIVE_LABEL, F::NEGATIVE_LABEL)
+        (neg_class.0.clone(), pos_class.0.clone())
+    } else {
+        (pos_class.0.clone(), neg_class.0.clone())
     };
+
     Ok((
-        vec![
-            ClassLabel {
-                class: classes[0].clone(),
-                label: labels.0,
+        BinaryClassLabels {
+            pos: ClassLabel {
+                class: pos_cl,
+                label: F::POSITIVE_LABEL,
             },
-            ClassLabel {
-                class: classes[1].clone(),
-                label: labels.1,
+            neg: ClassLabel {
+                class: neg_cl,
+                label: F::NEGATIVE_LABEL,
             },
-        ],
+        },
         target_array,
     ))
 }
@@ -531,14 +547,14 @@ pub struct FittedLogisticRegression<F: Float, C: PartialOrd + Clone> {
     threshold: F,
     intercept: F,
     params: Array1<F>,
-    labels: ClassLabels<F, C>,
+    labels: BinaryClassLabels<F, C>,
 }
 
 impl<F: Float, C: PartialOrd + Clone> FittedLogisticRegression<F, C> {
     fn new(
         intercept: F,
         params: Array1<F>,
-        labels: ClassLabels<F, C>,
+        labels: BinaryClassLabels<F, C>,
     ) -> FittedLogisticRegression<F, C> {
         FittedLogisticRegression {
             threshold: F::cast(0.5),
@@ -593,8 +609,8 @@ impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
             "Number of data features must match the number of features the model was trained with."
         );
 
-        let pos_class = class_from_label(&self.labels, F::POSITIVE_LABEL);
-        let neg_class = class_from_label(&self.labels, F::NEGATIVE_LABEL);
+        let pos_class = &self.labels.pos.class;
+        let neg_class = &self.labels.neg.class;
         Zip::from(&self.predict_probabilities(x))
             .and(y)
             .for_each(|prob, out| {
@@ -612,7 +628,7 @@ impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
 }
 
 /// A fitted multinomial logistic regression which can make predictions
-#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct MultiFittedLogisticRegression<F, C: PartialOrd + Clone> {
     intercept: Array1<F>,
     params: Array2<F>,
@@ -693,15 +709,10 @@ struct ClassLabel<F, C: PartialOrd> {
     label: F,
 }
 
-type ClassLabels<F, C> = Vec<ClassLabel<F, C>>;
-
-fn class_from_label<F: Float, C: PartialOrd + Clone>(labels: &[ClassLabel<F, C>], label: F) -> C {
-    labels
-        .iter()
-        .find(|cl| cl.label == label)
-        .unwrap()
-        .class
-        .clone()
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+struct BinaryClassLabels<F, C: PartialOrd> {
+    pos: ClassLabel<F, C>,
+    neg: ClassLabel<F, C>,
 }
 
 /// Internal representation of a logistic regression problem.
@@ -920,7 +931,7 @@ mod test {
         let dataset = Dataset::new(x, y);
         let res = log_reg.fit(&dataset).unwrap();
         assert_abs_diff_eq!(res.intercept(), 0.0);
-        assert!(res.params().abs_diff_eq(&array![0.681], 1e-3));
+        assert!(res.params().abs_diff_eq(&array![-0.681], 1e-3));
         assert_eq!(
             &res.predict(dataset.records()),
             dataset.targets().as_single_targets()
@@ -967,6 +978,17 @@ mod test {
             &res.predict(dataset.records()),
             dataset.targets().as_single_targets()
         );
+    }
+
+    #[test]
+    fn simple_example_3() {
+        let x = array![[1.0], [0.0], [1.0], [0.0]];
+        let y = array![1, 0, 1, 0];
+        let dataset = DatasetBase::new(x, y);
+        let model = LogisticRegression::default().fit(&dataset).unwrap();
+
+        let pred = model.predict(&dataset.records);
+        assert_eq!(dataset.targets(), pred);
     }
 
     #[test]
@@ -1087,7 +1109,7 @@ mod test {
         let dataset = Dataset::new(x, y);
         let res = log_reg.fit(&dataset).unwrap();
         assert_abs_diff_eq!(res.intercept(), 0.0_f32);
-        assert!(res.params().abs_diff_eq(&array![0.682_f32], 1e-3));
+        assert!(res.params().abs_diff_eq(&array![-0.682_f32], 1e-3));
         assert_eq!(
             &res.predict(dataset.records()),
             dataset.targets().as_single_targets()
@@ -1216,6 +1238,17 @@ mod test {
             &res.predict(dataset.records()),
             dataset.targets().as_single_targets()
         );
+    }
+
+    #[test]
+    fn simple_multi_example_2() {
+        let x = array![[1.0], [0.0], [1.0], [0.0]];
+        let y = array![1, 0, 1, 0];
+        let dataset = DatasetBase::new(x, y);
+        let model = MultiLogisticRegression::default().fit(&dataset).unwrap();
+
+        let pred = model.predict(&dataset.records);
+        assert_eq!(dataset.targets(), pred);
     }
 
     #[test]

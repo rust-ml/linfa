@@ -7,6 +7,14 @@ use encoding::DecoderTrap;
 use ndarray::{Array1, ArrayBase, Data, Ix1};
 use sprs::CsMat;
 
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
+
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 /// Methods for computing the inverse document frequency of a vocabulary entry
 pub enum TfIdfMethod {
@@ -38,6 +46,11 @@ impl TfIdfMethod {
 /// to entries that appear many times but only on some documents. The weight function can be adjusted
 /// by setting the appropriate [method](TfIdfMethod). This struct provides the same string  
 /// processing customizations described in [`CountVectorizer`](CountVectorizer).
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Clone, Debug)]
 pub struct TfIdfVectorizer {
     count_vectorizer: CountVectorizerParams,
@@ -155,6 +168,11 @@ impl TfIdfVectorizer {
 /// Counts the occurrences of each vocabulary entry, learned during fitting, in a sequence of texts and scales them by the inverse document
 /// document frequency defined by the [method](TfIdfMethod). Each vocabulary entry is mapped
 /// to an integer value that is used to index the count in the result.
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Clone, Debug)]
 pub struct FittedTfIdfVectorizer {
     fitted_vectorizer: CountVectorizer,
