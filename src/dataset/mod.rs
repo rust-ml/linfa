@@ -53,6 +53,7 @@ pub trait Float:
     + ScalarOperand
     + approx::AbsDiffEq
     + std::marker::Unpin
+    + sprs::MulAcc
 {
     #[cfg(feature = "ndarray-linalg")]
     type Lapack: Float + Scalar + Lapack;
