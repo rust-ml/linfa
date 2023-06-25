@@ -47,7 +47,9 @@ iai = "0.1"
 curl = "0.4.35"
 flate2 = "1.0.20"
 tar = "0.4.33"
-
+linfa = { version = "0.6.0", path = "../..", features = ["benchmarks"] }
+criterion = "0.4.0"
+statrs = "0.16.0"
 
 [[bench]]
 name = "vectorizer_bench"
