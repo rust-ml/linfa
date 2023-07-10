@@ -1,5 +1,6 @@
 use crate::argmin_param::ArgminParam;
-use argmin_math::{ArgminFloat, ArgminMul};
+use argmin::core::ArgminFloat;
+use argmin_math::ArgminMul;
 use ndarray::{Dimension, Ix1, Ix2, NdFloat};
 use num_traits::FromPrimitive;
 
