@@ -7,7 +7,7 @@
 //! Unfortunately, this requires that we re-implement some traits from Argmin.
 
 use crate::float::Float;
-use argmin_math::{ArgminSub, ArgminAdd, ArgminDot, ArgminMul,};
+use argmin_math::{ArgminSub, ArgminAdd, ArgminDot, ArgminMul, ArgminL2Norm};
 use ndarray::{Array, ArrayBase, Data, Dimension, Zip};
 use serde::{Deserialize, Serialize};
 

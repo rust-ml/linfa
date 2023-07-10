@@ -19,7 +19,7 @@
 pub mod error;
 
 use crate::error::{Error, Result};
-use argmin::core::Solver;
+use argmin::core::{Solver, OptimizationResult};
 use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::LBFGS;
 use linfa::dataset::AsSingleTargets;
@@ -97,7 +97,7 @@ impl<F: Float, D: Dimension> Default for LogisticRegressionParams<F, D> {
     }
 }
 
-type LBFGSType<F, D> = LBFGS<MoreThuenteLineSearch<ArgminParam<F, D>, F>, ArgminParam<F, D>, F>;
+type LBFGSType<F, D> = LBFGS<MoreThuenteLineSearch<ArgminParam<F, D>, ArgminParam<F, D>, F>, ArgminParam<F, D>, ArgminParam<F, D>, F>;
 type LBFGSType1<F> = LBFGSType<F, Ix1>;
 type LBFGSType2<F> = LBFGSType<F, Ix2>;
 
@@ -726,7 +726,7 @@ struct LogisticRegressionProblem<'a, F: Float, A: Data<Elem = F>, D: Dimension> 
 type LogisticRegressionProblem1<'a, F, A> = LogisticRegressionProblem<'a, F, A, Ix1>;
 type LogisticRegressionProblem2<'a, F, A> = LogisticRegressionProblem<'a, F, A, Ix2>;
 
-impl<'a, F: Float, A: Data<Elem = F>> ArgminOp for LogisticRegressionProblem1<'a, F, A> {
+impl<'a, F: Float, A: Data<Elem = F>> Operator for LogisticRegressionProblem1<'a, F, A> {
     type Param = ArgminParam<F, Ix1>;
     type Output = F;
     type Hessian = ();
@@ -748,7 +748,7 @@ impl<'a, F: Float, A: Data<Elem = F>> ArgminOp for LogisticRegressionProblem1<'a
     }
 }
 
-impl<'a, F: Float, A: Data<Elem = F>> ArgminOp for LogisticRegressionProblem2<'a, F, A> {
+impl<'a, F: Float, A: Data<Elem = F>> Operator for LogisticRegressionProblem2<'a, F, A> {
     type Param = ArgminParam<F, Ix2>;
     type Output = F;
     type Hessian = ();
@@ -770,7 +770,7 @@ impl<'a, F: Float, A: Data<Elem = F>> ArgminOp for LogisticRegressionProblem2<'a
     }
 }
 
-trait SolvableProblem: ArgminOp + Sized {
+trait SolvableProblem: Operator + Sized {
     type Solver: Solver<Self>;
 }
 
