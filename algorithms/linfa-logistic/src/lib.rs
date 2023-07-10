@@ -19,7 +19,7 @@
 pub mod error;
 
 use crate::error::{Error, Result};
-use argmin::core::{Solver, OptimizationResult};
+use argmin::core::{Solver, OptimizationResult, Operator};
 use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::LBFGS;
 use linfa::dataset::AsSingleTargets;

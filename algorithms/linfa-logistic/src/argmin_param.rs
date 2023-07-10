@@ -49,7 +49,7 @@ impl<F: Float, D: Dimension> ArgminDot<ArgminParam<F, D>, F> for ArgminParam<F, 
 }
 
 impl<F: Float, D: Dimension> ArgminL2Norm<F> for ArgminParam<F, D> {
-    fn norm(&self) -> F {
+    fn l2_norm(&self) -> F {
         num_traits::Float::sqrt(elem_dot(&self.0, &self.0))
     }
 }
