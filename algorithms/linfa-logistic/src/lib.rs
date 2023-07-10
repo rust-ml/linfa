@@ -19,9 +19,9 @@
 pub mod error;
 
 use crate::error::{Error, Result};
-use argmin::prelude::*;
+use argmin::core::Solver;
 use argmin::solver::linesearch::MoreThuenteLineSearch;
-use argmin::solver::quasinewton::lbfgs::LBFGS;
+use argmin::solver::quasinewton::LBFGS;
 use linfa::dataset::AsSingleTargets;
 use linfa::prelude::DatasetBase;
 use linfa::traits::{Fit, PredictInplace};
@@ -179,7 +179,7 @@ impl<F: Float, D: Dimension> LogisticRegressionValidParams<F, D> {
         problem: P,
         solver: P::Solver,
         init_params: P::Param,
-    ) -> Result<ArgminResult<P>> {
+    ) -> Result<OptimizationResult<P>> {
         Executor::new(problem, solver, init_params)
             .max_iters(self.max_iterations)
             .run()

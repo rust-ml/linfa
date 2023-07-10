@@ -7,7 +7,7 @@
 //! Unfortunately, this requires that we re-implement some traits from Argmin.
 
 use crate::float::Float;
-use argmin::prelude::*;
+use argmin-math::{ArgminSub, ArgminAdd, ArgminDot, ArgminMul,};
 use ndarray::{Array, ArrayBase, Data, Dimension, Zip};
 use serde::{Deserialize, Serialize};
 
@@ -48,7 +48,7 @@ impl<F: Float, D: Dimension> ArgminDot<ArgminParam<F, D>, F> for ArgminParam<F, 
     }
 }
 
-impl<F: Float, D: Dimension> ArgminNorm<F> for ArgminParam<F, D> {
+impl<F: Float, D: Dimension> ArgminL2Norm<F> for ArgminParam<F, D> {
     fn norm(&self) -> F {
         num_traits::Float::sqrt(elem_dot(&self.0, &self.0))
     }
