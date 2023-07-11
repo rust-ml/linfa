@@ -556,6 +556,7 @@ fn multi_logistic_grad<F: Float, A: Data<Elem = F>>(
     feature = "serde",
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate"),
+    serde(bound(deserialize = "C: Deserialize<'de>"))
 )]
 pub struct FittedLogisticRegression<F: Float, C: PartialOrd + Clone> {
     threshold: F,
