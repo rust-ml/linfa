@@ -14,7 +14,6 @@ keywords = ["machine-learning", "linfa", "ai", "ml", "ftrl"]
 categories = ["algorithms", "mathematics", "science"]
 
 [features]
-blas = ["ndarray-linalg", "linfa/ndarray-linalg"]
 serde = ["serde_crate", "linfa/serde", "ndarray/serde", "argmin/serde1"]
 
 [dependencies.serde_crate]
