@@ -18,7 +18,7 @@ ndarray = { version = "0.15", features = ["approx"] }
 ndarray-stats = "0.5.0"
 num-traits = "0.2"
 argmin = { version = "0.8.1", default-features = false }
-argmin-math = { version = "0.3", features = ["ndarray_v0_15", "ndarray_all"] }
+argmin-math = { version = "0.3", features = ["ndarray_v0_15-nolinalg"] }
 serde = "1.0"
 thiserror = "1.0"
 
