@@ -7,8 +7,11 @@
 //! Unfortunately, this requires that we re-implement some traits from Argmin.
 
 use crate::float::Float;
-use argmin_math::{ArgminSub, ArgminAdd, ArgminDot, ArgminMul, ArgminL2Norm, ArgminSignum, ArgminL1Norm, ArgminZeroLike, ArgminMinMax};
-use ndarray::{Array, ArrayBase, Data, Dimension, Zip, Ix1, Ix2};
+use argmin_math::{
+    ArgminAdd, ArgminDot, ArgminL1Norm, ArgminL2Norm, ArgminMinMax, ArgminMul, ArgminSignum,
+    ArgminSub, ArgminZeroLike,
+};
+use ndarray::{Array, ArrayBase, Data, Dimension, Ix1, Ix2, Zip};
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 
@@ -20,7 +23,6 @@ pub fn elem_dot<F: linfa::Float, A1: Data<Elem = F>, A2: Data<Elem = F>, D: Dime
         .and(b)
         .fold(F::zero(), |acc, &a, &b| acc + a * b)
 }
-
 
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(
@@ -103,18 +105,20 @@ impl<F: Float, D: Dimension> ArgminZeroLike for ArgminParam<F, D> {
         ArgminParam(Array::zeros(dims))
     }
 }
- 
-impl<F: Float> ArgminMinMax for ArgminParam<F, Ix1> {
 
+impl<F: Float> ArgminMinMax for ArgminParam<F, Ix1> {
     fn min(x: &Self, y: &Self) -> ArgminParam<F, Ix1> {
         let x_array = x.as_array();
         let y_array = y.as_array();
 
         assert_eq!(x_array.shape(), y_array.shape());
-        ArgminParam(x_array.iter()
-            .zip(y_array)
-            .map(|(&a, &b)| if a < b { a } else { b })
-            .collect())
+        ArgminParam(
+            x_array
+                .iter()
+                .zip(y_array)
+                .map(|(&a, &b)| if a < b { a } else { b })
+                .collect(),
+        )
     }
 
     fn max(x: &Self, y: &Self) -> ArgminParam<F, Ix1> {
@@ -122,15 +126,17 @@ impl<F: Float> ArgminMinMax for ArgminParam<F, Ix1> {
         let y_array = y.as_array();
 
         assert_eq!(x_array.shape(), y_array.shape());
-        ArgminParam(x_array.iter()
-            .zip(y_array)
-            .map(|(&a, &b)| if a > b { a } else { b })
-            .collect())
+        ArgminParam(
+            x_array
+                .iter()
+                .zip(y_array)
+                .map(|(&a, &b)| if a > b { a } else { b })
+                .collect(),
+        )
     }
 }
 
 impl<F: Float> ArgminMinMax for ArgminParam<F, Ix2> {
-
     fn min(x: &Self, y: &Self) -> ArgminParam<F, Ix2> {
         let x_array = x.as_array();
         let y_array = y.as_array();
@@ -167,5 +173,3 @@ impl<F: Float> ArgminMinMax for ArgminParam<F, Ix2> {
         ArgminParam(out)
     }
 }
-
-

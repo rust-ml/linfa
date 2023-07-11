@@ -19,7 +19,7 @@
 pub mod error;
 
 use crate::error::{Error, Result};
-use argmin::core::{Solver, OptimizationResult, Gradient, CostFunction, Executor, IterState};
+use argmin::core::{CostFunction, Executor, Gradient, IterState, OptimizationResult, Solver};
 use argmin::solver::linesearch::MoreThuenteLineSearch;
 use argmin::solver::quasinewton::LBFGS;
 use linfa::dataset::AsSingleTargets;
@@ -99,7 +99,12 @@ impl<F: Float, D: Dimension> Default for LogisticRegressionParams<F, D> {
     }
 }
 
-type LBFGSType<F, D> = LBFGS<MoreThuenteLineSearch<ArgminParam<F, D>, ArgminParam<F, D>, F>, ArgminParam<F, D>, ArgminParam<F, D>, F>;
+type LBFGSType<F, D> = LBFGS<
+    MoreThuenteLineSearch<ArgminParam<F, D>, ArgminParam<F, D>, F>,
+    ArgminParam<F, D>,
+    ArgminParam<F, D>,
+    F,
+>;
 type LBFGSType1<F> = LBFGSType<F, Ix1>;
 type LBFGSType2<F> = LBFGSType<F, Ix2>;
 
@@ -174,7 +179,9 @@ impl<F: Float, D: Dimension> LogisticRegressionValidParams<F, D> {
     /// tolerance.
     fn setup_solver(&self) -> LBFGSType<F, D> {
         let linesearch = MoreThuenteLineSearch::new();
-        LBFGS::new(linesearch, 10).with_tolerance_grad(self.gradient_tolerance).unwrap()
+        LBFGS::new(linesearch, 10)
+            .with_tolerance_grad(self.gradient_tolerance)
+            .unwrap()
     }
 
     /// Run the LBFGS solver until it converges or runs out of iterations.
@@ -808,11 +815,15 @@ trait SolvableProblem<F: Float, D: Dimension>: Gradient + Sized {
     type Solver: Solver<Self, IterStateType<F, D>>;
 }
 
-impl<'a, F: Float, A: Data<Elem = F>> SolvableProblem<F, Ix1> for LogisticRegressionProblem1<'a, F, A> {
+impl<'a, F: Float, A: Data<Elem = F>> SolvableProblem<F, Ix1>
+    for LogisticRegressionProblem1<'a, F, A>
+{
     type Solver = LBFGSType1<F>;
 }
 
-impl<'a, F: Float, A: Data<Elem = F>> SolvableProblem<F, Ix2> for LogisticRegressionProblem2<'a, F, A> {
+impl<'a, F: Float, A: Data<Elem = F>> SolvableProblem<F, Ix2>
+    for LogisticRegressionProblem2<'a, F, A>
+{
     type Solver = LBFGSType2<F>;
 }
 
@@ -1126,7 +1137,8 @@ mod test {
         );
 
         // Test serialization
-        #[cfg(feature = "serde")] {
+        #[cfg(feature = "serde")]
+        {
             let ser = rmp_serde::to_vec(&res).unwrap();
             let unser: FittedLogisticRegression<f32, f32> = rmp_serde::from_slice(&ser).unwrap();
 
@@ -1135,7 +1147,6 @@ mod test {
 
             assert!(y_hat[0] == 0.0);
         }
-        
     }
 
     #[test]
