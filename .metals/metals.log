@@ -1,0 +1,35 @@
+2023.07.10 20:24:36 INFO  Started: Metals version 0.11.12 in workspace 'C:\Users\mjsal\Rust\linfa' for client Visual Studio Code 1.79.2.
+jul 10, 2023 8:24:38 P. M. org.flywaydb.core.internal.license.VersionPrinter printVersionOnly
+INFO: Flyway Community Edition 9.16.3 by Redgate
+jul 10, 2023 8:24:38 P. M. org.flywaydb.core.internal.license.VersionPrinter printVersion
+INFO: See release notes here: https://rd.gt/416ObMi
+jul 10, 2023 8:24:38 P. M. org.flywaydb.core.internal.license.VersionPrinter printVersion
+INFO: 
+jul 10, 2023 8:24:43 P. M. org.flywaydb.core.internal.database.base.BaseDatabaseType createDatabase
+INFO: Database: jdbc:h2:file:C:\Users\mjsal\Rust\linfa\.metals\metals (H2 2.1)
+jul 10, 2023 8:24:43 P. M. org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory allAppliedMigrations
+INFO: Schema history table "PUBLIC"."flyway_schema_history" does not exist yet
+jul 10, 2023 8:24:44 P. M. org.flywaydb.core.internal.command.DbValidate validate
+INFO: Successfully validated 4 migrations (execution time 00:00.214s)
+jul 10, 2023 8:24:44 P. M. org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory create
+INFO: Creating Schema History table "PUBLIC"."flyway_schema_history" ...
+jul 10, 2023 8:24:44 P. M. org.flywaydb.core.internal.command.DbMigrate migrateGroup
+INFO: Current version of schema "PUBLIC": << Empty Schema >>
+jul 10, 2023 8:24:44 P. M. org.flywaydb.core.internal.command.DbMigrate doMigrateGroup
+INFO: Migrating schema "PUBLIC" to version "1 - Create tables"
+jul 10, 2023 8:24:44 P. M. org.flywaydb.core.internal.command.DbMigrate doMigrateGroup
+INFO: Migrating schema "PUBLIC" to version "2 - Server discovery"
+jul 10, 2023 8:24:44 P. M. org.flywaydb.core.internal.command.DbMigrate doMigrateGroup
+INFO: Migrating schema "PUBLIC" to version "3 - Jar symbols"
+jul 10, 2023 8:24:44 P. M. org.flywaydb.core.internal.command.DbMigrate doMigrateGroup
+INFO: Migrating schema "PUBLIC" to version "4 - Fingerprints"
+jul 10, 2023 8:24:44 P. M. org.flywaydb.core.internal.command.DbMigrate logSummary
+INFO: Successfully applied 4 migrations to schema "PUBLIC", now at version v4 (execution time 00:00.637s)
+2023.07.10 20:24:46 INFO  time: initialize in 9.38s
+2023.07.10 20:25:08 WARN  Build server is not auto-connectable.
+2023.07.10 20:25:08 WARN  no build tool detected in workspace 'C:\Users\mjsal\Rust\linfa'. The most common cause for this problem is that the editor was opened in the wrong working directory, for example if you use sbt then the workspace directory should contain build.sbt. 
+jul 10, 2023 11:29:46 P. M. org.eclipse.lsp4j.jsonrpc.services.GenericEndpoint notify
+INFO: Unsupported notification method: $/setTrace
+2023.07.11 02:03:22 INFO  Shutting down server
+2023.07.11 02:03:22 INFO  shutting down Metals
+2023.07.11 02:03:23 INFO  Exiting server
