@@ -180,6 +180,14 @@ impl Pca<f64> {
     pub fn singular_values(&self) -> &Array1<f64> {
         &self.sigma
     }
+
+        /// Transform data back to its original space
+    pub fn inverse_transform(
+            &self,
+            prediction: ArrayBase<ndarray::OwnedRepr<f64>, ndarray::Dim<[usize; 2]>>,
+        ) -> ArrayBase<ndarray::OwnedRepr<f64>, ndarray::Dim<[usize; 2]>> {
+            prediction.dot(&self.embedding) + &self.mean
+    }
 }
 
 impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array2<F>> for Pca<F> {
