@@ -33,6 +33,8 @@ use ndarray_stats::QuantileExt;
 use std::default::Default;
 
 #[cfg(feature = "serde")]
+use serde_crate::de::DeserializeOwned;
+#[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 
 mod argmin_param;
@@ -183,7 +185,14 @@ impl<F: Float, D: Dimension> LogisticRegressionValidParams<F, D> {
             .with_tolerance_grad(self.gradient_tolerance)
             .unwrap()
     }
+}
 
+impl<
+        F: Float,
+        #[cfg(feature = "serde")] D: Dimension + Serialize + DeserializeOwned,
+        #[cfg(not(feature = "serde"))] D: Dimension,
+    > LogisticRegressionValidParams<F, D>
+{
     /// Run the LBFGS solver until it converges or runs out of iterations.
     fn run_solver<P: SolvableProblem<F, D>>(
         &self,
@@ -194,7 +203,7 @@ impl<F: Float, D: Dimension> LogisticRegressionValidParams<F, D> {
         Executor::new(problem, solver)
             .configure(|state| state.param(init_params).max_iters(self.max_iterations))
             .run()
-            .map_err(|err| err.into())
+            .map_err(move |err| err.into())
     }
 }
 
