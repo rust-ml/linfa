@@ -4,7 +4,7 @@ version = "0.6.1"
 edition = "2018"
 authors = ["relf <remi.lafage@onera.fr>"]
 description = "Partial Least Squares family methods"
-license = "MIT/Apache-2.0"
+license = "MIT OR Apache-2.0"
 
 repository = "https://github.com/rust-ml/linfa"
 readme = "README.md"
