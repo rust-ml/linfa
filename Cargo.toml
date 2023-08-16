@@ -42,6 +42,7 @@ approx = "0.4"
 
 ndarray = { version = "0.15", features = ["approx"] }
 ndarray-linalg = { version = "0.15", optional = true }
+sprs = { version = "0.11", default-features = false }
 
 thiserror = "1.0"
 
