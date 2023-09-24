@@ -4,16 +4,27 @@ use ndarray::{Array, Dimension};
 use crate::error::Error;
 use crate::float::Float;
 
-use serde::{Deserialize, Serialize};
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 /// A generalized logistic regression type that specializes as either binomial logistic regression
 /// or multinomial logistic regression.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(bound(deserialize = "D: Deserialize<'de>"))]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate"),
+    serde(bound(deserialize = "D: Deserialize<'de>"))
+)]
 pub struct LogisticRegressionParams<F: Float, D: Dimension>(LogisticRegressionValidParams<F, D>);
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(bound(deserialize = "D: Deserialize<'de>"))]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate"),
+    serde(bound(deserialize = "D: Deserialize<'de>"))
+)]
 pub struct LogisticRegressionValidParams<F: Float, D: Dimension> {
     pub(crate) alpha: F,
     pub(crate) fit_intercept: bool,

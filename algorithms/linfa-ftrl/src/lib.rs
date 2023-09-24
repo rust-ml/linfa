@@ -13,9 +13,15 @@ use ndarray::Array1;
 use ndarray_rand::RandomExt;
 use rand::{distributions::Uniform, Rng};
 use rand_xoshiro::{rand_core::SeedableRng, Xoshiro256Plus};
-use serde::{Deserialize, Serialize};
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub struct Ftrl<F: Float> {
     /// FTRL (Follow The Regularized Leader - proximal) is a linear model for CTR prediction in online learning settings.
     /// It stores z and n values, which are later used to calculate weights at incremental model fit and during prediction.
