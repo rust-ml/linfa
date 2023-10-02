@@ -43,9 +43,9 @@ fn label_points_test() {
     grid.label_points(points.view(), &params);
     assert_eq!(grid.cells().len(), 2);
     assert_eq!(grid.cells().iter().filter(|x| x.is_core()).count(), 2);
-    assert_eq!(grid.cells().all_sets().count(), 1);
-    for set in grid.cells().all_sets() {
-        assert_eq!(set.count(), 2);
+    assert_eq!(grid.cells().indices().sets().len(), 1);
+    for set in grid.cells().indices().sets() {
+        assert_eq!(set.len(), 2);
     }
     let all_points = vec![
         2.0 * l,
@@ -62,7 +62,7 @@ fn label_points_test() {
     grid.label_points(points.view(), &params);
     assert_eq!(grid.cells().len(), 2);
     assert_eq!(grid.cells().iter().filter(|x| x.is_core()).count(), 1);
-    assert_eq!(grid.cells.all_sets().count(), 2);
+    assert_eq!(grid.cells.indices().sets().len(), 2);
 }
 
 #[test]
