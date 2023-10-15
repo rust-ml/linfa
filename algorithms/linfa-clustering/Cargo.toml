@@ -8,7 +8,7 @@ authors = [
     "Rémi Lafage <remi.lafage@onera.fr>"
 ]
 description = "A collection of clustering algorithms"
-license = "MIT/Apache-2.0"
+license = "MIT OR Apache-2.0"
 
 repository = "https://github.com/rust-ml/linfa/"
 readme = "README.md"

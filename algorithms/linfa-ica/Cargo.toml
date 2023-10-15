@@ -4,7 +4,7 @@ version = "0.6.1"
 authors = ["VasanthakumarV <vasanth260m12@gmail.com>"]
 description = "A collection of Independent Component Analysis (ICA) algorithms"
 edition = "2018"
-license = "MIT/Apache-2.0"
+license = "MIT OR Apache-2.0"
 
 repository = "https://github.com/rust-ml/linfa"
 readme = "README.md"
