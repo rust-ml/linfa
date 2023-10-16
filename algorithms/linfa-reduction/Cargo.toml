@@ -1,6 +1,6 @@
 [package]
 name = "linfa-reduction"
-version = "0.6.1"
+version = "0.7.0"
 authors = ["Lorenz Schmidt <bytesnake@mailbox.org>"]
 description = "A collection of dimensionality reduction techniques"
 edition = "2018"
