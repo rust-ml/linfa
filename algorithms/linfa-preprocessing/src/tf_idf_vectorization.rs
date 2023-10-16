@@ -40,12 +40,12 @@ impl TfIdfMethod {
     }
 }
 
-/// Simlar to [`CountVectorizer`](CountVectorizer) but instead of
+/// Simlar to [`CountVectorizer`] but instead of
 /// just counting the term frequency of each vocabulary entry in each given document,
 /// it computes the term frequecy times the inverse document frequency, thus giving more importance
 /// to entries that appear many times but only on some documents. The weight function can be adjusted
 /// by setting the appropriate [method](TfIdfMethod). This struct provides the same string  
-/// processing customizations described in [`CountVectorizer`](CountVectorizer).
+/// processing customizations described in [`CountVectorizer`].
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -123,7 +123,7 @@ impl TfIdfVectorizer {
     }
 
     /// Learns a vocabulary from the texts in `x`, according to the specified attributes and maps each
-    /// vocabulary entry to an integer value, producing a [FittedTfIdfVectorizer](FittedTfIdfVectorizer).
+    /// vocabulary entry to an integer value, producing a [FittedTfIdfVectorizer].
     ///
     /// Returns an error if:
     /// * one of the `n_gram` boundaries is set to zero or the minimum value is greater than the maximum value
@@ -140,8 +140,8 @@ impl TfIdfVectorizer {
         })
     }
 
-    /// Produces a [FittedTfIdfVectorizer](FittedTfIdfVectorizer) with the input vocabulary.
-    /// All struct attributes are ignored in the fitting but will be used by the [FittedTfIdfVectorizer](FittedTfIdfVectorizer)
+    /// Produces a [FittedTfIdfVectorizer] with the input vocabulary.
+    /// All struct attributes are ignored in the fitting but will be used by the [FittedTfIdfVectorizer]
     /// to transform any text to be examined. As such this will return an error in the same cases as the `fit` method.
     pub fn fit_vocabulary<T: ToString>(&self, words: &[T]) -> Result<FittedTfIdfVectorizer> {
         let fitted_vectorizer = self.count_vectorizer.fit_vocabulary(words)?;
