@@ -1,6 +1,6 @@
 [package]
 name = "linfa-reduction"
-version = "0.6.1"
+version = "0.7.0"
 authors = ["Lorenz Schmidt <bytesnake@mailbox.org>"]
 description = "A collection of dimensionality reduction techniques"
 edition = "2018"
@@ -33,10 +33,10 @@ num-traits = "0.2"
 thiserror = "1.0"
 rand = { version = "0.8", features = ["small_rng"] }
 
-linfa = { version = "0.6.1", path = "../.." }
-linfa-kernel = { version = "0.6.1", path = "../linfa-kernel" }
+linfa = { version = "0.7.0", path = "../.." }
+linfa-kernel = { version = "0.7.0", path = "../linfa-kernel" }
 
 [dev-dependencies]
 ndarray-npy = { version = "0.8", default-features = false }
-linfa-datasets = { version = "0.6.1", path = "../../datasets", features = ["iris", "generate"] }
+linfa-datasets = { version = "0.7.0", path = "../../datasets", features = ["iris", "generate"] }
 approx = { version = "0.4" }

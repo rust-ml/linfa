@@ -1,3 +1,18 @@
+Version 0.7.0 - 2023-10-15
+========================
+Changes
+-----------
+ * add `array_from_gz_csv` and `array_from_csv` in `linfa-datasets`
+ * make Serde support in `linfa-linear`, `linfa-logistic`, and `linfa-ftrl` optional
+ * bump `argmin` to 0.8.1
+ * add Serde support to `linfa-preprocessing` and `linfa-bayes`
+ * make licenses follow SPDX 2.1 license expression standard
+
+Removals
+-----------
+ * Removed Approximate DBSCAN from `linfa-clustering` due to performance issues. It's now an alias to regular DBSCAN.
+ * Removed `partitions` dependency, which breaks in current versions of Rust.
+
 Version 0.6.1 - 2022-12-03
 ========================
 New Algorithms
