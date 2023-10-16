@@ -1,6 +1,6 @@
 [package]
 name = "linfa-pls"
-version = "0.6.1"
+version = "0.7.0"
 edition = "2018"
 authors = ["relf <remi.lafage@onera.fr>"]
 description = "Partial Least Squares family methods"
