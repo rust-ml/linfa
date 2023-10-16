@@ -1,6 +1,6 @@
 [package]
 name = "linfa-ica"
-version = "0.6.1"
+version = "0.7.0"
 authors = ["VasanthakumarV <vasanth260m12@gmail.com>"]
 description = "A collection of Independent Component Analysis (ICA) algorithms"
 edition = "2018"
