@@ -1,6 +1,6 @@
 [package]
 name = "linfa-svm"
-version = "0.6.1"
+version = "0.7.0"
 edition = "2018"
 authors = ["Lorenz Schmidt <lorenz.schmidt@mailbox.org>"]
 description = "Support Vector Machines"
