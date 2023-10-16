@@ -1,6 +1,6 @@
 [package]
 name = "linfa-clustering"
-version = "0.6.1"
+version = "0.7.0"
 edition = "2018"
 authors = [
     "Luca Palmieri <rust@lpalmieri.com>",
