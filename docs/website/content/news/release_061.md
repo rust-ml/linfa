@@ -1,6 +1,6 @@
 +++
-title = "Release 0.6.0"
-date = "2022-06-15"
+title = "Release 0.6.1"
+date = "2022-12-03"
 +++
 
 Linfa's 0.6.1 release mainly consists of fixes to existing algorithms and the overall crate. The Isotonic Regression algorithm has also been added to `linfa-linear`.
