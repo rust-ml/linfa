@@ -1,6 +1,6 @@
 [package]
 name = "linfa-bayes"
-version = "0.6.1"
+version = "0.7.0"
 authors = ["VasanthakumarV <vasanth260m12@gmail.com>"]
 description = "Collection of Naive Bayes Algorithms"
 edition = "2018"
