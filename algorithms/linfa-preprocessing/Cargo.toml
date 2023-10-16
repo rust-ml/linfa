@@ -1,6 +1,6 @@
 [package]
 name = "linfa-preprocessing"
-version = "0.6.1"
+version = "0.7.0"
 authors = ["Sauro98 <ivadonadi98@gmail.com>"]
 
 description = "A Machine Learning framework for Rust"
