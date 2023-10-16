@@ -29,4 +29,4 @@ num-traits = "0.2"
 sprs = { version="0.11", default-features = false }
 
 linfa = { version = "0.7.0", path = "../.." }
-linfa-nn = { version = "0.6.1", path = "../linfa-nn" }
+linfa-nn = { version = "0.7.0", path = "../linfa-nn" }

@@ -1,6 +1,6 @@
 [package]
 name = "linfa-nn"
-version = "0.6.1"
+version = "0.7.0"
 authors = ["YuhanLiin <yuhanliin+github@protonmail.com>"]
 edition = "2018"
 description = "A collection of nearest neighbour algorithms"
