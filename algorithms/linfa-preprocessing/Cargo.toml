@@ -41,7 +41,7 @@ default-features = false
 features = ["std", "derive"]
 
 [dev-dependencies]
-linfa-datasets = { version = "0.6.1", path = "../../datasets", features = ["diabetes", "winequality"] }
+linfa-datasets = { version = "0.7.0", path = "../../datasets", features = ["diabetes", "winequality"] }
 linfa-bayes = { version = "0.7.0", path = "../linfa-bayes" }
 iai = "0.1" 
 curl = "0.4.35"
