@@ -37,7 +37,7 @@ num-traits = "0.2"
 approx = "0.4"
 thiserror = "1.0"
 
-linfa = { version = "0.6.1", path = "../.." }
+linfa = { version = "0.7.0", path = "../.." }
 
 [dev-dependencies]
 linfa-datasets = { version = "0.6.1", path = "../../datasets", features = ["diabetes", "linnerud"] }

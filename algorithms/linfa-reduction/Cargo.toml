@@ -33,7 +33,7 @@ num-traits = "0.2"
 thiserror = "1.0"
 rand = { version = "0.8", features = ["small_rng"] }
 
-linfa = { version = "0.6.1", path = "../.." }
+linfa = { version = "0.7.0", path = "../.." }
 linfa-kernel = { version = "0.6.1", path = "../linfa-kernel" }
 
 [dev-dependencies]

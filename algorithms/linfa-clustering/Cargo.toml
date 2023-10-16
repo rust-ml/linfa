@@ -38,7 +38,7 @@ rand_xoshiro = "0.6"
 space = "0.12"
 thiserror = "1.0"
 #partitions = "0.2.4" This one will break in a future version of Rust and has no replacement
-linfa = { version = "0.6.1", path = "../.." }
+linfa = { version = "0.7.0", path = "../.." }
 linfa-nn = { version = "0.6.1", path = "../linfa-nn" }
 noisy_float = "0.2.0"
 
@@ -49,7 +49,7 @@ criterion = "0.4.0"
 serde_json = "1"
 approx = "0.4"
 lax = "0.15.0"
-linfa = { version = "0.6.0", path = "../..", features = ["benchmarks"] }
+linfa = { version = "0.7.0", path = "../..", features = ["benchmarks"] }
 
 [[bench]]
 name = "k_means"

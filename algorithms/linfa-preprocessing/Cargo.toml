@@ -18,7 +18,7 @@ blas = ["ndarray-linalg", "linfa/ndarray-linalg"]
 serde = ["serde_crate", "ndarray/serde", "serde_regex"]
 
 [dependencies]
-linfa = { version = "0.6.1", path = "../.." }
+linfa = { version = "0.7.0", path = "../.." }
 ndarray = { version = "0.15", features = ["approx"] }
 ndarray-linalg = { version = "0.15", optional = true }
 linfa-linalg = { version = "0.1", default-features = false }

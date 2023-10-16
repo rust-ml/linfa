@@ -33,10 +33,10 @@ ndarray-rand = "0.14"
 num-traits = "0.2"
 paste = "1.0"
 thiserror = "1.0"
-linfa = { version = "0.6.1", path = "../.." }
+linfa = { version = "0.7.0", path = "../.." }
 
 [dev-dependencies]
-linfa = { version = "0.6.1", path = "../..", features = ["benchmarks"] }
+linfa = { version = "0.7.0", path = "../..", features = ["benchmarks"] }
 linfa-datasets = { version = "0.6.1", path = "../../datasets", features = ["linnerud"] }
 approx = "0.4"
 rand_xoshiro = "0.6"
