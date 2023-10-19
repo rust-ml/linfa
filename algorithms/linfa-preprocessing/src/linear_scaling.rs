@@ -19,7 +19,7 @@ use serde_crate::{Deserialize, Serialize};
     serde(crate = "serde_crate")
 )]
 #[derive(Clone, Debug, PartialEq, Eq)]
-/// Possible scaling methods for [LinearScaler](LinearScaler)
+/// Possible scaling methods for [LinearScaler]
 ///
 /// * Standard (with mean, with std): subtracts the mean to each feature and scales it by the inverse of its standard deviation
 /// * MinMax (min, max): scales each feature to fit in the range `min..=max`, default values are
@@ -271,7 +271,7 @@ impl<F: Float> LinearScaler<F> {
         &self.scales
     }
 
-    /// Returns the method used for fitting. Useful for printing, since [ScalingMethod](ScalingMethod) implements `Display`
+    /// Returns the method used for fitting. Useful for printing, since [ScalingMethod] implements `Display`
     pub fn method(&self) -> &ScalingMethod<F> {
         &self.method
     }

@@ -158,7 +158,7 @@ impl<'a, F: Float> BallTreeInner<'a, F> {
     }
 }
 
-/// Spatial indexing structure created by [`BallTree`](BallTree)
+/// Spatial indexing structure created by [`BallTree`]
 #[derive(Debug, Clone, PartialEq)]
 pub struct BallTreeIndex<'a, F: Float, D: Distance<F>> {
     tree: BallTreeInner<'a, F>,
@@ -282,7 +282,7 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for BallTreeIndex<'a
 /// Implementation of ball tree, a space partitioning data structure that partitions its points
 /// into nested hyperspheres called "balls". It performs spatial queries in `O(k * logN)` time,
 /// where `k` is the number of points returned by the query. Calling `from_batch` returns a
-/// [`BallTreeIndex`](BallTreeIndex).
+/// [`BallTreeIndex`].
 ///
 /// More details can be found [here](https://en.wikipedia.org/wiki/Ball_tree). This implementation
 /// is based off of the [ball_tree](https://docs.rs/ball-tree/0.2.0/ball_tree/) crate.

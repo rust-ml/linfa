@@ -11,7 +11,7 @@ use crate::{
     NearestNeighbourIndex, NnError, Point,
 };
 
-/// Spatial indexing structure created by [`LinearSearch`](LinearSearch)
+/// Spatial indexing structure created by [`LinearSearch`]
 #[derive(Debug, Clone, PartialEq)]
 pub struct LinearSearchIndex<'a, F: Float, D: Distance<F>>(ArrayView2<'a, F>, D);
 
@@ -76,7 +76,7 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for LinearSearchInde
 
 /// Implementation of linear search, which is the simplest nearest neighbour algorithm. All queries
 /// are implemented by scanning through every point, so all of them are `O(N)`. Calling
-/// `from_batch` returns a [`LinearSearchIndex`](LinearSearchIndex).
+/// `from_batch` returns a [`LinearSearchIndex`].
 #[derive(Default, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde",

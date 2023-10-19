@@ -615,7 +615,7 @@ impl<F: Float, L: Label> DecisionTree<F, L> {
         self.iter_nodes().filter(|node| node.is_leaf()).count()
     }
 
-    /// Generates a [`Tikz`](Tikz) structure to print the
+    /// Generates a [`Tikz`] structure to print the
     /// fitted tree in Tex using tikz and forest, with the following default parameters:
     ///
     /// * `legend=false`

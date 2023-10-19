@@ -1,6 +1,6 @@
 [package]
 name = "linfa-linear"
-version = "0.6.1"
+version = "0.7.0"
 authors = [
     "Paul Körbitz / Google <koerbitz@google.com>",
     "VasanthakumarV <vasanth260m12@gmail.com>"
@@ -8,7 +8,7 @@ authors = [
 
 description = "A Machine Learning framework for Rust"
 edition = "2018"
-license = "MIT/Apache-2.0"
+license = "MIT OR Apache-2.0"
 
 repository = "https://github.com/rust-ml/linfa"
 readme = "README.md"
@@ -32,18 +32,18 @@ ndarray = { version = "0.15", features = ["approx"] }
 linfa-linalg = { version = "0.1", default-features = false }
 ndarray-linalg = { version = "0.15", optional = true }
 num-traits = "0.2"
-argmin = { version = "0.7", default-features = false }
-argmin-math = { version = "0.2", features = ["ndarray_v0_15-nolinalg"] }
+argmin = { version = "0.8.1", default-features = false }
+argmin-math = { version = "0.3", features = ["ndarray_v0_15-nolinalg"] }
 thiserror = "1.0"
 
-linfa = { version = "0.6.1", path = "../.." }
+linfa = { version = "0.7.0", path = "../.." }
 
 [dev-dependencies]
-linfa-datasets = { version = "0.6.1", path = "../../datasets", features = ["diabetes"] }
+linfa-datasets = { version = "0.7.0", path = "../../datasets", features = ["diabetes"] }
 approx = "0.4"
 criterion = "0.4.0" 
 statrs = "0.16.0"
-linfa = { version = "0.6.0", path = "../..", features = ["benchmarks"] }
+linfa = { version = "0.7.0", path = "../..", features = ["benchmarks"] }
 
 [[bench]]
 name = "ols_bench"

@@ -19,9 +19,9 @@
 pub mod error;
 
 use crate::error::{Error, Result};
-use argmin::prelude::*;
+use argmin::core::{CostFunction, Executor, Gradient, IterState, OptimizationResult, Solver};
 use argmin::solver::linesearch::MoreThuenteLineSearch;
-use argmin::solver::quasinewton::lbfgs::LBFGS;
+use argmin::solver::quasinewton::LBFGS;
 use linfa::dataset::AsSingleTargets;
 use linfa::prelude::DatasetBase;
 use linfa::traits::{Fit, PredictInplace};
@@ -30,14 +30,18 @@ use ndarray::{
     Dimension, IntoDimension, Ix1, Ix2, RemoveAxis, Slice, Zip,
 };
 use ndarray_stats::QuantileExt;
-use serde::{Deserialize, Serialize};
 use std::default::Default;
+
+#[cfg(feature = "serde")]
+use serde_crate::de::DeserializeOwned;
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 mod argmin_param;
 mod float;
 mod hyperparams;
 
-use argmin_param::{elem_dot, ArgminParam};
+use argmin_param::*;
 use float::Float;
 use hyperparams::{LogisticRegressionParams, LogisticRegressionValidParams};
 
@@ -97,20 +101,27 @@ impl<F: Float, D: Dimension> Default for LogisticRegressionParams<F, D> {
     }
 }
 
-type LBFGSType<F, D> = LBFGS<MoreThuenteLineSearch<ArgminParam<F, D>, F>, ArgminParam<F, D>, F>;
+type LBFGSType<F, D> = LBFGS<
+    MoreThuenteLineSearch<ArgminParam<F, D>, ArgminParam<F, D>, F>,
+    ArgminParam<F, D>,
+    ArgminParam<F, D>,
+    F,
+>;
 type LBFGSType1<F> = LBFGSType<F, Ix1>;
 type LBFGSType2<F> = LBFGSType<F, Ix2>;
+
+type IterStateType<F, D> = IterState<ArgminParam<F, D>, ArgminParam<F, D>, (), (), F>;
 
 impl<F: Float, D: Dimension> LogisticRegressionValidParams<F, D> {
     /// Create the initial parameters, either from a user supplied array
     /// or an array of 0s
-    fn setup_init_params(&self, dims: D::Pattern) -> Array<F, D> {
+    fn setup_init_params(&self, dims: D::Pattern) -> ArgminParam<F, D> {
         if let Some(params) = self.initial_params.as_ref() {
-            params.clone()
+            ArgminParam(params.clone())
         } else {
             let mut dims = dims.into_dimension();
             dims.as_array_view_mut()[0] += self.fit_intercept as usize;
-            Array::zeros(dims)
+            ArgminParam(Array::zeros(dims))
         }
     }
 
@@ -170,20 +181,29 @@ impl<F: Float, D: Dimension> LogisticRegressionValidParams<F, D> {
     /// tolerance.
     fn setup_solver(&self) -> LBFGSType<F, D> {
         let linesearch = MoreThuenteLineSearch::new();
-        LBFGS::new(linesearch, 10).with_tol_grad(self.gradient_tolerance)
+        LBFGS::new(linesearch, 10)
+            .with_tolerance_grad(self.gradient_tolerance)
+            .unwrap()
     }
+}
 
+impl<
+        F: Float,
+        #[cfg(feature = "serde")] D: Dimension + Serialize + DeserializeOwned,
+        #[cfg(not(feature = "serde"))] D: Dimension,
+    > LogisticRegressionValidParams<F, D>
+{
     /// Run the LBFGS solver until it converges or runs out of iterations.
-    fn run_solver<P: SolvableProblem>(
+    fn run_solver<P: SolvableProblem<F, D>>(
         &self,
         problem: P,
         solver: P::Solver,
-        init_params: P::Param,
-    ) -> Result<ArgminResult<P>> {
-        Executor::new(problem, solver, init_params)
-            .max_iters(self.max_iterations)
+        init_params: ArgminParam<F, D>,
+    ) -> Result<OptimizationResult<P, P::Solver, IterStateType<F, D>>> {
+        Executor::new(problem, solver)
+            .configure(|state| state.param(init_params).max_iters(self.max_iterations))
             .run()
-            .map_err(|err| err.into())
+            .map_err(move |err| err.into())
     }
 }
 
@@ -215,10 +235,13 @@ impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsSingleTargets<El
         let problem = self.setup_problem(x, target);
         let solver = self.setup_solver();
         let init_params = self.setup_init_params(x.ncols());
-        let result = self.run_solver(problem, solver, ArgminParam(init_params))?;
+        let result = self.run_solver(problem, solver, init_params)?;
 
-        let params = result.state().best_param.as_array();
-        let (w, intercept) = convert_params(x.ncols(), params);
+        let params = result
+            .state
+            .best_param
+            .unwrap_or(self.setup_init_params(x.ncols()));
+        let (w, intercept) = convert_params(x.ncols(), params.as_array());
         Ok(FittedLogisticRegression::new(
             *intercept.view().into_scalar(),
             w.to_owned(),
@@ -249,10 +272,13 @@ impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsSingleTargets<El
         let problem = self.setup_problem(x, target);
         let solver = self.setup_solver();
         let init_params = self.setup_init_params((x.ncols(), classes.len()));
-        let result = self.run_solver(problem, solver, ArgminParam(init_params))?;
+        let result = self.run_solver(problem, solver, init_params)?;
 
-        let params = result.state().best_param.as_array();
-        let (w, intercept) = convert_params(x.ncols(), params);
+        let params = result
+            .state
+            .best_param
+            .unwrap_or(self.setup_init_params((x.ncols(), classes.len())));
+        let (w, intercept) = convert_params(x.ncols(), params.as_array());
         Ok(MultiFittedLogisticRegression::new(
             intercept.to_owned(),
             w.to_owned(),
@@ -541,8 +567,13 @@ fn multi_logistic_grad<F: Float, A: Data<Elem = F>>(
 }
 
 /// A fitted logistic regression which can make predictions
-#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
-#[serde(bound(deserialize = "C: Deserialize<'de>"))]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate"),
+    serde(bound(deserialize = "C: Deserialize<'de>"))
+)]
 pub struct FittedLogisticRegression<F: Float, C: PartialOrd + Clone> {
     threshold: F,
     intercept: F,
@@ -628,7 +659,12 @@ impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
 }
 
 /// A fitted multinomial logistic regression which can make predictions
-#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub struct MultiFittedLogisticRegression<F, C: PartialOrd + Clone> {
     intercept: Array1<F>,
     params: Array2<F>,
@@ -703,13 +739,23 @@ impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
     }
 }
 
-#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 struct ClassLabel<F, C: PartialOrd> {
     class: C,
     label: F,
 }
 
-#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 struct BinaryClassLabels<F, C: PartialOrd> {
     pos: ClassLabel<F, C>,
     neg: ClassLabel<F, C>,
@@ -726,19 +772,21 @@ struct LogisticRegressionProblem<'a, F: Float, A: Data<Elem = F>, D: Dimension> 
 type LogisticRegressionProblem1<'a, F, A> = LogisticRegressionProblem<'a, F, A, Ix1>;
 type LogisticRegressionProblem2<'a, F, A> = LogisticRegressionProblem<'a, F, A, Ix2>;
 
-impl<'a, F: Float, A: Data<Elem = F>> ArgminOp for LogisticRegressionProblem1<'a, F, A> {
+impl<'a, F: Float, A: Data<Elem = F>> CostFunction for LogisticRegressionProblem1<'a, F, A> {
     type Param = ArgminParam<F, Ix1>;
     type Output = F;
-    type Hessian = ();
-    type Jacobian = Array1<F>;
-    type Float = F;
 
     /// Apply the cost function to a parameter `p`
-    fn apply(&self, p: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
+    fn cost(&self, p: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
         let w = p.as_array();
         let cost = logistic_loss(self.x, &self.target, self.alpha, w);
         Ok(cost)
     }
+}
+
+impl<'a, F: Float, A: Data<Elem = F>> Gradient for LogisticRegressionProblem1<'a, F, A> {
+    type Param = ArgminParam<F, Ix1>;
+    type Gradient = ArgminParam<F, Ix1>;
 
     /// Compute the gradient at parameter `p`.
     fn gradient(&self, p: &Self::Param) -> std::result::Result<Self::Param, argmin::core::Error> {
@@ -748,19 +796,21 @@ impl<'a, F: Float, A: Data<Elem = F>> ArgminOp for LogisticRegressionProblem1<'a
     }
 }
 
-impl<'a, F: Float, A: Data<Elem = F>> ArgminOp for LogisticRegressionProblem2<'a, F, A> {
+impl<'a, F: Float, A: Data<Elem = F>> CostFunction for LogisticRegressionProblem2<'a, F, A> {
     type Param = ArgminParam<F, Ix2>;
     type Output = F;
-    type Hessian = ();
-    type Jacobian = Array1<F>;
-    type Float = F;
 
     /// Apply the cost function to a parameter `p`
-    fn apply(&self, p: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
+    fn cost(&self, p: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
         let w = p.as_array();
         let cost = multi_logistic_loss(self.x, &self.target, self.alpha, w);
         Ok(cost)
     }
+}
+
+impl<'a, F: Float, A: Data<Elem = F>> Gradient for LogisticRegressionProblem2<'a, F, A> {
+    type Param = ArgminParam<F, Ix2>;
+    type Gradient = ArgminParam<F, Ix2>;
 
     /// Compute the gradient at parameter `p`.
     fn gradient(&self, p: &Self::Param) -> std::result::Result<Self::Param, argmin::core::Error> {
@@ -770,15 +820,19 @@ impl<'a, F: Float, A: Data<Elem = F>> ArgminOp for LogisticRegressionProblem2<'a
     }
 }
 
-trait SolvableProblem: ArgminOp + Sized {
-    type Solver: Solver<Self>;
+trait SolvableProblem<F: Float, D: Dimension>: Gradient + Sized {
+    type Solver: Solver<Self, IterStateType<F, D>>;
 }
 
-impl<'a, F: Float, A: Data<Elem = F>> SolvableProblem for LogisticRegressionProblem1<'a, F, A> {
+impl<'a, F: Float, A: Data<Elem = F>> SolvableProblem<F, Ix1>
+    for LogisticRegressionProblem1<'a, F, A>
+{
     type Solver = LBFGSType1<F>;
 }
 
-impl<'a, F: Float, A: Data<Elem = F>> SolvableProblem for LogisticRegressionProblem2<'a, F, A> {
+impl<'a, F: Float, A: Data<Elem = F>> SolvableProblem<F, Ix2>
+    for LogisticRegressionProblem2<'a, F, A>
+{
     type Solver = LBFGSType2<F>;
 }
 
@@ -1092,13 +1146,16 @@ mod test {
         );
 
         // Test serialization
-        let ser = rmp_serde::to_vec(&res).unwrap();
-        let unser: FittedLogisticRegression<f32, f32> = rmp_serde::from_slice(&ser).unwrap();
+        #[cfg(feature = "serde")]
+        {
+            let ser = rmp_serde::to_vec(&res).unwrap();
+            let unser: FittedLogisticRegression<f32, f32> = rmp_serde::from_slice(&ser).unwrap();
 
-        let x = array![[1.0]];
-        let y_hat = unser.predict(&x);
+            let x = array![[1.0]];
+            let y_hat = unser.predict(&x);
 
-        assert!(y_hat[0] == 0.0);
+            assert!(y_hat[0] == 0.0);
+        }
     }
 
     #[test]
