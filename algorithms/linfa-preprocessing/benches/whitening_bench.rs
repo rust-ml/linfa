@@ -25,9 +25,9 @@ fn bench(c: &mut Criterion) {
                 |bencher| {
                     bencher.iter(|| {
                         whitener
-                            .fit(black_box(&dataset.clone()))
+                            .fit(black_box(&dataset))
                             .unwrap()
-                            .transform(black_box(dataset.clone()));
+                            .transform(black_box(dataset.view()));
                     });
                 },
             );

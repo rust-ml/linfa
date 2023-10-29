@@ -1,39 +1,43 @@
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use linfa::benchmarks::config;
 use linfa::traits::Transformer;
+use linfa_datasets::generate::make_dataset;
 use linfa_preprocessing::norm_scaling::NormScaler;
-use ndarray::Array2;
-use ndarray_rand::{
-    rand::distributions::Uniform, rand::rngs::SmallRng, rand::SeedableRng, RandomExt,
-};
+use statrs::distribution::{DiscreteUniform, Laplace};
 
-fn iai_l2_scaler_bench() {
-    let mut rng = SmallRng::seed_from_u64(84);
-    for nfeatures in (10..100).step_by(10) {
-        transform_scaler(NormScaler::l2(), &mut rng, 10000, nfeatures);
+fn bench(c: &mut Criterion) {
+    let mut benchmark = c.benchmark_group("norm scaler");
+    config::set_default_benchmark_configs(&mut benchmark);
+    let size = 10000;
+    let feat_distr = Laplace::new(0.5, 5.).unwrap();
+    let target_distr = DiscreteUniform::new(0, 5).unwrap();
+
+    for (scaler, fn_name) in [
+        (NormScaler::l2(), "l2 scaler"),
+        (NormScaler::l1(), "l1 scaler"),
+        (NormScaler::max(), "max scaler"),
+    ] {
+        for nfeatures in (10..100).step_by(10) {
+            let dataset = make_dataset(size, nfeatures, 1, feat_distr, target_distr);
+            benchmark.bench_function(
+                BenchmarkId::new(fn_name, format!("{}x{}", nfeatures, size)),
+                |bencher| {
+                    bencher.iter(|| {
+                        scaler.transform(black_box(dataset.view()));
+                    });
+                },
+            );
+        }
     }
 }
 
-fn iai_l1_scaler_bench() {
-    let mut rng = SmallRng::seed_from_u64(84);
-    for nfeatures in (10..100).step_by(10) {
-        transform_scaler(NormScaler::l1(), &mut rng, 10000, nfeatures);
-    }
+#[cfg(not(target_os = "windows"))]
+criterion_group! {
+    name = benches;
+    config = config::get_default_profiling_configs();
+    targets = bench
 }
+#[cfg(target_os = "windows")]
+criterion_group!(benches, bench);
 
-fn iai_max_scaler_bench() {
-    let mut rng = SmallRng::seed_from_u64(84);
-    for nfeatures in (10..100).step_by(10) {
-        transform_scaler(NormScaler::max(), &mut rng, 10000, nfeatures);
-    }
-}
-
-fn transform_scaler(scaler: NormScaler, rng: &mut SmallRng, size: usize, nfeatures: usize) {
-    let dataset: Array2<f64> =
-        Array2::random_using((size, nfeatures), Uniform::from(-30. ..30.), rng);
-    scaler.transform(iai::black_box(dataset));
-}
-
-iai::main!(
-    iai_l2_scaler_bench,
-    iai_l1_scaler_bench,
-    iai_max_scaler_bench
-);
+criterion_main!(benches);
