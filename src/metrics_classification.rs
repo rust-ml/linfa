@@ -618,19 +618,19 @@ mod tests {
 
         assert_split_eq(
             &x,
-            |cm| ConfusionMatrix::precision(cm),
+            ConfusionMatrix::precision,
             &array![1.0, 3. / 4.],
             &labels,
         );
         assert_split_eq(
             &x,
-            |cm| ConfusionMatrix::recall(cm),
+            ConfusionMatrix::recall,
             &array![2.0 / 3.0, 1.0],
             &labels,
         );
         assert_split_eq(
             &x,
-            |cm| ConfusionMatrix::f1_score(cm),
+            ConfusionMatrix::f1_score,
             &array![4.0 / 5.0, 6.0 / 7.0],
             &labels,
         );

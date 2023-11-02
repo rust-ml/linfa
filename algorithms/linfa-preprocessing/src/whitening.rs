@@ -39,7 +39,7 @@ pub enum WhiteningMethod {
 }
 
 /// Struct that can be fitted to the input data to obtain the related whitening matrix.
-/// Fitting returns a [FittedWhitener](FittedWhitener) struct that can be used to
+/// Fitting returns a [FittedWhitener] struct that can be used to
 /// apply the whitening transformation to the input data.
 #[cfg_attr(
     feature = "serde",
@@ -157,7 +157,7 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets> Fit<ArrayBase<D, Ix2>, T, Prepro
 
 /// Struct that can be used to whiten data. Data will be scaled according to the whitening matrix learned
 /// during fitting.
-/// Obtained by fitting a [Whitener](Whitener).
+/// Obtained by fitting a [Whitener].
 ///
 /// Transforming the data used during fitting will yield a scaled data matrix with
 /// unit diagonal covariance matrix.

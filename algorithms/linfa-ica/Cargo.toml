@@ -1,10 +1,10 @@
 [package]
 name = "linfa-ica"
-version = "0.6.1"
+version = "0.7.0"
 authors = ["VasanthakumarV <vasanth260m12@gmail.com>"]
 description = "A collection of Independent Component Analysis (ICA) algorithms"
 edition = "2018"
-license = "MIT/Apache-2.0"
+license = "MIT OR Apache-2.0"
 
 repository = "https://github.com/rust-ml/linfa"
 readme = "README.md"
@@ -34,13 +34,13 @@ num-traits = "0.2"
 rand_xoshiro = "0.6"
 thiserror = "1.0"
 
-linfa = { version = "0.6.1", path = "../.." }
+linfa = { version = "0.7.0", path = "../.." }
 
 [dev-dependencies]
 ndarray-npy = { version = "0.8", default-features = false }
 paste = "1.0"
 criterion = "0.4.0"
-linfa = { version = "0.6.0", path = "../..", features = ["benchmarks"] }
+linfa = { version = "0.7.0", path = "../..", features = ["benchmarks"] }
 
 [[bench]]
 name = "fast_ica"

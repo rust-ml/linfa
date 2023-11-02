@@ -1,6 +1,6 @@
 [package]
 name = "linfa-elasticnet"
-version = "0.6.1"
+version = "0.7.0"
 authors = [
     "Paul Körbitz / Google <koerbitz@google.com>",
     "Lorenz Schmidt <bytesnake@mailbox.org>"
@@ -8,7 +8,7 @@ authors = [
 
 description = "A Machine Learning framework for Rust"
 edition = "2018"
-license = "MIT/Apache-2.0"
+license = "MIT OR Apache-2.0"
 
 repository = "https://github.com/rust-ml/linfa"
 readme = "README.md"
@@ -37,9 +37,9 @@ num-traits = "0.2"
 approx = "0.4"
 thiserror = "1.0"
 
-linfa = { version = "0.6.1", path = "../.." }
+linfa = { version = "0.7.0", path = "../.." }
 
 [dev-dependencies]
-linfa-datasets = { version = "0.6.1", path = "../../datasets", features = ["diabetes", "linnerud"] }
+linfa-datasets = { version = "0.7.0", path = "../../datasets", features = ["diabetes", "linnerud"] }
 ndarray-rand = "0.14"
 rand_xoshiro = "0.6"

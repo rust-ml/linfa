@@ -1,6 +1,6 @@
 [package]
 name = "linfa-clustering"
-version = "0.6.1"
+version = "0.7.0"
 edition = "2018"
 authors = [
     "Luca Palmieri <rust@lpalmieri.com>",
@@ -8,7 +8,7 @@ authors = [
     "Rémi Lafage <remi.lafage@onera.fr>"
 ]
 description = "A collection of clustering algorithms"
-license = "MIT/Apache-2.0"
+license = "MIT OR Apache-2.0"
 
 repository = "https://github.com/rust-ml/linfa/"
 readme = "README.md"
@@ -38,18 +38,18 @@ rand_xoshiro = "0.6"
 space = "0.12"
 thiserror = "1.0"
 #partitions = "0.2.4" This one will break in a future version of Rust and has no replacement
-linfa = { version = "0.6.1", path = "../.." }
-linfa-nn = { version = "0.6.1", path = "../linfa-nn" }
+linfa = { version = "0.7.0", path = "../.." }
+linfa-nn = { version = "0.7.0", path = "../linfa-nn" }
 noisy_float = "0.2.0"
 
 [dev-dependencies]
 ndarray-npy = { version = "0.8", default-features = false }
-linfa-datasets = { version = "0.6.1", path = "../../datasets", features = ["generate"] }
+linfa-datasets = { version = "0.7.0", path = "../../datasets", features = ["generate"] }
 criterion = "0.4.0"
 serde_json = "1"
 approx = "0.4"
 lax = "0.15.0"
-linfa = { version = "0.6.0", path = "../..", features = ["benchmarks"] }
+linfa = { version = "0.7.0", path = "../..", features = ["benchmarks"] }
 
 [[bench]]
 name = "k_means"
