@@ -13,7 +13,7 @@ use std::ops::{Div, Sub};
 
 /// Regression metrices trait for single targets.
 ///
-/// It is possible to compute the listed mectrics between two 1D arrays.
+/// It is possible to compute the listed metrics between two 1D arrays.
 /// To compare bi-dimensional arrays use [`MultiTargetRegression`].
 pub trait SingleTargetRegression<F: Float, T: AsSingleTargets<Elem = F>>:
     AsSingleTargets<Elem = F>
