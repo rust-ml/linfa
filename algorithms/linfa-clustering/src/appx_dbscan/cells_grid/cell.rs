@@ -4,8 +4,15 @@ use linfa::Float;
 use linfa_nn::distance::{Distance, L2Dist};
 use ndarray::{Array1, ArrayView1, ArrayView2, ArrayViewMut1};
 use partitions::PartitionVec;
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 /// A point in a D dimensional euclidean space that memorizes its
 /// status: 'core' or 'non core'
 pub struct StatusPoint {
@@ -16,10 +23,7 @@ pub struct StatusPoint {
 
 impl StatusPoint {
     pub fn new(point_index: usize) -> StatusPoint {
-        StatusPoint {
-            point_index,
-            is_core: false,
-        }
+        StatusPoint { point_index, is_core: false }
     }
 
     pub fn is_core(&self) -> bool {
@@ -32,6 +36,11 @@ impl StatusPoint {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 /// Informations regarding the cell used in various stages of the approximate DBSCAN
 /// algorithm if it is a core cell
 pub struct CoreCellInfo<F: Float> {
@@ -42,6 +51,11 @@ pub struct CoreCellInfo<F: Float> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 /// A cell from a grid that partitions the D dimensional euclidean space.
 pub struct Cell<F: Float> {
     /// The index of the intervals of the D dimensional axes where this cell lies
