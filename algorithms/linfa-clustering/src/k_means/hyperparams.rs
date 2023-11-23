@@ -38,6 +38,11 @@ pub struct KMeansValidParams<F: Float, R: Rng, D: Distance<F>> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 /// An helper struct used to construct a set of [valid hyperparameters](KMeansParams) for
 /// the [K-means algorithm](crate::KMeans) (using the builder pattern).
 pub struct KMeansParams<F: Float, R: Rng, D: Distance<F>>(KMeansValidParams<F, R, D>);

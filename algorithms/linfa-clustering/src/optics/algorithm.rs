@@ -35,6 +35,11 @@ pub struct Optics;
 /// This struct represents a data point in the dataset with it's associated distances obtained from
 /// the OPTICS analysis
 #[derive(Debug, Clone)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub struct Sample<F> {
     /// Index of the observation in the dataset
     index: usize,
@@ -103,6 +108,11 @@ impl<F: Float> Ord for Sample<F> {
 /// that of the dataset instead ordering based on the clustering structure worked out during
 /// analysis.
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub struct OpticsAnalysis<F: Float> {
     /// A list of the samples in the dataset sorted and with their reachability and core distances
     /// computed.
