@@ -2,9 +2,16 @@ use crate::appx_dbscan::AppxDbscanValidParams;
 use linfa::Float;
 use linfa_nn::distance::{Distance, L2Dist};
 use ndarray::{Array1, Array2, ArrayView1, Axis};
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub enum IntersectionType {
     FullyCovered,
     Disjoint,
@@ -12,6 +19,11 @@ pub enum IntersectionType {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 /// Tree structure that divides the space in nested cells to perform approximate range counting
 /// Each member of this structure is a node in the tree
 pub struct TreeStructure<F: Float> {

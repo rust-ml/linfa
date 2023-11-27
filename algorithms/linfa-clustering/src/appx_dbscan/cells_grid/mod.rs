@@ -8,6 +8,8 @@ use linfa::Float;
 use linfa_nn::{distance::L2Dist, NearestNeighbour};
 use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use partitions::PartitionVec;
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 use cell::{Cell, StatusPoint};
 
@@ -16,6 +18,11 @@ pub type CellVector<F> = PartitionVec<Cell<F>>;
 pub type CellTable = HashMap<Array1<i64>, usize>;
 
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub struct CellsGrid<F: Float> {
     table: CellTable,
     cells: CellVector<F>,
