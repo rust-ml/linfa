@@ -62,3 +62,7 @@ harness = false
 [[bench]]
 name = "whitening_bench"
 harness = false
+
+[[bench]]
+name = "norm_scaler_bench"
+harness = false
