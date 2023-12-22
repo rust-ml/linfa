@@ -1,46 +1,46 @@
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use linfa::benchmarks::config;
 use linfa::traits::{Fit, Transformer};
-use linfa_preprocessing::linear_scaling::{LinearScaler, LinearScalerParams};
-use ndarray::Array2;
-use ndarray_rand::{
-    rand::distributions::Uniform, rand::rngs::SmallRng, rand::SeedableRng, RandomExt,
-};
+use linfa_datasets::generate::make_dataset;
+use linfa_preprocessing::linear_scaling::LinearScaler;
+use statrs::distribution::{DiscreteUniform, Laplace};
 
-fn iai_standard_scaler_bench() {
-    let mut rng = SmallRng::seed_from_u64(42);
-    for nfeatures in (10..100).step_by(10) {
-        fit_transform_scaler(LinearScaler::standard(), &mut rng, 10000, nfeatures);
+fn bench(c: &mut Criterion) {
+    let mut benchmark = c.benchmark_group("liner scaler");
+    config::set_default_benchmark_configs(&mut benchmark);
+    let size = 10000;
+    let feat_distr = Laplace::new(0.5, 5.).unwrap();
+    let target_distr = DiscreteUniform::new(0, 5).unwrap();
+
+    for (liner_scaler, fn_name) in [
+        (LinearScaler::standard(), "standard scaler"),
+        (LinearScaler::min_max(), "min max scaler"),
+        (LinearScaler::max_abs(), "max abs scaler"),
+    ] {
+        for nfeatures in (10..100).step_by(10) {
+            let dataset = make_dataset(size, nfeatures, 1, feat_distr, target_distr);
+            benchmark.bench_function(
+                BenchmarkId::new(fn_name, format!("{}x{}", nfeatures, size)),
+                |bencher| {
+                    bencher.iter(|| {
+                        liner_scaler
+                            .fit(black_box(&dataset))
+                            .unwrap()
+                            .transform(black_box(dataset.view()));
+                    });
+                },
+            );
+        }
     }
 }
 
-fn iai_min_max_scaler_bench() {
-    let mut rng = SmallRng::seed_from_u64(42);
-    for nfeatures in (10..100).step_by(10) {
-        fit_transform_scaler(LinearScaler::min_max(), &mut rng, 10000, nfeatures);
-    }
+#[cfg(not(target_os = "windows"))]
+criterion_group! {
+    name = benches;
+    config = config::get_default_profiling_configs();
+    targets = bench
 }
+#[cfg(target_os = "windows")]
+criterion_group!(benches, bench);
 
-fn iai_max_abs_scaler_bench() {
-    let mut rng = SmallRng::seed_from_u64(42);
-    for nfeatures in (10..100).step_by(10) {
-        fit_transform_scaler(LinearScaler::max_abs(), &mut rng, 10000, nfeatures);
-    }
-}
-
-fn fit_transform_scaler(
-    scaler: LinearScalerParams<f64>,
-    rng: &mut SmallRng,
-    size: usize,
-    nfeatures: usize,
-) {
-    let dataset = Array2::random_using((size, nfeatures), Uniform::from(-30. ..30.), rng).into();
-    scaler
-        .fit(iai::black_box(&dataset))
-        .unwrap()
-        .transform(iai::black_box(dataset));
-}
-
-iai::main!(
-    iai_standard_scaler_bench,
-    iai_min_max_scaler_bench,
-    iai_max_abs_scaler_bench
-);
+criterion_main!(benches);
