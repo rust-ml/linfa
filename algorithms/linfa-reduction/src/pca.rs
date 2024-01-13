@@ -176,6 +176,16 @@ impl Pca<f64> {
         ex_var / sum_ex_var
     }
 
+    /// Return the components
+    pub fn components(&self) -> &Array2<f64> {
+        &self.embedding
+    }
+
+    /// Return the mean
+    pub fn mean(&self) -> &Array1<f64> {
+        &self.mean
+    }
+
     /// Return the singular values
     pub fn singular_values(&self) -> &Array1<f64> {
         &self.sigma
