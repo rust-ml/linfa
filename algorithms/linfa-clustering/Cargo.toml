@@ -5,7 +5,7 @@ edition = "2018"
 authors = [
     "Luca Palmieri <rust@lpalmieri.com>",
     "xd009642 <danielmckenna93@gmail.com>",
-    "Rémi Lafage <remi.lafage@onera.fr>"
+    "Rémi Lafage <remi.lafage@onera.fr>",
 ]
 description = "A collection of clustering algorithms"
 license = "MIT OR Apache-2.0"
@@ -13,7 +13,13 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-ml/linfa/"
 readme = "README.md"
 
-keywords = ["clustering", "machine-learning", "linfa", "k-means", "unsupervised"]
+keywords = [
+    "clustering",
+    "machine-learning",
+    "linfa",
+    "k-means",
+    "unsupervised",
+]
 categories = ["algorithms", "mathematics", "science"]
 
 [features]
@@ -28,9 +34,9 @@ default-features = false
 features = ["std", "derive"]
 
 [dependencies]
-ndarray = { version = "0.15", features = ["rayon", "approx"]}
+ndarray = { version = "0.15", features = ["rayon", "approx"] }
 linfa-linalg = { version = "0.1", default-features = false }
-ndarray-linalg = { version = "0.15", optional = true }
+ndarray-linalg = { version = "0.16", optional = true }
 ndarray-rand = "0.14"
 ndarray-stats = "0.5"
 num-traits = "0.2"
@@ -44,7 +50,9 @@ noisy_float = "0.2.0"
 
 [dev-dependencies]
 ndarray-npy = { version = "0.8", default-features = false }
-linfa-datasets = { version = "0.7.0", path = "../../datasets", features = ["generate"] }
+linfa-datasets = { version = "0.7.0", path = "../../datasets", features = [
+    "generate",
+] }
 criterion = "0.4.0"
 serde_json = "1"
 approx = "0.4"
