@@ -21,22 +21,21 @@ use linfa::traits::{Fit, PredictInplace};
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-/// An ordinary least squares linear regression model.
+/// An ordinary least squares univariate linear regression model.
 ///
-/// LinearRegression fits a linear model to minimize the residual sum of
-/// squares between the observed targets in the dataset, and the targets
-/// predicted by the linear approximation.
+/// Given predictors `x` and responses `y` ordinary least squares linear
+/// regression estimates a model of the form
 ///
-/// Ordinary least squares regression solves the overconstrainted model
+/// `y = xW + b`
 ///
-/// y = Ax + b
+/// by finding a matrix `W` and a vector `b` which minimize the sum of the
+/// squared L_2 norms `||y_j - x_jW - b||_2^2` for a dataset
+/// `{(x_j, y_j) for j in 1..=n_samples}`.
 ///
-/// by finding x and b which minimize the L_2 norm ||y - Ax - b||_2.
+/// The algorithm is only implemented for _univariate_ regression. This means
+/// that `b` and `y` are scalars and `W` is just one column.
 ///
-/// It currently uses the [Moore-Penrose pseudo-inverse]()
-/// to solve y - b = Ax.
-///
-/// /// ## Examples
+/// ## Examples
 ///
 /// Here's an example on how to train a linear regression model on the `diabetes` dataset
 /// ```rust
