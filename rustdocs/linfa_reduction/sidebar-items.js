@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ReductionError"],"mod":["utils"],"struct":["DiffusionMap","DiffusionMapParams","DiffusionMapValidParams","Pca","PcaParams"],"type":["Result"]};

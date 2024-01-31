@@ -1,0 +1,1 @@
+window.ALL_CRATES = ["linfa","linfa_bayes","linfa_clustering","linfa_datasets","linfa_elasticnet","linfa_ftrl","linfa_hierarchical","linfa_ica","linfa_kernel","linfa_linear","linfa_logistic","linfa_nn","linfa_pls","linfa_preprocessing","linfa_reduction","linfa_svm","linfa_trees","linfa_tsne"];

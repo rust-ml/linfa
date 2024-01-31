@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="linfa,ml,stats,statistical learning, machine learning,rust">
+  <meta name="description" content="comprehensive toolkit for statistical learning in rust">
+  <title>Linfa Toolkit</title>
+
+  <link rel="icon" href="mascot.svg">
+  <link rel="stylesheet" href="https://rust-ml.github.io/linfa/style.css">
+  <script src="https://rust-ml.github.io/linfa/code-examples.js"></script>
+</head>
+
+<body>
+  <div class="top">
+      <section class="grid header">
+          <div class="logo">
+              <img alt="logo" src="https://rust-ml.github.io/linfa/mascot.svg" height=60>
+            <p>
+                Linfa
+                
+                <span>Menu</span>
+            </p>
+          </div>
+          <div class="header-main">
+              <ul>
+                  <li><a href="https://rust-ml.github.io/linfa">Home</a></li>
+                  <li><a href="https://rust-ml.github.io/linfa/about">About</a></li>
+                  <li><a href="https://rust-ml.github.io/linfa/docs">Documentation</a></li>
+                  <li><a href="https://rust-ml.github.io/linfa/community">Community</a></li>
+                  <li><a href="https://rust-ml.github.io/linfa/news">News</a></li>
+              </ul>
+          </div>
+      </section>
+  </div>
+
+
+  <section class="section">
+    <div class="container">
+      
+<div class="grid"><div class="news-page">
+<h1 class="title">
+  Release 0.6.1
+</h1>
+<span>Published on December 03th, 2022</span>
+<p>Linfa's 0.6.1 release mainly consists of fixes to existing algorithms and the overall crate. The Isotonic Regression algorithm has also been added to <code>linfa-linear</code>.</p>
+<h2 id="improvements-and-fixes">Improvements and fixes</h2>
+<ul>
+<li>Add constructor for <code>LpDist</code> in <code>linfa-nn</code>.</li>
+<li>Add <code>Send + Sync</code> to trait objects returned by <code>linfa-nn</code>, which are now aliased as <code>NearestNeighbourBox</code>.</li>
+<li>Remove <code>anyhow &lt;= 1.0.48</code> version restriction from <code>linfa</code>.</li>
+<li>Bump <code>ndarray</code> dependency to 0.15</li>
+<li>Fix <code>serde</code> support for <code>LogisticRegression</code> in <code>linfa-logistic</code>.</li>
+</ul>
+<h2 id="new-algorithms">New algorithms</h2>
+<p>Isotonic regression fits a free-form line to the training data. Unlike linear regression, which fits a straight line, isotonic regression can result in a much closer fit to the data. The algorithm has been added to <code>linfa-linear</code>.</p>
+<p>Mean absolution percentage error (MAPE) is a method of measuring the difference between two datasets, and has been added to the main <code>linfa</code> crate.</p>
+
+</div></div>
+
+    </div>
+  </section>
+  <div class="bottom"><div class="grid">
+      <div class="footer">View
+          <a href="https://github.com/rust-ml/linfa/tree/master/docs/website">page source</a>
+          - any contribution is welcome!
+      </div>
+  </div></div>
+</body>
+</html>

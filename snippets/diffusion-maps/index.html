@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="linfa,ml,stats,statistical learning, machine learning,rust">
+  <meta name="description" content="comprehensive toolkit for statistical learning in rust">
+  <title>Linfa Toolkit</title>
+
+  <link rel="icon" href="mascot.svg">
+  <link rel="stylesheet" href="https://rust-ml.github.io/linfa/style.css">
+  <script src="https://rust-ml.github.io/linfa/code-examples.js"></script>
+</head>
+
+<body>
+  <div class="top">
+      <section class="grid header">
+          <div class="logo">
+              <img alt="logo" src="https://rust-ml.github.io/linfa/mascot.svg" height=60>
+            <p>
+                Linfa
+                
+                <span>Menu</span>
+            </p>
+          </div>
+          <div class="header-main">
+              <ul>
+                  <li><a href="https://rust-ml.github.io/linfa">Home</a></li>
+                  <li><a href="https://rust-ml.github.io/linfa/about">About</a></li>
+                  <li><a href="https://rust-ml.github.io/linfa/docs">Documentation</a></li>
+                  <li><a href="https://rust-ml.github.io/linfa/community">Community</a></li>
+                  <li><a href="https://rust-ml.github.io/linfa/news">News</a></li>
+              </ul>
+          </div>
+      </section>
+  </div>
+
+
+  <section class="section">
+    <div class="container">
+      
+<div class="grid">
+    <div class="news_grid">
+        <span>
+            <h1 class="title">
+                Diffusion Maps
+            </h1>
+            <pre data-lang="rust" style="background-color:#ffffff;color:#323232;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="font-style:italic;color:#969896;">// generate RBF kernel with sparsity constraints
+</span><span style="font-weight:bold;color:#a71d5d;">let</span><span> kernel </span><span style="font-weight:bold;color:#a71d5d;">= </span><span>Kernel::params()
+</span><span>    .</span><span style="color:#62a35c;">kind</span><span>(KernelType::Sparse(</span><span style="color:#0086b3;">15</span><span>))
+</span><span>    .</span><span style="color:#62a35c;">method</span><span>(KernelMethod::Gaussian(</span><span style="color:#0086b3;">2.0</span><span>))
+</span><span>    .</span><span style="color:#62a35c;">transform</span><span>(dataset.</span><span style="color:#62a35c;">view</span><span>());
+</span><span>
+</span><span style="font-weight:bold;color:#a71d5d;">let</span><span> embedding </span><span style="font-weight:bold;color:#a71d5d;">= </span><span>DiffusionMap::&lt;</span><span style="font-weight:bold;color:#a71d5d;">f64</span><span>&gt;::params(</span><span style="color:#0086b3;">2</span><span>)
+</span><span>    .</span><span style="color:#62a35c;">steps</span><span>(</span><span style="color:#0086b3;">1</span><span>)
+</span><span>    .</span><span style="color:#62a35c;">transform</span><span>(</span><span style="font-weight:bold;color:#a71d5d;">&amp;</span><span>kernel)</span><span style="font-weight:bold;color:#a71d5d;">?</span><span>;
+</span><span>
+</span><span style="font-style:italic;color:#969896;">// get embedding
+</span><span style="font-weight:bold;color:#a71d5d;">let</span><span> embedding </span><span style="font-weight:bold;color:#a71d5d;">=</span><span> embedding.</span><span style="color:#62a35c;">embedding</span><span>();
+</span></code></pre>
+
+        </span>
+        <div class="sitelinks">
+            <h3>Latest news</h3>
+            
+            
+            <a href="https:&#x2F;&#x2F;rust-ml.github.io&#x2F;linfa&#x2F;news&#x2F;release-070&#x2F;">Release 0.7.0</a>
+            
+            <a href="https:&#x2F;&#x2F;rust-ml.github.io&#x2F;linfa&#x2F;news&#x2F;release-061&#x2F;">Release 0.6.1</a>
+            
+            <a href="https:&#x2F;&#x2F;rust-ml.github.io&#x2F;linfa&#x2F;news&#x2F;release-060&#x2F;">Release 0.6.0</a>
+            
+            <a href="https:&#x2F;&#x2F;rust-ml.github.io&#x2F;linfa&#x2F;news&#x2F;release-051&#x2F;">Release 0.5.1</a>
+            
+            <a href="https:&#x2F;&#x2F;rust-ml.github.io&#x2F;linfa&#x2F;news&#x2F;release-050&#x2F;">Release 0.5.0</a>
+            
+            <a href="https:&#x2F;&#x2F;rust-ml.github.io&#x2F;linfa&#x2F;news&#x2F;release-040&#x2F;">Release 0.4.0</a>
+            
+            <a href="https:&#x2F;&#x2F;rust-ml.github.io&#x2F;linfa&#x2F;news&#x2F;release-031&#x2F;">Release 0.3.1</a>
+            
+            <a href="https:&#x2F;&#x2F;rust-ml.github.io&#x2F;linfa&#x2F;news&#x2F;new-website&#x2F;">New website</a>
+            
+            <a href="https:&#x2F;&#x2F;rust-ml.github.io&#x2F;linfa&#x2F;news&#x2F;release-030&#x2F;">Release 0.3.0</a>
+            
+            <a href="https:&#x2F;&#x2F;rust-ml.github.io&#x2F;linfa&#x2F;news&#x2F;release-021&#x2F;">Release 0.2.1</a>
+            
+            <a href="https:&#x2F;&#x2F;rust-ml.github.io&#x2F;linfa&#x2F;news&#x2F;first-release&#x2F;">Release 0.2.0</a>
+            
+        </div>
+    </div>
+</div>
+
+    </div>
+  </section>
+  <div class="bottom"><div class="grid">
+      <div class="footer">View
+          <a href="https://github.com/rust-ml/linfa/tree/master/docs/website">page source</a>
+          - any contribution is welcome!
+      </div>
+  </div></div>
+</body>
+</html>

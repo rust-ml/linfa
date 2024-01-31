@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="linfa,ml,stats,statistical learning, machine learning,rust">
+  <meta name="description" content="comprehensive toolkit for statistical learning in rust">
+  <title>Linfa Toolkit</title>
+
+  <link rel="icon" href="mascot.svg">
+  <link rel="stylesheet" href="https://rust-ml.github.io/linfa/style.css">
+  <script src="https://rust-ml.github.io/linfa/code-examples.js"></script>
+</head>
+
+<body>
+  <div class="top">
+      <section class="grid header">
+          <div class="logo">
+              <img alt="logo" src="https://rust-ml.github.io/linfa/mascot.svg" height=60>
+            <p>
+                Linfa
+                
+                <span>Menu</span>
+            </p>
+          </div>
+          <div class="header-main">
+              <ul>
+                  <li><a href="https://rust-ml.github.io/linfa">Home</a></li>
+                  <li><a href="https://rust-ml.github.io/linfa/about">About</a></li>
+                  <li><a href="https://rust-ml.github.io/linfa/docs">Documentation</a></li>
+                  <li><a href="https://rust-ml.github.io/linfa/community">Community</a></li>
+                  <li><a href="https://rust-ml.github.io/linfa/news">News</a></li>
+              </ul>
+          </div>
+      </section>
+  </div>
+
+
+  <section class="section">
+    <div class="container">
+      
+<div class="grid"><div class="news-page">
+<h1 class="title">
+  Release 0.3.0
+</h1>
+<span>Published on January 21th, 2021</span>
+<p>Linfa 0.3.0 concentrates on polishing the existing implementation and adds only three new algorithms to the crowd. A new feature system is introduced, which allows the selection of the BLAS/LAPACK backend in the base-crate. The <code>Dataset</code> interface is polished and follows the <code>ndarray</code> model more closely. The new <code>linfa-datasets</code> crate gives easier access to sample datasets and can be used for testing.</p>
+<span id="continue-reading"></span><h1 id="new-algorithms">New algorithms</h1>
+<ul>
+<li>Approximated DBSCAN has been added to <code>linfa-clustering</code> by [@Sauro98]</li>
+<li>Gaussian Naive Bayes  has been added to <code>linfa-bayes</code> by [@VasanthakumarV]</li>
+<li>Elastic Net linear regression has been added to <code>linfa-elasticnet</code> by [@paulkoerbitz] and [@bytesnake]</li>
+</ul>
+<h1 id="changes">Changes</h1>
+<ul>
+<li>Added benchmark to gaussian mixture models (a3eede55)</li>
+<li>Fixed bugs in linear decision trees, added generator for TiKZ trees (bfa5aebe7)</li>
+<li>Implemented serde for all crates behind feature flag (4f0b63bb)</li>
+<li>Implemented new backend features (7296c9ec4)</li>
+<li>Introduced <code>linfa-datasets</code> for easier testing (3cec12b4f)</li>
+<li>Rename <code>Dataset</code> to <code>DatasetBase</code> and introduce <code>Dataset</code> and <code>DatasetView</code> (21dd579cf)</li>
+<li>Improve kernel tests and documentation (8e81a6d)</li>
+</ul>
+<h1 id="example">Example</h1>
+<p>The following section shows a small example how datasets interact with the training and testing of a Linear Decision Tree. </p>
+<p>You can load a dataset, shuffle it and then split it into training and validation sets:</p>
+<pre data-lang="rust" style="background-color:#ffffff;color:#323232;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="font-style:italic;color:#969896;">// initialize pseudo random number generator with seed 42
+</span><span style="font-weight:bold;color:#a71d5d;">let mut</span><span> rng </span><span style="font-weight:bold;color:#a71d5d;">= </span><span>Isaac64Rng::seed_from_u64(</span><span style="color:#0086b3;">42</span><span>);
+</span><span style="font-style:italic;color:#969896;">// load the Iris dataset, shuffle and split with ratio 0.8
+</span><span style="font-weight:bold;color:#a71d5d;">let </span><span>(train, test) </span><span style="font-weight:bold;color:#a71d5d;">= </span><span>linfa_datasets::iris()
+</span><span>    .</span><span style="color:#62a35c;">shuffle</span><span>(</span><span style="font-weight:bold;color:#a71d5d;">&amp;mut</span><span> rng)
+</span><span>    .</span><span style="color:#62a35c;">split_with_ratio</span><span>(</span><span style="color:#0086b3;">0.8</span><span>);
+</span></code></pre>
+<p>With the training dataset a linear decision tree model can be trained. Entropy is used as a metric for the optimal split here:</p>
+<pre data-lang="rust" style="background-color:#ffffff;color:#323232;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="font-weight:bold;color:#a71d5d;">let</span><span> entropy_model </span><span style="font-weight:bold;color:#a71d5d;">= </span><span>DecisionTree::params()
+</span><span>    .</span><span style="color:#62a35c;">split_quality</span><span>(SplitQuality::Entropy)
+</span><span>    .</span><span style="color:#62a35c;">max_depth</span><span>(</span><span style="color:#0086b3;">Some</span><span>(</span><span style="color:#0086b3;">100</span><span>))
+</span><span>    .</span><span style="color:#62a35c;">min_weight_split</span><span>(</span><span style="color:#0086b3;">10.0</span><span>)
+</span><span>    .</span><span style="color:#62a35c;">min_weight_leaf</span><span>(</span><span style="color:#0086b3;">10.0</span><span>)
+</span><span>    .</span><span style="color:#62a35c;">fit</span><span>(</span><span style="font-weight:bold;color:#a71d5d;">&amp;</span><span>train);
+</span></code></pre>
+<p>The validation dataset is now used to estimate the error. For this the true labels are predicted and then a confusion matrix gives clue about the type of error:</p>
+<pre data-lang="rust" style="background-color:#ffffff;color:#323232;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="font-weight:bold;color:#a71d5d;">let</span><span> cm </span><span style="font-weight:bold;color:#a71d5d;">=</span><span> entropy_model
+</span><span>    .</span><span style="color:#62a35c;">predict</span><span>(test.</span><span style="color:#62a35c;">records</span><span>().</span><span style="color:#62a35c;">view</span><span>())
+</span><span>    .</span><span style="color:#62a35c;">confusion_matrix</span><span>(</span><span style="font-weight:bold;color:#a71d5d;">&amp;</span><span>test);
+</span><span>
+</span><span>println!(</span><span style="color:#183691;">&quot;</span><span style="color:#0086b3;">{:?}</span><span style="color:#183691;">&quot;</span><span>, cm);
+</span><span>
+</span><span>println!(
+</span><span>    </span><span style="color:#183691;">&quot;Test accuracy with Entropy criterion: </span><span style="color:#0086b3;">{:.2}</span><span style="color:#183691;">%&quot;</span><span>,
+</span><span>    </span><span style="color:#0086b3;">100.0 </span><span style="font-weight:bold;color:#a71d5d;">*</span><span> cm.</span><span style="color:#62a35c;">accuracy</span><span>()
+</span><span>);
+</span></code></pre>
+<p>Finally you can analyze which features were used in the decision and export the whole tree it to a <code>TeX</code> file. It will contain a TiKZ tree with information on the splitting decision and impurity improvement:</p>
+<pre data-lang="rust" style="background-color:#ffffff;color:#323232;" class="language-rust "><code class="language-rust" data-lang="rust"><span style="font-weight:bold;color:#a71d5d;">let</span><span> feats </span><span style="font-weight:bold;color:#a71d5d;">=</span><span> entropy_model.</span><span style="color:#62a35c;">features</span><span>();
+</span><span>println!(</span><span style="color:#183691;">&quot;Features trained in this tree </span><span style="color:#0086b3;">{:?}</span><span style="color:#183691;">&quot;</span><span>, feats);
+</span><span>
+</span><span style="font-weight:bold;color:#a71d5d;">let mut</span><span> tikz </span><span style="font-weight:bold;color:#a71d5d;">= </span><span>File::create(</span><span style="color:#183691;">&quot;decision_tree_example.tex&quot;</span><span>).</span><span style="color:#62a35c;">unwrap</span><span>();
+</span><span>tikz.</span><span style="color:#62a35c;">write</span><span>(gini_model.</span><span style="color:#62a35c;">export_to_tikz</span><span>().</span><span style="color:#62a35c;">to_string</span><span>().</span><span style="color:#62a35c;">as_bytes</span><span>())
+</span><span>    .</span><span style="color:#62a35c;">unwrap</span><span>();
+</span></code></pre>
+<p>The whole example can be found in <a href="https://github.com/rust-ml/linfa/blob/master/linfa-trees/examples/decision_tree.rs">linfa-trees/examples/decision_tree.rs</a>.</p>
+
+</div></div>
+
+    </div>
+  </section>
+  <div class="bottom"><div class="grid">
+      <div class="footer">View
+          <a href="https://github.com/rust-ml/linfa/tree/master/docs/website">page source</a>
+          - any contribution is welcome!
+      </div>
+  </div></div>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="linfa,ml,stats,statistical learning, machine learning,rust">
+  <meta name="description" content="comprehensive toolkit for statistical learning in rust">
+  <title>Linfa Toolkit</title>
+
+  <link rel="icon" href="mascot.svg">
+  <link rel="stylesheet" href="https://rust-ml.github.io/linfa/style.css">
+  <script src="https://rust-ml.github.io/linfa/code-examples.js"></script>
+</head>
+
+<body>
+  <div class="top">
+      <section class="grid header">
+          <div class="logo">
+              <img alt="logo" src="https://rust-ml.github.io/linfa/mascot.svg" height=60>
+            <p>
+                Linfa
+                
+                <span>Menu</span>
+            </p>
+          </div>
+          <div class="header-main">
+              <ul>
+                  <li><a href="https://rust-ml.github.io/linfa">Home</a></li>
+                  <li><a href="https://rust-ml.github.io/linfa/about">About</a></li>
+                  <li><a href="https://rust-ml.github.io/linfa/docs">Documentation</a></li>
+                  <li><a href="https://rust-ml.github.io/linfa/community">Community</a></li>
+                  <li><a href="https://rust-ml.github.io/linfa/news">News</a></li>
+              </ul>
+          </div>
+      </section>
+  </div>
+
+
+  <section class="section">
+    <div class="container">
+      
+<div class="grid"><div class="news-page">
+<h1 class="title">
+  Release 0.5.1
+</h1>
+<span>Published on February 28th, 2022</span>
+<p>Linfa's 0.5.1 release fixes errors and bugs in the previous release, as well as removing useless trait bounds on the <code>Dataset</code> type. Note that the commits for this release are located in the <code>0-5-1</code> branch of the GitHub repo.</p>
+<h2 id="improvements">Improvements</h2>
+<ul>
+<li>remove <code>Float</code> trait bound from many <code>Dataset</code> impls, making non-float datasets usable</li>
+<li>fix build errors in 0.5.0 caused by breaking minor releases from dependencies</li>
+<li>fix bug in k-means where the termination condition of the algorithm was calculated incorrectly</li>
+<li>fix build failure when building <code>linfa</code> alone, caused by incorrect feature selection for <code>ndarray</code></li>
+</ul>
+
+</div></div>
+
+    </div>
+  </section>
+  <div class="bottom"><div class="grid">
+      <div class="footer">View
+          <a href="https://github.com/rust-ml/linfa/tree/master/docs/website">page source</a>
+          - any contribution is welcome!
+      </div>
+  </div></div>
+</body>
+</html>

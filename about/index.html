@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="linfa,ml,stats,statistical learning, machine learning,rust">
+  <meta name="description" content="comprehensive toolkit for statistical learning in rust">
+  <title>Linfa Toolkit</title>
+
+  <link rel="icon" href="mascot.svg">
+  <link rel="stylesheet" href="https://rust-ml.github.io/linfa/style.css">
+  <script src="https://rust-ml.github.io/linfa/code-examples.js"></script>
+</head>
+
+<body>
+  <div class="top">
+      <section class="grid header">
+          <div class="logo">
+              <img alt="logo" src="https://rust-ml.github.io/linfa/mascot.svg" height=60>
+            <p>
+                Linfa
+                
+                <span>Menu</span>
+            </p>
+          </div>
+          <div class="header-main">
+              <ul>
+                  <li><a href="https://rust-ml.github.io/linfa">Home</a></li>
+                  <li><a href="https://rust-ml.github.io/linfa/about">About</a></li>
+                  <li><a href="https://rust-ml.github.io/linfa/docs">Documentation</a></li>
+                  <li><a href="https://rust-ml.github.io/linfa/community">Community</a></li>
+                  <li><a href="https://rust-ml.github.io/linfa/news">News</a></li>
+              </ul>
+          </div>
+      </section>
+  </div>
+
+
+  <section class="section">
+    <div class="container">
+      
+<div class="grid">
+    <div class="news_grid">
+        <span>
+            <h1 class="title">
+                About
+            </h1>
+            <p>Linfa aims to provide a comprehensive toolkit to build Machine Learning applications with Rust.</p>
+<p>Kin in spirit to Python's <code>scikit-learn</code>, it focuses on common preprocessing tasks and classical ML algorithms for your everyday ML tasks.</p>
+<h2 id="current-state">Current state</h2>
+<p>Where does <code>linfa</code> stand right now? <a href="http://www.arewelearningyet.com/">Are we learning yet?</a></p>
+<p><code>linfa</code> currently provides sub-packages with the following algorithms: </p>
+<div class="outer-table">
+<table><thead><tr><th style="text-align: left">Name</th><th style="text-align: left">Purpose</th><th style="text-align: left">Status</th><th style="text-align: left">Category</th><th style="text-align: left">Notes</th></tr></thead><tbody>
+<tr><td style="text-align: left"><a href="https://github.com/rust-ml/linfa/tree/master/algorithms/linfa-clustering">clustering</a></td><td style="text-align: left">Data clustering</td><td style="text-align: left">Tested / Benchmarked</td><td style="text-align: left">Unsupervised learning</td><td style="text-align: left">Clustering of unlabeled data; contains K-Means, Gaussian-Mixture-Model, DBSCAN and OPTICS</td></tr>
+<tr><td style="text-align: left"><a href="https://github.com/rust-ml/linfa/tree/master/algorithms/linfa-kernel">kernel</a></td><td style="text-align: left">Kernel methods for data transformation</td><td style="text-align: left">Tested</td><td style="text-align: left">Pre-processing</td><td style="text-align: left">Maps feature vector into higher-dimensional space</td></tr>
+<tr><td style="text-align: left"><a href="https://github.com/rust-ml/linfa/tree/master/algorithms/linfa-linear">linear</a></td><td style="text-align: left">Linear regression</td><td style="text-align: left">Tested</td><td style="text-align: left">Partial fit</td><td style="text-align: left">Contains Ordinary Least Squares (OLS), Generalized Linear Models (GLM)</td></tr>
+<tr><td style="text-align: left"><a href="https://github.com/rust-ml/linfa/tree/master/algorithms/linfa-elasticnet">elasticnet</a></td><td style="text-align: left">Elastic Net</td><td style="text-align: left">Tested</td><td style="text-align: left">Supervised learning</td><td style="text-align: left">Linear regression with elastic net constraints</td></tr>
+<tr><td style="text-align: left"><a href="https://github.com/rust-ml/linfa/tree/master/algorithms/linfa-logistic">logistic</a></td><td style="text-align: left">Logistic regression</td><td style="text-align: left">Tested</td><td style="text-align: left">Partial fit</td><td style="text-align: left">Builds two-class logistic regression models</td></tr>
+<tr><td style="text-align: left"><a href="https://github.com/rust-ml/linfa/tree/master/algorithms/linfa-reduction">reduction</a></td><td style="text-align: left">Dimensionality reduction</td><td style="text-align: left">Tested</td><td style="text-align: left">Pre-processing</td><td style="text-align: left">Diffusion mapping and Principal Component Analysis (PCA)</td></tr>
+<tr><td style="text-align: left"><a href="https://github.com/rust-ml/linfa/tree/master/algorithms/linfa-trees">trees</a></td><td style="text-align: left">Decision trees</td><td style="text-align: left">Experimental</td><td style="text-align: left">Supervised learning</td><td style="text-align: left">Linear decision trees</td></tr>
+<tr><td style="text-align: left"><a href="https://github.com/rust-ml/linfa/tree/master/algorithms/linfa-svm">svm</a></td><td style="text-align: left">Support Vector Machines</td><td style="text-align: left">Tested</td><td style="text-align: left">Supervised learning</td><td style="text-align: left">Classification or regression analysis of labeled datasets</td></tr>
+<tr><td style="text-align: left"><a href="https://github.com/rust-ml/linfa/tree/master/algorithms/linfa-hierarchical">hierarchical</a></td><td style="text-align: left">Agglomerative hierarchical clustering</td><td style="text-align: left">Tested</td><td style="text-align: left">Unsupervised learning</td><td style="text-align: left">Cluster and build hierarchy of clusters</td></tr>
+<tr><td style="text-align: left"><a href="https://github.com/rust-ml/linfa/tree/master/algorithms/linfa-bayes">bayes</a></td><td style="text-align: left">Naive Bayes</td><td style="text-align: left">Tested</td><td style="text-align: left">Supervised learning</td><td style="text-align: left">Contains Gaussian Naive Bayes</td></tr>
+<tr><td style="text-align: left"><a href="https://github.com/rust-ml/linfa/tree/master/algorithms/linfa-ica">ica</a></td><td style="text-align: left">Independent component analysis</td><td style="text-align: left">Tested</td><td style="text-align: left">Unsupervised learning</td><td style="text-align: left">Contains FastICA implementation</td></tr>
+<tr><td style="text-align: left"><a href="https://github.com/rust-ml/linfa/tree/master/algorithms/linfa-pls">pls</a></td><td style="text-align: left">Partial Least Squares</td><td style="text-align: left">Tested</td><td style="text-align: left">Supervised learning</td><td style="text-align: left">Contains PLS estimators for dimensionality reduction and regression</td></tr>
+<tr><td style="text-align: left"><a href="https://github.com/rust-ml/linfa/tree/master/algorithms/linfa-tsne">tsne</a></td><td style="text-align: left">Dimensionality reduction</td><td style="text-align: left">Tested</td><td style="text-align: left">Unsupervised learning</td><td style="text-align: left">Contains exact solution and Barnes-Hut approximation t-SNE</td></tr>
+</tbody></table>
+</div>
+<p>We believe that only a significant community effort can nurture, build, and sustain a machine learning ecosystem in Rust - there is no other way forward.</p>
+<p>If this strikes a chord with you, please take a look at the <a href="https://github.com/rust-ml/linfa/issues/7">roadmap</a> and get involved!</p>
+
+        </span>
+        <div class="sitelinks">
+            <h3>Latest news</h3>
+            
+            
+            <a href="https:&#x2F;&#x2F;rust-ml.github.io&#x2F;linfa&#x2F;news&#x2F;release-070&#x2F;">Release 0.7.0</a>
+            
+            <a href="https:&#x2F;&#x2F;rust-ml.github.io&#x2F;linfa&#x2F;news&#x2F;release-061&#x2F;">Release 0.6.1</a>
+            
+            <a href="https:&#x2F;&#x2F;rust-ml.github.io&#x2F;linfa&#x2F;news&#x2F;release-060&#x2F;">Release 0.6.0</a>
+            
+            <a href="https:&#x2F;&#x2F;rust-ml.github.io&#x2F;linfa&#x2F;news&#x2F;release-051&#x2F;">Release 0.5.1</a>
+            
+            <a href="https:&#x2F;&#x2F;rust-ml.github.io&#x2F;linfa&#x2F;news&#x2F;release-050&#x2F;">Release 0.5.0</a>
+            
+            <a href="https:&#x2F;&#x2F;rust-ml.github.io&#x2F;linfa&#x2F;news&#x2F;release-040&#x2F;">Release 0.4.0</a>
+            
+            <a href="https:&#x2F;&#x2F;rust-ml.github.io&#x2F;linfa&#x2F;news&#x2F;release-031&#x2F;">Release 0.3.1</a>
+            
+            <a href="https:&#x2F;&#x2F;rust-ml.github.io&#x2F;linfa&#x2F;news&#x2F;new-website&#x2F;">New website</a>
+            
+            <a href="https:&#x2F;&#x2F;rust-ml.github.io&#x2F;linfa&#x2F;news&#x2F;release-030&#x2F;">Release 0.3.0</a>
+            
+            <a href="https:&#x2F;&#x2F;rust-ml.github.io&#x2F;linfa&#x2F;news&#x2F;release-021&#x2F;">Release 0.2.1</a>
+            
+            <a href="https:&#x2F;&#x2F;rust-ml.github.io&#x2F;linfa&#x2F;news&#x2F;first-release&#x2F;">Release 0.2.0</a>
+            
+        </div>
+    </div>
+</div>
+
+    </div>
+  </section>
+  <div class="bottom"><div class="grid">
+      <div class="footer">View
+          <a href="https://github.com/rust-ml/linfa/tree/master/docs/website">page source</a>
+          - any contribution is welcome!
+      </div>
+  </div></div>
+</body>
+</html>

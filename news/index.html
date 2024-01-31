@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="linfa,ml,stats,statistical learning, machine learning,rust">
+  <meta name="description" content="comprehensive toolkit for statistical learning in rust">
+  <title>Linfa Toolkit</title>
+
+  <link rel="icon" href="mascot.svg">
+  <link rel="stylesheet" href="https://rust-ml.github.io/linfa/style.css">
+  <script src="https://rust-ml.github.io/linfa/code-examples.js"></script>
+</head>
+
+<body>
+  <div class="top">
+      <section class="grid header">
+          <div class="logo">
+              <img alt="logo" src="https://rust-ml.github.io/linfa/mascot.svg" height=60>
+            <p>
+                Linfa
+                
+                <span>Menu</span>
+            </p>
+          </div>
+          <div class="header-main">
+              <ul>
+                  <li><a href="https://rust-ml.github.io/linfa">Home</a></li>
+                  <li><a href="https://rust-ml.github.io/linfa/about">About</a></li>
+                  <li><a href="https://rust-ml.github.io/linfa/docs">Documentation</a></li>
+                  <li><a href="https://rust-ml.github.io/linfa/community">Community</a></li>
+                  <li><a href="https://rust-ml.github.io/linfa/news">News</a></li>
+              </ul>
+          </div>
+      </section>
+  </div>
+
+
+  <section class="section">
+    <div class="container">
+      
+<div class="grid"><div class="news">
+<h1 class="title">
+  News
+</h1>
+<ul>
+  
+  <li>
+      <a href="https://rust-ml.github.io/linfa/news/release-070/">Release 0.7.0</a>
+      <span>Published on October 15th, 2023</span>
+      <p></p>
+  </li>
+  
+  <li>
+      <a href="https://rust-ml.github.io/linfa/news/release-061/">Release 0.6.1</a>
+      <span>Published on December 03th, 2022</span>
+      <p></p>
+  </li>
+  
+  <li>
+      <a href="https://rust-ml.github.io/linfa/news/release-060/">Release 0.6.0</a>
+      <span>Published on June 15th, 2022</span>
+      <p><p>Linfa's 0.6.0 release removes the mandatory dependency on external BLAS libraries (such as <code>intel-mkl</code>) by using a pure-Rust linear algebra library. It also adds the Naive Multinomial Bayes and Follow The Regularized Leader algorithms. Additionally, the <code>AsTargets</code> trait has been separated into <code>AsSingleTargets</code> and <code>AsMultiTargets</code>.</p>
+</p>
+  </li>
+  
+  <li>
+      <a href="https://rust-ml.github.io/linfa/news/release-051/">Release 0.5.1</a>
+      <span>Published on February 28th, 2022</span>
+      <p></p>
+  </li>
+  
+  <li>
+      <a href="https://rust-ml.github.io/linfa/news/release-050/">Release 0.5.0</a>
+      <span>Published on October 20th, 2021</span>
+      <p><p>Linfa's 0.5.0 release adds initial support for the OPTICS algorithm, multinomials logistic regression, and the family of nearest neighbor algorithms. Furthermore, we have improved documentation and introduced hyperparameter checking to all algorithms.</p>
+</p>
+  </li>
+  
+  <li>
+      <a href="https://rust-ml.github.io/linfa/news/release-040/">Release 0.4.0</a>
+      <span>Published on April 28th, 2021</span>
+      <p><p>Linfa's 0.4.0 release introduces four new algorithms, improves documentation of the ICA and K-means implementations, adds more benchmarks to K-Means and updates to ndarray's 0.14 version.</p>
+</p>
+  </li>
+  
+  <li>
+      <a href="https://rust-ml.github.io/linfa/news/release-031/">Release 0.3.1</a>
+      <span>Published on March 11th, 2021</span>
+      <p><p>In this release of Linfa the documentation is extended, new examples are added and the functionality of datasets improved. No new algorithms were added.</p>
+</p>
+  </li>
+  
+  <li>
+      <a href="https://rust-ml.github.io/linfa/news/new-website/">New website</a>
+      <span>Published on February 27th, 2021</span>
+      <p><p>I'm happy to announce that Linfa finally gets its own website. We are currently trying to improve the documentation in various places and a website should serve as a starting point for anyone interested in Linfa.</p>
+</p>
+  </li>
+  
+  <li>
+      <a href="https://rust-ml.github.io/linfa/news/release-030/">Release 0.3.0</a>
+      <span>Published on January 21th, 2021</span>
+      <p><p>Linfa 0.3.0 concentrates on polishing the existing implementation and adds only three new algorithms to the crowd. A new feature system is introduced, which allows the selection of the BLAS/LAPACK backend in the base-crate. The <code>Dataset</code> interface is polished and follows the <code>ndarray</code> model more closely. The new <code>linfa-datasets</code> crate gives easier access to sample datasets and can be used for testing.</p>
+</p>
+  </li>
+  
+  <li>
+      <a href="https://rust-ml.github.io/linfa/news/release-021/">Release 0.2.1</a>
+      <span>Published on November 29th, 2020</span>
+      <p><p>Linfa 0.2.1 amends changes to the feature system, which made it impossible to release 0.2.0 on <code>crates.io</code>.</p>
+</p>
+  </li>
+  
+  <li>
+      <a href="https://rust-ml.github.io/linfa/news/first-release/">Release 0.2.0</a>
+      <span>Published on November 26th, 2020</span>
+      <p><p>This release of Linfa introduced 9 new implementations and a couple of changes to the APIs. Travis support for FOSS projects was dropped, so we were forced to switch to Github Actions and we introduced a couple of traits to represent different classes of algorithms in a better way.</p>
+</p>
+  </li>
+  
+</ul>
+</div></div>
+
+    </div>
+  </section>
+  <div class="bottom"><div class="grid">
+      <div class="footer">View
+          <a href="https://github.com/rust-ml/linfa/tree/master/docs/website">page source</a>
+          - any contribution is welcome!
+      </div>
+  </div></div>
+</body>
+</html>

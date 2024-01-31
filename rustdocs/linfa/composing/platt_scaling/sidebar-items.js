@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["PlattError"],"fn":["platt_newton_method","platt_predict"],"struct":["Platt","PlattParams","PlattValidParams"]};
