@@ -26,7 +26,7 @@ version = "1.0"
 ndarray = { version = "0.15", features = ["approx"] }
 ndarray-stats = "0.5.0"
 num-traits = "0.2"
-argmin = { version = "0.8.1", default-features = false }
+argmin = { version = "0.9.0", default-features = false }
 argmin-math = { version = "0.3", features = ["ndarray_v0_15-nolinalg"] }
 thiserror = "1.0"
 
@@ -35,5 +35,7 @@ linfa = { version = "0.7.0", path = "../.." }
 
 [dev-dependencies]
 approx = "0.4"
-linfa-datasets = { version = "0.7.0", path = "../../datasets", features = ["winequality"] }
+linfa-datasets = { version = "0.7.0", path = "../../datasets", features = [
+    "winequality",
+] }
 rmp-serde = "1"

@@ -5,7 +5,7 @@ authors = [
     "Luca Palmieri <rust@lpalmieri.com>",
     "Lorenz Schmidt <bytesnake@mailbox.org>",
     "Paul Körbitz <koerbitz@google.com>",
-    "Yuhan Lin <yuhanliin@protonmail.com>"
+    "Yuhan Lin <yuhanliin@protonmail.com>",
 ]
 description = "A Machine Learning framework for Rust"
 edition = "2018"
@@ -41,12 +41,12 @@ rand = { version = "0.8", features = ["small_rng"] }
 approx = "0.4"
 
 ndarray = { version = "0.15", features = ["approx"] }
-ndarray-linalg = { version = "0.15", optional = true }
+ndarray-linalg = { version = "0.16", optional = true }
 sprs = { version = "0.11", default-features = false }
 
 thiserror = "1.0"
 
-criterion = { version = "0.4.0", optional = true}
+criterion = { version = "0.4.0", optional = true }
 
 [dependencies.serde_crate]
 package = "serde"
@@ -57,17 +57,22 @@ features = ["std", "derive"]
 
 [dev-dependencies]
 ndarray-rand = "0.14"
-linfa-datasets = { path = "datasets", features = ["winequality", "iris", "diabetes", "generate"] }
+linfa-datasets = { path = "datasets", features = [
+    "winequality",
+    "iris",
+    "diabetes",
+    "generate",
+] }
 statrs = "0.16.0"
 
 [target.'cfg(not(windows))'.dependencies]
-pprof = { version = "0.11.0", features = ["flamegraph", "criterion"], optional = true}
+pprof = { version = "0.11.0", features = [
+    "flamegraph",
+    "criterion",
+], optional = true }
 
 [workspace]
-members = [
-    "algorithms/*",
-    "datasets",
-]
+members = ["algorithms/*", "datasets"]
 
 [profile.release]
 opt-level = 3
