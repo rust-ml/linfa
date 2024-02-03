@@ -211,6 +211,7 @@ impl<F: Float, D: Data<Elem = F>, T>
     Transformer<DatasetBase<ArrayBase<D, Ix2>, T>, DatasetBase<Array2<F>, T>> for Pca<F>
 {
     fn transform(&self, ds: DatasetBase<ArrayBase<D, Ix2>, T>) -> DatasetBase<Array2<F>, T> {
+        let sample_names = ds.sample_names();
         let DatasetBase {
             records,
             targets,
@@ -221,7 +222,9 @@ impl<F: Float, D: Data<Elem = F>, T>
         let mut new_records = self.default_target(&records);
         self.predict_inplace(&records, &mut new_records);
 
-        DatasetBase::new(new_records, targets).with_weights(weights)
+        DatasetBase::new(new_records, targets)
+            .with_weights(weights)
+            .with_sample_names(sample_names)
     }
 }
 #[cfg(test)]
