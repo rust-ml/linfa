@@ -36,3 +36,6 @@ poetry.lock
 # Generated artifacts of website (with Zola)
 docs/website/public/*
 docs/website/static/rustdocs/
+
+# Downloaded data for the linfa-preprocessing benches
+20news/

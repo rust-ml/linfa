@@ -12,7 +12,13 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-ml/linfa"
 readme = "README.md"
 
-keywords = ["reduction", "machine-learning", "linfa", "spectral", "unsupervised"]
+keywords = [
+    "reduction",
+    "machine-learning",
+    "linfa",
+    "spectral",
+    "unsupervised",
+]
 categories = ["algorithms", "mathematics", "science"]
 
 [features]
@@ -30,7 +36,7 @@ features = ["std", "derive"]
 [dependencies]
 ndarray = { version = "0.15", features = ["approx"] }
 linfa-linalg = { version = "0.1" }
-ndarray-linalg = { version = "0.15", optional = true }
+ndarray-linalg = { version = "0.16", optional = true }
 ndarray-rand = "0.14"
 num-traits = "0.2"
 thiserror = "1.0"
@@ -42,7 +48,10 @@ sprs = "0.11.1"
 
 [dev-dependencies]
 ndarray-npy = { version = "0.8", default-features = false }
-linfa-datasets = { version = "0.7.0", path = "../../datasets", features = ["iris", "generate"] }
+linfa-datasets = { version = "0.7.0", path = "../../datasets", features = [
+    "iris",
+    "generate",
+] }
 approx = { version = "0.4" }
 mnist = { version = "0.6.0", features = ["download"] }
 linfa-trees = { version = "0.7.0", path = "../linfa-trees"}
