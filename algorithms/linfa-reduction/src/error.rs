@@ -18,4 +18,10 @@ pub enum ReductionError {
     LinalgError(#[from] linfa_linalg::LinalgError),
     #[error(transparent)]
     LinfaError(#[from] linfa::error::Error),
+    #[error(transparent)]
+    NdarrayRandError(#[from] ndarray_rand::rand_distr::NormalError),
+    #[error("Precision parameter must be in the interval (0; 1)")]
+    InvalidPrecision,
+    #[error("Target dimension of the projection must be positive")]
+    NonPositiveEmbeddingSize,
 }

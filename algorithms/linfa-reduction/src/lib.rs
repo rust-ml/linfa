@@ -6,6 +6,7 @@ extern crate ndarray;
 mod diffusion_map;
 mod error;
 mod pca;
+pub mod random_projection;
 pub mod utils;
 
 pub use diffusion_map::{DiffusionMap, DiffusionMapParams, DiffusionMapValidParams};
