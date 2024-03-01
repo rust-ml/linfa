@@ -59,4 +59,25 @@ mod tests {
         has_autotraits::<SparseRandomProjectionValidParams<Xoshiro256Plus>>();
         has_autotraits::<SparseRandomProjectionParams<Xoshiro256Plus>>();
     }
+
+    use linfa::{traits::Fit, Dataset};
+
+    #[test]
+    fn gaussian_dim_increase_error() {
+        let records = array![[10., 10.], [1., 12.], [20., 30.], [-20., 30.],];
+        let dataset = Dataset::from(records);
+        let res = GaussianRandomProjection::<f32>::params()
+            .eps(0.1)
+            .fit(&dataset);
+        assert!(res.is_err())
+    }
+    #[test]
+    fn sparse_dim_increase_error() {
+        let records = array![[10., 10.], [1., 12.], [20., 30.], [-20., 30.],];
+        let dataset = Dataset::from(records);
+        let res = SparseRandomProjection::<f32>::params()
+            .eps(0.1)
+            .fit(&dataset);
+        assert!(res.is_err())
+    }
 }

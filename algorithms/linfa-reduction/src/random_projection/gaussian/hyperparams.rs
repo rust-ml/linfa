@@ -32,12 +32,12 @@ impl<R: Rng + Clone> GaussianRandomProjectionParams<R> {
         self
     }
 
-    /// Set the precision (distortion, `eps`) of the embedding.
+    /// Set the precision parameter (distortion, `eps`) of the embedding.
     ///
-    /// Setting the precision with this function
+    /// Setting `eps` with this function
     /// discards the target dimension parameter if it had been set previously.
-    pub fn precision(mut self, eps: f64) -> Self {
-        self.0.params = GaussianRandomProjectionParamsInner::Precision { precision: eps };
+    pub fn eps(mut self, eps: f64) -> Self {
+        self.0.params = GaussianRandomProjectionParamsInner::Epsilon { eps };
 
         self
     }
@@ -75,7 +75,7 @@ pub struct GaussianRandomProjectionValidParams<R: Rng + Clone> {
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum GaussianRandomProjectionParamsInner {
     Dimension { target_dim: usize },
-    Precision { precision: f64 },
+    Epsilon { eps: f64 },
 }
 
 impl GaussianRandomProjectionParamsInner {
@@ -83,7 +83,7 @@ impl GaussianRandomProjectionParamsInner {
         use GaussianRandomProjectionParamsInner::*;
         match self {
             Dimension { target_dim } => Some(*target_dim),
-            Precision { .. } => None,
+            Epsilon { .. } => None,
         }
     }
 
@@ -91,7 +91,7 @@ impl GaussianRandomProjectionParamsInner {
         use GaussianRandomProjectionParamsInner::*;
         match self {
             Dimension { .. } => None,
-            Precision { precision } => Some(*precision),
+            Epsilon { eps } => Some(*eps),
         }
     }
 }
@@ -101,7 +101,7 @@ impl<R: Rng + Clone> GaussianRandomProjectionValidParams<R> {
         self.params.target_dim()
     }
 
-    pub fn precision(&self) -> Option<f64> {
+    pub fn eps(&self) -> Option<f64> {
         self.params.eps()
     }
 
@@ -121,8 +121,8 @@ impl<R: Rng + Clone> ParamGuard for GaussianRandomProjectionParams<R> {
                     return Err(ReductionError::NonPositiveEmbeddingSize);
                 }
             }
-            GaussianRandomProjectionParamsInner::Precision { precision } => {
-                if precision <= 0. || precision >= 1. {
+            GaussianRandomProjectionParamsInner::Epsilon { eps } => {
+                if eps <= 0. || eps >= 1. {
                     return Err(ReductionError::InvalidPrecision);
                 }
             }

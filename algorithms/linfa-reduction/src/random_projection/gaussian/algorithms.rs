@@ -33,10 +33,14 @@ where
 
         let n_dims = match &self.params {
             GaussianRandomProjectionParamsInner::Dimension { target_dim } => *target_dim,
-            GaussianRandomProjectionParamsInner::Precision { precision } => {
-                johnson_lindenstrauss_min_dim(n_samples, *precision)
+            GaussianRandomProjectionParamsInner::Epsilon { eps } => {
+                johnson_lindenstrauss_min_dim(n_samples, *eps)
             }
         };
+
+        if n_dims > n_features {
+            return Err(ReductionError::DimensionIncrease(n_dims, n_features));
+        }
 
         let std_dev = F::cast(n_features).sqrt().recip();
         let gaussian = Normal::new(F::zero(), std_dev)?;
@@ -49,22 +53,22 @@ where
 
 impl<F: Float> GaussianRandomProjection<F> {
     /// Create new parameters for a [`GaussianRandomProjection`] with default value
-    /// `precision = 0.1` and a [`Xoshiro256Plus`] RNG.
+    /// `eps = 0.1` and a [`Xoshiro256Plus`] RNG.
     pub fn params() -> GaussianRandomProjectionParams<Xoshiro256Plus> {
         GaussianRandomProjectionParams(GaussianRandomProjectionValidParams {
-            params: GaussianRandomProjectionParamsInner::Precision { precision: 0.1 },
+            params: GaussianRandomProjectionParamsInner::Epsilon { eps: 0.1 },
             rng: Xoshiro256Plus::seed_from_u64(42),
         })
     }
 
     /// Create new parameters for a [`GaussianRandomProjection`] with default values
-    /// `precision = 0.1` and the provided [`Rng`].
+    /// `eps = 0.1` and the provided [`Rng`].
     pub fn params_with_rng<R>(rng: R) -> GaussianRandomProjectionParams<R>
     where
         R: Rng + Clone,
     {
         GaussianRandomProjectionParams(GaussianRandomProjectionValidParams {
-            params: GaussianRandomProjectionParamsInner::Precision { precision: 0.1 },
+            params: GaussianRandomProjectionParamsInner::Epsilon { eps: 0.1 },
             rng,
         })
     }

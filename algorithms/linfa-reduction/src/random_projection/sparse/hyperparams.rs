@@ -29,12 +29,12 @@ impl<R: Rng + Clone> SparseRandomProjectionParams<R> {
         self
     }
 
-    /// Set the precision (distortion, `eps`) of the embedding.
+    /// Set the distortion parameter (`eps`) of the embedding.
     ///
-    /// Setting the precision with this function
+    /// Setting `eps` with this function
     /// discards the target dimension parameter if it had been set previously.
-    pub fn precision(mut self, eps: f64) -> Self {
-        self.0.params = SparseRandomProjectionParamsInner::Precision { precision: eps };
+    pub fn eps(mut self, eps: f64) -> Self {
+        self.0.params = SparseRandomProjectionParamsInner::Epsilon { eps };
 
         self
     }
@@ -69,7 +69,7 @@ pub struct SparseRandomProjectionValidParams<R> {
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum SparseRandomProjectionParamsInner {
     Dimension { target_dim: usize },
-    Precision { precision: f64 },
+    Epsilon { eps: f64 },
 }
 
 impl SparseRandomProjectionParamsInner {
@@ -77,7 +77,7 @@ impl SparseRandomProjectionParamsInner {
         use SparseRandomProjectionParamsInner::*;
         match self {
             Dimension { target_dim } => Some(*target_dim),
-            Precision { .. } => None,
+            Epsilon { .. } => None,
         }
     }
 
@@ -85,7 +85,7 @@ impl SparseRandomProjectionParamsInner {
         use SparseRandomProjectionParamsInner::*;
         match self {
             Dimension { .. } => None,
-            Precision { precision } => Some(*precision),
+            Epsilon { eps } => Some(*eps),
         }
     }
 }
@@ -95,7 +95,7 @@ impl<R: Rng + Clone> SparseRandomProjectionValidParams<R> {
         self.params.target_dim()
     }
 
-    pub fn precision(&self) -> Option<f64> {
+    pub fn eps(&self) -> Option<f64> {
         self.params.eps()
     }
 
@@ -115,8 +115,8 @@ impl<R: Rng + Clone> ParamGuard for SparseRandomProjectionParams<R> {
                     return Err(ReductionError::NonPositiveEmbeddingSize);
                 }
             }
-            SparseRandomProjectionParamsInner::Precision { precision } => {
-                if precision <= 0. || precision >= 1. {
+            SparseRandomProjectionParamsInner::Epsilon { eps } => {
+                if eps <= 0. || eps >= 1. {
                     return Err(ReductionError::InvalidPrecision);
                 }
             }

@@ -32,10 +32,14 @@ where
 
         let n_dims = match &self.params {
             SparseRandomProjectionParamsInner::Dimension { target_dim } => *target_dim,
-            SparseRandomProjectionParamsInner::Precision { precision } => {
-                johnson_lindenstrauss_min_dim(n_samples, *precision)
+            SparseRandomProjectionParamsInner::Epsilon { eps } => {
+                johnson_lindenstrauss_min_dim(n_samples, *eps)
             }
         };
+
+        if n_dims > n_features {
+            return Err(ReductionError::DimensionIncrease(n_dims, n_features));
+        }
 
         let scale = (n_features as f64).sqrt();
         let p = 1f64 / scale;
@@ -96,7 +100,7 @@ impl<F: Float> SparseRandomProjection<F> {
     /// `precision = 0.1` and a [`Xoshiro256Plus`] RNG.
     pub fn params() -> SparseRandomProjectionParams<Xoshiro256Plus> {
         SparseRandomProjectionParams(SparseRandomProjectionValidParams {
-            params: SparseRandomProjectionParamsInner::Precision { precision: 0.1 },
+            params: SparseRandomProjectionParamsInner::Epsilon { eps: 0.1 },
             rng: Xoshiro256Plus::seed_from_u64(42),
         })
     }
@@ -108,10 +112,11 @@ impl<F: Float> SparseRandomProjection<F> {
         R: Rng + Clone,
     {
         SparseRandomProjectionParams(SparseRandomProjectionValidParams {
-            params: SparseRandomProjectionParamsInner::Precision { precision: 0.1 },
+            params: SparseRandomProjectionParamsInner::Epsilon { eps: 0.1 },
             rng,
         })
     }
 }
 
 impl_proj! {SparseRandomProjection<F>}
+
