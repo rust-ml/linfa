@@ -119,4 +119,3 @@ impl<F: Float> SparseRandomProjection<F> {
 }
 
 impl_proj! {SparseRandomProjection<F>}
-

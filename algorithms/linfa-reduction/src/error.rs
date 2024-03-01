@@ -24,6 +24,6 @@ pub enum ReductionError {
     InvalidPrecision,
     #[error("Target dimension of the projection must be positive")]
     NonPositiveEmbeddingSize,
-    #[error("Target dimension {0} is larger than the number of features {1}. ")]
+    #[error("Target dimension {0} is larger than the number of features {1}.")]
     DimensionIncrease(usize, usize),
 }

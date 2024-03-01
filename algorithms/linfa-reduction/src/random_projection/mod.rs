@@ -67,7 +67,7 @@ mod tests {
         let records = array![[10., 10.], [1., 12.], [20., 30.], [-20., 30.],];
         let dataset = Dataset::from(records);
         let res = GaussianRandomProjection::<f32>::params()
-            .eps(0.1)
+            .target_dim(10)
             .fit(&dataset);
         assert!(res.is_err())
     }
@@ -76,7 +76,7 @@ mod tests {
         let records = array![[10., 10.], [1., 12.], [20., 30.], [-20., 30.],];
         let dataset = Dataset::from(records);
         let res = SparseRandomProjection::<f32>::params()
-            .eps(0.1)
+            .target_dim(10)
             .fit(&dataset);
         assert!(res.is_err())
     }
