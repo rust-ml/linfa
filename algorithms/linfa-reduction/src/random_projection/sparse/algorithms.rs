@@ -1,7 +1,9 @@
 use linfa::{prelude::Records, traits::Fit, Float};
 use ndarray::Ix2;
 use ndarray_rand::rand_distr::StandardNormal;
-use rand::{distributions::Bernoulli, prelude::Distribution, thread_rng, Rng};
+use rand::SeedableRng;
+use rand::{distributions::Bernoulli, prelude::Distribution, Rng};
+use rand_xoshiro::Xoshiro256Plus;
 use sprs::{CsMat, TriMat};
 
 use super::super::common::johnson_lindenstrauss_min_dim;
@@ -14,17 +16,19 @@ pub struct SparseRandomProjection<F: Float> {
     projection: CsMat<F>,
 }
 
-impl<F, Rec, T> Fit<Rec, T, ReductionError> for SparseRandomProjectionValidParams
+impl<F, Rec, T, R> Fit<Rec, T, ReductionError> for SparseRandomProjectionValidParams<R>
 where
     F: Float,
     Rec: Records<Elem = F>,
     StandardNormal: Distribution<F>,
+    R: Rng + Clone,
 {
     type Object = SparseRandomProjection<F>;
 
     fn fit(&self, dataset: &linfa::DatasetBase<Rec, T>) -> Result<Self::Object, ReductionError> {
         let n_samples = dataset.nsamples();
         let n_features = dataset.nfeatures();
+        let mut rng = self.rng.clone();
 
         let n_dims = match &self.params {
             SparseRandomProjectionParamsInner::Dimension { target_dim } => *target_dim,
@@ -36,7 +40,6 @@ where
         let scale = (n_features as f64).sqrt();
         let p = 1f64 / scale;
         let dist = SparseDistribution::new(F::cast(scale), p);
-        let mut rng = thread_rng();
 
         let (mut row_inds, mut col_inds, mut values) = (Vec::new(), Vec::new(), Vec::new());
         for row in 0..n_features {
@@ -90,10 +93,23 @@ impl<F: Float> Distribution<Option<F>> for SparseDistribution<F> {
 
 impl<F: Float> SparseRandomProjection<F> {
     /// Create new parameters for a [`SparseRandomProjection`] with default value
-    /// `precision = 0.1`.
-    pub fn params() -> SparseRandomProjectionParams {
+    /// `precision = 0.1` and a [`Xoshiro256Plus`] RNG.
+    pub fn params() -> SparseRandomProjectionParams<Xoshiro256Plus> {
         SparseRandomProjectionParams(SparseRandomProjectionValidParams {
             params: SparseRandomProjectionParamsInner::Precision { precision: 0.1 },
+            rng: Xoshiro256Plus::seed_from_u64(42),
+        })
+    }
+
+    /// Create new parameters for a [`SparseRandomProjection`] with default values
+    /// `precision = 0.1` and the provided [`Rng`].
+    pub fn params_with_rng<R>(rng: R) -> SparseRandomProjectionParams<R>
+    where
+        R: Rng + Clone,
+    {
+        SparseRandomProjectionParams(SparseRandomProjectionValidParams {
+            params: SparseRandomProjectionParamsInner::Precision { precision: 0.1 },
+            rng,
         })
     }
 }

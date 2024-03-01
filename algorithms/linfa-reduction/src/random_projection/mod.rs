@@ -39,15 +39,16 @@ pub use sparse::{
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::rngs::SmallRng;
+
+    use rand_xoshiro::Xoshiro256Plus;
 
     #[test]
     fn autotraits_gaussian() {
         fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
         has_autotraits::<GaussianRandomProjection<f64>>();
         has_autotraits::<GaussianRandomProjection<f32>>();
-        has_autotraits::<GaussianRandomProjectionValidParams<SmallRng>>();
-        has_autotraits::<GaussianRandomProjectionParams<SmallRng>>();
+        has_autotraits::<GaussianRandomProjectionValidParams<Xoshiro256Plus>>();
+        has_autotraits::<GaussianRandomProjectionParams<Xoshiro256Plus>>();
     }
 
     #[test]
@@ -55,7 +56,7 @@ mod tests {
         fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
         has_autotraits::<SparseRandomProjection<f64>>();
         has_autotraits::<SparseRandomProjection<f32>>();
-        has_autotraits::<SparseRandomProjectionValidParams>();
-        has_autotraits::<SparseRandomProjectionParams>();
+        has_autotraits::<SparseRandomProjectionValidParams<Xoshiro256Plus>>();
+        has_autotraits::<SparseRandomProjectionParams<Xoshiro256Plus>>();
     }
 }

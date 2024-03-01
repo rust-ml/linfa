@@ -1,5 +1,5 @@
 /// Macro that implements [`linfa::traits::Transformer`]
-/// for [`GaussianRandomProjection`] and [`SparseRandomProjection`],
+/// for [`super::GaussianRandomProjection`] and [`super::SparseRandomProjection`],
 /// to avoid some code duplication.
 #[macro_export]
 macro_rules! impl_proj {

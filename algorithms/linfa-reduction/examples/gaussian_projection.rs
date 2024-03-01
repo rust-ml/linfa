@@ -6,7 +6,8 @@ use linfa_trees::{DecisionTree, SplitQuality};
 
 use mnist::{MnistBuilder, NormalizedMnist};
 use ndarray::{Array1, Array2};
-use rand::thread_rng;
+use rand::SeedableRng;
+use rand_xoshiro::Xoshiro256Plus;
 
 /// Train a Decision tree on the MNIST data set, with and without dimensionality reduction.
 fn main() -> Result<(), Box<dyn Error>> {
@@ -14,6 +15,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let train_sz = 10_000usize;
     let test_sz = 1_000usize;
     let reduced_dim = 100;
+    let rng = Xoshiro256Plus::seed_from_u64(42);
 
     let NormalizedMnist {
         trn_img,
@@ -54,10 +56,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Training reduced model...");
     let start = Instant::now();
     // Compute the random projection and train the model on the reduced dataset.
-    let rng = thread_rng();
-    let proj = GaussianRandomProjection::<f32>::params()
+    let proj = GaussianRandomProjection::<f32>::params_with_rng(rng)
         .target_dim(reduced_dim)
-        .with_rng(rng)
         .fit(&train_dataset)?;
     let reduced_train_ds = proj.transform(&train_dataset);
     let reduced_test_data = proj.transform(&test_data);

@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use linfa::ParamGuard;
+use rand::Rng;
 
 use crate::ReductionError;
 
@@ -13,9 +14,11 @@ use crate::ReductionError;
 /// However, this lemma makes a very conservative estimate of the required dimension,
 /// and does not leverage the structure of the data, therefore it is also possible
 /// to manually specify the dimension of the embedding.
-pub struct SparseRandomProjectionParams(pub(crate) SparseRandomProjectionValidParams);
+pub struct SparseRandomProjectionParams<R: Rng + Clone>(
+    pub(crate) SparseRandomProjectionValidParams<R>,
+);
 
-impl SparseRandomProjectionParams {
+impl<R: Rng + Clone> SparseRandomProjectionParams<R> {
     /// Set the dimension of output of the embedding.
     ///
     /// Setting the target dimension with this function
@@ -35,6 +38,14 @@ impl SparseRandomProjectionParams {
 
         self
     }
+
+    /// Specify the random number generator to use to generate the projection matrix.
+    pub fn with_rng<R2: Rng + Clone>(self, rng: R2) -> SparseRandomProjectionParams<R2> {
+        SparseRandomProjectionParams(SparseRandomProjectionValidParams {
+            params: self.0.params,
+            rng,
+        })
+    }
 }
 
 /// Sparse random projection hyperparameters
@@ -47,8 +58,9 @@ impl SparseRandomProjectionParams {
 /// and does not leverage the structure of the data, therefore it is also possible
 /// to manually specify the dimension of the embedding.
 #[derive(Debug, Clone, PartialEq)]
-pub struct SparseRandomProjectionValidParams {
+pub struct SparseRandomProjectionValidParams<R> {
     pub(super) params: SparseRandomProjectionParamsInner,
+    pub(super) rng: R,
 }
 
 /// Internal data structure that either holds the dimension or the embedding,
@@ -78,7 +90,7 @@ impl SparseRandomProjectionParamsInner {
     }
 }
 
-impl SparseRandomProjectionValidParams {
+impl<R: Rng + Clone> SparseRandomProjectionValidParams<R> {
     pub fn target_dim(&self) -> Option<usize> {
         self.params.target_dim()
     }
@@ -86,10 +98,14 @@ impl SparseRandomProjectionValidParams {
     pub fn precision(&self) -> Option<f64> {
         self.params.eps()
     }
+
+    pub fn rng(&self) -> &R {
+        &self.rng
+    }
 }
 
-impl ParamGuard for SparseRandomProjectionParams {
-    type Checked = SparseRandomProjectionValidParams;
+impl<R: Rng + Clone> ParamGuard for SparseRandomProjectionParams<R> {
+    type Checked = SparseRandomProjectionValidParams<R>;
     type Error = ReductionError;
 
     fn check_ref(&self) -> Result<&Self::Checked, Self::Error> {

@@ -4,7 +4,8 @@ use ndarray_rand::{
     rand_distr::{Normal, StandardNormal},
     RandomExt,
 };
-use rand::{prelude::Distribution, rngs::SmallRng, Rng};
+use rand::{prelude::Distribution, Rng, SeedableRng};
+use rand_xoshiro::Xoshiro256Plus;
 
 use super::super::common::johnson_lindenstrauss_min_dim;
 use super::hyperparams::GaussianRandomProjectionParamsInner;
@@ -28,6 +29,7 @@ where
     fn fit(&self, dataset: &linfa::DatasetBase<Rec, T>) -> Result<Self::Object, ReductionError> {
         let n_samples = dataset.nsamples();
         let n_features = dataset.nfeatures();
+        let mut rng = self.rng.clone();
 
         let n_dims = match &self.params {
             GaussianRandomProjectionParamsInner::Dimension { target_dim } => *target_dim,
@@ -39,22 +41,31 @@ where
         let std_dev = F::cast(n_features).sqrt().recip();
         let gaussian = Normal::new(F::zero(), std_dev)?;
 
-        let proj = match self.rng.clone() {
-            Some(mut rng) => Array::random_using((n_features, n_dims), gaussian, &mut rng),
-            None => Array::random((n_features, n_dims), gaussian),
-        };
+        let proj = Array::random_using((n_features, n_dims), gaussian, &mut rng);
 
         Ok(GaussianRandomProjection { projection: proj })
     }
 }
 
 impl<F: Float> GaussianRandomProjection<F> {
-    /// Create new parameters for a [`GaussianRandomProjection`] with default values
-    /// `precision = 0.1` and no custom [`Rng`] provided.
-    pub fn params() -> GaussianRandomProjectionParams<SmallRng> {
+    /// Create new parameters for a [`GaussianRandomProjection`] with default value
+    /// `precision = 0.1` and a [`Xoshiro256Plus`] RNG.
+    pub fn params() -> GaussianRandomProjectionParams<Xoshiro256Plus> {
         GaussianRandomProjectionParams(GaussianRandomProjectionValidParams {
             params: GaussianRandomProjectionParamsInner::Precision { precision: 0.1 },
-            rng: None,
+            rng: Xoshiro256Plus::seed_from_u64(42),
+        })
+    }
+
+    /// Create new parameters for a [`GaussianRandomProjection`] with default values
+    /// `precision = 0.1` and the provided [`Rng`].
+    pub fn params_with_rng<R>(rng: R) -> GaussianRandomProjectionParams<R>
+    where
+        R: Rng + Clone,
+    {
+        GaussianRandomProjectionParams(GaussianRandomProjectionValidParams {
+            params: GaussianRandomProjectionParamsInner::Precision { precision: 0.1 },
+            rng,
         })
     }
 }

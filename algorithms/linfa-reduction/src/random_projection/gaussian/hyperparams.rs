@@ -43,12 +43,10 @@ impl<R: Rng + Clone> GaussianRandomProjectionParams<R> {
     }
 
     /// Specify the random number generator to use to generate the projection matrix.
-    ///
-    /// Optional: if no RNG is specified, uses the default RNG in [ndarray_rand::RandomExt].  
     pub fn with_rng<R2: Rng + Clone>(self, rng: R2) -> GaussianRandomProjectionParams<R2> {
         GaussianRandomProjectionParams(GaussianRandomProjectionValidParams {
             params: self.0.params,
-            rng: Some(rng),
+            rng,
         })
     }
 }
@@ -68,7 +66,7 @@ impl<R: Rng + Clone> GaussianRandomProjectionParams<R> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct GaussianRandomProjectionValidParams<R: Rng + Clone> {
     pub(super) params: GaussianRandomProjectionParamsInner,
-    pub(super) rng: Option<R>,
+    pub(super) rng: R,
 }
 
 /// Internal data structure that either holds the dimension or the embedding,
@@ -107,8 +105,8 @@ impl<R: Rng + Clone> GaussianRandomProjectionValidParams<R> {
         self.params.eps()
     }
 
-    pub fn rng(&self) -> Option<&R> {
-        self.rng.as_ref()
+    pub fn rng(&self) -> &R {
+        &self.rng
     }
 }
 
