@@ -23,18 +23,22 @@
 //! since they only consist in sampling a random matrix,
 //! whereas the PCA requires computing the pseudoinverse of a large matrix,
 //! which is computationally expensive.
-pub(crate) mod common;
-pub(crate) mod gaussian;
-pub(crate) mod projection;
-pub(crate) mod sparse;
+mod algorithms;
+mod common;
+mod hyperparams;
+mod methods;
 
-pub use gaussian::{
-    GaussianRandomProjection, GaussianRandomProjectionParams, GaussianRandomProjectionValidParams,
-};
+pub use algorithms::RandomProjection;
+pub use hyperparams::{RandomProjectionParams, RandomProjectionValidParams};
 
-pub use sparse::{
-    SparseRandomProjection, SparseRandomProjectionParams, SparseRandomProjectionValidParams,
-};
+use self::methods::{Gaussian, Sparse};
+
+pub type GaussianRandomProjection<F> = RandomProjection<Gaussian, F>;
+pub type GaussianRandomProjectionParams<R> = RandomProjectionParams<Gaussian, R>;
+pub type GaussianRandomProjectionValidParams<R> = RandomProjectionValidParams<Gaussian, R>;
+pub type SparseRandomProjection<F> = RandomProjection<Sparse, F>;
+pub type SparseRandomProjectionParams<R> = RandomProjectionParams<Sparse, R>;
+pub type SparseRandomProjectionValidParams<R> = RandomProjectionValidParams<Sparse, R>;
 
 #[cfg(test)]
 mod tests {
