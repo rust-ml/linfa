@@ -1,6 +1,6 @@
 #[cfg(feature = "benchmarks")]
 pub mod config {
-    use criterion::{measurement::WallTime, BenchmarkGroup, Criterion};
+    use criterion::{measurement::WallTime, BenchmarkGroup};
     #[cfg(not(target_os = "windows"))]
     use pprof::criterion::{Output, PProfProfiler};
     use std::time::Duration;
