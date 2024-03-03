@@ -84,7 +84,7 @@ where
             let nclass = xclass.nrows();
 
             // We compute the update of the gaussian mean and variance
-            let mut class_info = model
+            let class_info = model
                 .class_info
                 .entry(class)
                 .or_insert_with(GaussianClassInfo::default);

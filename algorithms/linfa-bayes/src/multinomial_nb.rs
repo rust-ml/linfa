@@ -71,7 +71,7 @@ where
             let nclass = xclass.nrows();
 
             // We compute the feature log probabilities and feature counts on the slice corresponding to the current class
-            let mut class_info = model
+            let class_info = model
                 .class_info
                 .entry(class)
                 .or_insert_with(MultinomialClassInfo::default);

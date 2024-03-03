@@ -1,4 +1,4 @@
-use crate::gaussian_mixture::errors::{GmmError, Result};
+use crate::gaussian_mixture::errors::GmmError;
 use crate::gaussian_mixture::hyperparams::{
     GmmCovarType, GmmInitMethod, GmmParams, GmmValidParams,
 };
@@ -126,7 +126,7 @@ impl<F: Float> GaussianMixtureModel<F> {
         hyperparameters: &GmmValidParams<F, R>,
         dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
         mut rng: R,
-    ) -> Result<GaussianMixtureModel<F>> {
+    ) -> Result<GaussianMixtureModel<F>, GmmError> {
         let observations = dataset.records().view();
         let n_samples = observations.nrows();
 
@@ -216,7 +216,7 @@ impl<F: Float> GaussianMixtureModel<F> {
         resp: &Array2<F>,
         _covar_type: &GmmCovarType,
         reg_covar: F,
-    ) -> Result<(Array1<F>, Array2<F>, Array3<F>)> {
+    ) -> Result<(Array1<F>, Array2<F>, Array3<F>), GmmError> {
         let nk = resp.sum_axis(Axis(0));
         if nk.min()? < &(F::cast(10.) * F::epsilon()) {
             return Err(GmmError::EmptyCluster(format!(
@@ -255,7 +255,7 @@ impl<F: Float> GaussianMixtureModel<F> {
 
     fn compute_precisions_cholesky_full<D: Data<Elem = F>>(
         covariances: &ArrayBase<D, Ix3>,
-    ) -> Result<Array3<F>> {
+    ) -> Result<Array3<F>, GmmError> {
         let n_clusters = covariances.shape()[0];
         let n_features = covariances.shape()[1];
         let mut precisions_chol = Array::zeros((n_clusters, n_features, n_features));
@@ -290,7 +290,7 @@ impl<F: Float> GaussianMixtureModel<F> {
     fn e_step<D: Data<Elem = F>>(
         &self,
         observations: &ArrayBase<D, Ix2>,
-    ) -> Result<(F, Array2<F>)> {
+    ) -> Result<(F, Array2<F>), GmmError> {
         let (log_prob_norm, log_resp) = self.estimate_log_prob_resp(observations);
         let log_mean = log_prob_norm.mean().unwrap();
         Ok((log_mean, log_resp))
@@ -301,7 +301,7 @@ impl<F: Float> GaussianMixtureModel<F> {
         reg_covar: F,
         observations: &ArrayBase<D, Ix2>,
         log_resp: &Array2<F>,
-    ) -> Result<()> {
+    ) -> Result<(), GmmError> {
         let n_samples = observations.nrows();
         let (weights, means, covariances) = Self::estimate_gaussian_parameters(
             observations,
@@ -407,7 +407,7 @@ impl<F: Float, R: Rng + Clone, D: Data<Elem = F>, T> Fit<ArrayBase<D, Ix2>, T, G
 {
     type Object = GaussianMixtureModel<F>;
 
-    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object, GmmError> {
         let observations = dataset.records().view();
         let mut gmm = GaussianMixtureModel::<F>::new(self, dataset, self.rng())?;
 
