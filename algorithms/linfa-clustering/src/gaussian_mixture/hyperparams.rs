@@ -1,4 +1,4 @@
-use crate::gaussian_mixture::errors::{GmmError, Result};
+use crate::gaussian_mixture::errors::GmmError;
 use ndarray_rand::rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256Plus;
 #[cfg(feature = "serde")]
@@ -170,7 +170,7 @@ impl<F: Float, R: Rng> ParamGuard for GmmParams<F, R> {
     type Checked = GmmValidParams<F, R>;
     type Error = GmmError;
 
-    fn check_ref(&self) -> Result<&Self::Checked> {
+    fn check_ref(&self) -> Result<&Self::Checked, GmmError> {
         if self.0.n_clusters == 0 {
             Err(GmmError::InvalidValue(
                 "`n_clusters` cannot be 0!".to_string(),
@@ -194,7 +194,7 @@ impl<F: Float, R: Rng> ParamGuard for GmmParams<F, R> {
         }
     }
 
-    fn check(self) -> Result<Self::Checked> {
+    fn check(self) -> Result<Self::Checked, GmmError> {
         self.check_ref()?;
         Ok(self.0)
     }
