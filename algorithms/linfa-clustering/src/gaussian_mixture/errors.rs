@@ -4,7 +4,6 @@ use linfa_linalg::LinalgError;
 #[cfg(feature = "blas")]
 use ndarray_linalg::error::LinalgError;
 use thiserror::Error;
-pub type Result<T> = std::result::Result<T, GmmError>;
 
 /// An error when modeling a GMM algorithm
 #[derive(Error, Debug)]
