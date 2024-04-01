@@ -2,16 +2,34 @@
 name = "linfa-ensemble"
 version = "0.1.0"
 edition = "2021"
+authors = ["Khushi Mahesh <km1139@rit.edu>", "Anurag Chandra <ac5068@rit.edu>", "Parijat Kawale <pk7145@rit.edu>"]
+description = "A general method for creating ensemble classifiers"
+license = "MIT/Apache-2.0"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+repository = "https://github.com/rust-ml/linfa"
+readme = "README.md"
+
+keywords = ["machine-learning", "linfa", "ensemble"]
+categories = ["algorithms", "mathematics", "science"]
+
+[features]
+default = []
+serde = ["serde_crate", "ndarray/serde"]
+
+[dependencies.serde_crate]
+package = "serde"
+optional = true
+version = "1.0"
+default-features = false
+features = ["std", "derive"]
 
 [dependencies]
 linfa = { version = "0.7.0", path = "../.." }
 linfa-trees = { version = "0.7.0", path = "../linfa-trees"}
-ndarray = { version = "0.15" , features = ["rayon", "approx"]}
-
 linfa-datasets = { version = "0.7.0", path = "../../datasets/", features = ["iris"] }
+ndarray = { version = "0.15" , features = ["rayon", "approx"]}
 ndarray-rand = "0.14"
+rand = { version = "0.8", features = ["small_rng"] }
 
 [dev-dependencies]
 rand = { version = "0.8", features = ["small_rng"] }

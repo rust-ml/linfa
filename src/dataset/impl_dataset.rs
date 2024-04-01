@@ -2,7 +2,7 @@ use super::{
     super::traits::{Predict, PredictInplace},
     iter::{ChunksIter, DatasetIter, Iter},
     AsSingleTargets, AsTargets, AsTargetsMut, CountedTargets, Dataset, DatasetBase, DatasetView,
-    Float, FromTargetArray, Label, Labels, Records, Result, TargetDim,
+    Float, FromTargetArray, FromTargetArrayOwned, Label, Labels, Records, Result, TargetDim,
 };
 use crate::traits::Fit;
 use ndarray::{concatenate, prelude::*, Data, DataMut, Dimension};
@@ -428,7 +428,7 @@ where
 impl<'b, F: Clone, E: Copy + 'b, D, T> DatasetBase<ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
-    T: FromTargetArray<'b, Elem = E>,
+    T: FromTargetArrayOwned<Elem = E>,
     T::Owned: AsTargets,
 {
     /// Apply bootstrapping for samples and features
@@ -451,7 +451,7 @@ where
         &'b self,
         sample_feature_size: (usize, usize),
         rng: &'b mut R,
-    ) -> impl Iterator<Item = DatasetBase<Array2<F>, <T as FromTargetArray<'b>>::Owned>> + 'b {
+    ) -> impl Iterator<Item = DatasetBase<Array2<F>, T::Owned>> + 'b {
         std::iter::repeat(()).map(move |_| {
             // sample with replacement
             let indices = (0..sample_feature_size.0)
@@ -491,14 +491,14 @@ where
         &'b self,
         num_samples: usize,
         rng: &'b mut R,
-    ) -> impl Iterator<Item = DatasetBase<Array2<F>, <T as FromTargetArray<'b>>::Owned>> + 'b {
+    ) -> impl Iterator<Item = DatasetBase<Array2<F>, T::Owned>> + 'b {
         std::iter::repeat(()).map(move |_| {
             // sample with replacement
             let indices = (0..num_samples)
                 .map(|_| rng.gen_range(0..self.nsamples()))
                 .collect::<Vec<_>>();
 
-            let records = self.records().select(Axis(0), &indices);
+                let records = self.records().select(Axis(0), &indices);
             let targets = T::new_targets(self.as_targets().select(Axis(0), &indices));
 
             DatasetBase::new(records, targets)
@@ -525,7 +525,7 @@ where
         &'b self,
         num_features: usize,
         rng: &'b mut R,
-    ) -> impl Iterator<Item = DatasetBase<Array2<F>, <T as FromTargetArray<'b>>::Owned>> + 'b {
+    ) -> impl Iterator<Item = DatasetBase<Array2<F>, T::Owned>> + 'b {
         std::iter::repeat(()).map(move |_| {
             let targets = T::new_targets(self.as_targets().to_owned());
 
