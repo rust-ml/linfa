@@ -1,36 +1,38 @@
 //! Random Forest
-
 use ndarray_rand::rand::SeedableRng;
 use rand::rngs::SmallRng;
-use linfa_trees::{DecisionTree, NodeIter, TreeNode};
-use linfa::prelude::*;
-
-use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
-use std::hash::{Hash, Hasher};
-
-use linfa::dataset::AsSingleTargets;
-use ndarray::{Array1, ArrayBase, Axis, Data, Ix1, Ix2};
-
-use linfa::{
-    dataset::{Labels, Records},
-    error::Error,
-    error::Result,
-    traits::*,
-    DatasetBase, Float, Label,
-};
-
-
-#[cfg(feature = "serde")]
-use serde_crate::{Deserialize, Serialize};
-
+use linfa_trees::DecisionTree;
+use linfa::traits::Fit;
+use linfa::prelude::{Predict, ToConfusionMatrix};
+use linfa_ensemble::EnsembleLearnerParams;
 
 fn main() {
+
+  //Number of models in the ensemble
+  let ensemble_size = 100;
+  //Proportion of training data given to each model
+  let bootstrap_proportion = 0.7;
+
+  //Load dataset
   let mut rng = SmallRng::seed_from_u64(42);
-
   let (train, test) = linfa_datasets::iris()
-  .shuffle(&mut rng)
-  .split_with_ratio(0.8);
+      .shuffle(&mut rng)
+      .split_with_ratio(0.7);
 
-  train.bootstrap((10, 10), &mut rng);
+  //Train ensemble learner model
+  let model = EnsembleLearnerParams::new(DecisionTree::params())
+      .ensemble_size(ensemble_size)
+      .bootstrap_proportion(bootstrap_proportion)
+      .fit(&train)
+      .unwrap();
+
+  //Return highest ranking predictions
+  let final_predictions_ensemble = model.predict(&test);
+  println!("Final Predictions: \n{:?}", final_predictions_ensemble);
+
+  let cm = final_predictions_ensemble.confusion_matrix(&test).unwrap();
+
+  println!("{:?}", cm);
+  println!("Test accuracy: {} \n with default Decision Tree params, \n Ensemble Size: {},\n Bootstrap Proportion: {}",
+  100.0 * cm.accuracy(), ensemble_size, bootstrap_proportion);
 }
