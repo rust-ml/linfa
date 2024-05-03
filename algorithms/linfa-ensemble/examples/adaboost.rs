@@ -1,7 +1,6 @@
 use std::fs::File;
-use std::io::Write;
 
-use linfa_trees::DecisionTreeParams;
+use linfa_trees::{DecisionTreeParams};
 use ndarray_rand::rand::SeedableRng;
 use rand::rngs::SmallRng;
 
@@ -31,5 +30,7 @@ fn main() -> Result<()> {
         100.0 * cm.accuracy()
     );
 
+    let mut tikz = File::create("adaboost_example.tex").unwrap();
+    ada_model.export_to_tikz(tikz);
     Ok(())
 }

@@ -1,5 +1,5 @@
-use std::{collections::{HashMap}, iter::zip};
-
+use std::{collections::{HashMap}, iter::zip, fs::File};
+use std::io::Write;
 use linfa_trees::{DecisionTree};
 use linfa::{
     dataset::{Labels},
@@ -8,6 +8,7 @@ use linfa::{
     traits::*,
     DatasetBase, Float, Label,
 };
+use super::Tikz;
 
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
@@ -31,6 +32,9 @@ pub struct Stump<F: Float,L: Label> {
 }
 
 impl <F: Float, L: Label + std::fmt::Debug> Stump<F,L> {
+    pub fn tree(&self) -> &DecisionTree<F,L> {
+        &self.tree
+    }
     fn make_stump(tree: DecisionTree<F,L> ,weight: f32) -> Self {
         Stump { tree, weight }
     }
@@ -90,6 +94,16 @@ impl<F: Float, L: Label + Default, D: Data<Elem = F>> PredictInplace<ArrayBase<D
     }
 }
 
+impl<F: Float, L: Label> Adaboost<F,L>{
+    pub fn stumps(&self) -> &Vec<Stump<F,L>> {
+        &self.stumps
+    }
+    pub fn export_to_tikz(&self, mut file: File) {
+
+        file.write_all(Tikz::new(&self).with_legend().to_string().as_bytes(),).unwrap();
+        
+    }
+}
 
 impl<'a, F: Float, L: Label + 'a + std::fmt::Debug, D, T> Fit<ArrayBase<D, Ix2>, T, Error>
     for AdaboostValidParams<F,L>

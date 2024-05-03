@@ -10,7 +10,7 @@ Cargo.lock
 **/*.rs.bk
 # vscode
 .vscode
-
+.DS_Store
 # ctags
 tags
 *.npy
