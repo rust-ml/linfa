@@ -7,21 +7,20 @@ use linfa::{
 use serde_crate::{Deserialize, Serialize};
 
 use crate::Adaboost;
-use linfa_trees::{DecisionTreeParams};
+use linfa_trees::DecisionTreeParams;
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct AdaboostValidParams<F,L> {
+pub struct AdaboostValidParams<F, L> {
     n_estimators: usize,
     learning_rate: f32,
     d_tree_params: DecisionTreeParams<F, L>,
 }
 
-impl<F:Float, L:Label> AdaboostValidParams<F,L> {
-
+impl<F: Float, L: Label> AdaboostValidParams<F, L> {
     pub fn learning_rate(&self) -> f32 {
         self.learning_rate
     }
@@ -30,7 +29,7 @@ impl<F:Float, L:Label> AdaboostValidParams<F,L> {
         self.n_estimators
     }
 
-    pub fn d_tree_params(&self) -> DecisionTreeParams<F,L> {
+    pub fn d_tree_params(&self) -> DecisionTreeParams<F, L> {
         self.d_tree_params.clone()
     }
 }
@@ -41,14 +40,16 @@ impl<F:Float, L:Label> AdaboostValidParams<F,L> {
     serde(crate = "serde_crate")
 )]
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct AdaboostParams<F,L>(AdaboostValidParams<F,L>);
+pub struct AdaboostParams<F, L>(AdaboostValidParams<F, L>);
 
-impl<F:Float, L:Label>  AdaboostParams<F,L> {
+impl<F: Float, L: Label> AdaboostParams<F, L> {
     pub fn new() -> Self {
-        Self(AdaboostValidParams {   
+        Self(AdaboostValidParams {
             learning_rate: 0.5,
             n_estimators: 50,
-            d_tree_params: DecisionTreeParams::new().min_weight_leaf(0.00001).min_weight_split(0.00001),
+            d_tree_params: DecisionTreeParams::new()
+                .min_weight_leaf(0.00001)
+                .min_weight_split(0.00001),
         })
     }
 
@@ -65,15 +66,13 @@ impl<F:Float, L:Label>  AdaboostParams<F,L> {
     }
 
     /// Sets the params for the weak learner used in Adaboost
-    pub fn d_tree_params(mut self, d_tree_params: DecisionTreeParams<F,L>) -> Self {
+    pub fn d_tree_params(mut self, d_tree_params: DecisionTreeParams<F, L>) -> Self {
         self.0.d_tree_params = d_tree_params;
         self
     }
-
-
 }
 
-impl<F:Float, L:Label> Default for AdaboostParams<F,L> {
+impl<F: Float, L: Label> Default for AdaboostParams<F, L> {
     fn default() -> Self {
         Self::new()
     }
@@ -85,13 +84,13 @@ impl<F: Float, L: Label> Adaboost<F, L> {
     /// * `learning_rate = 0.00001`
     // Violates the convention that new should return a value of type `Self`
     #[allow(clippy::new_ret_no_self)]
-    pub fn params() -> AdaboostParams<F,L> {
+    pub fn params() -> AdaboostParams<F, L> {
         AdaboostParams::new()
     }
 }
 
-impl<F:Float, L:Label> ParamGuard for AdaboostParams<F,L> {
-    type Checked = AdaboostValidParams<F,L>;
+impl<F: Float, L: Label> ParamGuard for AdaboostParams<F, L> {
+    type Checked = AdaboostValidParams<F, L>;
     type Error = Error;
 
     fn check_ref(&self) -> Result<&Self::Checked> {
@@ -100,8 +99,7 @@ impl<F:Float, L:Label> ParamGuard for AdaboostParams<F,L> {
                 "Minimum learning rate should be greater than zero, but was {}",
                 self.0.learning_rate
             )))
-        }
-         else {
+        } else {
             Ok(&self.0)
         }
     }
