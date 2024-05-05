@@ -28,7 +28,7 @@ features = ["std", "derive"]
 [dependencies]
 linfa = { version = "0.7.0", path = "../.." }
 linfa-trees = { version = "0.7.0", path = "../linfa-trees"}
-linfa-datasets = { version = "0.7.0", path = "../../datasets/", features = ["iris"] }
+linfa-datasets = { version = "0.7.0", path = "../../datasets/", features = ["iris", "mnist"] }
 ndarray = { version = "0.15" , features = ["rayon", "approx"]}
 ndarray-rand = "0.14"
 rand = { version = "0.8", features = ["small_rng"] }
