@@ -30,7 +30,10 @@ linfa-datasets = { version = "0.7.0", path = "../../datasets/", features = ["iri
 ndarray = { version = "0.15" , features = ["rayon", "approx"]}
 ndarray-rand = "0.14"
 rand = { version = "0.8", features = ["small_rng"] }
+approx = {version = "0.5"}
 
 [dev-dependencies]
 rand = { version = "0.8", features = ["small_rng"] }
 linfa-datasets = { version = "0.7.0", path = "../../datasets/", features = ["iris"] }
+ndarray = { version = "0.15" , features = ["rayon", "approx"]}
+approx = {version = "0.5"}

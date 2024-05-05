@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use super::{
     AsMultiTargets, AsMultiTargetsMut, AsProbabilities, AsSingleTargets, AsSingleTargetsMut,
-    AsTargets, AsTargetsMut, CountedTargets, DatasetBase, FromTargetArray, FromTargetArrayOwned, Label, Labels, Pr,
-    TargetDim,
+    AsTargets, AsTargetsMut, CountedTargets, DatasetBase, FromTargetArray, FromTargetArrayOwned,
+    Label, Labels, Pr, TargetDim,
 };
 use ndarray::{
     Array, Array1, Array2, ArrayBase, ArrayView, ArrayViewMut, Axis, CowArray, Data, DataMut,
@@ -42,7 +42,6 @@ impl<'a, L: Clone + 'a, S: Data<Elem = L>, I: TargetDim> FromTargetArray<'a> for
         targets
     }
 }
-
 
 impl<L, S: DataMut<Elem = L>, I: TargetDim> AsTargetsMut for ArrayBase<S, I> {
     type Elem = L;
@@ -98,7 +97,6 @@ where
         }
     }
 }
-
 
 impl<'a, L: Label + 'a, T> FromTargetArray<'a> for CountedTargets<L, T>
 where

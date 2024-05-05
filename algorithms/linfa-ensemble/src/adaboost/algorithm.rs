@@ -1,19 +1,13 @@
-use std::{collections::{HashMap}, iter::zip};
+use std::{collections::HashMap, iter::zip};
 
-use linfa_trees::{DecisionTree};
-use linfa::{
-    dataset::{Labels},
-    error::Error,
-    error::Result,
-    traits::*,
-    DatasetBase, Float, Label,
-};
+use linfa::{dataset::Labels, error::Error, error::Result, traits::*, DatasetBase, Float, Label};
+use linfa_trees::DecisionTree;
 
+use super::AdaboostValidParams;
+use linfa::dataset::AsSingleTargets;
+use ndarray::{Array1, ArrayBase, Data, Ix2};
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
-use linfa::dataset::AsSingleTargets;
-use super::{AdaboostValidParams};
-use ndarray::{Array1, ArrayBase, Data, Ix2};
 // adaboost will be a vector of stumps
 
 // stump will contain a decision tree and a weight associated with that stump
@@ -25,13 +19,13 @@ use ndarray::{Array1, ArrayBase, Data, Ix2};
     serde(crate = "serde_crate")
 )]
 #[derive(Debug, Clone, PartialEq)]
-pub struct Stump<F: Float,L: Label> {
-    tree: DecisionTree<F,L>,
+pub struct Stump<F: Float, L: Label> {
+    tree: DecisionTree<F, L>,
     weight: f32,
 }
 
-impl <F: Float, L: Label + std::fmt::Debug> Stump<F,L> {
-    fn make_stump(tree: DecisionTree<F,L> ,weight: f32) -> Self {
+impl<F: Float, L: Label + std::fmt::Debug> Stump<F, L> {
+    fn make_stump(tree: DecisionTree<F, L>, weight: f32) -> Self {
         Stump { tree, weight }
     }
 }
@@ -42,8 +36,8 @@ impl <F: Float, L: Label + std::fmt::Debug> Stump<F,L> {
     serde(crate = "serde_crate")
 )]
 #[derive(Debug, Clone, PartialEq)]
-pub struct Adaboost<F: Float,L: Label> {
-    stumps: Vec<Stump<F,L>>,
+pub struct Adaboost<F: Float, L: Label> {
+    stumps: Vec<Stump<F, L>>,
 }
 
 impl<F: Float, L: Label + Default, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<L>>
@@ -58,7 +52,7 @@ impl<F: Float, L: Label + Default, D: Data<Elem = F>> PredictInplace<ArrayBase<D
         );
 
         // Create a vector that has a hashmap with key as label and value as the weight for that label to hold the aggregate of the predictions from every stump for every data record
-        let mut map: Vec<HashMap<L,f32>> = Vec::new();
+        let mut map: Vec<HashMap<L, f32>> = Vec::new();
         for stump in self.stumps.iter() {
             // go over each and aggregate the weights of the stump in a hashmap
             for pred in stump.tree.predict(x).iter() {
@@ -90,9 +84,8 @@ impl<F: Float, L: Label + Default, D: Data<Elem = F>> PredictInplace<ArrayBase<D
     }
 }
 
-
 impl<'a, F: Float, L: Label + 'a + std::fmt::Debug, D, T> Fit<ArrayBase<D, Ix2>, T, Error>
-    for AdaboostValidParams<F,L>
+    for AdaboostValidParams<F, L>
 where
     D: Data<Elem = F>,
     T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
@@ -108,21 +101,25 @@ where
         let weights = vec![sample_weight; dataset.records().nrows()];
 
         // updating the dataset to have the weights by creating a new dataset
-        let mut data = DatasetBase::new(dataset.records.view().clone(), dataset.targets.as_targets().clone()).with_feature_names(dataset.feature_names().clone()).with_weights(Array1::from_vec(weights));
+        let mut data = DatasetBase::new(
+            dataset.records.view().clone(),
+            dataset.targets.as_targets().clone(),
+        )
+        .with_feature_names(dataset.feature_names().clone())
+        .with_weights(Array1::from_vec(weights));
 
         // for lifetime purpose
         let binding = dataset.targets.as_targets();
         // collect all the different unique classes
         let classes: std::collections::HashSet<&L> = binding.iter().collect();
         let num_classes = classes.len();
-        
+
         // lowest f32 value allowed
         let eps = f32::EPSILON;
         let differential = 1.0 - eps;
 
-        let mut stumps: Vec<Stump<F,L>> = Vec::new();
+        let mut stumps: Vec<Stump<F, L>> = Vec::new();
         for i in 0..self.n_estimators() {
-            
             let tree_params = self.d_tree_params();
             let tree = tree_params.fit(&data)?;
             // Debug:
@@ -134,50 +131,55 @@ where
             // predict the data and accumulate the error for wrongly predicted samples
             let predictions = tree.predict(&data);
 
-            for ((idx, pred), weight) in zip(dataset.targets().as_targets().iter().enumerate(), data.weights().unwrap().iter()){
+            for ((idx, pred), weight) in zip(
+                dataset.targets().as_targets().iter().enumerate(),
+                data.weights().unwrap().iter(),
+            ) {
                 if predictions[idx] != *pred {
                     error += weight;
                 }
             }
-            
+
             // To avoid 0 errors
             error = error.min(differential);
 
-            let alpha: f32 = ((num_classes-1) as f32).ln() + self.learning_rate() * ((1.0 - error) / error ).ln();
+            let alpha: f32 = ((num_classes - 1) as f32).ln()
+                + self.learning_rate() * ((1.0 - error) / error).ln();
 
             // From sklearn: sample_weight = np.exp(np.log(sample_weight)+ estimator_weight * incorrect * (sample_weight > 0))
-            
+
             // update weights in dataset
             let mut updated_weights: Vec<f32> = Vec::new();
-            for ((idx,pred),  weight) in zip(dataset.targets().as_targets().iter().enumerate(), data.weights().unwrap().iter()){
+            for ((idx, pred), weight) in zip(
+                dataset.targets().as_targets().iter().enumerate(),
+                data.weights().unwrap().iter(),
+            ) {
                 if *weight > 0.0 && predictions[idx] != *pred {
                     let delta = f32::exp(f32::ln(*weight) + alpha);
                     updated_weights.push(delta);
-
                 } else {
-                   updated_weights.push(*weight);
+                    updated_weights.push(*weight);
                 }
             }
-            
+
             // normalize the weights
             let updated_weights = &Array1::from_vec(updated_weights);
-            let normalized_weights = (updated_weights)/(updated_weights.sum());
+            let normalized_weights = (updated_weights) / (updated_weights.sum());
 
             // update the weights in the dataset for new stump
-            data = DatasetBase::new(dataset.records.view().clone(), dataset.targets.as_targets().clone()).with_feature_names(dataset.feature_names().clone()).with_weights(normalized_weights);
+            data = DatasetBase::new(
+                dataset.records.view().clone(),
+                dataset.targets.as_targets().clone(),
+            )
+            .with_feature_names(dataset.feature_names().clone())
+            .with_weights(normalized_weights);
 
             // push the stump with it's weight
             stumps.push(Stump::make_stump(tree, alpha));
-            
         }
-        Ok(Adaboost{
-            stumps,
-        })
-        
+        Ok(Adaboost { stumps })
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -185,7 +187,7 @@ mod tests {
 
     use linfa::{error::Result, Dataset};
     use linfa_trees::DecisionTreeParams;
-    use ndarray::{array};
+    use ndarray::array;
 
     use crate::AdaboostParams;
 
@@ -203,12 +205,17 @@ mod tests {
         let targets = array![0, 0, 1];
 
         let dataset = Dataset::new(data.clone(), targets);
-        let model = Adaboost::params().n_estimators(5).d_tree_params(DecisionTreeParams::new().min_weight_leaf(0.00001).min_weight_split(0.00001)).fit(&dataset)?;
+        let model = Adaboost::params()
+            .n_estimators(5)
+            .d_tree_params(
+                DecisionTreeParams::new()
+                    .min_weight_leaf(0.00001)
+                    .min_weight_split(0.00001),
+            )
+            .fit(&dataset)?;
 
         assert_eq!(model.predict(&data), array![0, 0, 1]);
 
         Ok(())
     }
-
-
 }

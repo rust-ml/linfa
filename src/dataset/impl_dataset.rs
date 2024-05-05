@@ -498,7 +498,7 @@ where
                 .map(|_| rng.gen_range(0..self.nsamples()))
                 .collect::<Vec<_>>();
 
-                let records = self.records().select(Axis(0), &indices);
+            let records = self.records().select(Axis(0), &indices);
             let targets = T::new_targets(self.as_targets().select(Axis(0), &indices));
 
             DatasetBase::new(records, targets)
