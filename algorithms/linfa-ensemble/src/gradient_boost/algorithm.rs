@@ -2,6 +2,12 @@ use ndarray::{Array1, Array2};
 
 use crate::random_forest::DecisionTreeRegressor;
 
+
+/*
+Source of Algorithm implemented is taken from the blog:
+https://lewtun.github.io/hepml/lesson05_gradient-boosting-deep-dive/
+*/
+
 pub struct GBRegressor {
     trees: Vec<DecisionTreeRegressor>,
     num_trees: usize,
