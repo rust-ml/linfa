@@ -52,6 +52,19 @@ pub fn iris() -> Dataset<f64, usize, Ix1> {
         .with_feature_names(feature_names)
 }
 
+#[cfg(feature = "mnist")]
+/// Read in the kc_house_dataset from dataset path.
+pub fn mnist() -> Dataset<f64, usize, Ix1> {
+    let data = include_bytes!("../data/mnist_test.csv.gz");
+    let array = array_from_gz_csv(&data[..], true, b',').unwrap();
+    let (data, targets) = (
+        array.slice(s![.., 1..]).to_owned(),
+        array.column(0).to_owned(),
+    );
+
+    Dataset::new(data, targets).map_targets(|x| *x as usize)
+}
+
 #[cfg(feature = "diabetes")]
 /// Read in the diabetes dataset from dataset path
 pub fn diabetes() -> Dataset<f64, f64, Ix1> {
@@ -175,6 +188,16 @@ mod tests {
             mean_features,
             array![5.84, 3.05, 3.75, 1.20],
             epsilon = 0.01
+        );
+    }
+
+    #[cfg(feature = "mnist")]
+    #[test]
+    fn test_mnist() {
+        let ds = mnist();
+        assert_eq!(
+            (ds.nsamples(), ds.nfeatures(), ds.ntargets()),
+            (10000, 784, 1)
         );
     }
 

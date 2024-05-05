@@ -1,6 +1,6 @@
-use super::{Adaboost};
+use super::Adaboost;
 use linfa::{Float, Label};
-use linfa_trees::{TreeNode, DecisionTree};
+use linfa_trees::{DecisionTree, TreeNode};
 use std::collections::HashSet;
 use std::fmt::Debug;
 
@@ -87,7 +87,7 @@ impl<'a, F: Float, L: Debug + Label> Tikz<'a, F, L> {
         self
     }
 
-    fn legend(&self, tree: &DecisionTree<F,L>) -> String {
+    fn legend(&self, tree: &DecisionTree<F, L>) -> String {
         if self.legend {
             let mut map = HashSet::new();
             let mut out = "\n".to_string()
@@ -169,9 +169,8 @@ for tree={
             out.push_str(&self.format_node(stump.tree().root_node()));
             out.push_str(&self.legend(stump.tree()));
             out.push_str("\n\t\\end{forest}\n");
-            
         }
-       
+
         if self.complete {
             out.push_str("\\end{document}");
         }
