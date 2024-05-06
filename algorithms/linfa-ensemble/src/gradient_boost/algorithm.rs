@@ -2,8 +2,10 @@ use ndarray::{Array1, Array2};
 
 use crate::random_forest::DecisionTreeRegressor;
 
+
 /*
 Source of Algorithm implemented is taken from the blog:
+https://en.wikipedia.org/wiki/Gradient_boosting
 https://lewtun.github.io/hepml/lesson05_gradient-boosting-deep-dive/
 */
 
@@ -37,6 +39,7 @@ impl GBRegressor {
     }
 
     pub fn fit(&mut self, features: &Array2<f64>, targets: &Array1<f64>) {
+
         self.init_train_target_mean = targets.mean().unwrap_or(0.0);
 
         let mut y_pred = vec![self.init_train_target_mean; targets.dim()];
@@ -82,6 +85,7 @@ impl GBRegressor {
     }
 
     pub fn predict(&self, features: &Array2<f64>) -> Array1<f64> {
+
         let mut predictions: Vec<Array1<f64>> = Vec::new();
         for tree in &self.trees {
             let prediction = tree.predict(features) * self.learning_rate;
@@ -99,6 +103,7 @@ impl GBRegressor {
         final_predictions
     }
 }
+
 
 #[cfg(test)]
 mod tests {
