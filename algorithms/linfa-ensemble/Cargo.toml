@@ -34,7 +34,7 @@ ndarray-rand = "0.14"
 rand = { version = "0.8", features = ["small_rng"] }
 pyo3 = { version = "0.21.2", features = ["extension-module"] }
 rayon = {version = "1.10.0"}
-
+approx = {version = "0.5"}
 
 [dev-dependencies]
 rand = { version = "0.8", features = ["small_rng"] }
