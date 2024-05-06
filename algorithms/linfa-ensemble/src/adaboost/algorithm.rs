@@ -1,12 +1,10 @@
+use super::AdaboostValidParams;
 use super::Tikz;
+use linfa::dataset::AsSingleTargets;
 use linfa::{dataset::Labels, error::Error, error::Result, traits::*, DatasetBase, Float, Label};
 use linfa_trees::DecisionTree;
-use std::{collections::HashMap, iter::zip};
-use super::AdaboostValidParams;
-use linfa::dataset::AsSingleTargets;
 use ndarray::{Array1, ArrayBase, Data, Ix2};
-#[cfg(feature = "serde")]
-use serde_crate::{Deserialize, Serialize};
+use std::{collections::HashMap, iter::zip};
 // adaboost will be a vector of stumps
 
 // stump will contain a decision tree and a weight associated with that stump
