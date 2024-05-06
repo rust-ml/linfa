@@ -52,6 +52,27 @@ pub fn iris() -> Dataset<f64, usize, Ix1> {
         .with_feature_names(feature_names)
 }
 
+#[cfg(feature = "mnist")]
+/// Read in the mnist_dataset from dataset path.
+pub fn mnist() -> (Dataset<f64, usize, Ix1>, Dataset<f64, usize, Ix1>) {
+    let train_data = include_bytes!("../data/mnist_train.csv.gz");
+    let test_data = include_bytes!("../data/mnist_test.csv.gz");
+    let train_array = array_from_gz_csv(&train_data[..], true, b',').unwrap();
+    let test_array = array_from_gz_csv(&test_data[..], true, b',').unwrap();
+    let (data, targets) = (
+        train_array.slice(s![.., 1..]).to_owned(),
+        train_array.column(0).to_owned(),
+    );
+    let train = Dataset::new(data, targets).map_targets(|x| *x as usize);
+    let (data, targets) = (
+        test_array.slice(s![.., 1..]).to_owned(),
+        test_array.column(0).to_owned(),
+    );
+
+    let test = Dataset::new(data, targets).map_targets(|x| *x as usize);
+    (train, test)
+}
+
 #[cfg(feature = "diabetes")]
 /// Read in the diabetes dataset from dataset path
 pub fn diabetes() -> Dataset<f64, f64, Ix1> {
@@ -175,6 +196,20 @@ mod tests {
             mean_features,
             array![5.84, 3.05, 3.75, 1.20],
             epsilon = 0.01
+        );
+    }
+
+    #[cfg(feature = "mnist")]
+    #[test]
+    fn test_mnist() {
+        let (train, test) = mnist();
+        assert_eq!(
+            (train.nsamples(), train.nfeatures(), train.ntargets()),
+            (60000, 784, 1)
+        );
+        assert_eq!(
+            (test.nsamples(), test.nfeatures(), test.ntargets()),
+            (10000, 784, 1)
         );
     }
 

@@ -48,6 +48,7 @@ thiserror = "1.0"
 
 criterion = { version = "0.4.0", optional = true }
 
+rayon = "1.10.0"
 [dependencies.serde_crate]
 package = "serde"
 optional = true
@@ -62,6 +63,7 @@ linfa-datasets = { path = "datasets", features = [
     "iris",
     "diabetes",
     "generate",
+    "mnist",
 ] }
 statrs = "0.16.0"
 

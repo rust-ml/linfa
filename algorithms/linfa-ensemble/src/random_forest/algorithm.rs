@@ -5,8 +5,10 @@ use linfa::{
     DatasetBase, ParamGuard,
 };
 use ndarray::{Array, Array2, Axis, Dimension};
-use rand::rngs::ThreadRng;
+use rand::rngs::StdRng;
 use rand::Rng;
+use rayon::prelude::*;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{cmp::Eq, collections::HashMap, hash::Hash};
 
 pub struct EnsembleLearner<M> {
@@ -107,15 +109,18 @@ pub struct EnsembleLearnerValidParams<P, R> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct EnsembleLearnerParams<P, R>(EnsembleLearnerValidParams<P, R>);
+pub struct EnsembleLearnerParams<P, R>(pub EnsembleLearnerValidParams<P, R>);
 
-impl<P> EnsembleLearnerParams<P, ThreadRng> {
-    pub fn new(model_params: P) -> EnsembleLearnerParams<P, ThreadRng> {
-        return Self::new_fixed_rng(model_params, rand::thread_rng());
+impl<P> EnsembleLearnerParams<P, StdRng>
+where
+    StdRng: Send + Sync,
+{
+    pub fn new(model_params: P) -> EnsembleLearnerParams<P, StdRng> {
+        return Self::new_fixed_rng(model_params, <StdRng as rand::SeedableRng>::from_entropy());
     }
 }
 
-impl<P, R: Rng + Clone> EnsembleLearnerParams<P, R> {
+impl<P, R: Rng + Clone + Send + Sync> EnsembleLearnerParams<P, R> {
     pub fn new_fixed_rng(model_params: P, rng: R) -> EnsembleLearnerParams<P, R> {
         Self(EnsembleLearnerValidParams {
             ensemble_size: 1,
@@ -162,13 +167,15 @@ impl<P, R> ParamGuard for EnsembleLearnerParams<P, R> {
     }
 }
 
-impl<D, T, P: Fit<Array2<D>, T::Owned, Error>, R: Rng + Clone> Fit<Array2<D>, T, Error>
+impl<D, T, P, R: Rng + Clone + Send + Sync> Fit<Array2<D>, T, Error>
     for EnsembleLearnerValidParams<P, R>
 where
-    D: Clone,
-    T: FromTargetArrayOwned,
+    D: Clone + Sync + Send,
+    T: FromTargetArrayOwned + Sync,
     T::Elem: Copy + Eq + Hash,
-    T::Owned: AsTargets,
+    T::Owned: AsTargets + Send,
+    P: Fit<Array2<D>, T::Owned, Error> + Sync + Send, // Ensure P is Send
+    P::Object: Send,                                  // Ensure P::Object is Send
 {
     type Object = EnsembleLearner<P::Object>;
 
@@ -176,24 +183,67 @@ where
         &self,
         dataset: &DatasetBase<Array2<D>, T>,
     ) -> core::result::Result<Self::Object, Error> {
-        let mut models = Vec::new();
         let mut rng = self.rng.clone();
 
         let dataset_size =
             ((dataset.records.nrows() as f64) * self.bootstrap_proportion).ceil() as usize;
 
-        let iter = dataset.bootstrap_samples(dataset_size, &mut rng);
-        //   let mut count = 0;
-        for train in iter {
-            //   count += 1;
-            let model = self.model_params.fit(&train).unwrap();
-            models.push(model);
+        let iter = dataset.parallel_bootstrap_samples(dataset_size, &mut rng);
 
-            if models.len() == self.ensemble_size {
-                break;
-            }
-        }
+        let count = AtomicUsize::new(0);
+
+        // might potentially slow down the code
+        // TODO: instead we can spawn threads that compute n_estimators/threads
+        // and then join all the vectors
+        let models: Vec<_> = iter
+            .take_any_while(|_| count.load(Ordering::Relaxed) < self.ensemble_size)
+            .map(|train| {
+                let _c = count.fetch_add(1, Ordering::SeqCst);
+                self.model_params.fit(&train).unwrap()
+            })
+            .collect();
+
+        // println!("Done with fit: {}", models.len());
 
         Ok(EnsembleLearner { models })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use linfa_trees::DecisionTree;
+    use ndarray_rand::rand::SeedableRng;
+    use rand::rngs::SmallRng;
+
+    use super::*;
+    #[test]
+    fn iris_test() {
+        //Number of models in the ensemble
+        let ensemble_size = 100;
+        //Proportion of training data given to each model
+        let bootstrap_proportion = 0.7;
+
+        //Load dataset
+        let mut rng = SmallRng::seed_from_u64(42);
+        let (train, test) = linfa_datasets::iris()
+            .shuffle(&mut rng)
+            .split_with_ratio(0.7);
+
+        //Train ensemble learner model
+        let model = EnsembleLearnerParams::new(DecisionTree::<f64, usize>::params())
+            .ensemble_size(ensemble_size)
+            .bootstrap_proportion(bootstrap_proportion)
+            .fit(&train)
+            .unwrap();
+        // println!("Done with Fit");
+        //   //Return highest ranking predictions
+        let final_predictions_ensemble = model.predict(&test);
+        println!("Final Predictions: \n{:?}", final_predictions_ensemble);
+
+        //     let cm = final_predictions_ensemble.confusion_matrix(&test).unwrap();
+
+        //     println!("{:?}", cm);
+        //     println!("Test accuracy: {} \n with default Decision Tree params, \n Ensemble Size: {},\n Bootstrap Proportion: {}",
+        //   100.0 * cm.accuracy(), ensemble_size, bootstrap_proportion);
     }
 }

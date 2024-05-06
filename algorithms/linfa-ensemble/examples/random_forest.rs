@@ -1,6 +1,5 @@
 //! Random Forest
-use linfa::prelude::{Predict, ToConfusionMatrix};
-use linfa::traits::Fit;
+use linfa::prelude::*;
 use linfa_ensemble::EnsembleLearnerParams;
 use linfa_trees::DecisionTree;
 use ndarray_rand::rand::SeedableRng;
@@ -14,18 +13,21 @@ fn main() {
 
     //Load dataset
     let mut rng = SmallRng::seed_from_u64(42);
-    let (train, test) = linfa_datasets::iris()
-        .shuffle(&mut rng)
-        .split_with_ratio(0.7);
+
+    let (train, test) = linfa_datasets::mnist();
+
+    train.shuffle(&mut rng);
+    test.shuffle(&mut rng);
 
     //Train ensemble learner model
-    let model = EnsembleLearnerParams::new(DecisionTree::params())
+    let model = EnsembleLearnerParams::new(DecisionTree::<f64, usize>::params())
         .ensemble_size(ensemble_size)
         .bootstrap_proportion(bootstrap_proportion)
         .fit(&train)
         .unwrap();
+    // println!("Done with Fit");
+    //   //Return highest ranking predictions
 
-    //Return highest ranking predictions
     let final_predictions_ensemble = model.predict(&test);
     println!("Final Predictions: \n{:?}", final_predictions_ensemble);
 

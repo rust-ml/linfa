@@ -1,13 +1,10 @@
-use std::{collections::HashMap, iter::zip};
-
+use super::AdaboostValidParams;
+use super::Tikz;
+use linfa::dataset::AsSingleTargets;
 use linfa::{dataset::Labels, error::Error, error::Result, traits::*, DatasetBase, Float, Label};
 use linfa_trees::DecisionTree;
-
-use super::AdaboostValidParams;
-use linfa::dataset::AsSingleTargets;
 use ndarray::{Array1, ArrayBase, Data, Ix2};
-#[cfg(feature = "serde")]
-use serde_crate::{Deserialize, Serialize};
+use std::{collections::HashMap, iter::zip};
 // adaboost will be a vector of stumps
 
 // stump will contain a decision tree and a weight associated with that stump
@@ -25,6 +22,10 @@ pub struct Stump<F: Float, L: Label> {
 }
 
 impl<F: Float, L: Label + std::fmt::Debug> Stump<F, L> {
+    pub fn tree(&self) -> &DecisionTree<F, L> {
+        &self.tree
+    }
+
     fn make_stump(tree: DecisionTree<F, L>, weight: f32) -> Self {
         Stump { tree, weight }
     }
@@ -81,6 +82,15 @@ impl<F: Float, L: Label + Default, D: Data<Elem = F>> PredictInplace<ArrayBase<D
 
     fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<L> {
         Array1::default(x.nrows())
+    }
+}
+
+impl<F: Float, L: Label> Adaboost<F, L> {
+    pub fn stumps(&self) -> &Vec<Stump<F, L>> {
+        &self.stumps
+    }
+    pub fn export_to_tikz(&self) -> Tikz<'_, F, L> {
+        Tikz::new(&self)
     }
 }
 
@@ -217,5 +227,31 @@ mod tests {
         assert_eq!(model.predict(&data), array![0, 0, 1]);
 
         Ok(())
+    }
+
+    #[test]
+    fn mnist_test() {
+        use ndarray_rand::rand::SeedableRng;
+        use rand::rngs::SmallRng;
+        // mnist
+        let mut rng = SmallRng::seed_from_u64(42);
+
+        let (train, test) = linfa_datasets::mnist();
+        train.shuffle(&mut rng);
+        test.shuffle(&mut rng);
+
+        println!("MNIST DATA: Training model with Adaboost ...");
+        let ada_model = Adaboost::<f64, usize>::params()
+            .n_estimators(2)
+            .d_tree_params(
+                DecisionTreeParams::new()
+                    .max_depth(Some(25))
+                    .min_weight_leaf(0.00001)
+                    .min_weight_split(0.00001),
+            )
+            .fit(&train)
+            .unwrap();
+
+        let _ada_pred_y = ada_model.predict(&test);
     }
 }

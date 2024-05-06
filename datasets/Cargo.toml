@@ -23,6 +23,7 @@ statrs = "0.16.0"
 default = []
 diabetes = []
 iris = []
+mnist = []
 winequality = []
 linnerud = []
 generate = ["ndarray-rand"]

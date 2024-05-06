@@ -7,9 +7,9 @@ use super::{
 use crate::traits::Fit;
 use ndarray::{concatenate, prelude::*, Data, DataMut, Dimension};
 use rand::{seq::SliceRandom, Rng};
+use rayon::prelude::*;
 use std::collections::HashMap;
 use std::ops::AddAssign;
-
 /// Implementation without constraints on records and targets
 ///
 /// This implementation block provides methods for the creation and mutation of datasets. This
@@ -425,10 +425,10 @@ where
     }
 }
 
-impl<'b, F: Clone, E: Copy + 'b, D, T> DatasetBase<ArrayBase<D, Ix2>, T>
+impl<'b, F: Clone + std::marker::Send, E: Copy + 'b, D, T> DatasetBase<ArrayBase<D, Ix2>, T>
 where
-    D: Data<Elem = F>,
-    T: FromTargetArrayOwned<Elem = E>,
+    D: Data<Elem = F> + std::marker::Sync,
+    T: FromTargetArrayOwned<Elem = E> + std::marker::Sync,
     T::Owned: AsTargets,
 {
     /// Apply bootstrapping for samples and features
@@ -503,6 +503,35 @@ where
 
             DatasetBase::new(records, targets)
         })
+    }
+
+    pub fn parallel_bootstrap_samples<R: Rng>(
+        &'b self,
+        num_samples: usize,
+        rng: &'b mut R,
+    ) -> impl ParallelIterator<Item = DatasetBase<Array2<F>, T::Owned>> + 'b
+    where
+        R: Rng + Send + 'b, // Ensure R is Send to be used in parallel
+        <T as FromTargetArrayOwned>::Owned: Send,
+    {
+        // let mut indices = Vec::with_capacity(num_samples);
+        // for _ in 0..num_samples {
+        //     indices.push(rng.gen_range(0..self.nsamples()));
+        // }
+        // println!("Num of indices: {}", indices.len());
+
+        // indices
+        //     .into_par_iter() // Convert to parallel iterator
+        //     .map(move |index| {
+        //         // Use map to parallelize the mapping operation
+        //         let records = self.records().select(Axis(0), &[index]);
+        //         let targets = T::new_targets(self.as_targets().select(Axis(0), &[index]));
+
+        //         DatasetBase::new(records, targets)
+        //     })
+        self.bootstrap_samples(num_samples, rng)
+            .par_bridge()
+            .into_par_iter()
     }
 
     /// Apply feature bootstrapping
@@ -660,11 +689,11 @@ macro_rules! assist_swap_array2 {
     };
 }
 
-impl<'a, F: 'a + Clone, E: Copy + 'a, D, S, I: TargetDim>
+impl<'a, F: 'a + Clone + std::marker::Send, E: Copy + 'a, D, S, I: TargetDim>
     DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, I>>
 where
-    D: DataMut<Elem = F>,
-    S: DataMut<Elem = E>,
+    D: DataMut<Elem = F> + Sync,
+    S: DataMut<Elem = E> + Sync,
 {
     /// Performs k-folding cross validation on fittable algorithms.
     ///
@@ -896,10 +925,11 @@ where
     }
 }
 
-impl<'a, F: 'a + Clone, E: Copy + 'a, D, S> DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, Ix1>>
+impl<'a, F: 'a + Clone + std::marker::Send, E: Copy + 'a, D, S>
+    DatasetBase<ArrayBase<D, Ix2>, ArrayBase<S, Ix1>>
 where
-    D: DataMut<Elem = F>,
-    S: DataMut<Elem = E>,
+    D: DataMut<Elem = F> + Sync,
+    S: DataMut<Elem = E> + Sync,
 {
     /// Specialized version of `cross_validate` for single-target datasets. Allows the evaluation
     /// closure to return a float without wrapping it in `arr0`. See [`Dataset.cross_validate`] for

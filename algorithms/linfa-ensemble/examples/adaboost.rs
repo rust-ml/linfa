@@ -1,5 +1,4 @@
-use std::fs::File;
-use std::io::Write;
+use std::{fs::File, io::Write};
 
 use linfa_trees::DecisionTreeParams;
 use ndarray_rand::rand::SeedableRng;
@@ -15,7 +14,8 @@ fn main() -> Result<()> {
         .shuffle(&mut rng)
         .split_with_ratio(0.8);
 
-    println!("Training model with Adaboost ...");
+    println!("IRIS DATA: Training model with Adaboost ...");
+
     let ada_model = Adaboost::<f64, usize>::params()
         .n_estimators(10)
         .d_tree_params(
@@ -32,9 +32,19 @@ fn main() -> Result<()> {
     println!("{:?}", cm);
 
     println!(
-        "Test accuracy with Adaboost : {:.2}%",
+        "IRIS DATA: Test accuracy with Adaboost : {:.2}%",
         100.0 * cm.accuracy()
     );
+
+    let mut tikz = File::create("adaboost_example.tex").unwrap();
+    tikz.write_all(
+        ada_model
+            .export_to_tikz()
+            .with_legend()
+            .to_string()
+            .as_bytes(),
+    )
+    .unwrap();
 
     Ok(())
 }
