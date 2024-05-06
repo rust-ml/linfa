@@ -2,7 +2,6 @@ use super::Tikz;
 use linfa::{dataset::Labels, error::Error, error::Result, traits::*, DatasetBase, Float, Label};
 use linfa_trees::DecisionTree;
 use std::{collections::HashMap, iter::zip};
-
 use super::AdaboostValidParams;
 use linfa::dataset::AsSingleTargets;
 use ndarray::{Array1, ArrayBase, Data, Ix2};
@@ -28,6 +27,7 @@ impl<F: Float, L: Label + std::fmt::Debug> Stump<F, L> {
     pub fn tree(&self) -> &DecisionTree<F, L> {
         &self.tree
     }
+
     fn make_stump(tree: DecisionTree<F, L>, weight: f32) -> Self {
         Stump { tree, weight }
     }

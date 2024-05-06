@@ -13,6 +13,7 @@ fn main() {
 
     //Load dataset
     let mut rng = SmallRng::seed_from_u64(42);
+
     let (train, test) = linfa_datasets::mnist();
 
     train.shuffle(&mut rng);
@@ -26,6 +27,7 @@ fn main() {
         .unwrap();
     // println!("Done with Fit");
     //   //Return highest ranking predictions
+
     let final_predictions_ensemble = model.predict(&test);
     println!("Final Predictions: \n{:?}", final_predictions_ensemble);
 

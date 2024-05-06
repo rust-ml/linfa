@@ -38,6 +38,13 @@ rayon = {version = "1.10.0"}
 rand = { version = "0.8", features = ["small_rng"] }
 linfa-datasets = { version = "0.7.0", path = "../../datasets/", features = ["iris"] }
 rayon = {version = "1.10.0"}
+approx = {version = "0.5"}
+
+[dev-dependencies]
+rand = { version = "0.8", features = ["small_rng"] }
+linfa-datasets = { version = "0.7.0", path = "../../datasets/", features = ["iris"] }
+ndarray = { version = "0.15" , features = ["rayon", "approx"]}
+approx = {version = "0.5"}
 
 [lib]
 # The name of the native library. This is the name which will be used in Python to import the

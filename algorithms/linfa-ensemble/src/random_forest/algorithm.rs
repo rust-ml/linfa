@@ -10,6 +10,8 @@ use rand::Rng;
 use rayon::prelude::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{cmp::Eq, collections::HashMap, hash::Hash};
+
+
 pub struct EnsembleLearner<M> {
     pub models: Vec<M>,
 }
@@ -120,6 +122,7 @@ where
 }
 
 impl<P, R: Rng + Clone + Send + Sync> EnsembleLearnerParams<P, R> {
+
     pub fn new_fixed_rng(model_params: P, rng: R) -> EnsembleLearnerParams<P, R> {
         Self(EnsembleLearnerValidParams {
             ensemble_size: 1,
@@ -166,6 +169,7 @@ impl<P, R> ParamGuard for EnsembleLearnerParams<P, R> {
     }
 }
 
+
 impl<D, T, P, R: Rng + Clone + Send + Sync> Fit<Array2<D>, T, Error>
     for EnsembleLearnerValidParams<P, R>
 where
@@ -175,6 +179,7 @@ where
     T::Owned: AsTargets + Send,
     P: Fit<Array2<D>, T::Owned, Error> + Sync + Send, // Ensure P is Send
     P::Object: Send,                                  // Ensure P::Object is Send
+
 {
     type Object = EnsembleLearner<P::Object>;
 
@@ -202,7 +207,7 @@ where
             })
             .collect();
 
-        println!("Done with fit: {}", models.len());
+        // println!("Done with fit: {}", models.len());
 
         Ok(EnsembleLearner { models })
     }

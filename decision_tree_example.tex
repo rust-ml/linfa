@@ -1,0 +1,53 @@
+
+\documentclass[margin=10pt]{standalone}
+\usepackage{tikz,forest}
+\usetikzlibrary{arrows.meta}
+\forestset{
+default preamble={
+before typesetting nodes={
+  !r.replace by={[, coordinate, append]}
+},  
+where n children=0{
+  tier=word,
+}{  
+  %diamond, aspect=2,
+},  
+where level=0{}{
+  if n=1{
+    edge label={node[pos=.2, above] {Y}},
+  }{  
+    edge label={node[pos=.2, above] {N}},
+  }   
+},  
+for tree={
+  edge+={thick, -Latex},
+  s sep'+=2cm,
+  draw,
+  thick,
+  edge path'={ (!u) -| (.parent)},
+  align=center,
+}   
+}
+}\begin{document}\begin{forest}[Val($2$) $ \leq 2.45$ \\ Imp. $0.33$
+	[Label: 0]
+	[Val($2$) $ \leq 4.85$ \\ Imp. $0.41$
+		[Val($3$) $ \leq 1.65$ \\ Imp. $0.02$
+			[Label: 1]
+			[Val($0$) $ \leq 5.95$ \\ Imp. $0.50$
+				[Label: 1]
+				[Label: 2]]]
+		[Val($3$) $ \leq 1.75$ \\ Imp. $0.06$
+			[Val($2$) $ \leq 5.05$ \\ Imp. $0.25$
+				[Val($1$) $ \leq 2.55$ \\ Imp. $0.12$
+					[Val($2$) $ \leq 4.95$ \\ Imp. $0.50$
+						[Label: 1]
+						[Label: 2]]
+					[Label: 1]]
+				[Label: 2]]
+			[Label: 2]]]]
+\node [anchor=north west] at (current bounding box.north east) {%
+                \begin{tabular}{c c c}
+                  \multicolumn{3}{@{}l@{}}{Legend:}\\
+                  Imp.&:&Impurity decrease\\Var(2)&:&feature-2\\Var(3)&:&feature-3\\Var(1)&:&feature-1\\Var(0)&:&feature-0\\\end{tabular}};
+	\end{forest}
+\end{document}

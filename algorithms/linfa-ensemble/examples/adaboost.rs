@@ -14,7 +14,9 @@ fn main() -> Result<()> {
         .shuffle(&mut rng)
         .split_with_ratio(0.8);
 
+
     println!("IRIS DATA: Training model with Adaboost ...");
+
     let ada_model = Adaboost::<f64, usize>::params()
         .n_estimators(10)
         .d_tree_params(
