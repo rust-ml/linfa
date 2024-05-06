@@ -33,10 +33,11 @@ ndarray = { version = "0.15" , features = ["rayon", "approx"]}
 ndarray-rand = "0.14"
 rand = { version = "0.8", features = ["small_rng"] }
 pyo3 = { version = "0.21.2", features = ["extension-module"] }
+rayon = {version = "1.10.0"}
 [dev-dependencies]
 rand = { version = "0.8", features = ["small_rng"] }
 linfa-datasets = { version = "0.7.0", path = "../../datasets/", features = ["iris"] }
-
+rayon = {version = "1.10.0"}
 
 [lib]
 # The name of the native library. This is the name which will be used in Python to import the

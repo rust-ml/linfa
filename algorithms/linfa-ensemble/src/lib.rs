@@ -5,7 +5,7 @@ pub use random_forest::*;
 
 pub use linfa::error::Result;
 
-use linfa_trees::DecisionTreeParams;
+use linfa_trees::{DecisionTree, DecisionTreeParams};
 use ndarray_rand::rand::SeedableRng;
 use pyo3::prelude::*;
 use rand::rngs::SmallRng;
@@ -13,7 +13,38 @@ use rand::rngs::SmallRng;
 use linfa::prelude::*;
 
 #[pyfunction]
-fn train_and_predict() -> PyResult<()> {
+fn train_and_predict_randomforest() -> PyResult<()> {
+    let ensemble_size = 100;
+    //Proportion of training data given to each model
+    let bootstrap_proportion = 0.7;
+
+    //Load dataset
+    let mut rng = SmallRng::seed_from_u64(42);
+    let (train, test) = linfa_datasets::iris()
+        .shuffle(&mut rng)
+        .split_with_ratio(0.7);
+
+    //Train ensemble learner model
+    let model = EnsembleLearnerParams::new(DecisionTree::<f64, usize>::params())
+        .ensemble_size(ensemble_size)
+        .bootstrap_proportion(bootstrap_proportion)
+        .fit(&train)
+        .unwrap();
+    // println!("Done with Fit");
+    //   //Return highest ranking predictions
+    let final_predictions_ensemble = model.predict(&test);
+    println!("Final Predictions: \n{:?}", final_predictions_ensemble);
+
+    let cm = final_predictions_ensemble.confusion_matrix(&test).unwrap();
+
+    println!("{:?}", cm);
+    println!("Test accuracy: {} \n with default Decision Tree params, \n Ensemble Size: {},\n Bootstrap Proportion: {}",
+  100.0 * cm.accuracy(), ensemble_size, bootstrap_proportion);
+    Ok(())
+}
+
+#[pyfunction]
+fn train_and_predict_adaboost() -> PyResult<()> {
     let mut rng = SmallRng::seed_from_u64(42);
 
     let (train, test) = linfa_datasets::iris()
@@ -40,16 +71,10 @@ fn train_and_predict() -> PyResult<()> {
     Ok(())
 }
 
-/// Formats the sum of two numbers as string.
-#[pyfunction]
-fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
-    Ok((a + b).to_string())
-}
-
 /// A Python module implemented in Rust.
 #[pymodule]
 fn linfa_ensemble(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
-    m.add_function(wrap_pyfunction!(train_and_predict, m)?)?;
+    m.add_function(wrap_pyfunction!(train_and_predict_randomforest, m)?)?;
+    m.add_function(wrap_pyfunction!(train_and_predict_adaboost, m)?)?;
     Ok(())
 }

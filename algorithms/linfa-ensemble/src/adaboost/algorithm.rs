@@ -238,9 +238,9 @@ mod tests {
         // mnist
         let mut rng = SmallRng::seed_from_u64(42);
 
-        let (train, test) = linfa_datasets::mnist()
-            .shuffle(&mut rng)
-            .split_with_ratio(0.8);
+        let (train, test) = linfa_datasets::mnist();
+        train.shuffle(&mut rng);
+        test.shuffle(&mut rng);
 
         println!("MNIST DATA: Training model with Adaboost ...");
         let ada_model = Adaboost::<f64, usize>::params()
@@ -254,6 +254,6 @@ mod tests {
             .fit(&train)
             .unwrap();
 
-        let ada_pred_y = ada_model.predict(&test);
+        let _ada_pred_y = ada_model.predict(&test);
     }
 }
