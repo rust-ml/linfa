@@ -111,12 +111,9 @@ where
         let weights = vec![sample_weight; dataset.records().nrows()];
 
         // updating the dataset to have the weights by creating a new dataset
-        let mut data = DatasetBase::new(
-            dataset.records.view().clone(),
-            dataset.targets.as_targets().clone(),
-        )
-        .with_feature_names(dataset.feature_names().clone())
-        .with_weights(Array1::from_vec(weights));
+        let mut data = DatasetBase::new(dataset.records.view(), dataset.targets.as_targets())
+            .with_feature_names(dataset.feature_names().clone())
+            .with_weights(Array1::from_vec(weights));
 
         // for lifetime purpose
         let binding = dataset.targets.as_targets();
@@ -177,12 +174,9 @@ where
             let normalized_weights = (updated_weights) / (updated_weights.sum());
 
             // update the weights in the dataset for new stump
-            data = DatasetBase::new(
-                dataset.records.view().clone(),
-                dataset.targets.as_targets().clone(),
-            )
-            .with_feature_names(dataset.feature_names().clone())
-            .with_weights(normalized_weights);
+            data = DatasetBase::new(dataset.records.view(), dataset.targets.as_targets())
+                .with_feature_names(dataset.feature_names().clone())
+                .with_weights(normalized_weights);
 
             // push the stump with it's weight
             stumps.push(Stump::make_stump(tree, alpha));

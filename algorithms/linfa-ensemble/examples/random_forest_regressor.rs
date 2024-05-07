@@ -46,8 +46,6 @@
 //     let mse = mean_squared_error(&test_targets, &predictions);
 //     println!("Mean Squared Error: {}", mse);
 
-
-
 //     println!("Generated graph");
 // }
 
@@ -59,13 +57,10 @@
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use approx::assert_relative_eq;
-    use linfa_datasets::{iris, diabetes};
+    use linfa_datasets::{diabetes, iris};
+    use linfa_ensemble::visualization;
     use linfa_ensemble::RandomForestRegressor;
     use ndarray::{Array1, Array2, Axis}; // For floating-point assertions
-    use linfa_ensemble::visualization;
-
 
     fn calculate_rmse(actual: &Array1<f64>, predicted: &Array1<f64>) -> f64 {
         let errors = actual - predicted;
@@ -96,7 +91,7 @@ mod tests {
 
     #[test]
     fn test_random_forest_with_diabetes() {
-         let (features, targets) = load_diabetes_data();
+        let (features, targets) = load_diabetes_data();
 
         // Split data into training and testing sets
         let split_ratio = 0.7; // Using 70% of the data for training
@@ -104,7 +99,7 @@ mod tests {
         let (train_features, test_features) = features.view().split_at(Axis(0), split_index);
         let (train_targets, test_targets) = targets.view().split_at(Axis(0), split_index);
 
-        let mut forest = RandomForestRegressor::new(100, 10, 5, 10);
+        let mut forest = RandomForestRegressor::new(100, 5, 10);
         // Convert views to owned arrays before passing to fit
         forest.fit(&train_features.to_owned(), &train_targets.to_owned());
         let train_predictions = forest.predict(&train_features.to_owned());
@@ -124,15 +119,15 @@ mod tests {
             &test_targets.to_owned(),
             &test_predictions,
             "diabetes_rf_scatter.png",
-        ).unwrap();
+        )
+        .unwrap();
     }
-
 
     #[test]
     fn test_random_forest_with_iris() {
         let (features, targets) = load_iris_data();
 
-        let mut forest = RandomForestRegressor::new(100, 10, 3, 10);
+        let mut forest = RandomForestRegressor::new(100, 3, 10);
         forest.fit(&features, &targets);
         let predictions = forest.predict(&features);
 
@@ -161,4 +156,8 @@ mod tests {
 
         println!("RMSE: {:?}", rmse);
     }
+}
+
+fn main() {
+    // Use tests
 }
