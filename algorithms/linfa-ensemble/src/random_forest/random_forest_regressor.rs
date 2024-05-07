@@ -158,16 +158,18 @@ pub struct RandomForestRegressor {
     trees: Vec<DecisionTreeRegressor>,
     num_trees: usize,
     max_depth: usize,
+    max_features: usize,
     min_samples_split: usize,
     rng: ThreadRng,
 }
 
 impl RandomForestRegressor {
-    pub fn new(num_trees: usize, max_depth: usize, min_samples_split: usize) -> Self {
+    pub fn new(num_trees: usize, max_features: usize,max_depth: usize, min_samples_split: usize) -> Self {
         let rng = rand::thread_rng();
         RandomForestRegressor {
             trees: Vec::with_capacity(num_trees),
             num_trees,
+            max_features,
             max_depth,
             min_samples_split,
             rng,
@@ -222,7 +224,6 @@ impl RandomForestRegressor {
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use linfa_datasets::iris;
     use ndarray::{Array1, Array2}; // For floating-point assertions
 
     #[test]
@@ -249,52 +250,4 @@ mod tests {
         mse.sqrt()
     }
 
-    fn load_iris_data() -> (Array2<f64>, Array1<f64>) {
-        // Load the dataset
-        let dataset = iris();
-
-        // Extract features; assuming all rows and all but the last column if last is target
-        let features = dataset.records().clone();
-
-        // Assuming the target are the labels, we need to convert them or use them as is depending on the use case.
-        // If you need to predict a feature, then split differently as shown in previous messages.
-        // Here we just clone the labels for the demonstration.
-        let targets = dataset.targets().mapv(|x| x as f64);
-
-        (features, targets)
-    }
-
-    #[test]
-    fn test_random_forest_with_iris() {
-        let (features, targets) = load_iris_data();
-
-        let mut forest = RandomForestRegressor::new(100, 10, 3);
-        forest.fit(&features, &targets);
-        let predictions = forest.predict(&features);
-
-        // Define a tolerance level
-        let tolerance = 0.1; // Tolerance level for correct classification
-        let mut correct = 0;
-        let mut incorrect = 0;
-
-        // Count correct and incorrect predictions
-        for (&actual, &predicted) in targets.iter().zip(predictions.iter()) {
-            if (predicted - actual).abs() < tolerance {
-                correct += 1;
-            } else {
-                incorrect += 1;
-            }
-        }
-
-        println!("Correct predictions: {}", correct);
-        println!("Incorrect predictions: {}", incorrect);
-
-        let rmse = (&predictions - &targets)
-            .mapv(|a| a.powi(2))
-            .mean()
-            .unwrap()
-            .sqrt();
-
-        println!("RMSE: {:?}", rmse);
-    }
 }

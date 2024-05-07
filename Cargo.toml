@@ -64,6 +64,7 @@ linfa-datasets = { path = "datasets", features = [
     "diabetes",
     "generate",
     "mnist",
+    "boston",
 ] }
 statrs = "0.16.0"
 

@@ -25,17 +25,21 @@ features = ["std", "derive"]
 [dependencies]
 linfa = { version = "0.7.0", path = "../.." }
 linfa-trees = { version = "0.7.0", path = "../linfa-trees"}
-linfa-datasets = { version = "0.7.0", path = "../../datasets/", features = ["iris", "mnist"] }
+serde = { version = "1.0", features = ["derive","std"] }
+linfa-datasets = { version = "0.7.0", path = "../../datasets/", features = ["iris", "mnist", "boston"] }
 ndarray = { version = "0.15" , features = ["rayon", "approx"]}
 ndarray-rand = "0.14"
 rand = { version = "0.8", features = ["small_rng"] }
 pyo3 = { version = "0.21.2", features = ["extension-module"] }
 rayon = {version = "1.10.0"}
 approx = {version = "0.5"}
+plotters = "0.3"
+ndarray-csv = "0.5"  # Check for the latest or required version on crates.io
+csv = "1.1" 
 
 [dev-dependencies]
 rand = { version = "0.8", features = ["small_rng"] }
-linfa-datasets = { version = "0.7.0", path = "../../datasets/", features = ["iris", "mnist"] }
+linfa-datasets = { version = "0.7.0", path = "../../datasets/", features = ["iris", "mnist", "boston"] }
 rayon = {version = "1.10.0"}
 approx = {version = "0.5"}
 
