@@ -26,7 +26,7 @@ features = ["std", "derive"]
 linfa = { version = "0.7.0", path = "../.." }
 linfa-trees = { version = "0.7.0", path = "../linfa-trees"}
 serde = { version = "1.0", features = ["derive","std"] }
-linfa-datasets = { version = "0.7.0", path = "../../datasets/", features = ["iris", "mnist", "boston"] }
+linfa-datasets = { version = "0.7.0", path = "../../datasets/", features = ["iris", "mnist", "boston", "diabetes"] }
 ndarray = { version = "0.15" , features = ["rayon", "approx"]}
 ndarray-rand = "0.14"
 rand = { version = "0.8", features = ["small_rng"] }
@@ -39,7 +39,7 @@ csv = "1.1"
 
 [dev-dependencies]
 rand = { version = "0.8", features = ["small_rng"] }
-linfa-datasets = { version = "0.7.0", path = "../../datasets/", features = ["iris", "mnist", "boston"] }
+linfa-datasets = { version = "0.7.0", path = "../../datasets/", features = ["iris", "mnist", "boston", "diabetes"] }
 rayon = {version = "1.10.0"}
 approx = {version = "0.5"}
 
