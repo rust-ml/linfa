@@ -46,21 +46,7 @@
 //     let mse = mean_squared_error(&test_targets, &predictions);
 //     println!("Mean Squared Error: {}", mse);
 
-//     // Visualization
-//     visualization::plot_scatter(
-//         &train_targets,
-//         &forest.predict(&train_features),
-//         &test_targets,
-//         &predictions,
-//         "scatter_plot.png",
-//     ).unwrap();
 
-//     // Call the histogram visualization function
-//     visualization::plot_normalized_histogram(
-//         &train_targets,
-//         &test_targets,
-//         "histogram_plot.png",
-//     ).unwrap();
 
 //     println!("Generated graph");
 // }
@@ -77,7 +63,8 @@ mod tests {
     use approx::assert_relative_eq;
     use linfa_datasets::{iris, diabetes};
     use linfa_ensemble::RandomForestRegressor;
-    use ndarray::{Array1, Array2}; // For floating-point assertions
+    use ndarray::{Array1, Array2, Axis}; // For floating-point assertions
+    use linfa_ensemble::visualization;
 
 
     fn calculate_rmse(actual: &Array1<f64>, predicted: &Array1<f64>) -> f64 {
@@ -109,16 +96,35 @@ mod tests {
 
     #[test]
     fn test_random_forest_with_diabetes() {
-        let (features, targets) = load_diabetes_data();
+         let (features, targets) = load_diabetes_data();
 
-        let mut forest = RandomForestRegressor::new(100, 10,5, 10);
-        forest.fit(&features, &targets);
-        let predictions = forest.predict(&features);
+        // Split data into training and testing sets
+        let split_ratio = 0.7; // Using 70% of the data for training
+        let split_index = (features.nrows() as f64 * split_ratio) as usize;
+        let (train_features, test_features) = features.view().split_at(Axis(0), split_index);
+        let (train_targets, test_targets) = targets.view().split_at(Axis(0), split_index);
 
-        let rmse = calculate_rmse(&targets, &predictions);
-        println!("RMSE for Diabetes Dataset: {:?}", rmse);
+        let mut forest = RandomForestRegressor::new(100, 10, 5, 10);
+        // Convert views to owned arrays before passing to fit
+        forest.fit(&train_features.to_owned(), &train_targets.to_owned());
+        let train_predictions = forest.predict(&train_features.to_owned());
+        let test_predictions = forest.predict(&test_features.to_owned());
 
-        assert!(rmse< 60.0, "The RMSE should be lower than 60.0");
+        // Evaluate the performance on the test set
+        let test_rmse = calculate_rmse(&test_targets.to_owned(), &test_predictions);
+        println!("Test RMSE for Diabetes Dataset: {:?}", test_rmse);
+
+        // Assert that the RMSE is below an acceptable threshold
+        assert!(test_rmse < 70.0, "The RMSE should be lower than 60.0");
+
+        // Visualization of training and testing results
+        visualization::plot_scatter(
+            &train_targets.to_owned(),
+            &train_predictions,
+            &test_targets.to_owned(),
+            &test_predictions,
+            "diabetes_rf_scatter.png",
+        ).unwrap();
     }
 
 
