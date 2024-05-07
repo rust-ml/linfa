@@ -3,9 +3,11 @@ mod random_forest;
 
 // mod random_forest_regressor;
 mod gradient_boost;
+pub mod visualization;
 
 pub use adaboost::*;
 pub use random_forest::*;
+pub use visualization::*;
 // pub use random_forest_regressor::*;
 pub use gradient_boost::*;
 
