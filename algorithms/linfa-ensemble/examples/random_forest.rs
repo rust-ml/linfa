@@ -14,10 +14,9 @@ fn main() {
     //Load dataset
     let mut rng = SmallRng::seed_from_u64(42);
 
-    let (train, test) = linfa_datasets::mnist();
-
-    train.shuffle(&mut rng);
-    test.shuffle(&mut rng);
+    let (train, test) = linfa_datasets::iris()
+        .shuffle(&mut rng)
+        .split_with_ratio(0.8);
 
     //Train ensemble learner model
     let model = EnsembleLearnerParams::new(DecisionTree::<f64, usize>::params())

@@ -1,9 +1,9 @@
-use ndarray::{Array1, Array2};
-
 use crate::random_forest::DecisionTreeRegressor;
+use ndarray::{Array1, Array2};
 
 /*
 Source of Algorithm implemented is taken from the blog:
+https://en.wikipedia.org/wiki/Gradient_boosting
 https://lewtun.github.io/hepml/lesson05_gradient-boosting-deep-dive/
 */
 
@@ -11,7 +11,6 @@ pub struct GBRegressor {
     trees: Vec<DecisionTreeRegressor>,
     num_trees: usize,
     learning_rate: f64,
-    max_features: usize, // Maximum number of features to consider for each split
     max_depth: usize,
     min_samples_split: usize,
     init_train_target_mean: f64,
@@ -21,7 +20,6 @@ impl GBRegressor {
     pub fn new(
         num_trees: usize,
         learning_rate: f64,
-        max_features: usize,
         max_depth: usize,
         min_samples_split: usize,
     ) -> Self {
@@ -29,7 +27,6 @@ impl GBRegressor {
             trees: Vec::new(),
             num_trees,
             learning_rate,
-            max_features,
             max_depth,
             min_samples_split,
             init_train_target_mean: 0.0,
@@ -95,7 +92,6 @@ impl GBRegressor {
         for prediction in predictions {
             final_predictions += &prediction;
         }
-        // final_predictions /= self.num_trees as f64;
         final_predictions
     }
 }
@@ -124,7 +120,7 @@ mod tests {
     fn test_gradient_boost_with_iris() {
         let (features, targets) = load_iris_data();
 
-        let mut gb_regressor = GBRegressor::new(50, 0.1, 4, 10, 3);
+        let mut gb_regressor = GBRegressor::new(50, 0.1, 10, 3);
         gb_regressor.fit(&features, &targets);
         let predictions = gb_regressor.predict(&features);
 

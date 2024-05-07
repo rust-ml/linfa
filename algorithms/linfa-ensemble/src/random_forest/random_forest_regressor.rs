@@ -1,9 +1,6 @@
-use linfa::prelude::*;
-use linfa_datasets::iris;
 use ndarray::{Array1, Array2, Axis};
 use rand::rngs::ThreadRng;
 use rand::seq::SliceRandom;
-use rand::Rng;
 
 pub struct DecisionTreeRegressor {
     max_depth: usize,
@@ -88,7 +85,10 @@ impl DecisionTreeRegressor {
                     let left_targets = targets.select(Axis(0), &left_idxs);
                     let right_targets = targets.select(Axis(0), &right_idxs);
                     let mse = Self::calculate_mse(&left_targets, &right_targets);
-                    println!("Feature: {}, Value: {}, MSE: {}", feature_idx, value, mse); // Debug statement
+                    println!(
+                        "Feature: {},\tValue: {},\tMSE: {:.2}",
+                        feature_idx, value, mse
+                    ); // Debug statement
                     if mse < best_mse {
                         best_mse = mse;
                         best_feature = feature_idx;
@@ -154,46 +154,20 @@ impl DecisionTreeRegressor {
         values.mean().unwrap_or(0.0)
     }
 }
-
-// impl DecisionTreeRegressor {
-//     pub fn predict(&self, features: &Array2<f64>) -> Array1<f64> {
-//         let mut predictions = Array1::<f64>::zeros(features.nrows());
-//         for (i, feature_row) in features.axis_iter(Axis(0)).enumerate() {
-//             let mut node = &self.tree;
-//             while let Some(ref n) = *node {
-//                 if feature_row[n.feature] <= n.value {
-//                     node = &n.left;
-//                 } else {
-//                     node = &n.right;
-//                 }
-//             }
-//             predictions[i] = if let Some(ref n) = *node { n.output } else { 0.0 };
-//         }
-//         predictions
-//     }
-// }
-
 pub struct RandomForestRegressor {
     trees: Vec<DecisionTreeRegressor>,
     num_trees: usize,
-    max_features: usize, // Maximum number of features to consider for each split
     max_depth: usize,
     min_samples_split: usize,
     rng: ThreadRng,
 }
 
 impl RandomForestRegressor {
-    pub fn new(
-        num_trees: usize,
-        max_features: usize,
-        max_depth: usize,
-        min_samples_split: usize,
-    ) -> Self {
+    pub fn new(num_trees: usize, max_depth: usize, min_samples_split: usize) -> Self {
         let rng = rand::thread_rng();
         RandomForestRegressor {
             trees: Vec::with_capacity(num_trees),
             num_trees,
-            max_features,
             max_depth,
             min_samples_split,
             rng,
@@ -248,7 +222,8 @@ impl RandomForestRegressor {
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::{array, Array1, Array2}; // For floating-point assertions
+    use linfa_datasets::iris;
+    use ndarray::{Array1, Array2}; // For floating-point assertions
 
     #[test]
     fn test_decision_tree_regressor() {
@@ -293,7 +268,7 @@ mod tests {
     fn test_random_forest_with_iris() {
         let (features, targets) = load_iris_data();
 
-        let mut forest = RandomForestRegressor::new(100, 4, 10, 3);
+        let mut forest = RandomForestRegressor::new(100, 10, 3);
         forest.fit(&features, &targets);
         let predictions = forest.predict(&features);
 

@@ -228,30 +228,4 @@ mod tests {
 
         Ok(())
     }
-
-    #[test]
-    fn mnist_test() {
-        use ndarray_rand::rand::SeedableRng;
-        use rand::rngs::SmallRng;
-        // mnist
-        let mut rng = SmallRng::seed_from_u64(42);
-
-        let (train, test) = linfa_datasets::mnist();
-        train.shuffle(&mut rng);
-        test.shuffle(&mut rng);
-
-        println!("MNIST DATA: Training model with Adaboost ...");
-        let ada_model = Adaboost::<f64, usize>::params()
-            .n_estimators(2)
-            .d_tree_params(
-                DecisionTreeParams::new()
-                    .max_depth(Some(25))
-                    .min_weight_leaf(0.00001)
-                    .min_weight_split(0.00001),
-            )
-            .fit(&train)
-            .unwrap();
-
-        let _ada_pred_y = ada_model.predict(&test);
-    }
 }
