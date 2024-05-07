@@ -74,7 +74,7 @@ impl GBRegressor {
         targets: &Array1<f64>,
     ) -> DecisionTreeRegressor {
         let mut tree = DecisionTreeRegressor::new(self.max_depth, self.min_samples_split);
-        tree.fit(&features, &targets);
+        tree.fit(features, targets);
         tree
     }
 

@@ -20,10 +20,26 @@ pub fn plot_scatter(
     let root = BitMapBackend::new(file_name, (800, 600)).into_drawing_area();
     root.fill(&WHITE)?;
 
-    let min_actual = actual_train.iter().chain(actual_test.iter()).copied().fold(f64::INFINITY, f64::min);
-    let max_actual = actual_train.iter().chain(actual_test.iter()).copied().fold(f64::NEG_INFINITY, f64::max);
-    let min_predicted = predicted_train.iter().chain(predicted_test.iter()).copied().fold(f64::INFINITY, f64::min);
-    let max_predicted = predicted_train.iter().chain(predicted_test.iter()).copied().fold(f64::NEG_INFINITY, f64::max);
+    let min_actual = actual_train
+        .iter()
+        .chain(actual_test.iter())
+        .copied()
+        .fold(f64::INFINITY, f64::min);
+    let max_actual = actual_train
+        .iter()
+        .chain(actual_test.iter())
+        .copied()
+        .fold(f64::NEG_INFINITY, f64::max);
+    let min_predicted = predicted_train
+        .iter()
+        .chain(predicted_test.iter())
+        .copied()
+        .fold(f64::INFINITY, f64::min);
+    let max_predicted = predicted_train
+        .iter()
+        .chain(predicted_test.iter())
+        .copied()
+        .fold(f64::NEG_INFINITY, f64::max);
 
     let mut chart = ChartBuilder::on(&root)
         .caption("Predicted vs Actual Values", ("sans-serif", 20).into_font())
@@ -34,21 +50,30 @@ pub fn plot_scatter(
 
     chart.configure_mesh().x_labels(10).y_labels(10).draw()?;
 
-    chart.draw_series(
-        actual_test.iter()
-            .zip(predicted_test.iter())
-            .map(|(actual, predicted)| Circle::new((*actual, *predicted), 2, RED.filled())),
-    )?.label("Predicted Data Points")
-     .legend(|(x, y)| Circle::new((x, y), 2, RED.filled()));
+    chart
+        .draw_series(
+            actual_test
+                .iter()
+                .zip(predicted_test.iter())
+                .map(|(actual, predicted)| Circle::new((*actual, *predicted), 2, RED.filled())),
+        )?
+        .label("Predicted Data Points")
+        .legend(|(x, y)| Circle::new((x, y), 2, RED.filled()));
 
-    chart.draw_series(
-        actual_train.iter()
-            .zip(predicted_train.iter())
-            .map(|(actual, predicted)| Circle::new((*actual, *predicted), 2, BLUE.filled())),
-    )?.label("Actual Data Points")
-     .legend(|(x, y)| Circle::new((x, y), 2, BLUE.filled()));
+    chart
+        .draw_series(
+            actual_train
+                .iter()
+                .zip(predicted_train.iter())
+                .map(|(actual, predicted)| Circle::new((*actual, *predicted), 2, BLUE.filled())),
+        )?
+        .label("Actual Data Points")
+        .legend(|(x, y)| Circle::new((x, y), 2, BLUE.filled()));
 
-    chart.configure_series_labels().background_style(WHITE).draw()?;
+    chart
+        .configure_series_labels()
+        .background_style(WHITE)
+        .draw()?;
 
     Ok(())
 }
@@ -67,14 +92,25 @@ pub fn plot_normalized_histogram(
     let root = BitMapBackend::new(file_name, (800, 600)).into_drawing_area();
     root.fill(&WHITE)?;
 
-    let min_value = *train_targets.iter().chain(test_targets.iter()).min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
-    let max_value = *train_targets.iter().chain(test_targets.iter()).max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+    let min_value = *train_targets
+        .iter()
+        .chain(test_targets.iter())
+        .min_by(|a, b| a.partial_cmp(b).unwrap())
+        .unwrap();
+    let max_value = *train_targets
+        .iter()
+        .chain(test_targets.iter())
+        .max_by(|a, b| a.partial_cmp(b).unwrap())
+        .unwrap();
 
     let num_bins = 20;
     let bin_width = (max_value - min_value) / num_bins as f64;
 
     let mut chart = ChartBuilder::on(&root)
-        .caption("Normalized Histogram of Target Values", ("sans-serif", 40).into_font())
+        .caption(
+            "Normalized Histogram of Target Values",
+            ("sans-serif", 40).into_font(),
+        )
         .margin(5)
         .x_label_area_size(50)
         .y_label_area_size(50)
@@ -90,7 +126,10 @@ pub fn plot_normalized_histogram(
         let x0 = min_value + i as f64 * bin_width;
         let x1 = x0 + bin_width;
         let y = *count as f64 / train_targets.len() as f64; // Normalized count
-        chart.draw_series(std::iter::once(Rectangle::new([(x0, 0.0), (x1, y)], RED.filled())))?;
+        chart.draw_series(std::iter::once(Rectangle::new(
+            [(x0, 0.0), (x1, y)],
+            RED.filled(),
+        )))?;
     }
 
     for (i, count) in test_bin_counts.iter().enumerate() {
@@ -98,12 +137,12 @@ pub fn plot_normalized_histogram(
         let x1 = x0 + bin_width;
         let y = *count as f64 / test_targets.len() as f64; // Normalized count
         chart.draw_series(std::iter::once(Rectangle::new(
-            [(x0, 0.0), (x1, y)], 
+            [(x0, 0.0), (x1, y)],
             ShapeStyle {
-                color: BLUE.mix(0.5).to_rgba(),  // Adjust color transparency
-                filled: true, 
-                stroke_width: 1
-            }
+                color: BLUE.mix(0.5).to_rgba(), // Adjust color transparency
+                filled: true,
+                stroke_width: 1,
+            },
         )))?;
     }
 
