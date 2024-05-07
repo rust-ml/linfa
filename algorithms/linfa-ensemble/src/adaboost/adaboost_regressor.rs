@@ -5,6 +5,7 @@ use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2};
 use rand::distributions::WeightedIndex;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
+use serde::{Serialize, Deserialize};
 
 /// The loss function used to update the weights.
 pub enum LossFunction {
@@ -12,9 +13,6 @@ pub enum LossFunction {
     Square,
     Exponential,
 }
-
-// use ndarray::{Array1, Array2, Axis/};
-use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DecisionTreeRegressor {
@@ -282,7 +280,6 @@ impl AdaBoostRegressor {
         let mut estimator = DecisionTreeRegressor::new(self.max_depth, self.min_samples_split);
 
         // Train the estimator using the provided datasets and associated weights.
-        // Assuming `fit` method of DecisionTreeRegressor can handle weighted training.
         estimator.fit(x, y, weights);
 
         // Return the trained estimator.

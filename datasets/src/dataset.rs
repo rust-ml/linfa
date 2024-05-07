@@ -187,11 +187,10 @@ mod tests {
     fn test_boston() {
         let ds = boston();
 
-        assert_eq!(ds.nsamples(), 506);  // Total samples in the dataset
-        assert_eq!(ds.nfeatures(), 13);  // Total number of features
-        assert_eq!(ds.ntargets(), 1);    // One target variable
+        assert_eq!(ds.nsamples(), 506); 
+        assert_eq!(ds.nfeatures(), 13); 
+        assert_eq!(ds.ntargets(), 1);    
 
-        // Optionally, verify the correct feature names are loaded
         let expected_feature_names = vec![
             "CRIM", "ZN", "INDUS", "CHAS", "NOX", "RM", "AGE", "DIS", "RAD", "TAX", "PTRATIO", "B", "LSTAT"
         ];
