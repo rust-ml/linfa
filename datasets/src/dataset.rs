@@ -73,6 +73,26 @@ pub fn mnist() -> (Dataset<f64, usize, Ix1>, Dataset<f64, usize, Ix1>) {
     (train, test)
 }
 
+#[cfg(feature = "boston")]
+/// Read in the Boston housing dataset from dataset path.
+pub fn boston() -> Dataset<f64, f64, Ix1> {
+    let data = include_bytes!("../data/BostonHousing.csv.gz");
+    let array = array_from_gz_csv(&data[..], true, b',').unwrap();
+
+    // Assuming that the last column is the target (e.g., median house value)
+    let (data, targets) = (
+        array.slice(s![.., ..-1]).to_owned(),  // All columns except the last
+        array.column(array.ncols() - 1).to_owned(),  // Last column as target
+    );
+
+    let feature_names = vec![
+        "CRIM", "ZN", "INDUS", "CHAS", "NOX", "RM", "AGE", "DIS", "RAD", "TAX", "PTRATIO", "B", "LSTAT"
+    ];
+
+    Dataset::new(data, targets)
+        .with_feature_names(feature_names)
+}
+
 #[cfg(feature = "diabetes")]
 /// Read in the diabetes dataset from dataset path
 pub fn diabetes() -> Dataset<f64, f64, Ix1> {
@@ -161,6 +181,22 @@ mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
     use linfa::prelude::*;
+
+    #[cfg(feature = "boston")]
+    #[test]
+    fn test_boston() {
+        let ds = boston();
+
+        assert_eq!(ds.nsamples(), 506);  // Total samples in the dataset
+        assert_eq!(ds.nfeatures(), 13);  // Total number of features
+        assert_eq!(ds.ntargets(), 1);    // One target variable
+
+        // Optionally, verify the correct feature names are loaded
+        let expected_feature_names = vec![
+            "CRIM", "ZN", "INDUS", "CHAS", "NOX", "RM", "AGE", "DIS", "RAD", "TAX", "PTRATIO", "B", "LSTAT"
+        ];
+        assert_eq!(ds.feature_names(), expected_feature_names);
+    }
 
     #[cfg(feature = "iris")]
     #[test]
