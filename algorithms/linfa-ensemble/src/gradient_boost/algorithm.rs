@@ -1,7 +1,5 @@
-use ndarray::{Array1, Array2};
-
 use crate::random_forest::DecisionTreeRegressor;
-
+use ndarray::{Array1, Array2};
 
 /*
 Source of Algorithm implemented is taken from the blog:
@@ -13,7 +11,6 @@ pub struct GBRegressor {
     trees: Vec<DecisionTreeRegressor>,
     num_trees: usize,
     learning_rate: f64,
-    max_features: usize, // Maximum number of features to consider for each split
     max_depth: usize,
     min_samples_split: usize,
     init_train_target_mean: f64,
@@ -23,7 +20,6 @@ impl GBRegressor {
     pub fn new(
         num_trees: usize,
         learning_rate: f64,
-        max_features: usize,
         max_depth: usize,
         min_samples_split: usize,
     ) -> Self {
@@ -31,7 +27,6 @@ impl GBRegressor {
             trees: Vec::new(),
             num_trees,
             learning_rate,
-            max_features,
             max_depth,
             min_samples_split,
             init_train_target_mean: 0.0,
@@ -39,7 +34,6 @@ impl GBRegressor {
     }
 
     pub fn fit(&mut self, features: &Array2<f64>, targets: &Array1<f64>) {
-
         self.init_train_target_mean = targets.mean().unwrap_or(0.0);
 
         let mut y_pred = vec![self.init_train_target_mean; targets.dim()];
@@ -85,7 +79,6 @@ impl GBRegressor {
     }
 
     pub fn predict(&self, features: &Array2<f64>) -> Array1<f64> {
-
         let mut predictions: Vec<Array1<f64>> = Vec::new();
         for tree in &self.trees {
             let prediction = tree.predict(features) * self.learning_rate;
@@ -99,11 +92,9 @@ impl GBRegressor {
         for prediction in predictions {
             final_predictions += &prediction;
         }
-        // final_predictions /= self.num_trees as f64;
         final_predictions
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -129,7 +120,7 @@ mod tests {
     fn test_gradient_boost_with_iris() {
         let (features, targets) = load_iris_data();
 
-        let mut gb_regressor = GBRegressor::new(50, 0.1, 4, 10, 3);
+        let mut gb_regressor = GBRegressor::new(50, 0.1, 10, 3);
         gb_regressor.fit(&features, &targets);
         let predictions = gb_regressor.predict(&features);
 

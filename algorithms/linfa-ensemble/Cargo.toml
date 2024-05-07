@@ -11,9 +11,6 @@ repository = "https://github.com/rust-ml/linfa"
 keywords = ["machine-learning", "linfa", "ensemble"]
 categories = ["algorithms", "mathematics", "science"]
 
-# "cdylib" is necessary to produce a shared library for Python to import from.
-crate-type = ["cdylib"]
-
 [features]
 default = []
 serde = ["serde_crate", "ndarray/serde"]
