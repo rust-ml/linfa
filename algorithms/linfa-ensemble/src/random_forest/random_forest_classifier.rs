@@ -116,7 +116,7 @@ where
     StdRng: Send + Sync,
 {
     pub fn new(model_params: P) -> EnsembleLearnerParams<P, StdRng> {
-        return Self::new_fixed_rng(model_params, <StdRng as rand::SeedableRng>::from_entropy());
+        Self::new_fixed_rng(model_params, <StdRng as rand::SeedableRng>::from_entropy())
     }
 }
 

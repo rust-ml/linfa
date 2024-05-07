@@ -1,3 +1,3 @@
 mod visualizer;
 
-pub use visualizer::*; 
+pub use visualizer::*;

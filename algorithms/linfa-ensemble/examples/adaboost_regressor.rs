@@ -63,6 +63,7 @@ pub fn test_adaboost_with_diabetes() {
 
     // Assert to check if RMSE is below a threshold
     assert!(rmse < 200.0, "The RMSE should be lower than 200.0, but it was {}", rmse);
+
 }
 
 

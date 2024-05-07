@@ -1,18 +1,10 @@
-
 use std::f64::INFINITY;
 
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2};
 use rand::distributions::WeightedIndex;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
-use serde::{Serialize, Deserialize};
-
-/// The loss function used to update the weights.
-pub enum LossFunction {
-    Linear,
-    Square,
-    Exponential,
-}
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DecisionTreeRegressor {
@@ -39,16 +31,26 @@ impl DecisionTreeRegressor {
         }
     }
 
-    pub fn fit<S>(&mut self, features: &ArrayBase<S, Ix2>, targets: &Array1<f64>, weights: &Array1<f64>)
-    where
-        S: ndarray::Data<Elem=f64>,
+    pub fn fit<S>(
+        &mut self,
+        features: &ArrayBase<S, Ix2>,
+        targets: &Array1<f64>,
+        weights: &Array1<f64>,
+    ) where
+        S: ndarray::Data<Elem = f64>,
     {
         self.tree = Some(self.build_tree(features, targets, weights, 0));
     }
 
-    fn build_tree<S>(&self, features: &ArrayBase<S, Ix2>, targets: &Array1<f64>, weights: &Array1<f64>, depth: usize) -> TreeNode
+    fn build_tree<S>(
+        &self,
+        features: &ArrayBase<S, Ix2>,
+        targets: &Array1<f64>,
+        weights: &Array1<f64>,
+        depth: usize,
+    ) -> TreeNode
     where
-        S: ndarray::Data<Elem=f64>,
+        S: ndarray::Data<Elem = f64>,
     {
         if depth >= self.max_depth || features.nrows() < self.min_samples_split {
             return TreeNode {
@@ -66,8 +68,18 @@ impl DecisionTreeRegressor {
         TreeNode {
             feature: best_feature,
             value: best_value,
-            left: Box::new(Some(self.build_tree(&features.select(Axis(0), &left_idxs), &targets.select(Axis(0), &left_idxs), &weights.select(Axis(0), &left_idxs), depth + 1))),
-            right: Box::new(Some(self.build_tree(&features.select(Axis(0), &right_idxs), &targets.select(Axis(0), &right_idxs), &weights.select(Axis(0), &right_idxs), depth + 1))),
+            left: Box::new(Some(self.build_tree(
+                &features.select(Axis(0), &left_idxs),
+                &targets.select(Axis(0), &left_idxs),
+                &weights.select(Axis(0), &left_idxs),
+                depth + 1,
+            ))),
+            right: Box::new(Some(self.build_tree(
+                &features.select(Axis(0), &right_idxs),
+                &targets.select(Axis(0), &right_idxs),
+                &weights.select(Axis(0), &right_idxs),
+                depth + 1,
+            ))),
             output: None,
         }
     }
@@ -78,9 +90,14 @@ impl DecisionTreeRegressor {
         weighted_sum / sum_weights
     }
 
-    fn best_split<S>(&self, features: &ArrayBase<S, Ix2>, targets: &Array1<f64>, weights: &Array1<f64>) -> (usize, f64)
+    fn best_split<S>(
+        &self,
+        features: &ArrayBase<S, Ix2>,
+        targets: &Array1<f64>,
+        weights: &Array1<f64>,
+    ) -> (usize, f64)
     where
-        S: Data<Elem=f64>,
+        S: Data<Elem = f64>,
     {
         let mut best_feature = 0;
         let mut best_value = 0.0;
@@ -98,16 +115,17 @@ impl DecisionTreeRegressor {
             // Evaluate each possible split point
             for window in unique_values.windows(2) {
                 let split_value = (window[0] + window[1]) / 2.0;
-                
-                let (left_idxs, right_idxs) = Self::split_dataset(features, feature_idx, split_value);
+
+                let (left_idxs, right_idxs) =
+                    Self::split_dataset(features, feature_idx, split_value);
 
                 let left_mse = Self::calculate_weighted_mse(
                     &targets.select(Axis(0), &left_idxs),
-                    &weights.select(Axis(0), &left_idxs)
+                    &weights.select(Axis(0), &left_idxs),
                 );
                 let right_mse = Self::calculate_weighted_mse(
                     &targets.select(Axis(0), &right_idxs),
-                    &weights.select(Axis(0), &right_idxs)
+                    &weights.select(Axis(0), &right_idxs),
                 );
 
                 let mse = left_mse + right_mse;
@@ -128,12 +146,17 @@ impl DecisionTreeRegressor {
             return INFINITY;
         }
         let mean = Self::weighted_mean(targets, weights);
-        targets.iter().zip(weights).map(|(&x, &w)| w * (x - mean).powi(2)).sum::<f64>() / weights.sum()
+        targets
+            .iter()
+            .zip(weights)
+            .map(|(&x, &w)| w * (x - mean).powi(2))
+            .sum::<f64>()
+            / weights.sum()
     }
 
     pub fn predict<S>(&self, features: &ArrayBase<S, Ix2>) -> Array1<f64>
     where
-        S: ndarray::Data<Elem=f64>,
+        S: ndarray::Data<Elem = f64>,
     {
         let mut predictions = Array1::<f64>::zeros(features.nrows());
         for (i, feature_row) in features.axis_iter(Axis(0)).enumerate() {
@@ -153,9 +176,13 @@ impl DecisionTreeRegressor {
         predictions
     }
 
-    fn split_dataset<S>(features: &ArrayBase<S, Ix2>, feature_idx: usize, value: f64) -> (Vec<usize>, Vec<usize>)
+    fn split_dataset<S>(
+        features: &ArrayBase<S, Ix2>,
+        feature_idx: usize,
+        value: f64,
+    ) -> (Vec<usize>, Vec<usize>)
     where
-        S: ndarray::Data<Elem=f64>,
+        S: ndarray::Data<Elem = f64>,
     {
         let mut left_idxs = Vec::new();
         let mut right_idxs = Vec::new();
@@ -185,7 +212,13 @@ pub struct AdaBoostRegressor {
 
 impl AdaBoostRegressor {
     /// Creates a new AdaBoost Regressor.
-    pub fn new(n_estimators: usize, learning_rate: f64, seed: u64, max_depth: usize, min_samples_split: usize) -> Self {
+    pub fn new(
+        n_estimators: usize,
+        learning_rate: f64,
+        seed: u64,
+        max_depth: usize,
+        min_samples_split: usize,
+    ) -> Self {
         AdaBoostRegressor {
             base_estimators: Vec::new(),
             estimator_weights: Vec::new(),
@@ -202,8 +235,10 @@ impl AdaBoostRegressor {
         let mut sample_weight = Array1::from_elem(y.len(), 1.0 / y.len() as f64);
 
         for iboost in 0..self.n_estimators {
-            let (sample_weight_updated, estimator_weight, error) = self.boost(iboost, x, y, &sample_weight);
-            if let (Some(sw), Some(ew), Some(_)) = (sample_weight_updated, estimator_weight, error) {
+            let (sample_weight_updated, estimator_weight, error) =
+                self.boost(iboost, x, y, &sample_weight);
+            if let (Some(sw), Some(ew), Some(_)) = (sample_weight_updated, estimator_weight, error)
+            {
                 self.base_estimators.push(self.train_estimator(x, y, &sw));
                 self.estimator_weights.push(ew);
                 sample_weight = sw;
@@ -214,7 +249,13 @@ impl AdaBoostRegressor {
     }
 
     /// A single boosting iteration.
-    fn boost(&mut self, _iboost: usize, x: &Array2<f64>, y: &Array1<f64>, sample_weight: &Array1<f64>) -> (Option<Array1<f64>>, Option<f64>, Option<f64>) {
+    fn boost(
+        &mut self,
+        _iboost: usize,
+        x: &Array2<f64>,
+        y: &Array1<f64>,
+        sample_weight: &Array1<f64>,
+    ) -> (Option<Array1<f64>>, Option<f64>, Option<f64>) {
         let sample_count = x.nrows();
         let rng = &mut self.rng;
 
@@ -224,7 +265,9 @@ impl AdaBoostRegressor {
             return (None, None, None); // Handle possible zero or negative weights gracefully
         }
         let weights_dist = weights_dist.unwrap();
-        let bootstrap_idx: Vec<usize> = (0..sample_count).map(|_| rng.sample(&weights_dist)).collect();
+        let bootstrap_idx: Vec<usize> = (0..sample_count)
+            .map(|_| rng.sample(&weights_dist))
+            .collect();
 
         // Prepare the bootstrapped sample
         let x_bootstrap = x.select(Axis(0), &bootstrap_idx);
@@ -232,7 +275,11 @@ impl AdaBoostRegressor {
 
         // Initialize and train the estimator on the bootstrapped sample
         let mut estimator = DecisionTreeRegressor::new(self.max_depth, self.min_samples_split);
-        estimator.fit(&x_bootstrap, &y_bootstrap, &sample_weight.select(Axis(0),&bootstrap_idx));
+        estimator.fit(
+            &x_bootstrap,
+            &y_bootstrap,
+            &sample_weight.select(Axis(0), &bootstrap_idx),
+        );
 
         // Obtain a prediction for all samples in the training set
         let y_predict = estimator.predict(x);
@@ -242,7 +289,8 @@ impl AdaBoostRegressor {
         let mut estimator_error: f64 = 0.0;
         let mut total_weight: f64 = 0.0;
         for (err, &weight) in error_vect.iter().zip(sample_weight.iter()) {
-            if *err != 0.0 {  // Only consider errors where predictions were incorrect
+            if *err != 0.0 {
+                // Only consider errors where predictions were incorrect
                 estimator_error += weight * err;
             }
             total_weight += weight;
@@ -260,7 +308,11 @@ impl AdaBoostRegressor {
         // Update sample weights; weights are increased for incorrectly predicted instances
         let mut new_sample_weight = sample_weight.clone();
         for (weight, &error) in new_sample_weight.iter_mut().zip(error_vect.iter()) {
-            let adjustment = if error > 0.0 { alpha.exp() } else { (-alpha).exp() };
+            let adjustment = if error > 0.0 {
+                alpha.exp()
+            } else {
+                (-alpha).exp()
+            };
             *weight *= adjustment;
         }
 
@@ -275,7 +327,12 @@ impl AdaBoostRegressor {
     }
 
     /// Train a base estimator on the bootstrapped dataset.
-    fn train_estimator(&self, x: &Array2<f64>, y: &Array1<f64>, weights: &Array1<f64>) -> DecisionTreeRegressor {
+    fn train_estimator(
+        &self,
+        x: &Array2<f64>,
+        y: &Array1<f64>,
+        weights: &Array1<f64>,
+    ) -> DecisionTreeRegressor {
         // Initialize a new DecisionTreeRegressor with the configured max_depth and min_samples_split.
         let mut estimator = DecisionTreeRegressor::new(self.max_depth, self.min_samples_split);
 
@@ -287,8 +344,12 @@ impl AdaBoostRegressor {
     }
     /// Predicts the regression value for given samples.
     pub fn predict(&self, x: &Array2<f64>) -> Array1<f64> {
-        let mut predictions = self.base_estimators.iter().map(|est| est.predict(x)).peekable();
-        
+        let mut predictions = self
+            .base_estimators
+            .iter()
+            .map(|est| est.predict(x))
+            .peekable();
+
         // Check if there are any predictions to sum
         if let Some(first_pred) = predictions.peek() {
             let mut total_predictions = Array1::<f64>::zeros(first_pred.dim());

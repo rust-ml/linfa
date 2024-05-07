@@ -1,15 +1,12 @@
 mod adaboost;
-mod random_forest;
-
-// mod random_forest_regressor;
 mod gradient_boost;
+mod random_forest;
 pub mod visualization;
 
-pub use adaboost::*;
-pub use random_forest::*;
+pub use adaboost::{AdaBoostRegressor, Adaboost, AdaboostParams};
+pub use gradient_boost::GBRegressor;
+pub use random_forest::{DecisionTreeRegressor, EnsembleLearnerParams, RandomForestRegressor};
 pub use visualization::*;
-// pub use random_forest_regressor::*;
-pub use gradient_boost::*;
 
 pub use linfa::error::Result;
 

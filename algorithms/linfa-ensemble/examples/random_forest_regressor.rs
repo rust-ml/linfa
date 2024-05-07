@@ -10,6 +10,7 @@ fn calculate_rmse(actual: &Array1<f64>, predicted: &Array1<f64>) -> f64 {
     mse.sqrt()
 }
 
+
 fn load_iris_data() -> (Array2<f64>, Array1<f64>) {
     // Load the dataset
     let dataset = iris();
@@ -68,6 +69,7 @@ fn test_random_forest_with_iris() {
     let mut forest = RandomForestRegressor::new(100, 10, 3, 10);
     forest.fit(&features, &targets);
     let predictions = forest.predict(&features);
+
 
     // Define a tolerance level
     let tolerance = 0.1; // Tolerance level for correct classification

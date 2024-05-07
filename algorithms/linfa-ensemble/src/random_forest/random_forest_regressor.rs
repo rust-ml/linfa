@@ -158,18 +158,16 @@ pub struct RandomForestRegressor {
     trees: Vec<DecisionTreeRegressor>,
     num_trees: usize,
     max_depth: usize,
-    max_features: usize,
     min_samples_split: usize,
     rng: ThreadRng,
 }
 
 impl RandomForestRegressor {
-    pub fn new(num_trees: usize, max_features: usize,max_depth: usize, min_samples_split: usize) -> Self {
+    pub fn new(num_trees: usize, max_depth: usize, min_samples_split: usize) -> Self {
         let rng = rand::thread_rng();
         RandomForestRegressor {
             trees: Vec::with_capacity(num_trees),
             num_trees,
-            max_features,
             max_depth,
             min_samples_split,
             rng,
@@ -249,5 +247,4 @@ mod tests {
         let mse = errors.mapv(|e| e.powi(2)).mean().unwrap();
         mse.sqrt()
     }
-
 }
