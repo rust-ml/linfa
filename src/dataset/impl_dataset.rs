@@ -514,21 +514,6 @@ where
         R: Rng + Send + 'b, // Ensure R is Send to be used in parallel
         <T as FromTargetArrayOwned>::Owned: Send,
     {
-        // let mut indices = Vec::with_capacity(num_samples);
-        // for _ in 0..num_samples {
-        //     indices.push(rng.gen_range(0..self.nsamples()));
-        // }
-        // println!("Num of indices: {}", indices.len());
-
-        // indices
-        //     .into_par_iter() // Convert to parallel iterator
-        //     .map(move |index| {
-        //         // Use map to parallelize the mapping operation
-        //         let records = self.records().select(Axis(0), &[index]);
-        //         let targets = T::new_targets(self.as_targets().select(Axis(0), &[index]));
-
-        //         DatasetBase::new(records, targets)
-        //     })
         self.bootstrap_samples(num_samples, rng)
             .par_bridge()
             .into_par_iter()

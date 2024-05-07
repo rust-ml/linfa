@@ -1,9 +1,16 @@
+/*
+This code was originally written by Prof. Weijie Zhao (wjzvcs@rit.edu)
+for course CSCI-739.
+
+I parallelized it using OpenMP and further included changes to get it
+callable from Rust program.
+*/
+
 #include <iostream>
 #include<stdio.h>
 #include<string.h>
 #include<random>
 #include<chrono>
-#include<iostream>
 #include<omp.h>
 
 #include "cpp_bindings/include/LogisticRegression.h"
@@ -130,26 +137,28 @@ double* pred, float tolerance){
 
 double LogisticRegression::train()
 {
-  
+  // file write handler for storing the parameters of trained model
   FILE* fout = fopen("params.out","w");
   
+  // Generate input weights to train
   auto start_ipgen = high_resolution_clock::now();
   double* X = generate_input<double>(x0,x1,A,B,C,M,(size_t)N * D);
   auto end_ipgen = high_resolution_clock::now();
   auto duration_ipgen = duration_cast<milliseconds>(end_ipgen - start_ipgen);
   std::cout << "LR Input Generation Duration:\t" << duration_ipgen.count() << " milliseconds" << endl;
 
-
+  // Normalize the data
   for(size_t i = 0;i < (size_t)N * D;++i)
     X[i] = X[i] * 1.0 / M;
 
+  // Generate the labels of input data
   auto start_labelgen = high_resolution_clock::now();
   int* Y = generate_label(X,N,D);
   auto end_labelgen = high_resolution_clock::now();
   auto duration_labelgen = duration_cast<milliseconds>(end_labelgen - start_labelgen);
-  std::cout << "LR Input Generation Duration:\t" << duration_labelgen.count() << " milliseconds" << endl;
+  std::cout << "LR Label Generation Duration:\t" << duration_labelgen.count() << " milliseconds" << endl;
 
-
+  // initialize the models parameters
   double* P = init_parameters(D);
   double tolerance = 0.6;
 
@@ -180,6 +189,5 @@ double LogisticRegression::train()
 
 double train() {
   auto lr = new LogisticRegression();
-
   return lr->train();
 }
