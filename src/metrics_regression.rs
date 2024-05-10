@@ -23,8 +23,8 @@ pub trait SingleTargetRegression<F: Float, T: AsSingleTargets<Elem = F>>:
         let max_error = self
             .as_single_targets()
             .sub(&compare_to.as_single_targets())
-            .mapv_into(|x| x.abs())
-            .into_iter()
+            .iter()
+            .map(|x| x.abs())
             .fold(F::neg_infinity(), F::max);
         Ok(max_error)
     }
