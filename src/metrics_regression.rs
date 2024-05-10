@@ -23,8 +23,8 @@ pub trait SingleTargetRegression<F: Float, T: AsSingleTargets<Elem = F>>:
         let max_error = self
             .as_single_targets()
             .sub(&compare_to.as_single_targets())
-            .iter()
-            .map(|x| x.abs())
+            .mapv_into(|x| x.abs())
+            .into_iter()
             .fold(F::neg_infinity(), F::max);
         Ok(max_error)
     }
@@ -32,7 +32,7 @@ pub trait SingleTargetRegression<F: Float, T: AsSingleTargets<Elem = F>>:
     fn mean_absolute_error(&self, compare_to: &T) -> Result<F> {
         self.as_single_targets()
             .sub(&compare_to.as_single_targets())
-            .mapv(|x| x.abs())
+            .mapv_into(|x| x.abs())
             .mean()
             .ok_or(Error::NotEnoughSamples)
     }
@@ -41,7 +41,7 @@ pub trait SingleTargetRegression<F: Float, T: AsSingleTargets<Elem = F>>:
     fn mean_squared_error(&self, compare_to: &T) -> Result<F> {
         self.as_single_targets()
             .sub(&compare_to.as_single_targets())
-            .mapv(|x| x * x)
+            .mapv_into(|x| x * x)
             .mean()
             .ok_or(Error::NotEnoughSamples)
     }
