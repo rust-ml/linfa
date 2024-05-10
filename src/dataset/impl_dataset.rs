@@ -603,13 +603,13 @@ where
     )> {
         let targets = self.as_targets();
         let fold_size = targets.len() / k;
-        let mut res = Vec::new();
 
         // Generates all k folds of records and targets
         let mut records_chunks: Vec<_> =
             self.records.axis_chunks_iter(Axis(0), fold_size).collect();
         let mut targets_chunks: Vec<_> = targets.axis_chunks_iter(Axis(0), fold_size).collect();
 
+        let mut res = Vec::with_capacity(k);
         // For each iteration, take the first chunk for both records and targets as the validation set and
         // concatenate all the other chunks to create the training set. In the end swap the first chunk with the
         // one in the next index so that it is ready for the next iteration
@@ -742,7 +742,7 @@ where
         let targets = self.ntargets();
         let tshape = self.targets.raw_dim();
 
-        let mut objs: Vec<O> = Vec::new();
+        let mut objs: Vec<O> = Vec::with_capacity(k);
 
         {
             let records_sl = self.records.as_slice_mut().unwrap();
