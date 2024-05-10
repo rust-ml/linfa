@@ -449,7 +449,7 @@ mod tests {
                 y.len(),
                 "The number of data points must match the number of output targets."
             );
-            *y = self.reg_vals.clone();
+            y.clone_from(&self.reg_vals);
         }
 
         fn default_target(&self, x: &Array2<f32>) -> Array1<f32> {
