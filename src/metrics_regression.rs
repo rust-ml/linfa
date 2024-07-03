@@ -32,7 +32,7 @@ pub trait SingleTargetRegression<F: Float, T: AsSingleTargets<Elem = F>>:
     fn mean_absolute_error(&self, compare_to: &T) -> Result<F> {
         self.as_single_targets()
             .sub(&compare_to.as_single_targets())
-            .mapv(|x| x.abs())
+            .mapv_into(|x| x.abs())
             .mean()
             .ok_or(Error::NotEnoughSamples)
     }
@@ -41,7 +41,7 @@ pub trait SingleTargetRegression<F: Float, T: AsSingleTargets<Elem = F>>:
     fn mean_squared_error(&self, compare_to: &T) -> Result<F> {
         self.as_single_targets()
             .sub(&compare_to.as_single_targets())
-            .mapv(|x| x * x)
+            .mapv_into(|x| x * x)
             .mean()
             .ok_or(Error::NotEnoughSamples)
     }
@@ -58,7 +58,7 @@ pub trait SingleTargetRegression<F: Float, T: AsSingleTargets<Elem = F>>:
         let mut abs_error = self
             .as_single_targets()
             .sub(&compare_to.as_single_targets())
-            .mapv(|x| x.abs())
+            .mapv_into(|x| x.abs())
             .to_vec();
         abs_error.sort_by(|a, b| a.partial_cmp(b).unwrap());
         let mid = abs_error.len() / 2;
@@ -74,8 +74,8 @@ pub trait SingleTargetRegression<F: Float, T: AsSingleTargets<Elem = F>>:
     fn mean_absolute_percentage_error(&self, compare_to: &T) -> Result<F> {
         self.as_single_targets()
             .sub(&compare_to.as_single_targets())
-            .div(&self.as_single_targets())
-            .mapv(|x| x.abs())
+            .div(self.as_single_targets())
+            .mapv_into(|x| x.abs())
             .mean()
             .ok_or(Error::NotEnoughSamples)
     }
@@ -95,7 +95,7 @@ pub trait SingleTargetRegression<F: Float, T: AsSingleTargets<Elem = F>>:
             - self
                 .as_single_targets()
                 .sub(&single_target_compare_to)
-                .mapv(|x| x * x)
+                .mapv_into(|x| x * x)
                 .sum()
                 / (single_target_compare_to
                     .mapv(|x| (x - mean) * (x - mean))
@@ -114,7 +114,7 @@ pub trait SingleTargetRegression<F: Float, T: AsSingleTargets<Elem = F>>:
         let mean_error = diff.mean().ok_or(Error::NotEnoughSamples)?;
 
         Ok(F::one()
-            - (diff.mapv(|x| x * x).sum() - mean_error)
+            - (diff.mapv_into(|x| x * x).sum() - mean_error)
                 / (single_target_compare_to
                     .mapv(|x| (x - mean) * (x - mean))
                     .sum()
