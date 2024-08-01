@@ -12,12 +12,12 @@ There are usage examples in the `examples/` directory.
 
 To run the two-class example, use:
 ```bash
-$ cargo run --example winequality
+$ cargo run --example winequality_logistic
 ```
 
 To run the multinomial example, use:
 ```bash
-$ cargo run --example winequality_multi
+$ cargo run --example winequality_multi_logistic
 ```
 
 ## License
