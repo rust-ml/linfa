@@ -82,7 +82,7 @@ impl<F: Float, D: Distance<F>, N: NearestNeighbour> ParamGuard for DbscanParams<
 impl<F: Float, D: Distance<F>, N: NearestNeighbour> TransformGuard for DbscanParams<F, D, N> {}
 
 impl<F: Float, D: Distance<F>, N: NearestNeighbour> DbscanValidParams<F, D, N> {
-    /// Nearest neighbour algorithm used for range queries
+    /// Maximum distance between two points to be considered neighbors
     pub fn tolerance(&self) -> F {
         self.tolerance
     }
