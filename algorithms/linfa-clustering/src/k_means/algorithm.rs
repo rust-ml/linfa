@@ -41,7 +41,7 @@ use serde_crate::{Deserialize, Serialize};
 /// K-means is an iterative algorithm: it progressively refines the choice of centroids.
 ///
 /// It's guaranteed to converge, even though it might not find the optimal set of centroids
-/// (unfortunately it can get stuck in a local minimum, finding the optimal minimum if NP-hard!).
+/// (unfortunately it can get stuck in a local minimum, finding the optimal minimum is NP-hard!).
 ///
 /// There are three steps in the standard algorithm:
 /// - initialisation step: select initial centroids using one of our provided algorithms.
