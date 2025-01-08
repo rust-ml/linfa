@@ -65,9 +65,9 @@ impl<F: Float> ParamGuard for HierarchicalCluster<F> {
 
     fn check_ref(&self) -> std::result::Result<&Self::Checked, Self::Error> {
         match self.0.stopping {
-            Criterion::NumClusters(x) if x == 0 => Err(
-                HierarchicalError::InvalidStoppingCondition(self.0.stopping.clone()),
-            ),
+            Criterion::NumClusters(0) => Err(HierarchicalError::InvalidStoppingCondition(
+                self.0.stopping.clone(),
+            )),
             Criterion::Distance(x) if x.is_negative() || x.is_nan() || x.is_infinite() => Err(
                 HierarchicalError::InvalidStoppingCondition(self.0.stopping.clone()),
             ),
