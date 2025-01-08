@@ -102,7 +102,7 @@ impl<F: Float> Inner for CsMat<F> {
     }
 }
 
-impl<'a, F: Float> Inner for CsMatView<'a, F> {
+impl<F: Float> Inner for CsMatView<'_, F> {
     type Elem = F;
 
     fn dot(&self, rhs: &ArrayView2<F>) -> Array2<F> {
