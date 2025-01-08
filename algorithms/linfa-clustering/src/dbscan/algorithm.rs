@@ -38,10 +38,8 @@ use linfa::{traits::Transformer, DatasetBase};
 /// The algorithm iterates over each point in the dataset and for every point
 /// not yet assigned to a cluster:
 /// - Find all points within the neighborhood of size `tolerance`
-/// - If the number of points in the neighborhood is below a minimum size label
-/// as noise
-/// - Otherwise label the point with the cluster ID and repeat with each of the
-/// neighbours
+/// - If the number of points in the neighborhood is below a minimum size label as noise
+/// - Otherwise label the point with the cluster ID and repeat with each of the neighbours
 ///
 /// ## Tutorial
 ///
