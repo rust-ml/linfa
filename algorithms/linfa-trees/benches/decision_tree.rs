@@ -22,7 +22,7 @@ fn decision_tree_bench(c: &mut Criterion) {
     let mut rng = SmallRng::seed_from_u64(42);
 
     // Controls how many samples for each class are generated
-    let training_set_sizes = vec![100, 1000, 10000, 100000];
+    let training_set_sizes = &[100, 1000, 10000, 100000];
 
     let n_classes = 4;
     let n_features = 4;
@@ -40,8 +40,7 @@ fn decision_tree_bench(c: &mut Criterion) {
 
         let train_x = generate_blobs(&centroids, *n, &mut rng);
         let train_y: Array1<usize> = (0..n_classes)
-            .map(|x| std::iter::repeat(x).take(*n).collect::<Vec<usize>>())
-            .flatten()
+            .flat_map(|x| std::iter::repeat(x).take(*n).collect::<Vec<usize>>())
             .collect::<Array1<usize>>();
         let dataset = DatasetBase::new(train_x, train_y);
 
