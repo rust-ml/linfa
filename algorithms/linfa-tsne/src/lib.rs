@@ -31,18 +31,18 @@ impl<F: Float, R: Rng + Clone> Transformer<Array2<F>, Result<Array2<F>>> for TSn
             None => usize::min(self.max_iter() / 2, 250),
         };
 
-        let mut data = data.as_slice_mut().unwrap();
+        let data = data.as_slice_mut().unwrap();
 
         let mut rng = self.rng().clone();
         let normal = Normal::new(0.0, 1e-4 * 10e-4).unwrap();
 
         let mut embedding: Vec<F> = (0..nsamples * self.embedding_size())
-            .map(|_| rng.sample(&normal))
+            .map(|_| rng.sample(normal))
             .map(F::cast)
             .collect();
 
         bhtsne::run(
-            &mut data,
+            data,
             nsamples,
             nfeatures,
             &mut embedding,
