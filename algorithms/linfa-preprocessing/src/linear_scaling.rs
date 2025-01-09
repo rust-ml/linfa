@@ -22,8 +22,7 @@ use serde_crate::{Deserialize, Serialize};
 /// Possible scaling methods for [LinearScaler]
 ///
 /// * Standard (with mean, with std): subtracts the mean to each feature and scales it by the inverse of its standard deviation
-/// * MinMax (min, max): scales each feature to fit in the range `min..=max`, default values are
-/// `0..=1`
+/// * MinMax (min, max): scales each feature to fit in the range `min..=max`, default values are `0..=1`
 /// * MaxAbs: scales each feature by the inverse of its maximum absolute value, so that it fits the range `-1..=1`
 pub enum ScalingMethod<F: Float> {
     Standard(bool, bool),

@@ -49,7 +49,7 @@ impl SerdeRegex {
 /// they will still be used by the [CountVectorizer](crate::CountVectorizer) to transform any text to be examined.
 ///
 /// * `split_regex`: the regex espression used to split decuments into tokens. Defaults to r"\\b\\w\\w+\\b", which selects "words", using whitespaces and
-/// punctuation symbols as separators.
+///     punctuation symbols as separators.
 /// * `convert_to_lowercase`: if true, all documents used for fitting will be converted to lowercase. Defaults to `true`.
 /// * `n_gram_range`: if set to `(1,1)` single tokens will be candidate vocabulary entries, if `(2,2)` then adjacent token pairs will be considered,
 ///    if `(1,2)` then both single tokens and adjacent token pairs will be considered, and so on. The definition of token depends on the

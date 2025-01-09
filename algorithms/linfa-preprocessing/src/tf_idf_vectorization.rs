@@ -334,7 +334,7 @@ mod tests {
             "./tf_idf_vectorization_test_file_4",
             "./tf_idf_vectorization_test_file_5",
         ];
-        let contents = vec![
+        let contents = &[
             "one and two and three",
             "three and four and five",
             "seven and eight",
