@@ -67,6 +67,7 @@ pub trait NearestNeighbour: std::fmt::Debug + Send + Sync + Unpin {
     ///
     /// Returns an error if the points have dimensionality of 0 or if the leaf size is 0. If any
     /// value in the batch is NaN or infinite, the behaviour is unspecified.
+    #[allow(clippy::wrong_self_convention)]
     fn from_batch_with_leaf_size<'a, F: Float, DT: Data<Elem = F>, D: 'a + Distance<F>>(
         &self,
         batch: &'a ArrayBase<DT, Ix2>,
@@ -76,6 +77,7 @@ pub trait NearestNeighbour: std::fmt::Debug + Send + Sync + Unpin {
 
     /// Builds a spatial index using a default leaf size. See `from_batch_with_leaf_size` for more
     /// information.
+    #[allow(clippy::wrong_self_convention)]
     fn from_batch<'a, F: Float, DT: Data<Elem = F>, D: 'a + Distance<F>>(
         &self,
         batch: &'a ArrayBase<DT, Ix2>,
@@ -96,11 +98,7 @@ pub trait NearestNeighbourIndex<F: Float>: Send + Sync + Unpin {
     ///
     /// Returns an error if the provided point has different dimensionality than the index's
     /// points.
-    fn k_nearest<'b>(
-        &self,
-        point: Point<'b, F>,
-        k: usize,
-    ) -> Result<Vec<(Point<F>, usize)>, NnError>;
+    fn k_nearest(&self, point: Point<'_, F>, k: usize) -> Result<Vec<(Point<F>, usize)>, NnError>;
 
     /// Returns all the points in the index that are within the specified distance to the provided
     /// point, along with their positions in the original dataset. The points are not guaranteed to
@@ -108,9 +106,9 @@ pub trait NearestNeighbourIndex<F: Float>: Send + Sync + Unpin {
     ///
     /// Returns an error if the provided point has different dimensionality than the index's
     /// points.
-    fn within_range<'b>(
+    fn within_range(
         &self,
-        point: Point<'b, F>,
+        point: Point<'_, F>,
         range: F,
     ) -> Result<Vec<(Point<F>, usize)>, NnError>;
 }
