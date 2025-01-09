@@ -46,7 +46,7 @@ jobs:
         run: echo "::set-output name=version::$(cargo --version | cut -d ' ' -f 2)"
         shell: bash
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         id: tarpaulin-cache
         with:
           path: |
@@ -61,6 +61,8 @@ jobs:
         run: |
           cargo tarpaulin --verbose --timeout 120 --out Xml --all --release
       - name: Upload to codecov.io
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
+          verbose: true
