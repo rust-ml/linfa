@@ -179,7 +179,7 @@ macro_rules! impl_predict {
         /// This function takes a number of features and predicts target probabilities that they belong to
         /// the positive class.
         impl<D: Data<Elem = $t>> PredictInplace<ArrayBase<D, Ix2>, Array1<$t>> for Svm<$t, $t> {
-            fn predict_inplace<'a>(&'a self, data: &ArrayBase<D, Ix2>, targets: &mut Array1<$t>) {
+            fn predict_inplace(&'_ self, data: &ArrayBase<D, Ix2>, targets: &mut Array1<$t>) {
                 assert_eq!(data.nrows(), targets.len(), "The number of data points must match the number of output targets.");
 
                 for (data, target) in data.outer_iter().zip(targets.iter_mut()) {
