@@ -10,7 +10,7 @@ jobs:
     strategy:
       matrix:
         toolchain:
-          - 1.70.0
+          - 1.71.0
           - stable
 
     steps:
