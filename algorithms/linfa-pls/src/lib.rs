@@ -123,7 +123,7 @@ macro_rules! pls_algo { ($name:ident) => {
             /// Given an input matrix `X`, with shape `(n_samples, n_features)`,
             /// `predict` returns the target variable according to [<Pls $name>] method
             /// learned from the training data distribution.
-            fn predict_inplace<'a>(&'a self, x: &ArrayBase<D, Ix2>, y: &mut Array2<F>) {
+            fn predict_inplace(&'_ self, x: &ArrayBase<D, Ix2>, y: &mut Array2<F>) {
                 self.0.predict_inplace(x, y);
             }
 
