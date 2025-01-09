@@ -10,7 +10,7 @@ jobs:
       fail-fast: false
       matrix:
         toolchain:
-          - 1.71.0
+          - 1.71.1
           - stable
           - nightly
         os:
