@@ -35,8 +35,7 @@ pub use hyperparams::{
 ///
 /// See also:
 /// * [Talk on Fast Regularization Paths](https://web.stanford.edu/~hastie/TALKS/glmnet.pdf)
-/// * [Regularization Paths for Generalized Linear Models via Coordinate Descent]
-///     (http://www.jstatsoft.org/v33/i01/paper)
+/// * [Regularization Paths for Generalized Linear Models via Coordinate Descent](http://www.jstatsoft.org/v33/i01/paper)
 #[derive(Debug, Clone)]
 pub struct ElasticNet<F> {
     hyperplane: Array1<F>,
