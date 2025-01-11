@@ -208,7 +208,7 @@ where
     ///     println!("{} => {}", x, y);
     /// }
     /// ```
-    pub fn sample_iter(&'a self) -> Iter<'a, '_, F, T::Elem, T::Ix> {
+    pub fn sample_iter(&'a self) -> Iter<'a, 'a, F, T::Elem, T::Ix> {
         Iter::new(self.records.view(), self.targets.as_targets())
     }
 }
@@ -232,7 +232,7 @@ where
     ///
     /// This iterator produces dataset views with only a single feature, while the set of targets remain
     /// complete. It can be useful to compare each feature individual to all targets.
-    pub fn feature_iter(&'a self) -> DatasetIter<'a, '_, ArrayBase<D, Ix2>, T> {
+    pub fn feature_iter(&'a self) -> DatasetIter<'a, 'a, ArrayBase<D, Ix2>, T> {
         DatasetIter::new(self, true)
     }
 
@@ -241,7 +241,7 @@ where
     /// This functions creates an iterator which produces dataset views complete records, but only
     /// a single target each. Useful to train multiple single target models for a multi-target
     /// dataset.
-    pub fn target_iter(&'a self) -> DatasetIter<'a, '_, ArrayBase<D, Ix2>, T> {
+    pub fn target_iter(&'a self) -> DatasetIter<'a, 'a, ArrayBase<D, Ix2>, T> {
         DatasetIter::new(self, false)
     }
 }
@@ -318,7 +318,7 @@ impl<L: Label, T: Labels<Elem = L>, R: Records> Labels for DatasetBase<R, T> {
 }
 
 #[allow(clippy::type_complexity)]
-impl<'a, 'b: 'a, F, L: Label, T, D> DatasetBase<ArrayBase<D, Ix2>, T>
+impl<F, L: Label, T, D> DatasetBase<ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
     T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
@@ -680,8 +680,8 @@ where
     /// - `k`: the number of folds to apply to the dataset
     /// - `params`: the desired parameters for the fittable algorithm at hand
     /// - `fit_closure`: a closure of the type `(params, training_data) -> fitted_model`
-    /// that will be used to produce the trained model for each fold. The training data given in input
-    /// won't outlive the closure.
+    ///   that will be used to produce the trained model for each fold. The training data given in
+    ///   input won't outlive the closure.
     ///
     /// ## Returns
     ///
@@ -732,7 +732,7 @@ where
         &'a mut self,
         k: usize,
         fit_closure: C,
-    ) -> impl Iterator<Item = (O, DatasetBase<ArrayView2<F>, ArrayView<E, I>>)> {
+    ) -> impl Iterator<Item = (O, DatasetBase<ArrayView2<'a, F>, ArrayView<'a, E, I>>)> {
         assert!(k > 0);
         assert!(k <= self.nsamples());
         let samples_count = self.nsamples();
@@ -794,9 +794,9 @@ where
     /// - `k`: the number of folds to apply
     /// - `parameters`: a list of models to compare
     /// - `eval`: closure used to evaluate the performance of each trained model. This closure is
-    /// called on the model output and validation targets of each fold and outputs the performance
-    /// score for each target. For single-target dataset the signature is `(Array1, Array1) ->
-    /// Array0`. For multi-target dataset the signature is `(Array2, Array2) -> Array1`.
+    ///   called on the model output and validation targets of each fold and outputs the performance
+    ///   score for each target. For single-target dataset the signature is `(Array1, Array1) ->
+    ///   Array0`. For multi-target dataset the signature is `(Array2, Array2) -> Array1`.
     ///
     /// ### Returns
     ///

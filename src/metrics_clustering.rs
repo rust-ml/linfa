@@ -63,9 +63,8 @@ impl<F: Float> DistanceCount<F> {
 }
 
 impl<
-        'a,
         F: Float,
-        L: 'a + Label,
+        L: Label,
         D: Data<Elem = F>,
         T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
     > SilhouetteScore<F> for DatasetBase<ArrayBase<D, Ix2>, T>
