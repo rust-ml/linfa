@@ -61,19 +61,7 @@ impl<F: Float> Inner for CsMat<F> {
     type Elem = F;
 
     fn dot(&self, rhs: &ArrayView2<F>) -> Array2<F> {
-        let mut result = Array2::zeros((self.rows(), rhs.ncols()));
-
-        // Handle potential sparse matrices
-        for j in 0..rhs.ncols() {
-            let col = rhs.column(j);
-            let col_result = self.mul(&col.to_owned());
-            // Copy result into appropriate column of output
-            for i in 0..self.rows() {
-                result[[i, j]] = col_result[i];
-            }
-        }
-
-        result
+        self.mul(rhs)
     }
     fn sum(&self) -> Array1<F> {
         let mut sum = Array1::zeros(self.cols());
@@ -118,19 +106,7 @@ impl<'a, F: Float> Inner for CsMatView<'a, F> {
     type Elem = F;
 
     fn dot(&self, rhs: &ArrayView2<F>) -> Array2<F> {
-        let mut result = Array2::zeros((self.rows(), rhs.ncols()));
-
-        // Handle potential sparse matrices
-        for j in 0..rhs.ncols() {
-            let col = rhs.column(j);
-            let col_result = self.mul(&col.to_owned());
-            // Copy result into appropriate column of output
-            for i in 0..self.rows() {
-                result[[i, j]] = col_result[i];
-            }
-        }
-
-        result
+        self.mul(rhs)
     }
     fn sum(&self) -> Array1<F> {
         let mut sum = Array1::zeros(self.cols());
