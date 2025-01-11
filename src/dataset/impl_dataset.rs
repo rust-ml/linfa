@@ -318,7 +318,7 @@ impl<L: Label, T: Labels<Elem = L>, R: Records> Labels for DatasetBase<R, T> {
 }
 
 #[allow(clippy::type_complexity)]
-impl<'a, 'b: 'a, F, L: Label, T, D> DatasetBase<ArrayBase<D, Ix2>, T>
+impl<F, L: Label, T, D> DatasetBase<ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
     T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
