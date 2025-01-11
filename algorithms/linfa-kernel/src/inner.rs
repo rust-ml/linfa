@@ -61,7 +61,7 @@ impl<F: Float> Inner for CsMat<F> {
     type Elem = F;
 
     fn dot(&self, rhs: &ArrayView2<F>) -> Array2<F> {
-        self.mul(rhs)
+        self.mul(&rhs.to_owned())
     }
     fn sum(&self) -> Array1<F> {
         let mut sum = Array1::zeros(self.cols());
@@ -106,7 +106,7 @@ impl<'a, F: Float> Inner for CsMatView<'a, F> {
     type Elem = F;
 
     fn dot(&self, rhs: &ArrayView2<F>) -> Array2<F> {
-        self.mul(rhs)
+        self.mul(&rhs.to_owned())
     }
     fn sum(&self) -> Array1<F> {
         let mut sum = Array1::zeros(self.cols());
