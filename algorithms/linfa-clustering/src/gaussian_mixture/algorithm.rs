@@ -1,4 +1,4 @@
-use crate::gaussian_mixture::errors::{GmmError, Result};
+use crate::gaussian_mixture::errors::GmmError;
 use crate::gaussian_mixture::hyperparams::{
     GmmCovarType, GmmInitMethod, GmmParams, GmmValidParams,
 };
@@ -126,7 +126,7 @@ impl<F: Float> GaussianMixtureModel<F> {
         hyperparameters: &GmmValidParams<F, R>,
         dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
         mut rng: R,
-    ) -> Result<GaussianMixtureModel<F>> {
+    ) -> Result<GaussianMixtureModel<F>, GmmError> {
         let observations = dataset.records().view();
         let n_samples = observations.nrows();
 
@@ -216,7 +216,7 @@ impl<F: Float> GaussianMixtureModel<F> {
         resp: &Array2<F>,
         _covar_type: &GmmCovarType,
         reg_covar: F,
-    ) -> Result<(Array1<F>, Array2<F>, Array3<F>)> {
+    ) -> Result<(Array1<F>, Array2<F>, Array3<F>), GmmError> {
         let nk = resp.sum_axis(Axis(0));
         if nk.min()? < &(F::cast(10.) * F::epsilon()) {
             return Err(GmmError::EmptyCluster(format!(
@@ -255,7 +255,7 @@ impl<F: Float> GaussianMixtureModel<F> {
 
     fn compute_precisions_cholesky_full<D: Data<Elem = F>>(
         covariances: &ArrayBase<D, Ix3>,
-    ) -> Result<Array3<F>> {
+    ) -> Result<Array3<F>, GmmError> {
         let n_clusters = covariances.shape()[0];
         let n_features = covariances.shape()[1];
         let mut precisions_chol = Array::zeros((n_clusters, n_features, n_features));
@@ -290,7 +290,7 @@ impl<F: Float> GaussianMixtureModel<F> {
     fn e_step<D: Data<Elem = F>>(
         &self,
         observations: &ArrayBase<D, Ix2>,
-    ) -> Result<(F, Array2<F>)> {
+    ) -> Result<(F, Array2<F>), GmmError> {
         let (log_prob_norm, log_resp) = self.estimate_log_prob_resp(observations);
         let log_mean = log_prob_norm.mean().unwrap();
         Ok((log_mean, log_resp))
@@ -301,7 +301,7 @@ impl<F: Float> GaussianMixtureModel<F> {
         reg_covar: F,
         observations: &ArrayBase<D, Ix2>,
         log_resp: &Array2<F>,
-    ) -> Result<()> {
+    ) -> Result<(), GmmError> {
         let n_samples = observations.nrows();
         let (weights, means, covariances) = Self::estimate_gaussian_parameters(
             observations,
@@ -311,8 +311,9 @@ impl<F: Float> GaussianMixtureModel<F> {
         )?;
         self.means = means;
         self.weights = weights / F::cast(n_samples);
+        self.covariances = covariances;
         // GmmCovarType = Full()
-        self.precisions_chol = Self::compute_precisions_cholesky_full(&covariances)?;
+        self.precisions_chol = Self::compute_precisions_cholesky_full(&self.covariances)?;
         Ok(())
     }
 
@@ -406,7 +407,7 @@ impl<F: Float, R: Rng + Clone, D: Data<Elem = F>, T> Fit<ArrayBase<D, Ix2>, T, G
 {
     type Object = GaussianMixtureModel<F>;
 
-    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
+    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object, GmmError> {
         let observations = dataset.records().view();
         let mut gmm = GaussianMixtureModel::<F>::new(self, dataset, self.rng())?;
 
@@ -488,7 +489,9 @@ mod tests {
     use ndarray::{array, concatenate, ArrayView1, ArrayView2, Axis};
     use ndarray_rand::rand::prelude::ThreadRng;
     use ndarray_rand::rand::SeedableRng;
+    use ndarray_rand::rand_distr::Normal;
     use ndarray_rand::rand_distr::{Distribution, StandardNormal};
+    use ndarray_rand::RandomExt;
 
     #[test]
     fn autotraits() {
@@ -568,6 +571,34 @@ mod tests {
             abs_diff_eq!(covars, &c, epsilon = 1e-1)
                 || abs_diff_eq!(covars, c.slice(s![..;-1, .., ..]), epsilon = 1e-1)
         );
+    }
+
+    #[test]
+    fn test_gmm_covariances() {
+        let rng = rand_xoshiro::Xoshiro256Plus::seed_from_u64(123);
+
+        let data_0 = ndarray::Array::random((500,), Normal::new(0., 0.5).unwrap());
+        let data_1 = ndarray::Array::random((500,), Normal::new(1., 0.5).unwrap());
+        let data_2 = ndarray::Array::random((500,), Normal::new(2., 0.5).unwrap());
+        let data = ndarray::concatenate![ndarray::Axis(0), data_0, data_1, data_2];
+
+        let data_2d = data.insert_axis(ndarray::Axis(1)).to_owned();
+        let dataset = linfa::DatasetBase::from(data_2d);
+
+        let gmm = GaussianMixtureModel::params(3)
+            .n_runs(1)
+            .tolerance(1e-4)
+            .with_rng(rng)
+            .max_n_iterations(500)
+            .fit(&dataset)
+            .expect("GMM fit");
+
+        // expected results from scikit-learn 1.3.1
+        let expected = array![[[0.22564062]], [[0.26204446]], [[0.23393885]]];
+        let expected = Array::from_iter(expected.iter().cloned());
+        let actual = gmm.covariances();
+        let actual = Array::from_iter(actual.iter().cloned());
+        assert_abs_diff_eq!(expected, actual, epsilon = 1e-1);
     }
 
     fn function_test_1d(x: &Array2<f64>) -> Array2<f64> {

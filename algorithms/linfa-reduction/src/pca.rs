@@ -176,9 +176,27 @@ impl Pca<f64> {
         ex_var / sum_ex_var
     }
 
+    /// Return the components
+    pub fn components(&self) -> &Array2<f64> {
+        &self.embedding
+    }
+
+    /// Return the mean
+    pub fn mean(&self) -> &Array1<f64> {
+        &self.mean
+    }
+
     /// Return the singular values
     pub fn singular_values(&self) -> &Array1<f64> {
         &self.sigma
+    }
+
+        /// Transform data back to its original space
+    pub fn inverse_transform(
+            &self,
+            prediction: ArrayBase<ndarray::OwnedRepr<f64>, ndarray::Dim<[usize; 2]>>,
+        ) -> ArrayBase<ndarray::OwnedRepr<f64>, ndarray::Dim<[usize; 2]>> {
+            prediction.dot(&self.embedding) + &self.mean
     }
 }
 

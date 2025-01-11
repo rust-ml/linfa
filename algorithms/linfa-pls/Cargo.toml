@@ -27,7 +27,7 @@ features = ["std", "derive"]
 [dependencies]
 ndarray = { version = "0.15" }
 linfa-linalg = { version = "0.1", default-features = false }
-ndarray-linalg = { version = "0.15", optional = true }
+ndarray-linalg = { version = "0.16", optional = true }
 ndarray-stats = "0.5"
 ndarray-rand = "0.14"
 num-traits = "0.2"
@@ -37,7 +37,9 @@ linfa = { version = "0.7.0", path = "../.." }
 
 [dev-dependencies]
 linfa = { version = "0.7.0", path = "../..", features = ["benchmarks"] }
-linfa-datasets = { version = "0.7.0", path = "../../datasets", features = ["linnerud"] }
+linfa-datasets = { version = "0.7.0", path = "../../datasets", features = [
+    "linnerud",
+] }
 approx = "0.4"
 rand_xoshiro = "0.6"
 criterion = "0.4.0"

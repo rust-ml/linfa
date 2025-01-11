@@ -11,6 +11,8 @@
 `linfa-reduction` currently provides an implementation of the following dimensional reduction methods: 
 - Diffusion Mapping
 - Principal Component Analysis (PCA)
+- Gaussian random projections
+- Sparse random projections
 
 ## Examples
 
@@ -19,6 +21,8 @@ There is an usage example in the `examples/` directory. To run, use:
 ```bash
 $ cargo run --release --example diffusion_map
 $ cargo run --release --example pca
+$ cargo run --release --example gaussian_projection
+$ cargo run --release --example sparse_projection
 ```
 
 ## BLAS/LAPACK backend

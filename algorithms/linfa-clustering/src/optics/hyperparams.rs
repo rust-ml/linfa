@@ -1,4 +1,4 @@
-use crate::optics::errors::{OpticsError, Result};
+use crate::optics::errors::OpticsError;
 use linfa::{param_guard::TransformGuard, Float, ParamGuard};
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
@@ -48,6 +48,11 @@ impl<F: Float, D, N> OpticsValidParams<F, D, N> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub struct OpticsParams<F, D, N>(OpticsValidParams<F, D, N>);
 
 impl<F: Float, D, N> OpticsParams<F, D, N> {
@@ -86,7 +91,7 @@ impl<F: Float, D, N> ParamGuard for OpticsParams<F, D, N> {
     type Checked = OpticsValidParams<F, D, N>;
     type Error = OpticsError;
 
-    fn check_ref(&self) -> Result<&Self::Checked> {
+    fn check_ref(&self) -> Result<&Self::Checked, OpticsError> {
         if self.0.tolerance <= F::zero() {
             Err(OpticsError::InvalidValue(
                 "`tolerance` must be greater than 0!".to_string(),
@@ -101,7 +106,7 @@ impl<F: Float, D, N> ParamGuard for OpticsParams<F, D, N> {
         }
     }
 
-    fn check(self) -> Result<Self::Checked> {
+    fn check(self) -> Result<Self::Checked, OpticsError> {
         self.check_ref()?;
         Ok(self.0)
     }

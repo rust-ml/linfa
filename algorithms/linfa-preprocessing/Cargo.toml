@@ -20,7 +20,7 @@ serde = ["serde_crate", "ndarray/serde", "serde_regex"]
 [dependencies]
 linfa = { version = "0.7.0", path = "../.." }
 ndarray = { version = "0.15", features = ["approx"] }
-ndarray-linalg = { version = "0.15", optional = true }
+ndarray-linalg = { version = "0.16", optional = true }
 linfa-linalg = { version = "0.1", default-features = false }
 ndarray-stats = "0.5"
 thiserror = "1.0"
@@ -29,7 +29,7 @@ ndarray-rand = { version = "0.14" }
 unicode-normalization = "0.1.8"
 regex = "1.4.5"
 encoding = "0.2"
-sprs =  { version="0.11.0", default-features = false }
+sprs = { version = "0.11.0", default-features = false }
 
 serde_regex = { version = "1.1", optional = true }
 
@@ -41,13 +41,18 @@ default-features = false
 features = ["std", "derive"]
 
 [dev-dependencies]
-linfa-datasets = { version = "0.7.0", path = "../../datasets", features = ["diabetes", "winequality"] }
+linfa-datasets = { version = "0.7.0", path = "../../datasets", features = [
+    "diabetes",
+    "winequality",
+] }
 linfa-bayes = { version = "0.7.0", path = "../linfa-bayes" }
-iai = "0.1" 
+iai = "0.1"
 curl = "0.4.35"
 flate2 = "1.0.20"
 tar = "0.4.33"
-
+linfa = { version = "0.7.0", path = "../..", features = ["benchmarks"] }
+criterion = "0.4.0"
+statrs = "0.16.0"
 
 [[bench]]
 name = "vectorizer_bench"
@@ -59,4 +64,8 @@ harness = false
 
 [[bench]]
 name = "whitening_bench"
+harness = false
+
+[[bench]]
+name = "norm_scaler_bench"
 harness = false

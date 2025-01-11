@@ -613,6 +613,12 @@ impl<F: Float, C: PartialOrd + Clone> FittedLogisticRegression<F, C> {
         &self.params
     }
 
+    /// Get the model positive and negative classes mapped to their
+    /// corresponding problem input labels.
+    pub fn labels(&self) -> &BinaryClassLabels<F, C> {
+        &self.labels
+    }
+
     /// Given a feature matrix, predict the probabilities that a sample
     /// should be classified as the larger of the two classes learned when the
     /// model was fitted.
@@ -745,9 +751,9 @@ impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-struct ClassLabel<F, C: PartialOrd> {
-    class: C,
-    label: F,
+pub struct ClassLabel<F, C: PartialOrd> {
+    pub class: C,
+    pub label: F,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -756,9 +762,9 @@ struct ClassLabel<F, C: PartialOrd> {
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-struct BinaryClassLabels<F, C: PartialOrd> {
-    pos: ClassLabel<F, C>,
-    neg: ClassLabel<F, C>,
+pub struct BinaryClassLabels<F, C: PartialOrd> {
+    pub pos: ClassLabel<F, C>,
+    pub neg: ClassLabel<F, C>,
 }
 
 /// Internal representation of a logistic regression problem.
@@ -1008,6 +1014,8 @@ mod test {
             &res.predict(dataset.records()),
             dataset.targets().as_single_targets()
         );
+        assert_eq!(res.labels().pos.class, "dog");
+        assert_eq!(res.labels().neg.class, "cat");
     }
 
     #[test]
