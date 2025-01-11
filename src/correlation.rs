@@ -128,7 +128,7 @@ impl<F: Float> PearsonCorrelation<F> {
     ///
     /// * `dataset`: Data for the correlation analysis
     /// * `num_iter`: optionally number of iterations of the p-value test, if none then no p-value
-    /// are calculate
+    ///   are calculated
     ///
     /// # Example
     ///

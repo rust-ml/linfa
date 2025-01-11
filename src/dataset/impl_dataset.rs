@@ -680,8 +680,8 @@ where
     /// - `k`: the number of folds to apply to the dataset
     /// - `params`: the desired parameters for the fittable algorithm at hand
     /// - `fit_closure`: a closure of the type `(params, training_data) -> fitted_model`
-    /// that will be used to produce the trained model for each fold. The training data given in input
-    /// won't outlive the closure.
+    ///   that will be used to produce the trained model for each fold. The training data given in
+    ///   input won't outlive the closure.
     ///
     /// ## Returns
     ///
@@ -794,9 +794,9 @@ where
     /// - `k`: the number of folds to apply
     /// - `parameters`: a list of models to compare
     /// - `eval`: closure used to evaluate the performance of each trained model. This closure is
-    /// called on the model output and validation targets of each fold and outputs the performance
-    /// score for each target. For single-target dataset the signature is `(Array1, Array1) ->
-    /// Array0`. For multi-target dataset the signature is `(Array2, Array2) -> Array1`.
+    ///   called on the model output and validation targets of each fold and outputs the performance
+    ///   score for each target. For single-target dataset the signature is `(Array1, Array1) ->
+    ///   Array0`. For multi-target dataset the signature is `(Array2, Array2) -> Array1`.
     ///
     /// ### Returns
     ///
