@@ -153,7 +153,6 @@ impl<F: Float> PearsonCorrelation<F> {
     /// lamotrigine                                                                                                                        +0.47 (0.14)
     /// blood sugar level
     /// ```
-
     pub fn from_dataset<D: Data<Elem = F>, T>(
         dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
         num_iter: Option<usize>,

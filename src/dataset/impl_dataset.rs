@@ -208,7 +208,7 @@ where
     ///     println!("{} => {}", x, y);
     /// }
     /// ```
-    pub fn sample_iter(&'a self) -> Iter<'a, '_, F, T::Elem, T::Ix> {
+    pub fn sample_iter(&'a self) -> Iter<'a, 'a, F, T::Elem, T::Ix> {
         Iter::new(self.records.view(), self.targets.as_targets())
     }
 }
@@ -232,7 +232,7 @@ where
     ///
     /// This iterator produces dataset views with only a single feature, while the set of targets remain
     /// complete. It can be useful to compare each feature individual to all targets.
-    pub fn feature_iter(&'a self) -> DatasetIter<'a, '_, ArrayBase<D, Ix2>, T> {
+    pub fn feature_iter(&'a self) -> DatasetIter<'a, 'a, ArrayBase<D, Ix2>, T> {
         DatasetIter::new(self, true)
     }
 
@@ -241,7 +241,7 @@ where
     /// This functions creates an iterator which produces dataset views complete records, but only
     /// a single target each. Useful to train multiple single target models for a multi-target
     /// dataset.
-    pub fn target_iter(&'a self) -> DatasetIter<'a, '_, ArrayBase<D, Ix2>, T> {
+    pub fn target_iter(&'a self) -> DatasetIter<'a, 'a, ArrayBase<D, Ix2>, T> {
         DatasetIter::new(self, false)
     }
 }
@@ -732,7 +732,7 @@ where
         &'a mut self,
         k: usize,
         fit_closure: C,
-    ) -> impl Iterator<Item = (O, DatasetBase<ArrayView2<F>, ArrayView<E, I>>)> {
+    ) -> impl Iterator<Item = (O, DatasetBase<ArrayView2<'a, F>, ArrayView<'a, E, I>>)> {
         assert!(k > 0);
         assert!(k <= self.nsamples());
         let samples_count = self.nsamples();
