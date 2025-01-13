@@ -133,7 +133,7 @@ where
     }
 }
 
-impl<'a, F, L> GaussianNbValidParams<F, L>
+impl<F, L> GaussianNbValidParams<F, L>
 where
     F: Float,
 {
@@ -259,7 +259,7 @@ impl<F: Float, L: Label> GaussianNb<F, L> {
     }
 }
 
-impl<'a, F, L> NaiveBayes<'a, F, L> for GaussianNb<F, L>
+impl<F, L> NaiveBayes<'_, F, L> for GaussianNb<F, L>
 where
     F: Float,
     L: Label + Ord,

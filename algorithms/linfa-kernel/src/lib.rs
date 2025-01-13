@@ -223,7 +223,7 @@ impl<'a, F: Float> Kernel<F> {
     }
 }
 
-impl<'a, F: Float> KernelView<'a, F> {
+impl<F: Float> KernelView<'_, F> {
     pub fn to_owned(&self) -> Kernel<F> {
         Kernel {
             inner: match &self.inner {
@@ -383,7 +383,7 @@ impl<'a, F: Float, N: NearestNeighbour> Transformer<&ArrayView2<'a, F>, Kernel<F
     }
 }
 
-impl<'a, F: Float, T: AsTargets, N: NearestNeighbour>
+impl<F: Float, T: AsTargets, N: NearestNeighbour>
     Transformer<DatasetBase<Array2<F>, T>, DatasetBase<Kernel<F>, T>> for KernelParams<F, N>
 {
     /// Builds a new Dataset with the kernel as the records and the same targets as the input one.
@@ -398,7 +398,7 @@ impl<'a, F: Float, T: AsTargets, N: NearestNeighbour>
     ///
     /// A new dataset with:
     ///  - records: a kernel build from `x.records()` according to the parameters on which
-    /// this method is called
+    ///     this method is called
     ///  - targets: same as `x.targets()`
     ///
     /// ## Panics
@@ -425,7 +425,7 @@ impl<'a, F: Float, L: 'a, T: AsTargets<Elem = L> + FromTargetArray<'a>, N: Neare
     ///
     /// A new dataset with:
     ///  - records: a kernel build from `x.records()` according to the parameters on which
-    /// this method is called
+    ///     this method is called
     ///  - targets: same as `x.targets()`
     ///
     /// ## Panics
@@ -460,7 +460,7 @@ impl<
     ///
     /// A new dataset with:
     ///  - records: a kernel build from `x.records()` according to the parameters on which
-    /// this method is called
+    ///     this method is called
     ///  - targets: a slice of `x.targets()`
     ///
     /// ## Panics
@@ -623,14 +623,14 @@ mod tests {
         let distance = gauss_1.distance(p1.view(), p2.view());
         let expected = 1.;
 
-        assert!(((distance - expected) as f64).abs() <= f64::EPSILON);
+        assert!(f64::abs(distance - expected) <= f64::EPSILON);
 
         let p1 = Array1::from_shape_vec(2, vec![1., 1.]).unwrap();
         let p2 = Array1::from_shape_vec(2, vec![5., 5.]).unwrap();
         let distance = gauss_1.distance(p1.view(), p2.view());
         let expected = (consts::E).powf(-32.);
         // this fails with e^-31 or e^-33 so f64::EPSILON still holds
-        assert!(((distance - expected) as f64).abs() <= f64::EPSILON);
+        assert!(f64::abs(distance - expected) <= f64::EPSILON);
 
         let gauss_01 = KernelMethod::Gaussian(0.1);
 
@@ -639,14 +639,14 @@ mod tests {
         let distance = gauss_01.distance(p1.view(), p2.view());
         let expected = 1.;
 
-        assert!(((distance - expected) as f64).abs() <= f64::EPSILON);
+        assert!(f64::abs(distance - expected) <= f64::EPSILON);
 
         let p1 = Array1::from_shape_vec(2, vec![1., 1.]).unwrap();
         let p2 = Array1::from_shape_vec(2, vec![2., 2.]).unwrap();
         let distance = gauss_01.distance(p1.view(), p2.view());
         let expected = (consts::E).powf(-20.);
 
-        assert!(((distance - expected) as f64).abs() <= f64::EPSILON);
+        assert!(f64::abs(distance - expected) <= f64::EPSILON);
     }
 
     #[test]
@@ -658,13 +658,13 @@ mod tests {
         let distance = pol_0.distance(p1.view(), p2.view());
         let expected = 0.;
 
-        assert!(((distance - expected) as f64).abs() <= f64::EPSILON);
+        assert!(f64::abs(distance - expected) <= f64::EPSILON);
 
         let p1 = Array1::from_shape_vec(2, vec![1., 1.]).unwrap();
         let p2 = Array1::from_shape_vec(2, vec![5., 5.]).unwrap();
         let distance = pol_0.distance(p1.view(), p2.view());
         let expected = 100.;
-        assert!(((distance - expected) as f64).abs() <= f64::EPSILON);
+        assert!(f64::abs(distance - expected) <= f64::EPSILON);
 
         let pol_2 = KernelMethod::Polynomial(2., 2.);
 
@@ -673,14 +673,14 @@ mod tests {
         let distance = pol_2.distance(p1.view(), p2.view());
         let expected = 4.;
 
-        assert!(((distance - expected) as f64).abs() <= f64::EPSILON);
+        assert!(f64::abs(distance - expected) <= f64::EPSILON);
 
         let p1 = Array1::from_shape_vec(2, vec![1., 1.]).unwrap();
         let p2 = Array1::from_shape_vec(2, vec![2., 2.]).unwrap();
         let distance = pol_2.distance(p1.view(), p2.view());
         let expected = 36.;
 
-        assert!(((distance - expected) as f64).abs() <= f64::EPSILON);
+        assert!(f64::abs(distance - expected) <= f64::EPSILON);
     }
 
     #[test]
@@ -720,7 +720,7 @@ mod tests {
         let input_arr =
             ndarray::concatenate(Axis(0), &[input_arr_1.view(), input_arr_2.view()]).unwrap();
 
-        for kind in vec![KernelType::Dense, KernelType::Sparse(1)] {
+        for kind in [KernelType::Dense, KernelType::Sparse(1)] {
             let kernel = KernelView::params()
                 .kind(kind)
                 // Such a value for eps brings to zero the inner product

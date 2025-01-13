@@ -24,6 +24,7 @@ categories = ["algorithms", "mathematics", "science"]
 
 [features]
 default = []
+blas = []
 serde = ["serde_crate", "ndarray/serde", "linfa-nn/serde"]
 
 [dependencies.serde_crate]

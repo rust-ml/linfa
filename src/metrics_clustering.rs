@@ -62,13 +62,8 @@ impl<F: Float> DistanceCount<F> {
     }
 }
 
-impl<
-        'a,
-        F: Float,
-        L: 'a + Label,
-        D: Data<Elem = F>,
-        T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
-    > SilhouetteScore<F> for DatasetBase<ArrayBase<D, Ix2>, T>
+impl<F: Float, L: Label, D: Data<Elem = F>, T: AsSingleTargets<Elem = L> + Labels<Elem = L>>
+    SilhouetteScore<F> for DatasetBase<ArrayBase<D, Ix2>, T>
 {
     fn silhouette_score(&self) -> Result<F> {
         let mut labels: HashMap<L, DistanceCount<F>> = self

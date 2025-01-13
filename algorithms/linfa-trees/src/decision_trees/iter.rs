@@ -20,12 +20,12 @@ impl<'a, F: Float, L: Debug + Label> Iterator for NodeIter<'a, F, L> {
     type Item = &'a TreeNode<F, L>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        #[allow(clippy::manual_inspect)]
         self.queue.pop().map(|node| {
             node.children()
                 .into_iter()
                 .filter_map(|x| x.as_ref())
                 .for_each(|child| self.queue.push(child));
-
             node
         })
     }

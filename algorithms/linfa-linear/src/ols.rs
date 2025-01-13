@@ -243,9 +243,9 @@ mod tests {
 
     /// We can't fit a line through three points in general
     /// - in this case we should find the solution that minimizes
-    /// the squares. Fitting a line with intercept through the
-    /// points (0, 0), (1, 0), (2, 2) has the least-squares solution
-    /// f(x) = -1./3. + x
+    ///     the squares. Fitting a line with intercept through the
+    ///     points (0, 0), (1, 0), (2, 2) has the least-squares solution
+    ///     f(x) = -1./3. + x
     #[test]
     fn fits_least_squares_line_through_three_dots() {
         let lin_reg = LinearRegression::new();

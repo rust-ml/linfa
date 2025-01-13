@@ -9,7 +9,7 @@ fn main() -> Result<()> {
 
     // define a sequence of models to compare. In this case the
     // models will differ by the amount of l2 regularization
-    let alphas = vec![0.1, 1., 10.];
+    let alphas = &[0.1, 1., 10.];
     let models: Vec<_> = alphas
         .iter()
         .map(|alpha| {

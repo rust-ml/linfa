@@ -6,7 +6,7 @@ use rand::{rngs::SmallRng, SeedableRng};
 fn main() -> Result<()> {
     // Read the data
     let (train, valid) = linfa_datasets::winequality()
-        .map_targets(|v| if *v > 6 { true } else { false })
+        .map_targets(|v| *v > 6)
         .split_with_ratio(0.9);
 
     let params = Ftrl::params()

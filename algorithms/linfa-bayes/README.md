@@ -10,8 +10,8 @@
 
 `linfa-bayes` currently provides an implementation of the following methods: 
 
-- Gaussian Naive Bayes ([`GaussianNb`](crate::GaussianNb))
-- Multinomial Naive Nayes ([`MultinomialNb`](crate::MultinomialNb))
+- Gaussian Naive Bayes ([`GaussianNb`])
+- Multinomial Naive Nayes ([`MultinomialNb`]))
 
 ## Examples
 

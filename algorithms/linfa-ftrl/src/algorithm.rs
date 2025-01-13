@@ -10,7 +10,7 @@ use rand::Rng;
 /// Simplified `Result` using [`FtrlError`](crate::FtrlError) as error type
 pub type Result<T> = std::result::Result<T, FtrlError>;
 
-impl<'a, F, R, D, T> FitWith<'a, ArrayBase<D, Ix2>, T, FtrlError> for FtrlValidParams<F, R>
+impl<F, R, D, T> FitWith<'_, ArrayBase<D, Ix2>, T, FtrlError> for FtrlValidParams<F, R>
 where
     F: Float,
     R: Rng + Clone,
@@ -255,7 +255,7 @@ mod test {
         let gradient: f64 = 0.5;
         let n: f64 = 0.11;
         let alpha = 0.5;
-        let expected_result = (((0.11 + 0.25) as f64).sqrt() - (0.11 as f64).sqrt()) / 0.5;
+        let expected_result = ((0.11f64 + 0.25).sqrt() - 0.11f64.sqrt()) / 0.5;
         let result = calculate_weight_in_average(n, gradient, alpha);
         assert_abs_diff_eq!(result, expected_result)
     }
@@ -302,7 +302,7 @@ mod test {
         let sigma = model.calculate_sigma(gradient.view());
         model.update_params(gradient.clone(), sigma.clone());
         let expected_z = initial_z + &gradient - sigma * weights;
-        let expected_n = initial_n + &gradient.mapv(|grad| (grad as f64).powf(2.));
+        let expected_n = initial_n + &gradient.mapv(|grad: f64| grad.powf(2.));
         assert_abs_diff_eq!(model.z(), &expected_z, epsilon = 1e-1);
         assert_abs_diff_eq!(model.n(), &expected_n, epsilon = 1e-1)
     }

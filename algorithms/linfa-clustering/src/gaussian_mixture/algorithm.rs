@@ -211,6 +211,7 @@ impl<F: Float> GaussianMixtureModel<F> {
         self.means()
     }
 
+    #[allow(clippy::type_complexity)]
     fn estimate_gaussian_parameters<D: Data<Elem = F>>(
         observations: &ArrayBase<D, Ix2>,
         resp: &Array2<F>,
@@ -505,9 +506,8 @@ mod tests {
     }
 
     pub struct MultivariateNormal {
-        pub mean: Array1<f64>,
-        pub covariance: Array2<f64>,
-        /// Lower triangular matrix (Cholesky decomposition of the coviariance matrix)
+        mean: Array1<f64>,
+        /// Lower triangular matrix (Cholesky decomposition of the covariance matrix)
         lower: Array2<f64>,
     }
     impl MultivariateNormal {
@@ -515,7 +515,6 @@ mod tests {
             let lower = covariance.cholesky()?;
             Ok(MultivariateNormal {
                 mean: mean.to_owned(),
-                covariance: covariance.to_owned(),
                 lower,
             })
         }

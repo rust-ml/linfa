@@ -229,7 +229,7 @@ impl<F: Float, L: Label> MultinomialNb<F, L> {
     }
 }
 
-impl<'a, F, L> NaiveBayes<'a, F, L> for MultinomialNb<F, L>
+impl<F, L> NaiveBayes<'_, F, L> for MultinomialNb<F, L>
 where
     F: Float,
     L: Label + Ord,

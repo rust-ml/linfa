@@ -41,7 +41,7 @@ impl RowMask {
     ///
     fn all(nsamples: usize) -> Self {
         RowMask {
-            mask: vec![true; nsamples as usize],
+            mask: vec![true; nsamples],
             nsamples,
         }
     }
@@ -53,7 +53,7 @@ impl RowMask {
     /// * `nsamples`: the total number of observations
     fn none(nsamples: usize) -> Self {
         RowMask {
-            mask: vec![false; nsamples as usize],
+            mask: vec![false; nsamples],
             nsamples: 0,
         }
     }
@@ -431,7 +431,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
 /// ### Structure
 /// A decision tree structure is a binary tree where:
 /// * Each internal node specifies a decision, represented by a choice of a feature and a "split value" such that all observations for which
-/// `feature <= split_value` is true fall in the left subtree, while the others fall in the right subtree.
+///     `feature <= split_value` is true fall in the left subtree, while the others fall in the right subtree.
 ///
 /// * leaf nodes make predictions, and their prediction is the most popular label in the node
 ///
@@ -511,7 +511,7 @@ impl<F: Float, L: Label + Default, D: Data<Elem = F>> PredictInplace<ArrayBase<D
     }
 }
 
-impl<'a, F: Float, L: Label + 'a + std::fmt::Debug, D, T> Fit<ArrayBase<D, Ix2>, T, Error>
+impl<F: Float, L: Label + std::fmt::Debug, D, T> Fit<ArrayBase<D, Ix2>, T, Error>
     for DecisionTreeValidParams<F, L>
 where
     D: Data<Elem = F>,
@@ -578,7 +578,7 @@ impl<F: Float, L: Label> DecisionTree<F, L> {
 
         impurity_decrease
             .into_iter()
-            .zip(num_nodes.into_iter())
+            .zip(num_nodes)
             .map(|(val, n)| if n == 0 { F::zero() } else { val / F::cast(n) })
             .collect()
     }

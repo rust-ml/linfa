@@ -294,7 +294,7 @@ impl CountVectorizer {
         let mut sprs_vectorized = CsMat::empty(sprs::CompressedStorage::CSR, self.vocabulary.len());
         sprs_vectorized.reserve_outer_dim_exact(x.len());
         let regex = self.properties.split_regex();
-        for (_string_index, string) in x.into_iter().map(|s| s.to_string()).enumerate() {
+        for string in x.into_iter().map(|s| s.to_string()) {
             let row = self.analyze_document(string, &regex, document_frequencies.view_mut());
             sprs_vectorized = sprs_vectorized.append_outer_csvec(row.view());
         }
@@ -313,7 +313,7 @@ impl CountVectorizer {
         let mut sprs_vectorized = CsMat::empty(sprs::CompressedStorage::CSR, self.vocabulary.len());
         sprs_vectorized.reserve_outer_dim_exact(input.len());
         let regex = self.properties.split_regex();
-        for (_file_index, file_path) in input.iter().enumerate() {
+        for file_path in input.iter() {
             let mut file = std::fs::File::open(file_path).unwrap();
             let mut document_bytes = Vec::new();
             file.read_to_end(&mut document_bytes).unwrap();
@@ -755,7 +755,7 @@ mod tests {
             "./count_vectorization_test_file_3",
             "./count_vectorization_test_file_4",
         ];
-        let contents = vec!["oNe two three four", "TWO three four", "three;four", "four"];
+        let contents = &["oNe two three four", "TWO three four", "three;four", "four"];
         //create files and write contents
         for (f_name, f_content) in file_names.iter().zip(contents.iter()) {
             let mut file = File::create(f_name).unwrap();

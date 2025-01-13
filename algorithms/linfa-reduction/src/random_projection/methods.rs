@@ -31,7 +31,10 @@ pub struct Gaussian;
 
 impl ProjectionMethod for Gaussian {
     type RandomDistribution = StandardNormal;
-    type ProjectionMatrix<F: Float> = Array2<F> where StandardNormal: Distribution<F>;
+    type ProjectionMatrix<F: Float>
+        = Array2<F>
+    where
+        StandardNormal: Distribution<F>;
 
     fn generate_matrix<F: Float>(
         n_features: usize,
@@ -52,7 +55,10 @@ pub struct Sparse;
 
 impl ProjectionMethod for Sparse {
     type RandomDistribution = Standard;
-    type ProjectionMatrix<F: Float> = CsMat<F> where Standard: Distribution<F>;
+    type ProjectionMatrix<F: Float>
+        = CsMat<F>
+    where
+        Standard: Distribution<F>;
 
     fn generate_matrix<F: Float>(
         n_features: usize,
