@@ -41,7 +41,7 @@ default-features = false
 features = ["std", "derive"]
 
 [dev-dependencies]
-linfa-datasets = { version = "0.7.0", path = "../../datasets", features = [
+linfa-datasets = { version = "0.7.1", path = "../../datasets", features = [
     "diabetes",
     "winequality",
 ] }

@@ -49,7 +49,7 @@ rand_xoshiro = "0.6.0"
 
 [dev-dependencies]
 ndarray-npy = { version = "0.8", default-features = false }
-linfa-datasets = { version = "0.7.0", path = "../../datasets", features = [
+linfa-datasets = { version = "0.7.1", path = "../../datasets", features = [
     "iris",
     "generate",
 ] }

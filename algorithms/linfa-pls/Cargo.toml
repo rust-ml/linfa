@@ -37,7 +37,7 @@ linfa = { version = "0.7.1", path = "../.." }
 
 [dev-dependencies]
 linfa = { version = "0.7.1", path = "../..", features = ["benchmarks"] }
-linfa-datasets = { version = "0.7.0", path = "../../datasets", features = [
+linfa-datasets = { version = "0.7.1", path = "../../datasets", features = [
     "linnerud",
 ] }
 approx = "0.4"

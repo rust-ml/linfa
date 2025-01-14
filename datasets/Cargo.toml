@@ -1,6 +1,6 @@
 [package]
 name = "linfa-datasets"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["Lorenz Schmidt <bytesnake@mailbox.org>"]
 description = "Collection of small datasets for Linfa"
 edition = "2018"
