@@ -1,6 +1,6 @@
 [package]
 name = "linfa-logistic"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["Paul Körbitz / Google <koerbitz@google.com>"]
 
 description = "A Machine Learning framework for Rust"
