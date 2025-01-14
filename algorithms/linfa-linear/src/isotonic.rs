@@ -19,7 +19,7 @@ impl Float for f64 {}
 fn pva<F, D>(
     ys: &ArrayBase<D, Ix1>,
     weights: Option<&[f32]>,
-    index: &Vec<usize>,
+    index: &[usize],
 ) -> (Vec<F>, Vec<usize>)
 where
     F: Float,
@@ -30,7 +30,7 @@ where
     let mut W = Vec::<F>::new();
     let mut J_index: Vec<usize> = (0..n).collect();
     let mut i = 0;
-    let (mut AvB_zero, mut W_B_zero) = waverage(&ys, weights, i, i, &index);
+    let (mut AvB_zero, mut W_B_zero) = waverage(ys, weights, i, i, index);
     while i < n {
         // Step 1
         let j = J_index[i];
@@ -39,7 +39,7 @@ where
             break;
         }
         let l = J_index[k];
-        let (AvB_plus, W_B_plus) = waverage(&ys, weights, k, l, &index);
+        let (AvB_plus, W_B_plus) = waverage(ys, weights, k, l, index);
         if AvB_zero <= AvB_plus {
             V.push(AvB_zero);
             W.push(W_B_zero);
@@ -56,7 +56,7 @@ where
 
             // Step 2.1
             let mut AvB_minus = *V.last().unwrap_or(&F::neg_infinity());
-            while V.len() > 0 && AvB_zero < AvB_minus {
+            while !V.is_empty() && AvB_zero < AvB_minus {
                 AvB_minus = V.pop().unwrap();
                 let W_B_minus = W.pop().unwrap();
                 i = J_index[J_index[l] - 1];
@@ -70,7 +70,7 @@ where
     }
 
     // Last block average
-    let (AvB_minus, _) = waverage(&ys, weights, i, J_index[i], &index);
+    let (AvB_minus, _) = waverage(ys, weights, i, J_index[i], index);
     V.push(AvB_minus);
 
     (V, J_index)
@@ -197,7 +197,7 @@ fn waverage<F, D>(
     ws: Option<&[f32]>,
     start: usize,
     end: usize,
-    index: &Vec<usize>,
+    index: &[usize],
 ) -> (F, F)
 where
     F: Float,
@@ -205,15 +205,14 @@ where
 {
     let mut wsum = F::zero();
     let mut avg = F::zero();
-    for k in start..=end {
-        let kk = index[k];
-        let w = if ws.is_none() {
-            F::one()
+    for kk in &index[start..=end] {
+        let w = if let Some(ws) = ws {
+            F::cast(ws[*kk])
         } else {
-            F::cast(ws.unwrap()[kk])
+            F::one()
         };
         wsum += w;
-        avg += vs[kk] * w;
+        avg += vs[*kk] * w;
     }
     avg /= wsum;
     (avg, wsum)
@@ -305,7 +304,6 @@ mod tests {
         let reg = IsotonicRegression::new();
         let dataset = Dataset::new(array![[3.3f64, 0.], [3.3, 0.]], array![4., 5.]);
         let _res = reg.fit(&dataset);
-        ()
     }
 
     #[test]
@@ -314,7 +312,6 @@ mod tests {
         let reg = IsotonicRegression::default();
         let dataset = Dataset::new(array![[3.3f64, 0.], [3.3, 0.]], array![4., 5., 6.]);
         let _res = reg.fit(&dataset);
-        ()
     }
 
     #[test]

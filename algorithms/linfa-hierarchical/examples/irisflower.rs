@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .transform(kernel)?;
 
     for (id, target) in kernel.targets().iter().zip(dataset.targets().into_iter()) {
-        let name = match *target as usize {
+        let name = match *target {
             0 => "setosa",
             1 => "versicolor",
             2 => "virginica",

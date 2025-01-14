@@ -207,7 +207,7 @@ impl<
     }
 }
 
-impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = C>>
+impl<C: Ord + Clone, F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = C>>
     Fit<ArrayBase<D, Ix2>, T, Error> for ValidLogisticRegression<F>
 {
     type Object = FittedLogisticRegression<F, C>;
@@ -250,7 +250,7 @@ impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsSingleTargets<El
     }
 }
 
-impl<'a, C: 'a + Ord + Clone, F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = C>>
+impl<C: Ord + Clone, F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = C>>
     Fit<ArrayBase<D, Ix2>, T, Error> for ValidMultiLogisticRegression<F>
 {
     type Object = MultiFittedLogisticRegression<F, C>;
@@ -778,7 +778,7 @@ struct LogisticRegressionProblem<'a, F: Float, A: Data<Elem = F>, D: Dimension> 
 type LogisticRegressionProblem1<'a, F, A> = LogisticRegressionProblem<'a, F, A, Ix1>;
 type LogisticRegressionProblem2<'a, F, A> = LogisticRegressionProblem<'a, F, A, Ix2>;
 
-impl<'a, F: Float, A: Data<Elem = F>> CostFunction for LogisticRegressionProblem1<'a, F, A> {
+impl<F: Float, A: Data<Elem = F>> CostFunction for LogisticRegressionProblem1<'_, F, A> {
     type Param = ArgminParam<F, Ix1>;
     type Output = F;
 
@@ -790,7 +790,7 @@ impl<'a, F: Float, A: Data<Elem = F>> CostFunction for LogisticRegressionProblem
     }
 }
 
-impl<'a, F: Float, A: Data<Elem = F>> Gradient for LogisticRegressionProblem1<'a, F, A> {
+impl<F: Float, A: Data<Elem = F>> Gradient for LogisticRegressionProblem1<'_, F, A> {
     type Param = ArgminParam<F, Ix1>;
     type Gradient = ArgminParam<F, Ix1>;
 
@@ -802,7 +802,7 @@ impl<'a, F: Float, A: Data<Elem = F>> Gradient for LogisticRegressionProblem1<'a
     }
 }
 
-impl<'a, F: Float, A: Data<Elem = F>> CostFunction for LogisticRegressionProblem2<'a, F, A> {
+impl<F: Float, A: Data<Elem = F>> CostFunction for LogisticRegressionProblem2<'_, F, A> {
     type Param = ArgminParam<F, Ix2>;
     type Output = F;
 
@@ -814,7 +814,7 @@ impl<'a, F: Float, A: Data<Elem = F>> CostFunction for LogisticRegressionProblem
     }
 }
 
-impl<'a, F: Float, A: Data<Elem = F>> Gradient for LogisticRegressionProblem2<'a, F, A> {
+impl<F: Float, A: Data<Elem = F>> Gradient for LogisticRegressionProblem2<'_, F, A> {
     type Param = ArgminParam<F, Ix2>;
     type Gradient = ArgminParam<F, Ix2>;
 
@@ -830,15 +830,11 @@ trait SolvableProblem<F: Float, D: Dimension>: Gradient + Sized {
     type Solver: Solver<Self, IterStateType<F, D>>;
 }
 
-impl<'a, F: Float, A: Data<Elem = F>> SolvableProblem<F, Ix1>
-    for LogisticRegressionProblem1<'a, F, A>
-{
+impl<F: Float, A: Data<Elem = F>> SolvableProblem<F, Ix1> for LogisticRegressionProblem1<'_, F, A> {
     type Solver = LBFGSType1<F>;
 }
 
-impl<'a, F: Float, A: Data<Elem = F>> SolvableProblem<F, Ix2>
-    for LogisticRegressionProblem2<'a, F, A>
-{
+impl<F: Float, A: Data<Elem = F>> SolvableProblem<F, Ix2> for LogisticRegressionProblem2<'_, F, A> {
     type Solver = LBFGSType2<F>;
 }
 
@@ -887,7 +883,7 @@ mod test {
             array![-1.0, 0.0],
             array![-1.0, -1.0],
         ];
-        let alphas = vec![0.0, 1.0, 10.0];
+        let alphas = &[0.0, 1.0, 10.0];
         let expecteds = vec![
             6.931471805599453,
             6.931471805599453,
@@ -948,7 +944,7 @@ mod test {
             array![-1.0, 0.0],
             array![-1.0, -1.0],
         ];
-        let alphas = vec![0.0, 1.0, 10.0];
+        let alphas = &[0.0, 1.0, 10.0];
         let expecteds = vec![
             array![-19.5, -3.],
             array![-19.5, -3.],
@@ -1064,7 +1060,7 @@ mod test {
 
     #[test]
     fn rejects_inf_values() {
-        let infs = vec![std::f64::INFINITY, std::f64::NEG_INFINITY, std::f64::NAN];
+        let infs = &[f64::INFINITY, f64::NEG_INFINITY, f64::NAN];
         let inf_xs: Vec<_> = infs.iter().map(|&inf| array![[1.0], [inf]]).collect();
         let log_reg = LogisticRegression::default();
         let normal_x = array![[-1.0], [1.0]];
@@ -1073,12 +1069,12 @@ mod test {
             let res = log_reg.fit(&DatasetBase::new(inf_x.view(), &y));
             assert!(matches!(res.unwrap_err(), Error::InvalidValues));
         }
-        for inf in &infs {
+        for inf in infs {
             let log_reg = LogisticRegression::default().alpha(*inf);
             let res = log_reg.fit(&DatasetBase::new(normal_x.view(), &y));
             assert!(matches!(res.unwrap_err(), Error::InvalidAlpha));
         }
-        let mut non_positives = infs;
+        let mut non_positives = infs.to_vec();
         non_positives.push(-1.0);
         non_positives.push(0.0);
         for inf in &non_positives {
@@ -1090,11 +1086,11 @@ mod test {
 
     #[test]
     fn validates_initial_params() {
-        let infs = vec![std::f64::INFINITY, std::f64::NEG_INFINITY, std::f64::NAN];
+        let infs = &[f64::INFINITY, f64::NEG_INFINITY, f64::NAN];
         let normal_x = array![[-1.0], [1.0]];
         let normal_y = array![0, 1];
         let dataset = Dataset::new(normal_x, normal_y);
-        for inf in &infs {
+        for inf in infs {
             let log_reg = LogisticRegression::default().initial_params(array![*inf, 0.0]);
             let res = log_reg.fit(&dataset);
             assert!(matches!(res.unwrap_err(), Error::InvalidInitialParameters));

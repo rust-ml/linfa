@@ -191,12 +191,12 @@ impl Pca<f64> {
         &self.sigma
     }
 
-        /// Transform data back to its original space
+    /// Transform data back to its original space
     pub fn inverse_transform(
-            &self,
-            prediction: ArrayBase<ndarray::OwnedRepr<f64>, ndarray::Dim<[usize; 2]>>,
-        ) -> ArrayBase<ndarray::OwnedRepr<f64>, ndarray::Dim<[usize; 2]>> {
-            prediction.dot(&self.embedding) + &self.mean
+        &self,
+        prediction: ArrayBase<ndarray::OwnedRepr<f64>, ndarray::Dim<[usize; 2]>>,
+    ) -> ArrayBase<ndarray::OwnedRepr<f64>, ndarray::Dim<[usize; 2]>> {
+        prediction.dot(&self.embedding) + &self.mean
     }
 }
 

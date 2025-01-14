@@ -115,7 +115,7 @@ struct TweedieProblem<'a, F: Float> {
     alpha: F,
 }
 
-impl<'a, A: Float> TweedieProblem<'a, A> {
+impl<A: Float> TweedieProblem<'_, A> {
     fn ypred(&self, p: &Array1<A>) -> (Array1<A>, Array1<A>, usize) {
         let mut offset = 0;
         let mut intercept = A::from(0.).unwrap();
@@ -134,7 +134,7 @@ impl<'a, A: Float> TweedieProblem<'a, A> {
     }
 }
 
-impl<'a, A: Float> CostFunction for TweedieProblem<'a, A> {
+impl<A: Float> CostFunction for TweedieProblem<'_, A> {
     type Param = Array1<A>;
     type Output = A;
 
@@ -160,7 +160,7 @@ impl<'a, A: Float> CostFunction for TweedieProblem<'a, A> {
     }
 }
 
-impl<'a, A: Float> Gradient for TweedieProblem<'a, A> {
+impl<A: Float> Gradient for TweedieProblem<'_, A> {
     type Param = Array1<A>;
     type Gradient = Array1<A>;
 

@@ -50,12 +50,8 @@ impl From<kdtree::ErrorKind> for NnError {
     }
 }
 
-impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for KdTreeIndex<'a, F, D> {
-    fn k_nearest<'b>(
-        &self,
-        point: Point<'b, F>,
-        k: usize,
-    ) -> Result<Vec<(Point<F>, usize)>, NnError> {
+impl<F: Float, D: Distance<F>> NearestNeighbourIndex<F> for KdTreeIndex<'_, F, D> {
+    fn k_nearest(&self, point: Point<'_, F>, k: usize) -> Result<Vec<(Point<F>, usize)>, NnError> {
         Ok(self
             .0
             .nearest(
@@ -68,9 +64,9 @@ impl<'a, F: Float, D: Distance<F>> NearestNeighbourIndex<F> for KdTreeIndex<'a, 
             .collect())
     }
 
-    fn within_range<'b>(
+    fn within_range(
         &self,
-        point: Point<'b, F>,
+        point: Point<'_, F>,
         range: F,
     ) -> Result<Vec<(Point<F>, usize)>, NnError> {
         let range = self.1.dist_to_rdist(range);

@@ -199,7 +199,7 @@ impl<F: Float, T> Svm<F, T> {
 ///
 /// In order to understand the solution of the SMO solver the objective, number of iterations and
 /// required support vectors are printed here.
-impl<'a, F: Float, T> fmt::Display for Svm<F, T> {
+impl<F: Float, T> fmt::Display for Svm<F, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.exit_reason {
             ExitReason::ReachedThreshold => write!(

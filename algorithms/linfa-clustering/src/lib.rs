@@ -16,7 +16,7 @@
 //! * [K-Means](KMeans)
 //! * [DBSCAN](Dbscan)
 //! * [Approximated DBSCAN](AppxDbscan) (Currently an alias for DBSCAN, due to its superior
-//! performance)
+//!     performance)
 //! * [Gaussian-Mixture-Model](GaussianMixtureModel)
 //! * [OPTICS](OpticsAnalysis)
 //!

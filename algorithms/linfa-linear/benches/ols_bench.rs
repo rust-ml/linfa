@@ -43,7 +43,7 @@ fn bench(c: &mut Criterion) {
             BenchmarkId::new(&func_name, size),
             &dataset,
             |b, dataset| {
-                b.iter(|| perform_ols(&dataset));
+                b.iter(|| perform_ols(dataset));
             },
         );
 
@@ -53,7 +53,7 @@ fn bench(c: &mut Criterion) {
             BenchmarkId::new(&func_name, size),
             &dataset,
             |b, dataset| {
-                b.iter(|| perform_glm(&dataset));
+                b.iter(|| perform_glm(dataset));
             },
         );
     }

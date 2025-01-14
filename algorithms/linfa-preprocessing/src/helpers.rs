@@ -13,7 +13,7 @@ pub struct NGramListIntoIterator<'a> {
     index: usize,
 }
 
-impl<'a> Iterator for NGramListIntoIterator<'a> {
+impl Iterator for NGramListIntoIterator<'_> {
     type Item = Vec<String>;
     fn next(&mut self) -> Option<Self::Item> {
         if self.index >= self.list.len() {
