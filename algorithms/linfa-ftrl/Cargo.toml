@@ -1,6 +1,6 @@
 [package]
 name = "linfa-ftrl"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["Liudmyla Kyrashchuk <himila@tutanota.com>"]
 
 description = "A Machine Learning framework for Rust"
