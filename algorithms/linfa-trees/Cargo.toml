@@ -1,6 +1,6 @@
 [package]
 name = "linfa-trees"
-version = "0.7.0"
+version = "0.7.1"
 edition = "2018"
 authors = ["Moss Ebeling <moss@banay.me>"]
 description = "A collection of tree-based algorithms"

@@ -55,4 +55,4 @@ linfa-datasets = { version = "0.7.1", path = "../../datasets", features = [
 ] }
 approx = { version = "0.4" }
 mnist = { version = "0.6.0", features = ["download"] }
-linfa-trees = { version = "0.7.0", path = "../linfa-trees" }
+linfa-trees = { version = "0.7.1", path = "../linfa-trees" }
