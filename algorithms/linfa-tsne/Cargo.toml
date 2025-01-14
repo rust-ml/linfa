@@ -1,6 +1,6 @@
 [package]
 name = "linfa-tsne"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["Lorenz Schmidt <lorenz.schmidt@mailbox.org>"]
 edition = "2018"
 
