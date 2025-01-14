@@ -84,6 +84,7 @@ impl<F: Float> PartialEq for Sample<F> {
     }
 }
 
+#[allow(clippy::non_canonical_partial_ord_impl)]
 impl<F: Float> PartialOrd for Sample<F> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.reachability_distance

@@ -13,7 +13,7 @@ fn pls_regression(dataset: &Dataset<f64, f64>, alg: Algorithm) {
         .scale(true)
         .max_iterations(200)
         .algorithm(alg);
-    model.fit(&dataset);
+    model.fit(dataset);
 }
 
 #[allow(unused_must_use)]
@@ -22,7 +22,7 @@ fn pls_canonical(dataset: &Dataset<f64, f64>, alg: Algorithm) {
         .scale(true)
         .max_iterations(200)
         .algorithm(alg);
-    model.fit(&dataset);
+    model.fit(dataset);
 }
 #[allow(unused_must_use)]
 fn pls_cca(dataset: &Dataset<f64, f64>, alg: Algorithm) {
@@ -30,7 +30,7 @@ fn pls_cca(dataset: &Dataset<f64, f64>, alg: Algorithm) {
         .scale(true)
         .max_iterations(200)
         .algorithm(alg);
-    model.fit(&dataset);
+    model.fit(dataset);
 }
 
 fn bench(c: &mut Criterion) {

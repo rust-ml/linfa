@@ -164,7 +164,7 @@ fn k_means_para<R: Rng, F: Float, D: Distance<F>>(
         let next_candidates_idx = sample_subsequent_candidates::<R, _>(
             &dists,
             F::cast(candidates_per_round),
-            rng.gen_range(0..std::u64::MAX),
+            rng.gen_range(0..u64::MAX),
         );
 
         // Append the newly generated candidates to the current cadidates, breaking out of the loop
@@ -191,6 +191,7 @@ fn k_means_para<R: Rng, F: Float, D: Distance<F>>(
 
 /// Generate candidate centroids by sampling each observation in parallel using a seedable RNG in
 /// every thread. Average number of generated candidates should equal `multiplier`.
+#[allow(clippy::extra_unused_type_parameters)]
 fn sample_subsequent_candidates<R: Rng, F: Float>(
     dists: &Array1<F>,
     multiplier: F,

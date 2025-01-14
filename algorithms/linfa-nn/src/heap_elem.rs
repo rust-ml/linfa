@@ -16,6 +16,7 @@ impl<D: Ord, T> PartialEq for HeapElem<D, T> {
 }
 impl<D: Ord, T> Eq for HeapElem<D, T> {}
 
+#[allow(clippy::non_canonical_partial_ord_impl)]
 impl<D: Ord, T> PartialOrd for HeapElem<D, T> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.dist.partial_cmp(&other.dist)

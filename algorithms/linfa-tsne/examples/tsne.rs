@@ -25,7 +25,9 @@ fn main() -> Result<()> {
         .spawn()
         .expect(
             "Failed to launch gnuplot. Pleasure ensure that gnuplot is installed and on the $PATH.",
-        );
+        )
+        .wait()
+        .expect("Failed to wait on gnuplot sub-process");
 
     Ok(())
 }

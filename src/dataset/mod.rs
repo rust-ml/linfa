@@ -161,7 +161,7 @@ impl Deref for Pr {
 /// # Fields
 ///
 /// * `records`: a two-dimensional matrix with dimensionality (nsamples, nfeatures), in case of
-/// kernel methods a quadratic matrix with dimensionality (nsamples, nsamples), which may be sparse
+///     kernel methods a quadratic matrix with dimensionality (nsamples, nsamples), which may be sparse
 /// * `targets`: a two-/one-dimension matrix with dimensionality (nsamples, ntargets)
 /// * `weights`: optional weights for each sample with dimensionality (nsamples)
 /// * `feature_names`: optional descriptive feature names with dimensionality (nfeatures)
@@ -170,7 +170,7 @@ impl Deref for Pr {
 ///
 /// * `R: Records`: generic over feature matrices or kernel matrices
 /// * `T`: generic over any `ndarray` matrix which can be used as targets. The `AsTargets` trait
-/// bound is omitted here to avoid some repetition in implementation `src/dataset/impl_dataset.rs`
+///     bound is omitted here to avoid some repetition in implementation `src/dataset/impl_dataset.rs`
 #[derive(Debug, Clone, PartialEq)]
 pub struct DatasetBase<R, T>
 where

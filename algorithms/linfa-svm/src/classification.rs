@@ -327,7 +327,7 @@ impl<F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix1>, Pr> for Svm<F, Pr> 
 }
 
 /// Predict a probability with a feature vector
-impl<'a, F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix1>, bool> for Svm<F, bool> {
+impl<F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix1>, bool> for Svm<F, bool> {
     fn predict(&self, data: ArrayBase<D, Ix1>) -> bool {
         let val = self.weighted_sum(&data) - self.rho;
 
@@ -335,24 +335,24 @@ impl<'a, F: Float, D: Data<Elem = F>> Predict<ArrayBase<D, Ix1>, bool> for Svm<F
     }
 }
 
-/// Predict a probability with a feature vector
-/*impl<'a, F: Float> Predict<ArrayView1<'a, F>, Pr> for Svm<F, Pr> {
-    fn predict(&self, data: ArrayView1<'a, F>) -> Pr {
-        let val = self.weighted_sum(&data) - self.rho;
-        let (a, b) = self.probability_coeffs.clone().unwrap();
+// /// Predict a probability with a feature vector
+// impl<'a, F: Float> Predict<ArrayView1<'a, F>, Pr> for Svm<F, Pr> {
+//     fn predict(&self, data: ArrayView1<'a, F>) -> Pr {
+//         let val = self.weighted_sum(&data) - self.rho;
+//         let (a, b) = self.probability_coeffs.clone().unwrap();
 
-        platt_predict(val, a, b)
-    }
-}
+//         platt_predict(val, a, b)
+//     }
+// }
 
-/// Predict a probability with a feature vector
-impl<F: Float> Predict<Array1<F>, bool> for Svm<F, bool> {
-    fn predict(&self, data: Array1<F>) -> bool {
-        let val = self.weighted_sum(&data) - self.rho;
+// /// Predict a probability with a feature vector
+// impl<F: Float> Predict<Array1<F>, bool> for Svm<F, bool> {
+//     fn predict(&self, data: Array1<F>) -> bool {
+//         let val = self.weighted_sum(&data) - self.rho;
 
-        val >= F::zero()
-    }
-}*/
+//         val >= F::zero()
+//     }
+// }
 
 /// Classify observations
 ///

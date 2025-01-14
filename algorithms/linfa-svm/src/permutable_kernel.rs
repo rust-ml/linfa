@@ -146,7 +146,7 @@ pub struct PermutableKernelRegression<F: Float> {
     signs: Vec<bool>,
 }
 
-impl<'a, F: Float> PermutableKernelRegression<F> {
+impl<F: Float> PermutableKernelRegression<F> {
     pub fn new(kernel: Kernel<F>) -> PermutableKernelRegression<F> {
         let kernel_diag = kernel.diagonal();
         let kernel_indices = (0..2 * kernel.size())
@@ -171,7 +171,7 @@ impl<'a, F: Float> PermutableKernelRegression<F> {
     }
 }
 
-impl<'a, F: Float> Permutable<F> for PermutableKernelRegression<F> {
+impl<F: Float> Permutable<F> for PermutableKernelRegression<F> {
     /// Swap two indices
     fn swap_indices(&mut self, i: usize, j: usize) {
         self.kernel_indices.swap(i, j);

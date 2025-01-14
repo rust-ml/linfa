@@ -79,7 +79,8 @@ pub fn filter<F: Float, L: Label + Ord>(
     let index = y
         .into_iter()
         .enumerate()
-        .filter_map(|(i, y)| (*ycondition == *y).then(|| i))
+        .filter(|(_, y)| (*ycondition == **y))
+        .map(|(i, _)| i)
         .collect::<Vec<_>>();
 
     // We subset x to only records corresponding to the class represented in `ycondition`
