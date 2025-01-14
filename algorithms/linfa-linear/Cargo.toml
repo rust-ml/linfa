@@ -1,6 +1,6 @@
 [package]
 name = "linfa-linear"
-version = "0.7.0"
+version = "0.7.1"
 authors = [
     "Paul Körbitz / Google <koerbitz@google.com>",
     "VasanthakumarV <vasanth260m12@gmail.com>",
