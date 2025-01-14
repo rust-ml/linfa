@@ -46,7 +46,7 @@ space = "0.12"
 thiserror = "1.0"
 #partitions = "0.2.4" This one will break in a future version of Rust and has no replacement
 linfa = { version = "0.7.1", path = "../.." }
-linfa-nn = { version = "0.7.0", path = "../linfa-nn" }
+linfa-nn = { version = "0.7.1", path = "../linfa-nn" }
 noisy_float = "0.2.0"
 
 [dev-dependencies]
