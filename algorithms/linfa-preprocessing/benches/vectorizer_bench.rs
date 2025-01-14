@@ -80,7 +80,7 @@ fn load_test_set(desired_targets: &[&str]) -> Result<Vec<std::path::PathBuf>, st
     load_set("./20news/20news-bydate-test", desired_targets)
 }
 
-fn fit_vectorizer(file_names: &Vec<std::path::PathBuf>) {
+fn fit_vectorizer(file_names: &[std::path::PathBuf]) {
     CountVectorizer::params()
         .document_frequency(0.05, 0.75)
         .n_gram_range(1, 2)
@@ -92,7 +92,7 @@ fn fit_vectorizer(file_names: &Vec<std::path::PathBuf>) {
         .unwrap();
 }
 
-fn fit_tf_idf(file_names: &Vec<std::path::PathBuf>) {
+fn fit_tf_idf(file_names: &[std::path::PathBuf]) {
     TfIdfVectorizer::default()
         .document_frequency(0.05, 0.75)
         .n_gram_range(1, 2)
@@ -104,7 +104,7 @@ fn fit_tf_idf(file_names: &Vec<std::path::PathBuf>) {
         .unwrap();
 }
 
-fn fit_transform_vectorizer(file_names: &Vec<std::path::PathBuf>) {
+fn fit_transform_vectorizer(file_names: &[std::path::PathBuf]) {
     CountVectorizer::params()
         .document_frequency(0.05, 0.75)
         .n_gram_range(1, 2)
@@ -120,7 +120,7 @@ fn fit_transform_vectorizer(file_names: &Vec<std::path::PathBuf>) {
             encoding::DecoderTrap::Strict,
         );
 }
-fn fit_transform_tf_idf(file_names: &Vec<std::path::PathBuf>) {
+fn fit_transform_tf_idf(file_names: &[std::path::PathBuf]) {
     TfIdfVectorizer::default()
         .document_frequency(0.05, 0.75)
         .n_gram_range(1, 2)

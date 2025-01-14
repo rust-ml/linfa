@@ -780,8 +780,8 @@ impl<'a, F: Float, K: 'a + Permutable<F>> SolverState<'a, F, K> {
 
     pub fn solve(mut self) -> Svm<F, F> {
         let mut iter = 0;
-        let max_iter = if self.targets.len() > std::usize::MAX / 100 {
-            std::usize::MAX
+        let max_iter = if self.targets.len() > usize::MAX / 100 {
+            usize::MAX
         } else {
             100 * self.targets.len()
         };

@@ -49,7 +49,7 @@ impl<F: Float> Ftrl<F> {
     /// The description can be found [here](https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/41159.pdf)
     ///
     /// It requires data preprocessing done in the separate step.
-
+    ///
     /// Create default hyperparameters. Random number generator will default to rand_xoshiro::Xoshiro256Plus
     pub fn params() -> FtrlParams<F, Xoshiro256Plus> {
         FtrlParams::default_with_rng(Xoshiro256Plus::seed_from_u64(42))

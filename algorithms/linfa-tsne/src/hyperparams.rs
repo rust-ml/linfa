@@ -29,7 +29,7 @@ use crate::TSneError;
 ///     .approx_threshold(0.6)
 ///     .transform(ds);
 /// ```
-
+///
 /// A verified hyper-parameter set ready for prediction
 #[derive(Debug, Clone, PartialEq)]
 pub struct TSneValidParams<F, R> {

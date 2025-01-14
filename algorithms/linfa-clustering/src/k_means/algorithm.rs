@@ -766,7 +766,7 @@ mod tests {
             &mut rng,
         );
 
-        let expected_memberships = (0..n_centroids).into_iter().collect::<Array1<_>>();
+        let expected_memberships = (0..n_centroids).collect::<Array1<_>>();
         assert_eq!(
             calc_memberships!(L2Dist, centroids, centroids),
             expected_memberships

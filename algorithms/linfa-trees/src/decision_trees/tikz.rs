@@ -8,8 +8,7 @@ use std::fmt::Debug;
 /// There are two settable parameters:
 ///
 /// * `legend`: if true, a box with the names of the split features will appear in the top right of the tree
-/// * `complete`: if true, a complete and standalone Tex document will be generated; otherwise the result will an embeddable
-///  Tex tree.
+/// * `complete`: if true, a complete and standalone Tex document will be generated; otherwise the result will an embeddable Tex tree.
 ///
 /// ### Usage
 ///
@@ -49,7 +48,7 @@ impl<'a, F: Float, L: Debug + Label> Tikz<'a, F, L> {
         }
     }
 
-    fn format_node(&self, node: &'a TreeNode<F, L>) -> String {
+    fn format_node(node: &'a TreeNode<F, L>) -> String {
         let depth = vec![""; node.depth() + 1].join("\t");
         if let Some(prediction) = node.prediction() {
             format!("{}[Label: {:?}]", depth, prediction)
@@ -61,7 +60,7 @@ impl<'a, F: Float, L: Debug + Label> Tikz<'a, F, L> {
             );
             for child in node.children().into_iter().filter_map(|x| x.as_ref()) {
                 out.push('\n');
-                out.push_str(&self.format_node(child));
+                out.push_str(&Self::format_node(child));
             }
             out.push(']');
 
@@ -113,7 +112,7 @@ impl<'a, F: Float, L: Debug + Label> Tikz<'a, F, L> {
 
 use std::fmt;
 
-impl<'a, F: Float, L: Debug + Label> fmt::Display for Tikz<'a, F, L> {
+impl<F: Float, L: Debug + Label> fmt::Display for Tikz<'_, F, L> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut out = if self.complete {
             String::from(
@@ -161,7 +160,7 @@ for tree={
         }
         out.push_str(r#"\begin{forest}"#);
 
-        out.push_str(&self.format_node(self.tree.root_node()));
+        out.push_str(&Self::format_node(self.tree.root_node()));
         out.push_str(&self.legend());
         out.push_str("\n\t\\end{forest}\n");
         if self.complete {

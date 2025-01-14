@@ -128,7 +128,7 @@ impl<F: Float> PearsonCorrelation<F> {
     ///
     /// * `dataset`: Data for the correlation analysis
     /// * `num_iter`: optionally number of iterations of the p-value test, if none then no p-value
-    /// are calculate
+    ///     are calculate
     ///
     /// # Example
     ///
@@ -153,7 +153,6 @@ impl<F: Float> PearsonCorrelation<F> {
     /// lamotrigine                                                                                                                        +0.47 (0.14)
     /// blood sugar level
     /// ```
-
     pub fn from_dataset<D: Data<Elem = F>, T>(
         dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
         num_iter: Option<usize>,
