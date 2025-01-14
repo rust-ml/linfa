@@ -20,7 +20,7 @@ ndarray-rand = "0.14"
 bhtsne = "0.4.0"
 pdqselect = "=0.1.0"
 
-linfa = { version = "0.7.0", path = "../.." }
+linfa = { version = "0.7.1", path = "../.." }
 
 [dev-dependencies]
 rand = "0.8"

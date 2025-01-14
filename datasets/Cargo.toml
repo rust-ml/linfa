@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-ml/linfa"
 
 [dependencies]
-linfa = { version = "0.7.0", path = ".." }
+linfa = { version = "0.7.1", path = ".." }
 ndarray = { version = "0.15" }
 ndarray-csv = "=0.5.1"
 csv = "1.1"

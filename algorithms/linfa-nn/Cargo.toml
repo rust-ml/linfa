@@ -33,14 +33,14 @@ thiserror = "1.0"
 
 kdtree = "0.6.0"
 
-linfa = { version = "0.7.0", path = "../.." }
+linfa = { version = "0.7.1", path = "../.." }
 
 [dev-dependencies]
 approx = "0.4"
 criterion = "0.4.0"
 rand_xoshiro = "0.6"
 ndarray-rand = "0.14"
-linfa = { version = "0.7.0", path = "../..", features = ["benchmarks"] }
+linfa = { version = "0.7.1", path = "../..", features = ["benchmarks"] }
 
 [[bench]]
 name = "nn"
