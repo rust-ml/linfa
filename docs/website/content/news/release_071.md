@@ -13,6 +13,7 @@ Linfa's 0.7.1 release mainly consists of fixes to existing algorithms and the ov
  * add `wasm-bindgen`feature to use linfa in the browser
  * fix covariance update for `GaussianMixtureModel` in `linfa-clustering`
  * bump `ndarray-linalg` to 0.16 and `argmin` to 0.9.0
+ * bump MSRV to 1.71.1
 
 ## New algorithms
 
