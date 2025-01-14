@@ -1,6 +1,6 @@
 [package]
 name = "linfa-reduction"
-version = "0.7.0"
+version = "0.7.1"
 authors = [
     "Lorenz Schmidt <bytesnake@mailbox.org>",
     "Gabriel Bathie <gbathie.dev@gmail.com>",
