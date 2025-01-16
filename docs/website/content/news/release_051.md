@@ -5,6 +5,8 @@ date = "2022-02-28"
 
 Linfa's 0.5.1 release fixes errors and bugs in the previous release, as well as removing useless trait bounds on the `Dataset` type. Note that the commits for this release are located in the `0-5-1` branch of the GitHub repo.
 
+<!-- more -->
+
 ## Improvements
 
  * remove `Float` trait bound from many `Dataset` impls, making non-float datasets usable

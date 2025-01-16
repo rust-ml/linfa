@@ -5,6 +5,8 @@ date = "2023-10-15"
 
 Linfa's 0.7.0 release mainly consists of improvements to Serde support. It also removes Approximate DBSCAN from `linfa-clustering` due to subpar performance and outdated dependencies.
 
+<!-- more -->
+
 ## Improvements and fixes
 
  * Add `array_from_gz_csv` and `array_from_csv` in `linfa-datasets`.

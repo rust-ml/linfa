@@ -5,6 +5,8 @@ date = "2025-01-14"
 
 Linfa's 0.7.1 release mainly consists of fixes to existing algorithms and the overall crate. The Random Projection algorithm has also been added to `linfa-reduction`.
 
+<!-- more -->
+
 ## Improvements and fixes
 
  * add `serde` support to  `linfa-clustering`
@@ -21,4 +23,4 @@ Random projections are a simple and computationally efficient way to reduce the 
 
 The dimensions and distribution of random projections matrices are controlled so as to preserve the pairwise distances between any two samples of the dataset.
 
-See [sklearn.random_projection](https://scikit-learn.org/stable/api/sklearn.random_projection.html)
+See also [sklearn.random_projection](https://scikit-learn.org/stable/api/sklearn.random_projection.html)
