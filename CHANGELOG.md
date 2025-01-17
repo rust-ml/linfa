@@ -1,5 +1,21 @@
+Version 0.7.1 - 2025-01-14
+==========================
+New Algorithms
+--------------
+ * Random Projection added to `linfa-reduction` by [@GBathie]
+
+Changes
+-------
+ * add `serde` support to  `linfa-clustering`
+ * add accessors for classes in `linfa-logistics` 
+ * add accessors for `Pca` attributes in `linfa-reduction`
+ * add `wasm-bindgen`feature to use linfa in the browser
+ * fix covariance update for `GaussianMixtureModel` in `linfa-clustering`
+ * bump `ndarray-linalg` to 0.16 and `argmin` to 0.9.0
+ * bump MSRV to 1.71.1
+
 Version 0.7.0 - 2023-10-15
-========================
+==========================
 Changes
 -----------
  * add `array_from_gz_csv` and `array_from_csv` in `linfa-datasets`
@@ -178,8 +194,8 @@ New algorithms
 Version 0.1.2 (2019-11-25)
 ===========================
 
-New algorithms 
-------------
+New algorithms
+--------------
 
  - First release of `linfa-clustering:v0.1.0` with the `KMeans` algorithm (by [@LukeMathWalker])
  - First (real) release of `linfa`, re-exporting `linfa-clustering` (by [@LukeMathWalker])

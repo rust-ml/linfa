@@ -1,6 +1,6 @@
 [package]
 name = "linfa-reduction"
-version = "0.7.0"
+version = "0.7.1"
 authors = [
     "Lorenz Schmidt <bytesnake@mailbox.org>",
     "Gabriel Bathie <gbathie.dev@gmail.com>",
@@ -42,17 +42,17 @@ num-traits = "0.2"
 thiserror = "1.0"
 rand = { version = "0.8", features = ["small_rng"] }
 
-linfa = { version = "0.7.0", path = "../.." }
-linfa-kernel = { version = "0.7.0", path = "../linfa-kernel" }
-sprs = "0.11.1"
+linfa = { version = "0.7.1", path = "../.." }
+linfa-kernel = { version = "0.7.1", path = "../linfa-kernel" }
+sprs = "=0.11.1"
 rand_xoshiro = "0.6.0"
 
 [dev-dependencies]
 ndarray-npy = { version = "0.8", default-features = false }
-linfa-datasets = { version = "0.7.0", path = "../../datasets", features = [
+linfa-datasets = { version = "0.7.1", path = "../../datasets", features = [
     "iris",
     "generate",
 ] }
 approx = { version = "0.4" }
 mnist = { version = "0.6.0", features = ["download"] }
-linfa-trees = { version = "0.7.0", path = "../linfa-trees"}
+linfa-trees = { version = "0.7.1", path = "../linfa-trees" }

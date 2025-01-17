@@ -1,6 +1,6 @@
 [package]
 name = "linfa"
-version = "0.7.0"
+version = "0.7.1"
 authors = [
     "Luca Palmieri <rust@lpalmieri.com>",
     "Lorenz Schmidt <bytesnake@mailbox.org>",
@@ -42,7 +42,7 @@ approx = "0.4"
 
 ndarray = { version = "0.15", features = ["approx"] }
 ndarray-linalg = { version = "0.16", optional = true }
-sprs = { version = "0.11", default-features = false }
+sprs = { version = "=0.11.1", default-features = false }
 
 thiserror = "1.0"
 
