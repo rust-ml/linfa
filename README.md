@@ -35,7 +35,7 @@ Where does `linfa` stand right now? [Are we learning yet?](http://www.arewelearn
 | [linear](algorithms/linfa-linear/) | Linear regression | Tested  | Partial fit | Contains Ordinary Least Squares (OLS), Generalized Linear Models (GLM) | 
 | [elasticnet](algorithms/linfa-elasticnet/) | Elastic Net | Tested | Supervised learning | Linear regression with elastic net constraints |
 | [logistic](algorithms/linfa-logistic/) | Logistic regression | Tested  | Partial fit | Builds two-class logistic regression models
-| [reduction](algorithms/linfa-reduction/) | Dimensionality reduction | Tested | Pre-processing | Diffusion mapping and Principal Component Analysis (PCA) |
+| [reduction](algorithms/linfa-reduction/) | Dimensionality reduction | Tested | Pre-processing | Diffusion mapping, Principal Component Analysis (PCA), Random projections |
 | [trees](algorithms/linfa-trees/) | Decision trees | Tested / Benchmarked  | Supervised learning | Linear decision trees
 | [svm](algorithms/linfa-svm/) | Support Vector Machines | Tested  | Supervised learning | Classification or regression analysis of labeled datasets | 
 | [hierarchical](algorithms/linfa-hierarchical/) | Agglomerative hierarchical clustering | Tested | Unsupervised learning | Cluster and build hierarchy of clusters |
