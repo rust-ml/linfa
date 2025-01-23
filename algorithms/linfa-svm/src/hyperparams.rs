@@ -134,7 +134,7 @@ impl<F: Float, T> SvmParams<F, T> {
     }
 
     /// Sets the model to use the Polynomial kernel. For this kernel the
-    /// distance between two points is computed as: `d(x, x') = (<x, x'> + costant)^(degree)`
+    /// distance between two points is computed as: `d(x, x') = (<x, x'> + constant)^(degree)`
     pub fn polynomial_kernel(mut self, constant: F, degree: F) -> Self {
         self.0.kernel = Kernel::params().method(KernelMethod::Polynomial(constant, degree));
         self
@@ -169,6 +169,7 @@ impl<F: Float, T> SvmParams<F, T> {
 
 impl<F: Float> SvmParams<F, F> {
     /// Set the C value for regression
+    #[deprecated(since = "0.7.2", note = "Use c_svr() instead")]
     pub fn c_eps(mut self, c: F, eps: F) -> Self {
         self.0.c = Some((c, eps));
         self.0.nu = None;
@@ -176,8 +177,23 @@ impl<F: Float> SvmParams<F, F> {
     }
 
     /// Set the Nu-Eps value for regression
+    #[deprecated(since = "0.7.2", note = "Use nu_svr() instead")]
     pub fn nu_eps(mut self, nu: F, eps: F) -> Self {
         self.0.nu = Some((nu, eps));
+        self.0.c = None;
+        self
+    }
+
+    /// Set the C value and optionnaly an epsilon value used in loss function (default 0.1) for regression
+    pub fn c_svr(mut self, c: F, loss_eps: Option<F>) -> Self {
+        self.0.c = Some((c, loss_eps.unwrap_or(F::cast(0.1))));
+        self.0.nu = None;
+        self
+    }
+
+    /// Set the Nu and optionally a C value (default 1.) for regression
+    pub fn nu_svr(mut self, nu: F, c: Option<F>) -> Self {
+        self.0.nu = Some((nu, c.unwrap_or(F::one())));
         self.0.c = None;
         self
     }
@@ -219,7 +235,7 @@ impl<F: Float, L> ParamGuard for SvmParams<F, L> {
             }
         }
         if let Some((nu, _)) = self.0.nu {
-            if nu <= F::zero() {
+            if nu <= F::zero() || nu > F::one() {
                 return Err(SvmError::InvalidNu(nu.to_f32().unwrap()));
             }
         }
