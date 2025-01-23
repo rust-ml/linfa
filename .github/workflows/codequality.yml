@@ -61,6 +61,7 @@ jobs:
         run: |
           cargo tarpaulin --verbose --timeout 120 --out Xml --all --release
       - name: Upload to codecov.io
+        if: ${{ github.event_name == 'pull_request' }}
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
