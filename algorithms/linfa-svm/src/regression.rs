@@ -77,8 +77,8 @@ pub fn fit_nu<F: Float>(
     dataset: ArrayView2<F>,
     kernel: Kernel<F>,
     target: &[F],
-    c: F,
     nu: F,
+    c: F,
 ) -> Svm<F, F> {
     let mut alpha = vec![F::zero(); 2 * target.len()];
     let mut linear_term = vec![F::zero(); 2 * target.len()];
@@ -128,21 +128,21 @@ macro_rules! impl_regression {
                 let target = target.as_slice().unwrap();
 
                 let ret = match (self.c(), self.nu()) {
-                    (Some((c, eps)), _) => fit_epsilon(
+                    (Some((c, p)), _) => fit_epsilon(
                         self.solver_params().clone(),
                         dataset.records().view(),
                         kernel,
                         target,
                         c,
-                        eps,
+                        p,
                     ),
-                    (None, Some((nu, eps))) => fit_nu(
+                    (None, Some((nu, c))) => fit_nu(
                         self.solver_params().clone(),
                         dataset.records().view(),
                         kernel,
                         target,
                         nu,
-                        eps,
+                        c,
                     ),
                     _ => panic!("Set either C value or Nu value"),
                 };
@@ -209,68 +209,69 @@ pub mod tests {
     use ndarray::Array;
 
     #[test]
-    fn test_linear_epsilon_regression() -> Result<()> {
-        let target = Array::linspace(0f64, 10., 100);
-        let mut sin_curve = Array::zeros((100, 1));
-        for (i, val) in target.iter().enumerate() {
-            sin_curve[(i, 0)] = *val;
-        }
-
-        let dataset = Dataset::new(sin_curve, target);
+    fn test_epsilon_regression_linear() -> Result<()> {
+        // simple 2d straight line
+        let targets = Array::linspace(0f64, 10., 100);
+        let records = targets.clone().into_shape((100, 1)).unwrap();
+        let dataset = Dataset::new(records, targets);
 
         let model = Svm::params()
-            .nu_eps(2., 0.01)
-            .gaussian_kernel(50.)
+            .c_svr(5., None)
+            .linear_kernel()
             .fit(&dataset)?;
 
         println!("{}", model);
 
         let predicted = model.predict(dataset.records());
+        let err = predicted.mean_squared_error(&dataset).unwrap();
+        println!("err={}", err);
         assert!(predicted.mean_squared_error(&dataset).unwrap() < 1e-2);
 
         Ok(())
     }
 
     #[test]
-    fn test_linear_nu_regression() -> Result<()> {
-        let target = Array::linspace(0f64, 10., 100);
-        let mut sin_curve = Array::zeros((100, 1));
-        for (i, val) in target.iter().enumerate() {
-            sin_curve[(i, 0)] = *val;
-        }
-
-        let dataset = Dataset::new(sin_curve, target);
-
-        let model = Svm::params()
-            .nu_eps(2., 0.01)
-            .gaussian_kernel(50.)
-            .fit(&dataset)?;
-
-        println!("{}", model);
-
-        let predicted = model.predict(&dataset);
-        assert!(predicted.mean_squared_error(&dataset).unwrap() < 1e-2);
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_regression_linear_kernel() -> Result<()> {
+    fn test_nu_regression_linear() -> Result<()> {
         // simple 2d straight line
         let targets = Array::linspace(0f64, 10., 100);
         let records = targets.clone().into_shape((100, 1)).unwrap();
-
         let dataset = Dataset::new(records, targets);
 
         // Test the precomputed dot product in the linear kernel case
         let model = Svm::params()
-            .nu_eps(2., 0.01)
+            .nu_svr(0.5, Some(1.))
             .linear_kernel()
             .fit(&dataset)?;
 
         println!("{}", model);
 
         let predicted = model.predict(&dataset);
+        let err = predicted.mean_squared_error(&dataset).unwrap();
+        println!("err={}", err);
+        assert!(predicted.mean_squared_error(&dataset).unwrap() < 1e-2);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_nu_regression_gaussian() -> Result<()> {
+        let records = Array::linspace(0f64, 10., 100)
+            .into_shape((100, 1))
+            .unwrap();
+        let sin_curve = records.mapv(|v| v.sin()).into_shape((100,)).unwrap();
+
+        let dataset = Dataset::new(records, sin_curve);
+
+        let model = Svm::params()
+            .c_svr(100., Some(0.1))
+            .gaussian_kernel(10.)
+            .fit(&dataset)?;
+
+        println!("{}", model);
+
+        let predicted = model.predict(&dataset);
+        let err = predicted.mean_squared_error(&dataset).unwrap();
+        println!("err={}", err);
         assert!(predicted.mean_squared_error(&dataset).unwrap() < 1e-2);
 
         Ok(())
