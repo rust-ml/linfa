@@ -1,6 +1,6 @@
 [package]
 name = "linfa-svm"
-version = "0.7.1"
+version = "0.7.2"
 edition = "2018"
 authors = ["Lorenz Schmidt <lorenz.schmidt@mailbox.org>"]
 description = "Support Vector Machines"
@@ -33,6 +33,9 @@ linfa = { version = "0.7.1", path = "../.." }
 linfa-kernel = { version = "0.7.1", path = "../linfa-kernel" }
 
 [dev-dependencies]
-linfa-datasets = { version = "0.7.1", path = "../../datasets", features = ["winequality", "diabetes"] }
+linfa-datasets = { version = "0.7.1", path = "../../datasets", features = [
+    "winequality",
+    "diabetes",
+] }
 rand_xoshiro = "0.6"
 approx = "0.4"
