@@ -254,7 +254,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_nu_regression_gaussian() -> Result<()> {
+    fn test_epsilon_regression_gaussian() -> Result<()> {
         let records = Array::linspace(0f64, 10., 100)
             .into_shape((100, 1))
             .unwrap();
@@ -265,6 +265,28 @@ pub mod tests {
         let model = Svm::params()
             .c_svr(100., Some(0.1))
             .gaussian_kernel(10.)
+            .fit(&dataset)?;
+
+        println!("{}", model);
+
+        let predicted = model.predict(&dataset);
+        let err = predicted.mean_squared_error(&dataset).unwrap();
+        println!("err={}", err);
+        assert!(predicted.mean_squared_error(&dataset).unwrap() < 1e-2);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_nu_regression_polynomial() -> Result<()> {
+        let n = 100;
+        let records = Array::linspace(0f64, 5., n).into_shape((n, 1)).unwrap();
+        let sin_curve = records.mapv(|v| v.sin()).into_shape((n,)).unwrap();
+        let dataset = Dataset::new(records, sin_curve);
+
+        let model = Svm::params()
+            .nu_svr(0.01, None)
+            .polynomial_kernel(1., 3.)
             .fit(&dataset)?;
 
         println!("{}", model);
