@@ -30,9 +30,10 @@ jobs:
         run: cargo clippy --all-targets -- -D warnings
 
   coverage:
+    needs: codequality
     name: coverage
     runs-on: ubuntu-latest
-    if: github.event.pull_request.draft == false
+    if: github.event.pull_request.draft == false && (github.event_name == 'pull_request' || github.ref == 'refs/heads/master')
 
     steps:
       - name: Checkout sources
@@ -61,9 +62,8 @@ jobs:
         run: |
           cargo tarpaulin --verbose --timeout 120 --out Xml --all --release
       - name: Upload to codecov.io
-        if: ${{ github.event_name == 'pull_request' }}
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
-          verbose: true
+
