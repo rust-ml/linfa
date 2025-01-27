@@ -265,6 +265,7 @@ pub mod tests {
         let model = Svm::params()
             .c_svr(100., Some(0.1))
             .gaussian_kernel(10.)
+            .eps(1e-3)
             .fit(&dataset)?;
 
         println!("{}", model);
@@ -287,6 +288,7 @@ pub mod tests {
         let model = Svm::params()
             .nu_svr(0.01, None)
             .polynomial_kernel(1., 3.)
+            .eps(1e-3)
             .fit(&dataset)?;
 
         println!("{}", model);

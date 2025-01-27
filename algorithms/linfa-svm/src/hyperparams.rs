@@ -168,19 +168,23 @@ impl<F: Float, T> SvmParams<F, T> {
 }
 
 impl<F: Float> SvmParams<F, F> {
-    /// Set the C value for regression
-    #[deprecated(since = "0.7.2", note = "Use c_svr() instead")]
+    /// Set the C value for regression and solver epsilon stopping condition.
+    /// Loss epsilon value is fixed at 0.1.
+    #[deprecated(since = "0.7.2", note = "Use .c_svr() and .eps()")]
     pub fn c_eps(mut self, c: F, eps: F) -> Self {
-        self.0.c = Some((c, eps));
+        self.0.c = Some((c, F::cast(0.1)));
         self.0.nu = None;
+        self.0.solver_params.eps = eps;
         self
     }
 
-    /// Set the Nu-Eps value for regression
-    #[deprecated(since = "0.7.2", note = "Use nu_svr() instead")]
+    /// Set the Nu value for regression and solver epsilon stopping condition.
+    /// C value used value is fixed at 1.0.
+    #[deprecated(since = "0.7.2", note = "Use .nu_svr() and .eps()")]
     pub fn nu_eps(mut self, nu: F, eps: F) -> Self {
-        self.0.nu = Some((nu, eps));
+        self.0.nu = Some((nu, F::one()));
         self.0.c = None;
+        self.0.solver_params.eps = eps;
         self
     }
 
