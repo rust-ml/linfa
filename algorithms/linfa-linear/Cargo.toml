@@ -43,7 +43,7 @@ linfa = { version = "0.7.1", path = "../.." }
 linfa-datasets = { version = "0.7.1", path = "../../datasets", features = [
     "diabetes",
 ] }
-approx = "0.4"
+approx = "0.5"
 criterion = "0.4.0"
 statrs = "0.16.0"
 linfa = { version = "0.7.1", path = "../..", features = ["benchmarks"] }

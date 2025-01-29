@@ -40,7 +40,7 @@ linfa = { version = "0.7.1", path = "../..", features = ["benchmarks"] }
 linfa-datasets = { version = "0.7.1", path = "../../datasets", features = [
     "linnerud",
 ] }
-approx = "0.4"
+approx = "0.5"
 rand_xoshiro = "0.6"
 criterion = "0.4.0"
 statrs = "0.16.0"

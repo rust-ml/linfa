@@ -34,7 +34,7 @@ linfa-linalg = { version = "0.1", default-features = false }
 ndarray-linalg = { version = "0.17", optional = true }
 
 num-traits = "0.2"
-approx = "0.4"
+approx = "0.5"
 thiserror = "1.0"
 
 linfa = { version = "0.7.1", path = "../.." }
