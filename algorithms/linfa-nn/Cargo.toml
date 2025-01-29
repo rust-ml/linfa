@@ -39,7 +39,7 @@ linfa = { version = "0.7.1", path = "../.." }
 approx = "0.4"
 criterion = "0.4.0"
 rand_xoshiro = "0.6"
-ndarray-rand = "0.14"
+ndarray-rand = "0.15"
 linfa = { version = "0.7.1", path = "../..", features = ["benchmarks"] }
 
 [[bench]]
