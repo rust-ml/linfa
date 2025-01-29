@@ -38,7 +38,7 @@ serde = ["serde_crate", "ndarray/serde"]
 [dependencies]
 num-traits = "0.2"
 rand = { version = "0.8", features = ["small_rng"] }
-approx = "0.4"
+approx = "0.5"
 
 ndarray = { version = "0.16", features = ["approx"] }
 ndarray-linalg = { version = "0.17", optional = true }
