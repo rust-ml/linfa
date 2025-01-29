@@ -24,7 +24,7 @@ default-features = false
 features = ["std", "derive"]
 
 [dependencies]
-ndarray = { version = "0.15", features = ["approx"]}
+ndarray = { version = "0.16", features = ["approx"] }
 ndarray-stats = "0.5"
 num-traits = "0.2.0"
 noisy_float = "0.2.0"
