@@ -24,7 +24,7 @@ default-features = false
 features = ["std", "derive"]
 
 [dependencies]
-ndarray = { version = "0.15" }
+ndarray = { version = "0.16" }
 ndarray-rand = "0.14"
 num-traits = "0.2"
 thiserror = "1.0"
