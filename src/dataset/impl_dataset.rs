@@ -960,7 +960,7 @@ impl<F, E, I: TargetDim> Dataset<F, E, I> {
         let feature_names = self.feature_names();
 
         // split records into two disjoint arrays
-        let mut array_buf = self.records.into_raw_vec();
+        let (mut array_buf, _) = self.records.into_raw_vec_and_offset();
         let second_array_buf = array_buf.split_off(n1 * nfeatures);
 
         let first = Array2::from_shape_vec((n1, nfeatures), array_buf).unwrap();
@@ -969,7 +969,7 @@ impl<F, E, I: TargetDim> Dataset<F, E, I> {
         // split targets into two disjoint Vec
         let dim1 = self.targets.raw_dim().nsamples(n1);
         let dim2 = self.targets.raw_dim().nsamples(n2);
-        let mut array_buf = self.targets.into_raw_vec();
+        let (mut array_buf, _) = self.targets.into_raw_vec_and_offset();
         let second_array_buf = array_buf.split_off(dim1.size());
 
         let first_targets = Array::from_shape_vec(dim1, array_buf).unwrap();
@@ -977,7 +977,7 @@ impl<F, E, I: TargetDim> Dataset<F, E, I> {
 
         // split weights into two disjoint Vec
         let second_weights = if self.weights.len() == n1 + n2 {
-            let mut weights = self.weights.into_raw_vec();
+            let (mut weights, _) = self.weights.into_raw_vec_and_offset();
 
             let weights2 = weights.split_off(n1);
             self.weights = Array1::from(weights);
