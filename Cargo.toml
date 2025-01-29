@@ -56,7 +56,7 @@ default-features = false
 features = ["std", "derive"]
 
 [dev-dependencies]
-ndarray-rand = "0.14"
+ndarray-rand = "0.15"
 linfa-datasets = { path = "datasets", features = [
     "winequality",
     "iris",

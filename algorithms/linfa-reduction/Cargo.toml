@@ -37,7 +37,7 @@ features = ["std", "derive"]
 ndarray = { version = "0.16", features = ["approx"] }
 linfa-linalg = { version = "0.1" }
 ndarray-linalg = { version = "0.17", optional = true }
-ndarray-rand = "0.14"
+ndarray-rand = "0.15"
 num-traits = "0.2"
 thiserror = "1.0"
 rand = { version = "0.8", features = ["small_rng"] }
