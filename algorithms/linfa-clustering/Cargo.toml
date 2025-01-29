@@ -36,7 +36,7 @@ features = ["std", "derive"]
 
 [dependencies]
 ndarray = { version = "0.16", features = ["rayon", "approx"] }
-linfa-linalg = { version = "0.1", default-features = false }
+linfa-linalg = { version = "0.2", default-features = false }
 ndarray-linalg = { version = "0.17", optional = true }
 ndarray-rand = "0.15"
 ndarray-stats = "0.6"
