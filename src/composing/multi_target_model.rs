@@ -40,13 +40,18 @@ impl<L: Default, F, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array2<
             &[arr.nrows(), self.models.len()],
             "The number of data points must match the number of output targets."
         );
+        assert!(
+            targets.is_standard_layout(),
+            "targets not in row-major layout"
+        );
         *targets = self
             .models
             .iter()
             .flat_map(|model| {
                 let mut targets = Array1::default(arr.nrows());
                 model.predict_inplace(arr, &mut targets);
-                targets.into_raw_vec()
+                let (v, _) = targets.into_raw_vec_and_offset();
+                v
             })
             .collect::<Array1<L>>()
             .into_shape_with_order((self.models.len(), arr.len_of(Axis(0))))
