@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"macro":["column_for_word"],"mod":["error","linear_scaling","norm_scaling","tf_idf_vectorization","whitening"],"struct":["CountVectorizer","CountVectorizerParams","CountVectorizerValidParams"]};
