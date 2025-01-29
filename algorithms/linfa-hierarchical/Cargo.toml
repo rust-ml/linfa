@@ -10,11 +10,17 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-ml/linfa"
 readme = "README.md"
 
-keywords = ["hierachical", "agglomerative", "clustering", "machine-learning", "linfa"]
+keywords = [
+    "hierachical",
+    "agglomerative",
+    "clustering",
+    "machine-learning",
+    "linfa",
+]
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
-ndarray = { version = "0.15" }
+ndarray = { version = "0.16" }
 kodama = "0.2"
 thiserror = "1.0.25"
 
@@ -24,4 +30,6 @@ linfa-kernel = { version = "0.7.1", path = "../linfa-kernel" }
 [dev-dependencies]
 rand = "0.8"
 ndarray-rand = "0.14"
-linfa-datasets = { version = "0.7.1", path = "../../datasets", features = ["iris"] }
+linfa-datasets = { version = "0.7.1", path = "../../datasets", features = [
+    "iris",
+] }
