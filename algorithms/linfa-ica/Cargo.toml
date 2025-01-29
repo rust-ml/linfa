@@ -37,7 +37,7 @@ thiserror = "1.0"
 linfa = { version = "0.7.1", path = "../.." }
 
 [dev-dependencies]
-ndarray-npy = { version = "0.8", default-features = false }
+ndarray-npy = { version = "0.9", default-features = false }
 paste = "1.0"
 criterion = "0.4.0"
 linfa = { version = "0.7.1", path = "../..", features = ["benchmarks"] }

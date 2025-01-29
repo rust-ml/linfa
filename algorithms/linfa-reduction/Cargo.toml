@@ -48,11 +48,11 @@ sprs = { version = "0.11" }
 rand_xoshiro = "0.6.0"
 
 [dev-dependencies]
-ndarray-npy = { version = "0.8", default-features = false }
+ndarray-npy = { version = "0.9", default-features = false }
 linfa-datasets = { version = "0.7.1", path = "../../datasets", features = [
     "iris",
     "generate",
 ] }
-approx = { version = "0.4" }
+approx = "0.5"
 mnist = { version = "0.6.0", features = ["download"] }
 linfa-trees = { version = "0.7.1", path = "../linfa-trees" }

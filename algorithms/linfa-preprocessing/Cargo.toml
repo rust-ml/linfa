@@ -24,8 +24,8 @@ ndarray-linalg = { version = "0.17", optional = true }
 linfa-linalg = { version = "0.2", default-features = false }
 ndarray-stats = "0.6"
 thiserror = "1.0"
-approx = { version = "0.4" }
-ndarray-rand = { version = "0.14" }
+approx = "0.5"
+ndarray-rand = "0.15"
 unicode-normalization = "0.1.8"
 regex = "1.4.5"
 encoding = "0.2"
