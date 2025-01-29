@@ -23,7 +23,7 @@ fn main() -> Result<()> {
         .filter(|(i, _)| i % 5 == 0)
         .for_each(|(_, y)| *y = 3. * (0.5 - rng.gen::<f64>()));
 
-    let x = x.into_shape((40, 1)).unwrap();
+    let x = x.into_shape_with_order((40, 1)).unwrap();
     let dataset = DatasetBase::new(x, y);
     let model = Svm::params()
         .c_svr(100., Some(0.1))

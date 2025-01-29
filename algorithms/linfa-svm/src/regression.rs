@@ -221,7 +221,7 @@ pub mod tests {
     fn test_epsilon_regression_linear() -> Result<()> {
         // simple 2d straight line
         let targets = Array::linspace(0f64, 10., 100);
-        let records = targets.clone().into_shape((100, 1)).unwrap();
+        let records = targets.clone().into_shape_with_order((100, 1)).unwrap();
         let dataset = Dataset::new(records, targets);
 
         let model = Svm::params()
@@ -245,7 +245,7 @@ pub mod tests {
     fn test_nu_regression_linear() -> Result<()> {
         // simple 2d straight line
         let targets = Array::linspace(0f64, 10., 100);
-        let records = targets.clone().into_shape((100, 1)).unwrap();
+        let records = targets.clone().into_shape_with_order((100, 1)).unwrap();
         let dataset = Dataset::new(records, targets);
 
         // Test the precomputed dot product in the linear kernel case
@@ -268,9 +268,12 @@ pub mod tests {
     #[test]
     fn test_epsilon_regression_gaussian() -> Result<()> {
         let records = Array::linspace(0f64, 10., 100)
-            .into_shape((100, 1))
+            .into_shape_with_order((100, 1))
             .unwrap();
-        let sin_curve = records.mapv(|v| v.sin()).into_shape((100,)).unwrap();
+        let sin_curve = records
+            .mapv(|v| v.sin())
+            .into_shape_with_order((100,))
+            .unwrap();
         let dataset = Dataset::new(records, sin_curve);
 
         let model = Svm::params()
@@ -285,8 +288,13 @@ pub mod tests {
     #[test]
     fn test_nu_regression_polynomial() -> Result<()> {
         let n = 100;
-        let records = Array::linspace(0f64, 5., n).into_shape((n, 1)).unwrap();
-        let sin_curve = records.mapv(|v| v.sin()).into_shape((n,)).unwrap();
+        let records = Array::linspace(0f64, 5., n)
+            .into_shape_with_order((n, 1))
+            .unwrap();
+        let sin_curve = records
+            .mapv(|v| v.sin())
+            .into_shape_with_order((n,))
+            .unwrap();
         let dataset = Dataset::new(records, sin_curve);
 
         let model = Svm::params()
