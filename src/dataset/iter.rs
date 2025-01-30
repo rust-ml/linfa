@@ -82,6 +82,7 @@ where
         let mut targets = self.dataset.targets.as_targets();
         let feature_names;
         let weights = self.dataset.weights.clone();
+        let sample_names = self.dataset.sample_names.clone();
 
         if !self.target_or_feature {
             // This branch should only run for 2D targets
@@ -103,6 +104,7 @@ where
             targets,
             weights,
             feature_names,
+            sample_names,
         };
 
         Some(dataset_view)

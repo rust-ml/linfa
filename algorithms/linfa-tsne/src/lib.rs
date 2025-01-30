@@ -70,6 +70,7 @@ impl<T, F: Float, R: Rng + Clone>
     for TSneValidParams<F, R>
 {
     fn transform(&self, ds: DatasetBase<Array2<F>, T>) -> Result<DatasetBase<Array2<F>, T>> {
+        let sample_names = ds.sample_names();
         let DatasetBase {
             records,
             targets,
@@ -77,8 +78,11 @@ impl<T, F: Float, R: Rng + Clone>
             ..
         } = ds;
 
-        self.transform(records)
-            .map(|new_records| DatasetBase::new(new_records, targets).with_weights(weights))
+        self.transform(records).map(|new_records| {
+            DatasetBase::new(new_records, targets)
+                .with_weights(weights)
+                .with_sample_names(sample_names)
+        })
     }
 }
 
