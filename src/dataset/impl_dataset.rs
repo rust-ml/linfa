@@ -61,14 +61,8 @@ impl<R: Records, S> DatasetBase<R, S> {
     /// A feature name gives a human-readable string describing the purpose of a single feature.
     /// This allow the reader to understand its purpose while analysing results, for example
     /// correlation analysis or feature importance.
-    pub fn feature_names(&self) -> Vec<String> {
-        if !self.feature_names.is_empty() {
-            self.feature_names.clone()
-        } else {
-            (0..self.records.nfeatures())
-                .map(|idx| format!("feature-{idx}"))
-                .collect()
-        }
+    pub fn feature_names(&self) -> &[String] {
+        &self.feature_names
     }
 
     /// Return records of a dataset
@@ -114,20 +108,14 @@ impl<R: Records, S> DatasetBase<R, S> {
     }
 
     /// Updates the feature names of a dataset
+    ///
+    /// **Panics** when given names not empty and length does not equal to the number of features
     pub fn with_feature_names<I: Into<String>>(mut self, names: Vec<I>) -> DatasetBase<R, S> {
-        let feature_names = names.into_iter().map(|x| x.into()).collect();
-
-        self.feature_names = feature_names;
-
-        self
-    }
-
-    /// Updates the target names of a dataset
-    pub fn with_target_names<I: Into<String>>(mut self, names: Vec<I>) -> DatasetBase<R, S> {
-        let target_names = names.into_iter().map(|x| x.into()).collect();
-
-        self.target_names = target_names;
-
+        assert!(
+            names.is_empty() || names.len() == self.nfeatures(),
+            "Wrong number of feature names"
+        );
+        self.feature_names = names.into_iter().map(|x| x.into()).collect();
         self
     }
 }
@@ -143,6 +131,18 @@ impl<X, Y> Dataset<X, Y> {
 }
 
 impl<L, R: Records, T: AsTargets<Elem = L>> DatasetBase<R, T> {
+    /// Updates the target names of a dataset
+    ///
+    /// **Panics**  when given names not empty and length does not equal to the number of targets
+    pub fn with_target_names<I: Into<String>>(mut self, names: Vec<I>) -> DatasetBase<R, T> {
+        assert!(
+            names.is_empty() || names.len() == self.ntargets(),
+            "Wrong number of target names"
+        );
+        self.target_names = names.into_iter().map(|x| x.into()).collect();
+        self
+    }
+
     /// Map targets with a function `f`
     ///
     /// # Example
@@ -238,6 +238,7 @@ impl<'a, F: 'a, L: 'a, D, T> DatasetBase<ArrayBase<D, Ix2>, T>
 where
     D: Data<Elem = F>,
     T: AsTargets<Elem = L> + FromTargetArray<'a>,
+    T::View: AsTargets<Elem = L>,
 {
     /// Creates a view of a dataset
     pub fn view(&'a self) -> DatasetBase<ArrayView2<'a, F>, T::View> {
@@ -290,6 +291,7 @@ impl<L, R: Records, T: AsTargetsMut<Elem = L>> AsTargetsMut for DatasetBase<R, T
 impl<'a, L: 'a, F, T> DatasetBase<ArrayView2<'a, F>, T>
 where
     T: AsTargets<Elem = L> + FromTargetArray<'a>,
+    T::View: AsTargets<Elem = L>,
 {
     /// Split dataset into two disjoint chunks
     ///
@@ -984,7 +986,8 @@ impl<F, E, I: TargetDim> Dataset<F, E, I> {
         let n1 = (self.nsamples() as f32 * ratio).ceil() as usize;
         let n2 = self.nsamples() - n1;
 
-        let feature_names = self.feature_names();
+        let feature_names = self.feature_names().to_vec();
+        let target_names = self.target_names().to_vec();
 
         // split records into two disjoint arrays
         let mut array_buf = self.records.into_raw_vec();
@@ -1017,10 +1020,12 @@ impl<F, E, I: TargetDim> Dataset<F, E, I> {
         // create new datasets with attached weights
         let dataset1 = Dataset::new(first, first_targets)
             .with_weights(self.weights)
-            .with_feature_names(feature_names.clone());
+            .with_feature_names(feature_names.clone())
+            .with_target_names(target_names.clone());
         let dataset2 = Dataset::new(second, second_targets)
             .with_weights(second_weights)
-            .with_feature_names(feature_names);
+            .with_feature_names(feature_names.clone())
+            .with_target_names(target_names.clone());
 
         (dataset1, dataset2)
     }

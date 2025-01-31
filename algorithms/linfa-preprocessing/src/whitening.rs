@@ -209,12 +209,14 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets>
     for FittedWhitener<F>
 {
     fn transform(&self, x: DatasetBase<ArrayBase<D, Ix2>, T>) -> DatasetBase<Array2<F>, T> {
-        let feature_names = x.feature_names();
+        let feature_names = x.feature_names().to_vec();
+        let target_names = x.target_names().to_vec();
         let (records, targets, weights) = (x.records, x.targets, x.weights);
         let records = self.transform(records.to_owned());
         DatasetBase::new(records, targets)
             .with_weights(weights)
             .with_feature_names(feature_names)
+            .with_target_names(target_names)
     }
 }
 
@@ -334,7 +336,7 @@ mod tests {
     #[test]
     fn test_retain_feature_names() {
         let dataset = linfa_datasets::diabetes();
-        let original_feature_names = dataset.feature_names();
+        let original_feature_names = dataset.feature_names().to_vec();
         let transformed = Whitener::cholesky()
             .fit(&dataset)
             .unwrap()

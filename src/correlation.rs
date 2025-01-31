@@ -169,7 +169,7 @@ impl<F: Float> PearsonCorrelation<F> {
         PearsonCorrelation {
             pearson_coeffs,
             p_values,
-            feature_names: dataset.feature_names(),
+            feature_names: dataset.feature_names().to_vec(),
         }
     }
 

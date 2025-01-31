@@ -131,8 +131,11 @@ pub fn linnerud() -> Dataset<f64, f64> {
     let output_array = array_from_gz_csv(&output_data[..], true, b',').unwrap();
 
     let feature_names = vec!["Chins", "Situps", "Jumps"];
+    let target_names = vec!["Weight", "Waist", "Pulse"];
 
-    Dataset::new(input_array, output_array).with_feature_names(feature_names)
+    Dataset::new(input_array, output_array)
+        .with_feature_names(feature_names)
+        .with_target_names(target_names)
 }
 
 #[cfg(test)]
@@ -260,6 +263,10 @@ mod tests {
         // check for feature names
         let feature_names = vec!["Chins", "Situps", "Jumps"];
         assert_eq!(ds.feature_names(), feature_names);
+
+        // check for target names
+        let target_names = vec!["Weight", "Waist", "Pulse"];
+        assert_eq!(ds.target_names(), target_names);
 
         // get the mean per target: Weight, Waist, Pulse
         let mean_targets = ds.targets().mean_axis(Axis(0)).unwrap();

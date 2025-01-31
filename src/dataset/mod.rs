@@ -556,7 +556,8 @@ mod tests {
         let dataset = Dataset::new(
             array![[1., 2., 3., 4.], [5., 6., 7., 8.], [9., 10., 11., 12.]],
             array![[1, 2], [3, 4], [5, 6]],
-        ).with_target_names(vec!["a", "b"]);
+        )
+        .with_target_names(vec!["a", "b"]);
 
         let res = dataset
             .target_iter()
@@ -568,7 +569,7 @@ mod tests {
         let mut iter = dataset.target_iter();
         let first = iter.next();
         let second = iter.next();
-        
+
         assert_eq!(vec!["a"], first.unwrap().target_names());
         assert_eq!(vec!["b"], second.unwrap().target_names());
 
