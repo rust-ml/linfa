@@ -33,7 +33,7 @@ jobs:
     needs: codequality
     name: coverage
     runs-on: ubuntu-latest
-    if: github.event.pull_request.draft == false && (github.event_name == 'pull_request' || github.ref == 'refs/heads/master')
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/master'
 
     steps:
       - name: Checkout sources
