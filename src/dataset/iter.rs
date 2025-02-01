@@ -89,9 +89,9 @@ where
             feature_names = self.dataset.feature_names.clone();
             if self.dataset.target_names.is_empty() {
                 target_names = Vec::new();
-              } else {
+            } else {
                 target_names = vec![self.dataset.target_names[self.idx].clone()];
-              }
+            }
         } else {
             records.collapse_axis(Axis(1), self.idx);
             target_names = self.dataset.target_names.clone();
