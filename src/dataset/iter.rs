@@ -77,18 +77,24 @@ where
         if self.target_or_feature && self.dataset.nfeatures() <= self.idx {
             return None;
         }
-
         let mut records = self.dataset.records.view();
         let mut targets = self.dataset.targets.as_targets();
         let feature_names;
+        let target_names;
         let weights = self.dataset.weights.clone();
 
         if !self.target_or_feature {
             // This branch should only run for 2D targets
             targets.collapse_axis(Axis(1), self.idx);
             feature_names = self.dataset.feature_names.clone();
+            if self.dataset.target_names.is_empty() {
+                target_names = Vec::new();
+            } else {
+                target_names = vec![self.dataset.target_names[self.idx].clone()];
+            }
         } else {
             records.collapse_axis(Axis(1), self.idx);
+            target_names = self.dataset.target_names.clone();
             if self.dataset.feature_names.len() == records.len_of(Axis(1)) {
                 feature_names = vec![self.dataset.feature_names[self.idx].clone()];
             } else {
@@ -103,6 +109,7 @@ where
             targets,
             weights,
             feature_names,
+            target_names,
         };
 
         Some(dataset_view)

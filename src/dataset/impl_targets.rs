@@ -83,7 +83,7 @@ impl<'a, L: Label + 'a, T> FromTargetArray<'a> for CountedTargets<L, T>
 where
     T: FromTargetArray<'a, Elem = L>,
     T::Owned: Labels<Elem = L>,
-    T::View: Labels<Elem = L>,
+    T::View: Labels<Elem = L> + AsTargets,
 {
     type Owned = CountedTargets<L, T::Owned>;
     type View = CountedTargets<L, T::View>;
@@ -231,6 +231,7 @@ where
             weights: Array1::from(weights),
             targets,
             feature_names: self.feature_names.clone(),
+            target_names: self.target_names.clone(),
         }
     }
 }

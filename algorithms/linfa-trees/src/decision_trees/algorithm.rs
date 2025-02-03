@@ -523,7 +523,13 @@ where
     /// a matrix of features `x` and an array of labels `y`.
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
         let x = dataset.records();
-        let feature_names = dataset.feature_names();
+        let feature_names = if dataset.feature_names().is_empty() {
+            (0..x.nfeatures())
+                .map(|idx| format!("feature-{idx}"))
+                .collect()
+        } else {
+            dataset.feature_names().to_vec()
+        };
         let all_idxs = RowMask::all(x.nrows());
         let sorted_indices: Vec<_> = (0..(x.ncols()))
             .map(|feature_idx| {
