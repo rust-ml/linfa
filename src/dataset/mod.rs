@@ -360,6 +360,20 @@ mod tests {
     }
 
     #[test]
+    #[should_panic]
+    fn test_wrong_feature_names_lenght() {
+        let _dataset = Dataset::new(array![[1., 2.], [1., 2.]], array![0., 1.])
+            .with_feature_names(vec!["test"]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_wrong_target_names_lenght() {
+        let _dataset = Dataset::new(array![[1., 2.], [1., 2.]], array![0., 1.])
+            .with_target_names(vec!["test", "bad"]);
+    }
+
+    #[test]
     fn dataset_implements_required_methods() {
         let mut rng = SmallRng::seed_from_u64(42);
 
