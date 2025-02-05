@@ -332,12 +332,16 @@ pub trait Labels {
             .collect()
     }
 
-    fn combined_labels(&self, other: Vec<Self::Elem>) -> Vec<Self::Elem> {
-        let mut combined = self.labels();
-        combined.extend(other);
+    fn combined_labels<T>(&self, other: &T) -> Vec<Self::Elem>
+    where
+        T: Labels<Elem = <Self as Labels>::Elem>,
+    {
+        let mut combined = self.label_set();
+        combined.extend(other.label_set());
 
         combined
             .iter()
+            .flatten()
             .collect::<HashSet<_>>()
             .into_iter()
             .cloned()
