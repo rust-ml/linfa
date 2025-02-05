@@ -476,9 +476,9 @@ fn logistic_loss<F: Float, A: Data<Elem = F>>(
 ) -> F {
     let n_features = x.shape()[1];
     let (params, intercept) = convert_params(n_features, w);
-    let yz = x.dot(&params.into_shape((params.len(), 1)).unwrap()) + intercept;
+    let yz = x.dot(&params.into_shape_with_order((params.len(), 1)).unwrap()) + intercept;
     let len = yz.len();
-    let mut yz = yz.into_shape(len).unwrap() * y;
+    let mut yz = yz.into_shape_with_order(len).unwrap() * y;
     yz.mapv_inplace(log_logistic);
     -yz.sum() + F::cast(0.5) * alpha * params.dot(&params)
 }
@@ -492,9 +492,9 @@ fn logistic_grad<F: Float, A: Data<Elem = F>>(
 ) -> Array1<F> {
     let n_features = x.shape()[1];
     let (params, intercept) = convert_params(n_features, w);
-    let yz = x.dot(&params.into_shape((params.len(), 1)).unwrap()) + intercept;
+    let yz = x.dot(&params.into_shape_with_order((params.len(), 1)).unwrap()) + intercept;
     let len = yz.len();
-    let mut yz = yz.into_shape(len).unwrap() * y;
+    let mut yz = yz.into_shape_with_order(len).unwrap() * y;
     yz.mapv_inplace(logistic);
     yz -= F::one();
     yz *= y;
@@ -523,7 +523,10 @@ fn multi_logistic_prob_params<'a, F: Float, A: Data<Elem = F>>(
     let h = x.dot(&params) + intercept;
     // This computes `H - log(sum(exp(H)))`, which is equal to
     // `log(softmax(H)) = log(exp(H) / sum(exp(H)))`
-    let log_prob = &h - log_sum_exp(&h, Axis(1)).into_shape((h.nrows(), 1)).unwrap();
+    let log_prob = &h
+        - log_sum_exp(&h, Axis(1))
+            .into_shape_with_order((h.nrows(), 1))
+            .unwrap();
     (log_prob, params)
 }
 
