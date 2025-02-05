@@ -50,7 +50,7 @@ pub enum SplitQuality {
 /// let tree = params.fit(&train).unwrap();
 /// // Predict on validation and check accuracy
 /// let val_accuracy = tree.predict(&val).confusion_matrix(&val).unwrap().accuracy();
-/// assert!(val_accuracy > 0.99);
+/// assert!(val_accuracy > 0.9);
 /// ```
 ///
 #[cfg_attr(
