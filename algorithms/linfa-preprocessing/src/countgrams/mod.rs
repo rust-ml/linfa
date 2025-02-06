@@ -1,11 +1,13 @@
 //! Count vectorization methods
 
+use std::cmp::Reverse;
 use std::collections::{HashMap, HashSet};
 use std::io::Read;
 use std::iter::IntoIterator;
 
 use encoding::types::EncodingRef;
 use encoding::DecoderTrap;
+use itertools::sorted;
 use ndarray::{Array1, ArrayBase, ArrayViewMut1, Data, Ix1};
 use regex::Regex;
 use sprs::{CsMat, CsVec};
@@ -20,6 +22,8 @@ use linfa::ParamGuard;
 use serde_crate::{Deserialize, Serialize};
 
 mod hyperparams;
+
+pub(crate) type TOKENIZERFP = fn(&str) -> Vec<&str>;
 
 impl CountVectorizerValidParams {
     /// Learns a vocabulary from the documents in `x`, according to the specified attributes and maps each
@@ -41,10 +45,11 @@ impl CountVectorizerValidParams {
         }
 
         let mut vocabulary = self.filter_vocabulary(vocabulary, x.len());
+
         let vec_vocabulary = hashmap_to_vocabulary(&mut vocabulary);
 
         Ok(CountVectorizer {
-            vocabulary,
+            vocabulary: vocabulary,
             vec_vocabulary,
             properties: self.clone(),
         })
@@ -127,7 +132,7 @@ impl CountVectorizerValidParams {
         let len_f32 = n_documents as f32;
         let (min_abs_df, max_abs_df) = ((min_df * len_f32) as usize, (max_df * len_f32) as usize);
 
-        if min_abs_df == 0 && max_abs_df == n_documents {
+        let vocabulary = if min_abs_df == 0 && max_abs_df == n_documents {
             match &self.stopwords() {
                 None => vocabulary,
                 Some(stopwords) => vocabulary
@@ -152,6 +157,19 @@ impl CountVectorizerValidParams {
                     })
                     .collect(),
             }
+        };
+
+        if let Some(max_features) = self.max_features() {
+            sorted(
+                vocabulary
+                    .into_iter()
+                    .map(|(word, (x, freq))| (Reverse(freq), Reverse(word), x)),
+            )
+            .take(max_features)
+            .map(|(freq, word, x)| (word.0, (x, freq.0)))
+            .collect()
+        } else {
+            vocabulary
         }
     }
 
@@ -164,7 +182,11 @@ impl CountVectorizerValidParams {
         regex: &Regex,
         vocabulary: &mut HashMap<String, (usize, usize)>,
     ) {
-        let words = regex.find_iter(&doc).map(|mat| mat.as_str()).collect();
+        let words = if let Some(tokenizer) = self.tokenizer() {
+            tokenizer(&doc)
+        } else {
+            regex.find_iter(&doc).map(|mat| mat.as_str()).collect()
+        };
         let list = NGramList::new(words, self.n_gram_range());
         let document_vocabulary: HashSet<String> = list.into_iter().flatten().collect();
         for word in document_vocabulary {
@@ -253,13 +275,30 @@ impl CountVectorizer {
         self.vocabulary.len()
     }
 
+    pub fn force_tokenizer_redefinition(&mut self, tokenizer: Option<TOKENIZERFP>) {
+        self.properties.tokenizer = tokenizer;
+    }
+
+    pub(crate) fn validate_deserialization(&self) -> Result<()> {
+        if self.properties.tokenizer().is_none() && self.properties.tokenizer_deserialization_guard
+        {
+            return Err(PreprocessingError::TokenizerNotSet);
+        }
+
+        Ok(())
+    }
+
     /// Given a sequence of `n` documents, produces a sparse array of size `(n, vocabulary_entries)` where column `j` of row `i`
     /// is the number of occurrences of vocabulary entry `j` in the document of index `i`. Vocabulary entry `j` is the string
     /// at the `j`-th position in the vocabulary. If a vocabulary entry was not encountered in a document, then the relative
     /// cell in the sparse matrix will be set to `None`.
-    pub fn transform<T: ToString, D: Data<Elem = T>>(&self, x: &ArrayBase<D, Ix1>) -> CsMat<usize> {
+    pub fn transform<T: ToString, D: Data<Elem = T>>(
+        &self,
+        x: &ArrayBase<D, Ix1>,
+    ) -> Result<CsMat<usize>> {
+        self.validate_deserialization()?;
         let (vectorized, _) = self.get_term_and_document_frequencies(x);
-        vectorized
+        Ok(vectorized)
     }
 
     /// Given a sequence of `n` file names, produces a sparse array of size `(n, vocabulary_entries)` where column `j` of row `i`
@@ -274,9 +313,10 @@ impl CountVectorizer {
         input: &[P],
         encoding: EncodingRef,
         trap: DecoderTrap,
-    ) -> CsMat<usize> {
+    ) -> Result<CsMat<usize>> {
+        self.validate_deserialization()?;
         let (vectorized, _) = self.get_term_and_document_frequencies_files(input, encoding, trap);
-        vectorized
+        Ok(vectorized)
     }
 
     /// Contains all vocabulary entries, in the same order used by the `transform` methods.
@@ -341,7 +381,11 @@ impl CountVectorizer {
         // in sparse cases.
         let mut term_frequencies: Array1<usize> = Array1::zeros(self.vocabulary.len());
         let string = transform_string(document, &self.properties);
-        let words = regex.find_iter(&string).map(|mat| mat.as_str()).collect();
+        let words = if let Some(tokenizer) = self.properties.tokenizer() {
+            tokenizer(&string)
+        } else {
+            regex.find_iter(&string).map(|mat| mat.as_str()).collect()
+        };
         let list = NGramList::new(words, self.properties.n_gram_range());
         for ngram_items in list {
             for item in ngram_items {
@@ -408,7 +452,7 @@ mod tests {
         let texts = array!["oNe two three four", "TWO three four", "three;four", "four"];
         let vectorizer = CountVectorizer::params().fit(&texts).unwrap();
         let vocabulary = vectorizer.vocabulary();
-        let counts: Array2<usize> = vectorizer.transform(&texts).to_dense();
+        let counts: Array2<usize> = vectorizer.transform(&texts).unwrap().to_dense();
         let true_vocabulary = vec!["one", "two", "three", "four"];
         assert_vocabulary_eq(&true_vocabulary, vocabulary);
         assert_counts_for_word!(
@@ -425,7 +469,7 @@ mod tests {
             .fit(&texts)
             .unwrap();
         let vocabulary = vectorizer.vocabulary();
-        let counts: Array2<usize> = vectorizer.transform(&texts).to_dense();
+        let counts: Array2<usize> = vectorizer.transform(&texts).unwrap().to_dense();
         let true_vocabulary = vec!["one two", "two three", "three four"];
         assert_vocabulary_eq(&true_vocabulary, vocabulary);
         assert_counts_for_word!(
@@ -441,7 +485,7 @@ mod tests {
             .fit(&texts)
             .unwrap();
         let vocabulary = vectorizer.vocabulary();
-        let counts: Array2<usize> = vectorizer.transform(&texts).to_dense();
+        let counts: Array2<usize> = vectorizer.transform(&texts).unwrap().to_dense();
         let true_vocabulary = vec![
             "one",
             "one two",
@@ -479,7 +523,7 @@ mod tests {
             .unwrap();
         let vect_vocabulary = vectorizer.vocabulary();
         assert_vocabulary_eq(&vocabulary, vect_vocabulary);
-        let transformed: Array2<usize> = vectorizer.transform(&texts).to_dense();
+        let transformed: Array2<usize> = vectorizer.transform(&texts).unwrap().to_dense();
         assert_counts_for_word!(
             vect_vocabulary,
             transformed,
@@ -499,7 +543,7 @@ mod tests {
             .fit(&texts)
             .unwrap();
         let vocabulary = vectorizer.vocabulary();
-        let counts: Array2<usize> = vectorizer.transform(&texts).to_dense();
+        let counts: Array2<usize> = vectorizer.transform(&texts).unwrap().to_dense();
         let true_vocabulary = vec!["one", "two", "three", "four", "three;four"];
         assert_vocabulary_eq(&true_vocabulary, vocabulary);
         assert_counts_for_word!(
@@ -521,7 +565,7 @@ mod tests {
             .fit(&texts)
             .unwrap();
         let vocabulary = vectorizer.vocabulary();
-        let counts: Array2<usize> = vectorizer.transform(&texts).to_dense();
+        let counts: Array2<usize> = vectorizer.transform(&texts).unwrap().to_dense();
         let true_vocabulary = vec!["oNe", "two", "three", "four", "TWO"];
         assert_vocabulary_eq(&true_vocabulary, vocabulary);
         assert_counts_for_word!(
@@ -549,7 +593,7 @@ mod tests {
             .fit(&texts)
             .unwrap();
         let vocabulary = vectorizer.vocabulary();
-        let counts: Array2<usize> = vectorizer.transform(&texts).to_dense();
+        let counts: Array2<usize> = vectorizer.transform(&texts).unwrap().to_dense();
         let true_vocabulary = vec!["oNe", "two", "three", "four", "TWO", "three;four"];
         assert_vocabulary_eq(&true_vocabulary, vocabulary);
         assert_counts_for_word!(
@@ -601,6 +645,7 @@ mod tests {
                 encoding::all::UTF_8,
                 encoding::DecoderTrap::Strict,
             )
+            .unwrap()
             .to_dense();
         let true_vocabulary = vec!["one", "two", "three", "four"];
         assert_vocabulary_eq(&true_vocabulary, vocabulary);
@@ -628,6 +673,7 @@ mod tests {
                 encoding::all::UTF_8,
                 encoding::DecoderTrap::Strict,
             )
+            .unwrap()
             .to_dense();
         let true_vocabulary = vec!["one two", "two three", "three four"];
         assert_vocabulary_eq(&true_vocabulary, vocabulary);
@@ -654,6 +700,7 @@ mod tests {
                 encoding::all::UTF_8,
                 encoding::DecoderTrap::Strict,
             )
+            .unwrap()
             .to_dense();
         let true_vocabulary = vec![
             "one",

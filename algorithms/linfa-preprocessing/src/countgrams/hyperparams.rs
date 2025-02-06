@@ -7,6 +7,8 @@ use std::collections::HashSet;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 
+use super::TOKENIZERFP;
+
 #[derive(Clone, Debug)]
 #[cfg(not(feature = "serde"))]
 struct SerdeRegex(Regex);
@@ -71,9 +73,21 @@ pub struct CountVectorizerValidParams {
     normalize: bool,
     document_frequency: (f32, f32),
     stopwords: Option<HashSet<String>>,
+    max_features: Option<usize>,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) tokenizer: Option<TOKENIZERFP>,
+    pub(crate) tokenizer_deserialization_guard: bool,
 }
 
 impl CountVectorizerValidParams {
+    pub fn tokenizer(&self) -> Option<TOKENIZERFP> {
+        self.tokenizer
+    }
+
+    pub fn max_features(&self) -> Option<usize> {
+        self.max_features
+    }
+
     pub fn convert_to_lowercase(&self) -> bool {
         self.convert_to_lowercase
     }
@@ -117,11 +131,25 @@ impl std::default::Default for CountVectorizerParams {
             normalize: true,
             document_frequency: (0., 1.),
             stopwords: None,
+            max_features: None,
+            tokenizer: None,
+            tokenizer_deserialization_guard: false,
         })
     }
 }
 
 impl CountVectorizerParams {
+    pub fn tokenizer(mut self, tokenizer: Option<TOKENIZERFP>) -> Self {
+        self.0.tokenizer = tokenizer;
+        self.0.tokenizer_deserialization_guard = tokenizer.is_some();
+        self
+    }
+
+    pub fn max_features(mut self, max_features: Option<usize>) -> Self {
+        self.0.max_features = max_features;
+        self
+    }
+
     ///If true, all documents used for fitting will be converted to lowercase.
     pub fn convert_to_lowercase(mut self, convert_to_lowercase: bool) -> Self {
         self.0.convert_to_lowercase = convert_to_lowercase;
