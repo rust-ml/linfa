@@ -2,7 +2,7 @@
 //!
 //! Scoring is essential for classification and regression tasks. This module implements
 //! common scoring functions like precision, accuracy, recall, f1-score, ROC and ROC
-//! Aread-Under-Curve.
+//! Area-Under-Curve.
 use std::collections::HashMap;
 use std::fmt;
 
@@ -290,7 +290,23 @@ where
             return Err(Error::MismatchedShapes(targets.len(), ground_truth.len()));
         }
 
-        let classes = self.labels();
+        let mut classes = self.combined_labels(ground_truth);
+        // Sort classes to get reproducible confusion_matrix
+        classes.sort();
+        if classes.len() == 2 {
+            // In case of binary classes, we sort in reverse order to get a sensible default for
+            // boolean values and get a confusion matrix with the conventional layout by default:
+            //
+            //              | actual true  | actual false
+            //  pred true   |     TP       |      FP
+            //  -----------------------------------------
+            //  pred false  |     FN       |      TN
+            //
+            // So to get classes to be [true, false], as false < true or 0 < 1, we reverse the order.
+            // As precision and recall metrics are computed wrt the first label,
+            // it is less confusing if it corresponds to true.
+            classes.reverse();
+        }
 
         let indices = map_prediction_to_idx(
             targets.as_slice().unwrap(),
@@ -595,10 +611,11 @@ mod tests {
 
         let cm = predicted.confusion_matrix(ground_truth).unwrap();
 
-        let labels = array![0, 1];
-        let expected = array![[2., 1.], [0., 3.]];
+        let expected_labels = array![1, 0];
+        let expected = array![[3., 0.], [1., 2.]];
 
-        assert_cm_eq(&cm, &expected, &labels);
+        assert_eq!(expected_labels, cm.members);
+        assert_abs_diff_eq!(expected, cm.matrix);
     }
 
     #[test]
@@ -634,6 +651,17 @@ mod tests {
             &array![4.0 / 5.0, 6.0 / 7.0],
             &labels,
         );
+    }
+
+    #[test]
+    fn test_division_by_zero_cm() {
+        let ground_truth = Array1::from(vec![1, 1, 0, 1, 0, 1]);
+        let predicted = Array1::from(vec![0, 0, 0, 0, 0, 0]);
+
+        let x = ground_truth.confusion_matrix(predicted).unwrap();
+        let f1 = x.f1_score();
+
+        assert!(f1.is_nan());
     }
 
     #[test]
