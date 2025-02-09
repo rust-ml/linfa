@@ -580,18 +580,14 @@ where
     /// # Example
     /// ```
     /// let dataset = linfa_datasets::iris();
-         
     /// println!("First 5 rows {:?}", dataset.records.slice(s![0..5,..]));
     /// let feature_names = dataset.feature_names();
     /// let target_names = dataset.target_names();
-     
     /// let mut rng = thread_rng();
     /// let shuffled = dataset.shuffle(&mut rng);
-     
     /// println!("First 5 rows after shuffling {:?}", shuffled.records.slice(s![0..5,..]));
     /// assert_eq!(feature_names, shuffled.feature_names());
-    /// /// assert_eq!(target_names, shuffled.target_names());
-    /// 
+    /// assert_eq!(target_names, shuffled.target_names());
     /// ```
     pub fn shuffle<R: Rng>(&self, rng: &mut R) -> DatasetBase<Array2<F>, T::Owned> {
         let mut indices = (0..self.nsamples()).collect::<Vec<_>>();
@@ -601,7 +597,9 @@ where
         let targets = self.as_targets().select(Axis(0), &indices);
         let targets = T::new_targets(targets);
 
-        DatasetBase::new(records, targets).with_feature_names(self.feature_names().to_vec()).with_target_names(self.target_names().to_vec())
+        DatasetBase::new(records, targets)
+            .with_feature_names(self.feature_names().to_vec())
+            .with_target_names(self.target_names().to_vec())
     }
 
     #[allow(clippy::type_complexity)]
