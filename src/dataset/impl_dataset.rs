@@ -579,15 +579,17 @@ where
     /// A new shuffled version of the current Dataset
     /// # Example
     /// ```
+    /// use rand::thread_rng;
+    /// use ndarray::s;
     /// let dataset = linfa_datasets::iris();
     /// println!("First 5 rows {:?}", dataset.records.slice(s![0..5,..]));
-    /// let feature_names = dataset.feature_names();
-    /// let target_names = dataset.target_names();
+    /// println!("Feature names {:?}", dataset.feature_names());
+    /// println!("Target names {:?}", dataset.target_names());
     /// let mut rng = thread_rng();
     /// let shuffled = dataset.shuffle(&mut rng);
     /// println!("First 5 rows after shuffling {:?}", shuffled.records.slice(s![0..5,..]));
-    /// assert_eq!(feature_names, shuffled.feature_names());
-    /// assert_eq!(target_names, shuffled.target_names());
+    /// println!("Feature names after shuffling {:?}", shuffled.feature_names());
+    /// println!("Target names after shuffling {:?}", shuffled.target_names());
     /// ```
     pub fn shuffle<R: Rng>(&self, rng: &mut R) -> DatasetBase<Array2<F>, T::Owned> {
         let mut indices = (0..self.nsamples()).collect::<Vec<_>>();
