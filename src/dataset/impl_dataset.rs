@@ -577,6 +577,7 @@ where
     /// ### Returns
     ///
     /// A new shuffled version of the current Dataset
+    ///
     pub fn shuffle<R: Rng>(&self, rng: &mut R) -> DatasetBase<Array2<F>, T::Owned> {
         let mut indices = (0..self.nsamples()).collect::<Vec<_>>();
         indices.shuffle(rng);
@@ -586,6 +587,8 @@ where
         let targets = T::new_targets(targets);
 
         DatasetBase::new(records, targets)
+            .with_feature_names(self.feature_names().to_vec())
+            .with_target_names(self.target_names().to_vec())
     }
 
     #[allow(clippy::type_complexity)]
