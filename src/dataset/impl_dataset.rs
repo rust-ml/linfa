@@ -577,7 +577,7 @@ where
     /// ### Returns
     ///
     /// A new shuffled version of the current Dataset
-    /// ```
+    ///
     pub fn shuffle<R: Rng>(&self, rng: &mut R) -> DatasetBase<Array2<F>, T::Owned> {
         let mut indices = (0..self.nsamples()).collect::<Vec<_>>();
         indices.shuffle(rng);
