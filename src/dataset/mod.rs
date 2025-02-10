@@ -353,7 +353,7 @@ pub trait Labels {
 mod tests {
     use super::*;
     use crate::error::Error;
-    use approx::assert_abs_diff_eq;
+    use approx::{assert_abs_diff_eq, assert_abs_diff_ne};
     use linfa_datasets::generate::make_dataset;
     use ndarray::{array, Array1, Array2, Axis};
     use rand::{rngs::SmallRng, SeedableRng};
@@ -1049,5 +1049,25 @@ mod tests {
     fn negative_probability_unchecked() {
         let prob = -0.5;
         assert_abs_diff_eq!(Pr::new_unchecked(prob).0, prob);
+    }
+
+    #[test]
+    fn test_dataset_shuffle() {
+        let mut rng = SmallRng::seed_from_u64(42);
+        let f_names = vec!["f1", "f2", "f3"];
+        let t_names = vec!["t1"];
+        let dataset = Dataset::new(
+            array![[1., 2., 3.], [4., 5., 6.], [7., 8., 9.]],
+            array![0., 1., 3.],
+        )
+        .with_feature_names(f_names.clone())
+        .with_target_names(t_names.clone());
+
+        let shuffled = dataset.shuffle(&mut rng);
+
+        assert_abs_diff_ne!(dataset.records(), shuffled.records());
+        assert_abs_diff_ne!(dataset.targets(), shuffled.targets());
+        assert_eq!(f_names, shuffled.feature_names());
+        assert_eq!(t_names, shuffled.target_names());
     }
 }
