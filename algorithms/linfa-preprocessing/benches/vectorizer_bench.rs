@@ -118,7 +118,8 @@ fn fit_transform_vectorizer(file_names: &[std::path::PathBuf]) {
             file_names,
             encoding::all::ISO_8859_1,
             encoding::DecoderTrap::Strict,
-        );
+        )
+        .unwrap();
 }
 fn fit_transform_tf_idf(file_names: &[std::path::PathBuf]) {
     TfIdfVectorizer::default()
@@ -134,7 +135,8 @@ fn fit_transform_tf_idf(file_names: &[std::path::PathBuf]) {
             file_names,
             encoding::all::ISO_8859_1,
             encoding::DecoderTrap::Strict,
-        );
+        )
+        .unwrap();
 }
 
 fn bench(c: &mut Criterion) {
