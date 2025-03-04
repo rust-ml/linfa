@@ -126,6 +126,7 @@ fn main() {
     // Transforming gives a sparse dataset, we make it dense in order to be able to fit the Naive Bayes model
     let training_records = vectorizer
         .transform_files(&training_filenames, ISO_8859_1, Strict)
+        .unwrap()
         .to_dense();
 
     println!(
@@ -162,6 +163,7 @@ fn main() {
     );
     let test_records = vectorizer
         .transform_files(&test_filenames, ISO_8859_1, Strict)
+        .unwrap()
         .to_dense();
     let test_dataset: Dataset<f64, usize, Ix1> = (test_records, test_targets).into();
     // Let's predict the test data targets
