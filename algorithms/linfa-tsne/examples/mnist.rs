@@ -58,6 +58,7 @@ fn main() -> Result<()> {
     }
 
     // and plot with gnuplot
+    #[allow(clippy::zombie_processes)]
     Command::new("gnuplot")
         .arg("-p")
         .arg("examples/mnist_plot.plt")
