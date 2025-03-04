@@ -51,8 +51,16 @@ pub use errors::*;
 pub use hyperparams::*;
 pub use pls_svd::*;
 
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
+
 macro_rules! pls_algo { ($name:ident) => {
     paste::item! {
+        #[cfg_attr(
+            feature = "serde",
+            derive(Serialize, Deserialize),
+            serde(crate = "serde_crate")
+        )]
         pub struct [<Pls $name>]<F: Float>(Pls<F>);
         impl<F: Float> [<Pls $name>]<F> {
 
