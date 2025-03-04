@@ -10,7 +10,6 @@ jobs:
     strategy:
       matrix:
         toolchain:
-          - 1.71.1
           - stable
 
     steps:
@@ -27,7 +26,6 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Run cargo clippy
-        if: ${{ matrix.toolchain }} == 'stable'
         run: cargo clippy --workspace --all-targets -- -D warnings
 
   coverage:
