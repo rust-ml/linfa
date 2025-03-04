@@ -61,6 +61,7 @@ macro_rules! pls_algo { ($name:ident) => {
             derive(Serialize, Deserialize),
             serde(crate = "serde_crate")
         )]
+        #[derive(Debug, Clone, PartialEq)]
         pub struct [<Pls $name>]<F: Float>(Pls<F>);
         impl<F: Float> [<Pls $name>]<F> {
 
