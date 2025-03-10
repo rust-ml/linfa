@@ -47,7 +47,7 @@ linfa-datasets = { version = "0.7.1", path = "../../datasets", features = [
 ] }
 approx = "0.5"
 criterion = "0.5.1"
-statrs = "0.16.0"
+statrs = "0.18"
 linfa = { version = "0.7.1", path = "../..", features = ["benchmarks"] }
 
 [[bench]]
