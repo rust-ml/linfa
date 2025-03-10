@@ -110,7 +110,7 @@ type LBFGSType<F, D> = LBFGS<
 type LBFGSType1<F> = LBFGSType<F, Ix1>;
 type LBFGSType2<F> = LBFGSType<F, Ix2>;
 
-type IterStateType<F, D> = IterState<ArgminParam<F, D>, ArgminParam<F, D>, (), (), F>;
+type IterStateType<F, D> = IterState<ArgminParam<F, D>, ArgminParam<F, D>, (), (), (), F>;
 
 impl<F: Float, D: Dimension> LogisticRegressionValidParams<F, D> {
     /// Create the initial parameters, either from a user supplied array
