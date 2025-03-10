@@ -17,7 +17,7 @@ ndarray-rand = { version = "0.15", optional = true }
 
 [dev-dependencies]
 approx = "0.5"
-statrs = "0.16.0"
+statrs = "0.18"
 
 [features]
 default = []

@@ -43,7 +43,7 @@ linfa-datasets = { version = "0.7.1", path = "../../datasets", features = [
 approx = "0.5"
 rand_xoshiro = "0.6"
 criterion = "0.5.1"
-statrs = "0.16.0"
+statrs = "0.18"
 
 [[bench]]
 name = "pls"

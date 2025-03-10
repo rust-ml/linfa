@@ -63,7 +63,7 @@ linfa-datasets = { path = "datasets", features = [
     "diabetes",
     "generate",
 ] }
-statrs = "0.16.0"
+statrs = "0.18"
 
 [target.'cfg(not(windows))'.dependencies]
 pprof = { version = "0.11.0", features = [
