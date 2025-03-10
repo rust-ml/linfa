@@ -30,7 +30,7 @@ argmin = { version = "0.10.0", default-features = false, git = "https://github.c
 argmin-math = { version = "0.4", features = [
     "ndarray_v0_16-nolinalg",
 ], git = "https://github.com/argmin-rs/argmin.git" }
-thiserror = "1.0"
+thiserror = "2.0"
 
 linfa = { version = "0.7.1", path = "../.." }
 

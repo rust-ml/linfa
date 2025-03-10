@@ -43,7 +43,7 @@ ndarray-stats = "0.6"
 num-traits = "0.2"
 rand_xoshiro = "0.6"
 space = "0.12"
-thiserror = "1.0"
+thiserror = "2.0"
 #partitions = "0.2.4" This one will break in a future version of Rust and has no replacement
 linfa = { version = "0.7.1", path = "../.." }
 linfa-nn = { version = "0.7.2", path = "../linfa-nn" }
