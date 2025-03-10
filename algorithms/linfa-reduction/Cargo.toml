@@ -39,7 +39,7 @@ linfa-linalg = { version = "0.2" }
 ndarray-linalg = { version = "0.17", optional = true }
 ndarray-rand = "0.15"
 num-traits = "0.2"
-thiserror = "1.0"
+thiserror = "2.0"
 rand = { version = "0.8", features = ["small_rng"] }
 
 linfa = { version = "0.7.1", path = "../.." }

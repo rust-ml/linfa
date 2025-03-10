@@ -23,7 +23,7 @@ ndarray = { version = "0.16", features = ["approx"] }
 ndarray-linalg = { version = "0.17", optional = true }
 linfa-linalg = { version = "0.2", default-features = false }
 ndarray-stats = "0.6"
-thiserror = "1.0"
+thiserror = "2.0"
 approx = "0.5"
 ndarray-rand = "0.15"
 unicode-normalization = "0.1.8"

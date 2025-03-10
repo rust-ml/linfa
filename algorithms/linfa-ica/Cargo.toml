@@ -32,7 +32,7 @@ ndarray-rand = "0.15"
 ndarray-stats = "0.6"
 num-traits = "0.2"
 rand_xoshiro = "0.6"
-thiserror = "1.0"
+thiserror = "2.0"
 
 linfa = { version = "0.7.1", path = "../.." }
 
