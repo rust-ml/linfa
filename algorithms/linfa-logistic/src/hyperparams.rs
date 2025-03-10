@@ -13,8 +13,7 @@ use serde_crate::{Deserialize, Serialize};
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
-    serde(crate = "serde_crate"),
-    serde(bound(deserialize = "D: Deserialize<'de>"))
+    serde(crate = "serde_crate")
 )]
 pub struct LogisticRegressionParams<F: Float, D: Dimension>(LogisticRegressionValidParams<F, D>);
 
@@ -22,8 +21,7 @@ pub struct LogisticRegressionParams<F: Float, D: Dimension>(LogisticRegressionVa
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
-    serde(crate = "serde_crate"),
-    serde(bound(deserialize = "D: Deserialize<'de>"))
+    serde(crate = "serde_crate")
 )]
 pub struct LogisticRegressionValidParams<F: Float, D: Dimension> {
     pub(crate) alpha: F,
