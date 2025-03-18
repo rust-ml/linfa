@@ -211,6 +211,11 @@ impl<F: Float> GaussianMixtureModel<F> {
         self.means()
     }
 
+    pub fn predict_proba<D: Data<Elem = F>>(&self, observations: &ArrayBase<D, Ix2>) -> Array2<F> {
+        let(_, log_resp) = self.estimate_log_prob_resp(observations);
+        log_resp.mapv(F::exp)
+    }
+
     #[allow(clippy::type_complexity)]
     fn estimate_gaussian_parameters<D: Data<Elem = F>>(
         observations: &ArrayBase<D, Ix2>,
@@ -483,6 +488,7 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<usize
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rand_xoshiro::Xoshiro256Plus;
     use approx::{abs_diff_eq, assert_abs_diff_eq};
     use linfa_datasets::generate;
     use linfa_linalg::LinalgError;
@@ -493,6 +499,7 @@ mod tests {
     use ndarray_rand::rand_distr::Normal;
     use ndarray_rand::rand_distr::{Distribution, StandardNormal};
     use ndarray_rand::RandomExt;
+    use ndarray::Array;
 
     #[test]
     fn autotraits() {
@@ -745,5 +752,34 @@ mod tests {
             1,
             ThreadRng::default(),
         ));
+    }
+
+    #[test]
+    fn test_predict_proba() {
+        let mut rng = Xoshiro256Plus::seed_from_u64(42);
+        let centroids = array![[0.0, 1.0], [-10.0, 20.0], [-1.0, 10.0]];
+        let n_samples_per_cluster = 1000;
+        let dataset = DatasetBase::from(generate::blobs(n_samples_per_cluster, &centroids, &mut rng));
+        let n_clusters = centroids.len_of(Axis(0));
+        // total samples = (n_samples_per_cluster * n_clusters)
+        let total_samples = n_samples_per_cluster * n_clusters;
+    
+        // model fitting
+        let gmm = GaussianMixtureModel::params(n_clusters)
+            .with_rng(rng)
+            .fit(&dataset)
+            .expect("Failed to fit GMM");
+    
+        // getting probabilities
+        let proba = gmm.predict_proba(dataset.records());
+    
+        // checking output shape is correct or not
+        assert_eq!(proba.dim(), (total_samples, n_clusters));
+    
+        // checking for each sample, the sum of probabilities is 1
+        for sample in proba.outer_iter() {
+            let sum: f64 = sample.sum();
+            assert_abs_diff_eq!(sum, 1.0, epsilon = 1e-6);
+        }
     }
 }
