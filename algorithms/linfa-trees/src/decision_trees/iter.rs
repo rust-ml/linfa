@@ -1,6 +1,6 @@
+use std::collections::VecDeque;
 use std::fmt::Debug;
 use std::iter::Iterator;
-use std::collections::VecDeque;
 
 use super::TreeNode;
 use linfa::{Float, Label};
