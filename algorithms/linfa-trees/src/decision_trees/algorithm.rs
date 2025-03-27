@@ -1,7 +1,7 @@
 //! Linear decision trees
 //!
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::hash::{Hash, Hasher};
 
 use linfa::dataset::AsSingleTargets;
@@ -553,7 +553,7 @@ impl<F: Float, L: Label> DecisionTree<F, L> {
         // queue of nodes yet to explore
         let queue = vec![&self.root_node];
 
-        NodeIter::new(queue)
+        NodeIter::new(VecDeque::from(queue))
     }
 
     /// Return features_idx of this tree (BFT)
