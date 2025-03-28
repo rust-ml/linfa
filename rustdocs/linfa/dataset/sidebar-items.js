@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["CountedTargets","DatasetBase","Pr"],"trait":["AsMultiTargets","AsMultiTargetsMut","AsProbabilities","AsSingleTargets","AsSingleTargetsMut","AsTargets","AsTargetsMut","Float","FromTargetArray","Label","Labels","Records","TargetDim","WithLapack","WithLapackData","WithoutLapack","WithoutLapackData"],"type":["Dataset","DatasetPr","DatasetView"]};
