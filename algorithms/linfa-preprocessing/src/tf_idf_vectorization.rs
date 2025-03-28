@@ -1,7 +1,8 @@
 //! Term frequency - inverse document frequency vectorization methods
 
-use crate::countgrams::{CountVectorizer, CountVectorizerParams};
+use crate::countgrams::{CountVectorizer, CountVectorizerParams, Tokenizerfp};
 use crate::error::Result;
+use crate::Tokenizer;
 use encoding::types::EncodingRef;
 use encoding::DecoderTrap;
 use ndarray::{Array1, ArrayBase, Data, Ix1};
@@ -67,20 +68,30 @@ impl std::default::Default for TfIdfVectorizer {
 }
 
 impl TfIdfVectorizer {
+    // Set the tokenizer as either a function pointer or a regex
+    // If this method is not called, the default is to use regex "\b\w\w+\b"
+    pub fn tokenizer(self, tokenizer: Tokenizer) -> Self {
+        Self {
+            count_vectorizer: self.count_vectorizer.tokenizer(tokenizer),
+            method: self.method,
+        }
+    }
+
+    /// When building the vocabulary, only consider the top max_features (by term frequency).
+    /// If None, all features are used.
+    pub fn max_features(self, max_features: Option<usize>) -> Self {
+        Self {
+            count_vectorizer: self.count_vectorizer.max_features(max_features),
+            method: self.method,
+        }
+    }
+
     ///If true, all documents used for fitting will be converted to lowercase.
     pub fn convert_to_lowercase(self, convert_to_lowercase: bool) -> Self {
         Self {
             count_vectorizer: self
                 .count_vectorizer
                 .convert_to_lowercase(convert_to_lowercase),
-            method: self.method,
-        }
-    }
-
-    /// Sets the regex espression used to split decuments into tokens
-    pub fn split_regex(self, regex_str: &str) -> Self {
-        Self {
-            count_vectorizer: self.count_vectorizer.split_regex(regex_str),
             method: self.method,
         }
     }
@@ -180,6 +191,11 @@ pub struct FittedTfIdfVectorizer {
 }
 
 impl FittedTfIdfVectorizer {
+    pub fn force_tokenizer_redefinition(&mut self, tokenizer: Tokenizerfp) {
+        self.fitted_vectorizer
+            .force_tokenizer_function_redefinition(tokenizer);
+    }
+
     /// Number of vocabulary entries learned during fitting
     pub fn nentries(&self) -> usize {
         self.fitted_vectorizer.vocabulary.len()
@@ -198,9 +214,13 @@ impl FittedTfIdfVectorizer {
     /// Given a sequence of `n` documents, produces an array of size `(n, vocabulary_entries)` where column `j` of row `i`
     /// is the number of occurrences of vocabulary entry `j` in the text of index `i`, scaled by the inverse document frequency.
     ///  Vocabulary entry `j` is the string at the `j`-th position in the vocabulary.
-    pub fn transform<T: ToString, D: Data<Elem = T>>(&self, x: &ArrayBase<D, Ix1>) -> CsMat<f64> {
+    pub fn transform<T: ToString, D: Data<Elem = T>>(
+        &self,
+        x: &ArrayBase<D, Ix1>,
+    ) -> Result<CsMat<f64>> {
+        self.fitted_vectorizer.validate_deserialization()?;
         let (term_freqs, doc_freqs) = self.fitted_vectorizer.get_term_and_document_frequencies(x);
-        self.apply_tf_idf(term_freqs, doc_freqs)
+        Ok(self.apply_tf_idf(term_freqs, doc_freqs))
     }
 
     pub fn transform_files<P: AsRef<std::path::Path>>(
@@ -208,11 +228,12 @@ impl FittedTfIdfVectorizer {
         input: &[P],
         encoding: EncodingRef,
         trap: DecoderTrap,
-    ) -> CsMat<f64> {
+    ) -> Result<CsMat<f64>> {
+        self.fitted_vectorizer.validate_deserialization()?;
         let (term_freqs, doc_freqs) = self
             .fitted_vectorizer
             .get_term_and_document_frequencies_files(input, encoding, trap);
-        self.apply_tf_idf(term_freqs, doc_freqs)
+        Ok(self.apply_tf_idf(term_freqs, doc_freqs))
     }
 
     fn apply_tf_idf(&self, term_freqs: CsMat<usize>, doc_freqs: Array1<usize>) -> CsMat<f64> {
@@ -264,7 +285,7 @@ mod tests {
         ];
         let vectorizer = TfIdfVectorizer::default().fit(&texts).unwrap();
         let vocabulary = vectorizer.vocabulary();
-        let transformed = vectorizer.transform(&texts).to_dense();
+        let transformed = vectorizer.transform(&texts).unwrap().to_dense();
         assert_eq!(transformed.dim(), (texts.len(), vocabulary.len()));
         assert_tf_idfs_for_word!(
             vocabulary,
@@ -303,6 +324,7 @@ mod tests {
                 encoding::all::UTF_8,
                 encoding::DecoderTrap::Strict,
             )
+            .unwrap()
             .to_dense();
         assert_eq!(transformed.dim(), (text_files.len(), vocabulary.len()));
         assert_tf_idfs_for_word!(

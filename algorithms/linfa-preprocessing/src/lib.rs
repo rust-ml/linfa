@@ -21,5 +21,7 @@ pub mod norm_scaling;
 pub mod tf_idf_vectorization;
 pub mod whitening;
 
-pub use countgrams::{CountVectorizer, CountVectorizerParams, CountVectorizerValidParams};
+pub use countgrams::{
+    CountVectorizer, CountVectorizerParams, CountVectorizerValidParams, Tokenizer,
+};
 pub use error::{PreprocessingError, Result};
