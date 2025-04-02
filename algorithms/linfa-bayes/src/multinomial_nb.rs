@@ -1,7 +1,7 @@
 use linfa::dataset::{AsSingleTargets, DatasetBase, Labels};
 use linfa::traits::{Fit, FitWith, PredictInplace};
 use linfa::{Float, Label};
-use ndarray::{Array1, ArrayBase, ArrayView2, Axis, Data, Ix2};
+use ndarray::{s, Array1, Array2, ArrayBase, ArrayView2, Axis, Data, Ix2};
 use std::collections::HashMap;
 use std::hash::Hash;
 
@@ -248,6 +248,65 @@ where
     }
 }
 
+impl<F, L> MultinomialNb<F, L>
+where
+    F: Float,
+    L: Label + Ord + Clone + Hash,
+{
+    /// Compute class probabilities for each row
+    pub fn predict_proba(&self, x: ArrayView2<F>) -> (Array2<F>, Vec<L>) {
+        let log_likelihood = self.joint_log_likelihood(x);
+        let n_samples = x.nrows();
+        let n_classes = log_likelihood.len();
+
+        // Preserve deterministic class order
+        let mut classes: Vec<L> = self.class_info.keys().cloned().collect();
+        classes.sort();
+
+        let mut log_prob_mat = Array2::<F>::zeros((n_samples, n_classes));
+
+        for (j, class) in classes.iter().enumerate() {
+            let class_log = log_likelihood.get(class).unwrap();
+            log_prob_mat.slice_mut(s![.., j]).assign(class_log);
+        }
+
+        // Apply softmax to each row
+        for mut row in log_prob_mat.axis_iter_mut(Axis(0)) {
+            let max = row.fold(F::neg_infinity(), |a, &b| a.max(b));
+            let exp_sum = row.mapv(|v| (v - max).exp()).sum();
+            row.mapv_inplace(|v| (v - max).exp() / exp_sum);
+        }
+
+        (log_prob_mat, classes)
+    }
+
+    /// Compute unnormalized log-probabilities for each sample and class
+    pub fn predict_log_proba(&self, x: ArrayView2<F>) -> (Array2<F>, Vec<L>) {
+        let log_likelihood = self.joint_log_likelihood(x);
+        let n_samples = x.nrows();
+        let n_classes = log_likelihood.len();
+
+        let mut classes: Vec<L> = self.class_info.keys().cloned().collect();
+        classes.sort();
+
+        let mut log_prob_mat = Array2::<F>::zeros((n_samples, n_classes));
+
+        for (j, class) in classes.iter().enumerate() {
+            let class_log = log_likelihood.get(class).unwrap();
+            log_prob_mat.column_mut(j).assign(class_log);
+        }
+
+        // log-sum-exp for normalization
+        for mut row in log_prob_mat.axis_iter_mut(Axis(0)) {
+            let max = row.fold(F::neg_infinity(), |a, &b| a.max(b));
+            let logsumexp = row.mapv(|v| (v - max).exp()).sum().ln() + max;
+            row.mapv_inplace(|v| v - logsumexp);
+        }
+
+        (log_prob_mat, classes)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{MultinomialNb, NaiveBayes, Result};
@@ -364,6 +423,37 @@ mod tests {
 
         for (key, value) in jll.iter() {
             assert_abs_diff_eq!(value, expected.get(key).unwrap(), epsilon = 1e-6);
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_predict_proba_and_log_proba() -> Result<()> {
+        use ndarray::array;
+
+        let x = array![[2., 1.], [1., 3.], [0., 5.]];
+        let y = array![0, 0, 1];
+
+        let dataset = DatasetView::new(x.view(), y.view());
+
+        let model = MultinomialNb::params().fit(&dataset)?;
+
+        let (proba, classes) = model.predict_proba(x.view());
+        let (log_proba, log_classes) = model.predict_log_proba(x.view());
+
+        assert_eq!(classes, log_classes);
+
+        for i in 0..x.nrows() {
+            let mut sum = 0.0_f64;
+            for j in 0..classes.len() {
+                let p: f64 = proba[[i, j]];
+                let lp: f64 = log_proba[[i, j]].exp();
+                assert!((0.0..=1.0).contains(&p));
+                assert!((p - lp).abs() < 1e-6);
+                sum += p;
+            }
+            assert!((sum - 1.0).abs() < 1e-6);
         }
 
         Ok(())
