@@ -8,13 +8,14 @@ use linfa::traits::FitWith;
 use linfa::{Float, Label};
 
 // Trait computing predictions for fitted Naive Bayes models
-pub(crate) trait NaiveBayes<'a, F, L>
+pub trait NaiveBayes<'a, F, L>
 where
     F: Float,
     L: Label + Ord,
 {
     fn joint_log_likelihood(&self, x: ArrayView2<F>) -> HashMap<&L, Array1<F>>;
 
+    #[doc(hidden)]
     fn predict_inplace<D: Data<Elem = F>>(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<L>) {
         assert_eq!(
             x.nrows(),
