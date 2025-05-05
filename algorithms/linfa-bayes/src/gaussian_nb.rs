@@ -6,8 +6,9 @@ use ndarray_stats::QuantileExt;
 use std::collections::HashMap;
 use std::hash::Hash;
 
-use crate::base_nb::{filter, NaiveBayes, NaiveBayesValidParams};
+use crate::base_nb::{NaiveBayes, NaiveBayesValidParams};
 use crate::error::{NaiveBayesError, Result};
+use crate::filter;
 use crate::hyperparams::{GaussianNbParams, GaussianNbValidParams};
 
 #[cfg(feature = "serde")]
@@ -33,8 +34,7 @@ where
 
     // Thin wrapper around the corresponding method of NaiveBayesValidParams
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
-        let model = NaiveBayesValidParams::fit(self, dataset, None)?;
-        Ok(model.unwrap())
+        NaiveBayesValidParams::fit(self, dataset, None)
     }
 }
 
@@ -47,7 +47,7 @@ where
     T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
 {
     type ObjectIn = Option<GaussianNb<F, L>>;
-    type ObjectOut = Option<GaussianNb<F, L>>;
+    type ObjectOut = GaussianNb<F, L>;
 
     fn fit_with(
         &self,
@@ -115,7 +115,7 @@ where
             info.prior = F::cast(info.class_count) / F::cast(class_count_sum);
         }
 
-        Ok(Some(model))
+        Ok(model)
     }
 }
 
@@ -295,7 +295,7 @@ mod tests {
     use super::{GaussianNb, NaiveBayes, Result};
     use linfa::{
         traits::{Fit, FitWith, Predict},
-        DatasetView,
+        DatasetView, Error,
     };
 
     use crate::gaussian_nb::GaussianClassInfo;
@@ -381,8 +381,8 @@ mod tests {
             .axis_chunks_iter(Axis(0), 2)
             .zip(y.axis_chunks_iter(Axis(0), 2))
             .map(|(a, b)| DatasetView::new(a, b))
-            .fold(None, |current, d| clf.fit_with(current, &d).unwrap())
-            .unwrap();
+            .fold(Ok(None), |current, d| clf.fit_with(current?, &d).map(Some))?
+            .ok_or(Error::NotEnoughSamples)?;
 
         let pred = model.predict(&x);
 

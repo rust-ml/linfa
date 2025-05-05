@@ -1,13 +1,14 @@
 use linfa::dataset::{AsSingleTargets, DatasetBase, Labels};
 use linfa::traits::{Fit, FitWith, PredictInplace};
 use linfa::{Float, Label};
-use ndarray::{Array1, ArrayBase, ArrayView2, Axis, Data, Ix2};
+use ndarray::{Array1, ArrayBase, ArrayView2, Data, Ix2};
 use std::collections::HashMap;
 use std::hash::Hash;
 
-use crate::base_nb::{filter, NaiveBayes, NaiveBayesValidParams};
+use crate::base_nb::{NaiveBayes, NaiveBayesValidParams};
 use crate::error::{NaiveBayesError, Result};
 use crate::hyperparams::{MultinomialNbParams, MultinomialNbValidParams};
+use crate::{filter, ClassHistogram};
 
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
@@ -31,8 +32,7 @@ where
     type Object = MultinomialNb<F, L>;
     // Thin wrapper around the corresponding method of NaiveBayesValidParams
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
-        let model = NaiveBayesValidParams::fit(self, dataset, None)?;
-        Ok(model.unwrap())
+        NaiveBayesValidParams::fit(self, dataset, None)
     }
 }
 
@@ -45,7 +45,7 @@ where
     T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
 {
     type ObjectIn = Option<MultinomialNb<F, L>>;
-    type ObjectOut = Option<MultinomialNb<F, L>>;
+    type ObjectOut = MultinomialNb<F, L>;
 
     fn fit_with(
         &self,
@@ -65,34 +65,31 @@ where
         let yunique = dataset.labels();
 
         for class in yunique {
-            // We filter for records that correspond to the current class
+            // filter dataset for current class
             let xclass = filter(x.view(), y.view(), &class);
-            // We count the number of occurences of the class
-            let nclass = xclass.nrows();
 
-            // We compute the feature log probabilities and feature counts on the slice corresponding to the current class
-            let class_info = model
+            // compute feature log probabilities and counts
+            model
                 .class_info
-                .entry(class)
-                .or_insert_with(MultinomialClassInfo::default);
-            let (feature_log_prob, feature_count) =
-                self.update_feature_log_prob(class_info, xclass.view());
-            // We now update the total counts of each feature, feature log probabilities, and class count
-            class_info.feature_log_prob = feature_log_prob;
-            class_info.feature_count = feature_count;
-            class_info.class_count += nclass;
+                .entry(class.clone())
+                .or_insert_with(ClassHistogram::default)
+                .update_with_smoothing(xclass.view(), self.alpha(), false);
+
+            dbg!(&model.class_info.get(&class));
         }
 
-        // We update the priors
+        // update priors
         let class_count_sum = model
             .class_info
             .values()
             .map(|x| x.class_count)
             .sum::<usize>();
+
         for info in model.class_info.values_mut() {
             info.prior = F::cast(info.class_count) / F::cast(class_count_sum);
         }
-        Ok(Some(model))
+
+        Ok(model)
     }
 }
 
@@ -107,49 +104,6 @@ where
 
     fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<L> {
         Array1::default(x.nrows())
-    }
-}
-
-impl<F, L> MultinomialNbValidParams<F, L>
-where
-    F: Float,
-{
-    // Update log probabilities of features given class
-    fn update_feature_log_prob(
-        &self,
-        info_old: &MultinomialClassInfo<F>,
-        x_new: ArrayView2<F>,
-    ) -> (Array1<F>, Array1<F>) {
-        // Deconstruct old state
-        let (count_old, feature_log_prob_old, feature_count_old) = (
-            &info_old.class_count,
-            &info_old.feature_log_prob,
-            &info_old.feature_count,
-        );
-
-        // If incoming data is empty no updates required
-        if x_new.nrows() == 0 {
-            return (
-                feature_log_prob_old.to_owned(),
-                feature_count_old.to_owned(),
-            );
-        }
-
-        let feature_count_new = x_new.sum_axis(Axis(0));
-
-        // If previous batch was empty, we send the new feature count calculated
-        let feature_count = if count_old > &0 {
-            feature_count_old + feature_count_new
-        } else {
-            feature_count_new
-        };
-        // Apply smoothing to feature counts
-        let feature_count_smoothed = feature_count.clone() + self.alpha();
-        // Compute total count over all (smoothed) features
-        let count = feature_count_smoothed.sum();
-        // Compute log probabilities of each feature
-        let feature_log_prob = feature_count_smoothed.mapv(|x| x.ln() - F::cast(count).ln());
-        (feature_log_prob.to_owned(), feature_count.to_owned())
     }
 }
 
@@ -206,20 +160,7 @@ where
 )]
 #[derive(Debug, Clone, PartialEq)]
 pub struct MultinomialNb<F: PartialEq, L: Eq + Hash> {
-    class_info: HashMap<L, MultinomialClassInfo<F>>,
-}
-
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "serde_crate")
-)]
-#[derive(Debug, Default, Clone, PartialEq)]
-struct MultinomialClassInfo<F> {
-    class_count: usize,
-    prior: F,
-    feature_count: Array1<F>,
-    feature_log_prob: Array1<F>,
+    class_info: HashMap<L, ClassHistogram<F>>,
 }
 
 impl<F: Float, L: Label> MultinomialNb<F, L> {
@@ -253,10 +194,9 @@ mod tests {
     use super::{MultinomialNb, NaiveBayes, Result};
     use linfa::{
         traits::{Fit, FitWith, Predict},
-        DatasetView,
+        Dataset, DatasetView, Error,
     };
 
-    use crate::multinomial_nb::MultinomialClassInfo;
     use crate::{MultinomialNbParams, MultinomialNbValidParams};
     use approx::assert_abs_diff_eq;
     use ndarray::{array, Axis};
@@ -266,23 +206,23 @@ mod tests {
     fn autotraits() {
         fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
         has_autotraits::<MultinomialNb<f64, usize>>();
-        has_autotraits::<MultinomialClassInfo<f64>>();
         has_autotraits::<MultinomialNbValidParams<f64, usize>>();
         has_autotraits::<MultinomialNbParams<f64, usize>>();
     }
 
     #[test]
     fn test_multinomial_nb() -> Result<()> {
-        let x = array![[1., 0.], [2., 0.], [3., 0.], [0., 1.], [0., 2.], [0., 3.]];
-        let y = array![1, 1, 1, 2, 2, 2];
+        let ds = Dataset::new(
+            array![[1., 0.], [2., 0.], [3., 0.], [0., 1.], [0., 2.], [0., 3.]],
+            array![1, 1, 1, 2, 2, 2],
+        );
 
-        let data = DatasetView::new(x.view(), y.view());
-        let fitted_clf = MultinomialNb::params().fit(&data)?;
-        let pred = fitted_clf.predict(&x);
+        let fitted_clf = MultinomialNb::params().fit(&ds)?;
+        let pred = fitted_clf.predict(ds.records());
 
-        assert_abs_diff_eq!(pred, y);
+        assert_abs_diff_eq!(pred, ds.targets());
 
-        let jll = fitted_clf.joint_log_likelihood(x.view());
+        let jll = fitted_clf.joint_log_likelihood(ds.records().view());
         let mut expected = HashMap::new();
         // Computed with sklearn.naive_bayes.MultinomialNB
         expected.insert(
@@ -327,8 +267,8 @@ mod tests {
             .axis_chunks_iter(Axis(0), 2)
             .zip(y.axis_chunks_iter(Axis(0), 2))
             .map(|(a, b)| DatasetView::new(a, b))
-            .fold(None, |current, d| clf.fit_with(current, &d).unwrap())
-            .unwrap();
+            .fold(Ok(None), |current, d| clf.fit_with(current?, &d).map(Some))?
+            .ok_or(Error::NotEnoughSamples)?;
 
         let pred = model.predict(&x);
 

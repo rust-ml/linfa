@@ -1,4 +1,4 @@
-use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
+use ndarray::{Array1, Array2, ArrayBase, ArrayView2, Axis, Data, Ix2};
 use ndarray_stats::QuantileExt;
 use std::collections::HashMap;
 
@@ -67,28 +67,4 @@ where
 
         self.fit_with(model_none, dataset)
     }
-}
-
-// Returns a subset of x corresponding to the class specified by `ycondition`
-pub fn filter<F: Float, L: Label + Ord>(
-    x: ArrayView2<F>,
-    y: ArrayView1<L>,
-    ycondition: &L,
-) -> Array2<F> {
-    // We identify the row numbers corresponding to the class we are interested in
-    let index = y
-        .into_iter()
-        .enumerate()
-        .filter(|(_, y)| (*ycondition == **y))
-        .map(|(i, _)| i)
-        .collect::<Vec<_>>();
-
-    // We subset x to only records corresponding to the class represented in `ycondition`
-    let mut xsubset = Array2::zeros((index.len(), x.ncols()));
-    index
-        .into_iter()
-        .enumerate()
-        .for_each(|(i, r)| xsubset.row_mut(i).assign(&x.slice(s![r, ..])));
-
-    xsubset
 }

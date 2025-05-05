@@ -188,3 +188,104 @@ impl<F: Float, L> ParamGuard for MultinomialNbParams<F, L> {
         Ok(self.0)
     }
 }
+
+/// A verified hyper-parameter set ready for the estimation of a [Bernoulli Naive Bayes model](crate::bernoulli_nb::BernoulliNb).
+///
+/// See [`BernoulliNb`](crate::bernoulli_nb::BernoulliNb) for information on the model and [`BernoulliNbParams`](crate::hyperparams::BernoulliNbParams) for information on hyperparameters.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BernoulliNbValidParams<F, L> {
+    // Required for calculation stability
+    alpha: F,
+    // Threshold for binarization
+    binarize: Option<F>,
+    // Phantom data for label type
+    label: PhantomData<L>,
+}
+
+impl<F: Float, L> BernoulliNbValidParams<F, L> {
+    /// Get the variance smoothing
+    pub fn alpha(&self) -> F {
+        self.alpha
+    }
+    /// Get the binarization threshold
+    pub fn binarize(&self) -> Option<F> {
+        self.binarize
+    }
+}
+
+/// A hyper-parameter set during construction for a [Bernoulli Naive Bayes model](crate::bernoulli_nb::BernoulliNb).
+///
+/// The parameter set can be verified into a
+/// [`BernoulliNbValidParams`](crate::hyperparams::BernoulliNbValidParams) by calling
+/// [ParamGuard::check](Self::check). It is also possible to directly fit a model with
+/// [Fit::fit](linfa::traits::Fit::fit) or
+/// [FitWith::fit_with](linfa::traits::FitWith::fit_with) which implicitly verifies the parameter set
+/// prior to the model estimation and forwards any error.
+///
+/// See [`BernoulliNb`](crate::bernoulli_nb::BernoulliNb) for information on the model.
+///
+/// # Parameters
+/// | Name | Default | Purpose | Range |
+/// | :--- | :--- | :---| :--- |
+/// | [alpha](Self::alpha) | `1` | Additive (Laplace/Lidstone) smoothing parameter (0 for no smoothing) | `[0, inf)` |
+/// | [binarize](Self::binarize) | `0.0` | Threshold for binarization (mapping to booleans) of sample features. If `None`, input is presumed to already consist of binary vectors. | `(-inf, inf)` |
+///
+/// # Errors
+///
+/// The following errors can come from invalid hyper-parameters:
+///
+/// Returns [`InvalidSmoothing`](NaiveBayesError::InvalidSmoothing) if the smoothing
+/// parameter is negative.
+///
+#[derive(Debug, Clone, PartialEq)]
+pub struct BernoulliNbParams<F, L>(BernoulliNbValidParams<F, L>);
+
+impl<F: Float, L> Default for BernoulliNbParams<F, L> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<F: Float, L> BernoulliNbParams<F, L> {
+    /// Create new [BernoulliNbParams] set with default values for its parameters
+    pub fn new() -> Self {
+        Self(BernoulliNbValidParams {
+            alpha: F::one(),
+            binarize: Some(F::zero()),
+            label: PhantomData,
+        })
+    }
+
+    /// Specifies the portion of the largest variance of all the features that
+    /// is added to the variance for calculation stability
+    pub fn alpha(mut self, alpha: F) -> Self {
+        self.0.alpha = alpha;
+        self
+    }
+
+    /// Set the binarization threshold
+    pub fn binarize(mut self, threshold: Option<F>) -> Self {
+        self.0.binarize = threshold;
+        self
+    }
+}
+
+impl<F: Float, L> ParamGuard for BernoulliNbParams<F, L> {
+    type Checked = BernoulliNbValidParams<F, L>;
+    type Error = NaiveBayesError;
+
+    fn check_ref(&self) -> Result<&Self::Checked, Self::Error> {
+        if self.0.alpha.is_negative() {
+            Err(NaiveBayesError::InvalidSmoothing(
+                self.0.alpha.to_f64().unwrap(),
+            ))
+        } else {
+            Ok(&self.0)
+        }
+    }
+
+    fn check(self) -> Result<Self::Checked, Self::Error> {
+        self.check_ref()?;
+        Ok(self.0)
+    }
+}
