@@ -19,8 +19,16 @@ pub use multinomial_nb::MultinomialNb;
 use linfa::{Float, Label};
 use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
 
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
+
 /// Histogram of class occurrences for multinomial and binomial parameter estimation
 #[derive(Debug, Default, Clone, PartialEq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub(crate) struct ClassHistogram<F> {
     class_count: usize,
     prior: F,
