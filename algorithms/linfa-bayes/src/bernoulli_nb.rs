@@ -172,9 +172,8 @@ impl<F: Float, L: Label> BernoulliNb<F, L> {
     where
         D: Data<Elem = F>,
     {
-        let thr = self.binarize.unwrap_or_else(F::zero);
-        let xbin = x.map(|v| if v > &thr { F::one() } else { F::zero() });
-        if self.binarize.is_some() {
+        if let Some(thr) = self.binarize {
+            let xbin = x.map(|v| if v > &thr { F::one() } else { F::zero() });
             CowArray::from(xbin)
         } else {
             CowArray::from(x)
