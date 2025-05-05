@@ -1,4 +1,4 @@
-use ndarray::{Array1, Array2, ArrayBase, ArrayView2, Axis, Data, Ix2};
+use ndarray::{Array1, Array2, ArrayBase, ArrayView2, Axis, Data, Ix2, Zip};
 use ndarray_stats::QuantileExt;
 use std::collections::HashMap;
 
@@ -13,6 +13,9 @@ where
     F: Float,
     L: Label + Ord,
 {
+    /// Compute the unnormalized posterior log probabilities.
+    /// The result is returned as an HashMap indexing log probabilities for each samples (eg x rows) by classes
+    /// (eg jll[class] -> (n_samples,) array)
     fn joint_log_likelihood(&self, x: ArrayView2<F>) -> HashMap<&L, Array1<F>>;
 
     #[doc(hidden)]
@@ -45,6 +48,40 @@ where
             let i = x.argmax().unwrap();
             classes[i].clone()
         });
+    }
+
+    /// Compute log-probability estimates for each sample wrt classes.
+    /// The columns corresponds to classes in sorted order returned as the second output.
+    fn predict_log_proba(&self, x: ArrayView2<F>) -> (Array2<F>, Vec<&L>) {
+        let log_likelihood = self.joint_log_likelihood(x);
+
+        let mut classes = log_likelihood.keys().cloned().collect::<Vec<_>>();
+        classes.sort();
+
+        let n_samples = x.nrows();
+        let n_classes = log_likelihood.len();
+        let mut log_prob_mat = Array2::<F>::zeros((n_samples, n_classes));
+
+        Zip::from(log_prob_mat.columns_mut())
+            .and(&classes)
+            .for_each(|mut jll, &class| jll.assign(log_likelihood.get(class).unwrap()));
+
+        let log_prob_x = log_prob_mat
+            .mapv(|x| x.exp())
+            .sum_axis(Axis(1))
+            .mapv(|x| x.ln())
+            .into_shape((n_samples, 1))
+            .unwrap();
+
+        (log_prob_mat - log_prob_x, classes)
+    }
+
+    /// Compute probability estimates for each sample wrt classes.
+    /// The columns corresponds to classes in sorted order returned as the second output.  
+    fn predict_proba(&self, x: ArrayView2<F>) -> (Array2<F>, Vec<&L>) {
+        let (log_prob_mat, classes) = self.predict_log_proba(x);
+
+        (log_prob_mat.mapv(|v| v.exp()), classes)
     }
 }
 

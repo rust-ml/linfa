@@ -334,6 +334,7 @@ mod tests {
 
         let jll = fitted_clf.joint_log_likelihood(x.view());
 
+        // expected values from GaussianNB scikit-learn 1.6.1
         let mut expected = HashMap::new();
         expected.insert(
             &1usize,
@@ -359,6 +360,27 @@ mod tests {
         );
 
         assert_eq!(jll, expected);
+
+        let expected_proba = array![
+            [1.00000000e+00, 2.31952358e-16],
+            [1.00000000e+00, 3.77513536e-11],
+            [1.00000000e+00, 2.31952358e-16],
+            [3.77513536e-11, 1.00000000e+00],
+            [2.31952358e-16, 1.00000000e+00],
+            [2.31952358e-16, 1.00000000e+00]
+        ];
+
+        let (y_pred_proba, classes) = fitted_clf.predict_proba(x.view());
+        assert_eq!(classes, vec![&1usize, &2]);
+        assert_abs_diff_eq!(expected_proba, y_pred_proba, epsilon = 1e-10);
+
+        let (y_pred_log_proba, classes) = fitted_clf.predict_log_proba(x.view());
+        assert_eq!(classes, vec![&1usize, &2]);
+        assert_abs_diff_eq!(
+            y_pred_proba.mapv(f64::ln),
+            y_pred_log_proba,
+            epsilon = 1e-10
+        );
 
         Ok(())
     }
