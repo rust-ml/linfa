@@ -267,7 +267,7 @@ mod tests {
             .axis_chunks_iter(Axis(0), 2)
             .zip(y.axis_chunks_iter(Axis(0), 2))
             .map(|(a, b)| DatasetView::new(a, b))
-            .fold(Ok(None), |current, d| clf.fit_with(current?, &d).map(Some))?
+            .try_fold(None, |current, d| clf.fit_with(current, &d).map(Some))?
             .ok_or(Error::NotEnoughSamples)?;
 
         let pred = model.predict(&x);

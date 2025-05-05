@@ -40,7 +40,7 @@ fn decision_tree_bench(c: &mut Criterion) {
 
         let train_x = generate_blobs(&centroids, *n, &mut rng);
         let train_y: Array1<usize> = (0..n_classes)
-            .flat_map(|x| std::iter::repeat(x).take(*n).collect::<Vec<usize>>())
+            .flat_map(|x| std::iter::repeat_n(x, *n).collect::<Vec<usize>>())
             .collect::<Array1<usize>>();
         let dataset = DatasetBase::new(train_x, train_y);
 

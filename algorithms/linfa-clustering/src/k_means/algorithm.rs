@@ -46,7 +46,7 @@ use serde_crate::{Deserialize, Serialize};
 /// There are three steps in the standard algorithm:
 /// - initialisation step: select initial centroids using one of our provided algorithms.
 /// - assignment step: assign each observation to the nearest cluster
-///                    (minimum distance between the observation and the cluster's centroid);
+///   (minimum distance between the observation and the cluster's centroid);
 /// - update step: recompute the centroid of each cluster.
 ///
 /// The initialisation step is a one-off, done at the very beginning.

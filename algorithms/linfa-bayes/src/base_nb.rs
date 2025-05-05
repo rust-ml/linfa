@@ -15,7 +15,7 @@ where
 {
     /// Compute the unnormalized posterior log probabilities.
     /// The result is returned as an HashMap indexing log probabilities for each samples (eg x rows) by classes
-    /// (eg jll[class] -> (n_samples,) array)
+    /// (eg jll\[class\] -> (n_samples,) array)
     fn joint_log_likelihood(&self, x: ArrayView2<F>) -> HashMap<&L, Array1<F>>;
 
     #[doc(hidden)]

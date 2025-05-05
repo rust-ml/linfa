@@ -431,7 +431,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
 /// ### Structure
 /// A decision tree structure is a binary tree where:
 /// * Each internal node specifies a decision, represented by a choice of a feature and a "split value" such that all observations for which
-///     `feature <= split_value` is true fall in the left subtree, while the others fall in the right subtree.
+///   `feature <= split_value` is true fall in the left subtree, while the others fall in the right subtree.
 ///
 /// * leaf nodes make predictions, and their prediction is the most popular label in the node
 ///

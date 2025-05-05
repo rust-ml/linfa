@@ -51,11 +51,11 @@ impl SerdeRegex {
 /// they will still be used by the [CountVectorizer](crate::CountVectorizer) to transform any text to be examined.
 ///
 /// * `split_regex`: the regex espression used to split decuments into tokens. Defaults to r"\\b\\w\\w+\\b", which selects "words", using whitespaces and
-///     punctuation symbols as separators.
+///   punctuation symbols as separators.
 /// * `convert_to_lowercase`: if true, all documents used for fitting will be converted to lowercase. Defaults to `true`.
 /// * `n_gram_range`: if set to `(1,1)` single tokens will be candidate vocabulary entries, if `(2,2)` then adjacent token pairs will be considered,
-///    if `(1,2)` then both single tokens and adjacent token pairs will be considered, and so on. The definition of token depends on the
-///    regex used fpr splitting the documents. The default value is `(1,1)`.
+///   if `(1,2)` then both single tokens and adjacent token pairs will be considered, and so on. The definition of token depends on the
+///   regex used fpr splitting the documents. The default value is `(1,1)`.
 /// * `normalize`: if true, all charachters in the documents used for fitting will be normalized according to unicode's NFKD normalization. Defaults to `true`.
 /// * `document_frequency`: specifies the minimum and maximum (relative) document frequencies that each vocabulary entry must satisfy. Defaults to `(0., 1.)` (i.e. 0% minimum and 100% maximum)
 /// * `stopwords`: optional list of entries to be excluded from the generated vocabulary. Defaults to `None`

@@ -181,7 +181,7 @@ impl<F: Float, L: Label> BernoulliNb<F, L> {
     }
 }
 
-impl<'a, F, L> NaiveBayes<'a, F, L> for BernoulliNb<F, L>
+impl<F, L> NaiveBayes<'_, F, L> for BernoulliNb<F, L>
 where
     F: Float,
     L: Label + Ord,
