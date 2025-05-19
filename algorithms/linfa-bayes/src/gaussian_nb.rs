@@ -6,8 +6,9 @@ use ndarray_stats::QuantileExt;
 use std::collections::HashMap;
 use std::hash::Hash;
 
-use crate::base_nb::{filter, NaiveBayes, NaiveBayesValidParams};
+use crate::base_nb::{NaiveBayes, NaiveBayesValidParams};
 use crate::error::{NaiveBayesError, Result};
+use crate::filter;
 use crate::hyperparams::{GaussianNbParams, GaussianNbValidParams};
 
 #[cfg(feature = "serde")]
@@ -33,8 +34,7 @@ where
 
     // Thin wrapper around the corresponding method of NaiveBayesValidParams
     fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
-        let model = NaiveBayesValidParams::fit(self, dataset, None)?;
-        Ok(model.unwrap())
+        NaiveBayesValidParams::fit(self, dataset, None)
     }
 }
 
@@ -47,7 +47,7 @@ where
     T: AsSingleTargets<Elem = L> + Labels<Elem = L>,
 {
     type ObjectIn = Option<GaussianNb<F, L>>;
-    type ObjectOut = Option<GaussianNb<F, L>>;
+    type ObjectOut = GaussianNb<F, L>;
 
     fn fit_with(
         &self,
@@ -115,7 +115,7 @@ where
             info.prior = F::cast(info.class_count) / F::cast(class_count_sum);
         }
 
-        Ok(Some(model))
+        Ok(model)
     }
 }
 
@@ -295,7 +295,7 @@ mod tests {
     use super::{GaussianNb, NaiveBayes, Result};
     use linfa::{
         traits::{Fit, FitWith, Predict},
-        DatasetView,
+        DatasetView, Error,
     };
 
     use crate::gaussian_nb::GaussianClassInfo;
@@ -334,6 +334,7 @@ mod tests {
 
         let jll = fitted_clf.joint_log_likelihood(x.view());
 
+        // expected values from GaussianNB scikit-learn 1.6.1
         let mut expected = HashMap::new();
         expected.insert(
             &1usize,
@@ -360,6 +361,27 @@ mod tests {
 
         assert_eq!(jll, expected);
 
+        let expected_proba = array![
+            [1.00000000e+00, 2.31952358e-16],
+            [1.00000000e+00, 3.77513536e-11],
+            [1.00000000e+00, 2.31952358e-16],
+            [3.77513536e-11, 1.00000000e+00],
+            [2.31952358e-16, 1.00000000e+00],
+            [2.31952358e-16, 1.00000000e+00]
+        ];
+
+        let (y_pred_proba, classes) = fitted_clf.predict_proba(x.view());
+        assert_eq!(classes, vec![&1usize, &2]);
+        assert_abs_diff_eq!(expected_proba, y_pred_proba, epsilon = 1e-10);
+
+        let (y_pred_log_proba, classes) = fitted_clf.predict_log_proba(x.view());
+        assert_eq!(classes, vec![&1usize, &2]);
+        assert_abs_diff_eq!(
+            y_pred_proba.mapv(f64::ln),
+            y_pred_log_proba,
+            epsilon = 1e-10
+        );
+
         Ok(())
     }
 
@@ -381,8 +403,8 @@ mod tests {
             .axis_chunks_iter(Axis(0), 2)
             .zip(y.axis_chunks_iter(Axis(0), 2))
             .map(|(a, b)| DatasetView::new(a, b))
-            .fold(None, |current, d| clf.fit_with(current, &d).unwrap())
-            .unwrap();
+            .try_fold(None, |current, d| clf.fit_with(current, &d).map(Some))?
+            .ok_or(Error::NotEnoughSamples)?;
 
         let pred = model.predict(&x);
 

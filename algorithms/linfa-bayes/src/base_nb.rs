@@ -1,4 +1,4 @@
-use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
+use ndarray::{Array1, Array2, ArrayBase, ArrayView2, Axis, Data, Ix2, Zip};
 use ndarray_stats::QuantileExt;
 use std::collections::HashMap;
 
@@ -8,13 +8,17 @@ use linfa::traits::FitWith;
 use linfa::{Float, Label};
 
 // Trait computing predictions for fitted Naive Bayes models
-pub(crate) trait NaiveBayes<'a, F, L>
+pub trait NaiveBayes<'a, F, L>
 where
     F: Float,
     L: Label + Ord,
 {
+    /// Compute the unnormalized posterior log probabilities.
+    /// The result is returned as an HashMap indexing log probabilities for each samples (eg x rows) by classes
+    /// (eg jll\[class\] -> (n_samples,) array)
     fn joint_log_likelihood(&self, x: ArrayView2<F>) -> HashMap<&L, Array1<F>>;
 
+    #[doc(hidden)]
     fn predict_inplace<D: Data<Elem = F>>(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<L>) {
         assert_eq!(
             x.nrows(),
@@ -45,6 +49,40 @@ where
             classes[i].clone()
         });
     }
+
+    /// Compute log-probability estimates for each sample wrt classes.
+    /// The columns corresponds to classes in sorted order returned as the second output.
+    fn predict_log_proba(&self, x: ArrayView2<F>) -> (Array2<F>, Vec<&L>) {
+        let log_likelihood = self.joint_log_likelihood(x);
+
+        let mut classes = log_likelihood.keys().cloned().collect::<Vec<_>>();
+        classes.sort();
+
+        let n_samples = x.nrows();
+        let n_classes = log_likelihood.len();
+        let mut log_prob_mat = Array2::<F>::zeros((n_samples, n_classes));
+
+        Zip::from(log_prob_mat.columns_mut())
+            .and(&classes)
+            .for_each(|mut jll, &class| jll.assign(log_likelihood.get(class).unwrap()));
+
+        let log_prob_x = log_prob_mat
+            .mapv(|x| x.exp())
+            .sum_axis(Axis(1))
+            .mapv(|x| x.ln())
+            .into_shape((n_samples, 1))
+            .unwrap();
+
+        (log_prob_mat - log_prob_x, classes)
+    }
+
+    /// Compute probability estimates for each sample wrt classes.
+    /// The columns corresponds to classes in sorted order returned as the second output.  
+    fn predict_proba(&self, x: ArrayView2<F>) -> (Array2<F>, Vec<&L>) {
+        let (log_prob_mat, classes) = self.predict_log_proba(x);
+
+        (log_prob_mat.mapv(|v| v.exp()), classes)
+    }
 }
 
 // Common functionality for hyper-parameter sets of Naive Bayes models ready for estimation
@@ -67,28 +105,4 @@ where
 
         self.fit_with(model_none, dataset)
     }
-}
-
-// Returns a subset of x corresponding to the class specified by `ycondition`
-pub fn filter<F: Float, L: Label + Ord>(
-    x: ArrayView2<F>,
-    y: ArrayView1<L>,
-    ycondition: &L,
-) -> Array2<F> {
-    // We identify the row numbers corresponding to the class we are interested in
-    let index = y
-        .into_iter()
-        .enumerate()
-        .filter(|(_, y)| (*ycondition == **y))
-        .map(|(i, _)| i)
-        .collect::<Vec<_>>();
-
-    // We subset x to only records corresponding to the class represented in `ycondition`
-    let mut xsubset = Array2::zeros((index.len(), x.ncols()));
-    index
-        .into_iter()
-        .enumerate()
-        .for_each(|(i, r)| xsubset.row_mut(i).assign(&x.slice(s![r, ..])));
-
-    xsubset
 }

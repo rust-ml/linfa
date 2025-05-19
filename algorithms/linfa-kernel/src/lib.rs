@@ -398,7 +398,7 @@ impl<F: Float, T: AsTargets, N: NearestNeighbour>
     ///
     /// A new dataset with:
     ///  - records: a kernel build from `x.records()` according to the parameters on which
-    ///     this method is called
+    ///    this method is called
     ///  - targets: same as `x.targets()`
     ///
     /// ## Panics
@@ -425,7 +425,7 @@ impl<'a, F: Float, L: 'a, T: AsTargets<Elem = L> + FromTargetArray<'a>, N: Neare
     ///
     /// A new dataset with:
     ///  - records: a kernel build from `x.records()` according to the parameters on which
-    ///     this method is called
+    ///    this method is called
     ///  - targets: same as `x.targets()`
     ///
     /// ## Panics
@@ -460,7 +460,7 @@ impl<
     ///
     /// A new dataset with:
     ///  - records: a kernel build from `x.records()` according to the parameters on which
-    ///     this method is called
+    ///    this method is called
     ///  - targets: a slice of `x.targets()`
     ///
     /// ## Panics
