@@ -21,12 +21,14 @@ default-features = false
 features = ["std", "derive"]
 
 [dependencies]
-ndarray = { version = "0.15" , features = ["approx"]}
-ndarray-stats = "0.5"
-thiserror = "1.0"
+ndarray = { version = "0.16", features = ["approx"] }
+ndarray-stats = "0.6"
+thiserror = "2.0"
 
 linfa = { version = "0.7.1", path = "../.." }
 
 [dev-dependencies]
-approx = "0.4"
-linfa-datasets = { version = "0.7.1", path = "../../datasets", features = ["winequality"] }
+approx = "0.5"
+linfa-datasets = { version = "0.7.1", path = "../../datasets", features = [
+    "winequality",
+] }

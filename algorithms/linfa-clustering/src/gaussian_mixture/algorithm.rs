@@ -396,7 +396,7 @@ impl<F: Float> GaussianMixtureModel<F> {
         let n_clusters = matrix_chol.shape()[0];
         let log_diags = &matrix_chol
             .to_owned()
-            .into_shape((n_clusters, n_features * n_features))
+            .into_shape_with_order((n_clusters, n_features * n_features))
             .unwrap()
             .slice(s![.., ..; n_features+1])
             .to_owned()
