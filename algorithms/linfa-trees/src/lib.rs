@@ -1,7 +1,7 @@
 //!
 //! # Decision tree learning
-//! `linfa-trees` aims to provide pure rust implementations
-//! of decison trees learning algorithms.
+//! `linfa-trees` aims to provide pure Rust implementations
+//! of decision tree learning algorithms.
 //!
 //! # The big picture
 //!
@@ -19,7 +19,11 @@
 
 mod decision_trees;
 
+// Re-export all core decision tree functionality
 pub use decision_trees::*;
-pub use linfa::error::Result;
+
+// Explicitly export the Random Forest classifier API
 pub use decision_trees::random_forest::{RandomForestClassifier, RandomForestParams};
 
+// Re-export the common Result alias for convenience
+pub use linfa::error::Result;

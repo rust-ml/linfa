@@ -6,9 +6,12 @@ use linfa_trees::{DecisionTree, RandomForestParams};
 use rand::thread_rng;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 1. Load & split Iris
+    // Create an RNG for reproducible shuffling
+    let mut rng = thread_rng();
+
+    // 1. Load, shuffle, and split the Iris dataset (80% train, 20% valid)
     let (train, valid) = iris()
-        .shuffle(&mut thread_rng())
+        .shuffle(&mut rng)
         .split_with_ratio(0.8);
 
     // 2. Single‐tree baseline
@@ -23,11 +26,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rf_model = RandomForestParams::new(50)
         .max_depth(Some(5))
         .feature_subsample(0.7)
+        .seed(42)           // fix RNG seed for reproducibility
         .fit(&train)?;
     let rf_preds = rf_model.predict(valid.records.clone());
     let rf_cm = rf_preds.confusion_matrix(&valid)?;
     println!("Random‐forest accuracy: {:.2}", rf_cm.accuracy());
 
-    // 4. Return Ok
+    // 4. Exit cleanly
     Ok(())
 }

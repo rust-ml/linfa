@@ -32,6 +32,7 @@ pub struct RandomForestValidParams<F: Float> {
 }
 
 impl<F: Float> RandomForestParams<F> {
+    /// Create a new random forest with the specified number of trees.
     pub fn new(n_trees: usize) -> Self {
         Self {
             inner: RandomForestValidParams {
@@ -43,14 +44,23 @@ impl<F: Float> RandomForestParams<F> {
             },
         }
     }
+
+    /// Set the maximum depth of each tree.
     pub fn max_depth(mut self, depth: Option<usize>) -> Self {
-        self.inner.max_depth = depth; self
+        self.inner.max_depth = depth;
+        self
     }
+
+    /// Fraction of features to sample per tree (0.0–1.0).
     pub fn feature_subsample(mut self, ratio: f32) -> Self {
-        self.inner.feature_subsample = ratio; self
+        self.inner.feature_subsample = ratio;
+        self
     }
+
+    /// RNG seed for reproducibility.
     pub fn seed(mut self, seed: u64) -> Self {
-        self.inner.seed = seed; self
+        self.inner.seed = seed;
+        self
     }
 }
 
@@ -76,7 +86,7 @@ impl<F: Float> ParamGuard for RandomForestParams<F> {
     }
 }
 
-/// Bootstrap rows with replacement.
+/// Bootstrap‐sample the dataset with replacement.
 fn bootstrap<F: Float>(
     dataset: &DatasetBase<Array2<F>, Array1<usize>>,
     rng: &mut impl Rng,
@@ -105,16 +115,16 @@ impl<F: Float + Send + Sync> Fit<Array2<F>, Array1<usize>, Error>
         let n_sub = ((n_features as f32) * self.feature_subsample).ceil() as usize;
 
         for _ in 0..self.n_trees {
-            // 1) bootstrap rows
+            // 1) Bootstrap rows
             let sample_set = bootstrap(dataset, &mut rng);
 
-            // 2) choose feature subset
+            // 2) Random feature subset
             let feats = sample(&mut rng, n_features, n_sub)
                 .into_iter()
                 .collect::<Vec<_>>();
             feats_list.push(feats.clone());
 
-            // 3) train on those features
+            // 3) Train a tree on that feature slice
             let sub_rec = sample_set.records.select(Axis(1), &feats);
             let sub_ds = Dataset::new(sub_rec, sample_set.targets.clone());
             let tree = DecisionTree::params()
@@ -136,10 +146,11 @@ impl<F: Float> Predict<Array2<F>, Array1<usize>>
 {
     fn predict(&self, x: Array2<F>) -> Array1<usize> {
         let n = x.nrows();
+        // adjust 100 to the expected number of classes if known
         let mut votes = vec![vec![0; n]; 100];
 
-        // For each tree, use its own feature slice:
         for (tree, feats) in self.trees.iter().zip(&self.feature_indices) {
+            // Slice test data to the features this tree saw
             let sub_x = x.select(Axis(1), feats);
             let preds: Array1<usize> = tree.predict(&sub_x);
             for (i, &c) in preds.iter().enumerate() {
@@ -147,14 +158,15 @@ impl<F: Float> Predict<Array2<F>, Array1<usize>>
             }
         }
 
+        // Majority vote per sample
         Array1::from(
             (0..n)
                 .map(|i| {
                     votes.iter()
-                         .enumerate()
-                         .max_by_key(|(_, vs)| vs[i])
-                         .map(|(lbl, _)| lbl)
-                         .unwrap_or(0)
+                        .enumerate()
+                        .max_by_key(|(_, v)| v[i])
+                        .map(|(lbl, _)| lbl)
+                        .unwrap_or(0)
                 })
                 .collect::<Vec<_>>(),
         )
