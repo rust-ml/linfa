@@ -7,3 +7,4 @@ pub use algorithm::*;
 pub use hyperparams::*;
 pub use iter::*;
 pub use tikz::*;
+pub mod random_forest;
