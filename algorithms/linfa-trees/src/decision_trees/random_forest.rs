@@ -98,15 +98,10 @@ fn bootstrap<F: Float>(
     Dataset::new(rec, tgt)
 }
 
-impl<F: Float + Send + Sync> Fit<Array2<F>, Array1<usize>, Error>
-    for RandomForestValidParams<F>
-{
+impl<F: Float + Send + Sync> Fit<Array2<F>, Array1<usize>, Error> for RandomForestValidParams<F> {
     type Object = RandomForestClassifier<F>;
 
-    fn fit(
-        &self,
-        dataset: &DatasetBase<Array2<F>, Array1<usize>>,
-    ) -> Result<Self::Object, Error> {
+    fn fit(&self, dataset: &DatasetBase<Array2<F>, Array1<usize>>) -> Result<Self::Object, Error> {
         let mut rng = StdRng::seed_from_u64(self.seed);
         let mut trees = Vec::with_capacity(self.n_trees);
         let mut feats_list = Vec::with_capacity(self.n_trees);
@@ -141,9 +136,7 @@ impl<F: Float + Send + Sync> Fit<Array2<F>, Array1<usize>, Error>
     }
 }
 
-impl<F: Float> Predict<Array2<F>, Array1<usize>>
-    for RandomForestClassifier<F>
-{
+impl<F: Float> Predict<Array2<F>, Array1<usize>> for RandomForestClassifier<F> {
     fn predict(&self, x: Array2<F>) -> Array1<usize> {
         let n = x.nrows();
         // adjust 100 to the expected number of classes if known
@@ -162,7 +155,8 @@ impl<F: Float> Predict<Array2<F>, Array1<usize>>
         Array1::from(
             (0..n)
                 .map(|i| {
-                    votes.iter()
+                    votes
+                        .iter()
                         .enumerate()
                         .max_by_key(|(_, v)| v[i])
                         .map(|(lbl, _)| lbl)

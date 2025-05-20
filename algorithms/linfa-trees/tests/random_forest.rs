@@ -10,9 +10,7 @@ use rand::SeedableRng;
 fn iris_random_forest_high_accuracy() {
     // reproducible split
     let mut rng = StdRng::seed_from_u64(42);
-    let (train, valid) = iris()
-        .shuffle(&mut rng)
-        .split_with_ratio(0.8);
+    let (train, valid) = iris().shuffle(&mut rng).split_with_ratio(0.8);
 
     let model = RandomForestParams::new(100)
         .max_depth(Some(10))
