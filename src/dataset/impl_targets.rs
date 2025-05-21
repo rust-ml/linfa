@@ -25,7 +25,7 @@ impl<L, S: Data<Elem = L>, I: TargetDim> AsTargets for ArrayBase<S, I> {
 impl<T: AsTargets<Ix = Ix1>> AsSingleTargets for T {}
 impl<T: AsTargets<Ix = Ix2>> AsMultiTargets for T {}
 
-impl<'a, L: Clone + 'a, S: Data<Elem = L>, I: TargetDim> FromTargetArrayOwned for ArrayBase<S, I> {
+impl<L: Clone, S: Data<Elem = L>, I: TargetDim> FromTargetArrayOwned for ArrayBase<S, I> {
     type Owned = ArrayBase<OwnedRepr<L>, I>;
 
     /// Returns an owned representation of the target array

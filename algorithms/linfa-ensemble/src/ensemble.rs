@@ -26,6 +26,7 @@ impl<M> EnsembleLearner<M> {
     }
 
     // Consumes prediction iterator to return all predictions
+    #[allow(clippy::type_complexity)]
     pub fn aggregate_predictions<Ys: Iterator>(
         &self,
         ys: Ys,
@@ -111,7 +112,7 @@ pub struct EnsembleLearnerParams<P, R>(EnsembleLearnerValidParams<P, R>);
 
 impl<P> EnsembleLearnerParams<P, ThreadRng> {
     pub fn new(model_params: P) -> EnsembleLearnerParams<P, ThreadRng> {
-        return Self::new_fixed_rng(model_params, rand::thread_rng());
+        Self::new_fixed_rng(model_params, rand::thread_rng())
     }
 }
 
@@ -120,8 +121,8 @@ impl<P, R: Rng + Clone> EnsembleLearnerParams<P, R> {
         Self(EnsembleLearnerValidParams {
             ensemble_size: 1,
             bootstrap_proportion: 1.0,
-            model_params: model_params,
-            rng: rng,
+            model_params,
+            rng,
         })
     }
 
