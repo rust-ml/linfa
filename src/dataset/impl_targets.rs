@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use super::{
     AsMultiTargets, AsMultiTargetsMut, AsProbabilities, AsSingleTargets, AsSingleTargetsMut,
-    AsTargets, AsTargetsMut, CountedTargets, DatasetBase, FromTargetArray, Label, Labels, Pr,
-    TargetDim,
+    AsTargets, AsTargetsMut, CountedTargets, DatasetBase, FromTargetArray, FromTargetArrayOwned,
+    Label, Labels, Pr, TargetDim,
 };
 use ndarray::{
     Array, Array1, Array2, ArrayBase, ArrayView, ArrayViewMut, Axis, CowArray, Data, DataMut,
@@ -25,14 +25,17 @@ impl<L, S: Data<Elem = L>, I: TargetDim> AsTargets for ArrayBase<S, I> {
 impl<T: AsTargets<Ix = Ix1>> AsSingleTargets for T {}
 impl<T: AsTargets<Ix = Ix2>> AsMultiTargets for T {}
 
-impl<'a, L: Clone + 'a, S: Data<Elem = L>, I: TargetDim> FromTargetArray<'a> for ArrayBase<S, I> {
+impl<'a, L: Clone + 'a, S: Data<Elem = L>, I: TargetDim> FromTargetArrayOwned for ArrayBase<S, I> {
     type Owned = ArrayBase<OwnedRepr<L>, I>;
-    type View = ArrayBase<ViewRepr<&'a L>, I>;
 
     /// Returns an owned representation of the target array
     fn new_targets(targets: Array<L, I>) -> Self::Owned {
         targets
     }
+}
+
+impl<'a, L: Clone + 'a, S: Data<Elem = L>, I: TargetDim> FromTargetArray<'a> for ArrayBase<S, I> {
+    type View = ArrayBase<ViewRepr<&'a L>, I>;
 
     /// Returns a reference to the target array
     fn new_targets_view(targets: ArrayView<'a, L, I>) -> Self::View {
@@ -79,23 +82,28 @@ impl<L: Label, T: AsTargetsMut<Elem = L>> AsTargetsMut for CountedTargets<L, T> 
     }
 }
 
-impl<'a, L: Label + 'a, T> FromTargetArray<'a> for CountedTargets<L, T>
+impl<L: Label, T> FromTargetArrayOwned for CountedTargets<L, T>
 where
-    T: FromTargetArray<'a, Elem = L>,
+    T: FromTargetArrayOwned<Elem = L>,
     T::Owned: Labels<Elem = L>,
-    T::View: Labels<Elem = L> + AsTargets,
 {
     type Owned = CountedTargets<L, T::Owned>;
-    type View = CountedTargets<L, T::View>;
 
     fn new_targets(targets: Array<L, T::Ix>) -> Self::Owned {
         let targets = T::new_targets(targets);
-
         CountedTargets {
             labels: targets.label_count(),
             targets,
         }
     }
+}
+
+impl<'a, L: Label + 'a, T> FromTargetArray<'a> for CountedTargets<L, T>
+where
+    T: FromTargetArray<'a, Elem = L>,
+    T::View: Labels<Elem = L>,
+{
+    type View = CountedTargets<L, T::View>;
 
     fn new_targets_view(targets: ArrayView<'a, L, T::Ix>) -> Self::View {
         let targets = T::new_targets_view(targets);
