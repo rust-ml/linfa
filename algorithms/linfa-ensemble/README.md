@@ -1,4 +1,4 @@
-# Enseble Learning
+# Ensemble Learning
 
 `linfa-ensemble` provides pure Rust implementations of Ensemble Learning algorithms for the Linfa toolkit.
 
@@ -8,7 +8,7 @@
 
 ## Current state
 
-`linfa-ensemble` currently provides an implementation of bootstrap aggregation (bagging) for other classifers provided in linfa.
+`linfa-ensemble` currently provides an implementation of bootstrap aggregation (bagging) for other classifiers provided in linfa.
 
 ## Examples
 

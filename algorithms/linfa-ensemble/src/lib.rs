@@ -1,3 +1,7 @@
-mod ensemble;
+#![doc = include_str!("../README.md")]
 
-pub use ensemble::*;
+mod algorithm;
+mod hyperparams;
+
+pub use algorithm::*;
+pub use hyperparams::*;
