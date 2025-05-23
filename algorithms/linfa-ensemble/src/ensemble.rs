@@ -4,7 +4,7 @@ use linfa::{
     traits::*,
     DatasetBase, ParamGuard,
 };
-use ndarray::{Array, Array2, Axis, Dimension};
+use ndarray::{Array2, Axis, Zip};
 use rand::rngs::ThreadRng;
 use rand::Rng;
 use std::{cmp::Eq, collections::HashMap, hash::Hash};
@@ -24,73 +24,41 @@ impl<M> EnsembleLearner<M> {
     {
         self.models.iter().map(move |m| m.predict(x))
     }
-
-    // Consumes prediction iterator to return all predictions
-    #[allow(clippy::type_complexity)]
-    pub fn aggregate_predictions<Ys: Iterator>(
-        &self,
-        ys: Ys,
-    ) -> impl Iterator<
-        Item = Vec<(
-            Array<
-                <Ys::Item as AsTargets>::Elem,
-                <<Ys::Item as AsTargets>::Ix as Dimension>::Smaller,
-            >,
-            usize,
-        )>,
-    >
-    where
-        Ys::Item: AsTargets,
-        <Ys::Item as AsTargets>::Elem: Copy + Eq + Hash,
-    {
-        let mut prediction_maps = Vec::new();
-
-        for y in ys {
-            let targets = y.as_targets();
-            let no_targets = targets.shape()[0];
-
-            for i in 0..no_targets {
-                if prediction_maps.len() == i {
-                    prediction_maps.push(HashMap::new());
-                }
-                *prediction_maps[i]
-                    .entry(y.as_targets().index_axis(Axis(0), i).to_owned())
-                    .or_insert(0) += 1;
-            }
-        }
-
-        prediction_maps.into_iter().map(|xs| {
-            let mut xs: Vec<_> = xs.into_iter().collect();
-            xs.sort_by(|(_, x), (_, y)| y.cmp(x));
-            xs
-        })
-    }
 }
 
 impl<F: Clone, T, M> PredictInplace<Array2<F>, T> for EnsembleLearner<M>
 where
     M: PredictInplace<Array2<F>, T>,
-    <T as AsTargets>::Elem: Copy + Eq + Hash,
+    <T as AsTargets>::Elem: Copy + Eq + Hash + std::fmt::Debug,
     T: AsTargets + AsTargetsMut<Elem = <T as AsTargets>::Elem>,
 {
     fn predict_inplace(&self, x: &Array2<F>, y: &mut T) {
-        let mut y_array = y.as_targets_mut();
+        let y_array = y.as_targets();
         assert_eq!(
             x.nrows(),
             y_array.len_of(Axis(0)),
             "The number of data points must match the number of outputs."
         );
 
-        let mut predictions = self.generate_predictions(x);
-        let aggregated_predictions = self.aggregate_predictions(&mut predictions);
+        let predictions = self.generate_predictions(x);
 
-        for (target, output) in y_array
-            .axis_iter_mut(Axis(0))
-            .zip(aggregated_predictions.into_iter())
-        {
-            for (t, o) in target.into_iter().zip(output[0].0.iter()) {
-                *t = *o;
-            }
+        // prediction map has same shape as y_array, but the elements are maps
+        let mut prediction_maps = y_array.map(|_| HashMap::new());
+
+        for prediction in predictions {
+            let p_arr = prediction.as_targets();
+            assert_eq!(p_arr.shape(), y_array.shape());
+            // Insert each prediction value into the corresponding map
+            Zip::from(&mut prediction_maps)
+                .and(&p_arr)
+                .for_each(|map, val| *map.entry(*val).or_insert(0) += 1);
+        }
+
+        // For each prediction, pick the result with the highest number of votes
+        let agg_preds = prediction_maps.map(|map| map.iter().max_by_key(|(_, v)| **v).unwrap().0);
+        let mut y_array = y.as_targets_mut();
+        for (y, pred) in y_array.iter_mut().zip(agg_preds.iter()) {
+            *y = **pred
         }
     }
 
