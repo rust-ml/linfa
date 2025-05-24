@@ -7,8 +7,11 @@ use rand::Rng;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct EnsembleLearnerValidParams<P, R> {
+    /// The number of models in the ensemble
     pub ensemble_size: usize,
+    /// The proportion of the total number of training samples that should be given to each model for training
     pub bootstrap_proportion: f64,
+    /// The model parameters for the base model
     pub model_params: P,
     pub rng: R,
 }
