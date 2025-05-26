@@ -1,0 +1,36 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Ensemble Learning Algorithms"><title>linfa_ensemble - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-916cea96.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="linfa_ensemble" data-themes="" data-resource-suffix="" data-rustdoc-version="1.87.0 (17067e9ac 2025-05-09)" data-channel="1.87.0" data-search-js="search-e7298875.js" data-settings-js="settings-d72f25bb.js" ><script src="../static.files/storage-82c7156e.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-fb8c74a8.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../linfa_ensemble/index.html">linfa_<wbr>ensemble</a><span class="version">0.7.0</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#ensemble-learning-algorithms" title="Ensemble Learning Algorithms">Ensemble Learning Algorithms</a><ul><li><a href="#bootstrap-aggregation-aka-bagging" title="Bootstrap Aggregation (aka Bagging)">Bootstrap Aggregation (aka Bagging)</a></li><li><a href="#reference" title="Reference">Reference</a></li><li><a href="#example" title="Example">Example</a></li></ul></li></ul><h3><a href="#structs">Crate Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1>Crate <span>linfa_ensemble</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/linfa_ensemble/lib.rs.html#1-77">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="ensemble-learning-algorithms"><a class="doc-anchor" href="#ensemble-learning-algorithms">§</a>Ensemble Learning Algorithms</h2>
+<p>Ensemble methods combine the predictions of several base estimators built with a given
+learning algorithm in order to improve generalizability / robustness over a single estimator.</p>
+<h3 id="bootstrap-aggregation-aka-bagging"><a class="doc-anchor" href="#bootstrap-aggregation-aka-bagging">§</a>Bootstrap Aggregation (aka Bagging)</h3>
+<p>A typical example of ensemble method is Bootstrapo AGgregation, which combines the predictions of
+several decision trees (see <code>linfa-trees</code>) trained on different samples subset of the training dataset.</p>
+<h3 id="reference"><a class="doc-anchor" href="#reference">§</a>Reference</h3>
+<ul>
+<li><a href="https://scikit-learn.org/stable/modules/ensemble.html">Scikit-Learn User Guide</a></li>
+</ul>
+<h3 id="example"><a class="doc-anchor" href="#example">§</a>Example</h3>
+<p>This example shows how to train a bagging model using 100 decision trees,
+each trained on 70% of the training data (bootstrap sampling).</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>linfa::prelude::{Fit, Predict};
+<span class="kw">use </span>linfa_ensemble::EnsembleLearnerParams;
+<span class="kw">use </span>linfa_trees::DecisionTree;
+<span class="kw">use </span>ndarray_rand::rand::SeedableRng;
+<span class="kw">use </span>rand::rngs::SmallRng;
+
+<span class="comment">// Load Iris dataset
+</span><span class="kw">let </span><span class="kw-2">mut </span>rng = SmallRng::seed_from_u64(<span class="number">42</span>);
+<span class="kw">let </span>(train, test) = linfa_datasets::iris()
+    .shuffle(<span class="kw-2">&amp;mut </span>rng)
+    .split_with_ratio(<span class="number">0.8</span>);
+
+<span class="comment">// Train the model on the iris dataset
+</span><span class="kw">let </span>bagging_model = EnsembleLearnerParams::new(DecisionTree::params())
+    .ensemble_size(<span class="number">100</span>)
+    .bootstrap_proportion(<span class="number">0.7</span>)
+    .fit(<span class="kw-2">&amp;</span>train)
+    .unwrap();
+
+<span class="comment">// Make predictions on the test set
+</span><span class="kw">let </span>predictions = bagging_model.predict(<span class="kw-2">&amp;</span>test);</code></pre></div>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.EnsembleLearner.html" title="struct linfa_ensemble::EnsembleLearner">Ensemble<wbr>Learner</a></dt><dt><a class="struct" href="struct.EnsembleLearnerParams.html" title="struct linfa_ensemble::EnsembleLearnerParams">Ensemble<wbr>Learner<wbr>Params</a></dt><dt><a class="struct" href="struct.EnsembleLearnerValidParams.html" title="struct linfa_ensemble::EnsembleLearnerValidParams">Ensemble<wbr>Learner<wbr>Valid<wbr>Params</a></dt></dl></section></div></main></body></html>
