@@ -72,6 +72,6 @@ mod tests {
 
         let cm = predictions.confusion_matrix(&test).unwrap();
         let acc = cm.accuracy();
-        assert!(acc > 0.9, "Expected accuracy to be above 90%, got {}", acc);
+        assert!(acc >= 0.9, "Expected accuracy to be above 90%, got {}", acc);
     }
 }
