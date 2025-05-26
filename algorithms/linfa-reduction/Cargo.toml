@@ -34,25 +34,25 @@ default-features = false
 features = ["std", "derive"]
 
 [dependencies]
-ndarray = { version = "0.15", features = ["approx"] }
-linfa-linalg = { version = "0.1" }
-ndarray-linalg = { version = "0.16", optional = true }
-ndarray-rand = "0.14"
+ndarray = { version = "0.16", features = ["approx"] }
+linfa-linalg = { version = "0.2" }
+ndarray-linalg = { version = "0.17", optional = true }
+ndarray-rand = "0.15"
 num-traits = "0.2"
-thiserror = "1.0"
+thiserror = "2.0"
 rand = { version = "0.8", features = ["small_rng"] }
 
 linfa = { version = "0.7.1", path = "../.." }
 linfa-kernel = { version = "0.7.1", path = "../linfa-kernel" }
-sprs = "=0.11.1"
+sprs = { version = "0.11" }
 rand_xoshiro = "0.6.0"
 
 [dev-dependencies]
-ndarray-npy = { version = "0.8", default-features = false }
+ndarray-npy = { version = "0.9", default-features = false }
 linfa-datasets = { version = "0.7.1", path = "../../datasets", features = [
     "iris",
     "generate",
 ] }
-approx = { version = "0.4" }
+approx = "0.5"
 mnist = { version = "0.6.0", features = ["download"] }
 linfa-trees = { version = "0.7.1", path = "../linfa-trees" }
