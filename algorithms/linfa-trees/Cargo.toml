@@ -1,8 +1,11 @@
 [package]
 name = "linfa-trees"
-version = "0.7.1"
+version = "0.8.0"
 edition = "2018"
-authors = ["Moss Ebeling <moss@banay.me>"]
+authors = [
+    "Moss Ebeling <moss@banay.me>",
+    "Abhinav Shukla <abhinavcsvtu007@gmail.com>",
+]
 description = "A collection of tree-based algorithms"
 license = "MIT OR Apache-2.0"
 
@@ -28,6 +31,8 @@ ndarray = { version = "0.15" , features = ["rayon", "approx"]}
 ndarray-rand = "0.14"
 
 linfa = { version = "0.7.1", path = "../.." }
+rand = "0.8"
+
 
 [dev-dependencies]
 rand = { version = "0.8", features = ["small_rng"] }
