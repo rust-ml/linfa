@@ -35,8 +35,7 @@ impl SerdeRegex {
     }
 
     fn as_re(&self) -> &Regex {
-        use std::ops::Deref;
-        &self.0.deref()
+        &self.0
     }
 }
 
@@ -68,6 +67,7 @@ impl SerdeRegex {
 pub struct CountVectorizerValidParams {
     convert_to_lowercase: bool,
     split_regex_expr: String,
+    #[cfg_attr(feature = "serde", serde(skip, default = "OnceLock::new"))]
     split_regex: OnceLock<SerdeRegex>,
     n_gram_range: (usize, usize),
     normalize: bool,
@@ -95,7 +95,7 @@ impl CountVectorizerValidParams {
     pub fn split_regex(&self) -> &Regex {
         self.split_regex
             .get()
-            .expect("Regex not initialized")
+            .expect("Regex not initialized; call `check_ref()` first")
             .as_re()
     }
 
@@ -124,7 +124,7 @@ impl CountVectorizerValidParams {
 #[derive(Clone, Debug)]
 pub struct CountVectorizerParams(CountVectorizerValidParams);
 
-impl std::default::Default for CountVectorizerParams {
+impl Default for CountVectorizerParams {
     fn default() -> Self {
         Self(CountVectorizerValidParams {
             convert_to_lowercase: true,
