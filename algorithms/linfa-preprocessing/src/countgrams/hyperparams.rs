@@ -227,9 +227,7 @@ impl ParamGuard for CountVectorizerParams {
                 min_freq, max_freq,
             ))
         } else {
-            let regex = SerdeRegex::new(&self.0.split_regex_expr)?;
-            let _ = self.0.split_regex.set(regex);
-
+            let _ = self.0.split_regex.set(SerdeRegex::new(&self.0.split_regex_expr)?);
             Ok(&self.0)
         }
     }
