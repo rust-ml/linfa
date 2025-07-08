@@ -35,7 +35,7 @@ fn main() {
     println!();
     println!("Result: ");
     for sample in analysis.iter() {
-        println!("{:?}", sample);
+        println!("{sample:?}");
     }
     println!();
 

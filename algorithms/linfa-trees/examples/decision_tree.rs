@@ -26,7 +26,7 @@ fn main() -> Result<()> {
     let gini_pred_y = gini_model.predict(&test);
     let cm = gini_pred_y.confusion_matrix(&test)?;
 
-    println!("{:?}", cm);
+    println!("{cm:?}");
 
     println!(
         "Test accuracy with Gini criterion: {:.2}%",
@@ -34,7 +34,7 @@ fn main() -> Result<()> {
     );
 
     let feats = gini_model.features();
-    println!("Features trained in this tree {:?}", feats);
+    println!("Features trained in this tree {feats:?}");
 
     println!("Training model with entropy criterion ...");
     let entropy_model = DecisionTree::params()
@@ -47,7 +47,7 @@ fn main() -> Result<()> {
     let entropy_pred_y = entropy_model.predict(&test);
     let cm = entropy_pred_y.confusion_matrix(&test)?;
 
-    println!("{:?}", cm);
+    println!("{cm:?}");
 
     println!(
         "Test accuracy with Entropy criterion: {:.2}%",
@@ -55,7 +55,7 @@ fn main() -> Result<()> {
     );
 
     let feats = entropy_model.features();
-    println!("Features trained in this tree {:?}", feats);
+    println!("Features trained in this tree {feats:?}");
 
     let mut tikz = File::create("decision_tree_example.tex").unwrap();
     tikz.write_all(

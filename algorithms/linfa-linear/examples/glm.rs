@@ -28,7 +28,7 @@ fn main() -> Result<(), f64> {
         .mapv(|x| x.abs())
         .mean();
 
-    println!("{:?}", loss);
+    println!("{loss:?}");
 
     Ok(())
 }

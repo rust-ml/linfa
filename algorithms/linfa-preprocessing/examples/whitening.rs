@@ -27,9 +27,6 @@ fn main() {
         .accuracy();
     let cm = model.predict(&valid).confusion_matrix(&valid).unwrap();
     let valid_acc = cm.accuracy();
-    println!(
-        "Whitened model training and validation accuracies: {} - {}",
-        train_acc, valid_acc
-    );
-    println!("{:?}", cm);
+    println!("Whitened model training and validation accuracies: {train_acc} - {valid_acc}");
+    println!("{cm:?}",);
 }

@@ -150,7 +150,7 @@ fn main() {
         .unwrap();
     // 0.9944
     let accuracy = cm.f1_score();
-    println!("The fitted model has a training f1 score of {}", accuracy);
+    println!("The fitted model has a training f1 score of {accuracy}");
 
     // --- Test set
 
@@ -174,7 +174,7 @@ fn main() {
     let cm = test_prediction.confusion_matrix(&test_dataset).unwrap();
     // 0.9523
     let accuracy = cm.f1_score();
-    println!("The model has a test f1 score of {}", accuracy);
+    println!("The model has a test f1 score of {accuracy}");
 
     delete_20news_bydate();
 }

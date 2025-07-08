@@ -50,7 +50,7 @@ fn bench(c: &mut Criterion) {
         pls_cca_id.push_str(name);
 
         for (size, num_feat) in params {
-            let suffix = format!("{}Feats", num_feat);
+            let suffix = format!("{num_feat}Feats");
             let mut func_name = pls_regression_id.clone();
             func_name.push_str(&suffix);
             let dataset = make_dataset(size, num_feat, 1, feat_distr, target_distr);

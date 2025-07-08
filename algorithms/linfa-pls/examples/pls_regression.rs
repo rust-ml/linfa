@@ -31,7 +31,7 @@ fn main() -> Result<()> {
         .fit(&ds)?;
 
     println!("True B (such that: Y = XB + noise)");
-    println!("{:?}", b);
+    println!("{b:?}");
 
     // PLS regression coefficients is an estimation of B
     println!("Estimated B");

@@ -26,7 +26,7 @@ fn main() -> Result<()> {
     let cm = pred.confusion_matrix(&valid)?;
 
     // Print the confusion matrix
-    println!("{:?}", cm);
+    println!("{cm:?}");
 
     // Calculate the accuracy and Matthew Correlation Coefficient (cross-correlation between
     // predicted and targets)

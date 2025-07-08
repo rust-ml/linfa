@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             _ => unreachable!(),
         };
 
-        print!("({} {}) ", id, name);
+        print!("({id} {name}) ");
     }
     println!();
 

@@ -210,10 +210,10 @@ pub mod tests {
     use ndarray::{Array, Array1, Array2};
 
     fn _check_model(model: Svm<f64, f64>, dataset: &DatasetBase<Array2<f64>, Array1<f64>>) {
-        println!("{}", model);
+        println!("{model}");
         let predicted = model.predict(dataset.records());
         let err = predicted.mean_squared_error(&dataset).unwrap();
-        println!("err={}", err);
+        println!("err={err}");
         assert!(predicted.mean_squared_error(&dataset).unwrap() < 1e-2);
     }
 

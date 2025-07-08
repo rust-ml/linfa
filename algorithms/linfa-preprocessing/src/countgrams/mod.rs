@@ -767,7 +767,7 @@ mod tests {
             "avoid",
             "singletons",
         ];
-        println!("voc: {:?}", vocabulary);
+        println!("voc: {vocabulary:?}");
         assert_vocabulary_eq(&true_vocabulary, vocabulary);
     }
 

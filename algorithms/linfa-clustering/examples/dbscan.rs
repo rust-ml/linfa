@@ -41,15 +41,15 @@ fn main() {
     println!("Result: ");
     for (label, count) in label_count {
         match label {
-            None => println!(" - {} noise points", count),
-            Some(i) => println!(" - {} points in cluster {}", count, i),
+            None => println!(" - {count} noise points"),
+            Some(i) => println!(" - {count} points in cluster {i}"),
         }
     }
     println!();
 
     let silhouette_score = cluster_memberships.silhouette_score().unwrap();
 
-    println!("Silhouette score: {}", silhouette_score);
+    println!("Silhouette score: {silhouette_score}");
 
     let (records, cluster_memberships) = (cluster_memberships.records, cluster_memberships.targets);
 

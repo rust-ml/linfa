@@ -148,7 +148,7 @@ fn main() {
         .unwrap();
     // 0.9994
     let accuracy = cm.f1_score();
-    println!("The fitted model has a training f1 score of {}", accuracy);
+    println!("The fitted model has a training f1 score of {accuracy}",);
 
     // --- Test set
 
@@ -157,9 +157,8 @@ fn main() {
     let (test_filenames, test_targets, ntargets) = load_test_set(&desired_targets).unwrap();
 
     println!(
-        "The test set is comprised of {} documents with {} different targets",
+        "The test set is comprised of {} documents with {ntargets} different targets",
         test_filenames.len(),
-        ntargets
     );
     let test_records = vectorizer
         .transform_files(&test_filenames, ISO_8859_1, Strict)
@@ -171,7 +170,7 @@ fn main() {
     let cm = test_prediction.confusion_matrix(&test_dataset).unwrap();
     // 0.8402
     let accuracy = cm.f1_score();
-    println!("The model has a test f1 score of {}", accuracy);
+    println!("The model has a test f1 score of {accuracy}");
 
     delete_20news_bydate();
 }

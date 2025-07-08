@@ -27,7 +27,7 @@ fn main() -> Result<()> {
 
     // display the accuracy of the models along with their regularization coefficient
     for (alpha, accuracy) in alphas.iter().zip(accuracies.iter()) {
-        println!("Alpha: {}, accuracy: {} ", alpha, accuracy);
+        println!("Alpha: {alpha}, accuracy: {accuracy} ");
     }
 
     Ok(())

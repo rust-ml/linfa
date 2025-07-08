@@ -26,7 +26,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Print the confusion matrix, this will print a table with four entries. On the diagonal are
     // the number of true-positive and true-negative predictions, off the diagonal are
     // false-positive and false-negative
-    println!("{:?}", cm);
+    println!("{cm:?}");
 
     // Calculate the accuracy and Matthew Correlation Coefficient (cross-correlation between
     // predicted and targets)
