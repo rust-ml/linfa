@@ -32,7 +32,7 @@ fn bench(c: &mut Criterion) {
     let glm_id = "GLM-".to_string();
 
     for (size, num_feat) in params {
-        let suffix = format!("{}Feats", num_feat);
+        let suffix = format!("{num_feat}Feats");
         let mut func_name = ols_id.clone();
         func_name.push_str(&suffix);
 

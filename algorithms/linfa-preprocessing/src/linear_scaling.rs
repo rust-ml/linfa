@@ -136,11 +136,10 @@ impl<F: Float> std::fmt::Display for ScalingMethod<F> {
         match self {
             ScalingMethod::Standard(with_mean, with_std) => write!(
                 f,
-                "Standard scaler (with_mean = {}, with_std = {})",
-                with_mean, with_std
+                "Standard scaler (with_mean = {with_mean}, with_std = {with_std})"
             ),
             ScalingMethod::MinMax(min, max) => {
-                write!(f, "Min-Max scaler (min = {}, max = {})", min, max)
+                write!(f, "Min-Max scaler (min = {min}, max = {max})")
             }
             ScalingMethod::MaxAbs => write!(f, "MaxAbs scaler"),
         }

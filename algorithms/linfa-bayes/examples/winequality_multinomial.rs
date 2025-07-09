@@ -21,7 +21,7 @@ fn main() -> Result<()> {
     // good       | 10         | 7
 
     // accuracy 0.5974843, MCC 0.02000631
-    println!("{:?}", cm);
+    println!("{cm:?}");
     println!("accuracy {}, MCC {}", cm.accuracy(), cm.mcc());
 
     Ok(())

@@ -30,11 +30,11 @@ fn main() -> Result<()> {
         .gaussian_kernel(10.)
         .fit(&dataset)?;
 
-    println!("{}", model);
+    println!("{model}");
 
     let predicted = model.predict(&dataset);
     let err = predicted.mean_squared_error(&dataset).unwrap();
-    println!("err={}", err);
+    println!("err={err}");
 
     Ok(())
 }

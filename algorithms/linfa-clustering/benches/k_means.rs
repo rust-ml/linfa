@@ -50,7 +50,7 @@ fn k_means_bench(c: &mut Criterion) {
         let mut stats = Stats::default();
 
         benchmark.bench_function(
-            BenchmarkId::new("naive_k_means", format!("{}x{}", n_clusters, cluster_size)),
+            BenchmarkId::new("naive_k_means", format!("{n_clusters}x{cluster_size}")),
             |bencher| {
                 bencher.iter(|| {
                     let m = KMeans::params_with_rng(black_box(n_clusters), black_box(rng.clone()))
@@ -88,7 +88,7 @@ fn k_means_incr_bench(c: &mut Criterion) {
         benchmark.bench_function(
             BenchmarkId::new(
                 "incremental_k_means",
-                format!("{}x{}", n_clusters, cluster_size),
+                format!("{n_clusters}x{cluster_size}"),
             ),
             |bencher| {
                 bencher.iter(|| {
@@ -140,7 +140,7 @@ fn k_means_init_bench(c: &mut Criterion) {
             benchmark.bench_function(
                 BenchmarkId::new(
                     "k_means_init",
-                    format!("{:?}:{}x{}", init, n_clusters, cluster_size),
+                    format!("{init:?}:{n_clusters}x{cluster_size}"),
                 ),
                 |bencher| {
                     bencher.iter(|| {

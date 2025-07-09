@@ -51,12 +51,11 @@ impl<'a, F: Float, L: Debug + Label> Tikz<'a, F, L> {
     fn format_node(node: &'a TreeNode<F, L>) -> String {
         let depth = vec![""; node.depth() + 1].join("\t");
         if let Some(prediction) = node.prediction() {
-            format!("{}[Label: {:?}]", depth, prediction)
+            format!("{depth}[Label: {prediction:?}]")
         } else {
             let (idx, value, impurity_decrease) = node.split();
             let mut out = format!(
-                "{}[Val(${}$) $ \\leq {:.2}$ \\\\ Imp. ${:.2}$",
-                depth, idx, value, impurity_decrease
+                "{depth}[Val(${idx}$) $ \\leq {value:.2}$ \\\\ Imp. ${impurity_decrease:.2}$"
             );
             for child in node.children().into_iter().filter_map(|x| x.as_ref()) {
                 out.push('\n');
@@ -167,6 +166,6 @@ for tree={
             out.push_str("\\end{document}");
         }
 
-        write!(f, "{}", out)
+        write!(f, "{out}")
     }
 }

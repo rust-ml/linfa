@@ -45,7 +45,7 @@ features = ["std", "derive"]
 linfa-datasets = { version = "0.7.1", path = "../../datasets", features = [
     "diabetes",
     "winequality",
-    "generate"
+    "generate",
 ] }
 linfa-bayes = { version = "0.7.1", path = "../linfa-bayes" }
 iai = "0.1"
@@ -56,9 +56,10 @@ linfa = { version = "0.7.1", path = "../..", features = ["benchmarks"] }
 criterion = "0.4.0"
 statrs = "0.16.0"
 
-[[bench]]
-name = "vectorizer_bench"
-harness = false
+# FIXME: Disabled as dataset link is broken
+# [[bench]]
+# name = "vectorizer_bench"
+# harness = false
 
 [[bench]]
 name = "linear_scaler_bench"

@@ -20,7 +20,7 @@ fn bench(c: &mut Criterion) {
         for nfeatures in (10..100).step_by(10) {
             let dataset = make_dataset(size, nfeatures, 1, feat_distr, target_distr);
             benchmark.bench_function(
-                BenchmarkId::new(fn_name, format!("{}x{}", nfeatures, size)),
+                BenchmarkId::new(fn_name, format!("{nfeatures}x{size}")),
                 |bencher| {
                     bencher.iter(|| {
                         scaler.transform(black_box(dataset.view()));

@@ -23,7 +23,7 @@ fn nn_build_bench(c: &mut Criterion) {
 
         for (alg, name) in algorithms {
             benchmark.bench_with_input(
-                BenchmarkId::new(*name, format!("{}", n_points)),
+                BenchmarkId::new(*name, format!("{n_points}")),
                 &points_arr,
                 |bencher, points_arr| {
                     let points = points_arr.view();
@@ -56,7 +56,7 @@ fn k_nearest_bench(c: &mut Criterion) {
         for (alg, name) in algorithms {
             let nn = alg.from_batch(&points, L2Dist).unwrap();
             benchmark.bench_with_input(
-                BenchmarkId::new(*name, format!("{}-{}", n_points, k)),
+                BenchmarkId::new(*name, format!("{n_points}-{k}")),
                 &k,
                 |bencher, &k| {
                     bencher.iter(|| {
@@ -91,7 +91,7 @@ fn within_range_bench(c: &mut Criterion) {
         for (alg, name) in algorithms {
             let nn = alg.from_batch(&points, L2Dist).unwrap();
             benchmark.bench_with_input(
-                BenchmarkId::new(*name, format!("{}-{}", n_points, range)),
+                BenchmarkId::new(*name, format!("{n_points}-{range}")),
                 &range,
                 |bencher, &range| {
                     bencher.iter(|| {

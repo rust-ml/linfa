@@ -21,7 +21,7 @@ fn fit_without_prior_model(c: &mut Criterion) {
     for (nfeatures, nrows) in sizes.iter() {
         let dataset = get_dataset(&mut rng, *nrows, *nfeatures);
         group.bench_function(
-            BenchmarkId::new("training on ", format!("dataset {}x{}", nfeatures, nrows)),
+            BenchmarkId::new("training on ", format!("dataset {nfeatures}x{nrows}")),
             |bencher| {
                 bencher.iter(|| {
                     params.fit_with(None, black_box(&dataset)).unwrap();
@@ -46,7 +46,7 @@ fn fit_with_prior_model(c: &mut Criterion) {
         let model = Ftrl::new(valid_params.clone(), *nfeatures);
         let dataset = get_dataset(&mut rng, *nrows, *nfeatures);
         group.bench_function(
-            BenchmarkId::new("training on ", format!("dataset {}x{}", nfeatures, nrows)),
+            BenchmarkId::new("training on ", format!("dataset {nfeatures}x{nrows}")),
             |bencher| {
                 bencher.iter(|| {
                     let _ = params
@@ -72,7 +72,7 @@ fn predict(c: &mut Criterion) {
         let model = Ftrl::new(valid_params.clone(), *nfeatures);
         let dataset = get_dataset(&mut rng, *nrows, *nfeatures);
         group.bench_function(
-            BenchmarkId::new("predicting on ", format!("dataset {}x{}", nfeatures, nrows)),
+            BenchmarkId::new("predicting on ", format!("dataset {nfeatures}x{nrows}")),
             |bencher| {
                 bencher.iter(|| {
                     model.predict(black_box(&dataset));
