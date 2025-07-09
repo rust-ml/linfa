@@ -70,7 +70,7 @@ where
             .mapv(|x| x.exp())
             .sum_axis(Axis(1))
             .mapv(|x| x.ln())
-            .into_shape((n_samples, 1))
+            .into_shape_with_order((n_samples, 1))
             .unwrap();
 
         (log_prob_mat - log_prob_x, classes)
