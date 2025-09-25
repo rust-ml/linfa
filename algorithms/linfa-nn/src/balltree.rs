@@ -261,7 +261,11 @@ impl<'a, F: Float, D: Distance<F>> BallTreeIndex<'a, F, D> {
 }
 
 impl<F: Float, D: Distance<F>> NearestNeighbourIndex<F> for BallTreeIndex<'_, F, D> {
-    fn k_nearest(&self, point: Point<'_, F>, k: usize) -> Result<Vec<(Point<'_, F>, usize)>, NnError> {
+    fn k_nearest(
+        &self,
+        point: Point<'_, F>,
+        k: usize,
+    ) -> Result<Vec<(Point<'_, F>, usize)>, NnError> {
         self.nn_helper(point, k, F::infinity())
     }
 

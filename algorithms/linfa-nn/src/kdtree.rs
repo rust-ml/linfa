@@ -51,7 +51,11 @@ impl From<kdtree::ErrorKind> for NnError {
 }
 
 impl<F: Float, D: Distance<F>> NearestNeighbourIndex<F> for KdTreeIndex<'_, F, D> {
-    fn k_nearest(&self, point: Point<'_, F>, k: usize) -> Result<Vec<(Point<'_, F>, usize)>, NnError> {
+    fn k_nearest(
+        &self,
+        point: Point<'_, F>,
+        k: usize,
+    ) -> Result<Vec<(Point<'_, F>, usize)>, NnError> {
         Ok(self
             .0
             .nearest(
