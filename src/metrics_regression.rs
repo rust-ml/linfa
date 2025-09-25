@@ -62,7 +62,7 @@ pub trait SingleTargetRegression<F: Float, T: AsSingleTargets<Elem = F>>:
             .to_vec();
         abs_error.sort_by(|a, b| a.partial_cmp(b).unwrap());
         let mid = abs_error.len() / 2;
-        if abs_error.len() % 2 == 0 {
+        if abs_error.len().is_multiple_of(2) {
             Ok((abs_error[mid - 1] + abs_error[mid]) / F::cast(2.0))
         } else {
             Ok(abs_error[mid])

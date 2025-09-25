@@ -549,7 +549,7 @@ where
 
 impl<F: Float, L: Label> DecisionTree<F, L> {
     /// Create a node iterator in level-order (BFT)
-    pub fn iter_nodes(&self) -> NodeIter<F, L> {
+    pub fn iter_nodes(&self) -> NodeIter<'_, F, L> {
         // queue of nodes yet to explore
         let queue = vec![&self.root_node];
 
@@ -627,7 +627,7 @@ impl<F: Float, L: Label> DecisionTree<F, L> {
     /// * `legend=false`
     /// * `complete=true`
     ///
-    pub fn export_to_tikz(&self) -> Tikz<F, L> {
+    pub fn export_to_tikz(&self) -> Tikz<'_, F, L> {
         Tikz::new(self)
     }
 }

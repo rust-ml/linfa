@@ -30,7 +30,7 @@ impl<'a, F: Float, D: Distance<F>> LinearSearchIndex<'a, F, D> {
 }
 
 impl<F: Float, D: Distance<F>> NearestNeighbourIndex<F> for LinearSearchIndex<'_, F, D> {
-    fn k_nearest(&self, point: Point<'_, F>, k: usize) -> Result<Vec<(Point<F>, usize)>, NnError> {
+    fn k_nearest(&self, point: Point<'_, F>, k: usize) -> Result<Vec<(Point<'_, F>, usize)>, NnError> {
         if self.0.ncols() != point.len() {
             Err(NnError::WrongDimension)
         } else {
@@ -53,7 +53,7 @@ impl<F: Float, D: Distance<F>> NearestNeighbourIndex<F> for LinearSearchIndex<'_
         &self,
         point: Point<'_, F>,
         range: F,
-    ) -> Result<Vec<(Point<F>, usize)>, NnError> {
+    ) -> Result<Vec<(Point<'_, F>, usize)>, NnError> {
         if self.0.ncols() != point.len() {
             Err(NnError::WrongDimension)
         } else {

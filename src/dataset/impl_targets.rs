@@ -17,7 +17,7 @@ impl<L, S: Data<Elem = L>, I: TargetDim> AsTargets for ArrayBase<S, I> {
     type Elem = L;
     type Ix = I;
 
-    fn as_targets(&self) -> ArrayView<L, I> {
+    fn as_targets(&self) -> ArrayView<'_, L, I> {
         self.view()
     }
 }
@@ -47,7 +47,7 @@ impl<L, S: DataMut<Elem = L>, I: TargetDim> AsTargetsMut for ArrayBase<S, I> {
     type Elem = L;
     type Ix = I;
 
-    fn as_targets_mut(&mut self) -> ArrayViewMut<Self::Elem, I> {
+    fn as_targets_mut(&mut self) -> ArrayViewMut<'_, Self::Elem, I> {
         self.view_mut()
     }
 }
@@ -59,7 +59,7 @@ impl<T: AsTargets> AsTargets for &T {
     type Elem = T::Elem;
     type Ix = T::Ix;
 
-    fn as_targets(&self) -> ArrayView<Self::Elem, Self::Ix> {
+    fn as_targets(&self) -> ArrayView<'_, Self::Elem, Self::Ix> {
         (*self).as_targets()
     }
 }
@@ -68,7 +68,7 @@ impl<L: Label, T: AsTargets<Elem = L>> AsTargets for CountedTargets<L, T> {
     type Elem = L;
     type Ix = T::Ix;
 
-    fn as_targets(&self) -> ArrayView<Self::Elem, Self::Ix> {
+    fn as_targets(&self) -> ArrayView<'_, Self::Elem, Self::Ix> {
         self.targets.as_targets()
     }
 }
@@ -77,7 +77,7 @@ impl<L: Label, T: AsTargetsMut<Elem = L>> AsTargetsMut for CountedTargets<L, T> 
     type Elem = L;
     type Ix = T::Ix;
 
-    fn as_targets_mut(&mut self) -> ArrayViewMut<Self::Elem, Self::Ix> {
+    fn as_targets_mut(&mut self) -> ArrayViewMut<'_, Self::Elem, Self::Ix> {
         self.targets.as_targets_mut()
     }
 }

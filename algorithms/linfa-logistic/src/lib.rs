@@ -393,7 +393,7 @@ where
 fn convert_params<F: Float, D: Dimension + RemoveAxis>(
     n_features: usize,
     w: &Array<F, D>,
-) -> (ArrayView<F, D>, CowArray<F, D::Smaller>) {
+) -> (ArrayView<'_, F, D>, CowArray<'_, F, D::Smaller>) {
     let nrows = w.shape()[0];
     if n_features == nrows {
         (

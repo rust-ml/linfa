@@ -98,7 +98,7 @@ pub trait NearestNeighbourIndex<F: Float>: Send + Sync + Unpin {
     ///
     /// Returns an error if the provided point has different dimensionality than the index's
     /// points.
-    fn k_nearest(&self, point: Point<'_, F>, k: usize) -> Result<Vec<(Point<F>, usize)>, NnError>;
+    fn k_nearest(&self, point: Point<'_, F>, k: usize) -> Result<Vec<(Point<'_, F>, usize)>, NnError>;
 
     /// Returns all the points in the index that are within the specified distance to the provided
     /// point, along with their positions in the original dataset. The points are not guaranteed to
@@ -110,7 +110,7 @@ pub trait NearestNeighbourIndex<F: Float>: Send + Sync + Unpin {
         &self,
         point: Point<'_, F>,
         range: F,
-    ) -> Result<Vec<(Point<F>, usize)>, NnError>;
+    ) -> Result<Vec<(Point<'_, F>, usize)>, NnError>;
 }
 
 /// Enum that dispatches to one of the crate's [`NearestNeighbour`]

@@ -89,7 +89,7 @@ pub(crate) fn filter<F: Float, L: Label + Ord>(
     let index = y
         .into_iter()
         .enumerate()
-        .filter(|&(_, y)| (*ycondition == *y))
+        .filter(|&(_, y)| *ycondition == *y)
         .map(|(i, _)| i)
         .collect::<Vec<_>>();
 

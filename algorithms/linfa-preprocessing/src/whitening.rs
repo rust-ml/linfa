@@ -188,12 +188,12 @@ pub struct FittedWhitener<F: Float> {
 
 impl<F: Float> FittedWhitener<F> {
     /// The matrix used for scaling the data
-    pub fn transformation_matrix(&self) -> ArrayView2<F> {
+    pub fn transformation_matrix(&self) -> ArrayView2<'_, F> {
         self.transformation_matrix.view()
     }
 
     /// The means that will be subtracted to the features before scaling the data
-    pub fn mean(&self) -> ArrayView1<F> {
+    pub fn mean(&self) -> ArrayView1<'_, F> {
         self.mean.view()
     }
 }

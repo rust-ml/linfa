@@ -273,7 +273,7 @@ impl<L, R: Records, T: AsTargets<Elem = L>> AsTargets for DatasetBase<R, T> {
     type Elem = L;
     type Ix = T::Ix;
 
-    fn as_targets(&self) -> ArrayView<Self::Elem, Self::Ix> {
+    fn as_targets(&self) -> ArrayView<'_, Self::Elem, Self::Ix> {
         self.targets.as_targets()
     }
 }
@@ -282,7 +282,7 @@ impl<L, R: Records, T: AsTargetsMut<Elem = L>> AsTargetsMut for DatasetBase<R, T
     type Elem = L;
     type Ix = T::Ix;
 
-    fn as_targets_mut(&mut self) -> ArrayViewMut<Self::Elem, Self::Ix> {
+    fn as_targets_mut(&mut self) -> ArrayViewMut<'_, Self::Elem, Self::Ix> {
         self.targets.as_targets_mut()
     }
 }
