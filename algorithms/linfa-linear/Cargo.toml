@@ -44,7 +44,7 @@ linfa-datasets = { version = "0.7.1", path = "../../datasets", features = [
     "diabetes",
 ] }
 approx = "0.5"
-criterion = "0.5"
+criterion = "0.7"
 statrs = "0.18"
 linfa = { version = "0.7.1", path = "../..", features = ["benchmarks"] }
 

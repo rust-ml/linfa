@@ -35,7 +35,7 @@ rand_xoshiro = "0.6.0"
 linfa = { version = "0.7.1", path = "../.." }
 
 [dev-dependencies]
-criterion = "0.5"
+criterion = "0.7"
 approx = "0.5"
 linfa-datasets = { version = "0.7.1", path = "../../datasets", features = [
     "winequality",

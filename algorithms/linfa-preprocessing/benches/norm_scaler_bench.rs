@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use linfa::benchmarks::config;
 use linfa::traits::Transformer;
 use linfa_datasets::generate::make_dataset;
@@ -23,7 +23,7 @@ fn bench(c: &mut Criterion) {
                 BenchmarkId::new(fn_name, format!("{nfeatures}x{size}")),
                 |bencher| {
                     bencher.iter(|| {
-                        scaler.transform(black_box(dataset.view()));
+                        scaler.transform(std::hint::black_box(dataset.view()));
                     });
                 },
             );

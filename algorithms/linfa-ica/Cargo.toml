@@ -39,7 +39,7 @@ linfa = { version = "0.7.1", path = "../.." }
 [dev-dependencies]
 ndarray-npy = { version = "0.9", default-features = false }
 paste = "1.0"
-criterion = "0.5"
+criterion = "0.7"
 linfa = { version = "0.7.1", path = "../..", features = ["benchmarks"] }
 
 [[bench]]

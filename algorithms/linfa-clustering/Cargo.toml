@@ -54,7 +54,7 @@ ndarray-npy = { version = "0.9", default-features = false }
 linfa-datasets = { version = "0.7.1", path = "../../datasets", features = [
     "generate",
 ] }
-criterion = "0.5"
+criterion = "0.7"
 serde_json = "1"
 approx = "0.5"
 lax = "0.17.0"
