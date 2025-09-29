@@ -26,10 +26,8 @@ features = ["derive"]
 [dependencies]
 ndarray = { version = "0.16", features = ["serde"] }
 ndarray-rand = "0.15.0"
-argmin = { version = "0.10.0", default-features = false, git = "https://github.com/argmin-rs/argmin.git" }
-argmin-math = { version = "0.4", features = [
-    "ndarray_v0_16-nolinalg",
-], git = "https://github.com/argmin-rs/argmin.git" }
+argmin = { version = "0.11.0", default-features = false }
+argmin-math = { version = "0.5", features = ["ndarray_v0_16-nolinalg"] }
 thiserror = "2.0"
 rand = "0.8.5"
 rand_xoshiro = "0.6.0"
