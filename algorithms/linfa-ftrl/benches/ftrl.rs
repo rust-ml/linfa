@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use linfa::benchmarks::config;
 use linfa::prelude::Predict;
 use linfa::traits::FitWith;
@@ -24,9 +24,7 @@ fn fit_without_prior_model(c: &mut Criterion) {
             BenchmarkId::new("training on ", format!("dataset {nfeatures}x{nrows}")),
             |bencher| {
                 bencher.iter(|| {
-                    params
-                        .fit_with(None, std::hint::black_box(&dataset))
-                        .unwrap();
+                    params.fit_with(None, black_box(&dataset)).unwrap();
                 });
             },
         );
@@ -52,10 +50,7 @@ fn fit_with_prior_model(c: &mut Criterion) {
             |bencher| {
                 bencher.iter(|| {
                     let _ = params
-                        .fit_with(
-                            std::hint::black_box(Some(model.clone())),
-                            std::hint::black_box(&dataset),
-                        )
+                        .fit_with(black_box(Some(model.clone())), black_box(&dataset))
                         .unwrap();
                 });
             },
@@ -80,7 +75,7 @@ fn predict(c: &mut Criterion) {
             BenchmarkId::new("predicting on ", format!("dataset {nfeatures}x{nrows}")),
             |bencher| {
                 bencher.iter(|| {
-                    model.predict(std::hint::black_box(&dataset));
+                    model.predict(black_box(&dataset));
                 });
             },
         );

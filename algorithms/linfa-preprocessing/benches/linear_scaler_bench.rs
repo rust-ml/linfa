@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use linfa::benchmarks::config;
 use linfa::traits::{Fit, Transformer};
 use linfa_datasets::generate::make_dataset;
@@ -24,9 +24,9 @@ fn bench(c: &mut Criterion) {
                 |bencher| {
                     bencher.iter(|| {
                         liner_scaler
-                            .fit(std::hint::black_box(&dataset))
+                            .fit(black_box(&dataset))
                             .unwrap()
-                            .transform(std::hint::black_box(dataset.view()));
+                            .transform(black_box(dataset.view()));
                     });
                 },
             );

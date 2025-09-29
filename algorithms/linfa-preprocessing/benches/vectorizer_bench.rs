@@ -5,7 +5,7 @@ use linfa_preprocessing::CountVectorizer;
 use std::path::Path;
 use tar::Archive;
 
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use linfa::benchmarks::config;
 
 fn download_20news_bydate() {
@@ -149,14 +149,14 @@ fn bench(c: &mut Criterion) {
         BenchmarkId::new("Fit-Vectorizer", "20news_bydate"),
         |bencher| {
             bencher.iter(|| {
-                fit_vectorizer(std::hint::black_box(&file_names));
+                fit_vectorizer(black_box(&file_names));
             });
         },
     );
 
     benchmark.bench_function(BenchmarkId::new("Fit-Tf-Idf", "20news_bydate"), |bencher| {
         bencher.iter(|| {
-            fit_tf_idf(std::hint::black_box(&file_names));
+            fit_tf_idf(black_box(&file_names));
         });
     });
 
@@ -164,7 +164,7 @@ fn bench(c: &mut Criterion) {
         BenchmarkId::new("Fit-Transfor-Vectorizer", "20news_bydate"),
         |bencher| {
             bencher.iter(|| {
-                fit_transform_vectorizer(std::hint::black_box(&file_names));
+                fit_transform_vectorizer(black_box(&file_names));
             });
         },
     );
@@ -173,7 +173,7 @@ fn bench(c: &mut Criterion) {
         BenchmarkId::new("Fit-Transfor-Tf-Idf", "20news_bydate"),
         |bencher| {
             bencher.iter(|| {
-                fit_transform_tf_idf(std::hint::black_box(&file_names));
+                fit_transform_tf_idf(black_box(&file_names));
             });
         },
     );

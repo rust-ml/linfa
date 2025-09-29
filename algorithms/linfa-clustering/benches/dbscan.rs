@@ -1,5 +1,6 @@
 use criterion::{
-    criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion, PlotConfiguration,
+    black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
+    PlotConfiguration,
 };
 use linfa::benchmarks::config;
 use linfa::prelude::{ParamGuard, Transformer};
@@ -33,7 +34,7 @@ fn dbscan_bench(c: &mut Criterion) {
                 let dataset = generate::blobs(cluster_size, &centroids, rng);
 
                 bencher.iter(|| {
-                    std::hint::black_box(
+                    black_box(
                         Dbscan::params(min_points)
                             .tolerance(tolerance)
                             .check_unwrap()

@@ -1,5 +1,6 @@
 use criterion::{
-    criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion, PlotConfiguration,
+    black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
+    PlotConfiguration,
 };
 use linfa::benchmarks::config;
 use linfa::prelude::*;
@@ -52,15 +53,12 @@ fn k_means_bench(c: &mut Criterion) {
             BenchmarkId::new("naive_k_means", format!("{n_clusters}x{cluster_size}")),
             |bencher| {
                 bencher.iter(|| {
-                    let m = KMeans::params_with_rng(
-                        std::hint::black_box(n_clusters),
-                        std::hint::black_box(rng.clone()),
-                    )
-                    .init_method(KMeansInit::KMeansPlusPlus)
-                    .max_n_iterations(std::hint::black_box(1000))
-                    .tolerance(std::hint::black_box(1e-3))
-                    .fit(&dataset)
-                    .unwrap();
+                    let m = KMeans::params_with_rng(black_box(n_clusters), black_box(rng.clone()))
+                        .init_method(KMeansInit::KMeansPlusPlus)
+                        .max_n_iterations(black_box(1000))
+                        .tolerance(black_box(1e-3))
+                        .fit(&dataset)
+                        .unwrap();
                     stats.add(m.inertia());
                 });
             },
@@ -94,14 +92,12 @@ fn k_means_incr_bench(c: &mut Criterion) {
             ),
             |bencher| {
                 bencher.iter(|| {
-                    let clf = KMeans::params_with_rng(
-                        std::hint::black_box(n_clusters),
-                        std::hint::black_box(rng.clone()),
-                    )
-                    .init_method(KMeansInit::KMeansPlusPlus)
-                    .tolerance(std::hint::black_box(1e-3))
-                    .check()
-                    .unwrap();
+                    let clf =
+                        KMeans::params_with_rng(black_box(n_clusters), black_box(rng.clone()))
+                            .init_method(KMeansInit::KMeansPlusPlus)
+                            .tolerance(black_box(1e-3))
+                            .check()
+                            .unwrap();
                     let model = dataset
                         .sample_chunks(200)
                         .cycle()
@@ -150,14 +146,13 @@ fn k_means_init_bench(c: &mut Criterion) {
                     bencher.iter(|| {
                         // Do 1 run of KMeans with 1 iterations, so it's mostly just the init
                         // algorithm
-                        let m =
-                            KMeans::params_with_rng(std::hint::black_box(n_clusters), rng.clone())
-                                .init_method(init.clone())
-                                .max_n_iterations(1)
-                                .n_runs(1)
-                                .tolerance(1000.0) // Guaranteed convergence
-                                .fit(&dataset)
-                                .unwrap();
+                        let m = KMeans::params_with_rng(black_box(n_clusters), rng.clone())
+                            .init_method(init.clone())
+                            .max_n_iterations(1)
+                            .n_runs(1)
+                            .tolerance(1000.0) // Guaranteed convergence
+                            .fit(&dataset)
+                            .unwrap();
                         stats.add(m.inertia());
                     });
                 },

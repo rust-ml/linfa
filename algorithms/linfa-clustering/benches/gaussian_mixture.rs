@@ -1,5 +1,6 @@
 use criterion::{
-    criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion, PlotConfiguration,
+    black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
+    PlotConfiguration,
 };
 use linfa::benchmarks::config;
 use linfa::traits::Fit;
@@ -33,7 +34,7 @@ fn gaussian_mixture_bench(c: &mut Criterion) {
                 let dataset: DatasetBase<_, _> =
                     (generate::blobs(cluster_size, &centroids, rng)).into();
                 bencher.iter(|| {
-                    std::hint::black_box(
+                    black_box(
                         GaussianMixtureModel::params(n_clusters)
                             .with_rng(rng.clone())
                             .tolerance(1e-3)
