@@ -1,6 +1,6 @@
 [package]
 name = "linfa-pls"
-version = "0.7.1"
+version = "0.8.0"
 edition = "2018"
 authors = ["relf <remi.lafage@onera.fr>"]
 description = "Partial Least Squares family methods"
@@ -33,11 +33,11 @@ ndarray-rand = "0.15"
 num-traits = "0.2"
 paste = "1.0"
 thiserror = "2.0"
-linfa = { version = "0.7.1", path = "../.." }
+linfa = { version = "0.8.0", path = "../.." }
 
 [dev-dependencies]
-linfa = { version = "0.7.1", path = "../..", features = ["benchmarks"] }
-linfa-datasets = { version = "0.7.1", path = "../../datasets", features = [
+linfa = { version = "0.8.0", path = "../..", features = ["benchmarks"] }
+linfa-datasets = { version = "0.8.0", path = "../../datasets", features = [
     "linnerud",
 ] }
 approx = "0.5"

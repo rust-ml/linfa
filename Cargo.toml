@@ -1,6 +1,6 @@
 [package]
 name = "linfa"
-version = "0.7.1"
+version = "0.8.0"
 authors = [
     "Luca Palmieri <rust@lpalmieri.com>",
     "Lorenz Schmidt <bytesnake@mailbox.org>",
