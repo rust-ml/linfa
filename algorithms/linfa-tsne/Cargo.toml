@@ -23,7 +23,7 @@ pdqselect = "=0.1.0"
 linfa = { version = "0.8.0", path = "../.." }
 
 [dev-dependencies]
-rand = "0.8"
+rand = "0.9"
 approx = "0.5"
 
 linfa-datasets = { version = "0.8.0", path = "../../datasets", features = [
