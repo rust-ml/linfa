@@ -41,7 +41,7 @@ ndarray-linalg = { version = "0.17", optional = true }
 ndarray-rand = "0.15"
 ndarray-stats = "0.6"
 num-traits = "0.2"
-rand_xoshiro = "0.6"
+rand_xoshiro = "0.7"
 space = "0.12"
 thiserror = "2.0"
 #partitions = "0.2.4" This one will break in a future version of Rust and has no replacement

@@ -30,7 +30,7 @@ argmin = { version = "0.11.0", default-features = false }
 argmin-math = { version = "0.5", features = ["ndarray_v0_16-nolinalg"] }
 thiserror = "2.0"
 rand = "0.8.5"
-rand_xoshiro = "0.6.0"
+rand_xoshiro = "0.7.0"
 
 linfa = { version = "0.8.0", path = "../.." }
 
