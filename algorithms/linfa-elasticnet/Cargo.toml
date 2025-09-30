@@ -45,4 +45,4 @@ linfa-datasets = { version = "0.8.0", path = "../../datasets", features = [
     "linnerud",
 ] }
 ndarray-rand = "0.15"
-rand_xoshiro = "0.6"
+rand_xoshiro = "0.7"

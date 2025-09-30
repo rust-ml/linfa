@@ -41,7 +41,7 @@ linfa-datasets = { version = "0.8.0", path = "../../datasets", features = [
     "linnerud",
 ] }
 approx = "0.5"
-rand_xoshiro = "0.6"
+rand_xoshiro = "0.7"
 criterion = "0.5"
 statrs = "0.18"
 
