@@ -245,19 +245,19 @@ pub trait AsTargets {
     type Elem;
     type Ix: TargetDim;
 
-    fn as_targets(&self) -> ArrayView<Self::Elem, Self::Ix>;
+    fn as_targets(&self) -> ArrayView<'_, Self::Elem, Self::Ix>;
 }
 
 /// Return a reference to single-target variables.
 pub trait AsSingleTargets: AsTargets<Ix = Ix1> {
-    fn as_single_targets(&self) -> ArrayView1<Self::Elem> {
+    fn as_single_targets(&self) -> ArrayView1<'_, Self::Elem> {
         self.as_targets()
     }
 }
 
 /// Return a reference to multi-target variables.
 pub trait AsMultiTargets: AsTargets<Ix = Ix2> {
-    fn as_multi_targets(&self) -> ArrayView2<Self::Elem> {
+    fn as_multi_targets(&self) -> ArrayView2<'_, Self::Elem> {
         self.as_targets()
     }
 }
@@ -289,19 +289,19 @@ pub trait AsTargetsMut {
     type Elem;
     type Ix: TargetDim;
 
-    fn as_targets_mut(&mut self) -> ArrayViewMut<Self::Elem, Self::Ix>;
+    fn as_targets_mut(&mut self) -> ArrayViewMut<'_, Self::Elem, Self::Ix>;
 }
 
 /// Returns a mutable reference to single-target variables.
 pub trait AsSingleTargetsMut: AsTargetsMut<Ix = Ix1> {
-    fn as_single_targets_mut(&mut self) -> ArrayViewMut1<Self::Elem> {
+    fn as_single_targets_mut(&mut self) -> ArrayViewMut1<'_, Self::Elem> {
         self.as_targets_mut()
     }
 }
 
 /// Returns a mutable reference to multi-target variables.
 pub trait AsMultiTargetsMut: AsTargetsMut<Ix = Ix2> {
-    fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<Self::Elem> {
+    fn as_multi_targets_mut(&mut self) -> ArrayViewMut2<'_, Self::Elem> {
         self.as_targets_mut()
     }
 }
@@ -311,7 +311,7 @@ pub trait AsMultiTargetsMut: AsTargetsMut<Ix = Ix2> {
 /// Some algorithms are working with probabilities. Targets which allow an implicit conversion into
 /// probabilities can implement this trait.
 pub trait AsProbabilities {
-    fn as_multi_target_probabilities(&self) -> CowArray<Pr, Ix3>;
+    fn as_multi_target_probabilities(&self) -> CowArray<'_, Pr, Ix3>;
 }
 
 /// Get the labels in all targets

@@ -201,7 +201,7 @@ impl<'a, F: Float, D: Distance<F>> BallTreeIndex<'a, F, D> {
         point: Point<'_, F>,
         k: usize,
         max_radius: F,
-    ) -> Result<Vec<(Point<F>, usize)>, NnError> {
+    ) -> Result<Vec<(Point<'_, F>, usize)>, NnError> {
         if self.dim != point.len() {
             Err(NnError::WrongDimension)
         } else if self.len == 0 {
@@ -261,7 +261,11 @@ impl<'a, F: Float, D: Distance<F>> BallTreeIndex<'a, F, D> {
 }
 
 impl<F: Float, D: Distance<F>> NearestNeighbourIndex<F> for BallTreeIndex<'_, F, D> {
-    fn k_nearest(&self, point: Point<'_, F>, k: usize) -> Result<Vec<(Point<F>, usize)>, NnError> {
+    fn k_nearest(
+        &self,
+        point: Point<'_, F>,
+        k: usize,
+    ) -> Result<Vec<(Point<'_, F>, usize)>, NnError> {
         self.nn_helper(point, k, F::infinity())
     }
 
@@ -269,7 +273,7 @@ impl<F: Float, D: Distance<F>> NearestNeighbourIndex<F> for BallTreeIndex<'_, F,
         &self,
         point: Point<'_, F>,
         range: F,
-    ) -> Result<Vec<(Point<F>, usize)>, NnError> {
+    ) -> Result<Vec<(Point<'_, F>, usize)>, NnError> {
         let range = self.dist_fn.dist_to_rdist(range);
         self.nn_helper(point, self.len, range)
     }

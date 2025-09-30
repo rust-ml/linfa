@@ -14,9 +14,9 @@ keywords = ["tsne", "visualization", "clustering", "machine-learning", "linfa"]
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
-thiserror = "1.0"
-ndarray = { version = "0.15" }
-ndarray-rand = "0.14"
+thiserror = "2.0"
+ndarray = { version = "0.16" }
+ndarray-rand = "0.15"
 bhtsne = "0.4.0"
 pdqselect = "=0.1.0"
 
@@ -24,9 +24,11 @@ linfa = { version = "0.7.1", path = "../.." }
 
 [dev-dependencies]
 rand = "0.8"
-approx = "0.4"
+approx = "0.5"
 
-linfa-datasets = { version = "0.7.1", path = "../../datasets", features = ["iris"] }
+linfa-datasets = { version = "0.7.1", path = "../../datasets", features = [
+    "iris",
+] }
 linfa-reduction = { version = "0.7.1", path = "../linfa-reduction" }
 
 [target.'cfg(not(target_family = "windows"))'.dev-dependencies]

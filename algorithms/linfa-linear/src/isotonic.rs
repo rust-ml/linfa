@@ -265,8 +265,7 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<F>>
                 y[i] = y_min;
             } else {
                 let res = regressor.into_iter().position(|x| x >= &val);
-                if res.is_some() {
-                    let j = res.unwrap();
+                if let Some(j) = res {
                     if val <= regressor[j] && j < n {
                         let x_scale = (val - regressor[j - 1]) / (regressor[j] - regressor[j - 1]);
                         y[i] = response[j - 1] + x_scale * (response[j] - response[j - 1]);

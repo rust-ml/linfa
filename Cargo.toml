@@ -38,15 +38,15 @@ serde = ["serde_crate", "ndarray/serde"]
 [dependencies]
 num-traits = "0.2"
 rand = { version = "0.8", features = ["small_rng"] }
-approx = "0.4"
+approx = "0.5"
 
-ndarray = { version = "0.15", features = ["approx"] }
-ndarray-linalg = { version = "0.16", optional = true }
-sprs = { version = "=0.11.1", default-features = false }
+ndarray = { version = "0.16", features = ["approx"] }
+ndarray-linalg = { version = "0.17", optional = true }
+sprs = { version = "0.11", default-features = false }
 
-thiserror = "1.0"
+thiserror = "2.0"
 
-criterion = { version = "0.4.0", optional = true }
+criterion = { version = "0.5", optional = true }
 
 [dependencies.serde_crate]
 package = "serde"
@@ -56,17 +56,17 @@ default-features = false
 features = ["std", "derive"]
 
 [dev-dependencies]
-ndarray-rand = "0.14"
+ndarray-rand = "0.15"
 linfa-datasets = { path = "datasets", features = [
     "winequality",
     "iris",
     "diabetes",
     "generate",
 ] }
-statrs = "0.16.0"
+statrs = "0.18"
 
 [target.'cfg(not(windows))'.dependencies]
-pprof = { version = "0.11.0", features = [
+pprof = { version = "0.14", features = [
     "flamegraph",
     "criterion",
 ], optional = true }

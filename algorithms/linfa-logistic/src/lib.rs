@@ -110,7 +110,7 @@ type LBFGSType<F, D> = LBFGS<
 type LBFGSType1<F> = LBFGSType<F, Ix1>;
 type LBFGSType2<F> = LBFGSType<F, Ix2>;
 
-type IterStateType<F, D> = IterState<ArgminParam<F, D>, ArgminParam<F, D>, (), (), F>;
+type IterStateType<F, D> = IterState<ArgminParam<F, D>, ArgminParam<F, D>, (), (), (), F>;
 
 impl<F: Float, D: Dimension> LogisticRegressionValidParams<F, D> {
     /// Create the initial parameters, either from a user supplied array
@@ -393,7 +393,7 @@ where
 fn convert_params<F: Float, D: Dimension + RemoveAxis>(
     n_features: usize,
     w: &Array<F, D>,
-) -> (ArrayView<F, D>, CowArray<F, D::Smaller>) {
+) -> (ArrayView<'_, F, D>, CowArray<'_, F, D::Smaller>) {
     let nrows = w.shape()[0];
     if n_features == nrows {
         (
@@ -476,9 +476,9 @@ fn logistic_loss<F: Float, A: Data<Elem = F>>(
 ) -> F {
     let n_features = x.shape()[1];
     let (params, intercept) = convert_params(n_features, w);
-    let yz = x.dot(&params.into_shape((params.len(), 1)).unwrap()) + intercept;
+    let yz = x.dot(&params.into_shape_with_order((params.len(), 1)).unwrap()) + intercept;
     let len = yz.len();
-    let mut yz = yz.into_shape(len).unwrap() * y;
+    let mut yz = yz.into_shape_with_order(len).unwrap() * y;
     yz.mapv_inplace(log_logistic);
     -yz.sum() + F::cast(0.5) * alpha * params.dot(&params)
 }
@@ -492,9 +492,9 @@ fn logistic_grad<F: Float, A: Data<Elem = F>>(
 ) -> Array1<F> {
     let n_features = x.shape()[1];
     let (params, intercept) = convert_params(n_features, w);
-    let yz = x.dot(&params.into_shape((params.len(), 1)).unwrap()) + intercept;
+    let yz = x.dot(&params.into_shape_with_order((params.len(), 1)).unwrap()) + intercept;
     let len = yz.len();
-    let mut yz = yz.into_shape(len).unwrap() * y;
+    let mut yz = yz.into_shape_with_order(len).unwrap() * y;
     yz.mapv_inplace(logistic);
     yz -= F::one();
     yz *= y;
@@ -523,7 +523,10 @@ fn multi_logistic_prob_params<'a, F: Float, A: Data<Elem = F>>(
     let h = x.dot(&params) + intercept;
     // This computes `H - log(sum(exp(H)))`, which is equal to
     // `log(softmax(H)) = log(exp(H) / sum(exp(H)))`
-    let log_prob = &h - log_sum_exp(&h, Axis(1)).into_shape((h.nrows(), 1)).unwrap();
+    let log_prob = &h
+        - log_sum_exp(&h, Axis(1))
+            .into_shape_with_order((h.nrows(), 1))
+            .unwrap();
     (log_prob, params)
 }
 
@@ -571,8 +574,7 @@ fn multi_logistic_grad<F: Float, A: Data<Elem = F>>(
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
-    serde(crate = "serde_crate"),
-    serde(bound(deserialize = "C: Deserialize<'de>"))
+    serde(crate = "serde_crate")
 )]
 pub struct FittedLogisticRegression<F: Float, C: PartialOrd + Clone> {
     threshold: F,

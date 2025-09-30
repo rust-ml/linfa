@@ -29,13 +29,13 @@ default-features = false
 features = ["std", "derive"]
 
 [dependencies]
-ndarray = { version = "0.15", features = ["approx"] }
-linfa-linalg = { version = "0.1", default-features = false }
-ndarray-linalg = { version = "0.16", optional = true }
+ndarray = { version = "0.16", features = ["approx"] }
+linfa-linalg = { version = "0.2", default-features = false }
+ndarray-linalg = { version = "0.17", optional = true }
 
 num-traits = "0.2"
-approx = "0.4"
-thiserror = "1.0"
+approx = "0.5"
+thiserror = "2.0"
 
 linfa = { version = "0.7.1", path = "../.." }
 
@@ -44,5 +44,5 @@ linfa-datasets = { version = "0.7.1", path = "../../datasets", features = [
     "diabetes",
     "linnerud",
 ] }
-ndarray-rand = "0.14"
+ndarray-rand = "0.15"
 rand_xoshiro = "0.6"

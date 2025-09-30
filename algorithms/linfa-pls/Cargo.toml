@@ -25,14 +25,14 @@ default-features = false
 features = ["std", "derive"]
 
 [dependencies]
-ndarray = { version = "0.15" }
-linfa-linalg = { version = "0.1", default-features = false }
-ndarray-linalg = { version = "0.16", optional = true }
-ndarray-stats = "0.5"
-ndarray-rand = "0.14"
+ndarray = { version = "0.16" }
+linfa-linalg = { version = "0.2", default-features = false }
+ndarray-linalg = { version = "0.17", optional = true }
+ndarray-stats = "0.6"
+ndarray-rand = "0.15"
 num-traits = "0.2"
 paste = "1.0"
-thiserror = "1.0"
+thiserror = "2.0"
 linfa = { version = "0.7.1", path = "../.." }
 
 [dev-dependencies]
@@ -40,10 +40,10 @@ linfa = { version = "0.7.1", path = "../..", features = ["benchmarks"] }
 linfa-datasets = { version = "0.7.1", path = "../../datasets", features = [
     "linnerud",
 ] }
-approx = "0.4"
+approx = "0.5"
 rand_xoshiro = "0.6"
-criterion = "0.4.0"
-statrs = "0.16.0"
+criterion = "0.5"
+statrs = "0.18"
 
 [[bench]]
 name = "pls"

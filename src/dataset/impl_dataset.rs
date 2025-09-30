@@ -124,7 +124,7 @@ impl<X, Y> Dataset<X, Y> {
     // Convert 2D targets to 1D. Only works for targets with shape of form [X, 1], panics otherwise.
     pub fn into_single_target(self) -> Dataset<X, Y, Ix1> {
         let nsamples = self.records.nsamples();
-        let targets = self.targets.into_shape(nsamples).unwrap();
+        let targets = self.targets.into_shape_with_order(nsamples).unwrap();
         let features = self.records;
         Dataset::new(features, targets)
     }
@@ -273,7 +273,7 @@ impl<L, R: Records, T: AsTargets<Elem = L>> AsTargets for DatasetBase<R, T> {
     type Elem = L;
     type Ix = T::Ix;
 
-    fn as_targets(&self) -> ArrayView<Self::Elem, Self::Ix> {
+    fn as_targets(&self) -> ArrayView<'_, Self::Elem, Self::Ix> {
         self.targets.as_targets()
     }
 }
@@ -282,7 +282,7 @@ impl<L, R: Records, T: AsTargetsMut<Elem = L>> AsTargetsMut for DatasetBase<R, T
     type Elem = L;
     type Ix = T::Ix;
 
-    fn as_targets_mut(&mut self) -> ArrayViewMut<Self::Elem, Self::Ix> {
+    fn as_targets_mut(&mut self) -> ArrayViewMut<'_, Self::Elem, Self::Ix> {
         self.targets.as_targets_mut()
     }
 }
@@ -993,7 +993,7 @@ impl<F, E, I: TargetDim> Dataset<F, E, I> {
         let target_names = self.target_names().to_vec();
 
         // split records into two disjoint arrays
-        let mut array_buf = self.records.into_raw_vec();
+        let (mut array_buf, _) = self.records.into_raw_vec_and_offset();
         let second_array_buf = array_buf.split_off(n1 * nfeatures);
 
         let first = Array2::from_shape_vec((n1, nfeatures), array_buf).unwrap();
@@ -1002,7 +1002,7 @@ impl<F, E, I: TargetDim> Dataset<F, E, I> {
         // split targets into two disjoint Vec
         let dim1 = self.targets.raw_dim().nsamples(n1);
         let dim2 = self.targets.raw_dim().nsamples(n2);
-        let mut array_buf = self.targets.into_raw_vec();
+        let (mut array_buf, _) = self.targets.into_raw_vec_and_offset();
         let second_array_buf = array_buf.split_off(dim1.size());
 
         let first_targets = Array::from_shape_vec(dim1, array_buf).unwrap();
@@ -1010,7 +1010,7 @@ impl<F, E, I: TargetDim> Dataset<F, E, I> {
 
         // split weights into two disjoint Vec
         let second_weights = if self.weights.len() == n1 + n2 {
-            let mut weights = self.weights.into_raw_vec();
+            let (mut weights, _) = self.weights.into_raw_vec_and_offset();
 
             let weights2 = weights.split_off(n1);
             self.weights = Array1::from(weights);

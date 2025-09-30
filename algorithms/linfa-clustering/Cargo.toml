@@ -35,29 +35,29 @@ default-features = false
 features = ["std", "derive"]
 
 [dependencies]
-ndarray = { version = "0.15", features = ["rayon", "approx"] }
-linfa-linalg = { version = "0.1", default-features = false }
-ndarray-linalg = { version = "0.16", optional = true }
-ndarray-rand = "0.14"
-ndarray-stats = "0.5"
+ndarray = { version = "0.16", features = ["rayon", "approx"] }
+linfa-linalg = { version = "0.2", default-features = false }
+ndarray-linalg = { version = "0.17", optional = true }
+ndarray-rand = "0.15"
+ndarray-stats = "0.6"
 num-traits = "0.2"
 rand_xoshiro = "0.6"
 space = "0.12"
-thiserror = "1.0"
+thiserror = "2.0"
 #partitions = "0.2.4" This one will break in a future version of Rust and has no replacement
 linfa = { version = "0.7.1", path = "../.." }
 linfa-nn = { version = "0.7.2", path = "../linfa-nn" }
 noisy_float = "0.2.0"
 
 [dev-dependencies]
-ndarray-npy = { version = "0.8", default-features = false }
+ndarray-npy = { version = "0.9", default-features = false }
 linfa-datasets = { version = "0.7.1", path = "../../datasets", features = [
     "generate",
 ] }
-criterion = "0.4.0"
+criterion = "0.5"
 serde_json = "1"
-approx = "0.4"
-lax = "0.15.0"
+approx = "0.5"
+lax = "0.17.0"
 linfa = { version = "0.7.1", path = "../..", features = ["benchmarks"] }
 
 [[bench]]
