@@ -21,7 +21,7 @@ categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
 ndarray = { version = "0.16" }
-kodama = "0.2"
+kodama = "0.3"
 thiserror = "1.0.25"
 
 linfa = { version = "0.8.0", path = "../.." }
