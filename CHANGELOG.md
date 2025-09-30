@@ -1,3 +1,23 @@
+Version 0.8.0 - 2025-09-30
+==========================
+New Algorithms
+--------------
+ * Bernouilli naive bayes in [linfa-bayes] by [@wildart]
+ * Bootstrap aggregation (aka Bagging) in new ensemble methods crate [linfa-ensemble] by [@jk1015]
+
+Changes
+-------
+ * add `max_features` and `tokenizer_function` to `CountVectorizer` in `linfa-preprocessing`
+ * add `predict_proba()` to `Gaussian mixture model` in `linfa-clustering` 
+ * add `predict_proba()` and `predict_log_proba()` to algorithms in `linfa-bayes`
+ * add target names to `dataset`
+ * fix SVR parameterization in `linfa-svm`
+ * fix serde support for algorithms in `linfa-pls`
+ * fix confusion matrix: use predicted and ground thruth labels, make it reproducible
+ * fix dataset names after shuffling 
+ * bump `ndarray` to 0.16, `argmin` to 0.11.0, `kdtree` to 0.7.0, statrs to `0.18`, sprs to `0.11`
+ * bump MSRV to 1.87.0
+
 Version 0.7.1 - 2025-01-14
 ==========================
 New Algorithms
