@@ -17,7 +17,7 @@ categories = ["algorithms", "mathematics", "science"]
 thiserror = "2.0"
 ndarray = { version = "0.16" }
 ndarray-rand = "0.15"
-bhtsne = "0.4.0"
+bhtsne = "0.5.4"
 pdqselect = "=0.1.0"
 
 linfa = { version = "0.8.0", path = "../.." }
