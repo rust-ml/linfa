@@ -42,9 +42,8 @@ ndarray-rand = "0.15"
 ndarray-stats = "0.6"
 num-traits = "0.2"
 rand_xoshiro = "0.6"
-space = "0.12"
+space = "0.19"
 thiserror = "2.0"
-#partitions = "0.2.4" This one will break in a future version of Rust and has no replacement
 linfa = { version = "0.8.0", path = "../.." }
 linfa-nn = { version = "0.8.0", path = "../linfa-nn" }
 noisy_float = "0.2.0"
