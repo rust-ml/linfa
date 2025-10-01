@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["get_default_profiling_configs","set_default_benchmark_configs"]};

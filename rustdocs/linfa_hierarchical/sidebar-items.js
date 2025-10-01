@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Criterion","HierarchicalError","Method"],"struct":["HierarchicalCluster","ValidHierarchicalCluster"],"type":["Result"]};
