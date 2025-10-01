@@ -22,7 +22,7 @@ categories = ["algorithms", "mathematics", "science"]
 [dependencies]
 ndarray = { version = "0.16" }
 kodama = "0.2"
-thiserror.workspace = true
+thiserror = "2"
 
 linfa = { version = "0.8.0", path = "../.." }
 linfa-kernel = { version = "0.8.0", path = "../linfa-kernel" }
