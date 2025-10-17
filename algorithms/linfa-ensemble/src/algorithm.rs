@@ -23,9 +23,10 @@ impl<M> EnsembleLearner<M> {
     where
         M: Predict<&'b R, T>,
     {
-        self.models.iter().zip(x.into_iter()).map(move |(m, sub_data)| {
-            m.predict(sub_data)
-        })
+        self.models
+            .iter()
+            .zip(x.into_iter())
+            .map(move |(m, sub_data)| m.predict(sub_data))
     }
 }
 
@@ -43,7 +44,11 @@ where
             "The number of data points must match the number of outputs."
         );
 
-        let sub_datas = self.model_features.iter().map(|feat| x.select(Axis(1), feat)).collect::<Vec<_>>();
+        let sub_datas = self
+            .model_features
+            .iter()
+            .map(|feat| x.select(Axis(1), feat))
+            .collect::<Vec<_>>();
         let predictions = self.generate_predictions(&sub_datas);
 
         // prediction map has same shape as y_array, but the elements are maps
@@ -92,9 +97,9 @@ where
         // Compute dataset and the subset of features ratio to be selected
         let dataset_size =
             ((dataset.records.nrows() as f64) * self.bootstrap_proportion).ceil() as usize;
-        let n_feat = dataset.records.ncols(); 
+        let n_feat = dataset.records.ncols();
         let n_sub = ((n_feat as f64) * self.feature_proportion).ceil() as usize;
-         
+
         let iter = dataset.bootstrap_with_indices((dataset_size, n_sub), &mut rng);
         for (train, _, feature_selected) in iter {
             let model = self.model_params.fit(&train).unwrap();
@@ -106,6 +111,9 @@ where
             }
         }
 
-        Ok(EnsembleLearner { models: models, model_features: model_features })
+        Ok(EnsembleLearner {
+            models: models,
+            model_features: model_features,
+        })
     }
 }

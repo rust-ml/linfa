@@ -4,7 +4,11 @@ use linfa_trees::DecisionTree;
 use ndarray_rand::rand::SeedableRng;
 use rand::rngs::SmallRng;
 
-fn ensemble_learner(ensemble_size: usize, bootstrap_proportion: f64, feature_proportion: f64) -> () {
+fn ensemble_learner(
+    ensemble_size: usize,
+    bootstrap_proportion: f64,
+    feature_proportion: f64,
+) -> () {
     // Load dataset
     let mut rng = SmallRng::seed_from_u64(42);
     let (train, test) = linfa_datasets::iris()

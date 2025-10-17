@@ -47,7 +47,7 @@ impl<P, R: Rng + Clone> EnsembleLearnerParams<P, R> {
         self.0.bootstrap_proportion = proportion;
         self
     }
-    
+
     pub fn feature_proportion(mut self, proportion: f64) -> Self {
         self.0.feature_proportion = proportion;
         self
@@ -74,8 +74,7 @@ impl<P, R> ParamGuard for EnsembleLearnerParams<P, R> {
                 "Feature proportion should be greater than zero and less than or equal to one, but was {}",
                 self.0.feature_proportion
             )))
-        }
-        else {
+        } else {
             Ok(&self.0)
         }
     }

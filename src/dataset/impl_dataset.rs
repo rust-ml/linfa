@@ -537,11 +537,13 @@ where
 
             let records = records.select(Axis(1), &feat_indices);
 
-            (DatasetBase::new(records, targets), data_indices, feat_indices)
+            (
+                DatasetBase::new(records, targets),
+                data_indices,
+                feat_indices,
+            )
         })
     }
-
-
 
     /// Apply sample bootstrapping
     ///
@@ -660,7 +662,7 @@ where
     ///
     ///  # Returns
     ///
-    ///  An infinite Iterator yielding at each step a new bootstrapped dataset with the indices of 
+    ///  An infinite Iterator yielding at each step a new bootstrapped dataset with the indices of
     ///  the features sampled
     ///
     pub fn bootstrap_features_with_indices<R: Rng>(
