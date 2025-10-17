@@ -11,6 +11,8 @@ pub struct EnsembleLearnerValidParams<P, R> {
     pub ensemble_size: usize,
     /// The proportion of the total number of training samples that should be given to each model for training
     pub bootstrap_proportion: f64,
+    /// The proportion of the total number of training feature that should be given to each model for training
+    pub feature_proportion: f64,
     /// The model parameters for the base model
     pub model_params: P,
     pub rng: R,
@@ -30,6 +32,7 @@ impl<P, R: Rng + Clone> EnsembleLearnerParams<P, R> {
         Self(EnsembleLearnerValidParams {
             ensemble_size: 1,
             bootstrap_proportion: 1.0,
+            feature_proportion: 1.0,
             model_params,
             rng,
         })
@@ -42,6 +45,11 @@ impl<P, R: Rng + Clone> EnsembleLearnerParams<P, R> {
 
     pub fn bootstrap_proportion(mut self, proportion: f64) -> Self {
         self.0.bootstrap_proportion = proportion;
+        self
+    }
+    
+    pub fn feature_proportion(mut self, proportion: f64) -> Self {
+        self.0.feature_proportion = proportion;
         self
     }
 }
@@ -61,7 +69,13 @@ impl<P, R> ParamGuard for EnsembleLearnerParams<P, R> {
                 "Ensemble size should be less than one, but was {}",
                 self.0.ensemble_size
             )))
-        } else {
+        } else if self.0.feature_proportion > 1.0 || self.0.feature_proportion <= 0.0 {
+            Err(Error::Parameters(format!(
+                "Feature proportion should be greater than zero and less than or equal to one, but was {}",
+                self.0.feature_proportion
+            )))
+        }
+        else {
             Ok(&self.0)
         }
     }
