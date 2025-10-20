@@ -517,6 +517,7 @@ where
     ///  An infinite Iterator yielding at each step a tuple containing a bootstrapped dataset with
     ///  a vector of the sampled data indices and sampled feature.
     ///
+    #[allow(clippy::type_complexity)]
     pub fn bootstrap_with_indices<R: Rng>(
         &'b self,
         sample_feature_size: (usize, usize),
