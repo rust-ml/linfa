@@ -5,9 +5,12 @@ use linfa::{
     traits::*,
     DatasetBase,
 };
+use linfa_trees::DecisionTree;
 use ndarray::{Array2, Axis, Zip};
 use rand::Rng;
 use std::{cmp::Eq, collections::HashMap, hash::Hash};
+
+pub type RandomForest<F, L> = EnsembleLearner<DecisionTree<F, L>>;
 
 pub struct EnsembleLearner<M> {
     pub models: Vec<M>,
@@ -18,14 +21,14 @@ impl<M> EnsembleLearner<M> {
     // Generates prediction iterator returning predictions from each model
     pub fn generate_predictions<'b, R: Records, T>(
         &'b self,
-        x: &'b Vec<R>,
+        x: &'b [R],
     ) -> impl Iterator<Item = T> + 'b
     where
         M: Predict<&'b R, T>,
     {
         self.models
             .iter()
-            .zip(x.into_iter())
+            .zip(x.iter())
             .map(move |(m, sub_data)| m.predict(sub_data))
     }
 }
@@ -112,8 +115,8 @@ where
         }
 
         Ok(EnsembleLearner {
-            models: models,
-            model_features: model_features,
+            models,
+            model_features,
         })
     }
 }

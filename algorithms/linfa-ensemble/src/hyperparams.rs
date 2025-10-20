@@ -2,6 +2,7 @@ use linfa::{
     error::{Error, Result},
     ParamGuard,
 };
+use linfa_trees::DecisionTreeParams;
 use rand::rngs::ThreadRng;
 use rand::Rng;
 
@@ -20,6 +21,8 @@ pub struct EnsembleLearnerValidParams<P, R> {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct EnsembleLearnerParams<P, R>(EnsembleLearnerValidParams<P, R>);
+
+pub type RandomForestParams<F, L, R> = EnsembleLearnerParams<DecisionTreeParams<F, L>, R>;
 
 impl<P> EnsembleLearnerParams<P, ThreadRng> {
     pub fn new(model_params: P) -> EnsembleLearnerParams<P, ThreadRng> {
