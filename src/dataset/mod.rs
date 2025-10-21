@@ -465,7 +465,7 @@ mod tests {
                 assert_eq!(feat_indices.len(), 10);
             }
         }
- 
+
         let linspace: Array1<f64> = Array1::linspace(0.0, 0.8, 100);
         let records = Array2::from_shape_vec((50, 2), linspace.to_vec()).unwrap();
         let targets: Array1<f64> = Array1::linspace(0.0, 0.8, 50);

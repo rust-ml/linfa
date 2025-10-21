@@ -9,8 +9,8 @@
 //! several decision trees (see `linfa-trees`) trained on different samples subset of the training dataset.
 //!
 //! ## Random Forest
-//! 
-//! A special case of Bootstrap Aggregation using decision trees (see `linfa-trees`) with random feature 
+//!
+//! A special case of Bootstrap Aggregation using decision trees (see `linfa-trees`) with random feature
 //! selection. A typical number of random prediction to be selected is $\sqrt{p}$ with $p$ being
 //! the number of available features.
 //!
@@ -49,7 +49,7 @@
 //! ```
 //!
 //! This example shows how to train a Random Forest model using 100 decision trees,
-//! each trained on 70% of the training data (bootstrap sampling) and using only 
+//! each trained on 70% of the training data (bootstrap sampling) and using only
 //! 30% of the available features.
 //!
 //! ```no_run
@@ -131,5 +131,4 @@ mod tests {
         let acc = cm.accuracy();
         assert!(acc >= 0.9, "Expected accuracy to be above 90%, got {}", acc);
     }
-
 }
