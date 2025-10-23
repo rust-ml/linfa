@@ -419,6 +419,15 @@ mod tests {
                 assert_eq!(b_dataset.records().dim().0, 3);
             }
         }
+        // Bootstrap samples with indices
+        {
+            let mut iter = dataset.bootstrap_samples_with_indices(3, &mut rng);
+            for _ in 1..5 {
+                let (b_dataset, indices) = iter.next().unwrap();
+                assert_eq!(b_dataset.records().dim().0, 3);
+                assert_eq!(indices.len(), 3);
+            }
+        }
 
         // Bootstrap features
         {
@@ -429,12 +438,31 @@ mod tests {
             }
         }
 
+        // Bootstrap features with indices
+        {
+            let mut iter = dataset.bootstrap_features_with_indices(3, &mut rng);
+            for _ in 1..5 {
+                let (dataset, indices) = iter.next().unwrap();
+                assert_eq!(dataset.records().dim(), (2, 3));
+                assert_eq!(indices.len(), 3);
+            }
+        }
         // Bootstrap both
         {
             let mut iter = dataset.bootstrap((10, 10), &mut rng);
             for _ in 1..5 {
                 let dataset = iter.next().unwrap();
                 assert_eq!(dataset.records().dim(), (10, 10));
+            }
+        }
+        // Bootstrap both with indices
+        {
+            let mut iter = dataset.bootstrap_with_indices((10, 10), &mut rng);
+            for _ in 1..5 {
+                let (dataset, data_indices, feat_indices) = iter.next().unwrap();
+                assert_eq!(dataset.records().dim(), (10, 10));
+                assert_eq!(data_indices.len(), 10);
+                assert_eq!(feat_indices.len(), 10);
             }
         }
 

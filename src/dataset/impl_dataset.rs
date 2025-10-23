@@ -500,6 +500,52 @@ where
         })
     }
 
+    /// Apply bootstrapping for samples and features
+    ///
+    /// Bootstrap aggregating is used for sub-sample generation and improves the accuracy and
+    /// stability of machine learning algorithms. It samples data uniformly with replacement and
+    /// generates datasets where elements may be shared. This selects a subset of observations as
+    /// well as features.
+    ///
+    /// # Parameters
+    ///
+    ///  * `sample_feature_size`: The number of samples and features per bootstrap
+    ///  * `rng`: The random number generator used in the sampling procedure
+    ///
+    ///  # Returns
+    ///
+    ///  An infinite Iterator yielding at each step a tuple containing a bootstrapped dataset with
+    ///  a vector of the sampled data indices and sampled feature.
+    ///
+    #[allow(clippy::type_complexity)]
+    pub fn bootstrap_with_indices<R: Rng>(
+        &'b self,
+        sample_feature_size: (usize, usize),
+        rng: &'b mut R,
+    ) -> impl Iterator<Item = (DatasetBase<Array2<F>, T::Owned>, Vec<usize>, Vec<usize>)> + 'b {
+        std::iter::repeat(()).map(move |_| {
+            // sample with replacement
+            let data_indices = (0..sample_feature_size.0)
+                .map(|_| rng.gen_range(0..self.nsamples()))
+                .collect::<Vec<_>>();
+
+            let records = self.records().select(Axis(0), &data_indices);
+            let targets = T::new_targets(self.as_targets().select(Axis(0), &data_indices));
+
+            let feat_indices = (0..sample_feature_size.1)
+                .map(|_| rng.gen_range(0..self.nfeatures()))
+                .collect::<Vec<_>>();
+
+            let records = records.select(Axis(1), &feat_indices);
+
+            (
+                DatasetBase::new(records, targets),
+                data_indices,
+                feat_indices,
+            )
+        })
+    }
+
     /// Apply sample bootstrapping
     ///
     /// Bootstrap aggregating is used for sub-sample generation and improves the accuracy and
@@ -534,6 +580,41 @@ where
         })
     }
 
+    /// Apply sample bootstrapping
+    ///
+    /// Bootstrap aggregating is used for sub-sample generation and improves the accuracy and
+    /// stability of machine learning algorithms. It samples data uniformly with replacement and
+    /// generates datasets where elements may be shared. Only a sample subset is selected which
+    /// retains all features and targets.
+    ///
+    /// # Parameters
+    ///
+    ///  * `num_samples`: The number of samples per bootstrap
+    ///  * `rng`: The random number generator used in the sampling procedure
+    ///
+    ///  # Returns
+    ///
+    ///  An infinite Iterator yielding at each step a new bootstrapped dataset and the sampled
+    ///  indices.
+    ///
+    pub fn bootstrap_samples_with_indices<R: Rng>(
+        &'b self,
+        num_samples: usize,
+        rng: &'b mut R,
+    ) -> impl Iterator<Item = (DatasetBase<Array2<F>, T::Owned>, Vec<usize>)> + 'b {
+        std::iter::repeat(()).map(move |_| {
+            // sample with replacement
+            let indices = (0..num_samples)
+                .map(|_| rng.gen_range(0..self.nsamples()))
+                .collect::<Vec<_>>();
+
+            let records = self.records().select(Axis(0), &indices);
+            let targets = T::new_targets(self.as_targets().select(Axis(0), &indices));
+
+            (DatasetBase::new(records, targets), indices)
+        })
+    }
+
     /// Apply feature bootstrapping
     ///
     /// Bootstrap aggregating is used for sub-sample generation and improves the accuracy and
@@ -565,6 +646,41 @@ where
             let records = self.records.select(Axis(1), &indices);
 
             DatasetBase::new(records, targets)
+        })
+    }
+
+    /// Apply feature bootstrapping
+    ///
+    /// Bootstrap aggregating is used for sub-sample generation and improves the accuracy and
+    /// stability of machine learning algorithms. It samples data uniformly with replacement and
+    /// generates datasets where elements may be shared. Only a feature subset is selected while
+    /// retaining all samples and targets.
+    ///
+    /// # Parameters
+    ///
+    ///  * `num_features`: The number of features per bootstrap
+    ///  * `rng`: The random number generator used in the sampling procedure
+    ///
+    ///  # Returns
+    ///
+    ///  An infinite Iterator yielding at each step a new bootstrapped dataset with the indices of
+    ///  the features sampled
+    ///
+    pub fn bootstrap_features_with_indices<R: Rng>(
+        &'b self,
+        num_features: usize,
+        rng: &'b mut R,
+    ) -> impl Iterator<Item = (DatasetBase<Array2<F>, T::Owned>, Vec<usize>)> + 'b {
+        std::iter::repeat(()).map(move |_| {
+            let targets = T::new_targets(self.as_targets().to_owned());
+
+            let indices = (0..num_features)
+                .map(|_| rng.gen_range(0..self.nfeatures()))
+                .collect::<Vec<_>>();
+
+            let records = self.records.select(Axis(1), &indices);
+
+            (DatasetBase::new(records, targets), indices)
         })
     }
 

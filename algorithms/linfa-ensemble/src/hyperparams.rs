@@ -2,6 +2,7 @@ use linfa::{
     error::{Error, Result},
     ParamGuard,
 };
+use linfa_trees::DecisionTreeParams;
 use rand::rngs::ThreadRng;
 use rand::Rng;
 
@@ -11,6 +12,8 @@ pub struct EnsembleLearnerValidParams<P, R> {
     pub ensemble_size: usize,
     /// The proportion of the total number of training samples that should be given to each model for training
     pub bootstrap_proportion: f64,
+    /// The proportion of the total number of training feature that should be given to each model for training
+    pub feature_proportion: f64,
     /// The model parameters for the base model
     pub model_params: P,
     pub rng: R,
@@ -18,6 +21,8 @@ pub struct EnsembleLearnerValidParams<P, R> {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct EnsembleLearnerParams<P, R>(EnsembleLearnerValidParams<P, R>);
+
+pub type RandomForestParams<F, L, R> = EnsembleLearnerParams<DecisionTreeParams<F, L>, R>;
 
 impl<P> EnsembleLearnerParams<P, ThreadRng> {
     pub fn new(model_params: P) -> EnsembleLearnerParams<P, ThreadRng> {
@@ -30,6 +35,7 @@ impl<P, R: Rng + Clone> EnsembleLearnerParams<P, R> {
         Self(EnsembleLearnerValidParams {
             ensemble_size: 1,
             bootstrap_proportion: 1.0,
+            feature_proportion: 1.0,
             model_params,
             rng,
         })
@@ -42,6 +48,11 @@ impl<P, R: Rng + Clone> EnsembleLearnerParams<P, R> {
 
     pub fn bootstrap_proportion(mut self, proportion: f64) -> Self {
         self.0.bootstrap_proportion = proportion;
+        self
+    }
+
+    pub fn feature_proportion(mut self, proportion: f64) -> Self {
+        self.0.feature_proportion = proportion;
         self
     }
 }
@@ -60,6 +71,11 @@ impl<P, R> ParamGuard for EnsembleLearnerParams<P, R> {
             Err(Error::Parameters(format!(
                 "Ensemble size should be less than one, but was {}",
                 self.0.ensemble_size
+            )))
+        } else if self.0.feature_proportion > 1.0 || self.0.feature_proportion <= 0.0 {
+            Err(Error::Parameters(format!(
+                "Feature proportion should be greater than zero and less than or equal to one, but was {}",
+                self.0.feature_proportion
             )))
         } else {
             Ok(&self.0)
