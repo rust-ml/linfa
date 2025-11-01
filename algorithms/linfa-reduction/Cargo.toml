@@ -40,7 +40,7 @@ ndarray-linalg = { version = "0.17", optional = true }
 ndarray-rand = "0.15"
 num-traits = "0.2"
 thiserror = "2.0"
-rand = { version = "0.8", features = ["small_rng"] }
+rand = { version = "0.9", features = ["small_rng"] }
 
 linfa = { version = "0.8.0", path = "../.." }
 linfa-kernel = { version = "0.8.0", path = "../linfa-kernel" }
