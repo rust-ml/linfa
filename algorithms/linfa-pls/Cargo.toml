@@ -29,7 +29,7 @@ ndarray = { version = "0.16" }
 linfa-linalg = { version = "0.2", default-features = false }
 ndarray-linalg = { version = "0.17", optional = true }
 ndarray-stats = "0.6"
-ndarray-rand = "0.15"
+ndarray-rand = "0.16"
 num-traits = "0.2"
 paste = "1.0"
 thiserror = "2.0"

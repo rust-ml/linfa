@@ -28,7 +28,7 @@ features = ["std", "derive"]
 
 [dependencies]
 ndarray = { version = "0.16", features = ["rayon", "approx"] }
-ndarray-rand = "0.15"
+ndarray-rand = "0.16"
 rand = "0.8.5"
 
 linfa = { version = "0.8.0", path = "../.." }
