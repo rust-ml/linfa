@@ -20,7 +20,7 @@ keywords = [
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
-ndarray = { version = "0.16" }
+ndarray = { version = "0.17" }
 kodama = "0.2"
 thiserror = "2"
 
