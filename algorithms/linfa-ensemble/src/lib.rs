@@ -3,14 +3,18 @@
 //! Ensemble methods combine the predictions of several base estimators built with a given
 //! learning algorithm in order to improve generalizability / robustness over a single estimator.
 //!
+//! This crate (`linfa-ensemble`), provides pure Rust implementations of popular ensemble techniques, such as
+//! * [Boostrap Aggregation](EnsembleLearner)
+//! * [Random Forest](RandomForest)
+//!
 //! ## Bootstrap Aggregation (aka Bagging)
 //!
 //! A typical example of ensemble method is Bootstrap Aggregation, which combines the predictions of
-//! several decision trees (see `linfa-trees`) trained on different samples subset of the training dataset.
+//! several decision trees (see [`linfa-trees`](linfa_trees)) trained on different samples subset of the training dataset.
 //!
 //! ## Random Forest
 //!
-//! A special case of Bootstrap Aggregation using decision trees (see `linfa-trees`) with random feature
+//! A special case of Bootstrap Aggregation using decision trees (see  [`linfa-trees`](linfa_trees)) with random feature
 //! selection. A typical number of random prediction to be selected is $\sqrt{p}$ with $p$ being
 //! the number of available features.
 //!
@@ -48,7 +52,7 @@
 //! let predictions = bagging_model.predict(&test);
 //! ```
 //!
-//! This example shows how to train a Random Forest model using 100 decision trees,
+//! This example shows how to train a [Random Forest](RandomForest) model using 100 decision trees,
 //! each trained on 70% of the training data (bootstrap sampling) and using only
 //! 30% of the available features.
 //!
@@ -66,7 +70,7 @@
 //!     .split_with_ratio(0.8);
 //!
 //! // Train the model on the iris dataset
-//! let bagging_model = RandomForestParams::new(DecisionTree::params())
+//! let random_forest = RandomForestParams::new(DecisionTree::params())
 //!     .ensemble_size(100)        // Number of Decision Tree to fit
 //!     .bootstrap_proportion(0.7) // Select only 70% of the data via bootstrap
 //!     .feature_proportion(0.3)   // Select only 30% of the feature
@@ -74,7 +78,7 @@
 //!     .unwrap();
 //!
 //! // Make predictions on the test set
-//! let predictions = bagging_model.predict(&test);
+//! let predictions = random_forest.predict(&test);
 //! ```
 
 mod algorithm;

@@ -10,8 +10,63 @@ use ndarray::{Array2, Axis, Zip};
 use rand::Rng;
 use std::{cmp::Eq, collections::HashMap, hash::Hash};
 
+/// A fitted ensemble of [Decision Trees](DecisionTree) trained on a random subset of features.
+///
+/// Check out [EnsembleLearner] documentation for more information regarding [RandomForest] interface.
 pub type RandomForest<F, L> = EnsembleLearner<DecisionTree<F, L>>;
 
+/// A fitted ensemble of learners for classification.
+///
+/// ## Structure
+///
+/// An Ensemble Learner is composed of a collection of fitted models of type `M`.
+///
+/// ## Fitting Algorithm
+///
+/// Given a [DatasetBase](DatasetBase) denoted as `D`,
+/// 1. Create as many distinct bootstrapped subset of the original dataset `D` as number of
+///    distinct model to fit.
+/// 2. Fit each distinct model on a distinct bootstrapped subset of `D`.
+///
+/// Note that the subset size, as well as the subset of feature to use in each training subset can
+/// be specified in the [parameters](crate::EnsembleLearnerParams).
+///
+/// ## Prediction Algorithm
+///
+/// The prediction result is the result of majority voting across the fitted learners.
+///
+/// ## Example
+///
+/// This example shows how to train a bagging model using 100 decision trees,
+/// each trained on 70% of the training data (bootstrap sampling).
+/// ```no_run
+/// use linfa::prelude::{Fit, Predict};
+/// use linfa_ensemble::EnsembleLearnerParams;
+/// use linfa_trees::DecisionTree;
+/// use ndarray_rand::rand::SeedableRng;
+/// use rand::rngs::SmallRng;
+///
+/// // Load Iris dataset
+/// let mut rng = SmallRng::seed_from_u64(42);
+/// let (train, test) = linfa_datasets::iris()
+///     .shuffle(&mut rng)
+///     .split_with_ratio(0.8);
+///
+/// // Train the model on the iris dataset
+/// let bagging_model = EnsembleLearnerParams::new(DecisionTree::params())
+///     .ensemble_size(100)        // Number of Decision Tree to fit
+///     .bootstrap_proportion(0.7) // Select only 70% of the data via bootstrap
+///     .fit(&train)
+///     .unwrap();
+///
+/// // Make predictions on the test set
+/// let predictions = bagging_model.predict(&test);
+/// ```
+///
+/// ## References
+///
+/// * [Scikit-Learn User Guide](https://scikit-learn.org/stable/modules/ensemble.html)
+/// * [An Introduction to Statistical Learning](https://www.statlearning.com/)
 pub struct EnsembleLearner<M> {
     pub models: Vec<M>,
     pub model_features: Vec<Vec<usize>>,
