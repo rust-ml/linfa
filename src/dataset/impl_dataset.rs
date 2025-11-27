@@ -1050,7 +1050,7 @@ where
     S: DataMut<Elem = E>,
 {
     /// Specialized version of `cross_validate` for single-target datasets. Allows the evaluation
-    /// closure to return a float without wrapping it in `arr0`. See [`Dataset.cross_validate`] for
+    /// closure to return a float without wrapping it in `arr0`. See [`Dataset::cross_validate`] for
     /// more details.
     pub fn cross_validate_single<O, ER, M, FACC, C>(
         &'a mut self,
