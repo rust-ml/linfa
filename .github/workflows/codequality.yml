@@ -65,7 +65,7 @@ jobs:
 
       - name: Generate code coverage
         run: |
-          cargo tarpaulin --verbose --timeout 120 --out Xml --all --release
+          cargo tarpaulin --verbose --timeout 120 --out Xml --all --release --engine llvm
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v5
         with:
