@@ -22,6 +22,9 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           components: rustfmt, clippy
 
+      - name: Update ndarray to 0.16.1 (temporary workaround to avoid pulling ndarray 0.17.1)
+        run: cargo update -p ndarray:0.17.1 --precise 0.16.1
+
       - name: Run cargo fmt
         run: cargo fmt --all -- --check
 
@@ -41,6 +44,9 @@ jobs:
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Update ndarray to 0.16.1 (temporary workaround to avoid pulling ndarray 0.17.1)
+        run: cargo update -p ndarray:0.17.1 --precise 0.16.1
+
       - name: Get rustc version
         id: rustc-version
         run: echo "::set-output name=version::$(cargo --version | cut -d ' ' -f 2)"
@@ -59,7 +65,7 @@ jobs:
 
       - name: Generate code coverage
         run: |
-          cargo tarpaulin --verbose --timeout 120 --out Xml --all --release
+          cargo tarpaulin --verbose --timeout 120 --out Xml --all --release --engine llvm
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v5
         with:

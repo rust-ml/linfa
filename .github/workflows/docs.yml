@@ -15,6 +15,9 @@ jobs:
       - name: 'Checkout'
         uses: actions/checkout@master
 
+      - name: Update ndarray to 0.16.1 (temporary workaround to avoid pulling ndarray 0.17.1)
+        run: cargo update -p ndarray:0.17.1 --precise 0.16.1
+
       - name: 'Build only' 
         uses: shalzz/zola-deploy-action@master
         env:
@@ -38,6 +41,9 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, rust-src
+
+      - name: Update ndarray to 0.16.1 (temporary workaround to avoid pulling ndarray 0.17.1)
+        run: cargo update -p ndarray:0.17.1 --precise 0.16.1
 
       - name: Build Documentation
         run: cargo doc --workspace --no-deps
