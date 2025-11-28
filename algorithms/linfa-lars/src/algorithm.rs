@@ -474,6 +474,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::excessive_precision)]
     fn lars_diabetes_1_works_like_sklearn() {
         // test that lars implementation gives very similar results to
         // sklearn implementation for the first 20 lines taken from the diabetes
