@@ -5,10 +5,10 @@ use thiserror::Error;
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Error,Debug,Clone)]
-pub enum LarsError{
+#[derive(Error, Debug, Clone)]
+pub enum LarsError {
     #[error(transparent)]
     BaseCrate(#[from] linfa::Error),
     #[error("invalid epsilon")]
-    InvalidEpsilon
+    InvalidEpsilon,
 }

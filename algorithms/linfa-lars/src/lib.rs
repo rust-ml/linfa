@@ -1,15 +1,12 @@
-use linfa::{
-    traits::PredictInplace, 
-    Float
-};
+use linfa::{Float, traits::PredictInplace};
 use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
 
-pub use hyperparams::{LarsParams, LarsValidParams};
 pub use error::LarsError;
+pub use hyperparams::{LarsParams, LarsValidParams};
 
-mod hyperparams;
-mod error;
 mod algorithm;
+mod error;
+mod hyperparams;
 
 #[cfg_attr(
     feature = "serde",
@@ -17,15 +14,15 @@ mod algorithm;
     serde(crate = "serde_crate")
 )]
 /// Least angle regression a.k.a. LAR
-/// 
+///
 /// This struct contains the parameters of a fitted LARS model. This includes the seperating
 /// hyperplane, (optionally) intercept, alphas (Maximum of covariances (in absolute value) at each iteration),
-/// Indices of active variables at the end of the path, 
-/// 
-/// 
-/// LARS is similar to forward stepwise regression. 
-/// At each step, it finds the feature most correlated with the target. 
-/// When there are multiple features having equal correlation, instead of continuing along the same feature, 
+/// Indices of active variables at the end of the path,
+///
+///
+/// LARS is similar to forward stepwise regression.
+/// At each step, it finds the feature most correlated with the target.
+/// When there are multiple features having equal correlation, instead of continuing along the same feature,
 /// it proceeds in a direction equiangular between the features.
 #[derive(Debug, Clone)]
 pub struct Lars<F> {
@@ -37,8 +34,7 @@ pub struct Lars<F> {
     coef_path: Array2<F>,
 }
 
-
-impl <F: Float> Lars<F> {
+impl<F: Float> Lars<F> {
     /// Create default Lars hyper parameters
     ///
     /// By default, an intercept will be fitted. To disable fitting an
@@ -68,7 +64,7 @@ impl <F: Float> Lars<F> {
     pub fn n_iter(&self) -> usize {
         self.n_iter
     }
-    
+
     /// Indices of active variables at the end of the path
     pub fn active(&self) -> &Vec<usize> {
         &self.active
@@ -78,11 +74,9 @@ impl <F: Float> Lars<F> {
     pub fn intercept(&self) -> F {
         self.intercept
     }
-    
-
 }
 
-impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<F>> for Lars<F>{
+impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<F>> for Lars<F> {
     /// Given an input matrix `X`, with shape `(n_samples, n_features)`,
     /// `predict` returns the target variable according to LARS
     /// learned from the training data distribution.

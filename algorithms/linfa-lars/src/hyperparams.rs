@@ -7,7 +7,7 @@ use crate::error::LarsError;
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-pub struct LarsValidParams<F>{
+pub struct LarsValidParams<F> {
     fit_intercept: bool,
     n_nonzero_coefs: usize,
     eps: F,
@@ -16,7 +16,7 @@ pub struct LarsValidParams<F>{
 
 pub struct LarsParams<F>(LarsValidParams<F>);
 
-impl<F:Float> LarsValidParams<F>{
+impl<F: Float> LarsValidParams<F> {
     pub fn fit_intercept(&self) -> bool {
         return self.fit_intercept;
     }
@@ -28,33 +28,29 @@ impl<F:Float> LarsValidParams<F>{
     pub fn verbose(&self) -> usize {
         return self.verbose;
     }
-    
+
     pub fn eps(&self) -> F {
         return self.eps;
     }
-
 }
 
-
-
-impl<F:Float> LarsParams<F> {
+impl<F: Float> LarsParams<F> {
     /// Create default Lars hyper parameters
     ///
     /// By default, an intercept will be fitted. To disable fitting an
     /// intercept, call `.with_intercept(false)` before calling `.fit()`.
     ///
     /// The feature matrix will not be normalized by default.
-    pub fn new() -> Self{
-        Self(LarsValidParams{
+    pub fn new() -> Self {
+        Self(LarsValidParams {
             fit_intercept: true,
             n_nonzero_coefs: 500,
-            eps: F::epsilon(), 
+            eps: F::epsilon(),
             verbose: 1,
-
         })
     }
 
-    /// Whether to calculate the intercept for this model. 
+    /// Whether to calculate the intercept for this model.
     /// Defaults to `true` if not set.
     /// If set to false, no intercept will be used in calculations.
     pub fn fit_intercept(mut self, fit_intercept: bool) -> Self {
@@ -84,7 +80,6 @@ impl<F:Float> LarsParams<F> {
         self.0.verbose = verbose;
         self
     }
-
 }
 
 impl<F: Float> ParamGuard for LarsParams<F> {
@@ -95,8 +90,7 @@ impl<F: Float> ParamGuard for LarsParams<F> {
     fn check_ref(&self) -> Result<&Self::Checked, Self::Error> {
         if self.0.eps.is_negative() {
             Err(LarsError::InvalidEpsilon)
-        }
-        else {
+        } else {
             Ok(&self.0)
         }
     }
@@ -104,7 +98,5 @@ impl<F: Float> ParamGuard for LarsParams<F> {
     fn check(self) -> Result<Self::Checked, Self::Error> {
         self.check_ref()?;
         Ok(self.0)
-
     }
-
 }

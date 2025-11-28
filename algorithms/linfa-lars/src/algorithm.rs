@@ -1,43 +1,30 @@
 use std::mem::swap;
 
 use linfa::{
-    Float, 
-    dataset::{AsSingleTargets, WithLapack, WithoutLapack}, 
-    prelude::Records, 
-    traits::Fit
+    Float,
+    dataset::{AsSingleTargets, WithLapack, WithoutLapack},
+    prelude::Records,
+    traits::Fit,
 };
 
+#[cfg(not(feature = "blas"))]
+use linfa_linalg::triangular::{SolveTriangularInplace, UPLO};
 use ndarray::{
-    Array, Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, Axis, CowArray, Data, Dimension, Ix2, NewAxis, RemoveAxis, s
+    Array, Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, Axis, CowArray, Data,
+    Dimension, Ix2, NewAxis, RemoveAxis, s,
 };
-#[cfg(not(feature="blas"))]
-use linfa_linalg::triangular::{
-    SolveTriangularInplace,
-    UPLO
-};
-#[cfg(feature="blas")]
-use ndarray_linalg::{
-    SolveTriangularInplace,
-    UPLO, 
-    Diag, 
-    layout::MatrixLayout,
-    Lapack
-};
+#[cfg(feature = "blas")]
+use ndarray_linalg::{Diag, Lapack, SolveTriangularInplace, UPLO, layout::MatrixLayout};
 use ndarray_stats::QuantileExt;
 
-use crate::{
-    Lars,
-    LarsValidParams,
-    error::LarsError,
-};
+use crate::{Lars, LarsValidParams, error::LarsError};
 
 impl<F, D, T> Fit<ArrayBase<D, Ix2>, T, LarsError> for LarsValidParams<F>
 where
     T: AsSingleTargets<Elem = F>,
     D: Data<Elem = F>,
-    F: Float
+    F: Float,
 {
-
     type Object = Lars<F>;
     /// Fit an LARS model given a feature matrix `x` and a target variable `y`.
     ///
@@ -47,7 +34,10 @@ where
     /// Returns a `FittedLARS` object which contains the fitted
     /// parameters and can be used to `predict` values of the target variable
     /// for new feature values.
-    fn fit(&self, dataset: &linfa::DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object, LarsError> {
+    fn fit(
+        &self,
+        dataset: &linfa::DatasetBase<ArrayBase<D, Ix2>, T>,
+    ) -> Result<Self::Object, LarsError> {
         let targets = dataset.as_single_targets();
         let (intercept, y) = compute_intercept(self.fit_intercept(), targets);
 
@@ -57,22 +47,21 @@ where
             self.n_nonzero_coefs(),
             self.eps(),
             self.verbose(),
-            F::zero()
+            F::zero(),
         );
 
         let intercept = intercept.into_scalar();
 
         let hyperplane = coef_path.slice(s![.., -1]).to_owned();
-        
-        Ok(Lars { 
-            hyperplane, 
-            intercept, 
+
+        Ok(Lars {
+            hyperplane,
+            intercept,
             alphas,
             n_iter,
             active,
-            coef_path
+            coef_path,
         })
-
     }
 }
 
@@ -100,29 +89,28 @@ where
 }
 
 /// Compute Least Angle Regression using LARS algorithm
-/// 
+///
 /// References
 /// * ["Least Angle Regression", Efron et al.](http://statweb.stanford.edu/~tibs/ftp/lars.pdf)
 /// * [Wikipedia entry on the Least-angle regression](https://en.wikipedia.org/wiki/Least-angle_regression)
 /// * [Wikipedia entry on the Lasso](https://en.wikipedia.org/wiki/Lasso_(statistics))
-/// 
+///
 /// returns alphas, active, coef_path, n_iter
 fn lars_path<F: Float>(
-    x: &ArrayView2<F>, 
+    x: &ArrayView2<F>,
     y: &ArrayView1<F>,
     max_iter: usize,
     eps: F,
     verbose: usize,
-    alpha_min: F
+    alpha_min: F,
 ) -> (Array1<F>, Vec<usize>, Array2<F>, usize) {
-    
     let n_samples = F::from(y.len()).unwrap();
     let n_features = x.nfeatures();
 
     let max_features = max_iter.min(n_features);
-    
-    let mut coefs = Array2::<F>::zeros((max_features+1, n_features));
-    let mut alphas = Array1::<F>::zeros(max_features+1);
+
+    let mut coefs = Array2::<F>::zeros((max_features + 1, n_features));
+    let mut alphas = Array1::<F>::zeros(max_features + 1);
 
     let mut prev_coef = Array1::<F>::zeros(n_features);
     let mut prev_alpha = Array1::<F>::from_elem(1, F::zero());
@@ -132,7 +120,7 @@ fn lars_path<F: Float>(
     let mut l = Array2::<F>::default((max_features, max_features));
 
     let mut n_iter = 0;
-    let mut n_active  = 0;
+    let mut n_active = 0;
 
     let mut sign_active = Array1::<F>::zeros(max_features);
     let mut indices = Array1::<F>::from_iter((0..n_features).map(|i| F::from(i).unwrap()));
@@ -140,40 +128,34 @@ fn lars_path<F: Float>(
     let tiny_32 = F::min_positive_value();
     let equality_tolerance = F::epsilon();
 
-    let mut active:Vec<usize> = vec![];
-
-    // let alpha_min = F::zero();
-
+    let mut active: Vec<usize> = vec![];
     let mut drop = false;
 
     if verbose > 1 {
         println!("Step\t\tAdded\t\tDropped\t\tActive set size\t\tC");
     }
 
-    loop{
+    loop {
         let c;
         let mut c_idx = 0;
         let mut c_ = F::zero();
         if !cov.is_empty() {
-            
             c_idx = cov.abs().argmax().unwrap();
-            
+
             c_ = cov[c_idx];
-            
+
             c = c_.abs();
-            
-        }
-        else {
+        } else {
             c = F::zero();
         }
-        
+
         let mut alpha = alphas.slice(s![n_iter, NewAxis]).to_owned();
         let mut coef = coefs.row(n_iter).to_owned();
         if n_iter > 0 {
             prev_alpha = alphas.slice(s![n_iter - 1, NewAxis]).to_owned();
-            prev_coef = coefs.row(n_iter-1).to_owned();
+            prev_coef = coefs.row(n_iter - 1).to_owned();
         }
-        
+
         alpha[0] = c / n_samples;
         alphas[n_iter] = c / n_samples;
 
@@ -181,20 +163,19 @@ fn lars_path<F: Float>(
             if (alpha[0] - alpha_min).abs() > equality_tolerance {
                 if n_iter > 0 {
                     let ss = (prev_alpha[0] - alpha_min) / (prev_alpha[0] - alpha[0]);
-                    coef.assign(&(&prev_coef + &( &coef - &prev_coef) * ss));
+                    coef.assign(&(&prev_coef + &(&coef - &prev_coef) * ss));
                 }
                 alpha[0] = alpha_min;
             }
             coefs.row_mut(n_iter).assign(&coef);
-            break
-        }
-        
-        if n_iter >= max_iter || n_active >= n_features {
-            break
+            break;
         }
 
-        if !drop{
-            
+        if n_iter >= max_iter || n_active >= n_features {
+            break;
+        }
+
+        if !drop {
             sign_active[n_active] = if c_ > F::zero() {
                 F::one()
             } else if c_ < F::zero() {
@@ -202,17 +183,17 @@ fn lars_path<F: Float>(
             } else {
                 F::zero()
             };
-            
+
             let m = n_active;
             let n = c_idx + n_active;
 
-            cov.swap(c_idx,0);
-            indices.swap(m,n);
+            cov.swap(c_idx, 0);
+            indices.swap(m, n);
 
             let cov_not_shortened = cov.clone();
             cov.remove_index(Axis(0), 0);
 
-            if m!=n {
+            if m != n {
                 let n_cols = gram.ncols();
                 let (mut row_m, mut row_n) = gram.multi_slice_mut((s![m, ..], s![n, ..]));
                 for j in 0..n_cols {
@@ -225,40 +206,48 @@ fn lars_path<F: Float>(
                 }
             }
 
-            let c_diff = gram[[n_active,n_active]];
+            let c_diff = gram[[n_active, n_active]];
 
-            l.slice_mut(s![n_active, 0..n_active]).assign(&gram.slice(s![n_active, 0..n_active]));
+            l.slice_mut(s![n_active, 0..n_active])
+                .assign(&gram.slice(s![n_active, 0..n_active]));
 
             if n_active != 0 {
-                let mut l_sub = l.slice(s![..n_active,..n_active]).to_owned().with_lapack();
-                let mut b = l.slice(s![n_active,..n_active]).insert_axis(Axis(1)).to_owned().with_lapack();
+                let mut l_sub = l.slice(s![..n_active, ..n_active]).to_owned().with_lapack();
+                let mut b = l
+                    .slice(s![n_active, ..n_active])
+                    .insert_axis(Axis(1))
+                    .to_owned()
+                    .with_lapack();
 
-                if l_sub.strides() == [0,0] {
+                if l_sub.strides() == [0, 0] {
                     let dimen = l_sub.clone().raw_dim();
                     let l_sub_c = l_sub.clone();
                     let (data, _offset) = l_sub_c.into_raw_vec_and_offset();
                     l_sub = Array2::from_shape_vec(dimen, data).unwrap();
- 
+
                     let dimen_b = l_sub.clone().raw_dim();
                     let b_c = b.clone();
                     let (data, _offset) = b_c.into_raw_vec_and_offset();
                     b = Array2::from_shape_vec(dimen_b, data).unwrap();
                 }
-                
-                #[cfg(not(feature="blas"))]
+
+                #[cfg(not(feature = "blas"))]
                 l_sub.solve_triangular_inplace(&mut b, UPLO::Lower).unwrap();
 
-                #[cfg(feature="blas")]
-                l_sub.solve_triangular_inplace(UPLO::Lower, Diag::NonUnit, &mut b).unwrap();
+                #[cfg(feature = "blas")]
+                l_sub
+                    .solve_triangular_inplace(UPLO::Lower, Diag::NonUnit, &mut b)
+                    .unwrap();
 
-                l.slice_mut(s![n_active,..n_active]).assign(&(b.without_lapack().remove_axis(Axis(1))));
+                l.slice_mut(s![n_active, ..n_active])
+                    .assign(&(b.without_lapack().remove_axis(Axis(1))));
             }
 
             let row_slice = l.slice(s![n_active, 0..n_active]);
             let v = F::from(row_slice.dot(&row_slice)).unwrap();
 
-            let diag = (c_diff-v).abs().sqrt().max(eps);
-            l[[n_active,n_active]] = diag;
+            let diag = (c_diff - v).abs().sqrt().max(eps);
+            l[[n_active, n_active]] = diag;
 
             if diag < F::cast(1e-7) {
                 cov.assign(&cov_not_shortened);
@@ -278,23 +267,24 @@ fn lars_path<F: Float>(
                     n_active,
                     c
                 );
-
             }
         }
 
-        let mut a = l.slice(s![..n_active,..n_active]).to_owned();
+        let mut a = l.slice(s![..n_active, ..n_active]).to_owned();
         let mut b = sign_active.slice(s![..n_active]).to_owned();
-        let mut least_squares = cholesky_solve(&mut a,&mut b);
+        let mut least_squares = cholesky_solve(&mut a, &mut b);
 
         let mut aa;
         if least_squares.len() == 1 && least_squares[0] == F::zero() {
             least_squares.fill(F::one());
             aa = F::one();
-        }
-        else {
-            aa = F::one()/(&least_squares * &sign_active.slice(s![..n_active])).sum().sqrt();
+        } else {
+            aa = F::one()
+                / (&least_squares * &sign_active.slice(s![..n_active]))
+                    .sum()
+                    .sqrt();
             if !aa.is_finite() {
-                let mut i=0;
+                let mut i = 0;
                 let mut l_ = l.slice_mut(s![..n_active, ..n_active]);
 
                 while !aa.is_finite() {
@@ -302,46 +292,57 @@ fn lars_path<F: Float>(
                         l_[[j, j]] += (F::from(2).unwrap().powi(i)) * eps;
                     }
 
-                    let mut p = l_.slice(s![..,..]).to_owned();
+                    let mut p = l_.slice(s![.., ..]).to_owned();
                     let mut q = sign_active.slice(s![..n_active]).to_owned();
                     least_squares = cholesky_solve(&mut p, &mut q);
 
-                    let tmp = (&least_squares * &sign_active.slice(s![..n_active])).sum().max(eps);
-                    aa = F::one()/tmp.sqrt();
+                    let tmp = (&least_squares * &sign_active.slice(s![..n_active]))
+                        .sum()
+                        .max(eps);
+                    aa = F::one() / tmp.sqrt();
 
-                    i+=1;
-
+                    i += 1;
                 }
             }
             least_squares *= aa;
-
         }
 
-
-        let corr_eq_dir = gram.slice(s![..n_active,n_active..]).t().dot(&least_squares);
+        let corr_eq_dir = gram
+            .slice(s![..n_active, n_active..])
+            .t()
+            .dot(&least_squares);
 
         let diff = &cov.mapv(|x| c - x);
         let denom = &corr_eq_dir.mapv(|x| aa - x + tiny_32);
         let ratio = diff / denom;
 
-        let g1 = match ratio.iter().cloned().filter(|&x| x > F::zero()).reduce(F::min){
+        let g1 = match ratio
+            .iter()
+            .cloned()
+            .filter(|&x| x > F::zero())
+            .reduce(F::min)
+        {
             Some(n) => n,
-            None => F::infinity()
+            None => F::infinity(),
         };
 
-
         let gamma_;
-        
+
         let sum_n = &cov.mapv(|x| c + x);
         let denom_n = &corr_eq_dir.mapv(|x| aa + x + tiny_32);
         let ratio_n = sum_n / denom_n;
 
-        let g2 = match ratio_n.iter().cloned().filter(|&x| x > F::zero()).reduce(F::min){
+        let g2 = match ratio_n
+            .iter()
+            .cloned()
+            .filter(|&x| x > F::zero())
+            .reduce(F::min)
+        {
             Some(n) => n,
-            None => F::infinity()
+            None => F::infinity(),
         };
 
-        gamma_ = g2.min(g1).min(c/aa);
+        gamma_ = g2.min(g1).min(c / aa);
 
         drop = false;
 
@@ -350,15 +351,15 @@ fn lars_path<F: Float>(
 
         let z_pos = match z_pos_t {
             Some(n) => n,
-            None => F::infinity()
+            None => F::infinity(),
         };
 
         if z_pos < gamma_ {
             let mut idx: Vec<usize> = z
-            .iter()
-            .enumerate()
-            .filter_map(|(i, &value)| if value == z_pos { Some(i) } else { None } )
-            .collect();
+                .iter()
+                .enumerate()
+                .filter_map(|(i, &value)| if value == z_pos { Some(i) } else { None })
+                .collect();
 
             idx.reverse();
 
@@ -376,55 +377,43 @@ fn lars_path<F: Float>(
 
             let mut new_coefs = Array2::<F>::zeros((n_iter + add_features, n_features));
             let old_shape = coefs.shape()[0];
-            new_coefs
-                .slice_mut(s![..old_shape, ..])
-                .assign(&coefs);
+            new_coefs.slice_mut(s![..old_shape, ..]).assign(&coefs);
 
             coefs = new_coefs;
-            
+
             let mut new_alphas = Array1::<F>::zeros(n_iter + add_features);
             new_alphas.slice_mut(s![..alphas.len()]).assign(&alphas);
             alphas = new_alphas;
         }
-        
+
         coef.assign(&(coefs.row(n_iter)));
         prev_coef.assign(&(coefs.row(n_iter - 1)));
 
-
-        
         for (i, &idx) in active.iter().enumerate() {
             coef[idx] = prev_coef[idx] + gamma_ * least_squares[i];
-            
         }
 
         coefs.row_mut(n_iter).assign(&coef);
-            
-        
+
         cov -= &(corr_eq_dir.mapv(|v| gamma_ * v));
-        
     }
 
     let alphas_trimmed = alphas.slice(s![..n_iter + 1]).to_owned();
     let coefs_trimmed = coefs.slice(s![..n_iter + 1, ..]).to_owned();
     let coefs_t = coefs_trimmed.t().to_owned();
     (alphas_trimmed, active, coefs_t, n_iter)
-
-
 }
 /// Solves a linear system `A * x = b` using a Cholesky factorization.
-/// 
+///
 /// - When compiled with the `blas` feature:
 ///   - Uses LAPACK's Cholesky solver (`potrs`) via `ndarray-linalg`.
 ///   - Performs an in-place factorization and solve on the provided arrays.
 /// - Without `blas`:
 ///   - Performs a manual two-step triangular solve:  
 ///     `L * z = b` then `Lᵀ * x = z`.
-fn cholesky_solve<F: Float>(
-    x:&mut Array2<F>,
-    y:&mut Array1<F>,
-) -> Array1<F> {
-    
-    #[cfg(feature="blas")]{
+fn cholesky_solve<F: Float>(x: &mut Array2<F>, y: &mut Array1<F>) -> Array1<F> {
+    #[cfg(feature = "blas")]
+    {
         let mut p_l = x.clone().with_lapack();
         let p_slice = p_l.as_slice_mut().unwrap();
         let mut q_l = y.view_mut().with_lapack();
@@ -437,44 +426,44 @@ fn cholesky_solve<F: Float>(
         F::Lapack::solve_cholesky(layout_m, UPLO::Upper, p_slice, q_slice).unwrap();
         return y.clone();
     }
-    #[cfg(not(feature="blas"))]
+    #[cfg(not(feature = "blas"))]
     {
         let mut y_ia = y.view_mut().insert_axis(Axis(1));
         x.solve_triangular_inplace(&mut y_ia, UPLO::Lower).unwrap();
-        x.t().solve_triangular_inplace(&mut y_ia, UPLO::Upper).unwrap();
+        x.t()
+            .solve_triangular_inplace(&mut y_ia, UPLO::Upper)
+            .unwrap();
         return y.clone();
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::{Lars, LarsError, LarsParams, LarsValidParams};
     use core::f64;
     use ndarray::{Array, Array1, Array2, array, s};
-    use ndarray_stats::QuantileExt;
-    use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::RandomExt;
+    use ndarray_rand::rand::SeedableRng;
     use ndarray_rand::rand_distr::Uniform;
+    use ndarray_stats::QuantileExt;
     use rand_xoshiro::Xoshiro256Plus;
-    use crate::{Lars, LarsError, LarsParams, LarsValidParams};
 
     use super::lars_path;
 
-    use linfa::{
-        Dataset, traits::Fit
-    };
     use approx::assert_abs_diff_eq;
+    use linfa::{Dataset, traits::Fit};
 
     #[test]
     fn autotraits() {
-        fn has_autotraits<T:Send + Sync + Sized + Unpin> () {}
+        fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
         has_autotraits::<Lars<f64>>();
         has_autotraits::<LarsParams<f64>>();
         has_autotraits::<LarsValidParams<f64>>();
         has_autotraits::<LarsError>();
     }
-    
+
     // sklearn result obtained using the following code:
-    // x = array([[1.0, 0.0], 
+    // x = array([[1.0, 0.0],
     //            [0.0, 1.0]])
     // y = array([3.0, 2.0])
     // model = Lars(fit_intercept=False)
@@ -486,7 +475,7 @@ mod tests {
         let model = Lars::params().fit_intercept(false).fit(&dataset).unwrap();
         assert_abs_diff_eq!(model.hyperplane(), &array![3.0, 2.0], epsilon = 0.001);
     }
-    
+
     #[test]
     fn lars_diabetes_1_works_like_sklearn() {
         // test that lars implementation gives very similar results to
@@ -525,20 +514,20 @@ mod tests {
 
         assert_abs_diff_eq!(
             model.hyperplane(),
-            &array![ -389.60441998,
-            -461.1009104,   
-            1600.86085833,   
-            327.18441323,
-            5041.91097989,  
-            -964.42457319,
-            -4957.76873687, 
-            -5179.43823859,
-            648.79523699,
-            -3820.0368172 
-        ],
+            &array![
+                -389.60441998,
+                -461.1009104,
+                1600.86085833,
+                327.18441323,
+                5041.91097989,
+                -964.42457319,
+                -4957.76873687,
+                -5179.43823859,
+                648.79523699,
+                -3820.0368172
+            ],
             epsilon = 0.01
         );
-
     }
 
     #[test]
@@ -580,16 +569,16 @@ mod tests {
 
         assert_abs_diff_eq!(
             model.hyperplane(),
-            &array![  
-                -2956.37127509,  
-                -27631.50761139,   
-                40411.01462424,   
+            &array![
+                -2956.37127509,
+                -27631.50761139,
+                40411.01462424,
                 25327.03442023,
                 -830564.37531279,
-                692446.96439378,  
-                336945.69344161,   
+                692446.96439378,
+                336945.69344161,
                 59728.58703503,
-                224688.9698237,    
+                224688.9698237,
                 13827.30774872
             ],
             epsilon = 0.01
@@ -598,7 +587,6 @@ mod tests {
 
     #[test]
     fn test_covariance() {
-
         let dataset = linfa_datasets::diabetes();
         let x = dataset.records().view();
         let y = dataset.targets().view();
@@ -611,14 +599,10 @@ mod tests {
             let cap_c = ab_cov.max().unwrap();
             let eps = 1e-3;
             let threshold = cap_c - eps;
-            let ocur = cov
-                .iter()
-                .filter(|v| v.abs() >= threshold)
-                .count();
+            let ocur = cov.iter().filter(|v| v.abs() >= threshold).count();
             if index < x.shape()[1] {
-                assert!(ocur == index+1);
-            }
-            else {
+                assert!(ocur == index + 1);
+            } else {
                 assert!(ocur == x.shape()[1]);
             }
         }
@@ -646,12 +630,10 @@ mod tests {
         let (_, _, coef_path, _) = lars_path(&x.view(), &y.view(), 500, f64::EPSILON, 0, 0.0);
 
         assert_abs_diff_eq!(coef_path, Array2::zeros(coef_path.raw_dim()));
-        
-        
-        let residual: Array1<f64> = x.dot(&coef_path.slice(s![.., -1]))-&y;
+
+        let residual: Array1<f64> = x.dot(&coef_path.slice(s![.., -1])) - &y;
 
         assert!((residual.mapv(|x| x.powi(2))).sum() < 1.0); // just make sure it's bounded
-
     }
 
     #[test]
@@ -660,10 +642,7 @@ mod tests {
         let model = Lars::params().n_nonzero_coefs(6).fit(&dataset).unwrap();
         // The path should be of length 6 + 1 in a Lars going down to 6
         // non-zero coefs
-        assert!(model.hyperplane().iter().filter(|&&x| x!=0.0).count() == 6);
+        assert!(model.hyperplane().iter().filter(|&&x| x != 0.0).count() == 6);
         assert!(model.alphas().len() == 7)
     }
-
-
 }
-
