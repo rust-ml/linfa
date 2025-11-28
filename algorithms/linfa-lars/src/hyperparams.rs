@@ -13,24 +13,30 @@ pub struct LarsValidParams<F> {
     eps: F,
     verbose: usize,
 }
-
+// #[derive(Default)]
 pub struct LarsParams<F>(LarsValidParams<F>);
 
 impl<F: Float> LarsValidParams<F> {
     pub fn fit_intercept(&self) -> bool {
-        return self.fit_intercept;
+        self.fit_intercept
     }
 
     pub fn n_nonzero_coefs(&self) -> usize {
-        return self.n_nonzero_coefs;
+        self.n_nonzero_coefs
     }
 
     pub fn verbose(&self) -> usize {
-        return self.verbose;
+        self.verbose
     }
 
     pub fn eps(&self) -> F {
-        return self.eps;
+        self.eps
+    }
+}
+
+impl<F: Float> Default for LarsParams<F> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

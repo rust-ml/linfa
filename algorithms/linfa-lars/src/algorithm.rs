@@ -260,10 +260,9 @@ fn lars_path<F: Float>(
 
             if verbose > 1 {
                 println!(
-                    "{}\t\t{}\t\t{}\t\t{}\t\t{}",
+                    "{}\t\t{}\t\t{}\t\t\t\t{}",
                     n_iter,
                     active[active.len() - 1],
-                    "",
                     n_active,
                     c
                 );
@@ -326,8 +325,6 @@ fn lars_path<F: Float>(
             None => F::infinity(),
         };
 
-        let gamma_;
-
         let sum_n = &cov.mapv(|x| c + x);
         let denom_n = &corr_eq_dir.mapv(|x| aa + x + tiny_32);
         let ratio_n = sum_n / denom_n;
@@ -342,7 +339,7 @@ fn lars_path<F: Float>(
             None => F::infinity(),
         };
 
-        gamma_ = g2.min(g1).min(c / aa);
+        let gamma_ = g2.min(g1).min(c / aa);
 
         drop = false;
 
@@ -424,7 +421,7 @@ fn cholesky_solve<F: Float>(x: &mut Array2<F>, y: &mut Array1<F>) -> Array1<F> {
             lda: shape[0] as i32,
         };
         F::Lapack::solve_cholesky(layout_m, UPLO::Upper, p_slice, q_slice).unwrap();
-        return y.clone();
+        y.clone()
     }
     #[cfg(not(feature = "blas"))]
     {
@@ -433,7 +430,7 @@ fn cholesky_solve<F: Float>(x: &mut Array2<F>, y: &mut Array1<F>) -> Array1<F> {
         x.t()
             .solve_triangular_inplace(&mut y_ia, UPLO::Upper)
             .unwrap();
-        return y.clone();
+        y.clone()
     }
 }
 
