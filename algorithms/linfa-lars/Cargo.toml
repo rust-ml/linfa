@@ -41,7 +41,6 @@ thiserror = "2.0"
 [dev-dependencies]
 linfa-datasets = { version = "0.8.0", path = "../../datasets", features = [
     "diabetes",
-    "linnerud"
 ] }
 approx = "0.5"
 ndarray-rand = "0.15"

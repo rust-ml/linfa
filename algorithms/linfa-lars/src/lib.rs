@@ -4,7 +4,6 @@
 //! hyperplane, (optionally) intercept, alphas (Maximum of covariances (in absolute value) at each iteration),
 //! Indices of active variables at the end of the path,
 //!
-//!
 //! LARS is similar to forward stepwise regression.
 //! At each step, it finds the feature most correlated with the target.
 //! When there are multiple features having equal correlation, instead of continuing along the same feature,
