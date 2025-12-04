@@ -9,10 +9,7 @@ use linfa::{
 
 #[cfg(not(feature = "blas"))]
 use linfa_linalg::triangular::{SolveTriangularInplace, UPLO};
-use ndarray::{
-    Array, Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, Axis, CowArray, Data,
-    Dimension, Ix2, NewAxis, RemoveAxis, s,
-};
+use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2, NewAxis, s};
 #[cfg(feature = "blas")]
 use ndarray_linalg::{Diag, Lapack, SolveTriangularInplace, UPLO, layout::MatrixLayout};
 use ndarray_stats::QuantileExt;
@@ -31,7 +28,7 @@ where
     /// The feature matrix `x` must have shape `(n_samples, n_features)`
     /// The target variable `y` must have shape `(n_samples)`
     ///
-    /// Returns a `FittedLARS` object which contains the fitted
+    /// Returns a `LARS` object which contains the fitted
     /// parameters and can be used to `predict` values of the target variable
     /// for new feature values.
     fn fit(
@@ -50,7 +47,7 @@ where
             F::zero(),
         );
 
-        let intercept = intercept.into_scalar();
+        // let intercept = intercept.into_scalar();
 
         let hyperplane = coef_path.slice(s![.., -1]).to_owned();
 
@@ -67,33 +64,23 @@ where
 
 /// Compute the intercept as the mean of `y` along each column and center `y` if an intercept
 /// should be used, use 0 as intercept and leave `y` unchanged otherwise.
-/// If `y` is 2D, mean is 1D and center is 2D. If `y` is 1D, mean is a number and center is 1D.
-fn compute_intercept<F: Float, I: RemoveAxis>(
-    with_intercept: bool,
-    y: ArrayView<F, I>,
-) -> (Array<F, I::Smaller>, CowArray<F, I>)
-where
-    I::Smaller: Dimension<Larger = I>,
-{
+fn compute_intercept<F: Float>(with_intercept: bool, y: ArrayView1<F>) -> (F, Array1<F>) {
     if with_intercept {
         let y_mean = y
-            // Take the mean of each column (1D array counts as 1 column)
-            .mean_axis(Axis(0))
+            // Take the mean of y
+            .mean()
             .expect("Axis 0 length of 0");
-        // Subtract y_mean from each "row" of y
-        let y_centered = &y - &y_mean.view().insert_axis(Axis(0));
-        (y_mean, y_centered.into())
+        // Subtract y_mean from each element of y
+        let y_centered = &y - y_mean;
+        (y_mean, y_centered)
     } else {
-        (Array::zeros(y.raw_dim().remove_axis(Axis(0))), y.into())
+        (F::zero(), y.to_owned())
     }
 }
 
-/// Compute Least Angle Regression using LARS algorithm
-///
-/// References
-/// * ["Least Angle Regression", Efron et al.](http://statweb.stanford.edu/~tibs/ftp/lars.pdf)
-/// * [Wikipedia entry on the Least-angle regression](https://en.wikipedia.org/wiki/Least-angle_regression)
-/// * [Wikipedia entry on the Lasso](https://en.wikipedia.org/wiki/Lasso_(statistics))
+/// Compute Least Angle Regression using LARS algorithm.
+/// Based on scikit-learn’s `lars_path` algorithm.
+/// https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.lars_path.html#sklearn.linear_model.lars_path
 ///
 /// returns alphas, active, coef_path, n_iter
 fn lars_path<F: Float>(
@@ -400,6 +387,7 @@ fn lars_path<F: Float>(
     let coefs_t = coefs_trimmed.t().to_owned();
     (alphas_trimmed, active, coefs_t, n_iter)
 }
+
 /// Solves a linear system `A * x = b` using a Cholesky factorization.
 ///
 /// - When compiled with the `blas` feature:

@@ -36,11 +36,12 @@ ndarray = { version = "0.16", features = ["approx"] }
 ndarray-linalg = { version = "0.17", optional = true }
 ndarray-stats = "0.6"
 
-thiserror = "1.0"
+thiserror = "2.0"
 
 [dev-dependencies]
 linfa-datasets = { version = "0.8.0", path = "../../datasets", features = [
     "diabetes",
+    "linnerud"
 ] }
 approx = "0.5"
 ndarray-rand = "0.15"

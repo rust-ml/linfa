@@ -13,7 +13,7 @@ pub struct LarsValidParams<F> {
     eps: F,
     verbose: usize,
 }
-// #[derive(Default)]
+
 pub struct LarsParams<F>(LarsValidParams<F>);
 
 impl<F: Float> LarsValidParams<F> {

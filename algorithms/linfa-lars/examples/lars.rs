@@ -6,7 +6,7 @@ fn main() {
     let (train, valid) = linfa_datasets::diabetes().split_with_ratio(0.90);
 
     let model = Lars::params()
-        .fit_intercept(false)
+        .fit_intercept(true)
         .verbose(2)
         .fit(&train)
         .unwrap();

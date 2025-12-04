@@ -1,3 +1,21 @@
+//! # Least angle regression a.k.a. LAR
+//!
+//! This struct contains the parameters of a fitted LARS model. This includes the seperating
+//! hyperplane, (optionally) intercept, alphas (Maximum of covariances (in absolute value) at each iteration),
+//! Indices of active variables at the end of the path,
+//!
+//!
+//! LARS is similar to forward stepwise regression.
+//! At each step, it finds the feature most correlated with the target.
+//! When there are multiple features having equal correlation, instead of continuing along the same feature,
+//! it proceeds in a direction equiangular between the features.
+//!
+//! ## References
+//!
+//! * ["Least Angle Regression", Efron et al.](https://web.stanford.edu/~hastie/Papers/LARS/LeastAngle_2002.pdf)
+//! * [Wikipedia entry on the Least-angle regression](https://en.wikipedia.org/wiki/Least-angle_regression)
+//! * [Scikit-Learn User Guide](https://scikit-learn.org/stable/modules/linear_model.html#least-angle-regression)
+
 use linfa::{Float, traits::PredictInplace};
 use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
 
@@ -13,17 +31,6 @@ mod hyperparams;
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-/// Least angle regression a.k.a. LAR
-///
-/// This struct contains the parameters of a fitted LARS model. This includes the seperating
-/// hyperplane, (optionally) intercept, alphas (Maximum of covariances (in absolute value) at each iteration),
-/// Indices of active variables at the end of the path,
-///
-///
-/// LARS is similar to forward stepwise regression.
-/// At each step, it finds the feature most correlated with the target.
-/// When there are multiple features having equal correlation, instead of continuing along the same feature,
-/// it proceeds in a direction equiangular between the features.
 #[derive(Debug, Clone)]
 pub struct Lars<F> {
     hyperplane: Array1<F>,
@@ -38,7 +45,7 @@ impl<F: Float> Lars<F> {
     /// Create default Lars hyper parameters
     ///
     /// By default, an intercept will be fitted. To disable fitting an
-    /// intercept, call `.with_intercept(false)` before calling `.fit()`.
+    /// intercept, call `.fit_intercept(false)` before calling `.fit()`.
     ///
     /// The feature matrix will not be normalized by default.
     pub fn params() -> LarsParams<F> {
