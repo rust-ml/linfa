@@ -53,7 +53,7 @@ curl = "0.4.35"
 flate2 = "1.0.20"
 tar = "0.4.33"
 linfa = { version = "0.8.0", path = "../..", features = ["benchmarks"] }
-criterion = "0.5"
+criterion = "0.7"
 statrs = "0.18"
 
 # FIXME: Disabled as dataset link is broken
