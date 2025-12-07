@@ -13,7 +13,7 @@ ndarray = { version = "0.16" }
 ndarray-csv = "=0.5.3"
 csv = "1.1"
 flate2 = "1.0"
-ndarray-rand = { version = "0.15", optional = true }
+ndarray-rand = { version = "0.16", optional = true }
 
 [dev-dependencies]
 approx = "0.5"
