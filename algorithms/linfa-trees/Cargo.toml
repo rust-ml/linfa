@@ -30,7 +30,7 @@ ndarray-rand = "0.15"
 linfa = { version = "0.8.0", path = "../.." }
 
 [dev-dependencies]
-rand = { version = "0.8", features = ["small_rng"] }
+rand = { version = "0.9", features = ["small_rng"] }
 criterion = "0.5"
 approx = "0.5"
 linfa-datasets = { version = "0.8.0", path = "../../datasets/", features = [
