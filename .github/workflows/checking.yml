@@ -31,9 +31,6 @@ jobs:
       - name: Log active toolchain
         run: rustup show
 
-      - name: Update ndarray to 0.16.1 (temporary workaround to avoid pulling ndarray 0.17.1)
-        run: cargo update -p ndarray:0.17.1 --precise 0.16.1
-
       # Check if linfa compiles by itself without uniting dependency features with other crates
       - name: Run cargo check on linfa
         run: cargo check
