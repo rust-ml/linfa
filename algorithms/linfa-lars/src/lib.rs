@@ -14,6 +14,23 @@
 //! * ["Least Angle Regression", Efron et al.](https://web.stanford.edu/~hastie/Papers/LARS/LeastAngle_2002.pdf)
 //! * [Wikipedia entry on the Least-angle regression](https://en.wikipedia.org/wiki/Least-angle_regression)
 //! * [Scikit-Learn User Guide](https://scikit-learn.org/stable/modules/linear_model.html#least-angle-regression)
+//! 
+//! # Examples
+//! ```
+//! use linfa::prelude::*;
+//! use linfa_lars::Lars;
+//! 
+//! // Load the Iris dataset
+//! let dataset = linfa_datasets::diabetes();
+//! 
+//! // Create a LARS model with intercept fitting enabled
+//! let lars = Lars::params().fit_intercept(true).fit(&dataset).unwrap();
+//! 
+//! // Generate predictions using the trained model and compute the R² score of the predictions
+//! let pred = lars.predict(&dataset);
+//! let r2 = pred.r2(&dataset).unwrap();
+//! println!("r2 from prediction: {}", r2);
+//! ```
 
 use linfa::{Float, traits::PredictInplace};
 use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};

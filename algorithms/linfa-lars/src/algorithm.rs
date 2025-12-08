@@ -88,7 +88,7 @@ fn lars_path<F: Float>(
     y: &ArrayView1<F>,
     max_iter: usize,
     eps: F,
-    verbose: usize,
+    verbose: bool,
     alpha_min: F,
 ) -> (Array1<F>, Vec<usize>, Array2<F>, usize) {
     let n_samples = F::from(y.len()).unwrap();
@@ -118,7 +118,7 @@ fn lars_path<F: Float>(
     let mut active: Vec<usize> = vec![];
     let mut drop = false;
 
-    if verbose > 1 {
+    if verbose {
         println!("Step\t\tAdded\t\tDropped\t\tActive set size\t\tC");
     }
 
@@ -128,9 +128,7 @@ fn lars_path<F: Float>(
         let mut c_ = F::zero();
         if !cov.is_empty() {
             c_idx = cov.abs().argmax().unwrap();
-
             c_ = cov[c_idx];
-
             c = c_.abs();
         } else {
             c = F::zero();
@@ -245,7 +243,7 @@ fn lars_path<F: Float>(
             active.push(indices[n_active].to_usize().unwrap());
             n_active += 1;
 
-            if verbose > 1 {
+            if verbose {
                 println!(
                     "{}\t\t{}\t\t{}\t\t\t\t{}",
                     n_iter,
@@ -494,7 +492,7 @@ mod tests {
         let y = array![1.51e+02, 7.5e+01, 1.41e+02, 2.06e+02, 1.35e+02, 9.7e+01, 1.38e+02, 6.3e+01, 1.1e+02, 3.1e+02, 1.01e+02, 6.9e+01, 1.79e+02, 1.85e+02, 1.18e+02, 1.71e+02, 1.66e+02, 1.44e+02, 9.7e+01, 1.68e+02];
         let model = Lars::params()
             .fit_intercept(false)
-            .verbose(2)
+            .verbose(false)
             .fit(&Dataset::new(x, y))
             .unwrap();
 
@@ -549,7 +547,7 @@ mod tests {
         let y = array![2.33e+02, 9.1e+01, 1.11e+02, 1.52e+02, 1.2e+02, 6.70e+01, 3.1e+02, 9.4e+01, 1.83e+02, 6.6e+01, 1.73e+02, 7.2e+01, 4.9e+01, 6.4e+01, 4.8e+01, 1.78e+02, 1.04e+02, 1.32e+02, 2.20e+02, 5.7e+01];
         let model = Lars::params()
             .fit_intercept(false)
-            .verbose(2)
+            .verbose(false)
             .fit(&Dataset::new(x, y))
             .unwrap();
 
@@ -576,7 +574,7 @@ mod tests {
         let dataset = linfa_datasets::diabetes();
         let x = dataset.records().view();
         let y = dataset.targets().view();
-        let (_, _, coefs, _) = lars_path(&x, &y, 500, f64::EPSILON, 0, 0.0);
+        let (_, _, coefs, _) = lars_path(&x, &y, 500, f64::EPSILON, false, 0.0);
 
         for (index, coef_) in coefs.t().axis_iter(ndarray::Axis(0)).enumerate() {
             let res = &y - &x.dot(&coef_);
@@ -600,7 +598,7 @@ mod tests {
         let x = array![[1.0, 1.0], [1.0, 1.0]];
         let y = array![1.0, 1.0];
 
-        let (_, _, coef_path, _) = lars_path(&x.view(), &y.view(), 500, f64::EPSILON, 0, 0.01);
+        let (_, _, coef_path, _) = lars_path(&x.view(), &y.view(), 500, f64::EPSILON, false, 0.01);
 
         assert_abs_diff_eq!(coef_path.t(), array![[0.0, 0.0], [1.0, 0.0]], epsilon = 0.1);
     }
@@ -613,7 +611,7 @@ mod tests {
         let x = Array::random_using((10, 5), Uniform::new(1., 2.), &mut rng);
         let y = Array1::zeros(10);
 
-        let (_, _, coef_path, _) = lars_path(&x.view(), &y.view(), 500, f64::EPSILON, 0, 0.0);
+        let (_, _, coef_path, _) = lars_path(&x.view(), &y.view(), 500, f64::EPSILON, false, 0.0);
 
         assert_abs_diff_eq!(coef_path, Array2::zeros(coef_path.raw_dim()));
 

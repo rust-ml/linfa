@@ -1,8 +1,8 @@
 [package]
 name = "linfa-lars"
 version = "0.8.0"
-
-description = "A Machine Learning framework for Rust"
+authors = ["aswin <aswinak1111@gmail.com>"]
+description = "Least Angle Regression methods"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 
@@ -17,7 +17,6 @@ default = []
 serde = ["serde_crate", "ndarray/serde", "linfa/serde"]
 blas = ["ndarray-linalg", "linfa/ndarray-linalg"]
 
-
 [dependencies.serde_crate]
 package = "serde"
 optional = true
@@ -25,17 +24,13 @@ version = "1.0"
 default-features = false
 features = ["std", "derive"]
 
-
 [dependencies]
-
 linfa = { version = "0.8.0", path = "../.." }
 linfa-linalg = { version = "0.2", default-features = false }
 linfa-preprocessing = { version = "0.8.0" , path = "../linfa-preprocessing"}
-
 ndarray = { version = "0.16", features = ["approx"] }
 ndarray-linalg = { version = "0.17", optional = true }
 ndarray-stats = "0.6"
-
 thiserror = "2.0"
 
 [dev-dependencies]

@@ -8,10 +8,22 @@ use crate::error::LarsError;
     serde(crate = "serde_crate")
 )]
 pub struct LarsValidParams<F> {
+    /// Whether to calculate the intercept for this model. If set
+    /// to false, no intercept will be used in calculations
+    /// If true, the data will be centered before fitting.
     fit_intercept: bool,
+
+    /// The maximum number of non-zero coefficients allowed in the solution.  
+    /// Limits the number of selected features during the LARS path.
     n_nonzero_coefs: usize,
+
+    /// The machine-precision regularization in the computation of the
+    /// Cholesky diagonal factors. Increase this for very ill-conditioned
+    /// systems.
     eps: F,
-    verbose: usize,
+
+    /// Enables verbose output during fitting.
+    verbose: bool,
 }
 
 pub struct LarsParams<F>(LarsValidParams<F>);
@@ -25,7 +37,7 @@ impl<F: Float> LarsValidParams<F> {
         self.n_nonzero_coefs
     }
 
-    pub fn verbose(&self) -> usize {
+    pub fn verbose(&self) -> bool {
         self.verbose
     }
 
@@ -52,7 +64,7 @@ impl<F: Float> LarsParams<F> {
             fit_intercept: true,
             n_nonzero_coefs: 500,
             eps: F::epsilon(),
-            verbose: 1,
+            verbose: false,
         })
     }
 
@@ -80,9 +92,8 @@ impl<F: Float> LarsParams<F> {
         self
     }
 
-    /// Set the verbosity amount.
-    /// 1 -> Low 2 -> High
-    pub fn verbose(mut self, verbose: usize) -> Self {
+    /// Set output verbosity.
+    pub fn verbose(mut self, verbose: bool) -> Self {
         self.0.verbose = verbose;
         self
     }

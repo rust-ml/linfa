@@ -7,7 +7,7 @@ fn main() {
 
     let model = Lars::params()
         .fit_intercept(true)
-        .verbose(2)
+        .verbose(true)
         .fit(&train)
         .unwrap();
 
