@@ -354,11 +354,11 @@ fn lars_path<F: Float>(
 
         n_iter += 1;
 
-        if n_iter >= coefs.shape()[0] {
+        if n_iter >= coefs.nrows() {
             let add_features = 2 * (max_features - n_active).max(1);
 
             let mut new_coefs = Array2::<F>::zeros((n_iter + add_features, n_features));
-            let old_shape = coefs.shape()[0];
+            let old_shape = coefs.nrows();
             new_coefs.slice_mut(s![..old_shape, ..]).assign(&coefs);
 
             coefs = new_coefs;
@@ -584,10 +584,10 @@ mod tests {
             let eps = 1e-3;
             let threshold = cap_c - eps;
             let ocur = cov.iter().filter(|v| v.abs() >= threshold).count();
-            if index < x.shape()[1] {
+            if index < x.ncols() {
                 assert!(ocur == index + 1);
             } else {
-                assert!(ocur == x.shape()[1]);
+                assert!(ocur == x.ncols();
             }
         }
     }
