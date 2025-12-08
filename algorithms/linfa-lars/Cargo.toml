@@ -1,7 +1,7 @@
 [package]
 name = "linfa-lars"
 version = "0.8.0"
-authors = ["aswin <aswinak1111@gmail.com>"]
+authors = ["Aswin <aswinak1111@gmail.com>"]
 description = "Least Angle Regression methods"
 edition = "2024"
 license = "MIT OR Apache-2.0"

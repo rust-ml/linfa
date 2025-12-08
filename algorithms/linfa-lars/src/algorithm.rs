@@ -587,7 +587,7 @@ mod tests {
             if index < x.ncols() {
                 assert!(ocur == index + 1);
             } else {
-                assert!(ocur == x.ncols();
+                assert!(ocur == x.ncols());
             }
         }
     }
