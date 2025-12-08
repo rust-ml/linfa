@@ -6,7 +6,7 @@
 //! This crate (`linfa-ensemble`), provides pure Rust implementations of popular ensemble techniques, such as
 //! * [Boostrap Aggregation](EnsembleLearner)
 //! * [Random Forest](RandomForest)
-//! * [AdaBoost](AdaBoost)
+//! * [AdaBoost]
 //!
 //! ## Bootstrap Aggregation (aka Bagging)
 //!
