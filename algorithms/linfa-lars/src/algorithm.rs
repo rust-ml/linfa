@@ -197,24 +197,12 @@ fn lars_path<F: Float>(
                 .assign(&gram.slice(s![n_active, 0..n_active]));
 
             if n_active != 0 {
-                let mut l_sub = l.slice(s![..n_active, ..n_active]).to_owned().with_lapack();
+                let l_sub = l.slice(s![..n_active, ..n_active]).to_owned().with_lapack();
                 let mut b = l
                     .slice(s![n_active, ..n_active])
                     .insert_axis(Axis(1))
                     .to_owned()
                     .with_lapack();
-
-                if l_sub.strides() == [0, 0] {
-                    let dimen = l_sub.clone().raw_dim();
-                    let l_sub_c = l_sub.clone();
-                    let (data, _offset) = l_sub_c.into_raw_vec_and_offset();
-                    l_sub = Array2::from_shape_vec(dimen, data).unwrap();
-
-                    let dimen_b = l_sub.clone().raw_dim();
-                    let b_c = b.clone();
-                    let (data, _offset) = b_c.into_raw_vec_and_offset();
-                    b = Array2::from_shape_vec(dimen_b, data).unwrap();
-                }
 
                 #[cfg(not(feature = "blas"))]
                 l_sub.solve_triangular_inplace(&mut b, UPLO::Lower).unwrap();
