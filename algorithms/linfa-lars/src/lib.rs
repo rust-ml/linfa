@@ -20,7 +20,7 @@
 //! use linfa::prelude::*;
 //! use linfa_lars::Lars;
 //!
-//! // Load the Iris dataset
+//! // Load the Diabetes dataset
 //! let dataset = linfa_datasets::diabetes();
 //!
 //! // Create a LARS model with intercept fitting enabled
