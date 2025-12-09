@@ -226,8 +226,8 @@ mod tests {
 
     #[test]
     fn test_adaboost_early_stopping_on_perfect_fit() {
-        use ndarray::Array2;
         use linfa::DatasetBase;
+        use ndarray::Array2;
 
         // Create a simple linearly separable dataset
         let records = Array2::from_shape_vec(
@@ -261,15 +261,12 @@ mod tests {
 
     #[test]
     fn test_adaboost_single_class_error() {
-        use ndarray::Array2;
         use linfa::DatasetBase;
+        use ndarray::Array2;
 
         // Create dataset with only one class
-        let records = Array2::from_shape_vec(
-            (4, 2),
-            vec![0.0, 0.0, 0.1, 0.1, 0.2, 0.2, 0.3, 0.3],
-        )
-        .unwrap();
+        let records =
+            Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 0.1, 0.1, 0.2, 0.2, 0.3, 0.3]).unwrap();
         let targets = ndarray::array![0, 0, 0, 0]; // All same class
         let dataset = DatasetBase::new(records, targets);
 
@@ -278,10 +275,7 @@ mod tests {
             .n_estimators(10)
             .fit(&dataset);
 
-        assert!(
-            result.is_err(),
-            "Should fail with single class dataset"
-        );
+        assert!(result.is_err(), "Should fail with single class dataset");
     }
 
     #[test]
