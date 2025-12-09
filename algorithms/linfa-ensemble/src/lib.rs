@@ -223,4 +223,82 @@ mod tests {
         // Verify we have the expected number of models
         assert_eq!(model.n_estimators(), 10);
     }
+
+    #[test]
+    fn test_adaboost_early_stopping_on_perfect_fit() {
+        use ndarray::Array2;
+        use linfa::DatasetBase;
+
+        // Create a simple linearly separable dataset
+        let records = Array2::from_shape_vec(
+            (6, 2),
+            vec![
+                0.0, 0.0, // class 0
+                0.1, 0.1, // class 0
+                0.2, 0.2, // class 0
+                1.0, 1.0, // class 1
+                1.1, 1.1, // class 1
+                1.2, 1.2, // class 1
+            ],
+        )
+        .unwrap();
+        let targets = ndarray::array![0, 0, 0, 1, 1, 1];
+        let dataset = DatasetBase::new(records, targets);
+
+        let rng = SmallRng::seed_from_u64(42);
+        let model = AdaBoostParams::new_fixed_rng(DecisionTree::params().max_depth(Some(3)), rng)
+            .n_estimators(50)
+            .fit(&dataset)
+            .unwrap();
+
+        // Should stop early due to perfect classification
+        assert!(
+            model.n_estimators() < 50,
+            "Expected early stopping, but got {} estimators",
+            model.n_estimators()
+        );
+    }
+
+    #[test]
+    fn test_adaboost_single_class_error() {
+        use ndarray::Array2;
+        use linfa::DatasetBase;
+
+        // Create dataset with only one class
+        let records = Array2::from_shape_vec(
+            (4, 2),
+            vec![0.0, 0.0, 0.1, 0.1, 0.2, 0.2, 0.3, 0.3],
+        )
+        .unwrap();
+        let targets = ndarray::array![0, 0, 0, 0]; // All same class
+        let dataset = DatasetBase::new(records, targets);
+
+        let rng = SmallRng::seed_from_u64(42);
+        let result = AdaBoostParams::new_fixed_rng(DecisionTree::params(), rng)
+            .n_estimators(10)
+            .fit(&dataset);
+
+        assert!(
+            result.is_err(),
+            "Should fail with single class dataset"
+        );
+    }
+
+    #[test]
+    fn test_adaboost_classes_method() {
+        let mut rng = SmallRng::seed_from_u64(42);
+        let (train, _) = linfa_datasets::iris()
+            .shuffle(&mut rng)
+            .split_with_ratio(0.8);
+
+        let model = AdaBoostParams::new_fixed_rng(DecisionTree::params().max_depth(Some(1)), rng)
+            .n_estimators(10)
+            .fit(&train)
+            .unwrap();
+
+        // Verify classes are properly stored
+        let classes = &model.classes;
+        assert_eq!(classes.len(), 3, "Iris has 3 classes");
+        assert_eq!(classes, &vec![0, 1, 2], "Classes should be [0, 1, 2]");
+    }
 }
