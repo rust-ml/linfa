@@ -25,7 +25,7 @@ features = ["derive"]
 
 [dependencies]
 ndarray = { version = "0.16", features = ["serde"] }
-ndarray-rand = "0.15.0"
+ndarray-rand = "0.16.0"
 argmin = { version = "0.11.0", default-features = false }
 argmin-math = { version = "0.5", features = ["ndarray_v0_16-nolinalg"] }
 thiserror = "2.0"
