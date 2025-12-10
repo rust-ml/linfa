@@ -15,7 +15,7 @@ categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
 thiserror = "2.0"
-ndarray = { version = "0.16" }
+ndarray = { version = "0.17" }
 ndarray-rand = "0.15"
 bhtsne = "0.4.0"
 pdqselect = "=0.1.1"

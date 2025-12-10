@@ -19,7 +19,7 @@ serde = ["serde_crate", "ndarray/serde", "serde_regex"]
 
 [dependencies]
 linfa = { version = "0.8.0", path = "../.." }
-ndarray = { version = "0.16", features = ["approx"] }
+ndarray = { version = "0.17", features = ["approx"] }
 ndarray-linalg = { version = "0.17", optional = true }
 linfa-linalg = { version = "0.2", default-features = false }
 ndarray-stats = "0.6"
