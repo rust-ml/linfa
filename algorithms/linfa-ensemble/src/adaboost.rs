@@ -6,9 +6,9 @@ use linfa::{
     DatasetBase,
 };
 use ndarray::{Array1, Array2, Axis};
-use rand::distributions::WeightedIndex;
-use rand::prelude::*;
-use rand::Rng;
+use ndarray_rand::rand::distributions::WeightedIndex;
+use ndarray_rand::rand::prelude::*;
+use ndarray_rand::rand::Rng;
 use std::{cmp::Eq, collections::HashMap, hash::Hash};
 
 /// A fitted AdaBoost ensemble classifier.
@@ -72,16 +72,16 @@ use std::{cmp::Eq, collections::HashMap, hash::Hash};
 /// * [Scikit-Learn AdaBoost Documentation](https://scikit-learn.org/stable/modules/ensemble.html#adaboost)
 /// * [An Introduction to Statistical Learning](https://www.statlearning.com/), Chapter 8
 #[derive(Debug, Clone)]
-pub struct AdaBoost<M> {
+pub struct AdaBoost<M, L> {
     /// The fitted base learner models
     pub models: Vec<M>,
     /// The weight (alpha) for each model in the ensemble
     pub model_weights: Vec<f64>,
-    /// The classes seen during training (needed for prediction)
-    pub classes: Vec<usize>,
+    /// The unique class labels seen during training
+    pub classes: Vec<L>,
 }
 
-impl<M> AdaBoost<M> {
+impl<M, L> AdaBoost<M, L> {
     /// Returns the number of estimators in the ensemble
     pub fn n_estimators(&self) -> usize {
         self.models.len()
@@ -93,7 +93,7 @@ impl<M> AdaBoost<M> {
     }
 }
 
-impl<F: Clone, T, M> PredictInplace<Array2<F>, T> for AdaBoost<M>
+impl<F: Clone, T, M, L> PredictInplace<Array2<F>, T> for AdaBoost<M, L>
 where
     M: PredictInplace<Array2<F>, T>,
     <T as AsTargets>::Elem: Copy + Eq + Hash + std::fmt::Debug + Into<usize>,
@@ -117,7 +117,6 @@ where
         }
 
         // Create a map for each sample to accumulate weighted votes
-        let y_array = y.as_targets();
         let mut prediction_maps = y_array.map(|_| HashMap::new());
 
         // Accumulate weighted predictions from each model
@@ -163,7 +162,7 @@ where
     R: Rng + Clone,
     usize: Into<T::Elem>,
 {
-    type Object = AdaBoost<P::Object>;
+    type Object = AdaBoost<P::Object, T::Elem>;
 
     fn fit(
         &self,
@@ -177,15 +176,16 @@ where
             ));
         }
 
-        // Extract classes from target array
+        // Extract unique class labels from target array
         let target_array = dataset.targets.as_targets();
-        let mut classes_set: Vec<usize> = target_array
+        let mut classes_set: Vec<T::Elem> = target_array
             .iter()
-            .map(|&x| x.into())
+            .copied()
             .collect::<std::collections::HashSet<_>>()
             .into_iter()
             .collect();
-        classes_set.sort_unstable();
+        // Sort by converting to usize for ordering
+        classes_set.sort_unstable_by_key(|x| (*x).into());
 
         if classes_set.len() < 2 {
             return Err(Error::Parameters(
@@ -193,8 +193,8 @@ where
             ));
         }
 
-        // Initialize sample weights uniformly (as f32 to match linfa's DatasetBase::with_weights)
-        let mut sample_weights = Array1::<f32>::from_elem(n_samples, 1.0 / n_samples as f32);
+        // Initialize sample weights uniformly
+        let mut sample_weights = Array1::<f64>::from_elem(n_samples, 1.0 / n_samples as f64);
 
         let mut models = Vec::with_capacity(self.n_estimators);
         let mut model_weights = Vec::with_capacity(self.n_estimators);
@@ -203,7 +203,7 @@ where
 
         for iteration in 0..self.n_estimators {
             // Normalize weights to sum to 1
-            let weight_sum: f32 = sample_weights.sum();
+            let weight_sum: f64 = sample_weights.sum();
             if weight_sum <= 0.0 {
                 return Err(Error::NotConverged(format!(
                     "Sample weights sum to zero at iteration {}",
@@ -229,10 +229,10 @@ where
             let bootstrap_dataset = DatasetBase::new(bootstrap_records, bootstrap_targets);
 
             // Fit base learner on resampled dataset
-            let model = self.model_params.fit(&bootstrap_dataset).map_err(|_| {
+            let model = self.model_params.fit(&bootstrap_dataset).map_err(|e| {
                 Error::NotConverged(format!(
-                    "Base learner failed to fit at iteration {}",
-                    iteration
+                    "Base learner failed to fit at iteration {}: {}",
+                    iteration, e
                 ))
             })?;
 
@@ -242,7 +242,7 @@ where
             let pred_array = predictions.as_targets();
 
             // Calculate weighted error
-            let mut weighted_error = 0.0f32;
+            let mut weighted_error = 0.0f64;
             for ((true_label, pred_label), weight) in target_array
                 .iter()
                 .zip(pred_array.iter())
@@ -268,7 +268,7 @@ where
             let k = classes_set.len() as f64;
             let error_threshold = (k - 1.0) / k;
 
-            if weighted_error as f64 >= error_threshold {
+            if weighted_error >= error_threshold {
                 // Worse than random guessing for multi-class - don't add this model
                 if models.is_empty() {
                     return Err(Error::NotConverged(format!(
@@ -282,7 +282,7 @@ where
             // Calculate model weight (alpha) using SAMME algorithm
             // For multi-class: alpha = learning_rate * (log((1 - error) / error) + log(K - 1))
             // where K is number of classes
-            let error_ratio = (1.0 - weighted_error as f64) / weighted_error as f64;
+            let error_ratio = (1.0 - weighted_error) / weighted_error;
             let alpha = self.learning_rate * (error_ratio.ln() + (k - 1.0).ln());
 
             // Update sample weights
@@ -296,7 +296,7 @@ where
 
                 if true_idx != pred_idx {
                     // Increase weight for misclassified samples
-                    *weight *= ((alpha / self.learning_rate) as f32).exp();
+                    *weight *= alpha.exp();
                 }
             }
 

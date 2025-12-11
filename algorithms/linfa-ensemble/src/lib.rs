@@ -225,6 +225,48 @@ mod tests {
     }
 
     #[test]
+    fn test_adaboost_different_learning_rates() {
+        // Test that different learning rates produce different model weights
+        let rng1 = SmallRng::seed_from_u64(42);
+        let rng2 = SmallRng::seed_from_u64(42);
+        let (train, _) = linfa_datasets::iris()
+            .shuffle(&mut SmallRng::seed_from_u64(42))
+            .split_with_ratio(0.8);
+
+        // Train with learning_rate = 1.0
+        let model1 = AdaBoostParams::new_fixed_rng(DecisionTree::params().max_depth(Some(1)), rng1)
+            .n_estimators(10)
+            .learning_rate(1.0)
+            .fit(&train)
+            .unwrap();
+
+        // Train with learning_rate = 0.5
+        let model2 = AdaBoostParams::new_fixed_rng(DecisionTree::params().max_depth(Some(1)), rng2)
+            .n_estimators(10)
+            .learning_rate(0.5)
+            .fit(&train)
+            .unwrap();
+
+        // Model weights should be different
+        let weights1 = model1.weights();
+        let weights2 = model2.weights();
+
+        // At least one weight should be significantly different
+        let mut has_difference = false;
+        for (w1, w2) in weights1.iter().zip(weights2.iter()) {
+            if (w1 - w2).abs() > 0.01 {
+                has_difference = true;
+                break;
+            }
+        }
+
+        assert!(
+            has_difference,
+            "Different learning rates should produce different model weights"
+        );
+    }
+
+    #[test]
     fn test_adaboost_early_stopping_on_perfect_fit() {
         use linfa::DatasetBase;
         use ndarray::Array2;
