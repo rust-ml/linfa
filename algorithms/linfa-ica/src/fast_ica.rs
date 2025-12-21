@@ -237,7 +237,7 @@ impl GFunc {
     }
 
     fn exp<A: Float>(x: &Array2<A>) -> (Array2<A>, Array1<A>) {
-        let exp = x.mapv(|x| -x.powi(2) / A::cast(2.));
+        let exp = x.mapv(|x| (-x.powi(2) / A::cast(2.)).exp());
         (
             x * &exp,
             (x.mapv(|x| A::cast(1.) - x.powi(2)) * &exp)
