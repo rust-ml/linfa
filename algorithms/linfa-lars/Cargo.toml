@@ -25,7 +25,7 @@ default-features = false
 features = ["std", "derive"]
 
 [dependencies]
-linfa = { version = "0.8.0", path = "../.." }
+linfa = { version = "0.8.1", path = "../.." }
 linfa-linalg = { version = "0.2", default-features = false }
 linfa-preprocessing = { version = "0.8.0" , path = "../linfa-preprocessing"}
 ndarray = { version = "0.16", features = ["approx"] }

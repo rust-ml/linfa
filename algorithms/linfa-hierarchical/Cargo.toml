@@ -24,7 +24,7 @@ ndarray = { version = "0.16" }
 kodama = "0.2"
 thiserror = "2"
 
-linfa = { version = "0.8.0", path = "../.." }
+linfa = { version = "0.8.1", path = "../.." }
 linfa-kernel = { version = "0.8.0", path = "../linfa-kernel" }
 
 [dev-dependencies]
