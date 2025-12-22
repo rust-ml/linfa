@@ -1,9 +1,22 @@
+Version 0.8.1 - 2025-12-22
+==========================
+New Algorithms
+--------------
+ * Least angle regression in a new `linfa-lars` crate by [@aswin-1111]
+ * Random Forest in `linfa-ensemble` by [@ladezai]
+ * AdaBoost in `linfa-ensemble` by [@rathideep22]
+
+Changes
+-------
+ * fix ndarray version mismatch
+ * fix missing exponential in `linfa-ica`
+
 Version 0.8.0 - 2025-09-30
 ==========================
 New Algorithms
 --------------
- * Bernouilli naive bayes in [linfa-bayes] by [@wildart]
- * Bootstrap aggregation (aka Bagging) in new ensemble methods crate [linfa-ensemble] by [@jk1015]
+ * Bernouilli naive bayes in `linfa-bayes` by [@wildart]
+ * Bootstrap aggregation (aka Bagging) in new ensemble methods crate `linfa-ensemble` by [@jk1015]
 
 Changes
 -------
