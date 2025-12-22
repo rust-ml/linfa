@@ -194,7 +194,7 @@ where
         }
 
         // Initialize sample weights uniformly
-        let mut sample_weights = Array1::<f64>::from_elem(n_samples, 1.0 / n_samples as f64);
+        let mut sample_weights = Array1::from_elem(n_samples, 1.0 / n_samples as f64);
 
         let mut models = Vec::with_capacity(self.n_estimators);
         let mut model_weights = Vec::with_capacity(self.n_estimators);
@@ -203,7 +203,7 @@ where
 
         for iteration in 0..self.n_estimators {
             // Normalize weights to sum to 1
-            let weight_sum: f64 = sample_weights.sum();
+            let weight_sum = sample_weights.sum();
             if weight_sum <= 0.0 {
                 return Err(Error::NotConverged(format!(
                     "Sample weights sum to zero at iteration {}",
@@ -242,7 +242,7 @@ where
             let pred_array = predictions.as_targets();
 
             // Calculate weighted error
-            let mut weighted_error = 0.0f64;
+            let mut weighted_error = 0.0;
             for ((true_label, pred_label), weight) in target_array
                 .iter()
                 .zip(pred_array.iter())
