@@ -1,0 +1,42 @@
+[package]
+name = "linfa-lars"
+version = "0.8.0"
+authors = ["Aswin <aswinak1111@gmail.com>"]
+description = "Least Angle Regression methods"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+repository = "https://github.com/rust-ml/linfa"
+readme = "README.md"
+
+keywords = ["machine-learning", "linfa", "ai", "ml", "linear"]
+categories = ["algorithms", "mathematics", "science"]
+
+[features]
+default = []
+serde = ["serde_crate", "ndarray/serde", "linfa/serde"]
+blas = ["ndarray-linalg", "linfa/ndarray-linalg"]
+
+[dependencies.serde_crate]
+package = "serde"
+optional = true
+version = "1.0"
+default-features = false
+features = ["std", "derive"]
+
+[dependencies]
+linfa = { version = "0.8.0", path = "../.." }
+linfa-linalg = { version = "0.2", default-features = false }
+linfa-preprocessing = { version = "0.8.0" , path = "../linfa-preprocessing"}
+ndarray = { version = "0.16", features = ["approx"] }
+ndarray-linalg = { version = "0.17", optional = true }
+ndarray-stats = "0.6"
+thiserror = "2.0"
+
+[dev-dependencies]
+linfa-datasets = { version = "0.8.0", path = "../../datasets", features = [
+    "diabetes",
+] }
+approx = "0.5"
+ndarray-rand = "0.15"
+rand_xoshiro = "0.6"
