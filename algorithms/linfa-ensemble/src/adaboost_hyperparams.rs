@@ -20,7 +20,7 @@ use rand::Rng;
 /// * `model_params`: The parameters for the base learner (weak classifier). Typically, shallow
 ///   decision trees (stumps with max_depth=1 or max_depth=2) are used as weak learners.
 ///
-/// * `rng`: Random number generator used for tie-breaking and reproducibility.
+/// * `rng`: Random number generator used for bootstrap sampling and reproducibility.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct AdaBoostValidParams<P, R> {
     /// The maximum number of estimators to train
