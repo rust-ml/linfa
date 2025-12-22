@@ -11,6 +11,9 @@ use ndarray_rand::rand::prelude::*;
 use ndarray_rand::rand::Rng;
 use std::{cmp::Eq, collections::HashMap, hash::Hash};
 
+/// Huge weight used to favor model with perfect predictions
+const PERFECT_MODEL_WEIGHT: f64 = 1e6;
+
 /// A fitted AdaBoost ensemble classifier.
 ///
 /// ## Structure
@@ -259,7 +262,7 @@ where
             // Handle edge cases for weighted error
             if weighted_error <= 0.0 {
                 // Perfect prediction - add model with maximum weight and stop
-                model_weights.push(10.0); // Large weight for perfect classifier
+                model_weights.push(PERFECT_MODEL_WEIGHT); // Large weight for perfect model
                 models.push(model);
                 break;
             }
