@@ -1,6 +1,6 @@
 [package]
 name = "linfa-ftrl"
-version = "0.8.0"
+version = "0.8.1"
 authors = ["Liudmyla Kyrashchuk <himila@tutanota.com>"]
 
 description = "A Machine Learning framework for Rust"
@@ -37,7 +37,7 @@ linfa = { version = "0.8.1", path = "../.." }
 [dev-dependencies]
 criterion = "0.5"
 approx = "0.5"
-linfa-datasets = { version = "0.8.0", path = "../../datasets", features = [
+linfa-datasets = { version = "0.8.1", path = "../../datasets", features = [
     "winequality",
 ] }
 linfa = { version = "0.8.1", path = "../..", features = ["benchmarks"] }

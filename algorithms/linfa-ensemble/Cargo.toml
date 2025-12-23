@@ -1,6 +1,6 @@
 [package]
 name = "linfa-ensemble"
-version = "0.8.0"
+version = "0.8.1"
 edition = "2018"
 authors = [
     "James Knight <jamesknight@hadean.com>",
@@ -32,9 +32,9 @@ ndarray-rand = "0.15"
 rand = "0.8.5"
 
 linfa = { version = "0.8.1", path = "../.." }
-linfa-trees = { version = "0.8.0", path = "../linfa-trees" }
+linfa-trees = { version = "0.8.1", path = "../linfa-trees" }
 
 [dev-dependencies]
-linfa-datasets = { version = "0.8.0", path = "../../datasets/", features = [
+linfa-datasets = { version = "0.8.1", path = "../../datasets/", features = [
     "iris",
 ] }

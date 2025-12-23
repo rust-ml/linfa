@@ -1,6 +1,6 @@
 [package]
 name = "linfa-lars"
-version = "0.8.0"
+version = "0.8.1"
 authors = ["Aswin <aswinak1111@gmail.com>"]
 description = "Least Angle Regression methods"
 edition = "2024"
@@ -27,14 +27,14 @@ features = ["std", "derive"]
 [dependencies]
 linfa = { version = "0.8.1", path = "../.." }
 linfa-linalg = { version = "0.2", default-features = false }
-linfa-preprocessing = { version = "0.8.0" , path = "../linfa-preprocessing"}
+linfa-preprocessing = { version = "0.8.1", path = "../linfa-preprocessing"}
 ndarray = { version = "0.16", features = ["approx"] }
 ndarray-linalg = { version = "0.17", optional = true }
 ndarray-stats = "0.6"
 thiserror = "2.0"
 
 [dev-dependencies]
-linfa-datasets = { version = "0.8.0", path = "../../datasets", features = [
+linfa-datasets = { version = "0.8.1", path = "../../datasets", features = [
     "diabetes",
 ] }
 approx = "0.5"

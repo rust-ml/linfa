@@ -1,6 +1,6 @@
 [package]
 name = "linfa-pls"
-version = "0.8.0"
+version = "0.8.1"
 edition = "2018"
 authors = ["relf <remi.lafage@onera.fr>"]
 description = "Partial Least Squares family methods"
@@ -37,7 +37,7 @@ linfa = { version = "0.8.1", path = "../.." }
 
 [dev-dependencies]
 linfa = { version = "0.8.1", path = "../..", features = ["benchmarks"] }
-linfa-datasets = { version = "0.8.0", path = "../../datasets", features = [
+linfa-datasets = { version = "0.8.1", path = "../../datasets", features = [
     "linnerud",
 ] }
 approx = "0.5"
