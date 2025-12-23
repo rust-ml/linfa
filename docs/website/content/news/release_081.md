@@ -3,7 +3,7 @@ title = "Release 0.8.1"
 date = "2025-12-23"
 +++
 
-`linfa 0.8.1` adds random forest, and AdaBoost boosting algorithms in `linfa-ensemble` and least angle regression in a new `linfa-lars` crate.
+Linfa's 0.8.1 release adds Random Forest and AdaBoost boosting algorithms in `linfa-ensemble` and Least Angle Regression in the new `linfa-lars` crate.
 
 <!-- more -->
 
@@ -28,7 +28,7 @@ Ensemble methods combine the predictions of several base estimators built with a
 
 #### Random Forest
 
-See [sklearn.ensemble forest](https://scikit-learn.org/stable/modules/ensemble.html#forest)
+See [sklearn.ensemble Random Forests](https://scikit-learn.org/stable/modules/ensemble.html#forest)
 
 #### AdaBoost 
 
