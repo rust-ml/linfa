@@ -8,6 +8,7 @@ New Algorithms
 
 Changes
 -------
+ * add bootstrap-with-indices utilities for `Dataset`
  * fix ndarray version mismatch
  * fix missing exponential in `linfa-ica`
 
