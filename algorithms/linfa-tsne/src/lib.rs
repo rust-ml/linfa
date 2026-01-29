@@ -1,8 +1,8 @@
 #![doc = include_str!("../README.md")]
+use std::convert::TryFrom;
 
-use ndarray::Array2;
-use ndarray_rand::rand::Rng;
-use ndarray_rand::rand_distr::Normal;
+use linfa_nn::distance::Distance;
+use ndarray::{Array2, ArrayView1};
 
 use linfa::{dataset::DatasetBase, traits::Transformer, Float, ParamGuard};
 
@@ -12,14 +12,18 @@ mod hyperparams;
 pub use error::{Result, TSneError};
 pub use hyperparams::{TSneParams, TSneValidParams};
 
-impl<F: Float, R: Rng + Clone> Transformer<Array2<F>, Result<Array2<F>>> for TSneValidParams<F, R> {
-    fn transform(&self, mut data: Array2<F>) -> Result<Array2<F>> {
+impl<F: Float, D: Distance<F>> Transformer<Array2<F>, Result<Array2<F>>> for TSneValidParams<F, D> {
+    fn transform(&self, data: Array2<F>) -> Result<Array2<F>> {
         let (nfeatures, nsamples) = (data.ncols(), data.nrows());
 
         // validate parameter-data constraints
         if self.embedding_size() > nfeatures {
             return Err(TSneError::EmbeddingSizeTooLarge);
         }
+
+        let Ok(embedding_size) = u8::try_from(self.embedding_size()) else {
+            return Err(TSneError::EmbeddingSizeTooLarge);
+        };
 
         if F::cast(nsamples - 1) < F::cast(3) * self.perplexity() {
             return Err(TSneError::PerplexityTooLarge);
@@ -31,43 +35,47 @@ impl<F: Float, R: Rng + Clone> Transformer<Array2<F>, Result<Array2<F>>> for TSn
             None => usize::min(self.max_iter() / 2, 250),
         };
 
-        let data = data.as_slice_mut().unwrap();
+        let data: Vec<_> = data.as_slice().unwrap().chunks(nfeatures).collect();
 
-        let mut rng = self.rng().clone();
-        let normal = Normal::new(0.0, 1e-4 * 10e-4).unwrap();
+        let mut tsne = bhtsne::tSNE::new(&data);
+        let tsne = tsne
+            .embedding_dim(embedding_size)
+            .perplexity(self.perplexity())
+            .epochs(self.max_iter())
+            .stop_lying_epoch(preliminary_iter)
+            .momentum_switch_epoch(preliminary_iter);
 
-        let mut embedding: Vec<F> = (0..nsamples * self.embedding_size())
-            .map(|_| rng.sample(normal))
-            .map(F::cast)
-            .collect();
+        let tsne = if self.approx_threshold() <= F::zero() {
+            // compute exact t-SNE
+            tsne.exact(|a, b| {
+                let a = ArrayView1::from(a);
+                let b = ArrayView1::from(b);
+                self.metric().distance(a, b)
+            })
+        } else {
+            // compute barnes-hut t-SNE
+            tsne.barnes_hut(self.approx_threshold(), |a, b| {
+                let a = ArrayView1::from(a);
+                let b = ArrayView1::from(b);
+                self.metric().distance(a, b)
+            })
+        };
 
-        bhtsne::run(
-            data,
-            nsamples,
-            nfeatures,
-            &mut embedding,
-            self.embedding_size(),
-            self.perplexity(),
-            self.approx_threshold(),
-            true,
-            self.max_iter() as u64,
-            preliminary_iter as u64,
-            preliminary_iter as u64,
-        );
+        let embedding = tsne.embedding();
 
         Array2::from_shape_vec((nsamples, self.embedding_size()), embedding).map_err(|e| e.into())
     }
 }
 
-impl<F: Float, R: Rng + Clone> Transformer<Array2<F>, Result<Array2<F>>> for TSneParams<F, R> {
+impl<F: Float, D: Distance<F>> Transformer<Array2<F>, Result<Array2<F>>> for TSneParams<F, D> {
     fn transform(&self, x: Array2<F>) -> Result<Array2<F>> {
         self.check_ref()?.transform(x)
     }
 }
 
-impl<T, F: Float, R: Rng + Clone>
+impl<T, F: Float, D: Distance<F>>
     Transformer<DatasetBase<Array2<F>, T>, Result<DatasetBase<Array2<F>, T>>>
-    for TSneValidParams<F, R>
+    for TSneValidParams<F, D>
 {
     fn transform(&self, ds: DatasetBase<Array2<F>, T>) -> Result<DatasetBase<Array2<F>, T>> {
         let DatasetBase {
@@ -82,8 +90,8 @@ impl<T, F: Float, R: Rng + Clone>
     }
 }
 
-impl<T, F: Float, R: Rng + Clone>
-    Transformer<DatasetBase<Array2<F>, T>, Result<DatasetBase<Array2<F>, T>>> for TSneParams<F, R>
+impl<T, F: Float, D: Distance<F>>
+    Transformer<DatasetBase<Array2<F>, T>, Result<DatasetBase<Array2<F>, T>>> for TSneParams<F, D>
 {
     fn transform(&self, ds: DatasetBase<Array2<F>, T>) -> Result<DatasetBase<Array2<F>, T>> {
         self.check_ref()?.transform(ds)
@@ -103,17 +111,16 @@ mod tests {
     #[test]
     fn autotraits() {
         fn has_autotraits<T: Send + Sync + Sized + Unpin>() {}
-        has_autotraits::<TSneParams<f64, rand::distributions::Uniform<f64>>>();
-        has_autotraits::<TSneValidParams<f64, rand::distributions::Uniform<f64>>>();
+        has_autotraits::<TSneParams<f64, linfa_nn::distance::L2Dist>>();
+        has_autotraits::<TSneValidParams<f64, linfa_nn::distance::L2Dist>>();
         has_autotraits::<TSneError>();
     }
 
     #[test]
     fn iris_separate() -> Result<()> {
         let ds = linfa_datasets::iris();
-        let rng = SmallRng::seed_from_u64(42);
 
-        let ds = TSneParams::embedding_size_with_rng(2, rng)
+        let ds = TSneParams::embedding_size(2)
             .perplexity(10.0)
             .approx_threshold(0.0)
             .transform(ds)?;
@@ -137,7 +144,7 @@ mod tests {
         let targets = (0..200).map(|x| x < 100).collect::<Array1<_>>();
         let dataset = Dataset::new(entries, targets);
 
-        let ds = TSneParams::embedding_size_with_rng(2, rng)
+        let ds = TSneParams::embedding_size(2)
             .perplexity(60.0)
             .approx_threshold(0.0)
             .transform(dataset)?;
