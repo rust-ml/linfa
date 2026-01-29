@@ -131,6 +131,19 @@ mod tests {
     }
 
     #[test]
+    fn iris_separate_bharnes_hut() -> Result<()> {
+        let ds = linfa_datasets::iris();
+
+        let ds = TSneParams::embedding_size(2)
+            .perplexity(10.0)
+            .transform(ds)?;
+
+        assert!(ds.silhouette_score()? > 0.5);
+
+        Ok(())
+    }
+
+    #[test]
     fn blob_separate() -> Result<()> {
         let mut rng = SmallRng::seed_from_u64(42);
         let entries: Array2<f64> = ndarray::concatenate(
