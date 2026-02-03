@@ -18,7 +18,7 @@ jobs:
 
 
       - name: 'Build only' 
-        uses: shalzz/zola-deploy-action@master
+        uses: shalzz/zola-deploy-action@v0.22.1
         env:
           BUILD_DIR: docs/website/
           TOKEN: ${{ secrets.TOKEN }}
