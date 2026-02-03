@@ -1,5 +1,4 @@
 use linfa::{Float, ParamGuard};
-use ndarray_rand::rand::{rngs::SmallRng, Rng, SeedableRng};
 
 use crate::TSneError;
 
@@ -32,16 +31,16 @@ use crate::TSneError;
 ///
 /// A verified hyper-parameter set ready for prediction
 #[derive(Debug, Clone, PartialEq)]
-pub struct TSneValidParams<F, R> {
+pub struct TSneValidParams<F, D> {
     embedding_size: usize,
     approx_threshold: F,
     perplexity: F,
     max_iter: usize,
     preliminary_iter: Option<usize>,
-    rng: R,
+    metric: D,
 }
 
-impl<F: Float, R> TSneValidParams<F, R> {
+impl<F: Float, D> TSneValidParams<F, D> {
     pub fn embedding_size(&self) -> usize {
         self.embedding_size
     }
@@ -62,45 +61,46 @@ impl<F: Float, R> TSneValidParams<F, R> {
         &self.preliminary_iter
     }
 
-    pub fn rng(&self) -> &R {
-        &self.rng
+    pub fn metric(&self) -> &D {
+        &self.metric
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct TSneParams<F, R>(TSneValidParams<F, R>);
+pub struct TSneParams<F, D>(TSneValidParams<F, D>);
 
-impl<F: Float> TSneParams<F, SmallRng> {
+impl<F: Float> TSneParams<F, linfa_nn::distance::L2Dist> {
     /// Create a t-SNE param set with given embedding size
     ///
     /// # Defaults to:
     ///  * `approx_threshold`: 0.5
     ///  * `perplexity`: 5.0
     ///  * `max_iter`: 2000
-    ///  * `rng`: SmallRng with seed 42
-    pub fn embedding_size(embedding_size: usize) -> TSneParams<F, SmallRng> {
-        Self::embedding_size_with_rng(embedding_size, SmallRng::seed_from_u64(42))
+    pub fn embedding_size(embedding_size: usize) -> TSneParams<F, linfa_nn::distance::L2Dist> {
+        Self::embedding_size_with_metric(embedding_size, linfa_nn::distance::L2Dist)
     }
 }
 
-impl<F: Float, R: Rng + Clone> TSneParams<F, R> {
-    /// Create a t-SNE param set with given embedding size and random number generator
+impl<F: Float, D: linfa_nn::distance::Distance<F>> TSneParams<F, D> {
+    /// Create a t-SNE param set with given embedding size and distance metric
     ///
     /// # Defaults to:
     ///  * `approx_threshold`: 0.5
     ///  * `perplexity`: 5.0
     ///  * `max_iter`: 2000
-    pub fn embedding_size_with_rng(embedding_size: usize, rng: R) -> TSneParams<F, R> {
+    pub fn embedding_size_with_metric(embedding_size: usize, metric: D) -> Self {
         Self(TSneValidParams {
             embedding_size,
-            rng,
             approx_threshold: F::cast(0.5),
             perplexity: F::cast(5.0),
             max_iter: 2000,
             preliminary_iter: None,
+            metric,
         })
     }
+}
 
+impl<F: Float, D> TSneParams<F, D> {
     /// Set the approximation threshold of the Barnes Hut algorithm
     ///
     /// The threshold decides whether a cluster centroid can be used as a summary for the whole
@@ -139,8 +139,8 @@ impl<F: Float, R: Rng + Clone> TSneParams<F, R> {
     }
 }
 
-impl<F: Float, R> ParamGuard for TSneParams<F, R> {
-    type Checked = TSneValidParams<F, R>;
+impl<F: Float, D> ParamGuard for TSneParams<F, D> {
+    type Checked = TSneValidParams<F, D>;
     type Error = TSneError;
 
     /// Validates parameters
