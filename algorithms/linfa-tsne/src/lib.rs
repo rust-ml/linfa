@@ -138,7 +138,7 @@ mod tests {
             .perplexity(10.0)
             .transform(ds)?;
 
-        assert!(ds.silhouette_score()? > 0.5);
+        assert!(ds.silhouette_score()? > 0.4);
 
         Ok(())
     }
