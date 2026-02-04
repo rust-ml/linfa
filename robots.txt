@@ -1,0 +1,4 @@
+User-agent: *
+Disallow:
+Allow: /
+Sitemap: https://rust-ml.github.io/linfa/sitemap.xml

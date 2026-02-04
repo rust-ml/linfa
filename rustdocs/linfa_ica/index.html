@@ -1,0 +1,69 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Independent Component Analysis (ICA)"><title>linfa_ica - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="linfa_ica" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate linfa_ica</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../linfa_ica/index.html">linfa_<wbr>ica</a><span class="version">0.8.1</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#independent-component-analysis-ica" title="Independent Component Analysis (ICA)">Independent Component Analysis (ICA)</a><ul><li><a href="#the-big-picture" title="The Big Picture">The Big Picture</a></li><li><a href="#current-state" title="Current state">Current state</a></li><li><a href="#example" title="Example">Example</a></li></ul></li></ul><h3><a href="#modules">Crate Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><h1>Crate <span>linfa_<wbr>ica</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/linfa_ica/lib.rs.html#1-86">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="independent-component-analysis-ica"><a class="doc-anchor" href="#independent-component-analysis-ica">§</a>Independent Component Analysis (ICA)</h2>
+<p><code>linfa-ica</code> aims to provide pure Rust implementations of ICA algorithms.</p>
+<p>ICA separates mutivariate signals into their additive, independent subcomponents.
+ICA is primarily used for separating superimposed signals and not for dimensionality
+reduction.</p>
+<p>Input data is whitened (remove underlying correlation) before modeling.</p>
+<h3 id="the-big-picture"><a class="doc-anchor" href="#the-big-picture">§</a>The Big Picture</h3>
+<p><code>linfa-ica</code> is a crate in the <a href="https://crates.io/crates/linfa"><code>linfa</code></a> ecosystem,
+an effort to create a toolkit for classical Machine Learning implemented in pure Rust,
+akin to Python’s <code>scikit-learn</code>.</p>
+<h3 id="current-state"><a class="doc-anchor" href="#current-state">§</a>Current state</h3>
+<p><code>linfa-ica</code> currently provides an implementation of the following methods:</p>
+<ul>
+<li>Fast Independent Component Analysis (Fast ICA)</li>
+</ul>
+<h3 id="example"><a class="doc-anchor" href="#example">§</a>Example</h3>
+<p>Here’s an example of ICA unmixing the mixture of two signals</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>linfa::{
+    dataset::DatasetBase,
+    traits::{Fit, Predict},
+};
+<span class="kw">use </span>linfa_ica::fast_ica::{FastIca, GFunc};
+<span class="kw">use </span>ndarray::{array, concatenate};
+<span class="kw">use </span>ndarray::{Array, Array2, Axis};
+<span class="kw">use </span>ndarray_npy::write_npy;
+<span class="kw">use </span>ndarray_rand::{rand::SeedableRng, rand_distr::Uniform, RandomExt};
+<span class="kw">use </span>rand_xoshiro::Xoshiro256Plus;
+
+<span class="kw">let </span>nsamples = <span class="number">2000</span>;
+<span class="comment">// Creating a sine wave signal
+</span><span class="kw">let </span>source1 = Array::linspace(<span class="number">0.</span>, <span class="number">8.</span>, nsamples).mapv(|x| (<span class="number">2f64 </span>* x).sin());
+<span class="comment">// Creating a sawtooth signal
+</span><span class="kw">let </span>source2 = Array::linspace(<span class="number">0.</span>, <span class="number">8.</span>, nsamples).mapv(|x| {
+    <span class="kw">let </span>tmp = (<span class="number">4f64 </span>* x).sin();
+    <span class="kw">if </span>tmp &gt; <span class="number">0. </span>{
+        <span class="kw">return </span><span class="number">1.</span>;
+    }
+    -<span class="number">1.
+</span>});
+
+<span class="comment">// Column concatenating both the signals
+</span><span class="kw">let </span><span class="kw-2">mut </span>sources_original = <span class="macro">concatenate!</span>[
+    Axis(<span class="number">1</span>),
+    source1.insert_axis(Axis(<span class="number">1</span>)),
+    source2.insert_axis(Axis(<span class="number">1</span>))
+];
+
+<span class="comment">// Adding random noise to the signals
+</span><span class="kw">let </span><span class="kw-2">mut </span>rng = Xoshiro256Plus::seed_from_u64(<span class="number">42</span>);
+sources_original +=
+    <span class="kw-2">&amp;</span>Array::random_using((<span class="number">2000</span>, <span class="number">2</span>), Uniform::new(<span class="number">0.0</span>, <span class="number">1.0</span>), <span class="kw-2">&amp;mut </span>rng).mapv(|x| x * <span class="number">0.2</span>);
+
+<span class="comment">// Mixing the two signals
+</span><span class="kw">let </span>mixing = <span class="macro">array!</span>[[<span class="number">1.</span>, <span class="number">1.</span>], [<span class="number">0.5</span>, <span class="number">2.</span>]];
+<span class="comment">// Shape of the data is (2000 x 2)
+// This data will be unmixed by ICA to recover back the original signals
+</span><span class="kw">let </span>sources_mixed = sources_original.dot(<span class="kw-2">&amp;</span>mixing.t());
+
+<span class="comment">// Fitting the model
+// We set the G function used in the approximation of neg-entropy as logcosh
+// with its alpha value as 1
+// `ncomponents` is not set, it will be automatically be assigned 2 from
+// the input
+</span><span class="kw">let </span>ica = FastIca::params().gfunc(GFunc::Logcosh(<span class="number">1.0</span>));
+<span class="kw">let </span>ica = ica.fit(<span class="kw-2">&amp;</span>DatasetBase::from(sources_mixed.view())).unwrap();
+
+<span class="comment">// Here we unmix the data to recover back the original signals
+</span><span class="kw">let </span>sources_ica = ica.predict(<span class="kw-2">&amp;</span>sources_mixed);</code></pre></div></div></details><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="error/index.html" title="mod linfa_ica::error">error</a></dt><dt><a class="mod" href="fast_ica/index.html" title="mod linfa_ica::fast_ica">fast_<wbr>ica</a></dt><dd>Fast algorithm for Independent Component Analysis (ICA)</dd><dt><a class="mod" href="hyperparams/index.html" title="mod linfa_ica::hyperparams">hyperparams</a></dt></dl></section></div></main></body></html>

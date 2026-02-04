@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["SeparatingHyperplane"],"struct":["SolverParams","SolverState"]};

@@ -1,0 +1,79 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Ensemble Learning Algorithms"><title>linfa_ensemble - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="linfa_ensemble" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate linfa_ensemble</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../linfa_ensemble/index.html">linfa_<wbr>ensemble</a><span class="version">0.8.1</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#ensemble-learning-algorithms" title="Ensemble Learning Algorithms">Ensemble Learning Algorithms</a><ul><li><a href="#bootstrap-aggregation-aka-bagging" title="Bootstrap Aggregation (aka Bagging)">Bootstrap Aggregation (aka Bagging)</a></li><li><a href="#random-forest" title="Random Forest">Random Forest</a></li><li><a href="#adaboost" title="AdaBoost">AdaBoost</a></li><li><a href="#reference" title="Reference">Reference</a></li><li><a href="#example" title="Example">Example</a></li></ul></li></ul><h3><a href="#structs">Crate Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#types" title="Type Aliases">Type Aliases</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><h1>Crate <span>linfa_<wbr>ensemble</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/linfa_ensemble/lib.rs.html#1-340">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="ensemble-learning-algorithms"><a class="doc-anchor" href="#ensemble-learning-algorithms">§</a>Ensemble Learning Algorithms</h2>
+<p>Ensemble methods combine the predictions of several base estimators built with a given
+learning algorithm in order to improve generalizability / robustness over a single estimator.</p>
+<p>This crate (<code>linfa-ensemble</code>), provides pure Rust implementations of popular ensemble techniques, such as</p>
+<ul>
+<li><a href="struct.EnsembleLearner.html" title="struct linfa_ensemble::EnsembleLearner">Boostrap Aggregation</a></li>
+<li><a href="type.RandomForest.html" title="type linfa_ensemble::RandomForest">Random Forest</a></li>
+<li><a href="struct.AdaBoost.html" title="struct linfa_ensemble::AdaBoost">AdaBoost</a></li>
+</ul>
+<h3 id="bootstrap-aggregation-aka-bagging"><a class="doc-anchor" href="#bootstrap-aggregation-aka-bagging">§</a>Bootstrap Aggregation (aka Bagging)</h3>
+<p>A typical example of ensemble method is Bootstrap Aggregation, which combines the predictions of
+several decision trees (see <a href="linfa_trees"><code>linfa-trees</code></a>) trained on different samples subset of the training dataset.</p>
+<h3 id="random-forest"><a class="doc-anchor" href="#random-forest">§</a>Random Forest</h3>
+<p>A special case of Bootstrap Aggregation using decision trees (see  <a href="linfa_trees"><code>linfa-trees</code></a>) with random feature
+selection. A typical number of random prediction to be selected is $\sqrt{p}$ with $p$ being
+the number of available features.</p>
+<h3 id="adaboost"><a class="doc-anchor" href="#adaboost">§</a>AdaBoost</h3>
+<p>AdaBoost (Adaptive Boosting) is a boosting ensemble method that trains weak learners sequentially.
+Each subsequent learner focuses on the examples that previous learners misclassified by increasing
+their sample weights. The final prediction is a weighted vote of all learners, where better-performing
+learners receive higher weights. Unlike bagging methods, boosting creates a strong classifier from
+weak learners (typically shallow decision trees or “stumps”).</p>
+<h3 id="reference"><a class="doc-anchor" href="#reference">§</a>Reference</h3>
+<ul>
+<li><a href="https://scikit-learn.org/stable/modules/ensemble.html">Scikit-Learn User Guide</a></li>
+<li><a href="https://www.statlearning.com/">An Introduction to Statistical Learning</a></li>
+</ul>
+<h3 id="example"><a class="doc-anchor" href="#example">§</a>Example</h3>
+<p>This example shows how to train a bagging model using 100 decision trees,
+each trained on 70% of the training data (bootstrap sampling).</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>linfa::prelude::{Fit, Predict};
+<span class="kw">use </span>linfa_ensemble::EnsembleLearnerParams;
+<span class="kw">use </span>linfa_trees::DecisionTree;
+<span class="kw">use </span>ndarray_rand::rand::SeedableRng;
+<span class="kw">use </span>rand::rngs::SmallRng;
+
+<span class="comment">// Load Iris dataset
+</span><span class="kw">let </span><span class="kw-2">mut </span>rng = SmallRng::seed_from_u64(<span class="number">42</span>);
+<span class="kw">let </span>(train, test) = linfa_datasets::iris()
+    .shuffle(<span class="kw-2">&amp;mut </span>rng)
+    .split_with_ratio(<span class="number">0.8</span>);
+
+<span class="comment">// Train the model on the iris dataset
+</span><span class="kw">let </span>bagging_model = EnsembleLearnerParams::new(DecisionTree::params())
+    .ensemble_size(<span class="number">100</span>)        <span class="comment">// Number of Decision Tree to fit
+    </span>.bootstrap_proportion(<span class="number">0.7</span>) <span class="comment">// Select only 70% of the data via bootstrap
+    </span>.fit(<span class="kw-2">&amp;</span>train)
+    .unwrap();
+
+<span class="comment">// Make predictions on the test set
+</span><span class="kw">let </span>predictions = bagging_model.predict(<span class="kw-2">&amp;</span>test);</code></pre></div>
+<p>This example shows how to train a <a href="type.RandomForest.html" title="type linfa_ensemble::RandomForest">Random Forest</a> model using 100 decision trees,
+each trained on 70% of the training data (bootstrap sampling) and using only
+30% of the available features.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>linfa::prelude::{Fit, Predict};
+<span class="kw">use </span>linfa_ensemble::RandomForestParams;
+<span class="kw">use </span>linfa_trees::DecisionTree;
+<span class="kw">use </span>ndarray_rand::rand::SeedableRng;
+<span class="kw">use </span>rand::rngs::SmallRng;
+
+<span class="comment">// Load Iris dataset
+</span><span class="kw">let </span><span class="kw-2">mut </span>rng = SmallRng::seed_from_u64(<span class="number">42</span>);
+<span class="kw">let </span>(train, test) = linfa_datasets::iris()
+    .shuffle(<span class="kw-2">&amp;mut </span>rng)
+    .split_with_ratio(<span class="number">0.8</span>);
+
+<span class="comment">// Train the model on the iris dataset
+</span><span class="kw">let </span>random_forest = RandomForestParams::new(DecisionTree::params())
+    .ensemble_size(<span class="number">100</span>)        <span class="comment">// Number of Decision Tree to fit
+    </span>.bootstrap_proportion(<span class="number">0.7</span>) <span class="comment">// Select only 70% of the data via bootstrap
+    </span>.feature_proportion(<span class="number">0.3</span>)   <span class="comment">// Select only 30% of the feature
+    </span>.fit(<span class="kw-2">&amp;</span>train)
+    .unwrap();
+
+<span class="comment">// Make predictions on the test set
+</span><span class="kw">let </span>predictions = random_forest.predict(<span class="kw-2">&amp;</span>test);</code></pre></div></div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.AdaBoost.html" title="struct linfa_ensemble::AdaBoost">AdaBoost</a></dt><dd>A fitted AdaBoost ensemble classifier.</dd><dt><a class="struct" href="struct.AdaBoostParams.html" title="struct linfa_ensemble::AdaBoostParams">AdaBoost<wbr>Params</a></dt><dd>A helper struct for building <a href="struct.AdaBoost.html" title="struct linfa_ensemble::AdaBoost">AdaBoost</a> hyperparameters.</dd><dt><a class="struct" href="struct.AdaBoostValidParams.html" title="struct linfa_ensemble::AdaBoostValidParams">AdaBoost<wbr>Valid<wbr>Params</a></dt><dd>The set of valid hyperparameters for the <a href="struct.AdaBoost.html" title="struct linfa_ensemble::AdaBoost">AdaBoost</a> algorithm.</dd><dt><a class="struct" href="struct.EnsembleLearner.html" title="struct linfa_ensemble::EnsembleLearner">Ensemble<wbr>Learner</a></dt><dd>A fitted ensemble of learners for classification.</dd><dt><a class="struct" href="struct.EnsembleLearnerParams.html" title="struct linfa_ensemble::EnsembleLearnerParams">Ensemble<wbr>Learner<wbr>Params</a></dt><dd>A helper struct for building a set of <a href="struct.EnsembleLearner.html" title="struct linfa_ensemble::EnsembleLearner">Ensemble Learner</a> hyper-parameters.</dd><dt><a class="struct" href="struct.EnsembleLearnerValidParams.html" title="struct linfa_ensemble::EnsembleLearnerValidParams">Ensemble<wbr>Learner<wbr>Valid<wbr>Params</a></dt><dd>The set of valid hyper-parameters that can be specified for the fitting procedure of the
+<a href="struct.EnsembleLearner.html" title="struct linfa_ensemble::EnsembleLearner">Ensemble Learner</a>.</dd></dl><h2 id="types" class="section-header">Type Aliases<a href="#types" class="anchor">§</a></h2><dl class="item-table"><dt><a class="type" href="type.RandomForest.html" title="type linfa_ensemble::RandomForest">Random<wbr>Forest</a></dt><dd>A fitted ensemble of <a href="DecisionTree">Decision Trees</a> trained on a random subset of features.</dd><dt><a class="type" href="type.RandomForestParams.html" title="type linfa_ensemble::RandomForestParams">Random<wbr>Forest<wbr>Params</a></dt><dd>A helper struct for building a set of <a href="type.RandomForest.html" title="type linfa_ensemble::RandomForest">Random Forest</a> hyper-parameters.</dd></dl></section></div></main></body></html>

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["LinearError","Link"],"struct":["FittedIsotonicRegression","FittedLinearRegression","IsotonicRegression","LinearRegression","TweedieRegressor","TweedieRegressorParams","TweedieRegressorValidParams"],"trait":["Float"],"type":["Result"]};

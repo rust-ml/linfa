@@ -1,0 +1,46 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Follow the regularized leader"><title>linfa_ftrl - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="linfa_ftrl" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate linfa_ftrl</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../linfa_ftrl/index.html">linfa_<wbr>ftrl</a><span class="version">0.8.1</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#follow-the-regularized-leader" title="Follow the regularized leader">Follow the regularized leader</a><ul><li><a href="#the-big-picture" title="The Big Picture">The Big Picture</a></li><li><a href="#current-state" title="Current state">Current state</a></li><li><a href="#examples" title="Examples">Examples</a></li></ul></li></ul><h3><a href="#structs">Crate Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#enums" title="Enums">Enums</a></li><li><a href="#types" title="Type Aliases">Type Aliases</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><h1>Crate <span>linfa_<wbr>ftrl</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/linfa_ftrl/lib.rs.html#1-75">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="follow-the-regularized-leader"><a class="doc-anchor" href="#follow-the-regularized-leader">§</a>Follow the regularized leader</h2>
+<p><code>linfa-ftrl</code> provides a pure Rust implementations of follow the regularized leader, proximal, model.</p>
+<h3 id="the-big-picture"><a class="doc-anchor" href="#the-big-picture">§</a>The Big Picture</h3>
+<p><code>linfa-ftrl</code> is a crate in the <a href="https://crates.io/crates/linfa"><code>linfa</code></a> ecosystem, an effort to create a toolkit for classical Machine Learning implemented in pure Rust, akin to Python’s <code>scikit-learn</code>.</p>
+<h3 id="current-state"><a class="doc-anchor" href="#current-state">§</a>Current state</h3>
+<p>The <code>linfa-ftrl</code> crate provides Follow The Regularized Leader - Proximal model with L1 and L2 regularization from Logistic Regression, and primarily used for CTR prediction. It actively stores z and n values, needed to calculate weights.
+Without L1 and L2 regularization, it is identical to online gradient descent.</p>
+<p>See also:</p>
+<ul>
+<li><a href="https://www.eecs.tufts.edu/~dsculley/papers/ad-click-prediction.pdf">Paper about Ftrl</a></li>
+</ul>
+<h3 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h3>
+<p>There is a usage example in the <code>examples/</code> directory. To run, use:</p>
+<div class="example-wrap"><pre class="language-bash"><code>$ cargo run --example winequality</code></pre></div><details>
+<summary style="cursor: pointer; display:list-item;">
+Show source code
+</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>linfa::prelude::<span class="kw-2">*</span>;
+<span class="kw">use </span>linfa::dataset::{AsSingleTargets, Records};
+<span class="kw">use </span>linfa_ftrl::{Ftrl, <span class="prelude-ty">Result</span>};
+<span class="kw">use </span>rand::{rngs::SmallRng, SeedableRng};
+
+<span class="comment">// load Winequality dataset
+</span><span class="kw">let </span>(train, valid) = linfa_datasets::winequality()
+    .map_targets(|v| <span class="kw">if </span><span class="kw-2">*</span>v &gt; <span class="number">6 </span>{ <span class="bool-val">true </span>} <span class="kw">else </span>{ <span class="bool-val">false </span>})
+    .split_with_ratio(<span class="number">0.9</span>);
+
+<span class="kw">let </span>params = Ftrl::params()
+    .alpha(<span class="number">0.005</span>)
+    .beta(<span class="number">1.0</span>)
+    .l1_ratio(<span class="number">0.005</span>)
+    .l2_ratio(<span class="number">1.0</span>);
+
+<span class="kw">let </span>valid_params = params.clone().check_unwrap();
+<span class="kw">let </span><span class="kw-2">mut </span>model = Ftrl::new(valid_params, train.nfeatures());
+
+<span class="comment">// Bootstrap each row from the train dataset to imitate online nature of the data flow
+</span><span class="kw">let </span><span class="kw-2">mut </span>rng = SmallRng::seed_from_u64(<span class="number">42</span>);
+<span class="kw">let </span><span class="kw-2">mut </span>row_iter = train.bootstrap_samples(<span class="number">1</span>, <span class="kw-2">&amp;mut </span>rng);
+<span class="kw">for _ in </span><span class="number">0</span>..train.nsamples() {
+    <span class="kw">let </span>b_dataset = row_iter.next().unwrap();
+    model = params.fit_with(<span class="prelude-val">Some</span>(model), <span class="kw-2">&amp;</span>b_dataset)<span class="question-mark">?</span>;
+}
+<span class="kw">let </span>val_predictions = model.predict(<span class="kw-2">&amp;</span>valid);
+<span class="macro">println!</span>(<span class="string">"valid log loss {:?}"</span>, val_predictions.log_loss(<span class="kw-2">&amp;</span>valid.as_single_targets().to_vec())<span class="question-mark">?</span>);</code></pre></div></details></div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.Ftrl.html" title="struct linfa_ftrl::Ftrl">Ftrl</a></dt><dt><a class="struct" href="struct.FtrlParams.html" title="struct linfa_ftrl::FtrlParams">Ftrl<wbr>Params</a></dt></dl><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.FtrlError.html" title="enum linfa_ftrl::FtrlError">Ftrl<wbr>Error</a></dt></dl><h2 id="types" class="section-header">Type Aliases<a href="#types" class="anchor">§</a></h2><dl class="item-table"><dt><a class="type" href="type.Result.html" title="type linfa_ftrl::Result">Result</a></dt><dd>Simplified <code>Result</code> using <a href="enum.FtrlError.html" title="enum linfa_ftrl::FtrlError"><code>FtrlError</code></a> as error type</dd></dl></section></div></main></body></html>

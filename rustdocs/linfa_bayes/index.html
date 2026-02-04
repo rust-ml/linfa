@@ -1,0 +1,103 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Naive Bayes"><title>linfa_bayes - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="linfa_bayes" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate linfa_bayes</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../linfa_bayes/index.html">linfa_<wbr>bayes</a><span class="version">0.8.1</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#naive-bayes" title="Naive Bayes">Naive Bayes</a><ul><li><a href="#the-big-picture" title="The Big Picture">The Big Picture</a></li><li><a href="#current-state" title="Current state">Current state</a></li><li><a href="#examples" title="Examples">Examples</a></li></ul></li></ul><h3><a href="#structs">Crate Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#enums" title="Enums">Enums</a></li><li><a href="#traits" title="Traits">Traits</a></li><li><a href="#types" title="Type Aliases">Type Aliases</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><h1>Crate <span>linfa_<wbr>bayes</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/linfa_bayes/lib.rs.html#1-104">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="naive-bayes"><a class="doc-anchor" href="#naive-bayes">§</a>Naive Bayes</h2>
+<p><code>linfa-bayes</code> provides pure Rust implementations of Naive Bayes algorithms for the Linfa toolkit.</p>
+<h3 id="the-big-picture"><a class="doc-anchor" href="#the-big-picture">§</a>The Big Picture</h3>
+<p><code>linfa-bayes</code> is a crate in the <a href="https://crates.io/crates/linfa"><code>linfa</code></a> ecosystem, an effort to create a toolkit for classical Machine Learning implemented in pure Rust, akin to Python’s <code>scikit-learn</code>.</p>
+<h3 id="current-state"><a class="doc-anchor" href="#current-state">§</a>Current state</h3>
+<p><code>linfa-bayes</code> currently provides an implementation of the following methods:</p>
+<ul>
+<li>Gaussian Naive Bayes (<a href="struct.GaussianNb.html" title="struct linfa_bayes::GaussianNb"><code>GaussianNb</code></a>)</li>
+<li>Multinomial Naive Nayes (<a href="struct.MultinomialNb.html" title="struct linfa_bayes::MultinomialNb"><code>MultinomialNb</code></a>)</li>
+<li>Bernoulli Naive Nayes (<a href="struct.BernoulliNb.html" title="struct linfa_bayes::BernoulliNb"><code>BernoulliNb</code></a>)</li>
+</ul>
+<h3 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h3>
+<p>You can find examples in the <code>examples/</code> directory. To run Gaussian Naive Bayes example, use:</p>
+<div class="example-wrap"><pre class="language-bash"><code>$ cargo run --example winequality --release</code></pre></div><details>
+<summary style="cursor: pointer; display:list-item;">
+Show source code
+</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>linfa::metrics::ToConfusionMatrix;
+<span class="kw">use </span>linfa::traits::{Fit, Predict};
+<span class="kw">use </span>linfa_bayes::{GaussianNb, <span class="prelude-ty">Result</span>};
+
+<span class="comment">// Read in the dataset and convert targets to binary data
+</span><span class="kw">let </span>(train, valid) = linfa_datasets::winequality()
+    .map_targets(|x| <span class="kw">if </span><span class="kw-2">*</span>x &gt; <span class="number">6 </span>{ <span class="string">"good" </span>} <span class="kw">else </span>{ <span class="string">"bad" </span>})
+    .split_with_ratio(<span class="number">0.9</span>);
+
+<span class="comment">// Train the model
+</span><span class="kw">let </span>model = GaussianNb::params().fit(<span class="kw-2">&amp;</span>train)<span class="question-mark">?</span>;
+
+<span class="comment">// Predict the validation dataset
+</span><span class="kw">let </span>pred = model.predict(<span class="kw-2">&amp;</span>valid);
+
+<span class="comment">// Construct confusion matrix
+</span><span class="kw">let </span>cm = pred.confusion_matrix(<span class="kw-2">&amp;</span>valid)<span class="question-mark">?</span>;
+
+<span class="comment">// classes    | bad        | good      
+// bad        | 130        | 12        
+// good       | 7          | 10    
+//
+// accuracy 0.8805031, MCC 0.45080978
+</span><span class="macro">println!</span>(<span class="string">"{:?}"</span>, cm);
+<span class="macro">println!</span>(<span class="string">"accuracy {}, MCC {}"</span>, cm.accuracy(), cm.mcc());</code></pre></div></details>
+<p>To run Multinomial Naive Bayes example, use:</p>
+<div class="example-wrap"><pre class="language-bash"><code>$ cargo run --example winequality_multinomial --release</code></pre></div><details>
+<summary style="cursor: pointer; display:list-item;">
+Show source code
+</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>linfa::metrics::ToConfusionMatrix;
+<span class="kw">use </span>linfa::traits::{Fit, Predict};
+<span class="kw">use </span>linfa_bayes::{MultinomialNb, <span class="prelude-ty">Result</span>};
+
+<span class="comment">// Read in the dataset and convert targets to binary data
+</span><span class="kw">let </span>(train, valid) = linfa_datasets::winequality()
+    .map_targets(|x| <span class="kw">if </span><span class="kw-2">*</span>x &gt; <span class="number">6 </span>{ <span class="string">"good" </span>} <span class="kw">else </span>{ <span class="string">"bad" </span>})
+    .split_with_ratio(<span class="number">0.9</span>);
+
+<span class="comment">// Train the model
+</span><span class="kw">let </span>model = MultinomialNb::params().fit(<span class="kw-2">&amp;</span>train)<span class="question-mark">?</span>;
+
+<span class="comment">// Predict the validation dataset
+</span><span class="kw">let </span>pred = model.predict(<span class="kw-2">&amp;</span>valid);
+
+<span class="comment">// Construct confusion matrix
+</span><span class="kw">let </span>cm = pred.confusion_matrix(<span class="kw-2">&amp;</span>valid)<span class="question-mark">?</span>;
+<span class="comment">// classes    | bad        | good      
+// bad        | 88         | 54        
+// good       | 10         | 7         
+
+// accuracy 0.5974843, MCC 0.02000631
+</span><span class="macro">println!</span>(<span class="string">"{:?}"</span>, cm);
+<span class="macro">println!</span>(<span class="string">"accuracy {}, MCC {}"</span>, cm.accuracy(), cm.mcc());</code></pre></div></details>
+<p>To run Bernoulli Naive Bayes example, use:</p>
+<div class="example-wrap"><pre class="language-bash"><code>$ cargo run --example winequality_bernoulli --release</code></pre></div><details>
+<summary style="cursor: pointer; display:list-item;">
+Show source code
+</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>linfa::metrics::ToConfusionMatrix;
+<span class="kw">use </span>linfa::traits::{Fit, Predict};
+<span class="kw">use </span>linfa_bayes::{BernoulliNb, <span class="prelude-ty">Result</span>};
+
+<span class="comment">// Read in the dataset and convert targets to binary data
+</span><span class="kw">let </span>(train, valid) = linfa_datasets::winequality()
+    .map_targets(|x| <span class="kw">if </span><span class="kw-2">*</span>x &gt; <span class="number">6 </span>{ <span class="string">"good" </span>} <span class="kw">else </span>{ <span class="string">"bad" </span>})
+    .split_with_ratio(<span class="number">0.9</span>);
+
+<span class="comment">// Train the model
+</span><span class="kw">let </span>model = BernoulliNb::params().fit(<span class="kw-2">&amp;</span>train)<span class="question-mark">?</span>;
+
+<span class="comment">// Predict the validation dataset
+</span><span class="kw">let </span>pred = model.predict(<span class="kw-2">&amp;</span>valid);
+
+<span class="comment">// Construct confusion matrix
+</span><span class="kw">let </span>cm = pred.confusion_matrix(<span class="kw-2">&amp;</span>valid)<span class="question-mark">?</span>;
+<span class="comment">// classes    | bad        | good
+// bad        | 142        | 0
+// good       | 17         | 0
+
+// accuracy 0.8930818, MCC NaN
+</span><span class="macro">println!</span>(<span class="string">"{:?}"</span>, cm);
+<span class="macro">println!</span>(<span class="string">"accuracy {}, MCC {}"</span>, cm.accuracy(), cm.mcc());</code></pre></div></details></div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.BernoulliNb.html" title="struct linfa_bayes::BernoulliNb">Bernoulli<wbr>Nb</a></dt><dd>Fitted Bernoulli Naive Bayes classifier.</dd><dt><a class="struct" href="struct.BernoulliNbParams.html" title="struct linfa_bayes::BernoulliNbParams">Bernoulli<wbr>NbParams</a></dt><dd>A hyper-parameter set during construction for a <a href="struct.BernoulliNb.html" title="struct linfa_bayes::BernoulliNb">Bernoulli Naive Bayes model</a>.</dd><dt><a class="struct" href="struct.BernoulliNbValidParams.html" title="struct linfa_bayes::BernoulliNbValidParams">Bernoulli<wbr>NbValid<wbr>Params</a></dt><dd>A verified hyper-parameter set ready for the estimation of a <a href="struct.BernoulliNb.html" title="struct linfa_bayes::BernoulliNb">Bernoulli Naive Bayes model</a>.</dd><dt><a class="struct" href="struct.GaussianNb.html" title="struct linfa_bayes::GaussianNb">Gaussian<wbr>Nb</a></dt><dd>Fitted Gaussian Naive Bayes classifier.</dd><dt><a class="struct" href="struct.GaussianNbParams.html" title="struct linfa_bayes::GaussianNbParams">Gaussian<wbr>NbParams</a></dt><dd>A hyper-parameter set during construction for a <a href="struct.GaussianNb.html" title="struct linfa_bayes::GaussianNb">Gaussian Naive Bayes model</a>.</dd><dt><a class="struct" href="struct.GaussianNbValidParams.html" title="struct linfa_bayes::GaussianNbValidParams">Gaussian<wbr>NbValid<wbr>Params</a></dt><dd>A verified hyper-parameter set ready for the estimation of a <a href="struct.GaussianNb.html" title="struct linfa_bayes::GaussianNb">Gaussian Naive Bayes model</a>.</dd><dt><a class="struct" href="struct.MultinomialNb.html" title="struct linfa_bayes::MultinomialNb">Multinomial<wbr>Nb</a></dt><dd>Fitted Multinomial Naive Bayes classifier.</dd><dt><a class="struct" href="struct.MultinomialNbParams.html" title="struct linfa_bayes::MultinomialNbParams">Multinomial<wbr>NbParams</a></dt><dd>A hyper-parameter set during construction for a <a href="struct.MultinomialNb.html" title="struct linfa_bayes::MultinomialNb">Multinomial Naive Bayes model</a>.</dd><dt><a class="struct" href="struct.MultinomialNbValidParams.html" title="struct linfa_bayes::MultinomialNbValidParams">Multinomial<wbr>NbValid<wbr>Params</a></dt><dd>A verified hyper-parameter set ready for the estimation of a <a href="struct.MultinomialNb.html" title="struct linfa_bayes::MultinomialNb">Multinomial Naive Bayes model</a>.</dd></dl><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.NaiveBayesError.html" title="enum linfa_bayes::NaiveBayesError">Naive<wbr>Bayes<wbr>Error</a></dt><dd>Error variants from hyper-parameter construction or model estimation</dd></dl><h2 id="traits" class="section-header">Traits<a href="#traits" class="anchor">§</a></h2><dl class="item-table"><dt><a class="trait" href="trait.NaiveBayes.html" title="trait linfa_bayes::NaiveBayes">Naive<wbr>Bayes</a></dt></dl><h2 id="types" class="section-header">Type Aliases<a href="#types" class="anchor">§</a></h2><dl class="item-table"><dt><a class="type" href="type.Result.html" title="type linfa_bayes::Result">Result</a></dt><dd>Simplified <code>Result</code> using <a href="enum.NaiveBayesError.html" title="enum linfa_bayes::NaiveBayesError"><code>NaiveBayesError</code></a> as error type</dd></dl></section></div></main></body></html>

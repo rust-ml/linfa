@@ -1,0 +1,55 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Support Vector Machines"><title>linfa_svm - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="linfa_svm" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate linfa_svm</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../linfa_svm/index.html">linfa_<wbr>svm</a><span class="version">0.8.1</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#support-vector-machines" title="Support Vector Machines">Support Vector Machines</a><ul><li><a href="#available-parameters-in-classification-and-regression" title="Available parameters in Classification and Regression">Available parameters in Classification and Regression</a></li><li><a href="#kernel-methods" title="Kernel Methods">Kernel Methods</a></li></ul></li><li><a href="#the-solver" title="The solver">The solver</a></li><li><a href="#example" title="Example">Example</a></li></ul><h3><a href="#reexports">Crate Items</a></h3><ul class="block"><li><a href="#reexports" title="Re-exports">Re-exports</a></li><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#enums" title="Enums">Enums</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><h1>Crate <span>linfa_<wbr>svm</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/linfa_svm/lib.rs.html#1-268">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="support-vector-machines"><a class="doc-anchor" href="#support-vector-machines">§</a>Support Vector Machines</h2>
+<p>Support Vector Machines are a major branch of machine learning models and offer classification or
+regression analysis of labeled datasets. They seek a discriminant, which separates the data in
+an optimal way, e.g. have the fewest numbers of miss-classifications and maximizes the margin
+between positive and negative classes. A support vector
+contributes to the discriminant and is therefore important for the classification/regression
+task. The balance between the number of support vectors and model performance can be controlled
+with hyperparameters.</p>
+<p>More details can be found <a href="https://en.wikipedia.org/wiki/Support_vector_machine">here</a></p>
+<h3 id="available-parameters-in-classification-and-regression"><a class="doc-anchor" href="#available-parameters-in-classification-and-regression">§</a>Available parameters in Classification and Regression</h3>
+<p>For supervised classification tasks the C or Nu values are used to control this balance. In
+<a href="SVClassify/fn.fit_c">fit_c</a> the
+C value controls the penalty given to missclassification and should be in the interval (0, inf). In
+<a href="SVClassify/fn.fit_nu.html">fit_nu</a> the Nu value controls the number of support vectors and should be in the interval (0, 1].</p>
+<p>For supervised classification with just one class of data a special classifier is available in
+<a href="SVClassify/fn.fit_one_class.html">fit_one_class</a>. It also accepts a Nu value.</p>
+<p>For support vector regression two flavors are available. With
+<a href="SVRegress/fn.fit_epsilon.html">fit_epsilon</a> a regression task is learned while minimizing deviation
+larger than epsilon. In <a href="SVRegress/fn.fit_nu.html">fit_nu</a> the parameter epsilon is replaced with Nu
+again and should be in the interval (0, 1]</p>
+<h3 id="kernel-methods"><a class="doc-anchor" href="#kernel-methods">§</a>Kernel Methods</h3>
+<p>Normally the resulting discriminant is linear, but with <a href="https://en.wikipedia.org/wiki/Kernel_method">Kernel Methods</a> non-linear relations between the input features
+can be learned in order improve the performance of the model.</p>
+<p>For example to transform a dataset into a sparse RBF kernel with 10 non-zero distances you can
+use <code>linfa_kernel</code>:</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="kw">use </span>linfa_kernel::Kernel;
+<span class="kw">let </span>train_kernel = Kernel::params()
+    .method(KernelMethod::Gaussian(<span class="number">30.0</span>))
+    .transform(<span class="kw-2">&amp;</span>train);</code></pre></div><h2 id="the-solver"><a class="doc-anchor" href="#the-solver">§</a>The solver</h2>
+<p>This implementation uses Sequential Minimal Optimization, a widely used optimization tool for
+convex problems. It selects in each optimization step two variables and updates the variables.
+In each step it performs:</p>
+<ol>
+<li>Find a variable, which violates the KKT conditions for the optimization problem</li>
+<li>Pick a second variables and crate a pair (a1, a2)</li>
+<li>Optimize the pair (a1, a2)</li>
+</ol>
+<p>After a couple of iterations the solution may be optimal.</p>
+<h2 id="example"><a class="doc-anchor" href="#example">§</a>Example</h2>
+<p>The wine quality data consists of 11 features, like “acid”, “sugar”, “sulfur dioxide”, and
+groups the quality into worst 3 to best 8. These are unified to good 8-7 and bad 3-6 to get a
+binary classification task.</p>
+<p>With an RBF kernel and C-Support Vector Classification an
+accuracy of 88.7% is reached within 79535 iterations and 316 support vectors. You can find the
+example <a href="https://github.com/rust-ml/linfa/blob/master/linfa-svm/examples/winequality.rs">here</a>.</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code>Fit SVM classifier with #<span class="number">1440 </span>training points
+Exited after <span class="number">79535 </span>iterations with obj = -<span class="number">46317.55802870996 </span>and <span class="number">316 </span>support vectors
+
+classes    | bad        | good
+bad        | <span class="number">133        </span>| <span class="number">9
+</span>good       | <span class="number">9          </span>| <span class="number">8
+
+</span>accuracy <span class="number">0.8867925</span>, MCC <span class="number">0.40720797</span></code></pre></div></div></details><h2 id="reexports" class="section-header">Re-exports<a href="#reexports" class="anchor">§</a></h2><dl class="item-table reexports"><dt id="reexport.Result"><code>pub use error::<a class="type" href="error/type.Result.html" title="type linfa_svm::error::Result">Result</a>;</code></dt><dt id="reexport.SvmError"><code>pub use error::<a class="enum" href="error/enum.SvmError.html" title="enum linfa_svm::error::SvmError">SvmError</a>;</code></dt><dt id="reexport.SvmParams"><code>pub use hyperparams::<a class="struct" href="hyperparams/struct.SvmParams.html" title="struct linfa_svm::hyperparams::SvmParams">SvmParams</a>;</code></dt><dt id="reexport.SvmValidParams"><code>pub use hyperparams::<a class="struct" href="hyperparams/struct.SvmValidParams.html" title="struct linfa_svm::hyperparams::SvmValidParams">SvmValidParams</a>;</code></dt><dt id="reexport.SeparatingHyperplane"><code>pub use solver_smo::<a class="enum" href="solver_smo/enum.SeparatingHyperplane.html" title="enum linfa_svm::solver_smo::SeparatingHyperplane">SeparatingHyperplane</a>;</code></dt><dt id="reexport.SolverParams"><code>pub use solver_smo::<a class="struct" href="solver_smo/struct.SolverParams.html" title="struct linfa_svm::solver_smo::SolverParams">SolverParams</a>;</code></dt></dl><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="error/index.html" title="mod linfa_svm::error">error</a></dt><dt><a class="mod" href="hyperparams/index.html" title="mod linfa_svm::hyperparams">hyperparams</a></dt><dt><a class="mod" href="solver_smo/index.html" title="mod linfa_svm::solver_smo">solver_<wbr>smo</a></dt></dl><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.Svm.html" title="struct linfa_svm::Svm">Svm</a></dt><dd>Fitted Support Vector Machines model</dd></dl><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.ExitReason.html" title="enum linfa_svm::ExitReason">Exit<wbr>Reason</a></dt><dd>Reason for stopping</dd></dl></section></div></main></body></html>

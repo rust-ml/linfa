@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["LarsError"],"struct":["Lars","LarsParams","LarsValidParams"]};

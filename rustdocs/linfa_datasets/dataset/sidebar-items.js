@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["array_from_csv","array_from_gz_csv","diabetes","iris","linnerud","winequality"]};

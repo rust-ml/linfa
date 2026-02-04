@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="linfa,ml,stats,statistical learning, machine learning,rust">
+  <meta name="description" content="comprehensive toolkit for statistical learning in rust">
+  <title>Linfa Toolkit</title>
+
+  <link rel="icon" href="mascot.svg">
+  <link rel="stylesheet" href="https://rust-ml.github.io/linfa/style.css">
+  <script src="https://rust-ml.github.io/linfa/code-examples.js"></script>
+</head>
+
+<body>
+  <div class="top">
+    <section class="grid header">
+      <div class="logo">
+        <img alt="logo" src="https://rust-ml.github.io/linfa/mascot.svg" height=60>
+        <p>
+          Linfa
+
+          <span>Menu</span>
+        </p>
+      </div>
+      <div class="header-main">
+        <ul>
+          <li><a href="https://rust-ml.github.io/linfa">Home</a></li>
+          <li><a href="https://rust-ml.github.io/linfa/about">About</a></li>
+          <li><a href="https://rust-ml.github.io/linfa/docs">Documentation</a></li>
+          <li><a href="https://rust-ml.github.io/linfa/community">Community</a></li>
+          <li><a href="https://rust-ml.github.io/linfa/news">News</a></li>
+        </ul>
+      </div>
+    </section>
+  </div>
+
+
+  <section class="section">
+    <div class="container">
+      
+<div class="grid"><div class="news-page">
+<h1 class="title">
+  Release 0.4.0
+</h1>
+<span>Published on April 28th, 2021</span>
+<p>Linfa's 0.4.0 release introduces four new algorithms, improves documentation of the ICA and K-means implementations, adds more benchmarks to K-Means and updates to ndarray's 0.14 version.</p>
+<span id="continue-reading"></span><h2 id="new-algorithms">New algorithms</h2>
+<p>The <a rel="external" href="https://en.wikipedia.org/wiki/Partial_least_squares_regression">Partial Least Squares Regression</a> model family is added in this release. It projects the observable, as well as predicted variables to a latent space and maximizes the correlation for them. For problems with a large number of targets or collinear predictors it gives a better performance when compared to standard regression. For more information look into the documentation of <code>linfa-pls</code>.</p>
+<p>A wrapper for Barnes-Hut t-SNE is also added in this release. The t-SNE algorithm is often used for data visualization and projects data in a high-dimensional space to a similar representation in two/three dimension. It does so by maximizing the Kullback-Leibler Divergence between the high dimensional source distribution to the target distribution. The Barnes-Hut approximation improves the runtime drastically while retaining the performance. Kudos to <a rel="external" href="https://github.com/frjnn/">github/frjnn</a> for providing an implementation!</p>
+<p>A new preprocessing crate makes working with textual data and data normalization easy. It implements <em>count-vectorizer</em> and <em>IT-IDF</em> normalization for text pre-processing. Normalizations for signals include linear scaling, norm scaling and whitening with PCA/ZCA/choelsky. An example with a Naive Bayes model achieves 84% F1 score for predicting categories <code>alt.atheism</code>, <code>talk.religion.misc</code>, <code>comp.graphics</code> and <code>sci.space</code> on a news dataset.</p>
+<p><a rel="external" href="https://en.wikipedia.org/wiki/Platt_scaling">Platt scaling</a> calibrates a real-valued classification model to probabilities over two classes. This is used for the SV classification when probabilities are required. Further a multi class model, combining multiple binary models (e.g. calibrated SVM models) into a single multi-class model is also added. These composing models are moved to the <code>linfa/src/composing/</code> subfolder.</p>
+<h2 id="improvements">Improvements</h2>
+<p>Numerous improvements are added to the KMeans implementation, thanks to @YuhanLiin. The implementation is optimized for offline training, an incremental training model is added and KMeans++/KMeans|| initialization gives good initial cluster means for medium and large datasets.</p>
+<p>We also moved to ndarray's version 0.14 and introduced <code>F::cast</code> for simpler floating point casting. The trait signature of <code>linfa::Fit</code> is changed such that it always returns a <code>Result</code> and error handling is added for the <code>linfa-logistic</code> and <code>linfa-reduction</code> subcrates.</p>
+<p>You often have to compare several model parametrization with k-folding. For this a new function <code>cross_validate</code> is added which takes the number of folds, model parameters and a closure for the evaluation metric. It automatically calls k-folding and averages the metric over the folds. To compare different L1 ratios of an elasticnet model, you can use it in the following way:</p>
+<pre class="giallo" style="color: #1F2328; background-color: #FFFFFF;"><code data-lang="rust"><span class="giallo-l"><span style="color: #6E7781;">// L1 ratios to compare</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">let</span><span> ratios</span><span style="color: #CF222E;"> =</span><span style="color: #8250DF;"> vec!</span><span>[</span><span style="color: #0550AE;">0.1</span><span>,</span><span style="color: #0550AE;"> 0.2</span><span>,</span><span style="color: #0550AE;"> 0.5</span><span>,</span><span style="color: #0550AE;"> 0.7</span><span>,</span><span style="color: #0550AE;"> 1.0</span><span>];</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #6E7781;">// create a model for each parameter</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">let</span><span> models</span><span style="color: #CF222E;"> =</span><span> ratios</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">    .</span><span style="color: #8250DF;">iter</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">    .</span><span style="color: #8250DF;">map</span><span>(</span><span style="color: #CF222E;">|</span><span>ratio</span><span style="color: #CF222E;">|</span><span style="color: #953800;"> ElasticNet</span><span style="color: #CF222E;">::</span><span style="color: #8250DF;">params</span><span>()</span><span style="color: #CF222E;">.</span><span style="color: #8250DF;">penalty</span><span>(</span><span style="color: #0550AE;">0.3</span><span>)</span><span style="color: #CF222E;">.</span><span style="color: #8250DF;">l1_ratio</span><span>(</span><span style="color: #CF222E;">*</span><span>ratio))</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">    .</span><span style="color: #8250DF;">collect</span><span style="color: #CF222E;">::</span><span>&lt;</span><span style="color: #953800;">Vec</span><span>&lt;_&gt;&gt;();</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #6E7781;">// get the mean r2 validation score across 5 folds for each model</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">let</span><span> r2_values</span><span style="color: #CF222E;"> =</span></span>
+<span class="giallo-l"><span>    dataset</span><span style="color: #CF222E;">.</span><span style="color: #8250DF;">cross_validate</span><span>(</span><span style="color: #0550AE;">5</span><span>,</span><span style="color: #CF222E;"> &amp;</span><span>models,</span><span style="color: #CF222E;"> |</span><span>prediction, truth</span><span style="color: #CF222E;">|</span><span> prediction</span><span style="color: #CF222E;">.</span><span style="color: #8250DF;">r2</span><span>(</span><span style="color: #CF222E;">&amp;</span><span>truth))</span><span style="color: #CF222E;">?</span><span>;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #6E7781;">// show the mean r2 score for each parameter choice</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">for</span><span> (ratio, r2)</span><span style="color: #CF222E;"> in</span><span> ratios</span><span style="color: #CF222E;">.</span><span style="color: #8250DF;">iter</span><span>()</span><span style="color: #CF222E;">.</span><span style="color: #8250DF;">zip</span><span>(r2_values</span><span style="color: #CF222E;">.</span><span style="color: #8250DF;">iter</span><span>()) {</span></span>
+<span class="giallo-l"><span style="color: #8250DF;">    println!</span><span>(</span><span style="color: #0A3069;">&quot;L1 ratio: {}, r2 score: {}&quot;</span><span>, ratio, r2);</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre><h3 id="other-changes">Other changes</h3>
+<ul>
+<li>fix for border points in the DBSCAN implementation</li>
+<li>improved documentation of the ICA subcrate</li>
+<li>prevent overflowing code example in website</li>
+</ul>
+<h2 id="barnes-hut-t-sne">Barnes-Hut t-SNE</h2>
+<p>This example shows the use of <code>linfa-tsne</code> with the MNIST digits dataset. We are going to load the MNIST dataset, then reduce the dimensionality with PCA to an embedding of 50 dimension and finally apply Barnes-Hut t-SNE for a two-dimensional embedding. This embedding can be plotted to give the following image:</p>
+<img src="tsne.png" style="width: 100%" />
+<p>I won't go into details how to load the MNIST dataset, but we are using the excellent <a rel="external" href="https://crates.io/crates/mnist">crates.io/mnist</a> crate here to help us downloading and representing the images in a proper vector representation.</p>
+<pre class="giallo" style="color: #1F2328; background-color: #FFFFFF;"><code data-lang="rust"><span class="giallo-l"><span style="color: #6E7781;">// use 50k samples from the MNIST dataset</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">let</span><span> (trn_size, rows, cols)</span><span style="color: #CF222E;"> =</span><span> (</span><span style="color: #0550AE;">50_000</span><span>,</span><span style="color: #0550AE;"> 28</span><span>,</span><span style="color: #0550AE;"> 28</span><span>);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #6E7781;">// download and extract it into a dataset</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">let</span><span style="color: #953800;"> Mnist</span><span> { images, labels,</span><span style="color: #CF222E;"> ..</span><span> }</span><span style="color: #CF222E;"> =</span><span style="color: #953800;"> MnistBuilder</span><span style="color: #CF222E;">::</span><span style="color: #8250DF;">new</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">    .</span><span style="color: #8250DF;">label_format_digit</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">    .</span><span style="color: #8250DF;">training_set_length</span><span>(trn_size</span><span style="color: #CF222E;"> as</span><span style="color: #953800;"> u32</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">    .</span><span style="color: #8250DF;">download_and_extract</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">    .</span><span style="color: #8250DF;">finalize</span><span>();</span></span></code></pre>
+<p>The image brightness information <code>images</code> and corresponding <code>labels</code> are then used to construct a dataset.</p>
+<pre class="giallo" style="color: #1F2328; background-color: #FFFFFF;"><code data-lang="rust"><span class="giallo-l"><span style="color: #6E7781;">// create a dataset from magnitudes and targets</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">let</span><span> ds</span><span style="color: #CF222E;"> =</span><span style="color: #953800;"> Dataset</span><span style="color: #CF222E;">::</span><span style="color: #8250DF;">new</span><span>(</span></span>
+<span class="giallo-l"><span style="color: #953800;">    Array</span><span style="color: #CF222E;">::</span><span style="color: #8250DF;">from_shape_vec</span><span>((trn_size, rows</span><span style="color: #CF222E;"> *</span><span> cols), images)</span><span style="color: #CF222E;">?.</span><span style="color: #8250DF;">mapv</span><span>(</span><span style="color: #CF222E;">|</span><span>x</span><span style="color: #CF222E;">|</span><span> (x</span><span style="color: #CF222E;"> as</span><span style="color: #953800;"> f64</span><span>)</span><span style="color: #CF222E;"> /</span><span style="color: #0550AE;"> 255</span><span style="color: #CF222E;">.</span><span>),</span></span>
+<span class="giallo-l"><span style="color: #953800;">    Array</span><span style="color: #CF222E;">::</span><span style="color: #8250DF;">from_shape_vec</span><span>((trn_size,</span><span style="color: #0550AE;"> 1</span><span>), labels)</span><span style="color: #CF222E;">?</span></span>
+<span class="giallo-l"><span>);</span></span></code></pre>
+<p>In a preliminary step this brightness information is transformed from a 784 dimensional vector representation to a 50 dimensional embedding with maximized variance. The Principal Component Analysis uses LOBPCG for an efficient implementation. No whitening is performed as this hurts the results.</p>
+<pre class="giallo" style="color: #1F2328; background-color: #FFFFFF;"><code data-lang="rust"><span class="giallo-l"><span style="color: #CF222E;">let</span><span> ds</span><span style="color: #CF222E;"> =</span><span style="color: #953800;"> Pca</span><span style="color: #CF222E;">::</span><span style="color: #8250DF;">params</span><span>(</span><span style="color: #0550AE;">50</span><span>)</span><span style="color: #CF222E;">.</span><span style="color: #8250DF;">whiten</span><span>(</span><span style="color: #0550AE;">false</span><span>)</span><span style="color: #CF222E;">.</span><span style="color: #8250DF;">fit</span><span>(</span><span style="color: #CF222E;">&amp;</span><span>ds)</span><span style="color: #CF222E;">.</span><span style="color: #8250DF;">transform</span><span>(ds);</span></span></code></pre>
+<p>Then t-SNE is used to project those 50 dimensions in a non-linear way to retain as much of the structural information as possible. We will use a Barnes-Hut approximation with <code>theta=0.5</code>. This performs a space partitioning and combines regions very far away from the corresponding point to reduce the required runtime. The value theta can go from zero to one with one the original non-approximate t-SNE algorithm. We will also cap the runtime to a thousand iterations:</p>
+<pre class="giallo" style="color: #1F2328; background-color: #FFFFFF;"><code data-lang="rust"><span class="giallo-l"><span style="color: #CF222E;">let</span><span> ds</span><span style="color: #CF222E;"> =</span><span style="color: #953800;"> TSne</span><span style="color: #CF222E;">::</span><span style="color: #8250DF;">embedding_size</span><span>(</span><span style="color: #0550AE;">2</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">    .</span><span style="color: #8250DF;">perplexity</span><span>(</span><span style="color: #0550AE;">50.0</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">    .</span><span style="color: #8250DF;">approx_threshold</span><span>(</span><span style="color: #0550AE;">0.5</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">    .</span><span style="color: #8250DF;">max_iter</span><span>(</span><span style="color: #0550AE;">1000</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">    .</span><span style="color: #8250DF;">transform</span><span>(ds)</span><span style="color: #CF222E;">?</span><span>;</span></span></code></pre>
+<p>The resulting embedding can then be written out to a file and plotted with <code>gnuplot</code>:</p>
+<pre class="giallo" style="color: #1F2328; background-color: #FFFFFF;"><code data-lang="rust"><span class="giallo-l"><span style="color: #CF222E;">let mut</span><span> f</span><span style="color: #CF222E;"> =</span><span style="color: #953800;"> File</span><span style="color: #CF222E;">::</span><span style="color: #8250DF;">create</span><span>(</span><span style="color: #0A3069;">&quot;examples/mnist.dat&quot;</span><span>)</span><span style="color: #CF222E;">.</span><span style="color: #8250DF;">unwrap</span><span>();</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #CF222E;">for</span><span> (x, y)</span><span style="color: #CF222E;"> in</span><span> ds</span><span style="color: #CF222E;">.</span><span style="color: #8250DF;">sample_iter</span><span>() {</span></span>
+<span class="giallo-l"><span>    f</span><span style="color: #CF222E;">.</span><span style="color: #8250DF;">write</span><span>(</span><span style="color: #8250DF;">format!</span><span>(</span><span style="color: #0A3069;">&quot;{} {} {}</span><span style="color: #CF222E;">\n</span><span style="color: #0A3069;">&quot;</span><span>, x[</span><span style="color: #0550AE;">0</span><span>], x[</span><span style="color: #0550AE;">1</span><span>], y[</span><span style="color: #0550AE;">0</span><span>])</span><span style="color: #CF222E;">.</span><span style="color: #8250DF;">as_bytes</span><span>())</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">        .</span><span style="color: #8250DF;">unwrap</span><span>();</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>You can find the full example at <a rel="external" href="https://github.com/rust-ml/linfa/blob/master/algorithms/linfa-tsne/examples/mnist.rs">algorithms/linfa-tsne/examples/mnist.rs</a> and run it with</p>
+<pre class="giallo" style="color: #1F2328; background-color: #FFFFFF;"><code data-lang="plain"><span class="giallo-l"><span>$ cargo run --example  mnist --features linfa/intel-mkl-system --release</span></span></code></pre><h2 id="preprocessing-text-data-with-tf-idf-and-linfa-preprocessing">Preprocessing text data with TF-IDF and <code>linfa-preprocessing</code></h2>
+<p>Let's move to a different example. This release sees the publication of the first <code>linfa-preprocessing</code> version which already includes many algorithms suitable for text processing. We will try to predict the topic of a newspaper article with Gaussian Naive Bayes algorithm. Prior to training such a model, we need to somehow extract continuous embeddings from the text. With a number of sample files <code>training_filenames</code> we can use <code>linfa-preprocessing</code> to construct a vocabulary by calling:</p>
+<pre class="giallo" style="color: #1F2328; background-color: #FFFFFF;"><code data-lang="rust"><span class="giallo-l"><span style="color: #CF222E;">let</span><span> vectorizer</span><span style="color: #CF222E;"> =</span><span style="color: #953800;"> TfIdfVectorizer</span><span style="color: #CF222E;">::</span><span style="color: #8250DF;">default</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">    .</span><span style="color: #8250DF;">fit_files</span><span>(</span><span style="color: #CF222E;">&amp;</span><span>training_filenames,</span><span style="color: #0550AE;"> ISO_8859_1</span><span>,</span><span style="color: #953800;"> Strict</span><span>)</span><span style="color: #CF222E;">?</span><span>;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #8250DF;">println!</span><span>(</span></span>
+<span class="giallo-l"><span style="color: #0A3069;">    &quot;We obtain a vocabulary with {} entries&quot;</span><span>,</span></span>
+<span class="giallo-l"><span>    vectorizer</span><span style="color: #CF222E;">.</span><span style="color: #8250DF;">nentries</span><span>()</span></span>
+<span class="giallo-l"><span>);  </span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #6E7781;">// construction of targets and dataset omitted here</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">let</span><span> training_dataset</span><span style="color: #CF222E;"> =</span><span style="color: #6E7781;"> //...</span></span></code></pre>
+<p>This vocabulary can then be used to extract an embedding for a text file. The Naive Bayes algorithm does not work with sparse matrices, so we have to make the embedding matrix dense.</p>
+<pre class="giallo" style="color: #1F2328; background-color: #FFFFFF;"><code data-lang="rust"><span class="giallo-l"><span style="color: #CF222E;">let</span><span> training_records</span><span style="color: #CF222E;"> =</span><span> vectorizer</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">  .</span><span style="color: #8250DF;">transform_files</span><span>(</span><span style="color: #CF222E;">&amp;</span><span>training_filenames,</span><span style="color: #0550AE;"> ISO_8859_1</span><span>,</span><span style="color: #953800;"> Strict</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">  .</span><span style="color: #8250DF;">to_dense</span><span>();</span></span></code></pre>
+<p>The Gaussian Naive Bayes is trained with the default parameters and the dataset passed for training: (the construction of the targets is omitted here)</p>
+<pre class="giallo" style="color: #1F2328; background-color: #FFFFFF;"><code data-lang="rust"><span class="giallo-l"><span style="color: #CF222E;">let</span><span> model</span><span style="color: #CF222E;"> =</span><span style="color: #953800;"> GaussianNbParams</span><span style="color: #CF222E;">::</span><span style="color: #8250DF;">params</span><span>()</span><span style="color: #CF222E;">.</span><span style="color: #8250DF;">fit</span><span>(</span><span style="color: #CF222E;">&amp;</span><span>training_dataset)</span><span style="color: #CF222E;">?</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">let</span><span> training_prediction</span><span style="color: #CF222E;"> =</span><span> model</span><span style="color: #CF222E;">.</span><span style="color: #8250DF;">predict</span><span>(</span><span style="color: #CF222E;">&amp;</span><span>training_dataset);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #CF222E;">let</span><span> cm</span><span style="color: #CF222E;"> =</span><span> training_prediction</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">    .</span><span style="color: #8250DF;">confusion_matrix</span><span>(</span><span style="color: #CF222E;">&amp;</span><span>training_dataset)</span><span style="color: #CF222E;">?</span><span>;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #6E7781;">// this gives an F1 score of 0.9994</span></span>
+<span class="giallo-l"><span style="color: #8250DF;">println!</span><span>(</span><span style="color: #0A3069;">&quot;The fitted model has a training f1 score of {}&quot;</span><span>, cm</span><span style="color: #CF222E;">.</span><span style="color: #8250DF;">f1_score</span><span>());   </span></span></code></pre>
+<p>To evaluate the model we have a second set of <code>test_filenames</code> which are again transformed to its dense embedding representation. The Gaussian Naive Bayes model is then used to predict the targets. The confusion matrix and F1 score measures its performance.</p>
+<pre class="giallo" style="color: #1F2328; background-color: #FFFFFF;"><code data-lang="rust"><span class="giallo-l"><span style="color: #CF222E;">let</span><span> test_records</span><span style="color: #CF222E;"> =</span><span> vectorizer</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">    .</span><span style="color: #8250DF;">transform_files</span><span>(</span><span style="color: #CF222E;">&amp;</span><span>test_filenames,</span><span style="color: #0550AE;"> ISO_8859_1</span><span>,</span><span style="color: #953800;"> Strict</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">    .</span><span style="color: #8250DF;">to_dense</span><span>();</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #6E7781;">// get targets and construct testing dataset </span></span>
+<span class="giallo-l"><span style="color: #6E7781;">// ...</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #6E7781;">// predict the testing targets</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">let</span><span> test_prediction</span><span style="color: #CF222E;">:</span><span style="color: #953800;"> Array1</span><span>&lt;</span><span style="color: #953800;">usize</span><span>&gt;</span><span style="color: #CF222E;"> =</span><span> model</span><span style="color: #CF222E;">.</span><span style="color: #8250DF;">predict</span><span>(</span><span style="color: #CF222E;">&amp;</span><span>test_dataset);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #6E7781;">// create a confusion matrix and print F1 score</span></span>
+<span class="giallo-l"><span style="color: #CF222E;">let</span><span> cm</span><span style="color: #CF222E;"> =</span><span> test_prediction</span><span style="color: #CF222E;">.</span><span style="color: #8250DF;">confusion_matrix</span><span>(</span><span style="color: #CF222E;">&amp;</span><span>test_dataset)</span><span style="color: #CF222E;">?</span></span>
+<span class="giallo-l"><span style="color: #8250DF;">println!</span><span>(</span><span style="color: #0A3069;">&quot;{:?}&quot;</span><span>, cm);                                                                                                                                                                  </span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #6E7781;">// the evaluation gives an F1 score of 0.8402</span></span>
+<span class="giallo-l"><span style="color: #8250DF;">println!</span><span>(</span><span style="color: #0A3069;">&quot;The model has a test f1 score of {}&quot;</span><span>, cm</span><span style="color: #CF222E;">.</span><span style="color: #8250DF;">f1_score</span><span>());</span></span></code></pre>
+<p>You can find the full example at <a rel="external" href="https://github.com/rust-ml/linfa/blob/master/algorithms/linfa-preprocessing/examples/tfidf_vectorization.rs">algorithms/linfa-preprocessing/examples/tfidf_vectorizer.rs</a> and run it with</p>
+<pre class="giallo" style="color: #1F2328; background-color: #FFFFFF;"><code data-lang="plain"><span class="giallo-l"><span>$ cargo run --example tfidf_vectorizer --release</span></span>
+<span class="giallo-l"></span></code></pre>
+</div></div>
+
+    </div>
+  </section>
+  <div class="bottom">
+    <div class="grid">
+      <div class="footer">View
+        <a href="https://github.com/rust-ml/linfa/tree/master/docs/website">page source</a>
+        - any contribution is welcome!
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"trait":["Fit","FitWith","Predict","PredictInplace","Transformer"]};

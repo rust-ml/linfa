@@ -1,0 +1,109 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `algorithms/linfa-bayes/src/base_nb.rs`."><title>base_nb.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="linfa_bayes" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../static.files/storage-e2aeef58.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">linfa_bayes/</div>base_nb.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span>ndarray::{Array1, Array2, ArrayBase, ArrayView2, Axis, Data, Ix2, Zip};
+<a href=#2 id=2 data-nosnippet>2</a><span class="kw">use </span>ndarray_stats::QuantileExt;
+<a href=#3 id=3 data-nosnippet>3</a><span class="kw">use </span>std::collections::HashMap;
+<a href=#4 id=4 data-nosnippet>4</a>
+<a href=#5 id=5 data-nosnippet>5</a><span class="kw">use </span><span class="kw">crate</span>::error::{NaiveBayesError, <span class="prelude-ty">Result</span>};
+<a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span>linfa::dataset::{AsTargets, DatasetBase, Labels};
+<a href=#7 id=7 data-nosnippet>7</a><span class="kw">use </span>linfa::traits::FitWith;
+<a href=#8 id=8 data-nosnippet>8</a><span class="kw">use </span>linfa::{Float, Label};
+<a href=#9 id=9 data-nosnippet>9</a>
+<a href=#10 id=10 data-nosnippet>10</a><span class="comment">// Trait computing predictions for fitted Naive Bayes models
+<a href=#11 id=11 data-nosnippet>11</a></span><span class="kw">pub trait </span>NaiveBayes&lt;<span class="lifetime">'a</span>, F, L&gt;
+<a href=#12 id=12 data-nosnippet>12</a><span class="kw">where
+<a href=#13 id=13 data-nosnippet>13</a>    </span>F: Float,
+<a href=#14 id=14 data-nosnippet>14</a>    L: Label + Ord,
+<a href=#15 id=15 data-nosnippet>15</a>{
+<a href=#16 id=16 data-nosnippet>16</a>    <span class="doccomment">/// Compute the unnormalized posterior log probabilities.
+<a href=#17 id=17 data-nosnippet>17</a>    /// The result is returned as an HashMap indexing log probabilities for each samples (eg x rows) by classes
+<a href=#18 id=18 data-nosnippet>18</a>    /// (eg jll\[class\] -&gt; (n_samples,) array)
+<a href=#19 id=19 data-nosnippet>19</a>    </span><span class="kw">fn </span>joint_log_likelihood(<span class="kw-2">&amp;</span><span class="self">self</span>, x: ArrayView2&lt;F&gt;) -&gt; HashMap&lt;<span class="kw-2">&amp;</span>L, Array1&lt;F&gt;&gt;;
+<a href=#20 id=20 data-nosnippet>20</a>
+<a href=#21 id=21 data-nosnippet>21</a>    <span class="attr">#[doc(hidden)]
+<a href=#22 id=22 data-nosnippet>22</a>    </span><span class="kw">fn </span>predict_inplace&lt;D: Data&lt;Elem = F&gt;&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, x: <span class="kw-2">&amp;</span>ArrayBase&lt;D, Ix2&gt;, y: <span class="kw-2">&amp;mut </span>Array1&lt;L&gt;) {
+<a href=#23 id=23 data-nosnippet>23</a>        <span class="macro">assert_eq!</span>(
+<a href=#24 id=24 data-nosnippet>24</a>            x.nrows(),
+<a href=#25 id=25 data-nosnippet>25</a>            y.len(),
+<a href=#26 id=26 data-nosnippet>26</a>            <span class="string">"The number of data points must match the number of output targets."
+<a href=#27 id=27 data-nosnippet>27</a>        </span>);
+<a href=#28 id=28 data-nosnippet>28</a>
+<a href=#29 id=29 data-nosnippet>29</a>        <span class="kw">let </span>joint_log_likelihood = <span class="self">self</span>.joint_log_likelihood(x.view());
+<a href=#30 id=30 data-nosnippet>30</a>
+<a href=#31 id=31 data-nosnippet>31</a>        <span class="comment">// We store the classes and likelihood info in an vec and matrix
+<a href=#32 id=32 data-nosnippet>32</a>        // respectively for easier identification of the dominant class for
+<a href=#33 id=33 data-nosnippet>33</a>        // each input
+<a href=#34 id=34 data-nosnippet>34</a>        </span><span class="kw">let </span>nclasses = joint_log_likelihood.keys().len();
+<a href=#35 id=35 data-nosnippet>35</a>        <span class="kw">let </span>n = x.nrows();
+<a href=#36 id=36 data-nosnippet>36</a>        <span class="kw">let </span><span class="kw-2">mut </span>classes = Vec::with_capacity(nclasses);
+<a href=#37 id=37 data-nosnippet>37</a>        <span class="kw">let </span><span class="kw-2">mut </span>likelihood = Array2::zeros((nclasses, n));
+<a href=#38 id=38 data-nosnippet>38</a>        joint_log_likelihood
+<a href=#39 id=39 data-nosnippet>39</a>            .iter()
+<a href=#40 id=40 data-nosnippet>40</a>            .enumerate()
+<a href=#41 id=41 data-nosnippet>41</a>            .for_each(|(i, (<span class="kw-2">&amp;</span>key, value))| {
+<a href=#42 id=42 data-nosnippet>42</a>                classes.push(key.clone());
+<a href=#43 id=43 data-nosnippet>43</a>                likelihood.row_mut(i).assign(value);
+<a href=#44 id=44 data-nosnippet>44</a>            });
+<a href=#45 id=45 data-nosnippet>45</a>
+<a href=#46 id=46 data-nosnippet>46</a>        <span class="comment">// Identify the class with the maximum log likelihood
+<a href=#47 id=47 data-nosnippet>47</a>        </span><span class="kw-2">*</span>y = likelihood.map_axis(Axis(<span class="number">0</span>), |x| {
+<a href=#48 id=48 data-nosnippet>48</a>            <span class="kw">let </span>i = x.argmax().unwrap();
+<a href=#49 id=49 data-nosnippet>49</a>            classes[i].clone()
+<a href=#50 id=50 data-nosnippet>50</a>        });
+<a href=#51 id=51 data-nosnippet>51</a>    }
+<a href=#52 id=52 data-nosnippet>52</a>
+<a href=#53 id=53 data-nosnippet>53</a>    <span class="doccomment">/// Compute log-probability estimates for each sample wrt classes.
+<a href=#54 id=54 data-nosnippet>54</a>    /// The columns corresponds to classes in sorted order returned as the second output.
+<a href=#55 id=55 data-nosnippet>55</a>    </span><span class="kw">fn </span>predict_log_proba(<span class="kw-2">&amp;</span><span class="self">self</span>, x: ArrayView2&lt;F&gt;) -&gt; (Array2&lt;F&gt;, Vec&lt;<span class="kw-2">&amp;</span>L&gt;) {
+<a href=#56 id=56 data-nosnippet>56</a>        <span class="kw">let </span>log_likelihood = <span class="self">self</span>.joint_log_likelihood(x);
+<a href=#57 id=57 data-nosnippet>57</a>
+<a href=#58 id=58 data-nosnippet>58</a>        <span class="kw">let </span><span class="kw-2">mut </span>classes = log_likelihood.keys().cloned().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#59 id=59 data-nosnippet>59</a>        classes.sort();
+<a href=#60 id=60 data-nosnippet>60</a>
+<a href=#61 id=61 data-nosnippet>61</a>        <span class="kw">let </span>n_samples = x.nrows();
+<a href=#62 id=62 data-nosnippet>62</a>        <span class="kw">let </span>n_classes = log_likelihood.len();
+<a href=#63 id=63 data-nosnippet>63</a>        <span class="kw">let </span><span class="kw-2">mut </span>log_prob_mat = Array2::&lt;F&gt;::zeros((n_samples, n_classes));
+<a href=#64 id=64 data-nosnippet>64</a>
+<a href=#65 id=65 data-nosnippet>65</a>        Zip::from(log_prob_mat.columns_mut())
+<a href=#66 id=66 data-nosnippet>66</a>            .and(<span class="kw-2">&amp;</span>classes)
+<a href=#67 id=67 data-nosnippet>67</a>            .for_each(|<span class="kw-2">mut </span>jll, <span class="kw-2">&amp;</span>class| jll.assign(log_likelihood.get(class).unwrap()));
+<a href=#68 id=68 data-nosnippet>68</a>
+<a href=#69 id=69 data-nosnippet>69</a>        <span class="kw">let </span>log_prob_x = log_prob_mat
+<a href=#70 id=70 data-nosnippet>70</a>            .mapv(|x| x.exp())
+<a href=#71 id=71 data-nosnippet>71</a>            .sum_axis(Axis(<span class="number">1</span>))
+<a href=#72 id=72 data-nosnippet>72</a>            .mapv(|x| x.ln())
+<a href=#73 id=73 data-nosnippet>73</a>            .into_shape_with_order((n_samples, <span class="number">1</span>))
+<a href=#74 id=74 data-nosnippet>74</a>            .unwrap();
+<a href=#75 id=75 data-nosnippet>75</a>
+<a href=#76 id=76 data-nosnippet>76</a>        (log_prob_mat - log_prob_x, classes)
+<a href=#77 id=77 data-nosnippet>77</a>    }
+<a href=#78 id=78 data-nosnippet>78</a>
+<a href=#79 id=79 data-nosnippet>79</a>    <span class="doccomment">/// Compute probability estimates for each sample wrt classes.
+<a href=#80 id=80 data-nosnippet>80</a>    /// The columns corresponds to classes in sorted order returned as the second output.  
+<a href=#81 id=81 data-nosnippet>81</a>    </span><span class="kw">fn </span>predict_proba(<span class="kw-2">&amp;</span><span class="self">self</span>, x: ArrayView2&lt;F&gt;) -&gt; (Array2&lt;F&gt;, Vec&lt;<span class="kw-2">&amp;</span>L&gt;) {
+<a href=#82 id=82 data-nosnippet>82</a>        <span class="kw">let </span>(log_prob_mat, classes) = <span class="self">self</span>.predict_log_proba(x);
+<a href=#83 id=83 data-nosnippet>83</a>
+<a href=#84 id=84 data-nosnippet>84</a>        (log_prob_mat.mapv(|v| v.exp()), classes)
+<a href=#85 id=85 data-nosnippet>85</a>    }
+<a href=#86 id=86 data-nosnippet>86</a>}
+<a href=#87 id=87 data-nosnippet>87</a>
+<a href=#88 id=88 data-nosnippet>88</a><span class="comment">// Common functionality for hyper-parameter sets of Naive Bayes models ready for estimation
+<a href=#89 id=89 data-nosnippet>89</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">trait </span>NaiveBayesValidParams&lt;<span class="lifetime">'a</span>, F, L, D, T&gt;:
+<a href=#90 id=90 data-nosnippet>90</a>    FitWith&lt;<span class="lifetime">'a</span>, ArrayBase&lt;D, Ix2&gt;, T, NaiveBayesError&gt;
+<a href=#91 id=91 data-nosnippet>91</a><span class="kw">where
+<a href=#92 id=92 data-nosnippet>92</a>    </span>F: Float,
+<a href=#93 id=93 data-nosnippet>93</a>    L: Label + Ord,
+<a href=#94 id=94 data-nosnippet>94</a>    D: Data&lt;Elem = F&gt;,
+<a href=#95 id=95 data-nosnippet>95</a>    T: AsTargets&lt;Elem = L&gt; + Labels&lt;Elem = L&gt;,
+<a href=#96 id=96 data-nosnippet>96</a>{
+<a href=#97 id=97 data-nosnippet>97</a>    <span class="kw">fn </span>fit(
+<a href=#98 id=98 data-nosnippet>98</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#99 id=99 data-nosnippet>99</a>        dataset: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>DatasetBase&lt;ArrayBase&lt;D, Ix2&gt;, T&gt;,
+<a href=#100 id=100 data-nosnippet>100</a>        model_none: <span class="self">Self</span>::ObjectIn,
+<a href=#101 id=101 data-nosnippet>101</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>::ObjectOut&gt; {
+<a href=#102 id=102 data-nosnippet>102</a>        <span class="comment">// We extract the unique classes in sorted order
+<a href=#103 id=103 data-nosnippet>103</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>unique_classes = dataset.targets.labels();
+<a href=#104 id=104 data-nosnippet>104</a>        unique_classes.sort_unstable();
+<a href=#105 id=105 data-nosnippet>105</a>
+<a href=#106 id=106 data-nosnippet>106</a>        <span class="self">self</span>.fit_with(model_none, dataset)
+<a href=#107 id=107 data-nosnippet>107</a>    }
+<a href=#108 id=108 data-nosnippet>108</a>}
+</code></pre></div></section></main></body></html>

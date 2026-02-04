@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["SplitQuality"],"struct":["DecisionTree","DecisionTreeParams","DecisionTreeValidParams","NodeIter","Tikz","TreeNode"],"type":["Result"]};
