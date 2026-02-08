@@ -1,8 +1,8 @@
 use crate::PreprocessingError;
 use linfa::ParamGuard;
 use regex::Regex;
-use std::cell::{Ref, RefCell};
 use std::collections::HashSet;
+use std::sync::OnceLock;
 
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
@@ -35,8 +35,7 @@ impl SerdeRegex {
     }
 
     fn as_re(&self) -> &Regex {
-        use std::ops::Deref;
-        &self.0.deref()
+        &self.0
     }
 }
 
@@ -68,7 +67,8 @@ impl SerdeRegex {
 pub struct CountVectorizerValidParams {
     convert_to_lowercase: bool,
     split_regex_expr: String,
-    split_regex: RefCell<Option<SerdeRegex>>,
+    #[cfg_attr(feature = "serde", serde(skip, default = "OnceLock::new"))]
+    split_regex: OnceLock<SerdeRegex>,
     n_gram_range: (usize, usize),
     normalize: bool,
     document_frequency: (f32, f32),
@@ -92,8 +92,11 @@ impl CountVectorizerValidParams {
         self.convert_to_lowercase
     }
 
-    pub fn split_regex(&self) -> Ref<'_, Regex> {
-        Ref::map(self.split_regex.borrow(), |x| x.as_ref().unwrap().as_re())
+    pub fn split_regex(&self) -> &Regex {
+        self.split_regex
+            .get()
+            .expect("Regex not initialized; call `check_ref()` first")
+            .as_re()
     }
 
     pub fn n_gram_range(&self) -> (usize, usize) {
@@ -121,12 +124,12 @@ impl CountVectorizerValidParams {
 #[derive(Clone, Debug)]
 pub struct CountVectorizerParams(CountVectorizerValidParams);
 
-impl std::default::Default for CountVectorizerParams {
+impl Default for CountVectorizerParams {
     fn default() -> Self {
         Self(CountVectorizerValidParams {
             convert_to_lowercase: true,
             split_regex_expr: r"\b\w\w+\b".to_string(),
-            split_regex: RefCell::new(None),
+            split_regex: OnceLock::new(),
             n_gram_range: (1, 1),
             normalize: true,
             document_frequency: (0., 1.),
@@ -224,8 +227,7 @@ impl ParamGuard for CountVectorizerParams {
                 min_freq, max_freq,
             ))
         } else {
-            *self.0.split_regex.borrow_mut() = Some(SerdeRegex::new(&self.0.split_regex_expr)?);
-
+            let _ = self.0.split_regex.set(SerdeRegex::new(&self.0.split_regex_expr)?);
             Ok(&self.0)
         }
     }
