@@ -16,7 +16,7 @@
 //!
 //! ## Linear + linear
 //!
-//! Two [`linfa_linear::LinearRegression`] models stacked: the second fits the
+//! Two `linfa_linear::LinearRegression` models stacked: the second fits the
 //! residuals left by the first.
 //!
 //! ```
@@ -69,8 +69,8 @@
 //!
 //! ## Chained SVMs and linear regression
 //!
-//! A linear-kernel [`linfa_svm::Svm`] captures the overall trend; two
-//! Gaussian-kernel SVMs and a [`linfa_linear::LinearRegression`] then fit
+//! A linear-kernel `linfa_svm::Svm` captures the overall trend; two
+//! Gaussian-kernel SVMs and a `linfa_linear::LinearRegression` then fit
 //! successive residuals in a four-model chain.
 //!
 //! ```
