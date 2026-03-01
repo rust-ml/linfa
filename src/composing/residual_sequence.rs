@@ -134,7 +134,7 @@ pub enum ResidualSequenceError<E1, E2> {
 /// Fits two models sequentially on the residuals of the first.
 ///
 /// `first` is fit on the original dataset. `second` is fit on the residuals
-/// `Y - first.predict(X)`. See the [crate-level docs](crate) for details.
+/// `Y - first.predict(X)`. See the [module docs](self) for details.
 #[derive(Debug, Clone)]
 pub struct ResidualSequence<F1, F2> {
     pub first: F1,
@@ -162,6 +162,9 @@ pub struct ResidualSequence<F1, F2> {
 ///     .unwrap();
 /// ```
 pub trait StackWith: Sized {
+    /// Wrap `self` and `second` into a [`ResidualSequence`] that will fit
+    /// `second` on the residuals left by `self`. Calls can be chained to add
+    /// further stages.
     fn stack_with<F2>(self, second: F2) -> ResidualSequence<Self, F2>;
 }
 
