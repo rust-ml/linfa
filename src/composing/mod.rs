@@ -7,6 +7,7 @@
 mod multi_class_model;
 mod multi_target_model;
 pub mod platt_scaling;
+pub mod residual_sequence;
 
 pub use multi_class_model::MultiClassModel;
 pub use multi_target_model::MultiTargetModel;

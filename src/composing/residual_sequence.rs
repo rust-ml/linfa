@@ -23,7 +23,7 @@
 //! use linfa::traits::{Fit, Predict};
 //! use linfa::DatasetBase;
 //! use linfa_linear::LinearRegression;
-//! use linfa_residual_sequence::{ResidualSequence, StackWith};
+//! use linfa::composing::residual_sequence::{ResidualSequence, StackWith};
 //! use ndarray::{array, Array2};
 //!
 //! // y = 2x: perfectly linear, so the second model should see zero residuals.
@@ -49,7 +49,7 @@
 //! use linfa::traits::{Fit, Predict};
 //! use linfa::DatasetBase;
 //! use linfa_linear::LinearRegression;
-//! use linfa_residual_sequence::StackWith;
+//! use linfa::composing::residual_sequence::StackWith;
 //! use ndarray::{array, Array2};
 //!
 //! // y = 2x: one linear model is enough to fit this perfectly.
@@ -77,7 +77,7 @@
 //! use linfa::traits::{Fit, Predict};
 //! use linfa::DatasetBase;
 //! use linfa_linear::LinearRegression;
-//! use linfa_residual_sequence::{ResidualSequence, StackWith};
+//! use linfa::composing::residual_sequence::{ResidualSequence, StackWith};
 //! use linfa_svm::Svm;
 //! use ndarray::Array;
 //!
@@ -109,8 +109,8 @@
 //! let _preds = fitted.predict(&x);
 //! ```
 
-use linfa::dataset::{AsTargets, DatasetBase, Records};
-use linfa::traits::{Fit, Predict};
+use crate::dataset::{AsTargets, DatasetBase, Records};
+use crate::traits::{Fit, Predict};
 use ndarray::{Array1, ArrayBase, Data, Ix1, Ix2, RawDataClone};
 use std::ops::{Add, Sub};
 
@@ -128,7 +128,7 @@ pub enum ResidualSequenceError<E1, E2> {
     Second(E2),
     // Satisfies the `Fit` trait's `E: From<linfa::error::Error>` bound.
     #[error(transparent)]
-    Linfa(#[from] linfa::error::Error),
+    Linfa(#[from] crate::error::Error),
 }
 
 /// Fits two models sequentially on the residuals of the first.
@@ -149,7 +149,7 @@ pub struct ResidualSequence<F1, F2> {
 /// use linfa::traits::Fit;
 /// use linfa::DatasetBase;
 /// use linfa_linear::LinearRegression;
-/// use linfa_residual_sequence::StackWith;
+/// use linfa::composing::residual_sequence::StackWith;
 /// use ndarray::{array, Array2};
 ///
 /// let x = Array2::from_shape_fn((5, 1), |(i, _)| i as f64);
@@ -193,8 +193,8 @@ where
     for<'a> F1::Object: Predict<&'a Arr2<D>, Array1<D::Elem>>,
     F2: Fit<Arr2<D>, Array1<D::Elem>, E2>,
     T: AsTargets<Elem = D::Elem, Ix = Ix1>,
-    E1: std::error::Error + From<linfa::error::Error>,
-    E2: std::error::Error + From<linfa::error::Error>,
+    E1: std::error::Error + From<crate::error::Error>,
+    E2: std::error::Error + From<crate::error::Error>,
 {
     type Object = FittedResidualSequence<F1::Object, F2::Object>;
 
@@ -244,8 +244,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use linfa::error::Error as LinfaError;
-    use linfa::DatasetBase;
+    use crate::error::Error as LinfaError;
+    use crate::DatasetBase;
     use ndarray::{array, Array1, Array2};
 
     #[derive(thiserror::Error, Debug)]

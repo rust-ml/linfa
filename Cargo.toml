@@ -63,6 +63,8 @@ linfa-datasets = { path = "datasets", features = [
     "diabetes",
     "generate",
 ] }
+linfa-linear = { path = "algorithms/linfa-linear" }
+linfa-svm = { path = "algorithms/linfa-svm" }
 statrs = "0.18"
 
 [target.'cfg(not(windows))'.dependencies]
