@@ -111,7 +111,7 @@
 
 use crate::dataset::{AsTargets, DatasetBase, Records};
 use crate::traits::{Fit, Predict, PredictInplace};
-use crate::{Float, ParamGuard};
+use crate::Float;
 use ndarray::{Array1, ArrayBase, Data, Ix1, Ix2, RawDataClone};
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
@@ -132,17 +132,6 @@ pub enum ResidualSequenceError<E1, E2> {
     // Satisfies the `Fit` trait's `E: From<linfa::error::Error>` bound.
     #[error(transparent)]
     BaseCrate(#[from] crate::Error),
-}
-
-/// Error returned when checking [`ResidualSequence`] hyperparameters.
-///
-/// Wraps the validation error from whichever sub-model's parameter check failed.
-#[derive(Debug, thiserror::Error)]
-pub enum ResidualParamError<E1, E2> {
-    #[error("first model params: {0}")]
-    First(E1),
-    #[error("second model params: {0}")]
-    Second(E2),
 }
 
 /// Fits two models sequentially on the residuals of the first.
@@ -202,29 +191,6 @@ impl<F1> StackWith for F1 {
             first: self,
             second,
         }
-    }
-}
-
-impl<F1, F2> ParamGuard for ResidualSequence<F1, F2>
-where
-    F1: ParamGuard<Checked = F1>,
-    F2: ParamGuard<Checked = F2>,
-{
-    type Checked = Self;
-    type Error = ResidualParamError<F1::Error, F2::Error>;
-
-    /// Validates both sub-model hyperparameters.
-    ///
-    /// Returns a reference to `self` if both pass, or the first error encountered.
-    fn check_ref(&self) -> Result<&Self::Checked, Self::Error> {
-        self.first.check_ref().map_err(ResidualParamError::First)?;
-        self.second.check_ref().map_err(ResidualParamError::Second)?;
-        Ok(self)
-    }
-
-    fn check(self) -> Result<Self::Checked, Self::Error> {
-        self.check_ref()?;
-        Ok(self)
     }
 }
 
@@ -298,43 +264,6 @@ mod tests {
     #[derive(thiserror::Error, Debug)]
     #[error("dummy error")]
     struct DummyError(#[from] LinfaError);
-
-    // --- ParamGuard helpers ---
-
-    // Error used by test ParamGuard stubs.
-    #[derive(thiserror::Error, Debug, PartialEq)]
-    #[error("invalid params: {0}")]
-    struct ParamErr(String);
-
-    // Always-valid params stub.
-    #[derive(Debug)]
-    struct OkParams;
-
-    impl ParamGuard for OkParams {
-        type Checked = Self;
-        type Error = ParamErr;
-        fn check_ref(&self) -> Result<&Self, ParamErr> {
-            Ok(self)
-        }
-        fn check(self) -> Result<Self, ParamErr> {
-            Ok(self)
-        }
-    }
-
-    // Always-invalid params stub.
-    #[derive(Debug)]
-    struct BadParams(String);
-
-    impl ParamGuard for BadParams {
-        type Checked = Self;
-        type Error = ParamErr;
-        fn check_ref(&self) -> Result<&Self, ParamErr> {
-            Err(ParamErr(self.0.clone()))
-        }
-        fn check(self) -> Result<Self, ParamErr> {
-            Err(ParamErr(self.0))
-        }
-    }
 
     // Params that fits by recording the mean of the targets.
     struct MeanParams;
@@ -417,51 +346,5 @@ mod tests {
 
         let predictions = fitted.predict(&array![[0.0_f64], [1.0]]);
         assert_eq!(predictions, array![4.0, 4.0]);
-    }
-
-    // --- ParamGuard tests ---
-
-    #[test]
-    fn param_guard_check_ref_succeeds_when_both_params_valid() {
-        let seq = OkParams.stack_with(OkParams);
-        assert!(seq.check_ref().is_ok());
-    }
-
-    #[test]
-    fn param_guard_check_ref_fails_on_invalid_first() {
-        let seq = BadParams("bad first".into()).stack_with(OkParams);
-        let err = seq.check_ref().unwrap_err();
-        assert!(matches!(err, ResidualParamError::First(ParamErr(_))));
-    }
-
-    #[test]
-    fn param_guard_check_ref_fails_on_invalid_second() {
-        let seq = OkParams.stack_with(BadParams("bad second".into()));
-        let err = seq.check_ref().unwrap_err();
-        assert!(matches!(err, ResidualParamError::Second(ParamErr(_))));
-    }
-
-    #[test]
-    fn param_guard_check_succeeds_and_returns_self() {
-        let seq = OkParams.stack_with(OkParams);
-        assert!(seq.check().is_ok());
-    }
-
-    #[test]
-    fn param_guard_check_fails_on_invalid_first() {
-        let seq = BadParams("bad".into()).stack_with(OkParams);
-        assert!(matches!(
-            seq.check().unwrap_err(),
-            ResidualParamError::First(_)
-        ));
-    }
-
-    #[test]
-    fn param_guard_check_fails_on_invalid_second() {
-        let seq = OkParams.stack_with(BadParams("bad".into()));
-        assert!(matches!(
-            seq.check().unwrap_err(),
-            ResidualParamError::Second(_)
-        ));
     }
 }
