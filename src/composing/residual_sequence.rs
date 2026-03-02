@@ -63,8 +63,8 @@
 //!     .unwrap();
 //!
 //! // The second model trained on zero residuals — nothing left to correct.
-//! assert!(fitted.second.params().iter().all(|&c: &f64| c.abs() < 1e-10));
-//! assert!(fitted.second.intercept().abs() < 1e-10);
+//! assert!(fitted.second().params().iter().all(|&c: &f64| c.abs() < 1e-10));
+//! assert!(fitted.second().intercept().abs() < 1e-10);
 //! ```
 //!
 //! ## Chained SVMs and linear regression
@@ -134,10 +134,9 @@ pub enum ResidualSequenceError<E1, E2> {
     BaseCrate(#[from] crate::Error),
 }
 
-/// Fits two models sequentially on the residuals of the first.
+/// A pair of [`Fit`] params that fits sequentially on residuals, returning a pair of fitted models.
 ///
-/// `first` is fit on the original dataset. `second` is fit on the residuals
-/// `Y - first.predict(X)`. See the [module docs](self) for details.
+/// The fitted pair implements [`PredictInplace`] by summing both outputs.
 #[cfg_attr(
     feature = "serde",
     derive(Serialize, Deserialize),
@@ -194,15 +193,6 @@ impl<F1> StackWith for F1 {
     }
 }
 
-/// Two fitted models produced by [`ResidualSequence::fit`].
-///
-/// Predicts by summing both models' outputs: `first.predict(X) + second.predict(X)`.
-#[derive(Debug, Clone)]
-pub struct FittedResidualSequence<R1, R2> {
-    pub first: R1,
-    pub second: R2,
-}
-
 impl<F1, F2, F: Float, D: Data<Elem = F> + RawDataClone, T, E1, E2>
     Fit<Arr2<D>, T, ResidualSequenceError<E1, E2>> for ResidualSequence<F1, F2>
 where
@@ -214,7 +204,7 @@ where
     E1: std::error::Error + From<crate::error::Error>,
     E2: std::error::Error + From<crate::error::Error>,
 {
-    type Object = FittedResidualSequence<F1::Object, F2::Object>;
+    type Object = ResidualSequence<F1::Object, F2::Object>;
 
     fn fit(
         &self,
@@ -234,12 +224,12 @@ where
             .fit(&residual_dataset)
             .map_err(ResidualSequenceError::Second)?;
 
-        Ok(FittedResidualSequence { first, second })
+        Ok(ResidualSequence { first, second })
     }
 }
 
 impl<R1, R2, F: Float, D: Data<Elem = F>> PredictInplace<Arr2<D>, Array1<F>>
-    for FittedResidualSequence<R1, R2>
+    for ResidualSequence<R1, R2>
 where
     for<'a> R1: Predict<&'a Arr2<D>, Array1<F>>,
     for<'a> R2: Predict<&'a Arr2<D>, Array1<F>>,
@@ -292,15 +282,12 @@ mod tests {
     fn second_is_fit_on_residuals() {
         // targets = [1, 3]. first sees mean=2, predicts 2 for all.
         // residuals = [1-2, 3-2] = [-1, 1]. second sees mean=0.
-        let model = ResidualSequence {
-            first: MeanParams,
-            second: MeanParams,
-        };
+        let model = MeanParams.stack_with(MeanParams);
         let dataset = DatasetBase::new(array![[0.0_f64], [1.0]], array![1.0, 3.0]);
         let fitted = model.fit(&dataset).unwrap();
 
-        assert_eq!(fitted.first.0, 2.0); // mean of [1, 3]
-        assert_eq!(fitted.second.0, 0.0); // mean of residuals [-1, 1]
+        assert_eq!(fitted.first().0, 2.0); // mean of [1, 3]
+        assert_eq!(fitted.second().0, 0.0); // mean of residuals [-1, 1]
     }
 
     #[test]
