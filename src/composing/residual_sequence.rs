@@ -110,9 +110,12 @@
 //! ```
 
 use crate::dataset::{AsTargets, DatasetBase, Records};
-use crate::traits::{Fit, Predict};
+use crate::traits::{Fit, Predict, PredictInplace};
+use crate::{Float, ParamGuard};
 use ndarray::{Array1, ArrayBase, Data, Ix1, Ix2, RawDataClone};
-use std::ops::{Add, Sub};
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
+use std::ops::AddAssign;
 
 type Arr2<D> = ArrayBase<D, Ix2>;
 
@@ -128,17 +131,42 @@ pub enum ResidualSequenceError<E1, E2> {
     Second(E2),
     // Satisfies the `Fit` trait's `E: From<linfa::error::Error>` bound.
     #[error(transparent)]
-    Linfa(#[from] crate::error::Error),
+    BaseCrate(#[from] crate::Error),
+}
+
+/// Error returned when checking [`ResidualSequence`] hyperparameters.
+///
+/// Wraps the validation error from whichever sub-model's parameter check failed.
+#[derive(Debug, thiserror::Error)]
+pub enum ResidualParamError<E1, E2> {
+    #[error("first model params: {0}")]
+    First(E1),
+    #[error("second model params: {0}")]
+    Second(E2),
 }
 
 /// Fits two models sequentially on the residuals of the first.
 ///
 /// `first` is fit on the original dataset. `second` is fit on the residuals
 /// `Y - first.predict(X)`. See the [module docs](self) for details.
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Debug, Clone)]
 pub struct ResidualSequence<F1, F2> {
-    pub first: F1,
-    pub second: F2,
+    first: F1,
+    second: F2,
+}
+
+impl<F1, F2> ResidualSequence<F1, F2> {
+    pub fn first(&self) -> &F1 {
+        &self.first
+    }
+    pub fn second(&self) -> &F2 {
+        &self.second
+    }
 }
 
 /// Extension trait that lets any model params type be composed into a [`ResidualSequence`].
@@ -177,6 +205,29 @@ impl<F1> StackWith for F1 {
     }
 }
 
+impl<F1, F2> ParamGuard for ResidualSequence<F1, F2>
+where
+    F1: ParamGuard<Checked = F1>,
+    F2: ParamGuard<Checked = F2>,
+{
+    type Checked = Self;
+    type Error = ResidualParamError<F1::Error, F2::Error>;
+
+    /// Validates both sub-model hyperparameters.
+    ///
+    /// Returns a reference to `self` if both pass, or the first error encountered.
+    fn check_ref(&self) -> Result<&Self::Checked, Self::Error> {
+        self.first.check_ref().map_err(ResidualParamError::First)?;
+        self.second.check_ref().map_err(ResidualParamError::Second)?;
+        Ok(self)
+    }
+
+    fn check(self) -> Result<Self::Checked, Self::Error> {
+        self.check_ref()?;
+        Ok(self)
+    }
+}
+
 /// Two fitted models produced by [`ResidualSequence::fit`].
 ///
 /// Predicts by summing both models' outputs: `first.predict(X) + second.predict(X)`.
@@ -186,16 +237,14 @@ pub struct FittedResidualSequence<R1, R2> {
     pub second: R2,
 }
 
-impl<F1, F2, D, T, E1, E2> Fit<Arr2<D>, T, ResidualSequenceError<E1, E2>>
-    for ResidualSequence<F1, F2>
+impl<F1, F2, F: Float, D: Data<Elem = F> + RawDataClone, T, E1, E2>
+    Fit<Arr2<D>, T, ResidualSequenceError<E1, E2>> for ResidualSequence<F1, F2>
 where
-    D: Data + RawDataClone,
-    D::Elem: Copy + Sub<Output = D::Elem>,
     Arr2<D>: Records,
     F1: Fit<Arr2<D>, T, E1>,
-    for<'a> F1::Object: Predict<&'a Arr2<D>, Array1<D::Elem>>,
-    F2: Fit<Arr2<D>, Array1<D::Elem>, E2>,
-    T: AsTargets<Elem = D::Elem, Ix = Ix1>,
+    for<'a> F1::Object: Predict<&'a Arr2<D>, Array1<F>>,
+    F2: Fit<Arr2<D>, Array1<F>, E2>,
+    T: AsTargets<Elem = F, Ix = Ix1>,
     E1: std::error::Error + From<crate::error::Error>,
     E2: std::error::Error + From<crate::error::Error>,
 {
@@ -211,13 +260,7 @@ where
             .map_err(ResidualSequenceError::First)?;
 
         let y_pred = first.predict(dataset.records());
-        let residuals = dataset
-            .targets()
-            .as_targets()
-            .iter()
-            .zip(y_pred.iter())
-            .map(|(y, p)| *y - *p)
-            .collect::<Array1<D::Elem>>();
+        let residuals = &dataset.targets().as_targets() - &y_pred;
 
         let residual_dataset = DatasetBase::new(dataset.records().clone(), residuals);
         let second = self
@@ -229,18 +272,19 @@ where
     }
 }
 
-impl<'a, R1, R2, D> Predict<&'a Arr2<D>, Array1<D::Elem>> for FittedResidualSequence<R1, R2>
+impl<R1, R2, F: Float, D: Data<Elem = F>> PredictInplace<Arr2<D>, Array1<F>>
+    for FittedResidualSequence<R1, R2>
 where
-    D: Data,
-    D::Elem: Copy + Add<Output = D::Elem>,
-    Arr2<D>: Records,
-    for<'b> R1: Predict<&'b Arr2<D>, Array1<D::Elem>>,
-    for<'b> R2: Predict<&'b Arr2<D>, Array1<D::Elem>>,
+    for<'a> R1: Predict<&'a Arr2<D>, Array1<F>>,
+    for<'a> R2: Predict<&'a Arr2<D>, Array1<F>>,
 {
-    fn predict(&self, x: &'a Arr2<D>) -> Array1<D::Elem> {
-        let pred1 = self.first.predict(x);
-        let pred2 = self.second.predict(x);
-        pred1 + pred2
+    fn predict_inplace<'a>(&'a self, x: &'a Arr2<D>, y: &mut Array1<F>) {
+        y.assign(&self.first.predict(x));
+        y.add_assign(&self.second.predict(x));
+    }
+
+    fn default_target(&self, x: &Arr2<D>) -> Array1<F> {
+        Array1::zeros(x.nrows())
     }
 }
 
@@ -254,6 +298,43 @@ mod tests {
     #[derive(thiserror::Error, Debug)]
     #[error("dummy error")]
     struct DummyError(#[from] LinfaError);
+
+    // --- ParamGuard helpers ---
+
+    // Error used by test ParamGuard stubs.
+    #[derive(thiserror::Error, Debug, PartialEq)]
+    #[error("invalid params: {0}")]
+    struct ParamErr(String);
+
+    // Always-valid params stub.
+    #[derive(Debug)]
+    struct OkParams;
+
+    impl ParamGuard for OkParams {
+        type Checked = Self;
+        type Error = ParamErr;
+        fn check_ref(&self) -> Result<&Self, ParamErr> {
+            Ok(self)
+        }
+        fn check(self) -> Result<Self, ParamErr> {
+            Ok(self)
+        }
+    }
+
+    // Always-invalid params stub.
+    #[derive(Debug)]
+    struct BadParams(String);
+
+    impl ParamGuard for BadParams {
+        type Checked = Self;
+        type Error = ParamErr;
+        fn check_ref(&self) -> Result<&Self, ParamErr> {
+            Err(ParamErr(self.0.clone()))
+        }
+        fn check(self) -> Result<Self, ParamErr> {
+            Err(ParamErr(self.0))
+        }
+    }
 
     // Params that fits by recording the mean of the targets.
     struct MeanParams;
@@ -336,5 +417,51 @@ mod tests {
 
         let predictions = fitted.predict(&array![[0.0_f64], [1.0]]);
         assert_eq!(predictions, array![4.0, 4.0]);
+    }
+
+    // --- ParamGuard tests ---
+
+    #[test]
+    fn param_guard_check_ref_succeeds_when_both_params_valid() {
+        let seq = OkParams.stack_with(OkParams);
+        assert!(seq.check_ref().is_ok());
+    }
+
+    #[test]
+    fn param_guard_check_ref_fails_on_invalid_first() {
+        let seq = BadParams("bad first".into()).stack_with(OkParams);
+        let err = seq.check_ref().unwrap_err();
+        assert!(matches!(err, ResidualParamError::First(ParamErr(_))));
+    }
+
+    #[test]
+    fn param_guard_check_ref_fails_on_invalid_second() {
+        let seq = OkParams.stack_with(BadParams("bad second".into()));
+        let err = seq.check_ref().unwrap_err();
+        assert!(matches!(err, ResidualParamError::Second(ParamErr(_))));
+    }
+
+    #[test]
+    fn param_guard_check_succeeds_and_returns_self() {
+        let seq = OkParams.stack_with(OkParams);
+        assert!(seq.check().is_ok());
+    }
+
+    #[test]
+    fn param_guard_check_fails_on_invalid_first() {
+        let seq = BadParams("bad".into()).stack_with(OkParams);
+        assert!(matches!(
+            seq.check().unwrap_err(),
+            ResidualParamError::First(_)
+        ));
+    }
+
+    #[test]
+    fn param_guard_check_fails_on_invalid_second() {
+        let seq = OkParams.stack_with(BadParams("bad".into()));
+        assert!(matches!(
+            seq.check().unwrap_err(),
+            ResidualParamError::Second(_)
+        ));
     }
 }
