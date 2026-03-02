@@ -334,4 +334,16 @@ mod tests {
         let predictions = fitted.predict(&array![[0.0_f64], [1.0]]);
         assert_eq!(predictions, array![4.0, 4.0]);
     }
+
+    #[test]
+    fn deep_chain_accessors() {
+        let model = MeanParams
+            .stack_with(MeanParams)
+            .stack_with(MeanParams)
+            .stack_with(MeanParams);
+        let dataset = DatasetBase::new(array![[0.0_f64], [1.0]], array![1.0, 3.0]);
+        let fitted = model.fit(&dataset).unwrap();
+
+        assert_eq!(fitted.first().first().first().0, 2.0); // params trained on original targets
+    }
 }
