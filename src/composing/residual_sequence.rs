@@ -372,13 +372,12 @@ impl<B, C, F: Float> ParamGuard for ResidualChainParams<B, C, F> {
 
     fn check_ref(&self) -> Result<&ResidualChain<B, C, F>, crate::Error> {
         let v = self.0.corrector.shrinkage;
-        let err = crate::Error::Parameters(format!("shrinkage must be in (0, 1], got {v}"));
-        if v.to_f32()
-            .map_or(Err(err.clone()), |num| Ok(num > 0.0 && num <= 1.0))?
-        {
+        if v > F::zero() && v <= F::one() {
             Ok(&self.0)
         } else {
-            Err(err)
+            Err(crate::Error::Parameters(format!(
+                "shrinkage must be in (0, 1], got {v}"
+            )))
         }
     }
 
