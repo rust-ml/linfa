@@ -273,11 +273,11 @@ where
 impl<R1, R2, F: Float, D: Data<Elem = F>> PredictInplace<Arr2<D>, Array1<F>>
     for ResidualChain<R1, R2, F>
 where
-    for<'a> R1: Predict<&'a Arr2<D>, Array1<F>>,
-    for<'a> R2: Predict<&'a Arr2<D>, Array1<F>>,
+    R1: PredictInplace<Arr2<D>, Array1<F>>,
+    R2: PredictInplace<Arr2<D>, Array1<F>>,
 {
     fn predict_inplace<'a>(&'a self, x: &'a Arr2<D>, y: &mut Array1<F>) {
-        y.assign(&self.base.predict(x));
+        self.base.predict_inplace(x, y);
         y.add_assign(
             &self
                 .corrector
@@ -411,9 +411,12 @@ mod tests {
         }
     }
 
-    impl<'a> Predict<&'a Array2<f64>, Array1<f64>> for MeanModel {
-        fn predict(&self, x: &'a Array2<f64>) -> Array1<f64> {
-            Array1::from_elem(x.nrows(), self.0)
+    impl PredictInplace<Array2<f64>, Array1<f64>> for MeanModel {
+        fn predict_inplace(&self, x: &Array2<f64>, y: &mut Array1<f64>) {
+            y.assign(&Array1::from_elem(x.nrows(), self.0));
+        }
+        fn default_target(&self, x: &Array2<f64>) -> Array1<f64> {
+            Array1::zeros(x.nrows())
         }
     }
 
@@ -457,9 +460,12 @@ mod tests {
             }
         }
 
-        impl<'a> Predict<&'a Array2<f64>, Array1<f64>> for FixedModel {
-            fn predict(&self, x: &'a Array2<f64>) -> Array1<f64> {
-                Array1::from_elem(x.nrows(), self.0)
+        impl PredictInplace<Array2<f64>, Array1<f64>> for FixedModel {
+            fn predict_inplace(&self, x: &Array2<f64>, y: &mut Array1<f64>) {
+                y.assign(&Array1::from_elem(x.nrows(), self.0));
+            }
+            fn default_target(&self, x: &Array2<f64>) -> Array1<f64> {
+                Array1::zeros(x.nrows())
             }
         }
 
@@ -517,9 +523,12 @@ mod tests {
             }
         }
 
-        impl<'a> Predict<&'a Array2<f64>, Array1<f64>> for FixedModel {
-            fn predict(&self, x: &'a Array2<f64>) -> Array1<f64> {
-                Array1::from_elem(x.nrows(), self.0)
+        impl PredictInplace<Array2<f64>, Array1<f64>> for FixedModel {
+            fn predict_inplace(&self, x: &Array2<f64>, y: &mut Array1<f64>) {
+                y.assign(&Array1::from_elem(x.nrows(), self.0));
+            }
+            fn default_target(&self, x: &Array2<f64>) -> Array1<f64> {
+                Array1::zeros(x.nrows())
             }
         }
 
