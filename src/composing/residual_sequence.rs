@@ -202,7 +202,7 @@ pub trait Stagewise: Sized {
     /// by calling `.stack_with(...)` on the returned [`ResidualChainParams`].
     fn stack_with<C, F: Float>(self, corrector: Shrunk<C, F>) -> ResidualChainParams<Self, C, F>;
     /// Wrap `self` in a [`Shrunk`] with learning rate `shrinkage` ∈ (0, 1],
-    /// making it ready to pass as the `corrector` argument to [`stack_with`].
+    /// making it ready to pass as the `corrector` argument to [`Stagewise::stack_with`].
     ///
     /// The bound `Self: Fit<Array2<F>, Array1<F>, E>` ensures at compile time
     /// that the model's element type matches the shrinkage type `F`.
