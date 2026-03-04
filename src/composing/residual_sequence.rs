@@ -176,7 +176,7 @@ impl<B, C, F: Float> ResidualChain<B, C, F> {
 ///   Calls can be chained to build arbitrarily deep sequences.
 /// - [`shrink_by`](Stagewise::shrink_by): wrap `self` in a [`Shrunk`] with the
 ///   given learning rate ν, making it ready to pass as the `corrector` argument
-///   to [`stack_with`].
+///   to [`Stagewise::stack_with`].
 ///
 /// # Example
 ///
