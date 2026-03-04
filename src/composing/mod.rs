@@ -4,7 +4,8 @@
 //!  * `MultiClassModel`: combine multiple binary decision models to a single multi-class model
 //!  * `MultiTargetModel`: combine multiple univariate models to a single multi-target model
 //!  * `Platt`: calibrate a classifier (i.e. SVC) to predicted posterior probabilities
-//!  * `ResidualSequence`: fit models sequentially on the residuals of the previous one (stagewise additive modeling / boosting)
+//!  * `ResidualChain`: fit models sequentially on the residuals of the previous one
+//!    (forward stagewise additive modeling / L2Boosting); see [`residual_sequence::Stagewise`]
 mod multi_class_model;
 mod multi_target_model;
 pub mod platt_scaling;
