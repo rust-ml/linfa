@@ -15,6 +15,11 @@
 //! error. Shrinkage (learning rate ν ∈ (0, 1]) can be set per corrector via
 //! [`Shrunk::with_shrinkage`]; the default is ν = 1 (no scaling).
 //!
+//! # References
+//!
+//! - J. H. Friedman (2001). "Greedy function approximation: A gradient boosting machine."
+//!   <https://doi.org/10.1214/aos/1013203451>
+//!
 //! # Examples
 //!
 //! ## Linear + linear
