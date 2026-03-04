@@ -118,7 +118,7 @@ use crate::dataset::{AsTargets, DatasetBase, Records};
 use crate::param_guard::ParamGuard;
 use crate::traits::{Fit, Predict, PredictInplace};
 use crate::Float;
-use ndarray::{Array1, ArrayBase, Data, Ix1, Ix2, RawDataClone};
+use ndarray::{Array1, Array2, ArrayBase, Data, Ix1, Ix2, RawDataClone};
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 use std::ops::{AddAssign, Mul};
@@ -203,7 +203,13 @@ pub trait Stagewise: Sized {
     fn stack_with<C, F: Float>(self, corrector: Shrunk<C, F>) -> ResidualChainParams<Self, C, F>;
     /// Wrap `self` in a [`Shrunk`] with learning rate `shrinkage` ∈ (0, 1],
     /// making it ready to pass as the `corrector` argument to [`stack_with`].
-    fn shrink_by<F: Float>(self, shrinkage: F) -> Shrunk<Self, F>;
+    ///
+    /// The bound `Self: Fit<Array2<F>, Array1<F>, E>` ensures at compile time
+    /// that the model's element type matches the shrinkage type `F`.
+    fn shrink_by<F: Float, E>(self, shrinkage: F) -> Shrunk<Self, F>
+    where
+        Self: Fit<Array2<F>, Array1<F>, E>,
+        E: std::error::Error + From<crate::error::Error>;
 }
 
 impl<B> Stagewise for B {
@@ -213,7 +219,11 @@ impl<B> Stagewise for B {
             corrector,
         })
     }
-    fn shrink_by<F: Float>(self, shrinkage: F) -> Shrunk<Self, F> {
+    fn shrink_by<F: Float, E>(self, shrinkage: F) -> Shrunk<Self, F>
+    where
+        Self: Fit<Array2<F>, Array1<F>, E>,
+        E: std::error::Error + From<crate::error::Error>,
+    {
         Shrunk {
             model: self,
             shrinkage,
