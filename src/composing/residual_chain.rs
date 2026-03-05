@@ -31,7 +31,7 @@
 //! use linfa::traits::{Fit, Predict};
 //! use linfa::DatasetBase;
 //! use linfa_linear::LinearRegression;
-//! use linfa::composing::residual_sequence::{ResidualChain, Stagewise};
+//! use linfa::composing::residual_chain::{ResidualChain, Stagewise};
 //! use ndarray::{array, Array2};
 //!
 //! // y = 2x: perfectly linear, so the corrector should see zero residuals.
@@ -57,7 +57,7 @@
 //! use linfa::traits::{Fit, Predict};
 //! use linfa::DatasetBase;
 //! use linfa_linear::LinearRegression;
-//! use linfa::composing::residual_sequence::Stagewise;
+//! use linfa::composing::residual_chain::Stagewise;
 //! use ndarray::{array, Array2};
 //!
 //! // y = 2x: one linear model is enough to fit this perfectly.
@@ -85,7 +85,7 @@
 //! use linfa::traits::{Fit, Predict};
 //! use linfa::DatasetBase;
 //! use linfa_linear::LinearRegression;
-//! use linfa::composing::residual_sequence::{ResidualChain, Stagewise};
+//! use linfa::composing::residual_chain::{ResidualChain, Stagewise};
 //! use linfa_svm::Svm;
 //! use ndarray::Array;
 //!
@@ -189,7 +189,7 @@ impl<B, C, F: Float> ResidualChain<B, C, F> {
 /// use linfa::traits::Fit;
 /// use linfa::DatasetBase;
 /// use linfa_linear::LinearRegression;
-/// use linfa::composing::residual_sequence::Stagewise;
+/// use linfa::composing::residual_chain::Stagewise;
 /// use ndarray::{array, Array2};
 ///
 /// let x = Array2::from_shape_fn((5, 1), |(i, _)| i as f64);
@@ -345,7 +345,7 @@ impl<M, F: Float> Shrunk<M, F> {
 /// use linfa::traits::{Fit, Predict};
 /// use linfa::DatasetBase;
 /// use linfa_linear::LinearRegression;
-/// use linfa::composing::residual_sequence::{Shrunk, Stagewise};
+/// use linfa::composing::residual_chain::{Shrunk, Stagewise};
 /// use ndarray::{array, Array2};
 ///
 /// let x = Array2::from_shape_fn((5, 1), |(i, _)| i as f64);
