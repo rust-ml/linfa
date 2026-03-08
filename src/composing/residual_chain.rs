@@ -155,7 +155,7 @@ pub enum ResidualChainError<E1, E2> {
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct ResidualChain<B, C, F: Float> {
     base: B,
     corrector: Shrunk<C, F>,
@@ -309,7 +309,7 @@ where
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Shrunk<M, F: Float> {
     model: M,
     shrinkage: F,
@@ -363,7 +363,7 @@ impl<M, F: Float> Shrunk<M, F> {
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct ResidualChainParams<B, C, F: Float>(ResidualChain<B, C, F>);
 
 impl<B, C, F: Float> ParamGuard for ResidualChainParams<B, C, F> {
