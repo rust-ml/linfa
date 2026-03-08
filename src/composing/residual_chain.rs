@@ -173,13 +173,16 @@ impl<B, C, F: Float> ResidualChain<B, C, F> {
 /// Blanket-implemented for all `Sized` types, so any model params type gains
 /// these methods automatically:
 ///
-/// - [`chain`](Stagewise::chain): compose `self` (as the base) with
-///   a [`Shrunk`] corrector that will be trained on the residuals left by
-///   `self`. Returns a [`ResidualChainParams`] whose `.fit()` runs both stages.
-///   Calls can be chained to build arbitrarily deep sequences.
+/// - [`chain`](Stagewise::chain): compose `self` (as the base) with a corrector
+///   that will be trained on the residuals left by `self`. The corrector is used
+///   without shrinkage (ν = 1). Returns a [`ResidualChainParams`] whose `.fit()`
+///   runs both stages. Calls can be chained to build arbitrarily deep sequences.
+/// - [`chain_shrunk`](Stagewise::chain_shrunk): like `chain`, but accepts a
+///   [`Shrunk`]-wrapped corrector so you can control the learning rate ν
+///   explicitly via [`shrink_by`](Stagewise::shrink_by).
 /// - [`shrink_by`](Stagewise::shrink_by): wrap `self` in a [`Shrunk`] with the
-///   given learning rate ν, making it ready to pass as the `corrector` argument
-///   to [`Stagewise::chain`].
+///   given learning rate ν ∈ (0, 1], making it ready to pass as the `corrector`
+///   argument to [`Stagewise::chain_shrunk`].
 ///
 /// # Example
 ///
@@ -200,11 +203,24 @@ impl<B, C, F: Float> ResidualChain<B, C, F> {
 ///     .unwrap();
 /// ```
 pub trait Stagewise: Sized {
-    /// Compose `self` (as the base model) with `corrector`, which will be
-    /// trained on the residuals left by `self`. Further stages can be appended
-    /// by calling `.chain_shrunk(...)` on the returned [`ResidualChainParams`].
+    /// Compose `self` (as the base model) with a [`Shrunk`]-wrapped `corrector`,
+    /// which will be trained on the residuals left by `self`. Further stages can
+    /// be appended by calling `.chain(...)` or `.chain_shrunk(...)` on the
+    /// returned [`ResidualChainParams`].
+    ///
+    /// Use [`chain`](Stagewise::chain) instead when you don't need to shrink
+    /// the corrector.
     fn chain_shrunk<C, F: Float>(self, corrector: Shrunk<C, F>) -> ResidualChainParams<Self, C, F>;
 
+    /// Compose `self` (as the base model) with `corrector`, which will be
+    /// trained on the residuals left by `self`. The corrector is used without
+    /// shrinkage (equivalent to `shrink_by(1.0)`). Further stages can be
+    /// appended by calling `.chain(...)` or `.chain_shrunk(...)` on the
+    /// returned [`ResidualChainParams`].
+    ///
+    /// Use [`chain_shrunk`](Stagewise::chain_shrunk) together with
+    /// [`shrink_by`](Stagewise::shrink_by) when you need to control the
+    /// learning rate ν of the corrector explicitly.
     fn chain<C, F: Float, E>(self, corrector: C) -> ResidualChainParams<Self, C, F>
     where
         C: Fit<Array2<F>, Array1<F>, E>,
