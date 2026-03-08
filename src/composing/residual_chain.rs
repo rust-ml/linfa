@@ -40,7 +40,7 @@
 //! let dataset = DatasetBase::new(x.clone(), y);
 //!
 //! let fitted = LinearRegression::default()
-//!     .stack_with(LinearRegression::default().shrink_by(1.0))
+//!     .chain(LinearRegression::default())
 //!     .fit(&dataset)
 //!     .unwrap();
 //!
@@ -66,7 +66,7 @@
 //! let dataset = DatasetBase::new(x.clone(), y);
 //!
 //! let fitted = LinearRegression::default()
-//!     .stack_with(LinearRegression::default().shrink_by(1.0))
+//!     .chain(LinearRegression::default())
 //!     .fit(&dataset)
 //!     .unwrap();
 //!
@@ -100,18 +100,16 @@
 //! let fitted = Svm::<f64, f64>::params()
 //!     .c_svr(1., None)
 //!     .linear_kernel()
-//!     .stack_with(
+//!     .chain(
 //!         Svm::<f64, f64>::params()
 //!             .c_svr(10., Some(0.1))
-//!             .gaussian_kernel(1.)
-//!             .shrink_by(1.0),
+//!             .gaussian_kernel(1.),
 //!     )
-//!     .stack_with(LinearRegression::default().shrink_by(1.0))
-//!     .stack_with(
+//!     .chain(LinearRegression::default())
+//!     .chain(
 //!         Svm::<f64, f64>::params()
 //!             .c_svr(10., Some(0.1))
-//!             .gaussian_kernel(3.)
-//!             .shrink_by(1.0),
+//!             .gaussian_kernel(3.),
 //!     )
 //!     .fit(&dataset)
 //!     .unwrap();
@@ -175,13 +173,13 @@ impl<B, C, F: Float> ResidualChain<B, C, F> {
 /// Blanket-implemented for all `Sized` types, so any model params type gains
 /// these methods automatically:
 ///
-/// - [`stack_with`](Stagewise::stack_with): compose `self` (as the base) with
+/// - [`chain`](Stagewise::chain): compose `self` (as the base) with
 ///   a [`Shrunk`] corrector that will be trained on the residuals left by
 ///   `self`. Returns a [`ResidualChainParams`] whose `.fit()` runs both stages.
 ///   Calls can be chained to build arbitrarily deep sequences.
 /// - [`shrink_by`](Stagewise::shrink_by): wrap `self` in a [`Shrunk`] with the
 ///   given learning rate ν, making it ready to pass as the `corrector` argument
-///   to [`Stagewise::stack_with`].
+///   to [`Stagewise::chain`].
 ///
 /// # Example
 ///
@@ -197,17 +195,23 @@ impl<B, C, F: Float> ResidualChain<B, C, F> {
 /// let dataset = DatasetBase::new(x.clone(), y);
 ///
 /// let fitted = LinearRegression::default()
-///     .stack_with(LinearRegression::default().shrink_by(1.0))
+///     .chain(LinearRegression::default())
 ///     .fit(&dataset)
 ///     .unwrap();
 /// ```
 pub trait Stagewise: Sized {
     /// Compose `self` (as the base model) with `corrector`, which will be
     /// trained on the residuals left by `self`. Further stages can be appended
-    /// by calling `.stack_with(...)` on the returned [`ResidualChainParams`].
-    fn stack_with<C, F: Float>(self, corrector: Shrunk<C, F>) -> ResidualChainParams<Self, C, F>;
+    /// by calling `.chain_shrunk(...)` on the returned [`ResidualChainParams`].
+    fn chain_shrunk<C, F: Float>(self, corrector: Shrunk<C, F>) -> ResidualChainParams<Self, C, F>;
+
+    fn chain<C, F: Float, E>(self, corrector: C) -> ResidualChainParams<Self, C, F>
+    where
+        C: Fit<Array2<F>, Array1<F>, E>,
+        E: std::error::Error + From<crate::error::Error>;
+
     /// Wrap `self` in a [`Shrunk`] with learning rate `shrinkage` ∈ (0, 1],
-    /// making it ready to pass as the `corrector` argument to [`Stagewise::stack_with`].
+    /// making it ready to pass as the `corrector` argument to [`Stagewise::chain_shrunk`].
     ///
     /// The bound `Self: Fit<Array2<F>, Array1<F>, E>` ensures at compile time
     /// that the model's element type matches the shrinkage type `F`.
@@ -218,11 +222,18 @@ pub trait Stagewise: Sized {
 }
 
 impl<B> Stagewise for B {
-    fn stack_with<C, F: Float>(self, corrector: Shrunk<C, F>) -> ResidualChainParams<B, C, F> {
+    fn chain_shrunk<C, F: Float>(self, corrector: Shrunk<C, F>) -> ResidualChainParams<B, C, F> {
         ResidualChainParams(ResidualChain {
             base: self,
             corrector,
         })
+    }
+    fn chain<C, F: Float, E>(self, corrector: C) -> ResidualChainParams<Self, C, F>
+    where
+        C: Fit<Array2<F>, Array1<F>, E>,
+        E: std::error::Error + From<crate::error::Error>,
+    {
+        self.chain_shrunk(corrector.shrink_by(F::one()))
     }
     fn shrink_by<F: Float, E>(self, shrinkage: F) -> Shrunk<Self, F>
     where
@@ -330,7 +341,7 @@ impl<M, F: Float> Shrunk<M, F> {
     }
 }
 
-/// Unvalidated [`ResidualChain`] parameters returned by [`Stagewise::stack_with`].
+/// Unvalidated [`ResidualChain`] parameters returned by [`Stagewise::chain_shrunk`].
 ///
 /// Call `.fit()` to validate and fit in one step — the [`ParamGuard`] blanket
 /// impl runs `check_ref` first, which verifies that the outermost corrector's
@@ -354,7 +365,7 @@ impl<M, F: Float> Shrunk<M, F> {
 ///
 /// // The corrector's contribution is scaled by 0.1.
 /// let fitted = LinearRegression::default()
-///     .stack_with(LinearRegression::default().shrink_by(0.1))
+///     .chain_shrunk(LinearRegression::default().shrink_by(0.1))
 ///     .fit(&dataset)
 ///     .unwrap();
 /// ```
@@ -428,7 +439,7 @@ mod tests {
     fn corrector_is_fit_on_residuals() {
         // targets = [1, 3]. base sees mean=2, predicts 2 for all.
         // residuals = [1-2, 3-2] = [-1, 1]. corrector sees mean=0.
-        let model = MeanParams.stack_with(MeanParams.shrink_by(1.0));
+        let model = MeanParams.chain(MeanParams);
         let dataset = DatasetBase::new(array![[0.0_f64], [1.0]], array![1.0, 3.0]);
         let fitted = model.fit(&dataset).unwrap();
 
@@ -439,7 +450,7 @@ mod tests {
     #[test]
     fn predict_sums_both_models() {
         // base predicts 2.0, corrector predicts 0.0 → sum = 2.0
-        let model = MeanParams.stack_with(MeanParams.shrink_by(1.0));
+        let model = MeanParams.chain(MeanParams);
         let dataset = DatasetBase::new(array![[0.0_f64], [1.0]], array![1.0, 3.0]);
         let fitted = model.fit(&dataset).unwrap();
 
@@ -475,8 +486,8 @@ mod tests {
 
         // base predicts 3.0, corrector predicts 1.0 → sum = 4.0
         let model = FixedParams(3.0)
-            .stack_with(FixedParams(1.0).shrink_by(1.0))
-            .stack_with(FixedParams(0.0).shrink_by(1.0));
+            .chain(FixedParams(1.0))
+            .chain(FixedParams(0.0));
         let dataset = DatasetBase::new(array![[0.0_f64], [1.0]], array![4.0, 4.0]);
         let fitted = model.fit(&dataset).unwrap();
 
@@ -487,9 +498,9 @@ mod tests {
     #[test]
     fn deep_chain_accessors() {
         let model = MeanParams
-            .stack_with(MeanParams.shrink_by(1.0))
-            .stack_with(MeanParams.shrink_by(1.0))
-            .stack_with(MeanParams.shrink_by(1.0));
+            .chain(MeanParams)
+            .chain(MeanParams)
+            .chain(MeanParams);
         let dataset = DatasetBase::new(array![[0.0_f64], [1.0]], array![1.0, 3.0]);
         let fitted = model.fit(&dataset).unwrap();
 
@@ -500,7 +511,7 @@ mod tests {
     fn shrinkage_scales_corrector_prediction() {
         // base predicts mean=2.0, corrector predicts mean=0.0 (residuals [-1,1]).
         // With shrinkage=0.5, corrector contributes 0.5*0.0 = 0.0 → total = 2.0.
-        let model = MeanParams.stack_with(MeanParams.shrink_by(0.5));
+        let model = MeanParams.chain_shrunk(MeanParams.shrink_by(0.5));
         let dataset = DatasetBase::new(array![[0.0_f64], [1.0]], array![1.0, 3.0]);
         let fitted = model.fit(&dataset).unwrap();
 
@@ -536,7 +547,7 @@ mod tests {
             }
         }
 
-        let model = FixedParams(3.0).stack_with(MeanParams.shrink_by(0.5));
+        let model = FixedParams(3.0).chain_shrunk(MeanParams.shrink_by(0.5));
         let dataset = DatasetBase::new(array![[0.0_f64], [1.0]], array![4.0, 4.0]);
         let fitted = model.fit(&dataset).unwrap();
 
@@ -548,10 +559,10 @@ mod tests {
     #[test]
     fn shrinkage_invalid_value_returns_error() {
         let dataset = DatasetBase::new(array![[0.0_f64], [1.0]], array![1.0, 3.0]);
-        let model = MeanParams.stack_with(MeanParams.shrink_by(0.0));
+        let model = MeanParams.chain_shrunk(MeanParams.shrink_by(0.0));
         assert!(model.fit(&dataset).is_err());
 
-        let model = MeanParams.stack_with(MeanParams.shrink_by(1.5));
+        let model = MeanParams.chain_shrunk(MeanParams.shrink_by(1.5));
         assert!(model.fit(&dataset).is_err());
     }
 }
