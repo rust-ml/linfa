@@ -13,9 +13,9 @@ pub enum PreprocessingError {
     NotEnoughSamples,
     #[error("not a valid float")]
     InvalidFloat,
-    #[error("minimum value for MinMax scaler cannot be greater than the maximum")]
-    TokenizerNotSet,
     #[error("Tokenizer must be defined after deserializing CountVectorizer by calling force_tokenizer_redefinition")]
+    TokenizerNotSet,
+    #[error("minimum value for MinMax scaler cannot be greater than the maximum")]
     FlippedMinMaxRange,
     #[error("n_gram boundaries cannot be zero (min = {0}, max = {1})")]
     InvalidNGramBoundaries(usize, usize),
