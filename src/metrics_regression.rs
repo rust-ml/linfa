@@ -8,7 +8,7 @@ use crate::{
     Float,
 };
 use ndarray::prelude::*;
-use ndarray::Data;
+use ndarray::{Data, Zip};
 use std::ops::{Div, Sub};
 
 /// Regression metrices trait for single targets.
@@ -80,17 +80,27 @@ pub trait SingleTargetRegression<F: Float, T: AsSingleTargets<Elem = F>>:
             .ok_or(Error::NotEnoughSamples)
     }
 
-    /// Symmetric mean absolute percentage error between two continuous variables
-    /// sMAPE = 1/N * SUM(abs(y_hat - y) / ((abs(y) + abs(y_hat)) / 2))
+    /// Symmetric mean absolute percentage error between two continuous variables.
+    /// This implementation follows the Adjusted sMAPE (Makridakis, 1993)
+    /// sMAPE = (200 / n) * SUM(abs(y_hat - y) / (abs(y) + abs(y_hat)))
     fn symmetric_mean_absolute_percentage_error(&self, compare_to: &T) -> Result<F> {
         let y = self.as_single_targets();
         let y_hat = compare_to.as_single_targets();
-        let abs_diff = (&y_hat - &y).mapv(|x| x.abs());
-        let abs_sum = (y.mapv(|x| x.abs()) + y_hat.mapv(|x| x.abs())) + F::cast(1e-10);
-        (abs_diff / abs_sum)
-            .mapv(|x| x * F::cast(2.0))
-            .mean()
-            .ok_or(Error::NotEnoughSamples)
+        if y.is_empty() {
+            return Err(Error::NotEnoughSamples);
+        }
+        let sum: F = Zip::from(&y)
+            .and(&y_hat)
+            .fold(F::cast(0.0), |acc, &yi, &yhi| {
+                let num = (yhi - yi).abs();
+                let den = yi.abs() + yhi.abs();
+                if den <= F::cast(f64::EPSILON) {
+                    acc
+                } else {
+                    acc + (num / den)
+                }
+            });
+        Ok((F::cast(200.0) / F::cast(y.len())) * sum)
     }
 
     /// R squared coefficient, is the proportion of the variance in the dependent variable that is
@@ -207,7 +217,8 @@ pub trait MultiTargetRegression<F: Float, T: AsMultiTargets<Elem = F>>:
     }
 
     /// Symmetric mean absolute percentage error between two continuous variables
-    /// sMAPE = 1/N * SUM(abs(y_hat - y) / ((abs(y) + abs(y_hat)) / 2))
+    /// This implementation follows the Adjusted sMAPE (Makridakis, 1993)
+    /// sMAPE = (200 / n) * SUM(abs(y_hat - y) / (abs(y) + abs(y_hat)))
     fn symmetric_mean_absolute_percentage_error(&self, other: &T) -> Result<Array1<F>> {
         self.as_multi_targets()
             .axis_iter(Axis(1))
@@ -248,7 +259,7 @@ impl<F: Float, T: AsMultiTargets<Elem = F>, T2: AsMultiTargets<Elem = F>, D: Dat
 
 #[cfg(test)]
 mod tests {
-    use super::SingleTargetRegression;
+    use super::{MultiTargetRegression, SingleTargetRegression};
     use crate::dataset::DatasetBase;
     use approx::assert_abs_diff_eq;
     use ndarray::prelude::*;
@@ -315,7 +326,7 @@ mod tests {
 
         assert_abs_diff_eq!(
             a.symmetric_mean_absolute_percentage_error(&b).unwrap(),
-            0.5815873014693111,
+            58.15873014693111,
             epsilon = 1e-5
         );
     }
@@ -391,7 +402,7 @@ mod tests {
         let err_from_ds = prediction_ds
             .symmetric_mean_absolute_percentage_error(&st_dataset)
             .unwrap();
-        assert_abs_diff_eq!(err_from_arr, 0.8090909086184916, epsilon = 1e-5);
+        assert_abs_diff_eq!(err_from_arr, 80.90909086184916, epsilon = 1e-5);
         assert_abs_diff_eq!(err_from_arr, err_from_ds);
     }
 
@@ -465,5 +476,14 @@ mod tests {
         let abs_err_from_ds = prediction.explained_variance(&st_dataset).unwrap();
         assert_abs_diff_eq!(abs_err_from_arr1, 0.8, epsilon = 1e-5);
         assert_abs_diff_eq!(abs_err_from_arr1, abs_err_from_ds);
+    }
+
+    #[test]
+    fn test_symmetric_mean_absolute_percentage_error_multi_target() {
+        let a = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
+        let b = array![[1.1, 1.9], [2.9, 4.1], [5.1, 5.9]];
+        let err = a.symmetric_mean_absolute_percentage_error(&b).unwrap();
+        let expected = array![4.964612684, 3.092671067];
+        assert_abs_diff_eq!(err, expected, epsilon = 1e-5);
     }
 }
