@@ -94,7 +94,7 @@ pub trait SingleTargetRegression<F: Float, T: AsSingleTargets<Elem = F>>:
             .fold(F::cast(0.0), |acc, &yi, &yhi| {
                 let num = (yhi - yi).abs();
                 let den = yi.abs() + yhi.abs();
-                if den <= F::cast(f64::EPSILON) {
+                if den <= F::epsilon() {
                     acc
                 } else {
                     acc + (num / den)
