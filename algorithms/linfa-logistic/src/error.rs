@@ -19,11 +19,14 @@ pub enum Error {
     InitialParameterFeaturesMismatch { rows: usize, n_features: usize },
     #[error("Columns of initial parameter ({cols}) must be the same as the number of classes ({n_classes})")]
     InitialParameterClassesMismatch { cols: usize, n_classes: usize },
-
     #[error("gradient_tolerance must be a positive, finite number")]
     InvalidGradientTolerance,
     #[error("alpha must be a positive, finite number")]
     InvalidAlpha,
     #[error("Initial parameters must be finite")]
     InvalidInitialParameters,
+    #[error("Offset must be finite")]
+    InvalidOffset,
+    #[error("Offset length ({offset_len}) must match the number of samples ({n_samples})")]
+    OffsetLengthMismatch { offset_len: usize, n_samples: usize },
 }
