@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["platt_scaling","residual_chain"],"struct":["MultiClassModel","MultiTargetModel"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["FtrlError"],"struct":["Ftrl","FtrlParams"],"type":["Result"]};

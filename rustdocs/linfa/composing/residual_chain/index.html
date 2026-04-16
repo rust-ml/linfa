@@ -1,0 +1,100 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="L2Boosting (forward stagewise additive modelling with squared-error loss) for the linfa ML framework."><title>linfa::composing::residual_chain - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-77263533.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="linfa" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.1 (e408947bf 2026-03-25)" data-channel="1.94.1" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-b897f86f.js" data-settings-js="settings-c38705f0.js" ><script src="../../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-7bab91a1.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-ffcac47a.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module residual_chain</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../linfa/index.html">linfa</a><span class="version">0.8.1</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module residual_<wbr>chain</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#references" title="References">References</a></li><li><a href="#examples" title="Examples">Examples</a><ul><li><a href="#linear--linear" title="Linear + linear">Linear + linear</a></li><li><a href="#the-second-model-learns-nothing-when-the-first-fits-perfectly" title="The second model learns nothing when the first fits perfectly">The second model learns nothing when the first fits perfectly</a></li><li><a href="#chained-svms-and-linear-regression" title="Chained SVMs and linear regression">Chained SVMs and linear regression</a></li></ul></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#enums" title="Enums">Enums</a></li><li><a href="#traits" title="Traits">Traits</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In linfa::<wbr>composing</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">linfa</a>::<wbr><a href="../index.html">composing</a></div><h1>Module <span>residual_<wbr>chain</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/linfa/composing/residual_chain.rs.html#1-584">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>L2Boosting (forward stagewise additive modelling with squared-error loss)
+for the linfa ML framework.</p>
+<p>This module provides <a href="struct.ResidualChain.html" title="struct linfa::composing::residual_chain::ResidualChain"><code>ResidualChain</code></a>, which fits models sequentially on
+residuals. Chain as many stages as you like via <a href="trait.Stagewise.html" title="trait linfa::composing::residual_chain::Stagewise"><code>Stagewise</code></a>:</p>
+<ol>
+<li>Fit <code>base</code> on <code>(X, Y)</code></li>
+<li>Compute residuals: <code>R = Y - base.predict(X)</code></li>
+<li>Fit <code>corrector</code> on <code>(X, R)</code></li>
+<li>Repeat for any further correctors stacked on top</li>
+</ol>
+<p>When predicting, all stages’ outputs are summed.</p>
+<p>This is the special case of FSAM (Friedman 2001) where the loss is squared
+error. Shrinkage (learning rate ν ∈ (0, 1]) can be set per corrector via
+<a href="struct.Shrunk.html#method.with_shrinkage" title="method linfa::composing::residual_chain::Shrunk::with_shrinkage"><code>Shrunk::with_shrinkage</code></a>; the default is ν = 1 (no scaling).</p>
+<h2 id="references"><a class="doc-anchor" href="#references">§</a>References</h2>
+<ul>
+<li>J. H. Friedman (2001). “Greedy function approximation: A gradient boosting machine.”
+<a href="https://doi.org/10.1214/aos/1013203451">https://doi.org/10.1214/aos/1013203451</a></li>
+</ul>
+<h2 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h2><h3 id="linear--linear"><a class="doc-anchor" href="#linear--linear">§</a>Linear + linear</h3>
+<p>Two <code>linfa_linear::LinearRegression</code> models stacked: the corrector fits
+the residuals left by the base.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>linfa::traits::{Fit, Predict};
+<span class="kw">use </span>linfa::DatasetBase;
+<span class="kw">use </span>linfa_linear::LinearRegression;
+<span class="kw">use </span>linfa::composing::residual_chain::{ResidualChain, Stagewise};
+<span class="kw">use </span>ndarray::{array, Array2};
+
+<span class="comment">// y = 2x: perfectly linear, so the corrector should see zero residuals.
+</span><span class="kw">let </span>x = Array2::from_shape_fn((<span class="number">5</span>, <span class="number">1</span>), |(i, <span class="kw">_</span>)| i <span class="kw">as </span>f64);
+<span class="kw">let </span>y = <span class="macro">array!</span>[<span class="number">0.</span>, <span class="number">2.</span>, <span class="number">4.</span>, <span class="number">6.</span>, <span class="number">8.</span>];
+<span class="kw">let </span>dataset = DatasetBase::new(x.clone(), y);
+
+<span class="kw">let </span>fitted = LinearRegression::default()
+    .chain(LinearRegression::default())
+    .fit(<span class="kw-2">&amp;</span>dataset)
+    .unwrap();
+
+<span class="kw">let </span>_preds = fitted.predict(<span class="kw-2">&amp;</span>x);</code></pre></div><h3 id="the-second-model-learns-nothing-when-the-first-fits-perfectly"><a class="doc-anchor" href="#the-second-model-learns-nothing-when-the-first-fits-perfectly">§</a>The second model learns nothing when the first fits perfectly</h3>
+<p>If the first model already captures the data exactly, the residuals are all
+zero and the second model has nothing to learn — its parameters come out
+at (or very near) zero.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>linfa::traits::{Fit, Predict};
+<span class="kw">use </span>linfa::DatasetBase;
+<span class="kw">use </span>linfa_linear::LinearRegression;
+<span class="kw">use </span>linfa::composing::residual_chain::Stagewise;
+<span class="kw">use </span>ndarray::{array, Array2};
+
+<span class="comment">// y = 2x: one linear model is enough to fit this perfectly.
+</span><span class="kw">let </span>x = Array2::from_shape_fn((<span class="number">5</span>, <span class="number">1</span>), |(i, <span class="kw">_</span>)| i <span class="kw">as </span>f64);
+<span class="kw">let </span>y = <span class="macro">array!</span>[<span class="number">0.</span>, <span class="number">2.</span>, <span class="number">4.</span>, <span class="number">6.</span>, <span class="number">8.</span>];
+<span class="kw">let </span>dataset = DatasetBase::new(x.clone(), y);
+
+<span class="kw">let </span>fitted = LinearRegression::default()
+    .chain(LinearRegression::default())
+    .fit(<span class="kw-2">&amp;</span>dataset)
+    .unwrap();
+
+<span class="comment">// The corrector trained on zero residuals — nothing left to correct.
+</span><span class="macro">assert!</span>(fitted.corrector().model().params().iter().all(|<span class="kw-2">&amp;</span>c: <span class="kw-2">&amp;</span>f64| c.abs() &lt; <span class="number">1e-10</span>));
+<span class="macro">assert!</span>(fitted.corrector().model().intercept().abs() &lt; <span class="number">1e-10</span>);</code></pre></div><h3 id="chained-svms-and-linear-regression"><a class="doc-anchor" href="#chained-svms-and-linear-regression">§</a>Chained SVMs and linear regression</h3>
+<p>A linear-kernel <code>linfa_svm::Svm</code> captures the overall trend; two
+Gaussian-kernel SVMs and a <code>linfa_linear::LinearRegression</code> then fit
+successive residuals in a four-model chain.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>linfa::traits::{Fit, Predict};
+<span class="kw">use </span>linfa::DatasetBase;
+<span class="kw">use </span>linfa_linear::LinearRegression;
+<span class="kw">use </span>linfa::composing::residual_chain::{ResidualChain, Stagewise};
+<span class="kw">use </span>linfa_svm::Svm;
+<span class="kw">use </span>ndarray::Array;
+
+<span class="comment">// y = sin(x): the linear SVM captures the slope; the RBF SVM captures
+// the curvature left in the residuals.
+</span><span class="kw">let </span>x = Array::linspace(<span class="number">0f64</span>, <span class="number">6.</span>, <span class="number">20</span>)
+    .into_shape_with_order((<span class="number">20</span>, <span class="number">1</span>))
+    .unwrap();
+<span class="kw">let </span>y = x.column(<span class="number">0</span>).mapv(f64::sin);
+<span class="kw">let </span>dataset = DatasetBase::new(x.clone(), y);
+
+<span class="kw">let </span>fitted = Svm::&lt;f64, f64&gt;::params()
+    .c_svr(<span class="number">1.</span>, <span class="prelude-val">None</span>)
+    .linear_kernel()
+    .chain(
+        Svm::&lt;f64, f64&gt;::params()
+            .c_svr(<span class="number">10.</span>, <span class="prelude-val">Some</span>(<span class="number">0.1</span>))
+            .gaussian_kernel(<span class="number">1.</span>),
+    )
+    .chain(LinearRegression::default())
+    .chain(
+        Svm::&lt;f64, f64&gt;::params()
+            .c_svr(<span class="number">10.</span>, <span class="prelude-val">Some</span>(<span class="number">0.1</span>))
+            .gaussian_kernel(<span class="number">3.</span>),
+    )
+    .fit(<span class="kw-2">&amp;</span>dataset)
+    .unwrap();
+
+<span class="kw">let </span>_preds = fitted.predict(<span class="kw-2">&amp;</span>x);</code></pre></div></div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.ResidualChain.html" title="struct linfa::composing::residual_chain::ResidualChain">Residual<wbr>Chain</a></dt><dd>A pair of <a href="../../traits/trait.Fit.html" title="trait linfa::traits::Fit"><code>Fit</code></a> params that fits sequentially on residuals.</dd><dt><a class="struct" href="struct.ResidualChainParams.html" title="struct linfa::composing::residual_chain::ResidualChainParams">Residual<wbr>Chain<wbr>Params</a></dt><dd>Unvalidated <a href="struct.ResidualChain.html" title="struct linfa::composing::residual_chain::ResidualChain"><code>ResidualChain</code></a> parameters returned by <a href="trait.Stagewise.html#tymethod.chain_shrunk" title="method linfa::composing::residual_chain::Stagewise::chain_shrunk"><code>Stagewise::chain_shrunk</code></a>.</dd><dt><a class="struct" href="struct.Shrunk.html" title="struct linfa::composing::residual_chain::Shrunk">Shrunk</a></dt><dd>A model (params or fitted) paired with a shrinkage factor ν ∈ (0, 1].</dd></dl><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.ResidualChainError.html" title="enum linfa::composing::residual_chain::ResidualChainError">Residual<wbr>Chain<wbr>Error</a></dt><dd>Error returned by <a href="struct.ResidualChain.html#method.fit" title="method linfa::composing::residual_chain::ResidualChain::fit"><code>ResidualChain::fit</code></a>.</dd></dl><h2 id="traits" class="section-header">Traits<a href="#traits" class="anchor">§</a></h2><dl class="item-table"><dt><a class="trait" href="trait.Stagewise.html" title="trait linfa::composing::residual_chain::Stagewise">Stagewise</a></dt><dd>Extension trait that adds residual-chain composition methods to any type.</dd></dl></section></div></main></body></html>
