@@ -8,7 +8,7 @@ use crate::{
     Float,
 };
 use ndarray::prelude::*;
-use ndarray::Data;
+use ndarray::{Data, Zip};
 use std::ops::{Div, Sub};
 
 /// Regression metrices trait for single targets.
@@ -78,6 +78,29 @@ pub trait SingleTargetRegression<F: Float, T: AsSingleTargets<Elem = F>>:
             .mapv_into(|x| x.abs())
             .mean()
             .ok_or(Error::NotEnoughSamples)
+    }
+
+    /// Symmetric mean absolute percentage error between two continuous variables.
+    /// This implementation follows the Adjusted sMAPE (Makridakis, 1993)
+    /// sMAPE = (200 / n) * SUM(abs(y_hat - y) / (abs(y) + abs(y_hat)))
+    fn symmetric_mean_absolute_percentage_error(&self, compare_to: &T) -> Result<F> {
+        let y = self.as_single_targets();
+        let y_hat = compare_to.as_single_targets();
+        if y.is_empty() {
+            return Err(Error::NotEnoughSamples);
+        }
+        let sum: F = Zip::from(&y)
+            .and(&y_hat)
+            .fold(F::cast(0.0), |acc, &yi, &yhi| {
+                let num = (yhi - yi).abs();
+                let den = yi.abs() + yhi.abs();
+                if den <= F::epsilon() {
+                    acc
+                } else {
+                    acc + (num / den)
+                }
+            });
+        Ok((F::cast(200.0) / F::cast(y.len())) * sum)
     }
 
     /// R squared coefficient, is the proportion of the variance in the dependent variable that is
@@ -193,6 +216,17 @@ pub trait MultiTargetRegression<F: Float, T: AsMultiTargets<Elem = F>>:
             .collect()
     }
 
+    /// Symmetric mean absolute percentage error between two continuous variables
+    /// This implementation follows the Adjusted sMAPE (Makridakis, 1993)
+    /// sMAPE = (200 / n) * SUM(abs(y_hat - y) / (abs(y) + abs(y_hat)))
+    fn symmetric_mean_absolute_percentage_error(&self, other: &T) -> Result<Array1<F>> {
+        self.as_multi_targets()
+            .axis_iter(Axis(1))
+            .zip(other.as_multi_targets().axis_iter(Axis(1)))
+            .map(|(a, b)| a.symmetric_mean_absolute_percentage_error(&b))
+            .collect()
+    }
+
     /// R squared coefficient, is the proportion of the variance in the dependent variable that is
     /// predictable from the independent variable
     fn r2(&self, other: &T) -> Result<Array1<F>> {
@@ -225,7 +259,7 @@ impl<F: Float, T: AsMultiTargets<Elem = F>, T2: AsMultiTargets<Elem = F>, D: Dat
 
 #[cfg(test)]
 mod tests {
-    use super::SingleTargetRegression;
+    use super::{MultiTargetRegression, SingleTargetRegression};
     use crate::dataset::DatasetBase;
     use approx::assert_abs_diff_eq;
     use ndarray::prelude::*;
@@ -242,6 +276,10 @@ mod tests {
         assert_abs_diff_eq!(a.r2(&a).unwrap(), 1.0f32);
         assert_abs_diff_eq!(a.explained_variance(&a).unwrap(), 1.0f32);
         assert_abs_diff_eq!(a.mean_absolute_percentage_error(&a).unwrap(), 0.0f32);
+        assert_abs_diff_eq!(
+            a.symmetric_mean_absolute_percentage_error(&a).unwrap(),
+            0.0f32
+        );
     }
 
     #[test]
@@ -277,6 +315,18 @@ mod tests {
         assert_abs_diff_eq!(
             a.mean_absolute_percentage_error(&b).unwrap(),
             0.5766666666666667,
+            epsilon = 1e-5
+        );
+    }
+
+    #[test]
+    fn test_symmetric_mean_absolute_percentage_error() {
+        let a = array![0.5, 0.1, 0.2, 0.3, 0.4];
+        let b = array![0.1, 0.2, 0.3, 0.4, 0.5];
+
+        assert_abs_diff_eq!(
+            a.symmetric_mean_absolute_percentage_error(&b).unwrap(),
+            58.15873014693111,
             epsilon = 1e-5
         );
     }
@@ -337,6 +387,23 @@ mod tests {
             .unwrap();
         assert_abs_diff_eq!(pct_err_from_arr1, 0.49904761904761896);
         assert_abs_diff_eq!(pct_err_from_arr1, pct_err_from_ds);
+    }
+
+    #[test]
+    fn test_symmetric_mean_absolute_percentage_error_for_single_targets() {
+        let records = array![[0.0, 0.0], [0.1, 0.1], [0.2, 0.2], [0.3, 0.3], [0.4, 0.4]];
+        let targets = array![0.0, 0.1, 0.2, 0.3, 0.4];
+        let st_dataset: DatasetBase<_, _> = (records.view(), targets).into();
+        let prediction = array![0.1, 0.3, 0.2, 0.5, 0.7];
+        let err_from_arr = prediction
+            .symmetric_mean_absolute_percentage_error(st_dataset.targets())
+            .unwrap();
+        let prediction_ds: DatasetBase<_, _> = (records.view(), prediction).into();
+        let err_from_ds = prediction_ds
+            .symmetric_mean_absolute_percentage_error(&st_dataset)
+            .unwrap();
+        assert_abs_diff_eq!(err_from_arr, 80.90909086184916, epsilon = 1e-5);
+        assert_abs_diff_eq!(err_from_arr, err_from_ds);
     }
 
     #[test]
@@ -409,5 +476,14 @@ mod tests {
         let abs_err_from_ds = prediction.explained_variance(&st_dataset).unwrap();
         assert_abs_diff_eq!(abs_err_from_arr1, 0.8, epsilon = 1e-5);
         assert_abs_diff_eq!(abs_err_from_arr1, abs_err_from_ds);
+    }
+
+    #[test]
+    fn test_symmetric_mean_absolute_percentage_error_multi_target() {
+        let a = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
+        let b = array![[1.1, 1.9], [2.9, 4.1], [5.1, 5.9]];
+        let err = a.symmetric_mean_absolute_percentage_error(&b).unwrap();
+        let expected = array![4.964612684, 3.092671067];
+        assert_abs_diff_eq!(err, expected, epsilon = 1e-5);
     }
 }
