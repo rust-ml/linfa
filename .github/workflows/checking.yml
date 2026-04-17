@@ -40,3 +40,24 @@ jobs:
 
       - name: Run cargo check (with serde)
         run: cargo check --workspace --all-targets --features "linfa-clustering/serde linfa-ica/serde linfa-kernel/serde linfa-reduction/serde linfa-svm/serde linfa-elasticnet/serde linfa-pls/serde linfa-trees/serde linfa-nn/serde linfa-linear/serde linfa-preprocessing/serde linfa-bayes/serde linfa-logistic/serde linfa-ftrl/serde"
+
+  check-wasm-browser:
+    name: check-wasm-browser
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@master
+
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+
+      - name: Run browser WASM checks
+        run: |
+          cargo check -p linfa --lib --target wasm32-unknown-unknown --features wasm-bindgen
+          cargo check -p linfa-linear --lib --target wasm32-unknown-unknown --features wasm-bindgen
+          cargo check -p linfa-logistic --lib --target wasm32-unknown-unknown --features wasm-bindgen
+          cargo check -p linfa-ftrl --lib --target wasm32-unknown-unknown --features wasm-bindgen
