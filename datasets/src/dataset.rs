@@ -2,6 +2,12 @@ use std::io::Read;
 
 use csv::ReaderBuilder;
 use flate2::read::GzDecoder;
+#[cfg(any(
+    feature = "iris",
+    feature = "diabetes",
+    feature = "winequality",
+    feature = "linnerud"
+))]
 use linfa::Dataset;
 use ndarray::prelude::*;
 use ndarray_csv::{Array2Reader, ReadError};
