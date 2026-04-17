@@ -131,7 +131,7 @@ impl<F: Float, D: Data<Elem = F>, DF: Distance<F>, N: NearestNeighbour>
                 continue;
             }
             neighbors.iter().for_each(|&n| search_found[n] = true);
-            search_queue.extend(neighbors.into_iter());
+            search_queue.extend(neighbors);
 
             // Now go over the neighbours adding them to the cluster
             cluster_memberships[i] = Some(current_cluster_id);

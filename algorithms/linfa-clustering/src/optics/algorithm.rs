@@ -198,15 +198,15 @@ impl<F: Float, D: Distance<F>, N: NearestNeighbour>
                 index += 1;
                 continue;
             }
-            let mut expected = if processed.is_empty() { 0 } else { index };
             let mut points_index = index;
             // Look for next point to process starting from lowest possible unprocessed index
-            for index in processed.range(index..) {
+            for (expected, index) in
+                (if processed.is_empty() { 0 } else { index }..).zip(processed.range(index..))
+            {
                 if expected != *index {
                     points_index = expected;
                     break;
                 }
-                expected += 1;
             }
             index += 1;
             let neighbors = self.find_neighbors(&*nn, observations.row(points_index));
