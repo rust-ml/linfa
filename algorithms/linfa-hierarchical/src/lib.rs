@@ -141,10 +141,7 @@ impl<F: Float> Transformer<Kernel<F>, DatasetBase<Kernel<F>, Vec<usize>>>
             .map(|x| (x, vec![x]))
             .collect::<HashMap<_, _>>();
 
-        // counter for new clusters, which are formed as unions of previous ones
-        let mut ct = num_observations;
-
-        for step in res.steps() {
+        for (ct, step) in (num_observations..).zip(res.steps().iter()) {
             let should_stop = match self.stopping {
                 Criterion::NumClusters(max_clusters) => clusters.len() <= max_clusters,
                 Criterion::Distance(dis) => step.dissimilarity >= dis,
@@ -164,7 +161,6 @@ impl<F: Float> Transformer<Kernel<F>, DatasetBase<Kernel<F>, Vec<usize>>>
 
             // insert into hashmap and increase counter
             clusters.insert(ct, ids);
-            ct += 1;
         }
 
         // flatten resulting clusters and reverse index

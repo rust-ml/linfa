@@ -34,11 +34,13 @@ intel-mkl-system = ["blas", "ndarray-linalg/intel-mkl-system"]
 blas = ["ndarray/blas"]
 
 serde = ["serde_crate", "ndarray/serde"]
+wasm-bindgen = ["dep:getrandom"]
 
 [dependencies]
 num-traits = "0.2"
 rand = { version = "0.8", features = ["small_rng"] }
 approx = "0.5"
+getrandom = { version = "0.2", optional = true, features = ["js"] }
 
 ndarray = { version = "0.16", features = ["approx"] }
 ndarray-linalg = { version = "0.17", optional = true }
@@ -75,6 +77,7 @@ pprof = { version = "0.15", features = [
 
 [workspace]
 members = ["algorithms/*", "datasets"]
+resolver = "2"
 
 [profile.release]
 opt-level = 3
