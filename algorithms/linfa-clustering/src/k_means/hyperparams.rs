@@ -1,4 +1,4 @@
-use crate::KMeansParamsError;
+use crate::{KMeansAlgorithm, KMeansParamsError};
 
 use super::init::KMeansInit;
 use linfa::prelude::*;
@@ -35,6 +35,8 @@ pub struct KMeansValidParams<F: Float, R: Rng, D: Distance<F>> {
     rng: R,
     /// Distance metric used in the centroid assignment step
     dist_fn: D,
+    /// Algorithm variant used for the assignment step
+    algorithm: KMeansAlgorithm,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -75,6 +77,7 @@ impl<F: Float, R: Rng, D: Distance<F>> KMeansParams<F, R, D> {
             init: KMeansInit::KMeansPlusPlus,
             rng,
             dist_fn,
+            algorithm: KMeansAlgorithm::Lloyd,
         })
     }
 
@@ -99,6 +102,17 @@ impl<F: Float, R: Rng, D: Distance<F>> KMeansParams<F, R, D> {
     /// Change the value of `init`
     pub fn init_method(mut self, init: KMeansInit<F>) -> Self {
         self.0.init = init;
+        self
+    }
+
+    /// Select the variant used for the assignment step.
+    ///
+    /// See [`KMeansAlgorithm`] for the available variants and when to prefer each.
+    /// Defaults to [`KMeansAlgorithm::Lloyd`]. This setting only affects batch `fit`;
+    /// `fit_with` (Mini-Batch K-means) always uses Lloyd's update and will reject
+    /// `Hamerly` with [`KMeansParamsError::IncrementalHamerly`](crate::KMeansParamsError::IncrementalHamerly).
+    pub fn algorithm(mut self, algorithm: KMeansAlgorithm) -> Self {
+        self.0.algorithm = algorithm;
         self
     }
 }
@@ -165,6 +179,11 @@ impl<F: Float, R: Rng, D: Distance<F>> KMeansValidParams<F, R, D> {
     /// Returns the distance metric
     pub fn dist_fn(&self) -> &D {
         &self.dist_fn
+    }
+
+    /// The [`KMeansAlgorithm`] variant used by batch `fit` for the assignment step.
+    pub fn algorithm(&self) -> &KMeansAlgorithm {
+        &self.algorithm
     }
 }
 
