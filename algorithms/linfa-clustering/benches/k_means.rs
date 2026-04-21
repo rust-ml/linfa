@@ -52,7 +52,10 @@ fn k_means_bench(c: &mut Criterion) {
             let mut stats = Stats::default();
 
             benchmark.bench_function(
-                BenchmarkId::new("k_means", format!("{algorithm:?}:{n_clusters}x{cluster_size}")),
+                BenchmarkId::new(
+                    "k_means",
+                    format!("{algorithm:?}:{n_clusters}x{cluster_size}"),
+                ),
                 |bencher| {
                     bencher.iter(|| {
                         let m =

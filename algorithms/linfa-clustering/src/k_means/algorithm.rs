@@ -2,8 +2,8 @@ use std::cmp::Ordering;
 use std::fmt::Debug;
 
 use crate::k_means::{KMeansParams, KMeansValidParams};
-use crate::{IncrKMeansError, KMeansAlgorithm, KMeansParamsError};
 use crate::{k_means::errors::KMeansError, KMeansInit};
+use crate::{IncrKMeansError, KMeansAlgorithm, KMeansParamsError};
 use linfa::{prelude::*, DatasetBase, Float};
 use linfa_nn::distance::{Distance, L2Dist};
 use ndarray::{Array1, Array2, ArrayBase, ArrayView2, Axis, Data, DataMut, Ix1, Ix2, Zip};
@@ -256,11 +256,10 @@ impl<F: Float, R: Rng + Clone, D: Distance<F>> KMeansValidParams<F, R, D> {
         let mut best_memberships = None;
 
         for _ in 0..self.n_runs() {
-            let centroids = self
-                .init_method()
-                .run(self.dist_fn(), self.n_clusters(), observations, &mut rng);
-            let mut hamerly =
-                HamerlyAlgorithm::new(self.dist_fn(), observations, centroids);
+            let centroids =
+                self.init_method()
+                    .run(self.dist_fn(), self.n_clusters(), observations, &mut rng);
+            let mut hamerly = HamerlyAlgorithm::new(self.dist_fn(), observations, centroids);
 
             let mut n_iter = 0;
             let inertia = loop {
@@ -272,9 +271,7 @@ impl<F: Float, R: Rng + Clone, D: Distance<F>> KMeansValidParams<F, R, D> {
 
                 let update = hamerly.recompute_centroids();
 
-                if update.convergence_dist < self.tolerance()
-                    || n_iter == self.max_n_iterations()
-                {
+                if update.convergence_dist < self.tolerance() || n_iter == self.max_n_iterations() {
                     break hamerly.inertia();
                 }
 
@@ -289,8 +286,7 @@ impl<F: Float, R: Rng + Clone, D: Distance<F>> KMeansValidParams<F, R, D> {
             }
         }
 
-        let memberships =
-            best_memberships.unwrap_or_else(|| Array1::zeros(dataset.nsamples()));
+        let memberships = best_memberships.unwrap_or_else(|| Array1::zeros(dataset.nsamples()));
         self.get_kmeans_result(dataset, min_inertia, best_centroids, memberships)
     }
 
@@ -484,12 +480,10 @@ impl<'a, F: Float, D: Distance<F>> HamerlyAlgorithm<'a, F, D> {
             .par_for_each(|obs, membership, upper, lower, prev_slot| {
                 let current = *membership;
                 *prev_slot = current;
-                let threshold =
-                    F::max(nearest_center_dists[current] / F::cast(2), *lower);
+                let threshold = F::max(nearest_center_dists[current] / F::cast(2), *lower);
 
                 if *upper > threshold {
-                    *upper =
-                        dist_fn.distance(obs.view(), centroids.row(current).view());
+                    *upper = dist_fn.distance(obs.view(), centroids.row(current).view());
 
                     if *upper > threshold {
                         let (idx, closest_dist, second_dist) =
@@ -548,8 +542,7 @@ impl<'a, F: Float, D: Distance<F>> HamerlyAlgorithm<'a, F, D> {
     }
 
     fn update_bounds(&mut self, distances_moved: &Array1<F>) {
-        let (farthest_moved_idx, second_farthest_moved_idx) =
-            two_farthest_indices(distances_moved);
+        let (farthest_moved_idx, second_farthest_moved_idx) = two_farthest_indices(distances_moved);
         Zip::from(&self.memberships)
             .and(&mut self.upper_bounds)
             .and(&mut self.lower_bounds)
@@ -1291,7 +1284,11 @@ mod tests {
             .expect("Hamerly fitted");
 
         assert_eq!(model_lloyd.centroids().nrows(), 6);
-        assert_abs_diff_eq!(model_lloyd.inertia(), model_hamerly.inertia(), epsilon = 1e-4);
+        assert_abs_diff_eq!(
+            model_lloyd.inertia(),
+            model_hamerly.inertia(),
+            epsilon = 1e-4
+        );
         assert_abs_diff_eq!(
             sort_centroids(model_lloyd.centroids()),
             sort_centroids(model_hamerly.centroids()),
@@ -1314,8 +1311,7 @@ mod tests {
         // runs. Pre-compute centroids deterministically and pass them as Precomputed so
         // both Lloyd and Hamerly start from the same initial centroids.
         let mut rng = Xoshiro256Plus::seed_from_u64(99);
-        let xt =
-            Array::random_using(100, Uniform::new(0., 1.0), &mut rng).insert_axis(Axis(1));
+        let xt = Array::random_using(100, Uniform::new(0., 1.0), &mut rng).insert_axis(Axis(1));
         let yt = function_test_1d(&xt);
         let data = concatenate(Axis(1), &[xt.view(), yt.view()]).unwrap();
         let dataset = DatasetBase::from(data);
@@ -1590,8 +1586,12 @@ mod tests {
     fn test_hamerly_precomputed_centroids() {
         let rng = Xoshiro256Plus::seed_from_u64(42);
         let data = array![
-            [0.0, 0.0], [1.0, 0.0], [0.0, 1.0],
-            [10.0, 10.0], [11.0, 10.0], [10.0, 11.0]
+            [0.0, 0.0],
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [10.0, 10.0],
+            [11.0, 10.0],
+            [10.0, 11.0]
         ];
         let init_centroids = array![[0.0, 0.0], [10.0, 10.0]];
         let dataset = DatasetBase::from(data);
@@ -1614,7 +1614,11 @@ mod tests {
             model_hamerly.centroids(),
             epsilon = 1e-1
         );
-        assert_abs_diff_eq!(model_lloyd.inertia(), model_hamerly.inertia(), epsilon = 1e-1);
+        assert_abs_diff_eq!(
+            model_lloyd.inertia(),
+            model_hamerly.inertia(),
+            epsilon = 1e-1
+        );
     }
 
     #[test]
@@ -1671,8 +1675,7 @@ mod tests {
     #[test]
     fn test_hamerly_high_dimensionality() {
         let mut rng = Xoshiro256Plus::seed_from_u64(42);
-        let data: Array2<f64> =
-            Array::random_using((200, 50), Uniform::new(-100., 100.), &mut rng);
+        let data: Array2<f64> = Array::random_using((200, 50), Uniform::new(-100., 100.), &mut rng);
         let dataset = DatasetBase::from(data);
 
         let model_lloyd = KMeans::params_with(5, rng.clone(), L2Dist)
