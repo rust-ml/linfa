@@ -46,7 +46,7 @@ impl<L: Clone + Default, F, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>,
             // if probability is higher
             res = res
                 .into_iter()
-                .zip(pairs.into_iter())
+                .zip(pairs)
                 .map(|(c, d)| if d.1 > c.1 { d } else { c })
                 .collect();
         }
