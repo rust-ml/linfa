@@ -10,14 +10,12 @@ name: Build website with Zola, build rust docs and publish to GH pages
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: github.ref != 'refs/heads/master' && github.repository == 'rust-ml/linfa'
+    if: github.ref != 'refs/heads/master' || github.repository != 'rust-ml/linfa'
     steps:
-      - name: 'Checkout'
+      - name: Checkout
         uses: actions/checkout@master
 
-
-
-      - name: 'Build only' 
+      - name: Build only 
         uses: shalzz/zola-deploy-action@v0.22.1
         env:
           BUILD_DIR: docs/website/
@@ -31,17 +29,15 @@ jobs:
 
   build_and_deploy:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master' || github.repository != 'rust-ml/linfa'
+    if: github.ref == 'refs/heads/master' && github.repository == 'rust-ml/linfa'
     steps:
-      - name: 'Checkout'
+      - name: Checkout
         uses: actions/checkout@master
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, rust-src
-
-
 
       - name: Build Documentation
         run: cargo doc --workspace --no-deps
@@ -51,7 +47,7 @@ jobs:
       - name: Copy Rust Documentation to Zola
         run: cp -R "target/doc/" "docs/website/static/rustdocs/"
 
-      - name: 'Build and deploy'
+      - name: Build and deploy website
         uses: shalzz/zola-deploy-action@master
         env:
           PAGES_BRANCH: gh-pages
