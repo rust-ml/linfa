@@ -43,12 +43,12 @@ fn k_means_bench(c: &mut Criterion) {
     config::set_default_benchmark_configs(&mut benchmark);
     benchmark.plot_config(PlotConfiguration::default().summary_scale(AxisScale::Logarithmic));
 
-    for &algorithm in &algorithms {
-        for &(cluster_size, n_clusters) in &cluster_sizes {
-            let rng = &mut rng;
-            let centroids =
-                Array2::random_using((n_clusters, n_features), Uniform::new(-30., 30.), rng);
-            let dataset = DatasetBase::from(generate::blobs(cluster_size, &centroids, rng));
+    for &(cluster_size, n_clusters) in &cluster_sizes {
+        let rng = &mut rng;
+        let centroids =
+            Array2::random_using((n_clusters, n_features), Uniform::new(-30., 30.), rng);
+        let dataset = DatasetBase::from(generate::blobs(cluster_size, &centroids, rng));
+        for &algorithm in &algorithms {
             let mut stats = Stats::default();
 
             benchmark.bench_function(
