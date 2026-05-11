@@ -11,6 +11,11 @@ pub enum KMeansParamsError {
     Tolerance,
     #[error("max_n_iterations cannot be 0")]
     MaxIterations,
+    #[error(
+        "only KMeansAlgorithm::Lloyd is supported by fit_with (Mini-Batch K-means); \
+         Hamerly requires a persistent dataset across iterations and cannot be used incrementally"
+    )]
+    IncrementalHamerly,
 }
 
 /// An error when modeling a KMeans algorithm

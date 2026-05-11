@@ -34,6 +34,50 @@ pub enum KMeansInit<F: Float> {
     KMeansPara,
 }
 
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+/// Specifies the algorithm used for the KMeans assignment step.
+///
+/// Both variants minimise the same objective and, given identical initial centroids,
+/// converge to the same result. They only differ in how the assignment step is computed.
+/// Select a variant via [`KMeansParams::algorithm`](crate::KMeansParams::algorithm).
+///
+/// This setting only applies to batch `fit`. The incremental Mini-Batch K-means path
+/// (`fit_with`) always uses Lloyd's update, and configuring `Hamerly` alongside
+/// `fit_with` is rejected with
+/// [`KMeansParamsError::IncrementalHamerly`](crate::KMeansParamsError::IncrementalHamerly).
+pub enum KMeansAlgorithm {
+    /// Standard Lloyd's algorithm (also known as the "naive" algorithm).
+    ///
+    /// On every iteration, computes the distance from each observation to every centroid
+    /// to determine the closest one. Simple and predictable; work per iteration is
+    /// `O(n_observations * n_clusters * n_features)`.
+    ///
+    /// Default variant. Works with any [`Distance`](linfa_nn::distance::Distance).
+    Lloyd,
+    /// Hamerly's accelerated algorithm.
+    ///
+    /// Uses the triangle inequality together with per-observation upper/lower distance
+    /// bounds to skip most distance computations once the algorithm has stabilised.
+    /// Produces the same result as Lloyd's algorithm given the same initial centroids,
+    /// and is typically substantially faster for well-separated clusters with a moderate
+    /// number of centroids. For heavily overlapping clusters or very large `n_clusters`
+    /// the bookkeeping overhead can make Lloyd a better choice.
+    ///
+    /// Because the bounds rely on the triangle inequality, the supplied distance
+    /// function must be a true metric. `L2Dist`, `L1Dist` and `LInfDist` satisfy this.
+    ///
+    /// Only supported in batch `fit`; not available for Mini-Batch `fit_with`.
+    ///
+    /// Reference: <https://cs.baylor.edu/~hamerly/papers/sdm_2010.pdf>
+    Hamerly,
+}
+
 impl<F: Float> KMeansInit<F> {
     /// Runs the chosen initialization routine
     pub(crate) fn run<R: Rng, D: Distance<F>>(
