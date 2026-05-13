@@ -15,7 +15,7 @@ categories = ["algorithms", "mathematics", "science"]
 
 [features]
 serde = ["serde_crate", "linfa/serde", "ndarray/serde", "argmin/serde1"]
-wasm-bindgen = ["argmin/wasm-bindgen"]
+wasm-bindgen = ["argmin/wasm-bindgen", "linfa/wasm-bindgen"]
 
 [dependencies.serde_crate]
 package = "serde"
