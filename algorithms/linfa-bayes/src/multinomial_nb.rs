@@ -74,8 +74,6 @@ where
                 .entry(class.clone())
                 .or_insert_with(ClassHistogram::default)
                 .update_with_smoothing(xclass.view(), self.alpha(), false);
-
-            dbg!(&model.class_info.get(&class));
         }
 
         // update priors
