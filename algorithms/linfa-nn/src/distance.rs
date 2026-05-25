@@ -122,7 +122,7 @@ impl<F: Float> Distance<F> for LpDist<F> {
 /// [Earth Mover's](https://en.wikipedia.org/wiki/Earth_mover%27s_distance) distance.
 ///
 /// The function accepts histograms where each array element is the probability mass at that index.
-/// This differs from SciPy's `wasserstein_distance` which instead accepts support values and weights,
+/// This differs from SciPy's (v1.17.0) `wasserstein_distance` which instead accepts support values and weights,
 /// then builds the histograms internally.
 #[cfg_attr(
     feature = "serde",
@@ -237,7 +237,7 @@ mod test {
         dist_test(WassersteinDist, 4.2);
     }
 
-    // The following Wasserstein tests are from SciPy.
+    // The following Wasserstein tests are from SciPy (v1.17.0).
     // However, since SciPy Wasserstein distance has different API as ours,
     // we need to first transform the SciPy parameters into histograms that our API accepts.
     //
