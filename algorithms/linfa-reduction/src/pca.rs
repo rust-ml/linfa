@@ -21,6 +21,8 @@
 //! let dataset = embedding.predict(dataset);
 //! ```
 //!
+use std::marker::PhantomData;
+
 use crate::error::{ReductionError, Result};
 #[cfg(not(feature = "blas"))]
 use linfa_linalg::{lobpcg::TruncatedSvd, Order};
@@ -44,12 +46,13 @@ use linfa::{
     serde(crate = "serde_crate")
 )]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PcaParams {
+pub struct PcaParams<F> {
     embedding_size: usize,
     apply_whitening: bool,
+    _float: PhantomData<F>,
 }
 
-impl PcaParams {
+impl<F> PcaParams<F> {
     /// Apply whitening to the embedding vector
     ///
     /// Whitening will scale the eigenvalues of the transformation such that the covariance will be
@@ -58,64 +61,6 @@ impl PcaParams {
         self.apply_whitening = apply;
 
         self
-    }
-}
-
-/// Fit a PCA model given a dataset
-///
-/// The Principal Component Analysis takes the records of a dataset and tries to find the best
-/// fit in a lower dimensional space such that the maximal variance is retained.
-///
-/// # Parameters
-///
-/// * `dataset`: A dataset with records in N dimensions
-///
-/// # Returns
-///
-/// A fitted PCA model with origin and hyperplane
-impl<T, D: Data<Elem = f64>> Fit<ArrayBase<D, Ix2>, T, ReductionError> for PcaParams {
-    type Object = Pca<f64>;
-
-    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Pca<f64>> {
-        if dataset.nsamples() == 0 {
-            return Err(ReductionError::NotEnoughSamples);
-        } else if dataset.nfeatures() < self.embedding_size || self.embedding_size == 0 {
-            return Err(ReductionError::EmbeddingTooSmall(self.embedding_size));
-        }
-
-        let x = dataset.records();
-        // calculate mean of data and subtract it
-        // safe because of above 0 samples check
-        let mean = x.mean_axis(Axis(0)).unwrap();
-        let x = x - &mean;
-
-        // estimate Singular Value Decomposition
-        #[cfg(feature = "blas")]
-        let result =
-            TruncatedSvd::new(x, TruncatedOrder::Largest).decompose(self.embedding_size)?;
-        #[cfg(not(feature = "blas"))]
-        let result = TruncatedSvd::new_with_rng(x, Order::Largest, SmallRng::seed_from_u64(42))
-            .decompose(self.embedding_size)?;
-        // explained variance is the spectral distribution of the eigenvalues
-        let (_, sigma, mut v_t) = result.values_vectors();
-
-        // cut singular values to avoid numerical problems
-        let sigma = sigma.mapv(|x| x.max(1e-8));
-
-        // scale the embedding with the square root of the dimensionality and eigenvalue such that
-        // the product of the resulting matrix gives the unit covariance.
-        if self.apply_whitening {
-            let cov_scale = (dataset.nsamples() as f64 - 1.).sqrt();
-            for (mut v_t, sigma) in v_t.axis_iter_mut(Axis(0)).zip(sigma.iter()) {
-                v_t *= cov_scale / *sigma;
-            }
-        }
-
-        Ok(Pca {
-            embedding: v_t,
-            sigma,
-            mean,
-        })
     }
 }
 
@@ -150,27 +95,97 @@ pub struct Pca<F> {
     mean: Array1<F>,
 }
 
-impl Pca<f64> {
+macro_rules! impl_pca {
+    ($F:ty) => {
+        /// Fit a PCA model given a dataset
+        ///
+        /// The Principal Component Analysis takes the records of a dataset and tries to find the best
+        /// fit in a lower dimensional space such that the maximal variance is retained.
+        ///
+        /// # Parameters
+        ///
+        /// * `dataset`: A dataset with records in N dimensions
+        ///
+        /// # Returns
+        ///
+        /// A fitted PCA model with origin and hyperplane
+        impl<T, D: Data<Elem = $F>> Fit<ArrayBase<D, Ix2>, T, ReductionError> for PcaParams<$F> {
+            type Object = Pca<$F>;
+
+            fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Pca<$F>> {
+                if dataset.nsamples() == 0 {
+                    return Err(ReductionError::NotEnoughSamples);
+                } else if dataset.nfeatures() < self.embedding_size || self.embedding_size == 0 {
+                    return Err(ReductionError::EmbeddingTooSmall(self.embedding_size));
+                }
+
+                let x = dataset.records();
+                // calculate mean of data and subtract it
+                // safe because of above 0 samples check
+                let mean = x.mean_axis(Axis(0)).unwrap();
+                let x = x - &mean;
+
+                // estimate Singular Value Decomposition
+                #[cfg(feature = "blas")]
+                let result =
+                    TruncatedSvd::new(x, TruncatedOrder::Largest).decompose(self.embedding_size)?;
+                #[cfg(not(feature = "blas"))]
+                let result =
+                    TruncatedSvd::new_with_rng(x, Order::Largest, SmallRng::seed_from_u64(42))
+                        .decompose(self.embedding_size)?;
+                // explained variance is the spectral distribution of the eigenvalues
+                let (_, sigma, mut v_t) = result.values_vectors();
+
+                // cut singular values to avoid numerical problems
+                let sigma = sigma.mapv(|x| x.max(1e-8));
+
+                // scale the embedding with the square root of the dimensionality and eigenvalue such that
+                // the product of the resulting matrix gives the unit covariance.
+                if self.apply_whitening {
+                    let cov_scale = (dataset.nsamples() as $F - 1.).sqrt();
+                    for (mut v_t, sigma) in v_t.axis_iter_mut(Axis(0)).zip(sigma.iter()) {
+                        v_t *= cov_scale / *sigma;
+                    }
+                }
+
+                Ok(Pca {
+                    embedding: v_t,
+                    sigma,
+                    mean,
+                })
+            }
+        }
+    };
+}
+
+impl_pca!(f64);
+impl_pca!(f32);
+
+impl<F: Float> Pca<F> {
     /// Create default parameter set
     ///
     /// # Parameters
     ///
     ///  * `embedding_size`: the target dimensionality
-    pub fn params(embedding_size: usize) -> PcaParams {
+    pub fn params(embedding_size: usize) -> PcaParams<F> {
         PcaParams {
             embedding_size,
             apply_whitening: false,
+            _float: PhantomData,
         }
     }
 
     /// Return the amount of explained variance per element
-    pub fn explained_variance(&self) -> Array1<f64> {
-        self.sigma.mapv(|x| x * x / (self.sigma.len() as f64 - 1.0))
+    pub fn explained_variance(&self) -> Array1<F> {
+        self.sigma
+            .mapv(|x| x * x / F::from(self.sigma.len() - 1).unwrap())
     }
 
     /// Return the normalized amount of explained variance per element
-    pub fn explained_variance_ratio(&self) -> Array1<f64> {
-        let ex_var = self.sigma.mapv(|x| x * x / (self.sigma.len() as f64 - 1.0));
+    pub fn explained_variance_ratio(&self) -> Array1<F> {
+        let ex_var = self
+            .sigma
+            .mapv(|x| x * x / F::from(self.sigma.len() - 1).unwrap());
         let sum_ex_var = ex_var.sum();
 
         ex_var / sum_ex_var
@@ -187,7 +202,7 @@ impl Pca<f64> {
     }
 
     /// Return the singular values
-    pub fn singular_values(&self) -> &Array1<f64> {
+    pub fn singular_values(&self) -> &Array1<F> {
         &self.sigma
     }
 
@@ -252,7 +267,7 @@ mod tests {
         has_autotraits::<DiffusionMapValidParams>();
         has_autotraits::<DiffusionMapParams>();
         has_autotraits::<ReductionError>();
-        has_autotraits::<PcaParams>();
+        has_autotraits::<PcaParams<f32>>();
         has_autotraits::<Pca<f64>>();
     }
 
@@ -266,7 +281,7 @@ mod tests {
         let mut rng = SmallRng::seed_from_u64(42);
 
         // rotate data by 45°
-        let tmp = Array2::random_using((300, 2), Uniform::new(-1.0f64, 1.), &mut rng);
+        let tmp = Array2::random_using((300, 2), Uniform::new(-1.0f32, 1.), &mut rng);
         let q = array![[1., 1.], [-1., 1.]];
 
         let dataset = Dataset::from(tmp.dot(&q));
@@ -276,7 +291,7 @@ mod tests {
 
         // check that the covariance is unit diagonal
         let cov = proj.t().dot(&proj);
-        assert_abs_diff_eq!(cov / (300. - 1.), Array2::eye(2), epsilon = 1e-5);
+        assert_abs_diff_eq!(cov / (300. - 1.), Array2::eye(2), epsilon = 1e-3);
     }
 
     /// Random number whitening test
@@ -314,7 +329,7 @@ mod tests {
         let mut rng = SmallRng::seed_from_u64(3);
 
         // generate normal distribution random data with N >> p
-        let data = Array2::random_using((1000, 500), StandardNormal, &mut rng);
+        let data = Array2::<f64>::random_using((1000, 500), StandardNormal, &mut rng);
         let dataset = Dataset::from(data / 1000f64.sqrt());
 
         let model = Pca::params(500).fit(&dataset).unwrap();
@@ -388,13 +403,13 @@ mod tests {
 
     #[test]
     fn test_explained_variance_diag() {
-        let dataset = Dataset::from(Array2::from_diag(&array![1., 1., 1., 1.]));
+        let dataset = Dataset::from(Array2::from_diag(&array![1.0f32, 1., 1., 1.]));
         let model = Pca::params(3).fit(&dataset).unwrap();
 
         assert_abs_diff_eq!(
             model.explained_variance_ratio(),
             array![1. / 3., 1. / 3., 1. / 3.],
-            epsilon = 1e-6
+            epsilon = 1e-3
         );
     }
 }
