@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["KernelMethod","KernelType"],"mod":["inner"],"struct":["KernelBase","KernelParams"],"type":["Kernel","KernelView"]};

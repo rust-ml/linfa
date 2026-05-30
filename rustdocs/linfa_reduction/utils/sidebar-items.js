@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["generate_convoluted_rings","generate_convoluted_rings2d","generate_swissroll"]};

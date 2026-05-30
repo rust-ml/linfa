@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["NaiveBayesError"],"struct":["BernoulliNb","BernoulliNbParams","BernoulliNbValidParams","GaussianNb","GaussianNbParams","GaussianNbValidParams","MultinomialNb","MultinomialNbParams","MultinomialNbValidParams"],"trait":["NaiveBayes"],"type":["Result"]};

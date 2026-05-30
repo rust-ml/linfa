@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ResidualChainError"],"struct":["ResidualChain","ResidualChainParams","Shrunk"],"trait":["Stagewise"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["TSneError"],"struct":["TSneParams","TSneValidParams"],"type":["Result"]};
