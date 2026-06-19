@@ -118,7 +118,6 @@
 //! ```
 
 use crate::dataset::{AsTargets, DatasetBase, Records};
-use crate::param_guard::ParamGuard;
 use crate::traits::{Fit, Predict, PredictInplace};
 use crate::Float;
 use ndarray::{Array1, Array2, ArrayBase, Data, Ix1, Ix2, RawDataClone};
@@ -263,45 +262,6 @@ impl<B> Stagewise for B {
     }
 }
 
-impl<F1, F2, F: Float, D: Data<Elem = F> + RawDataClone, T, E1, E2>
-    Fit<Arr2<D>, T, ResidualChainError<E1, E2>> for ResidualChain<F1, F2, F>
-where
-    Arr2<D>: Records,
-    F1: Fit<Arr2<D>, T, E1>,
-    for<'a> F1::Object: Predict<&'a Arr2<D>, Array1<F>>,
-    F2: Fit<Arr2<D>, Array1<F>, E2>,
-    T: AsTargets<Elem = F, Ix = Ix1>,
-    E1: std::error::Error + From<crate::error::Error>,
-    E2: std::error::Error + From<crate::error::Error>,
-{
-    type Object = ResidualChain<F1::Object, F2::Object, F>;
-
-    fn fit(
-        &self,
-        dataset: &DatasetBase<Arr2<D>, T>,
-    ) -> Result<Self::Object, ResidualChainError<E1, E2>> {
-        let base = self.base.fit(dataset).map_err(ResidualChainError::Base)?;
-
-        let y_pred = base.predict(dataset.records());
-        let residuals = &dataset.targets().as_targets() - &y_pred;
-
-        let residual_dataset = DatasetBase::new(dataset.records().clone(), residuals);
-        let corrector_model = self
-            .corrector
-            .model
-            .fit(&residual_dataset)
-            .map_err(ResidualChainError::Corrector)?;
-
-        Ok(ResidualChain {
-            base,
-            corrector: Shrunk {
-                model: corrector_model,
-                shrinkage: self.corrector.shrinkage,
-            },
-        })
-    }
-}
-
 impl<R1, R2, F: Float, D: Data<Elem = F>> PredictInplace<Arr2<D>, Array1<F>>
     for ResidualChain<R1, R2, F>
 where
@@ -349,8 +309,8 @@ impl<M, F: Float> Shrunk<M, F> {
     pub fn shrinkage(&self) -> F {
         self.shrinkage
     }
-    /// Set the shrinkage factor. Validation happens when the containing
-    /// [`ResidualChainParams`] is checked via [`ParamGuard`].
+    /// Set the shrinkage factor. Validation (shrinkage ∈ (0, 1]) happens
+    /// at `.fit()` time on the containing [`ResidualChainParams`].
     pub fn with_shrinkage(mut self, shrinkage: F) -> Self {
         self.shrinkage = shrinkage;
         self
@@ -359,11 +319,10 @@ impl<M, F: Float> Shrunk<M, F> {
 
 /// Unvalidated [`ResidualChain`] parameters returned by [`Stagewise::chain_shrunk`].
 ///
-/// Call `.fit()` to validate and fit in one step — the [`ParamGuard`] blanket
-/// impl runs `check_ref` first, which verifies that the outermost corrector's
-/// shrinkage factor is in (0, 1]. Inner chains validate lazily when their own
-/// `.fit()` is called. You can also call `.check()` / `.check_unwrap()` to
-/// validate explicitly.
+/// Call `.fit()` to validate and fit in one step — `.fit()` validates that the
+/// outermost corrector's shrinkage factor is in (0, 1] before fitting. Inner
+/// chains validate lazily when their own `.fit()` is called. You can also call
+/// `.check()` / `.check_unwrap()` to validate the shrinkage factor explicitly.
 ///
 /// To set an explicit shrinkage factor on the corrector use
 /// [`Shrunk::with_shrinkage`]:
@@ -393,11 +352,11 @@ impl<M, F: Float> Shrunk<M, F> {
 #[derive(Debug, Clone, Copy)]
 pub struct ResidualChainParams<B, C, F: Float>(ResidualChain<B, C, F>);
 
-impl<B, C, F: Float> ParamGuard for ResidualChainParams<B, C, F> {
-    type Checked = ResidualChain<B, C, F>;
-    type Error = crate::Error;
-
-    fn check_ref(&self) -> Result<&ResidualChain<B, C, F>, crate::Error> {
+impl<B, C, F: Float> ResidualChainParams<B, C, F> {
+    /// Validate the shrinkage factor and return a reference to the inner
+    /// [`ResidualChain`]. Returns an error if the shrinkage factor is not
+    /// in (0, 1].
+    pub fn check_ref(&self) -> Result<&ResidualChain<B, C, F>, crate::Error> {
         let v = self.0.corrector.shrinkage;
         if v > F::zero() && v <= F::one() {
             Ok(&self.0)
@@ -408,9 +367,64 @@ impl<B, C, F: Float> ParamGuard for ResidualChainParams<B, C, F> {
         }
     }
 
-    fn check(self) -> Result<ResidualChain<B, C, F>, crate::Error> {
+    /// Validate the shrinkage factor and return the inner [`ResidualChain`].
+    /// Returns an error if the shrinkage factor is not in (0, 1].
+    pub fn check(self) -> Result<ResidualChain<B, C, F>, crate::Error> {
         self.check_ref()?;
         Ok(self.0)
+    }
+
+    /// Validate the shrinkage factor, panicking on error.
+    pub fn check_unwrap(self) -> ResidualChain<B, C, F> {
+        self.check().unwrap()
+    }
+}
+
+impl<F1, M1, F2, M2, F: Float, D: Data<Elem = F> + RawDataClone, T, E1, E2>
+    Fit<Arr2<D>, T, ResidualChainError<E1, E2>> for ResidualChainParams<F1, F2, F>
+where
+    Arr2<D>: Records,
+    F1: Fit<Arr2<D>, T, E1, Object = M1>,
+    for<'a> M1: Predict<&'a Arr2<D>, Array1<F>>,
+    F2: Fit<Arr2<D>, Array1<F>, E2, Object = M2>,
+    T: AsTargets<Elem = F, Ix = Ix1>,
+    E1: std::error::Error + From<crate::error::Error>,
+    E2: std::error::Error + From<crate::error::Error>,
+{
+    type Object = ResidualChain<M1, M2, F>;
+
+    fn fit(
+        &self,
+        dataset: &DatasetBase<Arr2<D>, T>,
+    ) -> Result<Self::Object, ResidualChainError<E1, E2>> {
+        // Validate shrinkage factor before fitting.
+        let v = self.0.corrector.shrinkage;
+        if !(v > F::zero() && v <= F::one()) {
+            return Err(ResidualChainError::BaseCrate(crate::Error::Parameters(
+                format!("shrinkage must be in (0, 1], got {v}"),
+            )));
+        }
+
+        let base = self.0.base.fit(dataset).map_err(ResidualChainError::Base)?;
+
+        let y_pred = base.predict(dataset.records());
+        let residuals = (&dataset.targets().as_targets() - &y_pred).to_owned();
+
+        let residual_dataset = DatasetBase::new(dataset.records().clone(), residuals);
+        let corrector_model = self
+            .0
+            .corrector
+            .model
+            .fit(&residual_dataset)
+            .map_err(ResidualChainError::Corrector)?;
+
+        Ok(ResidualChain {
+            base,
+            corrector: Shrunk {
+                model: corrector_model,
+                shrinkage: self.0.corrector.shrinkage,
+            },
+        })
     }
 }
 
