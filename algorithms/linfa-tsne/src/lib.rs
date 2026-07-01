@@ -1,5 +1,4 @@
 #![doc = include_str!("../README.md")]
-use std::convert::TryFrom;
 
 use linfa_nn::distance::Distance;
 use ndarray::{Array2, ArrayView1};
@@ -21,10 +20,6 @@ impl<F: Float, D: Distance<F>> Transformer<Array2<F>, Result<Array2<F>>> for TSn
             return Err(TSneError::EmbeddingSizeTooLarge);
         }
 
-        let Ok(embedding_size) = u8::try_from(self.embedding_size()) else {
-            return Err(TSneError::EmbeddingSizeTooLarge);
-        };
-
         if F::cast(nsamples - 1) < F::cast(3) * self.perplexity() {
             return Err(TSneError::PerplexityTooLarge);
         }
@@ -37,33 +32,65 @@ impl<F: Float, D: Distance<F>> Transformer<Array2<F>, Result<Array2<F>>> for TSn
 
         let data: Vec<_> = data.as_slice().unwrap().chunks(nfeatures).collect();
 
-        let mut tsne = bhtsne::tSNE::new(&data);
-        let tsne = tsne
-            .embedding_dim(embedding_size)
-            .perplexity(self.perplexity())
+        let embedding = if self.approx_threshold() <= F::zero() {
+            match self.embedding_size() {
+                1 => self.run_exact::<1>(&data, preliminary_iter),
+                2 => self.run_exact::<2>(&data, preliminary_iter),
+                3 => self.run_exact::<3>(&data, preliminary_iter),
+                _ => {
+                    return Err(TSneError::EmbeddingSizeTooLarge);
+                }
+            }
+        } else {
+            match self.embedding_size() {
+                2 => self.run_barnes_hut::<2>(&data, preliminary_iter),
+                3 => self.run_barnes_hut::<3>(&data, preliminary_iter),
+                _n => {
+                    return Err(TSneError::EmbeddingSizeTooLarge);
+                }
+            }
+        };
+
+        Array2::from_shape_vec((nsamples, self.embedding_size()), embedding).map_err(|e| e.into())
+    }
+}
+
+impl<F: Float, D: Distance<F>> TSneValidParams<F, D> {
+    #[inline]
+    fn run_exact<const E: usize>(&self, data: &[&[F]], preliminary_iter: usize) -> Vec<F> {
+        let mut tsne: bhtsne::tSNE<F, &[F], E> = bhtsne::tSNE::new(data);
+        tsne.perplexity(self.perplexity())
             .epochs(self.max_iter())
             .stop_lying_epoch(preliminary_iter)
             .momentum_switch_epoch(preliminary_iter);
 
-        let tsne = if self.approx_threshold() <= F::zero() {
-            // compute exact t-SNE
-            tsne.exact(|a, b| {
-                let a = ArrayView1::from(a);
-                let b = ArrayView1::from(b);
-                self.metric().distance(a, b)
-            })
-        } else {
-            // compute barnes-hut t-SNE
-            tsne.barnes_hut(self.approx_threshold(), |a, b| {
-                let a = ArrayView1::from(a);
-                let b = ArrayView1::from(b);
-                self.metric().distance(a, b)
-            })
-        };
+        tsne.exact(|a, b| {
+            let a = ArrayView1::from(a);
+            let b = ArrayView1::from(b);
+            self.metric().distance(a, b)
+        });
 
-        let embedding = tsne.embedding();
+        tsne.embedding()
+    }
 
-        Array2::from_shape_vec((nsamples, self.embedding_size()), embedding).map_err(|e| e.into())
+    #[inline]
+    fn run_barnes_hut<const E: usize>(&self, data: &[&[F]], preliminary_iter: usize) -> Vec<F>
+    where
+        bhtsne::Dim<E>: bhtsne::Morton<E>,
+    {
+        let mut tsne: bhtsne::tSNE<F, &[F], E> = bhtsne::tSNE::new(data);
+        tsne.perplexity(self.perplexity())
+            .epochs(self.max_iter())
+            .stop_lying_epoch(preliminary_iter)
+            .momentum_switch_epoch(preliminary_iter);
+
+        tsne.barnes_hut(self.approx_threshold(), |a, b| {
+            let a = ArrayView1::from(a);
+            let b = ArrayView1::from(b);
+            self.metric().distance(a, b)
+        });
+
+        tsne.embedding()
     }
 }
 
