@@ -153,12 +153,31 @@ impl<A> ConfusionMatrix<A> {
     /// ```ignore
     /// (1.0 + b*b) * (precision * recall) / (b * b * precision + recall)
     /// ```
+    /// For multilabel confusion matrices this is macro-averaged over the per-class
+    /// (one-vs-all) scores, mirroring `precision` and `recall`.
     pub fn f_score(&self, beta: f32) -> f32 {
-        let sb = beta * beta;
-        let p = self.precision();
-        let r = self.recall();
+        if self.is_binary() {
+            let sb = beta * beta;
+            let p = self.precision();
+            let r = self.recall();
 
-        (1. + sb) * (p * r) / (sb * p + r)
+            (1. + sb) * (p * r) / (sb * p + r)
+        } else {
+            // macro F-beta is the mean of the per-class F-beta scores, not the F-beta
+            // of the macro-averaged precision/recall; an all-wrong class (0/0) is 0.
+            self.split_one_vs_all()
+                .into_iter()
+                .map(|x| {
+                    let f = x.f_score(beta);
+                    if f.is_nan() {
+                        0.0
+                    } else {
+                        f
+                    }
+                })
+                .sum::<f32>()
+                / self.members.len() as f32
+        }
     }
 
     /// F1-score, this is the F-beta-score for beta=1
@@ -662,6 +681,38 @@ mod tests {
         let f1 = x.f1_score();
 
         assert!(f1.is_nan());
+    }
+
+    #[test]
+    fn test_multiclass_macro_f_score() {
+        // per-class (precision, recall) differ, so the macro F-score is the mean of
+        // the per-class F-scores, not the F-score of the macro-averaged precision and
+        // recall. Oracle: sklearn f1_score(average="macro").
+        let ground_truth = Array1::from(vec![0, 0, 1, 1, 2, 2]);
+        let predicted = Array1::from(vec![0, 1, 1, 1, 2, 2]);
+
+        let x = predicted.confusion_matrix(ground_truth).unwrap();
+
+        // per-class F1 = [2/3, 4/5, 1], mean = 0.822222 (the F of the means was 0.860215)
+        assert_abs_diff_eq!(x.f1_score(), 0.822_222_2, epsilon = 1e-5);
+
+        // the averaging error affected every beta, not only beta = 1
+        assert_abs_diff_eq!(x.f_score(0.5), 0.821_548_9, epsilon = 1e-5);
+        assert_abs_diff_eq!(x.f_score(2.0), 0.849_206_4, epsilon = 1e-5);
+    }
+
+    #[test]
+    fn test_multiclass_macro_f_score_zero_division() {
+        // A class the model never predicts correctly has precision = recall = 0, so its
+        // per-class F is 0/0. It must count as 0 (sklearn zero_division=0) instead of
+        // turning the whole macro average into NaN.
+        let ground_truth = Array1::from(vec![0, 2, 3, 0, 1, 2, 1, 2, 3, 2]);
+        let predicted = Array1::from(vec![0, 3, 2, 0, 1, 1, 1, 3, 2, 3]);
+
+        let x = predicted.confusion_matrix(ground_truth).unwrap();
+
+        assert!(!x.f1_score().is_nan());
+        assert_abs_diff_eq!(x.f1_score(), 0.45, epsilon = 1e-5);
     }
 
     #[test]
