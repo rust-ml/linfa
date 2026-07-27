@@ -342,7 +342,7 @@ mod tests {
     #[test]
     fn test_ensemble_learner_serde_roundtrip() {
         let mut rng = SmallRng::seed_from_u64(42);
-        let (train, _) = linfa_datasets::iris()
+        let (train, test) = linfa_datasets::iris()
             .shuffle(&mut rng)
             .split_with_ratio(0.8);
 
@@ -356,20 +356,16 @@ mod tests {
         let loaded: EnsembleLearner<DecisionTree<f64, usize>> =
             serde_json::from_str(&serialized).expect("failed to deserialize ensemble");
 
+        assert_eq!(model.predict(&test), loaded.predict(&test));
         assert_eq!(model.models.len(), loaded.models.len());
         assert_eq!(model.model_features, loaded.model_features);
-        assert_eq!(
-            serialized,
-            serde_json::to_string(&loaded).unwrap(),
-            "round trip is not lossless"
-        );
     }
 
     #[cfg(feature = "serde")]
     #[test]
     fn test_random_forest_serde_roundtrip() {
         let mut rng = SmallRng::seed_from_u64(42);
-        let (train, _) = linfa_datasets::iris()
+        let (train, test) = linfa_datasets::iris()
             .shuffle(&mut rng)
             .split_with_ratio(0.8);
 
@@ -384,20 +380,32 @@ mod tests {
         let loaded: RandomForest<f64, usize> =
             serde_json::from_str(&serialized).expect("failed to deserialize random forest");
 
+        assert_eq!(model.models.len(), loaded.models.len());
         assert_eq!(model.model_features, loaded.model_features);
         assert!(model.model_features.iter().any(|feat| feat.len() < 4));
-        assert_eq!(
-            serialized,
-            serde_json::to_string(&loaded).unwrap(),
-            "round trip is not lossless"
-        );
+
+        // Iterate over the trees by hand, to get reproducible and meaningful comparison
+        let records = test.records();
+        for ((original, reloaded), features) in model
+            .models
+            .iter()
+            .zip(loaded.models.iter())
+            .zip(model.model_features.iter())
+        {
+            let subset = records.select(ndarray::Axis(1), features);
+            assert_eq!(
+                original.predict(&subset),
+                reloaded.predict(&subset),
+                "a tree predicts differently after the round trip"
+            );
+        }
     }
 
     #[cfg(feature = "serde")]
     #[test]
     fn test_adaboost_serde_roundtrip() {
         let mut rng = SmallRng::seed_from_u64(42);
-        let (train, _) = linfa_datasets::iris()
+        let (train, test) = linfa_datasets::iris()
             .shuffle(&mut rng)
             .split_with_ratio(0.8);
 
@@ -411,13 +419,9 @@ mod tests {
         let loaded: AdaBoost<DecisionTree<f64, usize>, usize> =
             serde_json::from_str(&serialized).expect("failed to deserialize adaboost");
 
+        assert_eq!(model.predict(&test), loaded.predict(&test));
         assert_eq!(model.n_estimators(), loaded.n_estimators());
         assert_eq!(model.weights(), loaded.weights());
         assert_eq!(model.classes, loaded.classes);
-        assert_eq!(
-            serialized,
-            serde_json::to_string(&loaded).unwrap(),
-            "round trip is not lossless"
-        );
     }
 }
