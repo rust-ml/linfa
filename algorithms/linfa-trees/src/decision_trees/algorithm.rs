@@ -1,11 +1,11 @@
 //! Linear decision trees
 //!
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashSet, VecDeque};
 use std::hash::{Hash, Hasher};
 
 use linfa::dataset::AsSingleTargets;
-use ndarray::{Array1, ArrayBase, Axis, Data, Ix1, Ix2};
+use ndarray::{Array1, ArrayBase, ArrayView1, Axis, Data, Ix1, Ix2};
 
 use super::NodeIter;
 use super::Tikz;
@@ -71,6 +71,67 @@ impl RowMask {
     fn mark(&mut self, idx: usize) {
         self.mask[idx] = true;
         self.nsamples += 1;
+    }
+}
+
+/// A stable, sorted view of the label space of a dataset.
+///
+/// Class frequencies are carried as `Vec<f32>` indexed by position in `classes`
+/// rather than as `HashMap<L, f32>`. `HashMap` iteration order is randomised per
+/// instance, and every consumer of the frequencies depends on that order:
+/// `find_modal_class` for its tie-break, and `gini_impurity`/`entropy` because
+/// `f32` addition is not associative, so the same frequencies summed in a
+/// different order give slightly different scores. Those differences flip the
+/// `score < best_score` comparison in `TreeNode::fit` at near-ties, which changes
+/// the chosen split — two `fit` calls on identical data could return differently
+/// shaped trees. Indexing by a sorted class list pins the order, and also keeps
+/// two hash lookups and a label clone out of the innermost split-search loop.
+struct ClassIndex<L> {
+    /// Labels occurring in the dataset, sorted and deduplicated.
+    classes: Vec<L>,
+    /// For each observation, the position of its label in `classes`.
+    of_sample: Vec<usize>,
+}
+
+impl<L: Label> ClassIndex<L> {
+    fn build(targets: &ArrayView1<L>) -> Self {
+        let mut classes: Vec<L> = targets.iter().cloned().collect();
+        classes.sort_unstable();
+        classes.dedup();
+
+        let of_sample = targets
+            .iter()
+            .map(|label| {
+                classes
+                    .binary_search(label)
+                    .expect("every label was collected into the class list")
+            })
+            .collect();
+
+        ClassIndex { classes, of_sample }
+    }
+
+    fn n_classes(&self) -> usize {
+        self.classes.len()
+    }
+
+    /// Weighted class frequencies over the observations selected by `mask`.
+    ///
+    /// Equivalent to `DatasetBase::label_frequencies_with_mask`, except that the
+    /// result is indexed by class position and classes absent from this subset are
+    /// present with a frequency of zero rather than being omitted. That makes no
+    /// difference downstream: a zero frequency contributes nothing to either
+    /// impurity measure and can never be the modal class of a non-empty node.
+    fn frequencies<R: Records, T>(&self, data: &DatasetBase<R, T>, mask: &RowMask) -> Vec<f32> {
+        let mut freqs = vec![0.0; self.n_classes()];
+
+        for (i, class) in self.of_sample.iter().enumerate() {
+            if *mask.mask.get(i).unwrap_or(&true) {
+                freqs[*class] += data.weight_for(i);
+            }
+        }
+
+        freqs
     }
 }
 
@@ -203,14 +264,13 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
         mask: &RowMask,
         hyperparameters: &DecisionTreeValidParams<F, L>,
         sorted_indices: &[SortedIndex<F>],
+        class_index: &ClassIndex<L>,
         depth: usize,
     ) -> Result<Self> {
         // compute weighted frequencies for target classes
-        let parent_class_freq = data.label_frequencies_with_mask(&mask.mask);
+        let parent_class_freq = class_index.frequencies(data, mask);
         // set our prediction for this subset to the modal class
-        let prediction = find_modal_class(&parent_class_freq);
-        // get targets from dataset
-        let target = data.as_single_targets();
+        let prediction = class_index.classes[find_modal_class(&parent_class_freq)].clone();
 
         // return empty leaf when we don't have enough samples or the maximal depth is reached
         if (mask.nsamples as f32) < hyperparameters.min_weight_split()
@@ -228,11 +288,11 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
         // Iterate over all features
         for (feature_idx, sorted_index) in sorted_indices.iter().enumerate() {
             let mut right_class_freq = parent_class_freq.clone();
-            let mut left_class_freq = HashMap::new();
+            let mut left_class_freq = vec![0.0; class_index.n_classes()];
 
             // We keep a running total of the aggregate weight in the right split
-            // to avoid having to sum over the hash map
-            let total_weight = parent_class_freq.values().sum::<f32>();
+            // to avoid having to sum over the frequencies
+            let total_weight = parent_class_freq.iter().sum::<f32>();
             let mut weight_on_right_side = total_weight;
             let mut weight_on_left_side = 0.0;
 
@@ -254,19 +314,19 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
                 }
 
                 // Target and weight of the current observation
-                let sample_class = &target[presorted_index];
+                let sample_class = class_index.of_sample[presorted_index];
                 let sample_weight = data.weight_for(presorted_index);
 
                 // Move the observation from the right subtree to the left subtree
 
                 // Decrement the weight on the class for this sample on the right
                 // side by the weight of this sample
-                *right_class_freq.get_mut(sample_class).unwrap() -= sample_weight;
+                right_class_freq[sample_class] -= sample_weight;
                 weight_on_right_side -= sample_weight;
 
                 // Increment the weight on the class for this sample on the
                 // right side by the weight of this sample
-                *left_class_freq.entry(sample_class.clone()).or_insert(0.0) += sample_weight;
+                left_class_freq[sample_class] += sample_weight;
                 weight_on_left_side += sample_weight;
 
                 // Continue if the next value is equal, so that equal values end up in the same subtree
@@ -362,6 +422,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
                 &left_mask,
                 hyperparameters,
                 sorted_indices,
+                class_index,
                 depth + 1,
             )?))
         } else {
@@ -374,6 +435,7 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
                 &right_mask,
                 hyperparameters,
                 sorted_indices,
+                class_index,
                 depth + 1,
             )?))
         } else {
@@ -537,7 +599,10 @@ where
             })
             .collect();
 
-        let mut root_node = TreeNode::fit(dataset, &all_idxs, self, &sorted_indices, 0)?;
+        let class_index = ClassIndex::build(&dataset.as_single_targets());
+
+        let mut root_node =
+            TreeNode::fit(dataset, &all_idxs, self, &sorted_indices, &class_index, 0)?;
         root_node.prune();
 
         Ok(DecisionTree {
@@ -649,34 +714,31 @@ fn make_prediction<F: Float, L: Label>(
 /// Finds the most frequent class for a hash map of frequencies. If two
 /// classes have the same weight then the first class found with that
 /// frequency is returned.
-fn find_modal_class<L: Label>(class_freq: &HashMap<L, f32>) -> L {
-    // TODO: Refactor this with fold_first
-
-    let val = class_freq
+fn find_modal_class(class_freq: &[f32]) -> usize {
+    class_freq
         .iter()
+        .enumerate()
         .fold(None, |acc, (idx, freq)| match acc {
             None => Some((idx, freq)),
             Some((_best_idx, best_freq)) => {
-                if best_freq > freq {
+                if best_freq >= freq {
                     acc
                 } else {
                     Some((idx, freq))
                 }
             }
         })
-        .unwrap()
-        .0;
-
-    (*val).clone()
+        .expect("a node always has at least one class")
+        .0
 }
 
 /// Given the class frequencies calculates the gini impurity of the subset.
-fn gini_impurity<L: Label>(class_freq: &HashMap<L, f32>) -> f32 {
-    let n_samples = class_freq.values().sum::<f32>();
+fn gini_impurity(class_freq: &[f32]) -> f32 {
+    let n_samples = class_freq.iter().sum::<f32>();
     assert!(n_samples > 0.0);
 
     let purity = class_freq
-        .values()
+        .iter()
         .map(|x| x / n_samples)
         .map(|x| x * x)
         .sum::<f32>();
@@ -685,12 +747,12 @@ fn gini_impurity<L: Label>(class_freq: &HashMap<L, f32>) -> f32 {
 }
 
 /// Given the class frequencies calculates the entropy of the subset.
-fn entropy<L: Label>(class_freq: &HashMap<L, f32>) -> f32 {
-    let n_samples = class_freq.values().sum::<f32>();
+fn entropy(class_freq: &[f32]) -> f32 {
+    let n_samples = class_freq.iter().sum::<f32>();
     assert!(n_samples > 0.0);
 
     class_freq
-        .values()
+        .iter()
         .map(|x| x / n_samples)
         .map(|x| if x > 0.0 { -x * x.log2() } else { 0.0 })
         .sum()
@@ -725,14 +787,62 @@ mod tests {
         let row_mask = RowMask::all(labels.len());
 
         let dataset: DatasetBase<(), Array1<usize>> = DatasetBase::new((), labels);
-        let class_freq = dataset.label_frequencies_with_mask(&row_mask.mask);
+        let class_index = ClassIndex::build(&dataset.as_single_targets());
+        let class_freq = class_index.frequencies(&dataset, &row_mask);
 
-        assert_eq!(find_modal_class(&class_freq), 0);
+        assert_eq!(class_freq, vec![6.0, 2.0]);
+        assert_eq!(class_index.classes[find_modal_class(&class_freq)], 0);
+    }
+
+    #[test]
+    fn fit_is_deterministic() {
+        // Class frequencies used to live in a `HashMap`, whose iteration order is
+        // randomised per instance. That order leaked into the split scores through
+        // the non-associative `f32` sums in `gini_impurity`/`entropy`, so repeated
+        // `fit` calls on identical data could return differently shaped trees.
+        let data = array![
+            [0.1, 1.0],
+            [0.2, 0.9],
+            [0.3, 1.1],
+            [1.1, 0.1],
+            [1.2, 0.2],
+            [1.3, 0.15],
+            [2.1, 2.0],
+            [2.2, 2.1],
+            [2.3, 1.9],
+        ];
+        let targets = array![0, 0, 0, 1, 1, 1, 2, 2, 2];
+        let dataset = Dataset::new(data, targets);
+
+        let reference = DecisionTree::params().fit(&dataset).unwrap();
+        let reference: Vec<_> = reference
+            .iter_nodes()
+            .map(|node| (node.split(), node.prediction()))
+            .collect();
+
+        for _ in 0..16 {
+            let tree = DecisionTree::params().fit(&dataset).unwrap();
+            let shape: Vec<_> = tree
+                .iter_nodes()
+                .map(|node| (node.split(), node.prediction()))
+                .collect();
+
+            assert_eq!(shape, reference);
+        }
+    }
+
+    #[test]
+    fn modal_class_ties_pick_the_first_class() {
+        // documented behaviour: "If two classes have the same weight then the
+        // first class found with that frequency is returned"
+        assert_eq!(find_modal_class(&[2.0, 2.0, 1.0]), 0);
+        assert_eq!(find_modal_class(&[1.0, 2.0, 2.0]), 1);
+        assert_eq!(find_modal_class(&[0.0, 0.0, 3.0]), 2);
     }
 
     #[test]
     fn gini_impurity_example() {
-        let class_freq = vec![(0, 6.0), (1, 2.0), (2, 0.0)].into_iter().collect();
+        let class_freq = [6.0, 2.0, 0.0];
 
         // Class 0 occurs 75% of the time
         // Class 1 occurs 25% of the time
@@ -743,7 +853,7 @@ mod tests {
 
     #[test]
     fn entropy_example() {
-        let class_freq = vec![(0, 6.0), (1, 2.0), (2, 0.0)].into_iter().collect();
+        let class_freq = [6.0, 2.0, 0.0];
 
         // Class 0 occurs 75% of the time
         // Class 1 occurs 25% of the time
@@ -752,7 +862,7 @@ mod tests {
         assert_abs_diff_eq!(entropy(&class_freq), 0.81127, epsilon = 1e-5);
 
         // If split is perfect then entropy is zero
-        let perfect_class_freq = vec![(0, 8.0), (1, 0.0), (2, 0.0)].into_iter().collect();
+        let perfect_class_freq = [8.0, 0.0, 0.0];
 
         assert_abs_diff_eq!(entropy(&perfect_class_freq), 0.0, epsilon = 1e-5);
     }
