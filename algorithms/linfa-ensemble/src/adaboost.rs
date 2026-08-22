@@ -11,6 +11,9 @@ use ndarray_rand::rand::prelude::*;
 use ndarray_rand::rand::Rng;
 use std::{cmp::Eq, collections::HashMap, hash::Hash};
 
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
+
 /// Huge weight used to favor model with perfect predictions
 const PERFECT_MODEL_WEIGHT: f64 = 1e6;
 
@@ -74,6 +77,11 @@ const PERFECT_MODEL_WEIGHT: f64 = 1e6;
 ///   and an application to boosting. Journal of Computer and System Sciences, 55(1), 119-139.
 /// * [Scikit-Learn AdaBoost Documentation](https://scikit-learn.org/stable/modules/ensemble.html#adaboost)
 /// * [An Introduction to Statistical Learning](https://www.statlearning.com/), Chapter 8
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 #[derive(Debug, Clone)]
 pub struct AdaBoost<M, L> {
     /// The fitted base learner models

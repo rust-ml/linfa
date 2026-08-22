@@ -10,6 +10,9 @@ use ndarray::{Array2, Axis, Zip};
 use rand::Rng;
 use std::{cmp::Eq, collections::HashMap, hash::Hash};
 
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
+
 /// A fitted ensemble of [Decision Trees](DecisionTree) trained on a random subset of features.
 ///
 /// Check out [EnsembleLearner] documentation for more information regarding [RandomForest] interface.
@@ -67,6 +70,11 @@ pub type RandomForest<F, L> = EnsembleLearner<DecisionTree<F, L>>;
 ///
 /// * [Scikit-Learn User Guide](https://scikit-learn.org/stable/modules/ensemble.html)
 /// * [An Introduction to Statistical Learning](https://www.statlearning.com/)
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "serde_crate")
+)]
 pub struct EnsembleLearner<M> {
     pub models: Vec<M>,
     pub model_features: Vec<Vec<usize>>,
