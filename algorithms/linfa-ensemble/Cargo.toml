@@ -17,7 +17,7 @@ categories = ["algorithms", "mathematics", "science"]
 
 [features]
 default = []
-serde = ["serde_crate", "ndarray/serde"]
+serde = ["serde_crate", "ndarray/serde", "linfa-trees/serde"]
 
 [dependencies.serde_crate]
 package = "serde"
@@ -38,3 +38,4 @@ linfa-trees = { version = "0.8.1", path = "../linfa-trees" }
 linfa-datasets = { version = "0.8.1", path = "../../datasets/", features = [
     "iris",
 ] }
+serde_json = { version = "1", features = ["float_roundtrip"] }

@@ -16,7 +16,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .num_clusters(3)
         .transform(kernel)?;
 
-    for (id, target) in kernel.targets().iter().zip(dataset.targets().into_iter()) {
+    for (id, target) in kernel.targets().iter().zip(dataset.targets()) {
         let name = match *target {
             0 => "setosa",
             1 => "versicolor",

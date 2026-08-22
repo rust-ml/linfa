@@ -123,16 +123,15 @@ fn lars_path<F: Float>(
     }
 
     loop {
-        let c;
         let mut c_idx = 0;
         let mut c_ = F::zero();
-        if !cov.is_empty() {
+        let c = if !cov.is_empty() {
             c_idx = cov.abs().argmax().unwrap();
             c_ = cov[c_idx];
-            c = c_.abs();
+            c_.abs()
         } else {
-            c = F::zero();
-        }
+            F::zero()
+        };
 
         let mut alpha = alphas.slice(s![n_iter, NewAxis]).to_owned();
         let mut coef = coefs.row(n_iter).to_owned();

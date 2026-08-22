@@ -53,6 +53,10 @@ We believe that only a significant community effort can nurture, build, and sust
 
 If this strikes a chord with you, please take a look at the [roadmap](https://github.com/rust-ml/linfa/issues/7) and get involved!
 
+## Browser WASM
+
+For browser-style WASM on `wasm32-unknown-unknown`, enable `linfa`'s `wasm-bindgen` feature.
+
 ## BLAS/Lapack backend
 
 Some algorithm crates need to use an external library for linear algebra routines. By default, we use a pure-Rust implementation. However, you can also choose an external BLAS/LAPACK backend library instead, by enabling the `blas` feature and a feature corresponding to your BLAS backend. Currently you can choose between the following BLAS/LAPACK backends: `openblas`, `netblas` or `intel-mkl`.
