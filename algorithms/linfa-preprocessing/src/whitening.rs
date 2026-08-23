@@ -332,6 +332,46 @@ mod tests {
     }
 
     #[test]
+    fn test_pca_matrix_more_features_than_samples() {
+        // With fewer samples than features the covariance is rank deficient, so `fit`
+        // falls back to decomposing the data matrix, and the two backends disagree on
+        // the shape that produces: `linfa_linalg::svd` is a compact SVD and yields the
+        // thin `nsamples x nfeatures` factor, while `ndarray_linalg::svd` is a full one
+        // and yields `nfeatures x nfeatures`. That split predates the covariance path
+        // added alongside this test; it is pinned here to keep it from changing
+        // unnoticed.
+        let mut rng = SmallRng::seed_from_u64(42);
+        let dataset = Array2::random_using((20, 50), Uniform::from(-30. ..30.), &mut rng).into();
+        let whitener = Whitener::pca().fit(&dataset).unwrap();
+
+        #[cfg(not(feature = "blas"))]
+        assert_eq!(whitener.transformation_matrix().dim(), (20, 50));
+        #[cfg(feature = "blas")]
+        assert_eq!(whitener.transformation_matrix().dim(), (50, 50));
+
+        assert!(whitener
+            .transformation_matrix()
+            .iter()
+            .all(|x: &f64| x.is_finite()));
+    }
+
+    #[test]
+    fn test_pca_matrix_square_input() {
+        // Exactly as many samples as features: still the fallback branch, since the
+        // covariance of a square centered matrix is singular. Compact and full SVD
+        // agree on the shape here, so both backends give `nfeatures x nfeatures`.
+        let mut rng = SmallRng::seed_from_u64(42);
+        let dataset = Array2::random_using((16, 16), Uniform::from(-30. ..30.), &mut rng).into();
+        let whitener = Whitener::pca().fit(&dataset).unwrap();
+
+        assert_eq!(whitener.transformation_matrix().dim(), (16, 16));
+        assert!(whitener
+            .transformation_matrix()
+            .iter()
+            .all(|x: &f64| x.is_finite()));
+    }
+
+    #[test]
     fn test_cholesky_whitening() {
         let mut rng = SmallRng::seed_from_u64(64);
         let dataset = Array2::random_using((1000, 7), Uniform::from(-30. ..30.), &mut rng).into();
