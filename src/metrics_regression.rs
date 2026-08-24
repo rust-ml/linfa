@@ -479,6 +479,8 @@ mod tests {
         // Explained variance is 1 - Var(y_true - y_pred) / Var(y_true), matching
         // sklearn.metrics.explained_variance_score([0.0,0.1,0.2,0.3,0.4],
         //                                          [0.1,0.3,0.2,0.5,0.7]) == 0.48
+        // https://scikit-learn.org/stable/modules/generated/sklearn.metrics.explained_variance_score.html
+        // sklearn averages where this sums, and the 1/n cancels between the two terms.
         assert_abs_diff_eq!(abs_err_from_arr1, 0.48, epsilon = 1e-5);
         assert_abs_diff_eq!(abs_err_from_arr1, abs_err_from_ds);
     }
