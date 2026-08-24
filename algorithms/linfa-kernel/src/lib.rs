@@ -25,7 +25,6 @@ use ndarray::Data;
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
 use sprs::{CsMat, CsMatView};
-use std::ops::Mul;
 
 use linfa::{
     dataset::AsTargets, dataset::DatasetBase, dataset::FromTargetArray, dataset::Records,
@@ -281,8 +280,8 @@ impl<F: Float> KernelMethod<F> {
 
                 (-distance / eps).exp()
             }
-            KernelMethod::Linear => a.mul(&b).sum(),
-            KernelMethod::Polynomial(c, d) => (a.mul(&b).sum() + c).powf(d),
+            KernelMethod::Linear => a.dot(&b),
+            KernelMethod::Polynomial(c, d) => (a.dot(&b) + c).powf(d),
         }
     }
 
@@ -482,14 +481,19 @@ fn dense_from_fn<F: Float, D: Data<Elem = F>>(
     method: &KernelMethod<F>,
 ) -> Array2<F> {
     let n_observations = dataset.len_of(Axis(0));
-    let mut similarity = Array2::eye(n_observations);
+    let mut similarity = Array2::zeros((n_observations, n_observations));
 
+    // Every `KernelMethod` is symmetric in its two arguments, so only the upper
+    // triangle has to be evaluated and the result mirrored into the lower one.
     for i in 0..n_observations {
-        for j in 0..n_observations {
-            let a = dataset.row(i);
+        let a = dataset.row(i);
+
+        for j in i..n_observations {
             let b = dataset.row(j);
 
-            similarity[(i, j)] = method.distance(a, b);
+            let similarity_ij = method.distance(a, b);
+            similarity[(i, j)] = similarity_ij;
+            similarity[(j, i)] = similarity_ij;
         }
     }
 
@@ -530,6 +534,7 @@ mod tests {
     use linfa_nn::{BallTree, KdTree};
     use ndarray::{Array1, Array2};
     use std::f64::consts;
+    use std::ops::Mul;
 
     #[test]
     fn autotraits() {
@@ -610,6 +615,38 @@ mod tests {
                     .abs()
                         <= f64::EPSILON
                 );
+            }
+        }
+    }
+
+    #[test]
+    fn dense_from_fn_is_symmetric() {
+        // `dense_from_fn` only evaluates the upper triangle and mirrors it, which
+        // is valid because every `KernelMethod` is symmetric in its arguments.
+        // Guard both halves of that property.
+        let input_arr =
+            Array2::from_shape_fn((16, 4), |(i, j)| ((i * 31 + j * 17) % 100) as f64 / 100.);
+
+        for method in [
+            KernelMethod::Gaussian(0.5),
+            KernelMethod::Linear,
+            KernelMethod::Polynomial(1., 3.),
+        ] {
+            // the method itself is symmetric
+            for i in 0..16 {
+                for j in 0..16 {
+                    let forward = method.distance(input_arr.row(i), input_arr.row(j));
+                    let backward = method.distance(input_arr.row(j), input_arr.row(i));
+                    assert!((forward - backward).abs() <= 1e-12);
+                }
+            }
+
+            // and so is the matrix built from it
+            let similarity_matrix = dense_from_fn(&input_arr, &method);
+            for i in 0..16 {
+                for j in 0..16 {
+                    assert!((similarity_matrix[(i, j)] - similarity_matrix[(j, i)]).abs() <= 1e-12);
+                }
             }
         }
     }

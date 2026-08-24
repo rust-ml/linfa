@@ -30,3 +30,13 @@ sprs = { version = "=0.11.2", default-features = false }
 
 linfa = { version = "0.8.1", path = "../.." }
 linfa-nn = { version = "0.8.1", path = "../linfa-nn" }
+
+[dev-dependencies]
+criterion = "0.5"
+ndarray-rand = "0.15"
+rand_xoshiro = "0.6"
+linfa = { version = "0.8.1", path = "../..", features = ["benchmarks"] }
+
+[[bench]]
+name = "kernel"
+harness = false
