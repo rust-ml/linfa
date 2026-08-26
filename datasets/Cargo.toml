@@ -9,11 +9,11 @@ repository = "https://github.com/rust-ml/linfa"
 
 [dependencies]
 linfa = { version = "0.8.1", path = ".." }
-ndarray = { version = "0.16" }
-ndarray-csv = "=0.5.3"
+ndarray = { version = "0.17" }
+ndarray-csv = "0.5.4"
 csv = "1.1"
 flate2 = "1.0"
-ndarray-rand = { version = "0.15", optional = true }
+ndarray-rand = { version = "0.16", optional = true }
 
 [dev-dependencies]
 approx = "0.5"
