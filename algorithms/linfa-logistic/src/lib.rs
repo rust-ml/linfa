@@ -7,6 +7,8 @@
 //! ## Current state
 //! `linfa-logistic` provides a pure Rust implementation of a [binomial logistic regression model](LogisticRegression) and a [multinomial logistic regression model](MultiLogisticRegression).
 //!
+//! Both models accept dense `ndarray` matrices as well as sparse `sprs::CsMat` / `sprs::CsMatView` matrices (CSR or CSC) as input records, for fitting and prediction.
+//!
 //! ## Examples
 //!
 //! There is an usage example in the `examples/` directory. To run, use:
