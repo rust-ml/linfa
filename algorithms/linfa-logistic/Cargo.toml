@@ -29,6 +29,7 @@ num-traits = "0.2"
 argmin = { version = "0.11.0", default-features = false }
 argmin-math = { version = "0.5", features = ["ndarray_v0_16-nolinalg"] }
 thiserror = "2.0"
+sprs = { version = "=0.11.2", default-features = false }
 
 linfa = { version = "0.8.1", path = "../.." }
 

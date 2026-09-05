@@ -38,10 +38,12 @@ use serde_crate::de::DeserializeOwned;
 use serde_crate::{Deserialize, Serialize};
 
 mod argmin_param;
+mod design_matrix;
 mod float;
 mod hyperparams;
 
 use argmin_param::*;
+pub use design_matrix::DesignMatrix;
 use float::Float;
 use hyperparams::{LogisticRegressionParams, LogisticRegressionValidParams};
 
@@ -127,18 +129,18 @@ impl<F: Float, D: Dimension> LogisticRegressionValidParams<F, D> {
 
     /// Ensure that `x` and `y` have the right shape and that all data and
     /// configuration parameters are finite.
-    fn validate_data<A: Data<Elem = F>, B: Data<Elem = F>>(
+    fn validate_data<X: DesignMatrix<F>, B: Data<Elem = F>>(
         &self,
-        x: &ArrayBase<A, Ix2>,
+        x: &X,
         y: &ArrayBase<B, D>,
     ) -> Result<()> {
-        if x.shape()[0] != y.shape()[0] {
-            return Err(Error::MismatchedShapes(x.shape()[0], y.shape()[0]));
+        if x.nsamples() != y.shape()[0] {
+            return Err(Error::MismatchedShapes(x.nsamples(), y.shape()[0]));
         }
-        if x.iter().any(|x| !x.is_finite()) || y.iter().any(|y| !y.is_finite()) {
+        if !x.all_finite() || y.iter().any(|y| !y.is_finite()) {
             return Err(Error::InvalidValues);
         }
-        self.validate_init_dims(x.shape()[1], y.shape().get(1).copied())?;
+        self.validate_init_dims(x.nfeatures(), y.shape().get(1).copied())?;
         Ok(())
     }
 
@@ -165,11 +167,11 @@ impl<F: Float, D: Dimension> LogisticRegressionValidParams<F, D> {
     }
 
     /// Create a `LogisticRegressionProblem`.
-    fn setup_problem<'a, A: Data<Elem = F>>(
+    fn setup_problem<'a, X: DesignMatrix<F>>(
         &self,
-        x: &'a ArrayBase<A, Ix2>,
+        x: &'a X,
         target: Array<F, D>,
-    ) -> LogisticRegressionProblem<'a, F, A, D> {
+    ) -> LogisticRegressionProblem<'a, F, X, D> {
         LogisticRegressionProblem {
             x,
             target,
@@ -208,13 +210,13 @@ impl<
     }
 }
 
-impl<C: Ord + Clone, F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = C>>
-    Fit<ArrayBase<D, Ix2>, T, Error> for ValidLogisticRegression<F>
+impl<C: Ord + Clone, F: Float, X: DesignMatrix<F>, T: AsSingleTargets<Elem = C>> Fit<X, T, Error>
+    for ValidLogisticRegression<F>
 {
     type Object = FittedLogisticRegression<F, C>;
 
-    /// Given a 2-dimensional feature matrix array `x` with shape
-    /// (n_samples, n_features) and an array of target classes to predict,
+    /// Given a 2-dimensional feature matrix `x` with shape (n_samples, n_features), either a
+    /// dense `ndarray` array or a sparse `sprs` matrix, and an array of target classes to predict,
     /// create a `FittedLinearRegression` object which allows making
     /// predictions.
     ///
@@ -229,30 +231,30 @@ impl<C: Ord + Clone, F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = C>>
     /// i.e. any values are `Inf` or `NaN`, `y` doesn't have as many items as
     /// `x` has rows, or if other parameters (gradient_tolerance, alpha) have
     /// been set to inalid values.
-    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
+    fn fit(&self, dataset: &DatasetBase<X, T>) -> Result<Self::Object> {
         let (x, y) = (dataset.records(), dataset.targets());
         let (labels, target) = label_classes(y)?;
         self.validate_data(x, &target)?;
 
         if let Some(ref offset) = self.offset {
-            if offset.len() != x.nrows() {
+            if offset.len() != x.nsamples() {
                 return Err(Error::OffsetLengthMismatch {
                     offset_len: offset.len(),
-                    n_samples: x.nrows(),
+                    n_samples: x.nsamples(),
                 });
             }
         }
 
         let problem = self.setup_problem(x, target);
         let solver = self.setup_solver();
-        let init_params = self.setup_init_params(x.ncols());
+        let init_params = self.setup_init_params(x.nfeatures());
         let result = self.run_solver(problem, solver, init_params)?;
 
         let params = result
             .state
             .best_param
-            .unwrap_or(self.setup_init_params(x.ncols()));
-        let (w, intercept) = convert_params(x.ncols(), params.as_array());
+            .unwrap_or(self.setup_init_params(x.nfeatures()));
+        let (w, intercept) = convert_params(x.nfeatures(), params.as_array());
         Ok(FittedLogisticRegression::new(
             *intercept.view().into_scalar(),
             w.to_owned(),
@@ -261,13 +263,13 @@ impl<C: Ord + Clone, F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = C>>
     }
 }
 
-impl<C: Ord + Clone, F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = C>>
-    Fit<ArrayBase<D, Ix2>, T, Error> for ValidMultiLogisticRegression<F>
+impl<C: Ord + Clone, F: Float, X: DesignMatrix<F>, T: AsSingleTargets<Elem = C>> Fit<X, T, Error>
+    for ValidMultiLogisticRegression<F>
 {
     type Object = MultiFittedLogisticRegression<F, C>;
 
-    /// Given a 2-dimensional feature matrix array `x` with shape
-    /// (n_samples, n_features) and an array of target classes to predict,
+    /// Given a 2-dimensional feature matrix `x` with shape (n_samples, n_features), either a
+    /// dense `ndarray` array or a sparse `sprs` matrix, and an array of target classes to predict,
     /// create a `MultiFittedLogisticRegression` object which allows making
     /// predictions. The target classes can have any number of discrete values.
     ///
@@ -276,20 +278,20 @@ impl<C: Ord + Clone, F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = C>>
     /// `x` has rows, or if other parameters (gradient_tolerance, alpha) have
     /// been set to inalid values. The input features are also strongly recommended to be
     /// normalized to ensure numerical stability.
-    fn fit(&self, dataset: &DatasetBase<ArrayBase<D, Ix2>, T>) -> Result<Self::Object> {
+    fn fit(&self, dataset: &DatasetBase<X, T>) -> Result<Self::Object> {
         let (x, y) = (dataset.records(), dataset.targets());
         let (classes, target) = label_classes_multi(y)?;
         self.validate_data(x, &target)?;
         let problem = self.setup_problem(x, target);
         let solver = self.setup_solver();
-        let init_params = self.setup_init_params((x.ncols(), classes.len()));
+        let init_params = self.setup_init_params((x.nfeatures(), classes.len()));
         let result = self.run_solver(problem, solver, init_params)?;
 
         let params = result
             .state
             .best_param
-            .unwrap_or(self.setup_init_params((x.ncols(), classes.len())));
-        let (w, intercept) = convert_params(x.ncols(), params.as_array());
+            .unwrap_or(self.setup_init_params((x.nfeatures(), classes.len())));
+        let (w, intercept) = convert_params(x.nfeatures(), params.as_array());
         Ok(MultiFittedLogisticRegression::new(
             intercept.to_owned(),
             w.to_owned(),
@@ -461,6 +463,21 @@ fn softmax_inplace<F: linfa::Float, A: DataMut<Elem = F>>(v: &mut ArrayBase<A, I
     v.mapv_inplace(|n| n / sum);
 }
 
+/// Splits `w` into parameters and intercept and computes the linear predictor
+/// `X . params + intercept (+ offset)`.
+fn linear_predictor<'a, F: Float, X: DesignMatrix<F>>(
+    x: &X,
+    w: &'a Array1<F>,
+    offset: Option<&Array1<F>>,
+) -> (ArrayView<'a, F, Ix1>, Array1<F>) {
+    let (params, intercept) = convert_params(x.nfeatures(), w);
+    let mut z = x.dot_vec(&params) + intercept;
+    if let Some(off) = offset {
+        z += off;
+    }
+    (params, z)
+}
+
 /// Computes the logistic loss assuming the training labels $y \in {-1, 1}$
 ///
 /// Because the logistic function fullfills $\sigma(-z) = 1 - \sigma(z)$
@@ -470,46 +487,29 @@ fn softmax_inplace<F: linfa::Float, A: DataMut<Elem = F>>(v: &mut ArrayBase<A, I
 ///
 /// Thus, the log loss can be written as
 /// $$-\sum_{i=1}^{N} \log(\sigma(y_i z_i)) + \frac{\alpha}{2}\text{params}^T\text{params}$$
-fn logistic_loss<F: Float, A: Data<Elem = F>>(
-    x: &ArrayBase<A, Ix2>,
+fn logistic_loss<F: Float, X: DesignMatrix<F>>(
+    x: &X,
     y: &Array1<F>,
     alpha: F,
     w: &Array1<F>,
     offset: Option<&Array1<F>>,
 ) -> F {
-    let n_features = x.shape()[1];
-    let (params, intercept) = convert_params(n_features, w);
-    let yz = x.dot(&params.into_shape_with_order((params.len(), 1)).unwrap()) + intercept;
-    let len = yz.len();
-    let mut yz = yz.into_shape_with_order(len).unwrap();
-
-    if let Some(off) = offset {
-        yz += off;
-    }
-
+    let (params, mut yz) = linear_predictor(x, w, offset);
     yz *= y;
     yz.mapv_inplace(log_logistic);
     -yz.sum() + F::cast(0.5) * alpha * params.dot(&params)
 }
 
 /// Computes the gradient of the logistic loss function
-fn logistic_grad<F: Float, A: Data<Elem = F>>(
-    x: &ArrayBase<A, Ix2>,
+fn logistic_grad<F: Float, X: DesignMatrix<F>>(
+    x: &X,
     y: &Array1<F>,
     alpha: F,
     w: &Array1<F>,
     offset: Option<&Array1<F>>,
 ) -> Array1<F> {
-    let n_features = x.shape()[1];
-    let (params, intercept) = convert_params(n_features, w);
-    let yz = x.dot(&params.into_shape_with_order((params.len(), 1)).unwrap()) + intercept;
-    let len = yz.len();
-    let mut yz = yz.into_shape_with_order(len).unwrap();
-
-    if let Some(off) = offset {
-        yz += off;
-    }
-
+    let n_features = x.nfeatures();
+    let (params, mut yz) = linear_predictor(x, w, offset);
     yz *= y;
     yz.mapv_inplace(logistic);
     yz -= F::one();
@@ -517,11 +517,11 @@ fn logistic_grad<F: Float, A: Data<Elem = F>>(
     if w.len() == n_features + 1 {
         let mut grad = Array::zeros(w.len());
         grad.slice_mut(s![..n_features])
-            .assign(&(x.t().dot(&yz) + (&params * alpha)));
+            .assign(&(x.t_dot_vec(&yz) + (&params * alpha)));
         grad[n_features] = yz.sum();
         grad
     } else {
-        x.t().dot(&yz) + (&params * alpha)
+        x.t_dot_vec(&yz) + (&params * alpha)
     }
 }
 
@@ -529,14 +529,14 @@ fn logistic_grad<F: Float, A: Data<Elem = F>>(
 /// returns `W` without the intercept.
 /// `Y` is the output (n_samples * n_classes), `X` is the input (n_samples * n_features), `W` is the
 /// params (n_features * n_classes), `b` is the intercept vector (n_classes).
-fn multi_logistic_prob_params<'a, F: Float, A: Data<Elem = F>>(
-    x: &ArrayBase<A, Ix2>,
+fn multi_logistic_prob_params<'a, F: Float, X: DesignMatrix<F>>(
+    x: &X,
     w: &'a Array2<F>, // This parameter includes `W` and `b`
 ) -> (Array2<F>, ArrayView2<'a, F>) {
-    let n_features = x.shape()[1];
+    let n_features = x.nfeatures();
     let (params, intercept) = convert_params(n_features, w);
     // Compute H
-    let h = x.dot(&params) + intercept;
+    let h = x.dot_mat(&params) + intercept;
     // This computes `H - log(sum(exp(H)))`, which is equal to
     // `log(softmax(H)) = log(exp(H) / sum(exp(H)))`
     let log_prob = &h
@@ -547,8 +547,8 @@ fn multi_logistic_prob_params<'a, F: Float, A: Data<Elem = F>>(
 }
 
 /// Computes loss function of `-sum(Y * log(softmax(H))) + alpha/2 * norm(W)`
-fn multi_logistic_loss<F: Float, A: Data<Elem = F>>(
-    x: &ArrayBase<A, Ix2>,
+fn multi_logistic_loss<F: Float, X: DesignMatrix<F>>(
+    x: &X,
     y: &Array2<F>,
     alpha: F,
     w: &Array2<F>,
@@ -561,8 +561,8 @@ fn multi_logistic_loss<F: Float, A: Data<Elem = F>>(
 /// Computes multinomial gradients for `W` and `b` and combine them.
 /// Gradient for `W` is `Xt . (softmax(H) - Y) + alpha * W`.
 /// Gradient for `b` is `sum(softmax(H) - Y)`.
-fn multi_logistic_grad<F: Float, A: Data<Elem = F>>(
-    x: &ArrayBase<A, Ix2>,
+fn multi_logistic_grad<F: Float, X: DesignMatrix<F>>(
+    x: &X,
     y: &Array2<F>,
     alpha: F,
     w: &Array2<F>,
@@ -576,7 +576,7 @@ fn multi_logistic_grad<F: Float, A: Data<Elem = F>>(
     let prob = log_prob.mapv_into(num_traits::Float::exp);
     let diff = prob - y;
     // Compute gradient for `W` and place it at start of the grad matrix
-    let dw = x.t().dot(&diff) + (&params * alpha);
+    let dw = x.t_dot_mat(&diff) + (&params * alpha);
     grad.slice_mut(s![..n_features, ..]).assign(&dw);
     // Compute gradient for `b` and place it at end of grad matrix
     if intercept {
@@ -640,26 +640,26 @@ impl<F: Float, C: PartialOrd + Clone> FittedLogisticRegression<F, C> {
     /// Given a feature matrix, predict the probabilities that a sample
     /// should be classified as the larger of the two classes learned when the
     /// model was fitted.
-    pub fn predict_probabilities<A: Data<Elem = F>>(&self, x: &ArrayBase<A, Ix2>) -> Array1<F> {
-        let mut probs = x.dot(&self.params) + self.intercept;
+    pub fn predict_probabilities<X: DesignMatrix<F>>(&self, x: &X) -> Array1<F> {
+        let mut probs = x.dot_vec(&self.params) + self.intercept;
         probs.mapv_inplace(logistic);
         probs
     }
 }
 
-impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
-    PredictInplace<ArrayBase<D, Ix2>, Array1<C>> for FittedLogisticRegression<F, C>
+impl<C: PartialOrd + Clone + Default, F: Float, X: DesignMatrix<F>> PredictInplace<X, Array1<C>>
+    for FittedLogisticRegression<F, C>
 {
     /// Given a feature matrix, predict the classes learned when the model was
     /// fitted.
-    fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<C>) {
+    fn predict_inplace(&self, x: &X, y: &mut Array1<C>) {
         assert_eq!(
-            x.nrows(),
+            x.nsamples(),
             y.len(),
             "The number of data points must match the number of output targets."
         );
         assert_eq!(
-            x.ncols(),
+            x.nfeatures(),
             self.params.len(),
             "Number of data features must match the number of features the model was trained with."
         );
@@ -677,8 +677,8 @@ impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
             });
     }
 
-    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<C> {
-        Array1::default(x.nrows())
+    fn default_target(&self, x: &X) -> Array1<C> {
+        Array1::default(x.nsamples())
     }
 }
 
@@ -713,13 +713,13 @@ impl<F: Float, C: PartialOrd + Clone> MultiFittedLogisticRegression<F, C> {
     }
 
     /// Return non-normalized probabilities (n_samples * n_classes)
-    fn predict_nonorm_probabilities<A: Data<Elem = F>>(&self, x: &ArrayBase<A, Ix2>) -> Array2<F> {
-        x.dot(&self.params) + &self.intercept
+    fn predict_nonorm_probabilities<X: DesignMatrix<F>>(&self, x: &X) -> Array2<F> {
+        x.dot_mat(&self.params) + &self.intercept
     }
 
     /// Return normalized probabilities for each output class. The output dimensions are (n_samples
     /// * n_classes).
-    pub fn predict_probabilities<A: Data<Elem = F>>(&self, x: &ArrayBase<A, Ix2>) -> Array2<F> {
+    pub fn predict_probabilities<X: DesignMatrix<F>>(&self, x: &X) -> Array2<F> {
         let mut probs = self.predict_nonorm_probabilities(x);
         probs
             .rows_mut()
@@ -734,19 +734,19 @@ impl<F: Float, C: PartialOrd + Clone> MultiFittedLogisticRegression<F, C> {
     }
 }
 
-impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
-    PredictInplace<ArrayBase<D, Ix2>, Array1<C>> for MultiFittedLogisticRegression<F, C>
+impl<C: PartialOrd + Clone + Default, F: Float, X: DesignMatrix<F>> PredictInplace<X, Array1<C>>
+    for MultiFittedLogisticRegression<F, C>
 {
     /// Given a feature matrix, predict the classes learned when the model was
     /// fitted.
-    fn predict_inplace(&self, x: &ArrayBase<D, Ix2>, y: &mut Array1<C>) {
+    fn predict_inplace(&self, x: &X, y: &mut Array1<C>) {
         assert_eq!(
-            x.nrows(),
+            x.nsamples(),
             y.len(),
             "The number of data points must match the number of output targets."
         );
         assert_eq!(
-            x.ncols(),
+            x.nfeatures(),
             self.params.nrows(),
             "Number of data features must match the number of features the model was trained with."
         );
@@ -758,8 +758,8 @@ impl<C: PartialOrd + Clone + Default, F: Float, D: Data<Elem = F>>
         });
     }
 
-    fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array1<C> {
-        Array1::default(x.nrows())
+    fn default_target(&self, x: &X) -> Array1<C> {
+        Array1::default(x.nsamples())
     }
 }
 
@@ -787,17 +787,17 @@ pub struct BinaryClassLabels<F, C: PartialOrd> {
 
 /// Internal representation of a logistic regression problem.
 /// This data structure exists to be handed to Argmin.
-struct LogisticRegressionProblem<'a, F: Float, A: Data<Elem = F>, D: Dimension> {
-    x: &'a ArrayBase<A, Ix2>,
+struct LogisticRegressionProblem<'a, F: Float, X: DesignMatrix<F>, D: Dimension> {
+    x: &'a X,
     target: Array<F, D>,
     alpha: F,
     offset: Option<Array1<F>>,
 }
 
-type LogisticRegressionProblem1<'a, F, A> = LogisticRegressionProblem<'a, F, A, Ix1>;
-type LogisticRegressionProblem2<'a, F, A> = LogisticRegressionProblem<'a, F, A, Ix2>;
+type LogisticRegressionProblem1<'a, F, X> = LogisticRegressionProblem<'a, F, X, Ix1>;
+type LogisticRegressionProblem2<'a, F, X> = LogisticRegressionProblem<'a, F, X, Ix2>;
 
-impl<F: Float, A: Data<Elem = F>> CostFunction for LogisticRegressionProblem1<'_, F, A> {
+impl<F: Float, X: DesignMatrix<F>> CostFunction for LogisticRegressionProblem1<'_, F, X> {
     type Param = ArgminParam<F, Ix1>;
     type Output = F;
 
@@ -809,7 +809,7 @@ impl<F: Float, A: Data<Elem = F>> CostFunction for LogisticRegressionProblem1<'_
     }
 }
 
-impl<F: Float, A: Data<Elem = F>> Gradient for LogisticRegressionProblem1<'_, F, A> {
+impl<F: Float, X: DesignMatrix<F>> Gradient for LogisticRegressionProblem1<'_, F, X> {
     type Param = ArgminParam<F, Ix1>;
     type Gradient = ArgminParam<F, Ix1>;
 
@@ -827,7 +827,7 @@ impl<F: Float, A: Data<Elem = F>> Gradient for LogisticRegressionProblem1<'_, F,
     }
 }
 
-impl<F: Float, A: Data<Elem = F>> CostFunction for LogisticRegressionProblem2<'_, F, A> {
+impl<F: Float, X: DesignMatrix<F>> CostFunction for LogisticRegressionProblem2<'_, F, X> {
     type Param = ArgminParam<F, Ix2>;
     type Output = F;
 
@@ -839,7 +839,7 @@ impl<F: Float, A: Data<Elem = F>> CostFunction for LogisticRegressionProblem2<'_
     }
 }
 
-impl<F: Float, A: Data<Elem = F>> Gradient for LogisticRegressionProblem2<'_, F, A> {
+impl<F: Float, X: DesignMatrix<F>> Gradient for LogisticRegressionProblem2<'_, F, X> {
     type Param = ArgminParam<F, Ix2>;
     type Gradient = ArgminParam<F, Ix2>;
 
@@ -855,11 +855,15 @@ trait SolvableProblem<F: Float, D: Dimension>: Gradient + Sized {
     type Solver: Solver<Self, IterStateType<F, D>>;
 }
 
-impl<F: Float, A: Data<Elem = F>> SolvableProblem<F, Ix1> for LogisticRegressionProblem1<'_, F, A> {
+impl<F: Float, X: DesignMatrix<F>> SolvableProblem<F, Ix1>
+    for LogisticRegressionProblem1<'_, F, X>
+{
     type Solver = LBFGSType1<F>;
 }
 
-impl<F: Float, A: Data<Elem = F>> SolvableProblem<F, Ix2> for LogisticRegressionProblem2<'_, F, A> {
+impl<F: Float, X: DesignMatrix<F>> SolvableProblem<F, Ix2>
+    for LogisticRegressionProblem2<'_, F, X>
+{
     type Solver = LBFGSType2<F>;
 }
 
@@ -1002,6 +1006,117 @@ mod test {
             let actual = logistic_grad(&x, &y, alpha, w, None);
             assert!(actual.abs_diff_eq(exp, 1e-8));
         }
+    }
+
+    #[test]
+    fn sparse_binary_fit_matches_dense() {
+        let x = array![
+            [0.0, 2.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 3.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [2.0, 0.0, 0.0],
+            [0.0, 1.0, 1.0],
+        ];
+        let y = array![1, 0, 1, 0, 0, 1];
+        let sparse_x = sprs::CsMat::csr_from_dense(x.view(), 0.0);
+
+        let dense = LogisticRegression::default()
+            .fit(&Dataset::new(x.clone(), y.clone()))
+            .unwrap();
+        let sparse = LogisticRegression::default()
+            .fit(&DatasetBase::new(sparse_x.clone(), y))
+            .unwrap();
+
+        assert_abs_diff_eq!(dense.params(), sparse.params(), epsilon = 1e-6);
+        assert_abs_diff_eq!(dense.intercept(), sparse.intercept(), epsilon = 1e-6);
+        assert_eq!(dense.predict(&x), sparse.predict(&sparse_x));
+    }
+
+    #[test]
+    fn sparse_multi_fit_matches_dense() {
+        let x = array![
+            [0.0, 2.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 3.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [2.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 2.0],
+            [0.0, 0.0, 1.0, 1.0],
+        ];
+        let y = array![1, 0, 1, 2, 0, 2, 2];
+        // CSC storage, so the transposed products run through the CSR kernel and vice versa.
+        let sparse_x = sprs::CsMat::csc_from_dense(x.view(), 0.0);
+
+        let dense = MultiLogisticRegression::default()
+            .fit(&Dataset::new(x.clone(), y.clone()))
+            .unwrap();
+        let sparse = MultiLogisticRegression::default()
+            .fit(&DatasetBase::new(sparse_x.clone(), y))
+            .unwrap();
+
+        assert_abs_diff_eq!(dense.params(), sparse.params(), epsilon = 1e-6);
+        assert_abs_diff_eq!(dense.intercept(), sparse.intercept(), epsilon = 1e-6);
+        assert_eq!(dense.predict(&x), sparse.predict(&sparse_x));
+        assert!(sparse.predict_probabilities(&sparse_x).is_standard_layout());
+        let predicted = sparse.predict(sparse_x);
+        assert_eq!(predicted.targets(), dense.predict(&x));
+    }
+
+    #[test]
+    fn sparse_view_fit_matches_dense() {
+        let x = array![
+            [0.0, 2.0],
+            [1.0, 0.0],
+            [0.0, 3.0],
+            [0.0, 0.0],
+            [2.0, 0.0],
+            [0.0, 1.0]
+        ];
+        let y = array![1, 0, 1, 0, 0, 1];
+        let sparse_x = sprs::CsMat::csr_from_dense(x.view(), 0.0);
+
+        let dense = LogisticRegression::default()
+            .fit(&Dataset::new(x.clone(), y.clone()))
+            .unwrap();
+        let sparse = LogisticRegression::default()
+            .fit(&DatasetBase::new(sparse_x.view(), y))
+            .unwrap();
+
+        assert_abs_diff_eq!(dense.params(), sparse.params(), epsilon = 1e-6);
+        assert_abs_diff_eq!(dense.intercept(), sparse.intercept(), epsilon = 1e-6);
+    }
+
+    #[test]
+    fn sparse_rejects_non_finite_values() {
+        // Build the matrix directly: `csr_from_dense` would silently drop a NaN.
+        let sparse_x = sprs::CsMat::new(
+            (3, 2),
+            vec![0, 1, 2, 3],
+            vec![0, 1, 0],
+            vec![1.0, f64::NAN, 2.0],
+        );
+        let y = array![0, 1, 0];
+        let res = LogisticRegression::default().fit(&DatasetBase::new(sparse_x, y));
+        assert!(matches!(res, Err(Error::InvalidValues)));
+    }
+
+    #[test]
+    fn sparse_view_predict_matches_dense() {
+        let x = array![[-1.0, 0.0], [0.0, 0.0], [0.0, 0.5], [1.0, 0.0]];
+        let y = array![0, 0, 1, 1];
+        let model = LogisticRegression::default()
+            .fit(&Dataset::new(x.clone(), y))
+            .unwrap();
+
+        let sparse_x = sprs::CsMat::csc_from_dense(x.view(), 0.0);
+        let view = sparse_x.view();
+        assert_abs_diff_eq!(
+            model.predict_probabilities(&x),
+            model.predict_probabilities(&view),
+            epsilon = 1e-12
+        );
+        assert_eq!(model.predict(&x), model.predict(&view));
     }
 
     #[test]
