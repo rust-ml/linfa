@@ -115,6 +115,7 @@ impl<T, D: Data<Elem = f64>> Fit<ArrayBase<D, Ix2>, T, ReductionError> for PcaPa
             embedding: v_t,
             sigma,
             mean,
+            n_samples: dataset.nsamples(),
         })
     }
 }
@@ -148,6 +149,8 @@ pub struct Pca<F> {
     embedding: Array2<F>,
     sigma: Array1<F>,
     mean: Array1<F>,
+    /// Number of samples the model was fitted on, needed to scale the explained variance
+    n_samples: usize,
 }
 
 impl Pca<f64> {
@@ -164,13 +167,25 @@ impl Pca<f64> {
     }
 
     /// Return the amount of explained variance per element
+    ///
+    /// The variance along a principal component is the corresponding eigenvalue of the covariance
+    /// matrix, i.e. the squared singular value scaled by the number of samples the model was
+    /// fitted on. Returns zeros for a single sample, whose variance is undefined.
     pub fn explained_variance(&self) -> Array1<f64> {
-        self.sigma.mapv(|x| x * x / (self.sigma.len() as f64 - 1.0))
+        if self.n_samples <= 1 {
+            return Array1::zeros(self.sigma.len());
+        }
+
+        self.sigma.mapv(|x| x * x / (self.n_samples as f64 - 1.0))
     }
 
     /// Return the normalized amount of explained variance per element
+    ///
+    /// The ratios are normalized by the variance retained by the model, so they always sum to one.
+    /// Note that this differs from scikit-learn, which normalizes by the total variance of the
+    /// training data.
     pub fn explained_variance_ratio(&self) -> Array1<f64> {
-        let ex_var = self.sigma.mapv(|x| x * x / (self.sigma.len() as f64 - 1.0));
+        let ex_var = self.explained_variance();
         let sum_ex_var = ex_var.sum();
 
         ex_var / sum_ex_var
@@ -383,6 +398,36 @@ mod tests {
             model.explained_variance_ratio(),
             array![1. / 2., 1. / 2.],
             epsilon = 1e-2
+        );
+    }
+
+    /// Explained variance scales with the number of samples, not the number of components
+    ///
+    /// Reference values produced with `PCA(n_components=k).explained_variance_` on
+    /// scikit-learn 1.5.2. Scaling by the number of components instead would inflate these values
+    /// and divide by zero for a single component; the ratio test above cannot detect either,
+    /// because normalizing by the sum cancels any constant factor out.
+    #[test]
+    fn test_explained_variance_reference() {
+        // the LOBPCG solver defaults to `2 * n_samples` iterations and does not converge on very
+        // small inputs, so the fixture is large enough for the reference values to be reproducible
+        let dataset = Dataset::from(Array2::from_shape_fn((30, 6), |(i, j)| {
+            ((i * 7 + j * 13) % 11) as f64
+        }));
+
+        let model = Pca::params(3).fit(&dataset).unwrap();
+        assert_abs_diff_eq!(
+            model.explained_variance(),
+            array![22.451872994138, 19.832008107037, 7.285770939254],
+            epsilon = 1e-6
+        );
+
+        // a single retained component must stay finite
+        let model = Pca::params(1).fit(&dataset).unwrap();
+        assert_abs_diff_eq!(
+            model.explained_variance(),
+            array![22.451872994138],
+            epsilon = 1e-6
         );
     }
 
