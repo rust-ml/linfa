@@ -27,6 +27,11 @@ To run the sparse example, which classifies TF-IDF text features and fits a 100 
 $ cargo run --release --example tfidf_sparse_logistic
 ```
 
+To measure the memory used by the problems in the `sparse_vs_dense` benchmark, use:
+```bash
+$ cargo run --release --example sparse_vs_dense_memory
+```
+
 ## License
 Dual-licensed to be compatible with the Rust project.
 
