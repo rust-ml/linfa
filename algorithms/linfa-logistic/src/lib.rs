@@ -877,7 +877,7 @@ mod test {
     use super::*;
     use approx::{assert_abs_diff_eq, assert_relative_eq, AbsDiffEq};
     use linfa::prelude::*;
-    use ndarray::{array, Array2, Dim, Ix};
+    use ndarray::{array, s, Array2, Dim, Ix};
     use rand::{Rng, SeedableRng};
     use rand_xoshiro::Xoshiro256Plus;
 
@@ -1121,6 +1121,15 @@ mod test {
             epsilon = 1e-12
         );
         assert_eq!(model.predict(&x), model.predict(&view));
+    }
+
+    #[test]
+    fn sparse_products_accept_strided_vectors() {
+        let x = sprs::CsMat::csr_from_dense(array![[1.0, 0.0, 2.0], [0.0, 3.0, 0.0]].view(), 0.0);
+        let v = array![1.0, 0.0, 2.0, 0.0, 3.0];
+        let u = array![4.0, 0.0, 5.0];
+        assert_eq!(x.dot_vec(&v.slice(s![..;2])), array![7.0, 6.0]);
+        assert_eq!(x.t_dot_vec(&u.slice(s![..;2])), array![4.0, 15.0, 8.0]);
     }
 
     /// Random design matrix with about 30% nonzero entries and random labels.
