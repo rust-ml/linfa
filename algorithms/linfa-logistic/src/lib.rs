@@ -878,6 +878,8 @@ mod test {
     use approx::{assert_abs_diff_eq, assert_relative_eq, AbsDiffEq};
     use linfa::prelude::*;
     use ndarray::{array, Array2, Dim, Ix};
+    use rand::{Rng, SeedableRng};
+    use rand_xoshiro::Xoshiro256Plus;
 
     #[test]
     fn autotraits() {
@@ -1119,6 +1121,67 @@ mod test {
             epsilon = 1e-12
         );
         assert_eq!(model.predict(&x), model.predict(&view));
+    }
+
+    /// Random design matrix with about 30% nonzero entries and random labels.
+    fn random_problem<F: crate::float::Float>(
+        seed: u64,
+        n_classes: usize,
+    ) -> (Array2<F>, Array1<usize>) {
+        let mut rng = Xoshiro256Plus::seed_from_u64(seed);
+        let x = Array2::from_shape_fn((40, 8), |_| {
+            if rng.gen_bool(0.3) {
+                F::from_f64(rng.gen_range(-2.0..2.0)).unwrap()
+            } else {
+                F::zero()
+            }
+        });
+        let y = Array1::from_shape_fn(40, |_| rng.gen_range(0..n_classes));
+        (x, y)
+    }
+
+    fn check_sparse_fit_matches_dense<F: crate::float::Float + AbsDiffEq<Epsilon = F>>(epsilon: F) {
+        let (x, y) = random_problem::<F>(1, 2);
+        let sparse_x = sprs::CsMat::csr_from_dense(x.view(), F::zero());
+        let offset = Array1::from_shape_fn(x.nrows(), |i| F::from_usize(i % 3).unwrap() - F::one());
+        let warm_start = Array1::from_elem(x.ncols() + 1, F::from_f64(0.5).unwrap());
+        for params in [
+            LogisticRegression::default(),
+            LogisticRegression::default().with_intercept(false),
+            LogisticRegression::default().offset(offset),
+            LogisticRegression::default().initial_params(warm_start),
+        ] {
+            let dense = params.fit(&Dataset::new(x.clone(), y.clone())).unwrap();
+            let sparse = params
+                .fit(&DatasetBase::new(sparse_x.view(), y.clone()))
+                .unwrap();
+            assert_abs_diff_eq!(dense.params(), sparse.params(), epsilon = epsilon);
+            assert_abs_diff_eq!(dense.intercept(), sparse.intercept(), epsilon = epsilon);
+        }
+
+        let (x, y) = random_problem::<F>(2, 3);
+        let sparse_x = sprs::CsMat::csc_from_dense(x.view(), F::zero());
+        for params in [
+            MultiLogisticRegression::default(),
+            MultiLogisticRegression::default().with_intercept(false),
+        ] {
+            let dense = params.fit(&Dataset::new(x.clone(), y.clone())).unwrap();
+            let sparse = params
+                .fit(&DatasetBase::new(sparse_x.view(), y.clone()))
+                .unwrap();
+            assert_abs_diff_eq!(dense.params(), sparse.params(), epsilon = epsilon);
+            assert_abs_diff_eq!(dense.intercept(), sparse.intercept(), epsilon = epsilon);
+        }
+    }
+
+    #[test]
+    fn sparse_fit_matches_dense_f32() {
+        check_sparse_fit_matches_dense::<f32>(1e-4);
+    }
+
+    #[test]
+    fn sparse_fit_matches_dense_f64() {
+        check_sparse_fit_matches_dense::<f64>(1e-9);
     }
 
     #[test]
