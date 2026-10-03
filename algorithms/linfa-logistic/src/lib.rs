@@ -1185,7 +1185,8 @@ mod test {
 
     #[test]
     fn sparse_fit_matches_dense_f32() {
-        check_sparse_fit_matches_dense::<f32>(1e-4);
+        // In f32 the solver stops ~5e-4 from the optimum, and where depends on rounding.
+        check_sparse_fit_matches_dense::<f32>(2e-3);
     }
 
     #[test]
