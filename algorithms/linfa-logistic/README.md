@@ -7,6 +7,8 @@
 ## Current state
 `linfa-logistic` provides pure Rust implementations of two-class and multinomial logistic regression models.
 
+Both models accept dense `ndarray` matrices as well as sparse `sprs::CsMat` / `sprs::CsMatView` matrices (CSR or CSC) as input records, for fitting and prediction.
+
 ## Examples
 There are usage examples in the `examples/` directory.
 
@@ -18,6 +20,16 @@ $ cargo run --example winequality_logistic
 To run the multinomial example, use:
 ```bash
 $ cargo run --example winequality_multi_logistic
+```
+
+To run the sparse example, which classifies TF-IDF text features and fits a 100 000-feature problem without densifying it, use:
+```bash
+$ cargo run --release --example tfidf_sparse_logistic
+```
+
+To measure the memory used by the problems in the `sparse_vs_dense` benchmark, use:
+```bash
+$ cargo run --release --example sparse_vs_dense_memory
 ```
 
 ## License
