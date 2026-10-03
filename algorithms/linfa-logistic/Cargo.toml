@@ -39,3 +39,6 @@ linfa-datasets = { version = "0.8.1", path = "../../datasets", features = [
     "winequality",
 ] }
 rmp-serde = "1"
+linfa-preprocessing = { version = "0.8.1", path = "../linfa-preprocessing" }
+rand = "0.8"
+rand_xoshiro = "0.6"

@@ -22,6 +22,11 @@ To run the multinomial example, use:
 $ cargo run --example winequality_multi_logistic
 ```
 
+To run the sparse example, which classifies TF-IDF text features and fits a 100 000-feature problem without densifying it, use:
+```bash
+$ cargo run --release --example tfidf_sparse_logistic
+```
+
 ## License
 Dual-licensed to be compatible with the Rust project.
 
