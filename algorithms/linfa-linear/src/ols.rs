@@ -37,7 +37,14 @@ use linfa::traits::{Fit, PredictInplace};
 ///
 /// ## Examples
 ///
-/// Here's an example on how to train a linear regression model on the `diabetes` dataset
+/// Here's an example on how to train a linear regression model on the `diabetes` dataset.
+/// This example requires the `diabetes` feature of `linfa-datasets`. Add the dependencies with:
+///
+/// ```sh
+/// cargo add linfa linfa-linear
+/// cargo add linfa-datasets --features diabetes
+/// ```
+///
 /// ```rust
 /// use linfa::traits::{Fit, Predict};
 /// use linfa_linear::LinearRegression;
