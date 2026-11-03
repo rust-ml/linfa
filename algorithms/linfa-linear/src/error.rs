@@ -19,6 +19,8 @@ pub enum LinearError<F: Float> {
     NotEnoughTargets,
     #[error("penalty should be positive, but is {0}")]
     InvalidPenalty(F),
+    #[error("sample weights must be non-negative, but found {0}")]
+    InvalidWeights(F),
     #[error("tweedie distribution power should not be in (0, 1), but is {0}")]
     InvalidTweediePower(F),
     #[error("some value(s) of y are out of the valid range for power value {0}")]
