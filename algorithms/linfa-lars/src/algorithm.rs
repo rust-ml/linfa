@@ -410,7 +410,6 @@ fn cholesky_solve<F: Float>(x: &mut Array2<F>, y: &mut Array1<F>) -> Array1<F> {
 #[cfg(test)]
 mod tests {
     use crate::{Lars, LarsError, LarsParams, LarsValidParams};
-    use core::f64;
     use ndarray::{Array, Array1, Array2, array, s};
     use ndarray_rand::RandomExt;
     use ndarray_rand::rand::SeedableRng;
