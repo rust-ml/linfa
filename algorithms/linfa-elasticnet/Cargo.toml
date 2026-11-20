@@ -46,3 +46,9 @@ linfa-datasets = { version = "0.8.1", path = "../../datasets", features = [
 ] }
 ndarray-rand = "0.15"
 rand_xoshiro = "0.6"
+criterion = "0.5"
+linfa = { version = "0.8.1", path = "../..", features = ["benchmarks"] }
+
+[[bench]]
+name = "fit"
+harness = false
