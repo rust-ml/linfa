@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["BuildError","CommonNearestNeighbour","NnError"],"mod":["distance"],"struct":["BallTree","BallTreeIndex","KdTree","KdTreeIndex","LinearSearch","LinearSearchIndex"],"trait":["NearestNeighbour","NearestNeighbourIndex"]};
