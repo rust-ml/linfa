@@ -26,10 +26,11 @@ use linfa::dataset::AsSingleTargets;
 use linfa::prelude::DatasetBase;
 use linfa::traits::{Fit, PredictInplace};
 use ndarray::{
-    s, Array, Array1, Array2, ArrayBase, ArrayView, ArrayView2, Axis, CowArray, Data, DataMut,
-    Dimension, IntoDimension, Ix1, Ix2, RemoveAxis, Slice, Zip,
+    s, Array, Array1, Array2, ArrayBase, ArrayView, Axis, CowArray, Data, Dimension, IntoDimension,
+    Ix1, Ix2, RemoveAxis, Slice, Zip,
 };
 use ndarray_stats::QuantileExt;
+use std::cell::RefCell;
 use std::default::Default;
 
 #[cfg(feature = "serde")]
@@ -170,12 +171,7 @@ impl<F: Float, D: Dimension> LogisticRegressionValidParams<F, D> {
         x: &'a ArrayBase<A, Ix2>,
         target: Array<F, D>,
     ) -> LogisticRegressionProblem<'a, F, A, D> {
-        LogisticRegressionProblem {
-            x,
-            target,
-            alpha: self.alpha,
-            offset: self.offset.clone(),
-        }
+        LogisticRegressionProblem::new(x, target, self.alpha, self.offset.clone())
     }
 
     /// Create the LBFGS solver using MoreThuenteLineSearch and set gradient
@@ -417,86 +413,58 @@ fn convert_params<F: Float, D: Dimension + RemoveAxis>(
     }
 }
 
-/// The logistic function
-fn logistic<F: linfa::Float>(x: F) -> F {
-    F::one() / (F::one() + (-x).exp())
+/// Replaces every element of `x` by its exponential.
+fn exp_in_place<F: linfa::Float>(x: &mut [F]) {
+    for v in x {
+        *v = v.exp();
+    }
 }
 
-/// A numerically stable version of the log of the logistic function.
+/// Replaces every element of `x` by its logistic function, `1 / (1 + exp(-x))`.
+fn sigmoid_in_place<F: linfa::Float>(x: &mut [F]) {
+    for v in x {
+        *v = F::one() / (F::one() + (-*v).exp());
+    }
+}
+
+/// Replaces every element of `x` by the log of its logistic function, in a numerically stable
+/// way.
 ///
 /// Taken from scikit-learn
 /// https://github.com/scikit-learn/scikit-learn/blob/0.23.1/sklearn/utils/_logistic_sigmoid.pyx
 ///
 /// See the blog post describing this implementation:
 /// http://fa.bianp.net/blog/2013/numerical-optimizers-for-logistic-regression/
-fn log_logistic<F: linfa::Float>(x: F) -> F {
-    if x > F::zero() {
-        -(F::one() + (-x).exp()).ln()
-    } else {
-        x - (F::one() + x.exp()).ln()
+fn log_sigmoid_in_place<F: linfa::Float>(x: &mut [F]) {
+    for v in x {
+        *v = if *v > F::zero() {
+            -(F::one() + (-*v).exp()).ln()
+        } else {
+            *v - (F::one() + v.exp()).ln()
+        };
     }
 }
 
-/// Finds the log of the sum of exponents across a specific axis in a numerically stable way. More
-/// specifically, computes `ln(exp(x1) + exp(x2) + exp(e3) + ...)` across an axis.
-///
-/// Based off this implementation: https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.logsumexp.html
-fn log_sum_exp<F: linfa::Float, A: Data<Elem = F>>(
-    m: &ArrayBase<A, Ix2>,
-    axis: Axis,
-) -> Array<F, Ix1> {
-    // Find max value of the array
-    let max = m.iter().copied().reduce(F::max).unwrap();
-    // Computes `max + ln(exp(x1-max) + exp(x2-max) + exp(x3-max) + ...)`, which is equal to the
-    // log_sum_exp formula
-    let reduced = m.fold_axis(axis, F::zero(), |acc, elem| *acc + (*elem - max).exp());
-    reduced.mapv_into(|e| e.max(F::cast(1e-15)).ln() + max)
+/// The elements of an owned array, in memory order.
+fn elements_mut<F, D: Dimension>(a: &mut Array<F, D>) -> &mut [F] {
+    a.as_slice_memory_order_mut()
+        .expect("arrays built by arithmetic or `dot` are contiguous")
 }
 
-/// Computes `exp(n - max) / sum(exp(n- max))`, which is a numerically stable version of softmax
-fn softmax_inplace<F: linfa::Float, A: DataMut<Elem = F>>(v: &mut ArrayBase<A, Ix1>) {
-    let max = v.iter().copied().reduce(F::max).unwrap();
-    v.mapv_inplace(|n| (n - max).exp());
-    let sum = v.sum();
-    v.mapv_inplace(|n| n / sum);
+/// `xᵀ · v`, computed as a matrix product.
+///
+/// Without BLAS, ndarray computes a matrix-vector product one row of `xᵀ` at a time, which walks
+/// each column of a row-major `x` with a stride of a full row: one cache line per element once
+/// `x` has more than a few columns. The matrix product packs `x` into cache-sized blocks instead.
+fn xt_dot<F: Float, A: Data<Elem = F>>(x: &ArrayBase<A, Ix2>, v: &Array1<F>) -> Array1<F> {
+    let v = v.view().insert_axis(Axis(1));
+    x.t().dot(&v).remove_axis(Axis(1))
 }
 
-/// Computes the logistic loss assuming the training labels $y \in {-1, 1}$
-///
-/// Because the logistic function fullfills $\sigma(-z) = 1 - \sigma(z)$
-/// we can write $P(y=1|z) = \sigma(z) = \sigma(yz)$ and
-/// $P(y=-1|z) = 1 - P(y=1|z) = 1 - \sigma(z) = \sigma(-z) = \sigma(yz)$, so
-/// $P(y|z) = \sigma(yz)$ for both $y=1$ and $y=-1$.
-///
-/// Thus, the log loss can be written as
-/// $$-\sum_{i=1}^{N} \log(\sigma(y_i z_i)) + \frac{\alpha}{2}\text{params}^T\text{params}$$
-fn logistic_loss<F: Float, A: Data<Elem = F>>(
+/// The margins `y z` of the binary logistic loss, where `z = x params + intercept (+ offset)`.
+fn binary_margins<F: Float, A: Data<Elem = F>>(
     x: &ArrayBase<A, Ix2>,
     y: &Array1<F>,
-    alpha: F,
-    w: &Array1<F>,
-    offset: Option<&Array1<F>>,
-) -> F {
-    let n_features = x.shape()[1];
-    let (params, intercept) = convert_params(n_features, w);
-    let yz = x.dot(&params.into_shape_with_order((params.len(), 1)).unwrap()) + intercept;
-    let len = yz.len();
-    let mut yz = yz.into_shape_with_order(len).unwrap();
-
-    if let Some(off) = offset {
-        yz += off;
-    }
-
-    yz *= y;
-    yz.mapv_inplace(log_logistic);
-    -yz.sum() + F::cast(0.5) * alpha * params.dot(&params)
-}
-
-/// Computes the gradient of the logistic loss function
-fn logistic_grad<F: Float, A: Data<Elem = F>>(
-    x: &ArrayBase<A, Ix2>,
-    y: &Array1<F>,
-    alpha: F,
     w: &Array1<F>,
     offset: Option<&Array1<F>>,
 ) -> Array1<F> {
@@ -511,69 +479,139 @@ fn logistic_grad<F: Float, A: Data<Elem = F>>(
     }
 
     yz *= y;
-    yz.mapv_inplace(logistic);
-    yz -= F::one();
-    yz *= y;
+    yz
+}
+
+/// Computes the logistic loss assuming the training labels $y \in {-1, 1}$, from the margins
+/// `yz` of [`binary_margins`].
+///
+/// Because the logistic function fullfills $\sigma(-z) = 1 - \sigma(z)$
+/// we can write $P(y=1|z) = \sigma(z) = \sigma(yz)$ and
+/// $P(y=-1|z) = 1 - P(y=1|z) = 1 - \sigma(z) = \sigma(-z) = \sigma(yz)$, so
+/// $P(y|z) = \sigma(yz)$ for both $y=1$ and $y=-1$.
+///
+/// Thus, the log loss can be written as
+/// $$-\sum_{i=1}^{N} \log(\sigma(y_i z_i)) + \frac{\alpha}{2}\text{params}^T\text{params}$$
+fn logistic_loss_from_margins<F: Float>(
+    n_features: usize,
+    yz: &Array1<F>,
+    alpha: F,
+    w: &Array1<F>,
+) -> F {
+    let (params, _) = convert_params(n_features, w);
+    let mut log_sigmoid = yz.clone();
+    log_sigmoid_in_place(elements_mut(&mut log_sigmoid));
+    -log_sigmoid.sum() + F::cast(0.5) * alpha * params.dot(&params)
+}
+
+/// Computes the gradient of the logistic loss from the margins `yz` of [`binary_margins`].
+fn logistic_grad_from_margins<F: Float, A: Data<Elem = F>>(
+    x: &ArrayBase<A, Ix2>,
+    y: &Array1<F>,
+    yz: Array1<F>,
+    alpha: F,
+    w: &Array1<F>,
+) -> Array1<F> {
+    let n_features = x.shape()[1];
+    let (params, _) = convert_params(n_features, w);
+    // `(σ(yz) - 1) y`, the derivative of the loss with respect to `z`.
+    let mut r = yz;
+    sigmoid_in_place(elements_mut(&mut r));
+    r -= F::one();
+    r *= y;
+    let dw = xt_dot(x, &r) + (&params * alpha);
     if w.len() == n_features + 1 {
         let mut grad = Array::zeros(w.len());
-        grad.slice_mut(s![..n_features])
-            .assign(&(x.t().dot(&yz) + (&params * alpha)));
-        grad[n_features] = yz.sum();
+        grad.slice_mut(s![..n_features]).assign(&dw);
+        grad[n_features] = r.sum();
         grad
     } else {
-        x.t().dot(&yz) + (&params * alpha)
+        dw
     }
 }
 
-/// Compute the log of probabilities, which is `log(softmax(H))`, where H is `X . W + b`. Also
-/// returns `W` without the intercept.
-/// `Y` is the output (n_samples * n_classes), `X` is the input (n_samples * n_features), `W` is the
-/// params (n_features * n_classes), `b` is the intercept vector (n_classes).
-fn multi_logistic_prob_params<'a, F: Float, A: Data<Elem = F>>(
+/// Computes the logistic loss assuming the training labels $y \in {-1, 1}$.
+#[cfg(test)]
+fn logistic_loss<F: Float, A: Data<Elem = F>>(
     x: &ArrayBase<A, Ix2>,
-    w: &'a Array2<F>, // This parameter includes `W` and `b`
-) -> (Array2<F>, ArrayView2<'a, F>) {
+    y: &Array1<F>,
+    alpha: F,
+    w: &Array1<F>,
+    offset: Option<&Array1<F>>,
+) -> F {
+    let yz = binary_margins(x, y, w, offset);
+    logistic_loss_from_margins(x.shape()[1], &yz, alpha, w)
+}
+
+/// Computes the gradient of the logistic loss function
+#[cfg(test)]
+fn logistic_grad<F: Float, A: Data<Elem = F>>(
+    x: &ArrayBase<A, Ix2>,
+    y: &Array1<F>,
+    alpha: F,
+    w: &Array1<F>,
+    offset: Option<&Array1<F>>,
+) -> Array1<F> {
+    let yz = binary_margins(x, y, w, offset);
+    logistic_grad_from_margins(x, y, yz, alpha, w)
+}
+
+/// `log(softmax(H))` and `softmax(H)`, where H is `X . W + b`, with the same `exp` for both.
+/// `X` is the input (n_samples * n_features), `W` is the params (n_features * n_classes), `b` is
+/// the intercept vector (n_classes).
+///
+/// `log(softmax(H))` is `H - log(sum(exp(H)))` per row, with the log of the sum computed in a
+/// numerically stable way, `max + ln(exp(h1-max) + exp(h2-max) + ...)`. See
+/// https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.logsumexp.html
+fn multi_softmax<F: Float, A: Data<Elem = F>>(
+    x: &ArrayBase<A, Ix2>,
+    w: &Array2<F>, // This parameter includes `W` and `b`
+) -> (Array2<F>, Array2<F>) {
     let n_features = x.shape()[1];
     let (params, intercept) = convert_params(n_features, w);
     // Compute H
     let h = x.dot(&params) + intercept;
-    // This computes `H - log(sum(exp(H)))`, which is equal to
-    // `log(softmax(H)) = log(exp(H) / sum(exp(H)))`
-    let log_prob = &h
-        - log_sum_exp(&h, Axis(1))
-            .into_shape_with_order((h.nrows(), 1))
-            .unwrap();
-    (log_prob, params)
+    // Max value of the whole array
+    let max = h.iter().copied().reduce(F::max).unwrap();
+    let mut exp = h.mapv(|v| v - max);
+    exp_in_place(elements_mut(&mut exp));
+    let sum = exp
+        .fold_axis(Axis(1), F::zero(), |acc, elem| *acc + *elem)
+        .mapv_into(|e| e.max(F::cast(1e-15)))
+        .insert_axis(Axis(1));
+    let log_prob = &h - &sum.mapv(|e| e.ln() + max);
+    let prob = exp / &sum;
+    (log_prob, prob)
 }
 
-/// Computes loss function of `-sum(Y * log(softmax(H))) + alpha/2 * norm(W)`
-fn multi_logistic_loss<F: Float, A: Data<Elem = F>>(
-    x: &ArrayBase<A, Ix2>,
+/// Computes loss function of `-sum(Y * log(softmax(H))) + alpha/2 * norm(W)` from `log(softmax(H))`
+fn multi_logistic_loss_from_log_prob<F: Float>(
+    n_features: usize,
+    log_prob: &Array2<F>,
     y: &Array2<F>,
     alpha: F,
     w: &Array2<F>,
 ) -> F {
-    let (log_prob, params) = multi_logistic_prob_params(x, w);
-    // Calculate loss
-    -elem_dot(&log_prob, y) + F::cast(0.5) * alpha * elem_dot(&params, &params)
+    let (params, _) = convert_params(n_features, w);
+    -elem_dot(log_prob, y) + F::cast(0.5) * alpha * elem_dot(&params, &params)
 }
 
-/// Computes multinomial gradients for `W` and `b` and combine them.
+/// Computes multinomial gradients for `W` and `b` from `softmax(H)` and combine them.
 /// Gradient for `W` is `Xt . (softmax(H) - Y) + alpha * W`.
 /// Gradient for `b` is `sum(softmax(H) - Y)`.
-fn multi_logistic_grad<F: Float, A: Data<Elem = F>>(
+fn multi_logistic_grad_from_prob<F: Float, A: Data<Elem = F>>(
     x: &ArrayBase<A, Ix2>,
+    prob: Array2<F>,
     y: &Array2<F>,
     alpha: F,
     w: &Array2<F>,
 ) -> Array2<F> {
-    let (log_prob, params) = multi_logistic_prob_params(x, w);
-    let (n_features, n_classes) = params.dim();
+    let n_features = x.shape()[1];
+    let (params, _) = convert_params(n_features, w);
+    let n_classes = params.ncols();
     let intercept = w.nrows() > n_features;
     let mut grad = Array::zeros((n_features + intercept as usize, n_classes));
 
-    // This value is `softmax(H)`
-    let prob = log_prob.mapv_into(num_traits::Float::exp);
     let diff = prob - y;
     // Compute gradient for `W` and place it at start of the grad matrix
     let dw = x.t().dot(&diff) + (&params * alpha);
@@ -583,6 +621,44 @@ fn multi_logistic_grad<F: Float, A: Data<Elem = F>>(
         grad.row_mut(n_features).assign(&diff.sum_axis(Axis(0)));
     }
     grad
+}
+
+/// Computes loss function of `-sum(Y * log(softmax(H))) + alpha/2 * norm(W)`
+#[cfg(test)]
+fn multi_logistic_loss<F: Float, A: Data<Elem = F>>(
+    x: &ArrayBase<A, Ix2>,
+    y: &Array2<F>,
+    alpha: F,
+    w: &Array2<F>,
+) -> F {
+    let (log_prob, _) = multi_softmax(x, w);
+    multi_logistic_loss_from_log_prob(x.shape()[1], &log_prob, y, alpha, w)
+}
+
+/// Computes multinomial gradients for `W` and `b` and combine them.
+#[cfg(test)]
+fn multi_logistic_grad<F: Float, A: Data<Elem = F>>(
+    x: &ArrayBase<A, Ix2>,
+    y: &Array2<F>,
+    alpha: F,
+    w: &Array2<F>,
+) -> Array2<F> {
+    let (_, prob) = multi_softmax(x, w);
+    multi_logistic_grad_from_prob(x, prob, y, alpha, w)
+}
+
+/// Replaces every row of `m` by its softmax, `exp(n - max) / sum(exp(n - max))` with the row's
+/// max, a numerically stable version of softmax.
+fn softmax_rows<F: linfa::Float>(m: &mut Array2<F>) {
+    for mut row in m.rows_mut() {
+        let max = row.iter().copied().reduce(F::max).unwrap();
+        row.mapv_inplace(|n| n - max);
+    }
+    exp_in_place(elements_mut(m));
+    for mut row in m.rows_mut() {
+        let sum = row.sum();
+        row.mapv_inplace(|n| n / sum);
+    }
 }
 
 /// A fitted logistic regression which can make predictions
@@ -642,7 +718,7 @@ impl<F: Float, C: PartialOrd + Clone> FittedLogisticRegression<F, C> {
     /// model was fitted.
     pub fn predict_probabilities<A: Data<Elem = F>>(&self, x: &ArrayBase<A, Ix2>) -> Array1<F> {
         let mut probs = x.dot(&self.params) + self.intercept;
-        probs.mapv_inplace(logistic);
+        sigmoid_in_place(elements_mut(&mut probs));
         probs
     }
 }
@@ -721,10 +797,7 @@ impl<F: Float, C: PartialOrd + Clone> MultiFittedLogisticRegression<F, C> {
     /// * n_classes).
     pub fn predict_probabilities<A: Data<Elem = F>>(&self, x: &ArrayBase<A, Ix2>) -> Array2<F> {
         let mut probs = self.predict_nonorm_probabilities(x);
-        probs
-            .rows_mut()
-            .into_iter()
-            .for_each(|mut row| softmax_inplace(&mut row));
+        softmax_rows(&mut probs);
         probs
     }
 
@@ -792,62 +865,129 @@ struct LogisticRegressionProblem<'a, F: Float, A: Data<Elem = F>, D: Dimension> 
     target: Array<F, D>,
     alpha: F,
     offset: Option<Array1<F>>,
+    /// The parameters of the last cost evaluation, with what the gradient at the same parameters
+    /// reuses: the margins `y z` (binary) or `softmax(H)` (multinomial). The line search evaluates
+    /// the cost and then the gradient at each point it tries.
+    reuse: Reuse<F, D>,
+    /// The last gradient and its parameters: LBFGS asks again for the gradient at the point where
+    /// the line search ended, which the line search has just computed.
+    last_gradient: Reuse<F, D>,
 }
+
+impl<'a, F: Float, A: Data<Elem = F>, D: Dimension> LogisticRegressionProblem<'a, F, A, D> {
+    fn new(
+        x: &'a ArrayBase<A, Ix2>,
+        target: Array<F, D>,
+        alpha: F,
+        offset: Option<Array1<F>>,
+    ) -> Self {
+        LogisticRegressionProblem {
+            x,
+            target,
+            alpha,
+            offset,
+            reuse: RefCell::new(None),
+            last_gradient: RefCell::new(None),
+        }
+    }
+
+    /// What the last cost evaluation left for the gradient, if it was at `w`.
+    fn take_reusable(&self, w: &Array<F, D>) -> Option<Array<F, D>> {
+        match self.reuse.borrow_mut().take() {
+            Some((at, reusable)) if at == *w => Some(reusable),
+            _ => None,
+        }
+    }
+
+    /// The last gradient, if it was at `w`.
+    fn last_gradient(&self, w: &Array<F, D>) -> Option<Array<F, D>> {
+        match &*self.last_gradient.borrow() {
+            Some((at, grad)) if at == w => Some(grad.clone()),
+            _ => None,
+        }
+    }
+
+    /// Records the gradient at `w`.
+    fn set_last_gradient(&self, w: &Array<F, D>, grad: &Array<F, D>) {
+        *self.last_gradient.borrow_mut() = Some((w.clone(), grad.clone()));
+    }
+}
+
+/// Parameters, and what the gradient at those parameters reuses from the cost.
+type Reuse<F, D> = RefCell<Option<(Array<F, D>, Array<F, D>)>>;
 
 type LogisticRegressionProblem1<'a, F, A> = LogisticRegressionProblem<'a, F, A, Ix1>;
 type LogisticRegressionProblem2<'a, F, A> = LogisticRegressionProblem<'a, F, A, Ix2>;
 
-impl<F: Float, A: Data<Elem = F>> CostFunction for LogisticRegressionProblem1<'_, F, A> {
+impl<F: Float, A: Data<Elem = F>> CostFunction for LogisticRegressionProblem<'_, F, A, Ix1> {
     type Param = ArgminParam<F, Ix1>;
     type Output = F;
 
     /// Apply the cost function to a parameter `p`
     fn cost(&self, p: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
         let w = p.as_array();
-        let cost = logistic_loss(self.x, &self.target, self.alpha, w, self.offset.as_ref());
+        let yz = binary_margins(self.x, &self.target, w, self.offset.as_ref());
+        let cost = logistic_loss_from_margins(self.x.shape()[1], &yz, self.alpha, w);
+        *self.reuse.borrow_mut() = Some((w.clone(), yz));
         Ok(cost)
     }
 }
 
-impl<F: Float, A: Data<Elem = F>> Gradient for LogisticRegressionProblem1<'_, F, A> {
+impl<F: Float, A: Data<Elem = F>> Gradient for LogisticRegressionProblem<'_, F, A, Ix1> {
     type Param = ArgminParam<F, Ix1>;
     type Gradient = ArgminParam<F, Ix1>;
 
     /// Compute the gradient at parameter `p`.
     fn gradient(&self, p: &Self::Param) -> std::result::Result<Self::Param, argmin::core::Error> {
         let w = p.as_array();
-        let grad = ArgminParam(logistic_grad(
-            self.x,
-            &self.target,
-            self.alpha,
-            w,
-            self.offset.as_ref(),
-        ));
-        Ok(grad)
+        if let Some(grad) = self.last_gradient(w) {
+            return Ok(ArgminParam(grad));
+        }
+        let yz = self
+            .take_reusable(w)
+            .unwrap_or_else(|| binary_margins(self.x, &self.target, w, self.offset.as_ref()));
+        let grad = logistic_grad_from_margins(self.x, &self.target, yz, self.alpha, w);
+        self.set_last_gradient(w, &grad);
+        Ok(ArgminParam(grad))
     }
 }
 
-impl<F: Float, A: Data<Elem = F>> CostFunction for LogisticRegressionProblem2<'_, F, A> {
+impl<F: Float, A: Data<Elem = F>> CostFunction for LogisticRegressionProblem<'_, F, A, Ix2> {
     type Param = ArgminParam<F, Ix2>;
     type Output = F;
 
     /// Apply the cost function to a parameter `p`
     fn cost(&self, p: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
         let w = p.as_array();
-        let cost = multi_logistic_loss(self.x, &self.target, self.alpha, w);
+        let (log_prob, prob) = multi_softmax(self.x, w);
+        let cost = multi_logistic_loss_from_log_prob(
+            self.x.shape()[1],
+            &log_prob,
+            &self.target,
+            self.alpha,
+            w,
+        );
+        *self.reuse.borrow_mut() = Some((w.clone(), prob));
         Ok(cost)
     }
 }
 
-impl<F: Float, A: Data<Elem = F>> Gradient for LogisticRegressionProblem2<'_, F, A> {
+impl<F: Float, A: Data<Elem = F>> Gradient for LogisticRegressionProblem<'_, F, A, Ix2> {
     type Param = ArgminParam<F, Ix2>;
     type Gradient = ArgminParam<F, Ix2>;
 
     /// Compute the gradient at parameter `p`.
     fn gradient(&self, p: &Self::Param) -> std::result::Result<Self::Param, argmin::core::Error> {
         let w = p.as_array();
-        let grad = ArgminParam(multi_logistic_grad(self.x, &self.target, self.alpha, w));
-        Ok(grad)
+        if let Some(grad) = self.last_gradient(w) {
+            return Ok(ArgminParam(grad));
+        }
+        let prob = self
+            .take_reusable(w)
+            .unwrap_or_else(|| multi_softmax(self.x, w).1);
+        let grad = multi_logistic_grad_from_prob(self.x, prob, &self.target, self.alpha, w);
+        self.set_last_gradient(w, &grad);
+        Ok(ArgminParam(grad))
     }
 }
 
@@ -1202,17 +1342,73 @@ mod test {
         );
     }
 
+    /// The gradient reuses what the cost computed, and the last gradient, only at the same
+    /// parameters: in any order of calls, every gradient equals one computed from scratch.
+    #[test]
+    fn test_problem_reuses_only_at_same_params() {
+        let x = array![
+            [0.5, -1.0],
+            [1.5, 0.2],
+            [-0.3, 0.8],
+            [2.0, -0.7],
+            [-1.2, -0.4]
+        ];
+        let w1 = array![0.3, -0.2, 0.1];
+        let w2 = array![-0.4, 0.6, -0.2];
+
+        let y = array![1.0, -1.0, 1.0, 1.0, -1.0];
+        let fresh = |w: &Array1<f64>| logistic_grad(&x, &y, 0.5, w, None);
+        let problem = LogisticRegressionProblem::new(&x, y.clone(), 0.5, None);
+        let (p1, p2) = (ArgminParam(w1.clone()), ArgminParam(w2.clone()));
+        assert_eq!(
+            problem.cost(&p1).unwrap(),
+            logistic_loss(&x, &y, 0.5, &w1, None)
+        );
+        assert_eq!(problem.gradient(&p2).unwrap().0, fresh(&w2));
+        assert_eq!(problem.gradient(&p1).unwrap().0, fresh(&w1));
+        problem.cost(&p2).unwrap();
+        assert_eq!(problem.gradient(&p2).unwrap().0, fresh(&w2));
+        assert_eq!(problem.gradient(&p2).unwrap().0, fresh(&w2));
+        assert_eq!(problem.gradient(&p1).unwrap().0, fresh(&w1));
+
+        let y = array![
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0]
+        ];
+        let w1 = array![[0.3, -0.2, 0.1], [0.5, 0.0, -0.5], [0.1, 0.2, 0.3]];
+        let w2 = &w1 * -2.0;
+        let fresh = |w: &Array2<f64>| multi_logistic_grad(&x, &y, 0.5, w);
+        let problem = LogisticRegressionProblem::new(&x, y.clone(), 0.5, None);
+        let (p1, p2) = (ArgminParam(w1.clone()), ArgminParam(w2.clone()));
+        assert_eq!(
+            problem.cost(&p1).unwrap(),
+            multi_logistic_loss(&x, &y, 0.5, &w1)
+        );
+        assert_eq!(problem.gradient(&p2).unwrap().0, fresh(&w2));
+        assert_eq!(problem.gradient(&p1).unwrap().0, fresh(&w1));
+        problem.cost(&p2).unwrap();
+        assert_eq!(problem.gradient(&p2).unwrap().0, fresh(&w2));
+        assert_eq!(problem.gradient(&p2).unwrap().0, fresh(&w2));
+        assert_eq!(problem.gradient(&p1).unwrap().0, fresh(&w1));
+    }
+
     #[test]
     fn test_log_sum_exp() {
         let data = array![[3.3, 0.4, -2.1], [0.4, 2.2, -0.1], [1., 0., -1.]];
-        let out = log_sum_exp(&data, Axis(1));
+        // With `X = I` and no intercept, `H` is `data` and `H - log(softmax(H))` its log-sum-exp.
+        let (log_prob, _) = multi_softmax(&Array2::eye(3), &data);
+        let out = (&data - &log_prob).column(0).to_owned();
         assert_abs_diff_eq!(out, array![3.35783, 2.43551, 1.40761], epsilon = 1e-5);
     }
 
     #[test]
     fn test_softmax() {
-        let mut data = array![3.3, 5.5, 0.1, -4.4, 8.0];
-        softmax_inplace(&mut data);
+        let mut data = array![[3.3, 5.5, 0.1, -4.4, 8.0]];
+        softmax_rows(&mut data);
+        let data = data.row(0);
         assert_relative_eq!(
             data,
             array![0.0083324, 0.075200047, 0.000339647, 0.000003773, 0.91612413],
@@ -1248,7 +1444,8 @@ mod test {
         let alpha = 0.6;
 
         {
-            let (log_prob, w) = multi_logistic_prob_params(&x, &params1);
+            let (log_prob, _) = multi_softmax(&x, &params1);
+            let (w, _) = convert_params(x.ncols(), &params1);
             assert_abs_diff_eq!(
                 log_prob,
                 array![
@@ -1278,7 +1475,8 @@ mod test {
         }
 
         {
-            let (log_prob, w) = multi_logistic_prob_params(&x, &params2);
+            let (log_prob, _) = multi_softmax(&x, &params2);
+            let (w, _) = convert_params(x.ncols(), &params2);
             assert_abs_diff_eq!(
                 log_prob,
                 array![
