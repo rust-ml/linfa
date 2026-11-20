@@ -70,3 +70,7 @@ harness = false
 [[bench]]
 name = "gaussian_mixture"
 harness = false
+
+[[bench]]
+name = "k_modes"
+harness = false
