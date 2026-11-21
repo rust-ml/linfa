@@ -6,7 +6,10 @@ use crate::{k_means::errors::KMeansError, KMeansInit};
 use crate::{IncrKMeansError, KMeansAlgorithm, KMeansParamsError};
 use linfa::{prelude::*, DatasetBase, Float};
 use linfa_nn::distance::{Distance, L2Dist};
-use ndarray::{Array1, Array2, ArrayBase, ArrayView2, Axis, Data, DataMut, Ix1, Ix2, Zip};
+use ndarray::parallel::prelude::*;
+use ndarray::{
+    Array1, Array2, ArrayBase, ArrayView2, ArrayViewMut1, Axis, Data, DataMut, Ix1, Ix2, Zip,
+};
 use ndarray_rand::rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256Plus;
 
@@ -841,11 +844,14 @@ pub(crate) fn update_cluster_memberships<F: Float, D: Distance<F>>(
     observations: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
     cluster_memberships: &mut ArrayBase<impl DataMut<Elem = usize>, Ix1>,
 ) {
-    Zip::from(observations.axis_iter(Axis(0)))
-        .and(cluster_memberships)
-        .par_for_each(|observation, cluster_membership| {
-            *cluster_membership = closest_centroid(dist_fn, centroids, &observation).0
-        });
+    let mut dists = Array1::zeros(observations.nrows());
+    update_memberships_and_dists(
+        dist_fn,
+        centroids,
+        observations,
+        cluster_memberships,
+        &mut dists,
+    );
 }
 
 // Updates `dists` with the distance of each observation from its closest centroid.
@@ -855,14 +861,18 @@ pub(crate) fn update_min_dists<F: Float, D: Distance<F>>(
     observations: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
     dists: &mut ArrayBase<impl DataMut<Elem = F>, Ix1>,
 ) {
-    Zip::from(observations.axis_iter(Axis(0)))
-        .and(dists)
-        .par_for_each(|observation, dist| {
-            *dist = closest_centroid(dist_fn, centroids, &observation).1
-        });
+    let mut memberships = Array1::zeros(observations.nrows());
+    update_memberships_and_dists(dist_fn, centroids, observations, &mut memberships, dists);
 }
 
+/// Number of observations whose distances to the centroids are computed together.
+const BLOCK_SIZE: usize = 512;
+
 /// Efficient combination of `update_cluster_memberships` and `update_min_dists`.
+///
+/// Works on blocks of observations, in parallel: for each centroid in turn, the distances to all
+/// the observations of a block are computed at once with [`Distance::rdistances`], which
+/// vectorises across observations for `L2Dist`.
 pub(crate) fn update_memberships_and_dists<F: Float, D: Distance<F>>(
     dist_fn: &D,
     centroids: &ArrayBase<impl Data<Elem = F> + Sync, Ix2>,
@@ -870,14 +880,47 @@ pub(crate) fn update_memberships_and_dists<F: Float, D: Distance<F>>(
     cluster_memberships: &mut ArrayBase<impl DataMut<Elem = usize>, Ix1>,
     dists: &mut ArrayBase<impl DataMut<Elem = F>, Ix1>,
 ) {
-    Zip::from(observations.axis_iter(Axis(0)))
-        .and(cluster_memberships)
-        .and(dists)
-        .par_for_each(|observation, cluster_membership, dist| {
-            let (m, d) = closest_centroid(dist_fn, centroids, &observation);
-            *cluster_membership = m;
-            *dist = d;
+    observations
+        .axis_chunks_iter(Axis(0), BLOCK_SIZE)
+        .into_par_iter()
+        .zip(cluster_memberships.axis_chunks_iter_mut(Axis(0), BLOCK_SIZE))
+        .zip(dists.axis_chunks_iter_mut(Axis(0), BLOCK_SIZE))
+        .for_each(|((block, memberships), dists)| {
+            closest_centroids(dist_fn, centroids, block, memberships, dists)
         });
+}
+
+/// The index of the closest centroid, and the distance to it, for every observation of `block`,
+/// as [`closest_centroid`] gives them: the first centroid at the smallest distance.
+fn closest_centroids<F: Float, D: Distance<F>>(
+    dist_fn: &D,
+    centroids: &ArrayBase<impl Data<Elem = F>, Ix2>,
+    block: ArrayView2<F>,
+    mut memberships: ArrayViewMut1<usize>,
+    mut min_dists: ArrayViewMut1<F>,
+) {
+    // The observations feature by feature, so that `rdistances` reads contiguous columns.
+    let block_t = block.t();
+    let features = block_t.as_standard_layout();
+    let observations = features.t();
+    let mut dists = Array1::zeros(block.nrows());
+    for (index, centroid) in centroids.rows().into_iter().enumerate() {
+        dist_fn.rdistances(observations, centroid, dists.view_mut());
+        if index == 0 {
+            memberships.fill(0);
+            min_dists.assign(&dists);
+        } else {
+            Zip::from(&mut memberships)
+                .and(&mut min_dists)
+                .and(&dists)
+                .for_each(|membership, min_dist, &dist| {
+                    if dist < *min_dist {
+                        *membership = index;
+                        *min_dist = dist;
+                    }
+                });
+        }
+    }
 }
 
 /// Given a matrix of centroids with shape (n_centroids, n_features) and an observation,
@@ -998,6 +1041,33 @@ mod tests {
             update_cluster_memberships(&$dist, &$centroids, &$obs, &mut memberships);
             memberships
         }};
+    }
+
+    /// Memberships and distances computed by blocks match `closest_centroid` exactly, for every
+    /// observation, across several blocks.
+    #[test]
+    fn test_memberships_and_dists_match_closest_centroid() {
+        fn check<D: Distance<f64>>(dist_fn: D) {
+            let mut rng = Xoshiro256Plus::seed_from_u64(3);
+            let observations =
+                Array2::random_using((2 * BLOCK_SIZE + 77, 6), Uniform::new(-1., 1.), &mut rng);
+            let centroids = Array2::random_using((9, 6), Uniform::new(-1., 1.), &mut rng);
+            let mut memberships = Array1::zeros(observations.nrows());
+            let mut dists = Array1::zeros(observations.nrows());
+            update_memberships_and_dists(
+                &dist_fn,
+                &centroids,
+                &observations,
+                &mut memberships,
+                &mut dists,
+            );
+            for (i, observation) in observations.rows().into_iter().enumerate() {
+                let (m, d) = closest_centroid(&dist_fn, &centroids, &observation);
+                assert_eq!((memberships[i], dists[i]), (m, d));
+            }
+        }
+        check(L2Dist);
+        check(L1Dist);
     }
 
     #[test]
