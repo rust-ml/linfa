@@ -26,4 +26,6 @@ pub enum ReductionError {
     NonPositiveEmbeddingSize,
     #[error("Target dimension {0} is larger than the number of features {1}.")]
     DimensionIncrease(usize, usize),
+    #[error("Target dimension {0} is larger than the number of samples {1}.")]
+    EmbeddingLargerThanSamples(usize, usize),
 }
