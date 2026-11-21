@@ -1,5 +1,8 @@
 use linfa::Float;
-use ndarray::{Array2, ArrayBase, ArrayView, Axis, Data, Dimension, Ix2, Zip};
+use ndarray::{
+    Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, ArrayViewMut1, Axis, Data, Dimension,
+    Ix2, Zip,
+};
 use ndarray_stats::DeviationExt;
 
 #[cfg(feature = "serde")]
@@ -32,6 +35,19 @@ pub trait Distance<F: Float>: Clone + Send + Sync + Unpin {
     #[inline]
     fn dist_to_rdist(&self, dist: F) -> F {
         dist
+    }
+
+    /// Writes `rdistance(point, row)` for every row of `points` to `out`.
+    ///
+    /// The default calls `rdistance` once per row. Implementations can compute all the distances
+    /// at once instead: [`L2Dist`] goes feature by feature across the rows, which vectorises when
+    /// the columns of `points` are contiguous (`points` in column-major order).
+    ///
+    /// Panics if `out` does not have one element per row of `points`.
+    fn rdistances(&self, points: ArrayView2<F>, point: ArrayView1<F>, out: ArrayViewMut1<F>) {
+        Zip::from(out)
+            .and(points.rows())
+            .for_each(|out, row| *out = self.rdistance(point, row));
     }
 }
 
@@ -67,6 +83,19 @@ impl<F: Float> Distance<F> for L2Dist {
     #[inline]
     fn rdistance<D: Dimension>(&self, a: ArrayView<F, D>, b: ArrayView<F, D>) -> F {
         F::from(a.sq_l2_dist(&b).unwrap()).unwrap()
+    }
+
+    /// Feature by feature across the rows, in the same order as `rdistance`, so with the same
+    /// result.
+    fn rdistances(&self, points: ArrayView2<F>, point: ArrayView1<F>, mut out: ArrayViewMut1<F>) {
+        assert_eq!(out.len(), points.nrows());
+        out.fill(F::zero());
+        for (column, &p) in points.columns().into_iter().zip(&point) {
+            Zip::from(&mut out).and(column).for_each(|out, &x| {
+                let diff = p - x;
+                *out += diff * diff;
+            });
+        }
     }
 
     #[inline]
@@ -172,9 +201,29 @@ pub fn to_gaussian_similarity<F: Float>(
 #[cfg(test)]
 mod test {
     use approx::assert_abs_diff_eq;
-    use ndarray::arr1;
+    use ndarray::{arr1, Array1};
 
     use super::*;
+
+    /// `rdistances` gives exactly `rdistance` for every row, whatever the layout of the rows.
+    #[test]
+    fn rdistances_match_rdistance() {
+        fn check<D: Distance<f64>>(dist: D) {
+            let points =
+                Array2::from_shape_fn((37, 5), |(i, j)| ((i * 7 + j * 3) % 11) as f64 / 3.7);
+            let point = arr1(&[0.3, -1.2, 2.5, 0.0, 1.1]);
+            for points in [points.view(), points.t().as_standard_layout().t()] {
+                let mut out = Array1::zeros(points.nrows());
+                dist.rdistances(points, point.view(), out.view_mut());
+                for (row, &d) in points.rows().into_iter().zip(&out) {
+                    assert_eq!(d, dist.rdistance(point.view(), row));
+                }
+            }
+        }
+        check(L1Dist);
+        check(L2Dist);
+        check(LInfDist);
+    }
 
     #[test]
     fn autotraits() {

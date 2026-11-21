@@ -169,18 +169,50 @@ fn k_means_init_bench(c: &mut Criterion) {
     }
 }
 
+/// Fits with the default settings (Lloyd, k-means++, 10 runs) on more features and clusters.
+fn k_means_features_bench(c: &mut Criterion) {
+    let mut rng = Xoshiro256Plus::seed_from_u64(42);
+    let n_samples = 10_000;
+
+    let mut benchmark = c.benchmark_group(format!("k_means_features n={n_samples}"));
+    config::set_default_benchmark_configs(&mut benchmark);
+    benchmark.sample_size(10);
+    for (n_clusters, n_features) in [(8, 8), (8, 32), (32, 8), (32, 32)] {
+        let centroids =
+            Array2::random_using((n_clusters, n_features), Uniform::new(-5., 5.), &mut rng);
+        let dataset = DatasetBase::from(generate::blobs(
+            n_samples / n_clusters,
+            &centroids,
+            &mut rng,
+        ));
+        let fit_rng = rng.clone();
+        benchmark.bench_function(
+            BenchmarkId::new("k_means", format!("k={n_clusters} d={n_features}")),
+            |bencher| {
+                bencher.iter(|| {
+                    KMeans::params_with_rng(n_clusters, fit_rng.clone())
+                        .fit(&dataset)
+                        .unwrap()
+                });
+            },
+        );
+    }
+    benchmark.finish();
+}
+
 #[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
     config = config::get_default_profiling_configs();
-    targets = k_means_bench, k_means_init_bench, k_means_incr_bench
+    targets = k_means_bench, k_means_init_bench, k_means_incr_bench, k_means_features_bench
 }
 #[cfg(target_os = "windows")]
 criterion_group!(
     benches,
     k_means_bench,
     k_means_init_bench,
-    k_means_incr_bench
+    k_means_incr_bench,
+    k_means_features_bench
 );
 
 criterion_main!(benches);
