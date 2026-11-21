@@ -2,9 +2,8 @@ use approx::{abs_diff_eq, abs_diff_ne};
 use linfa_linalg::norm::Norm;
 #[cfg(not(feature = "blas"))]
 use linfa_linalg::qr::QRInto;
-use ndarray::linalg::general_mat_mul;
 use ndarray::{
-    s, Array, Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, Axis, CowArray, Data,
+    Array, Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, Axis, CowArray, Data,
     Dimension, Ix2, RemoveAxis,
 };
 #[cfg(feature = "blas")]
@@ -273,13 +272,18 @@ fn coordinate_descent<'a, F: Float>(
 ) -> (Array1<F>, F, u32) {
     let n_samples = F::cast(x.nrows());
     let n_features = x.ncols();
+    // The features as contiguous rows: coordinate descent works on one column of `x` at a time,
+    // which a row-major `x` would give with a stride of a full row. Borrowed if `x` is
+    // column-major.
+    let x_t = x.t();
+    let xt = x_t.as_standard_layout();
     // the parameters of the model
     let mut w = Array1::<F>::zeros(n_features);
     // the residuals: `y - X*w` (since w=0, this is just `y` for now),
     // the residuals are updated during the algorithm as the parameters change
     let mut r = y.to_owned();
     let mut n_steps = 0u32;
-    let norm_cols_x = x.map_axis(Axis(0), |col| col.dot(&col));
+    let norm_cols_x = xt.map_axis(Axis(1), |col| col.dot(&col));
     let mut gap = F::one() + tol;
     let d_w_tol = tol;
     let tol = tol * y.dot(&y);
@@ -291,15 +295,15 @@ fn coordinate_descent<'a, F: Float>(
                 continue;
             }
             let old_w_j = w[j];
-            let x_j: ArrayView1<F> = x.slice(s![.., j]);
-            if abs_diff_ne!(old_w_j, F::zero()) {
-                r.scaled_add(old_w_j, &x_j);
-            }
-            let tmp: F = x_j.dot(&r);
+            let x_j = xt.row(j);
+            // `x_j . (r + old_w_j x_j)`, the correlation with the residuals without feature `j`
+            let tmp: F = x_j.dot(&r) + old_w_j * norm_cols_x[j];
             w[j] = tmp.signum() * F::max(tmp.abs() - n_samples * l1_ratio * penalty, F::zero())
                 / (norm_cols_x[j] + n_samples * (F::one() - l1_ratio) * penalty);
-            if abs_diff_ne!(w[j], F::zero()) {
-                r.scaled_add(-w[j], &x_j);
+            // Update the residuals for the change of `w[j]`, in one pass over `x_j`.
+            let delta = old_w_j - w[j];
+            if abs_diff_ne!(delta, F::zero()) {
+                r.scaled_add(delta, &x_j);
             }
             let d_w_j = (w[j] - old_w_j).abs();
             d_w_max = F::max(d_w_max, d_w_j);
@@ -310,7 +314,7 @@ fn coordinate_descent<'a, F: Float>(
         if n_steps == max_steps - 1 || abs_diff_eq!(w_max, F::zero()) || d_w_max / w_max < d_w_tol {
             // We've hit one potential stopping criteria
             // check duality gap for ultimate stopping criterion
-            gap = duality_gap(x.view(), y.view(), w.view(), r.view(), l1_ratio, penalty);
+            gap = duality_gap(xt.view(), y.view(), w.view(), r.view(), l1_ratio, penalty);
             if gap < tol {
                 break;
             }
@@ -330,13 +334,17 @@ fn block_coordinate_descent<'a, F: Float>(
     let n_samples = F::cast(x.nrows());
     let n_features = x.ncols();
     let n_tasks = y.ncols();
+    // The features as contiguous rows, as in `coordinate_descent`.
+    let x_t = x.t();
+    let xt = x_t.as_standard_layout();
     // the parameters of the model
     let mut w = Array2::<F>::zeros((n_features, n_tasks));
-    // the residuals: `Y - XW` (since W=0, this is just `Y` for now),
+    // the residuals: `Y - XW` (since W=0, this is just `Y` for now), task by task: row `t` holds
+    // the residuals of task `t`, contiguously.
     // the residuals are updated during the algorithm as the parameters change
-    let mut r = y.to_owned();
+    let mut rt = y.t().as_standard_layout().into_owned();
     let mut n_steps = 0u32;
-    let norm_cols_x = x.map_axis(Axis(0), |col| col.dot(&col));
+    let norm_cols_x = xt.map_axis(Axis(1), |col| col.dot(&col));
     let mut gap = F::one() + tol;
     let d_w_tol = tol;
     let tol = tol * y.iter().map(|&y_ij| y_ij * y_ij).sum();
@@ -347,34 +355,25 @@ fn block_coordinate_descent<'a, F: Float>(
             if abs_diff_eq!(norm_cols_x[j], F::zero()) {
                 continue;
             }
-            let mut old_w_j = w.slice_mut(s![j, ..]);
-            let x_j = x.slice(s![.., j]);
+            let old_w_j = w.row(j).to_owned();
+            let x_j = xt.row(j);
             let norm_old_w_j = old_w_j.dot(&old_w_j).sqrt();
-            if abs_diff_ne!(norm_old_w_j, F::zero()) {
-                // r += outer(x_j, old_w_j)
-                general_mat_mul(
-                    F::one(),
-                    &x_j.view().insert_axis(Axis(1)),
-                    &old_w_j.view().insert_axis(Axis(0)),
-                    F::one(),
-                    &mut r,
-                );
-            }
-            let tmp = x_j.dot(&r);
-            old_w_j.assign(
+            // `x_j^T (R + outer(x_j, old_w_j))`, the correlation with the residuals without
+            // feature `j`, task by task.
+            let tmp = rt.map_axis(Axis(1), |r_t| x_j.dot(&r_t)) + &old_w_j * norm_cols_x[j];
+            let mut w_j = w.row_mut(j);
+            w_j.assign(
                 &(block_soft_thresholding(tmp.view(), n_samples * l1_ratio * penalty)
                     / (norm_cols_x[j] + n_samples * (F::one() - l1_ratio) * penalty)),
             );
-            let norm_w_j = old_w_j.dot(&old_w_j).sqrt();
-            if abs_diff_ne!(norm_w_j, F::zero()) {
-                // r -= outer(x_j, old_w_j)
-                general_mat_mul(
-                    -F::one(),
-                    &x_j.insert_axis(Axis(1)),
-                    &old_w_j.insert_axis(Axis(0)),
-                    F::one(),
-                    &mut r,
-                );
+            let norm_w_j = w_j.dot(&w_j).sqrt();
+            // Update the residuals for the change of `w_j`, task by task:
+            // R += outer(x_j, old_w_j - w_j)
+            for (mut r_t, (&old, &new)) in rt.rows_mut().into_iter().zip(old_w_j.iter().zip(&w_j)) {
+                let delta = old - new;
+                if abs_diff_ne!(delta, F::zero()) {
+                    r_t.scaled_add(delta, &x_j);
+                }
             }
             let d_w_j = (norm_w_j - norm_old_w_j).abs();
             d_w_max = F::max(d_w_max, d_w_j);
@@ -385,7 +384,7 @@ fn block_coordinate_descent<'a, F: Float>(
         if n_steps == max_steps - 1 || abs_diff_eq!(w_max, F::zero()) || d_w_max / w_max < d_w_tol {
             // We've hit one potential stopping criteria
             // check duality gap for ultimate stopping criterion
-            gap = duality_gap_mtl(x.view(), y.view(), w.view(), r.view(), l1_ratio, penalty);
+            gap = duality_gap_mtl(xt.view(), y.view(), w.view(), rt.t(), l1_ratio, penalty);
             if gap < tol {
                 break;
             }
@@ -405,8 +404,9 @@ fn block_soft_thresholding<F: Float>(x: ArrayView1<F>, threshold: F) -> Array1<F
     &x * scale
 }
 
+/// `xt` is the feature matrix transposed, `x^T`: features as rows.
 fn duality_gap<'a, F: Float>(
-    x: ArrayView2<'a, F>,
+    xt: ArrayView2<'a, F>,
     y: ArrayView1<'a, F>,
     w: ArrayView1<'a, F>,
     r: ArrayView1<'a, F>,
@@ -414,10 +414,10 @@ fn duality_gap<'a, F: Float>(
     penalty: F,
 ) -> F {
     let half = F::cast(0.5);
-    let n_samples = F::cast(x.nrows());
+    let n_samples = F::cast(xt.ncols());
     let l1_reg = l1_ratio * penalty * n_samples;
     let l2_reg = (F::one() - l1_ratio) * penalty * n_samples;
-    let xta = x.t().dot(&r) - &w * l2_reg;
+    let xta = xt.dot(&r) - &w * l2_reg;
 
     let dual_norm_xta = xta.norm_max();
     let r_norm2 = r.dot(&r);
@@ -435,8 +435,9 @@ fn duality_gap<'a, F: Float>(
     gap
 }
 
+/// `xt` is the feature matrix transposed, `x^T`: features as rows.
 fn duality_gap_mtl<'a, F: Float>(
-    x: ArrayView2<'a, F>,
+    xt: ArrayView2<'a, F>,
     y: ArrayView2<'a, F>,
     w: ArrayView2<'a, F>,
     r: ArrayView2<'a, F>,
@@ -444,10 +445,10 @@ fn duality_gap_mtl<'a, F: Float>(
     penalty: F,
 ) -> F {
     let half = F::cast(0.5);
-    let n_samples = F::cast(x.nrows());
+    let n_samples = F::cast(xt.ncols());
     let l1_reg = l1_ratio * penalty * n_samples;
     let l2_reg = (F::one() - l1_ratio) * penalty * n_samples;
-    let xta = x.t().dot(&r) - &w * l2_reg;
+    let xta = xt.dot(&r) - &w * l2_reg;
 
     let dual_norm_xta = xta.map_axis(Axis(1), |x| x.dot(&x).sqrt()).norm_max();
     let r_norm2 = r.iter().map(|&rij| rij * rij).sum();
