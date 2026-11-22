@@ -1132,6 +1132,17 @@ mod test {
         assert_eq!(x.t_dot_vec(&u.slice(s![..;2])), array![4.0, 15.0, 8.0]);
     }
 
+    #[test]
+    fn sparse_products_match_dense_with_many_columns() {
+        // `sprs` returns row-major output from 8 columns on.
+        let x = array![[1.0, 0.0, 2.0], [0.0, 3.0, 0.0]];
+        let sparse_x = sprs::CsMat::csr_from_dense(x.view(), 0.0);
+        let m = Array2::from_shape_fn((3, 8), |(i, j)| (i + j) as f64);
+        let xm = x.dot(&m);
+        assert_eq!(sparse_x.dot_mat(&m), xm);
+        assert_eq!(sparse_x.t_dot_mat(&xm), x.t().dot(&xm));
+    }
+
     /// Random design matrix with about 30% nonzero entries and random labels.
     fn random_problem<F: crate::float::Float>(
         seed: u64,
