@@ -272,15 +272,7 @@ pub enum KernelMethod<F> {
 impl<F: Float> KernelMethod<F> {
     pub fn distance(&self, a: ArrayView1<F>, b: ArrayView1<F>) -> F {
         match *self {
-            KernelMethod::Gaussian(eps) => {
-                let distance = a
-                    .iter()
-                    .zip(b.iter())
-                    .map(|(x, y)| (*x - *y) * (*x - *y))
-                    .sum::<F>();
-
-                (-distance / eps).exp()
-            }
+            KernelMethod::Gaussian(eps) => gaussian_exponent(a, b, eps).exp(),
             KernelMethod::Linear => a.mul(&b).sum(),
             KernelMethod::Polynomial(c, d) => (a.mul(&b).sum() + c).powf(d),
         }
@@ -477,10 +469,36 @@ impl<
     }
 }
 
+/// The exponent of the Gaussian kernel, `-‖a - b‖² / eps`.
+#[inline]
+fn gaussian_exponent<F: Float>(a: ArrayView1<F>, b: ArrayView1<F>, eps: F) -> F {
+    let distance = match (a.as_slice(), b.as_slice()) {
+        // Contiguous rows, the usual case: a plain slice loop compiles to a tight body whatever
+        // the surrounding code, where ndarray's strided iterators do not reliably. Same order
+        // of summation, so the same result.
+        (Some(a), Some(b)) => a
+            .iter()
+            .zip(b)
+            .map(|(x, y)| (*x - *y) * (*x - *y))
+            .sum::<F>(),
+        _ => a
+            .iter()
+            .zip(b.iter())
+            .map(|(x, y)| (*x - *y) * (*x - *y))
+            .sum::<F>(),
+    };
+
+    -distance / eps
+}
+
 fn dense_from_fn<F: Float, D: Data<Elem = F>>(
     dataset: &ArrayBase<D, Ix2>,
     method: &KernelMethod<F>,
 ) -> Array2<F> {
+    if let KernelMethod::Gaussian(eps) = *method {
+        return dense_gaussian(dataset, eps);
+    }
+
     let n_observations = dataset.len_of(Axis(0));
     let mut similarity = Array2::eye(n_observations);
 
@@ -490,6 +508,38 @@ fn dense_from_fn<F: Float, D: Data<Elem = F>>(
             let b = dataset.row(j);
 
             similarity[(i, j)] = method.distance(a, b);
+        }
+    }
+
+    similarity
+}
+
+/// Dense Gaussian kernel matrix, built row by row with the distances vectorised across points.
+///
+/// Bit-identical to calling [`KernelMethod::distance`] for every pair.
+fn dense_gaussian<F: Float, D: Data<Elem = F>>(dataset: &ArrayBase<D, Ix2>, eps: F) -> Array2<F> {
+    let n_observations = dataset.len_of(Axis(0));
+    // The dataset feature by feature: row `k` holds feature `k` of every point, contiguously.
+    let features = dataset.t().as_standard_layout().into_owned();
+    let mut similarity = Array2::<F>::zeros((n_observations, n_observations));
+
+    for (i, mut row) in similarity.rows_mut().into_iter().enumerate() {
+        // The rows of a new standard-layout matrix are contiguous.
+        let row = row.as_slice_mut().unwrap();
+
+        // Row `i` of the squared distances, one feature at a time across all points, which
+        // vectorises across points. Each distance is still summed feature by feature in order,
+        // as `gaussian_exponent` does, so the result is the same.
+        for (feature, &x_i) in features.rows().into_iter().zip(dataset.row(i)) {
+            let feature = feature.as_slice().unwrap();
+            for (sum, &x_j) in row.iter_mut().zip(feature) {
+                let diff = x_j - x_i;
+                *sum += diff * diff;
+            }
+        }
+
+        for v in row.iter_mut() {
+            *v = (-*v / eps).exp();
         }
     }
 
@@ -612,6 +662,42 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn dense_gaussian_matches_distance() {
+        fn check<F: Float>() {
+            // Deterministic points in [0, 1)^d.
+            let mut s = 0x9E37_79B9_7F4A_7C15u64;
+            for &d in &[1, 2, 7, 33] {
+                let x = Array2::from_shape_simple_fn((61, d), || {
+                    s ^= s << 13;
+                    s ^= s >> 7;
+                    s ^= s << 17;
+                    F::cast((s >> 11) as f64 / (1u64 << 53) as f64)
+                });
+                let method = KernelMethod::Gaussian(F::cast(d as f64 / 3.0));
+                let k = dense_from_fn(&x, &method);
+                for i in 0..x.nrows() {
+                    for j in 0..x.nrows() {
+                        let expected = method.distance(x.row(i), x.row(j));
+                        // Same exponent, same `exp`: exactly the same value.
+                        assert!(
+                            k[(i, j)] == expected,
+                            "({}, {}), d = {}: {} != {}",
+                            i,
+                            j,
+                            d,
+                            k[(i, j)],
+                            expected
+                        );
+                    }
+                }
+            }
+        }
+
+        check::<f32>();
+        check::<f64>();
     }
 
     #[test]

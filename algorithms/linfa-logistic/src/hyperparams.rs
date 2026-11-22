@@ -1,5 +1,5 @@
 use linfa::ParamGuard;
-use ndarray::{Array, Dimension};
+use ndarray::{Array, Array1, Dimension};
 
 use crate::error::Error;
 use crate::float::Float;
@@ -29,6 +29,7 @@ pub struct LogisticRegressionValidParams<F: Float, D: Dimension> {
     pub(crate) max_iterations: u64,
     pub(crate) gradient_tolerance: F,
     pub(crate) initial_params: Option<Array<F, D>>,
+    pub(crate) offset: Option<Array1<F>>,
 }
 
 impl<F: Float, D: Dimension> ParamGuard for LogisticRegressionParams<F, D> {
@@ -45,6 +46,11 @@ impl<F: Float, D: Dimension> ParamGuard for LogisticRegressionParams<F, D> {
         if let Some(params) = self.0.initial_params.as_ref() {
             if params.iter().any(|p| !p.is_finite()) {
                 return Err(Error::InvalidInitialParameters);
+            }
+        }
+        if let Some(ref offset) = self.0.offset {
+            if offset.iter().any(|o| !o.is_finite()) {
+                return Err(Error::InvalidOffset);
             }
         }
         Ok(&self.0)
@@ -65,6 +71,7 @@ impl<F: Float, D: Dimension> LogisticRegressionParams<F, D> {
             max_iterations: 100,
             gradient_tolerance: F::cast(1e-4),
             initial_params: None,
+            offset: None,
         })
     }
 
@@ -102,6 +109,11 @@ impl<F: Float, D: Dimension> LogisticRegressionParams<F, D> {
     /// distinct classes in `y`.
     pub fn initial_params(mut self, params: Array<F, D>) -> Self {
         self.0.initial_params = Some(params);
+        self
+    }
+
+    pub fn offset(mut self, offset: Array1<F>) -> Self {
+        self.0.offset = Some(offset);
         self
     }
 }
