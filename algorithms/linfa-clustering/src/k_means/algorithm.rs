@@ -201,7 +201,7 @@ use serde_crate::{Deserialize, Serialize};
 /// assert_abs_diff_eq!(model.centroids(), loaded_model.centroids(), epsilon = 1e-10);
 /// assert_eq!(model.hyperparameters(), loaded_model.hyperparameters());
 /// ```
-*/
+ */
 pub struct KMeans<F: Float, D: Distance<F>> {
     centroids: Array2<F>,
     cluster_count: Array1<F>,

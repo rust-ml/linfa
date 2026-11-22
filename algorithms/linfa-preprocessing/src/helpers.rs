@@ -67,14 +67,14 @@ impl<'a> NGramList<'a> {
         }
         let max_end = usize::min(index + self.max, len);
         let mut item = self.list[index].to_string();
-        for j in (index + 1)..min_end {
+        for word in &self.list[(index + 1)..min_end] {
             item.push(' ');
-            item.push_str(self.list[j]);
+            item.push_str(word);
         }
         items.push(item.clone());
-        for j in min_end..max_end {
+        for word in &self.list[min_end..max_end] {
             item.push(' ');
-            item.push_str(self.list[j]);
+            item.push_str(word);
             items.push(item.clone())
         }
         Some(items)
