@@ -249,20 +249,22 @@ impl<F: Float, D: Data<Elem = F>> Fit<ArrayBase<D, Ix2>, ArrayBase<D, Ix2>, PlsE
             let y_scores_k = yk.dot(&y_weights_k) / y_ss;
 
             // Deflation: subtract rank-one approx to obtain xk+1 and yk+1
-            let x_loadings_k = x_scores_k.dot(&xk) / x_scores_k.dot(&x_scores_k);
-            xk = xk - utils::outer(&x_scores_k, &x_loadings_k); // outer product
+            let x_loadings_k = utils::xt_dot(&xk, &x_scores_k) / x_scores_k.dot(&x_scores_k);
+            utils::sub_outer(&mut xk, &x_scores_k, &x_loadings_k); // outer product
 
             let y_loadings_k = match self.deflation_mode() {
                 DeflationMode::Canonical => {
                     // regress yk on y_score
-                    let y_loadings_k = y_scores_k.dot(&yk) / y_scores_k.dot(&y_scores_k);
-                    yk = yk - utils::outer(&y_scores_k, &y_loadings_k); // outer product
+                    let y_loadings_k =
+                        utils::xt_dot(&yk, &y_scores_k) / y_scores_k.dot(&y_scores_k);
+                    utils::sub_outer(&mut yk, &y_scores_k, &y_loadings_k); // outer product
                     y_loadings_k
                 }
                 DeflationMode::Regression => {
                     // regress yk on x_score
-                    let y_loadings_k = x_scores_k.dot(&yk) / x_scores_k.dot(&x_scores_k);
-                    yk = yk - utils::outer(&x_scores_k, &y_loadings_k); // outer product
+                    let y_loadings_k =
+                        utils::xt_dot(&yk, &x_scores_k) / x_scores_k.dot(&x_scores_k);
+                    utils::sub_outer(&mut yk, &x_scores_k, &y_loadings_k); // outer product
                     y_loadings_k
                 }
             };
@@ -342,15 +344,15 @@ impl<F: Float> PlsValidParams<F> {
         let mut converged = false;
         while n_iter < self.max_iter() {
             x_weights = match self.mode() {
-                Mode::A => x.t().dot(&y_score) / y_score.dot(&y_score),
-                Mode::B => x_pinv.to_owned().unwrap().dot(&y_score),
+                Mode::A => utils::xt_dot(x, &y_score) / y_score.dot(&y_score),
+                Mode::B => x_pinv.as_ref().unwrap().dot(&y_score),
             };
             x_weights /= x_weights.dot(&x_weights).sqrt() + eps;
             let x_score = x.dot(&x_weights);
 
             y_weights = match self.mode() {
-                Mode::A => y.t().dot(&x_score) / x_score.dot(&x_score),
-                Mode::B => y_pinv.to_owned().unwrap().dot(&x_score),
+                Mode::A => utils::xt_dot(y, &x_score) / x_score.dot(&x_score),
+                Mode::B => y_pinv.as_ref().unwrap().dot(&x_score),
             };
 
             if norm_y_weights {

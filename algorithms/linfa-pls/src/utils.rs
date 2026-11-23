@@ -9,15 +9,29 @@ use ndarray::{s, Array1, Array2, ArrayBase, ArrayView2, Axis, Data, DataMut, Ix1
 use ndarray_linalg::svd::*;
 use ndarray_stats::QuantileExt;
 
-pub fn outer<F: Float>(
+/// `xᵀ v`, computed as a matrix product.
+///
+/// Without BLAS, ndarray computes a matrix-vector product one row of `xᵀ` at a time, which walks
+/// each column of a row-major `x` with a stride of a full row; the matrix product packs `x` into
+/// cache-sized blocks instead.
+pub fn xt_dot<F: Float>(
+    x: &ArrayBase<impl Data<Elem = F>, Ix2>,
+    v: &ArrayBase<impl Data<Elem = F>, Ix1>,
+) -> Array1<F> {
+    x.t()
+        .dot(&v.view().insert_axis(Axis(1)))
+        .remove_axis(Axis(1))
+}
+
+/// `x -= outer(a, b)`, in place: row `i` of `x` loses `a[i] b`.
+pub fn sub_outer<F: Float>(
+    x: &mut Array2<F>,
     a: &ArrayBase<impl Data<Elem = F>, Ix1>,
     b: &ArrayBase<impl Data<Elem = F>, Ix1>,
-) -> Array2<F> {
-    let mut outer = Array2::zeros((a.len(), b.len()));
-    Zip::from(outer.rows_mut()).and(a).for_each(|mut out, ai| {
-        out.assign(&b.mapv(|v| *ai * v));
-    });
-    outer
+) {
+    Zip::from(x.rows_mut())
+        .and(a)
+        .for_each(|mut row, &ai| row.scaled_add(-ai, b));
 }
 
 /// Calculates the pseudo inverse of a matrix
@@ -112,11 +126,20 @@ mod tests {
     use ndarray::array;
 
     #[test]
-    fn test_outer() {
+    fn test_sub_outer() {
         let a = array![1., 2., 3.];
         let b = array![2., 3.];
-        let expected = array![[2., 3.], [4., 6.], [6., 9.]];
-        assert_abs_diff_eq!(expected, outer(&a, &b));
+        let mut x = array![[10., 10.], [10., 10.], [10., 10.]];
+        sub_outer(&mut x, &a, &b);
+        let expected = array![[8., 7.], [6., 4.], [4., 1.]];
+        assert_abs_diff_eq!(expected, x);
+    }
+
+    #[test]
+    fn test_xt_dot() {
+        let x = array![[1., 2.], [3., 4.], [5., 6.]];
+        let v = array![1., 0., -1.];
+        assert_abs_diff_eq!(xt_dot(&x, &v), x.t().dot(&v));
     }
 
     #[test]

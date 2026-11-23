@@ -18,7 +18,8 @@ fn pls_regression(dataset: &Dataset<f64, f64>, alg: Algorithm) {
 
 #[allow(unused_must_use)]
 fn pls_canonical(dataset: &Dataset<f64, f64>, alg: Algorithm) {
-    let model = PlsCanonical::params(3)
+    // One target: canonical PLS and CCA have at most one component.
+    let model = PlsCanonical::params(1)
         .scale(true)
         .max_iterations(200)
         .algorithm(alg);
@@ -26,7 +27,8 @@ fn pls_canonical(dataset: &Dataset<f64, f64>, alg: Algorithm) {
 }
 #[allow(unused_must_use)]
 fn pls_cca(dataset: &Dataset<f64, f64>, alg: Algorithm) {
-    let model = PlsCca::params(3)
+    // One target: canonical PLS and CCA have at most one component.
+    let model = PlsCca::params(1)
         .scale(true)
         .max_iterations(200)
         .algorithm(alg);
@@ -88,13 +90,61 @@ fn bench(c: &mut Criterion) {
     group.finish();
 }
 
+/// Several targets and more features: `n_samples` samples driven by 3 latent factors, with 4
+/// targets, so that NIPALS iterates. CCA only with few features: it computes the pseudo-inverses
+/// of X and Y for every component.
+fn bench_multi_target(c: &mut Criterion) {
+    use ndarray::Array2;
+    use ndarray_rand::{rand::SeedableRng, rand_distr::Normal, RandomExt};
+    use rand_xoshiro::Xoshiro256Plus;
+
+    let (n_samples, n_targets) = (10_000, 4);
+    let mut rng = Xoshiro256Plus::seed_from_u64(42);
+    let normal = Normal::new(0., 1.).unwrap();
+
+    let mut group = c.benchmark_group(format!("Linfa_pls n={n_samples} targets={n_targets}"));
+    config::set_default_benchmark_configs(&mut group);
+    group.sample_size(10);
+    for n_features in [20, 100, 500] {
+        let latent = Array2::random_using((n_samples, 3), normal, &mut rng);
+        let x = latent.dot(&Array2::random_using((3, n_features), normal, &mut rng))
+            + Array2::random_using((n_samples, n_features), normal, &mut rng);
+        let y = latent.dot(&Array2::random_using((3, n_targets), normal, &mut rng))
+            + Array2::random_using(
+                (n_samples, n_targets),
+                Normal::new(0., 0.5).unwrap(),
+                &mut rng,
+            );
+        let dataset = Dataset::new(x, y);
+
+        group.bench_with_input(
+            BenchmarkId::new("Regression-Nipals", n_features),
+            &dataset,
+            |b, dataset| b.iter(|| PlsRegression::params(3).fit(dataset).unwrap()),
+        );
+        group.bench_with_input(
+            BenchmarkId::new("Canonical-Nipals", n_features),
+            &dataset,
+            |b, dataset| b.iter(|| PlsCanonical::params(3).fit(dataset).unwrap()),
+        );
+        if n_features <= 20 {
+            group.bench_with_input(
+                BenchmarkId::new("Cca-Nipals", n_features),
+                &dataset,
+                |b, dataset| b.iter(|| PlsCca::params(3).fit(dataset).unwrap()),
+            );
+        }
+    }
+    group.finish();
+}
+
 #[cfg(not(target_os = "windows"))]
 criterion_group! {
     name = benches;
     config = config::get_default_profiling_configs();
-    targets = bench
+    targets = bench, bench_multi_target
 }
 #[cfg(target_os = "windows")]
-criterion_group!(benches, bench);
+criterion_group!(benches, bench, bench_multi_target);
 
 criterion_main!(benches);
