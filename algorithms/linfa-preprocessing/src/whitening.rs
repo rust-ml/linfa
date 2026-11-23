@@ -94,6 +94,45 @@ impl<F: Float, D: Data<Elem = F>, T: AsTargets> Fit<ArrayBase<D, Ix2>, T, Prepro
         let sigma = sigma.with_lapack();
 
         let transformation_matrix = match self.method {
+            // The right singular vectors of the centered data matrix are the eigenvectors
+            // of its covariance, and the singular values `s` relate to the eigenvalues by
+            // `lambda = s^2 / (nsamples - 1)`. Decomposing the (nfeatures x nfeatures)
+            // covariance is therefore equivalent to decomposing the whole
+            // (nsamples x nfeatures) data matrix, and much cheaper when there are more
+            // samples than features. This is what the `Zca` and `Cholesky` arms below
+            // already do.
+            //
+            // With at most as many samples as features the covariance is rank deficient,
+            // and the SVD of the data matrix gives a whitening matrix of a different
+            // shape than the covariance would — `nsamples x nfeatures` under the compact
+            // SVD of `linfa-linalg`. That case keeps the original formulation so the
+            // shape stays what it was.
+            WhiteningMethod::Pca if x.nsamples() > x.nfeatures() => {
+                let covariance = sigma.t().dot(&sigma) / F::Lapack::cast(x.nsamples() - 1);
+                let (u, s, _) = covariance.svd(true, false)?;
+
+                // Safe because the first argument in the above call is set to true
+                let u = u.unwrap().without_lapack();
+                #[cfg(feature = "blas")]
+                let s = s.mapv(Scalar::from_real);
+                let s = s.without_lapack();
+
+                let cov_scale = F::cast(x.nsamples() - 1).sqrt();
+                // Back to the singular values of the data matrix, so that the epsilon
+                // floor keeps the meaning it had before. Covariance eigenvalues are
+                // non-negative, but rounding can push a numerically-zero one slightly
+                // below zero, which would turn `sqrt` into a NaN.
+                let s = s.mapv(|x: F| (x.max(F::zero()).sqrt() * cov_scale).max(F::cast(1e-8)));
+
+                // Columns of `u` are the eigenvectors, so transposing puts them in rows,
+                // matching the layout `v_t` has in the branch below.
+                let mut v_t = u.reversed_axes();
+                for (mut v_t, s) in v_t.axis_iter_mut(Axis(0)).zip(s.iter()) {
+                    v_t *= cov_scale / *s;
+                }
+
+                v_t
+            }
             WhiteningMethod::Pca => {
                 let (_, s, v_t) = sigma.svd(false, true)?;
 
@@ -290,6 +329,46 @@ mod tests {
             .dot(&whitener.transformation_matrix());
         let inv_cov = inv_cov(dataset.records());
         assert_abs_diff_eq!(inv_cov, inv_cov_est, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_pca_matrix_more_features_than_samples() {
+        // With fewer samples than features the covariance is rank deficient, so `fit`
+        // falls back to decomposing the data matrix, and the two backends disagree on
+        // the shape that produces: `linfa_linalg::svd` is a compact SVD and yields the
+        // thin `nsamples x nfeatures` factor, while `ndarray_linalg::svd` is a full one
+        // and yields `nfeatures x nfeatures`. That split predates the covariance path
+        // added alongside this test; it is pinned here to keep it from changing
+        // unnoticed.
+        let mut rng = SmallRng::seed_from_u64(42);
+        let dataset = Array2::random_using((20, 50), Uniform::from(-30. ..30.), &mut rng).into();
+        let whitener = Whitener::pca().fit(&dataset).unwrap();
+
+        #[cfg(not(feature = "blas"))]
+        assert_eq!(whitener.transformation_matrix().dim(), (20, 50));
+        #[cfg(feature = "blas")]
+        assert_eq!(whitener.transformation_matrix().dim(), (50, 50));
+
+        assert!(whitener
+            .transformation_matrix()
+            .iter()
+            .all(|x: &f64| x.is_finite()));
+    }
+
+    #[test]
+    fn test_pca_matrix_square_input() {
+        // Exactly as many samples as features: still the fallback branch, since the
+        // covariance of a square centered matrix is singular. Compact and full SVD
+        // agree on the shape here, so both backends give `nfeatures x nfeatures`.
+        let mut rng = SmallRng::seed_from_u64(42);
+        let dataset = Array2::random_using((16, 16), Uniform::from(-30. ..30.), &mut rng).into();
+        let whitener = Whitener::pca().fit(&dataset).unwrap();
+
+        assert_eq!(whitener.transformation_matrix().dim(), (16, 16));
+        assert!(whitener
+            .transformation_matrix()
+            .iter()
+            .all(|x: &f64| x.is_finite()));
     }
 
     #[test]
