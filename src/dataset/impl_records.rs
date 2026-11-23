@@ -1,5 +1,7 @@
 use super::{DatasetBase, Records};
 use ndarray::{ArrayBase, Axis, Data, Dimension};
+use sprs::{CsMatBase, SpIndex};
+use std::ops::Deref;
 
 /// Implement records for NdArrays
 impl<F, S: Data<Elem = F>, I: Dimension> Records for ArrayBase<S, I> {
@@ -11,6 +13,26 @@ impl<F, S: Data<Elem = F>, I: Dimension> Records for ArrayBase<S, I> {
 
     fn nfeatures(&self) -> usize {
         self.len_of(Axis(1))
+    }
+}
+
+/// Implement records for sparse (CSR/CSC) matrices, both owned and views
+impl<N, I, Iptr, IpS, IS, DS> Records for CsMatBase<N, I, IpS, IS, DS, Iptr>
+where
+    I: SpIndex,
+    Iptr: SpIndex,
+    IpS: Deref<Target = [Iptr]>,
+    IS: Deref<Target = [I]>,
+    DS: Deref<Target = [N]>,
+{
+    type Elem = N;
+
+    fn nsamples(&self) -> usize {
+        self.rows()
+    }
+
+    fn nfeatures(&self) -> usize {
+        self.cols()
     }
 }
 

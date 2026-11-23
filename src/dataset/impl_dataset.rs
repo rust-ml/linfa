@@ -7,8 +7,9 @@ use super::{
 use crate::traits::Fit;
 use ndarray::{concatenate, prelude::*, Data, DataMut, Dimension};
 use rand::{seq::SliceRandom, Rng};
+use sprs::{CsMatBase, SpIndex};
 use std::collections::HashMap;
-use std::ops::AddAssign;
+use std::ops::{AddAssign, Deref};
 
 /// Implementation without constraints on records and targets
 ///
@@ -1195,6 +1196,44 @@ where
     O: PredictInplace<ArrayBase<D, DM>, T>,
 {
     fn predict(&self, records: &'a ArrayBase<D, DM>) -> T {
+        let mut targets = self.default_target(records);
+        self.predict_inplace(records, &mut targets);
+        targets
+    }
+}
+
+impl<N, I, Iptr, IpS, IS, DS, E, T, O>
+    Predict<CsMatBase<N, I, IpS, IS, DS, Iptr>, DatasetBase<CsMatBase<N, I, IpS, IS, DS, Iptr>, T>>
+    for O
+where
+    I: SpIndex,
+    Iptr: SpIndex,
+    IpS: Deref<Target = [Iptr]>,
+    IS: Deref<Target = [I]>,
+    DS: Deref<Target = [N]>,
+    T: AsTargets<Elem = E>,
+    O: PredictInplace<CsMatBase<N, I, IpS, IS, DS, Iptr>, T>,
+{
+    fn predict(
+        &self,
+        records: CsMatBase<N, I, IpS, IS, DS, Iptr>,
+    ) -> DatasetBase<CsMatBase<N, I, IpS, IS, DS, Iptr>, T> {
+        let mut targets = self.default_target(&records);
+        self.predict_inplace(&records, &mut targets);
+        DatasetBase::new(records, targets)
+    }
+}
+
+impl<'a, N, I, Iptr, IpS, IS, DS, T, O> Predict<&'a CsMatBase<N, I, IpS, IS, DS, Iptr>, T> for O
+where
+    I: SpIndex,
+    Iptr: SpIndex,
+    IpS: Deref<Target = [Iptr]>,
+    IS: Deref<Target = [I]>,
+    DS: Deref<Target = [N]>,
+    O: PredictInplace<CsMatBase<N, I, IpS, IS, DS, Iptr>, T>,
+{
+    fn predict(&self, records: &'a CsMatBase<N, I, IpS, IS, DS, Iptr>) -> T {
         let mut targets = self.default_target(records);
         self.predict_inplace(records, &mut targets);
         targets

@@ -4,7 +4,7 @@ This document should be used as a reference when contributing to Linfa. It descr
 
 ## Datasets and learning traits
 
-An important part of the Linfa ecosystem is how to organize data for the training and estimation process. A [Dataset](src/dataset/mod.rs) serves this purpose. It is a small wrapper of data and targets types and should be used as argument for the [Fit](src/traits.rs) trait. Its parametrization is generic, with [Records](src/dataset/mod.rs) representing input data (atm only implemented for `ndarray::ArrayBase`) and [Targets](src/dataset/mod.rs) for targets.
+An important part of the Linfa ecosystem is how to organize data for the training and estimation process. A [Dataset](src/dataset/mod.rs) serves this purpose. It is a small wrapper of data and targets types and should be used as argument for the [Fit](src/traits.rs) trait. Its parametrization is generic, with [Records](src/dataset/mod.rs) representing input data (implemented for `ndarray::ArrayBase` and for `sprs::CsMatBase` sparse matrices) and [Targets](src/dataset/mod.rs) for targets.
 
 You can find traits for different classes of algorithms [here](src/traits.rs). For example, to implement a fittable algorithm, which takes an `Array2` as input data and boolean array as targets and could fail with an `Error` struct:
 ```rust
@@ -89,6 +89,10 @@ This implementation is then used by `Predict` to provide the following `records`
  * `&Dataset` -> `Array1`
  * `Array2` -> `Dataset`
  * `&Array2` -> `Array1`
+ * `CsMat` -> `Dataset`
+ * `&CsMat` -> `Array1`
+
+The last two are available when `PredictInplace` is implemented for `sprs::CsMatBase` records, see `linfa-logistic` for an example.
 
 and should be imported by the user.
 
