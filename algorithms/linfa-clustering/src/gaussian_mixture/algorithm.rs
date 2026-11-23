@@ -5,6 +5,7 @@ use crate::gaussian_mixture::hyperparams::{
 use crate::k_means::KMeans;
 use linfa::{prelude::*, DatasetBase, Float};
 use linfa_linalg::{cholesky::*, triangular::*};
+use ndarray::linalg::general_mat_mul;
 use ndarray::{s, Array, Array1, Array2, Array3, ArrayBase, Axis, Data, Ix2, Ix3, Zip};
 use ndarray_rand::rand::Rng;
 use ndarray_rand::rand_distr::Uniform;
@@ -213,8 +214,8 @@ impl<F: Float> GaussianMixtureModel<F> {
     /// Returns the responsibilities as a (n_obs, n_clusters) array where each row gives
     /// the probabilities for the corresponding ith observation to belong to the jth cluster.
     pub fn predict_proba<D: Data<Elem = F>>(&self, observations: &ArrayBase<D, Ix2>) -> Array2<F> {
-        let (_, log_resp) = self.estimate_log_prob_resp(observations);
-        log_resp.mapv(F::exp)
+        let (_, resp) = self.estimate_prob_resp(observations);
+        resp
     }
 
     #[allow(clippy::type_complexity)]
@@ -250,12 +251,29 @@ impl<F: Float> GaussianMixtureModel<F> {
         let n_clusters = means.nrows();
         let n_features = means.ncols();
         let mut covariances = Array::zeros((n_clusters, n_features, n_features));
-        for k in 0..n_clusters {
-            let diff = observations - &means.row(k);
-            let m = &diff.t() * &resp.index_axis(Axis(1), k);
-            let mut cov_k = m.dot(&diff) / nk[k];
+        // `sqrt(resp_ik) (x_i - mean_k)` for every observation `i`, reused for every cluster `k`:
+        // its Gram matrix is the weighted scatter matrix of cluster `k`.
+        let mut weighted_diff = Array2::<F>::zeros(observations.raw_dim());
+        for (k, mut cov_k) in covariances.outer_iter_mut().enumerate() {
+            let mean = means.row(k);
+            Zip::from(weighted_diff.rows_mut())
+                .and(observations.rows())
+                .and(resp.column(k))
+                .for_each(|mut diff, x, &r| {
+                    let w = r.sqrt();
+                    Zip::from(&mut diff)
+                        .and(&x)
+                        .and(&mean)
+                        .for_each(|d, &x, &m| *d = (x - m) * w);
+                });
+            general_mat_mul(
+                F::one() / nk[k],
+                &weighted_diff.t(),
+                &weighted_diff,
+                F::zero(),
+                &mut cov_k,
+            );
             cov_k.diag_mut().mapv_inplace(|x| x + reg_covar);
-            covariances.slice_mut(s![k, .., ..]).assign(&cov_k);
         }
         covariances
     }
@@ -294,28 +312,25 @@ impl<F: Float> GaussianMixtureModel<F> {
         self.precisions = Self::compute_precisions_full(&self.precisions_chol);
     }
 
+    /// The mean log-likelihood and the responsibilities.
     fn e_step<D: Data<Elem = F>>(
         &self,
         observations: &ArrayBase<D, Ix2>,
     ) -> Result<(F, Array2<F>), GmmError> {
-        let (log_prob_norm, log_resp) = self.estimate_log_prob_resp(observations);
+        let (log_prob_norm, resp) = self.estimate_prob_resp(observations);
         let log_mean = log_prob_norm.mean().unwrap();
-        Ok((log_mean, log_resp))
+        Ok((log_mean, resp))
     }
 
     fn m_step<D: Data<Elem = F>>(
         &mut self,
         reg_covar: F,
         observations: &ArrayBase<D, Ix2>,
-        log_resp: &Array2<F>,
+        resp: &Array2<F>,
     ) -> Result<(), GmmError> {
         let n_samples = observations.nrows();
-        let (weights, means, covariances) = Self::estimate_gaussian_parameters(
-            observations,
-            &log_resp.mapv(|x| x.exp()),
-            &self.covar_type,
-            reg_covar,
-        )?;
+        let (weights, means, covariances) =
+            Self::estimate_gaussian_parameters(observations, resp, &self.covar_type, reg_covar)?;
         self.means = means;
         self.weights = weights / F::cast(n_samples);
         self.covariances = covariances;
@@ -325,29 +340,33 @@ impl<F: Float> GaussianMixtureModel<F> {
     }
 
     // We keep methods names and method boundaries from scikit-learn implementation
-    // which handles also Bayesian mixture hence below the _log_resp argument which is not used.
-    fn compute_lower_bound<D: Data<Elem = F>>(
-        _log_resp: &ArrayBase<D, Ix2>,
-        log_prob_norm: F,
-    ) -> F {
+    // which handles also Bayesian mixture hence below the _resp argument which is not used.
+    fn compute_lower_bound<D: Data<Elem = F>>(_resp: &ArrayBase<D, Ix2>, log_prob_norm: F) -> F {
         log_prob_norm
     }
 
     // Estimate log probabilities (log P(X)) and responsibilities for each sample.
     // Compute weighted log probabilities per component (log P(X)) and responsibilities
     // for each sample in X with respect to the current state of the model.
-    fn estimate_log_prob_resp<D: Data<Elem = F>>(
+    fn estimate_prob_resp<D: Data<Elem = F>>(
         &self,
         observations: &ArrayBase<D, Ix2>,
     ) -> (Array1<F>, Array2<F>) {
-        let weighted_log_prob = self.estimate_weighted_log_prob(observations);
-        // Log-sum-exp trick to avoid overflow: ln(Σ exp(xᵢ)) = max + ln(Σ exp(xᵢ - max))
-        let log_max = weighted_log_prob
-            .map_axis(Axis(1), |row| row.fold(F::neg_infinity(), |a, &b| a.max(b)));
-        let shifted = &weighted_log_prob - &log_max.clone().insert_axis(Axis(1));
-        let log_prob_norm = shifted.mapv(|x| x.exp()).sum_axis(Axis(1)).mapv(|x| x.ln()) + &log_max;
-        let log_resp = weighted_log_prob - log_prob_norm.to_owned().insert_axis(Axis(1));
-        (log_prob_norm, log_resp)
+        // Turned into the responsibilities in place, a row at a time.
+        let mut resp = self.estimate_weighted_log_prob(observations);
+        let mut log_prob_norm = Array1::<F>::zeros(resp.nrows());
+        Zip::from(resp.rows_mut())
+            .and(&mut log_prob_norm)
+            .for_each(|mut row, log_prob_norm| {
+                // Log-sum-exp trick to avoid overflow: ln(Σ exp(xᵢ)) = max + ln(Σ exp(xᵢ - max))
+                let log_max = row.fold(F::neg_infinity(), |a, &b| a.max(b));
+                row.mapv_inplace(|x| (x - log_max).exp());
+                let sum = row.sum();
+                *log_prob_norm = sum.ln() + log_max;
+                // exp(x - log_prob_norm) = exp(x - max) / Σ exp(xᵢ - max)
+                row.mapv_inplace(|e| e / sum);
+            });
+        (log_prob_norm, resp)
     }
 
     // Estimate weighted log probabilities for each samples wrt to the model
@@ -355,7 +374,9 @@ impl<F: Float> GaussianMixtureModel<F> {
         &self,
         observations: &ArrayBase<D, Ix2>,
     ) -> Array2<F> {
-        self.estimate_log_prob(observations) + self.estimate_log_weights()
+        let mut log_prob = self.estimate_log_prob(observations);
+        log_prob += &self.estimate_log_weights();
+        log_prob
     }
 
     // Compute log probabilities for each samples wrt to the model which is gaussian
@@ -376,18 +397,29 @@ impl<F: Float> GaussianMixtureModel<F> {
         // GmmCovarType = full
         // det(precision_chol) is half of det(precision)
         let log_det = Self::compute_log_det_cholesky_full(&self.precisions_chol, n_features);
+        let log_2pi = F::cast(n_features as f64 * f64::ln(2. * std::f64::consts::PI));
         let mut log_prob: Array2<F> = Array::zeros((n_samples, n_clusters));
-        Zip::indexed(means.rows())
+        // `X . prec_chol_k`, reused for every cluster `k`
+        let mut y = Array2::<F>::zeros((n_samples, n_features));
+        Zip::from(means.rows())
             .and(self.precisions_chol.outer_iter())
-            .for_each(|k, mu, prec_chol| {
-                let diff = (&observations.to_owned() - &mu).dot(&prec_chol);
-                log_prob
-                    .slice_mut(s![.., k])
-                    .assign(&diff.mapv(|v| v * v).sum_axis(Axis(1)))
+            .and(log_prob.columns_mut())
+            .and(&log_det)
+            .for_each(|mu, prec_chol, mut log_prob_k, &log_det_k| {
+                // `(x - mu) . prec_chol = x . prec_chol - mu . prec_chol`: one matrix product,
+                // without a copy of `X`.
+                general_mat_mul(F::one(), observations, &prec_chol, F::zero(), &mut y);
+                let mu_prec = mu.dot(&prec_chol);
+                Zip::from(&mut log_prob_k)
+                    .and(y.rows())
+                    .for_each(|log_prob_ik, y_i| {
+                        let squares = Zip::from(&y_i)
+                            .and(&mu_prec)
+                            .fold(F::zero(), |acc, &y, &m| acc + (y - m) * (y - m));
+                        *log_prob_ik = F::cast(-0.5) * (squares + log_2pi) + log_det_k;
+                    });
             });
-        log_prob.mapv(|v| {
-            F::cast(-0.5) * (v + F::cast(n_features as f64 * f64::ln(2. * std::f64::consts::PI)))
-        }) + log_det
+        log_prob
     }
 
     fn compute_log_det_cholesky_full<D: Data<Elem = F>>(
@@ -431,10 +463,9 @@ impl<F: Float, R: Rng + Clone, D: Data<Elem = F>, T> Fit<ArrayBase<D, Ix2>, T, G
             let mut converged_iter: Option<u64> = None;
             for n_iter in 0..self.max_n_iterations() {
                 let prev_lower_bound = lower_bound;
-                let (log_prob_norm, log_resp) = gmm.e_step(&observations)?;
-                gmm.m_step(self.reg_covariance(), &observations, &log_resp)?;
-                lower_bound =
-                    GaussianMixtureModel::<F>::compute_lower_bound(&log_resp, log_prob_norm);
+                let (log_prob_norm, resp) = gmm.e_step(&observations)?;
+                gmm.m_step(self.reg_covariance(), &observations, &resp)?;
+                lower_bound = GaussianMixtureModel::<F>::compute_lower_bound(&resp, log_prob_norm);
                 let change = lower_bound - prev_lower_bound;
                 if change.abs() < self.tolerance() {
                     converged_iter = Some(n_iter);
@@ -476,9 +507,10 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array1<usize
             "The number of data points must match the number of output targets."
         );
 
-        let (_, log_resp) = self.estimate_log_prob_resp(observations);
-        *targets = log_resp
-            .mapv(F::exp)
+        // The most likely cluster: the responsibilities and the weighted log probabilities have the
+        // same order in every row.
+        *targets = self
+            .estimate_weighted_log_prob(observations)
             .map_axis(Axis(1), |row| row.argmax().unwrap());
     }
 
