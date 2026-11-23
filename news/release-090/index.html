@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="linfa,ml,stats,statistical learning, machine learning,rust">
+  <meta name="description" content="comprehensive toolkit for statistical learning in rust">
+  <title>Linfa Toolkit</title>
+
+  <link rel="icon" href="mascot.svg">
+  <link rel="stylesheet" href="https://rust-ml.github.io/linfa/style.css">
+  <script src="https://rust-ml.github.io/linfa/code-examples.js"></script>
+</head>
+
+<body>
+  <div class="top">
+    <section class="grid header">
+      <div class="logo">
+        <img alt="logo" src="https://rust-ml.github.io/linfa/mascot.svg" height=60>
+        <p>
+          Linfa
+
+          <span>Menu</span>
+        </p>
+      </div>
+      <div class="header-main">
+        <ul>
+          <li><a href="https://rust-ml.github.io/linfa">Home</a></li>
+          <li><a href="https://rust-ml.github.io/linfa/about">About</a></li>
+          <li><a href="https://rust-ml.github.io/linfa/docs">Documentation</a></li>
+          <li><a href="https://rust-ml.github.io/linfa/community">Community</a></li>
+          <li><a href="https://rust-ml.github.io/linfa/news">News</a></li>
+        </ul>
+      </div>
+    </section>
+  </div>
+
+
+  <section class="section">
+    <div class="container">
+      
+<div class="grid"><div class="news-page">
+<h1 class="title">
+  Release 0.9.0
+</h1>
+<span>Published on November 23th, 2026</span>
+<p>Linfa's 0.9.0 release adds Hamerly's accelerated K-means and the Wasserstein distance, brings browser WASM support, and fixes a number of metrics and algorithms whose results did not match their reference definitions.</p>
+<span id="continue-reading"></span><h2 id="breaking-changes">Breaking changes</h2>
+<p>Several fixes below change the values returned by existing functions: <code>explained_variance</code>, macro F-score, ROC curve/AUC, <code>Pca::explained_variance</code>, OPTICS ordering and fitted decision trees. <code>Pca</code> models serialized with 0.8.x cannot be deserialized with 0.9.0. The minimum supported Rust version is now 1.88.0.</p>
+<h2 id="improvements-and-fixes">Improvements and fixes</h2>
+<ul>
+<li><code>linfa</code>:
+<ul>
+<li>add generic <code>ResidualChain</code> composing method by @Feiyang472 in https://github.com/rust-ml/linfa/pull/430</li>
+<li>add symmetric mean absolute percentage error (sMAPE) by @oglego in https://github.com/rust-ml/linfa/pull/437</li>
+<li>add browser WASM support (<code>wasm-bindgen</code> feature) by @LucaCappelletti94 in https://github.com/rust-ml/linfa/pull/438</li>
+<li>fix <code>explained_variance</code> regression metric to match scikit-learn by @teddytennant in https://github.com/rust-ml/linfa/pull/447</li>
+<li>fix multiclass macro F-score to average per-class scores by @binggao1230 in https://github.com/rust-ml/linfa/pull/448</li>
+<li>fix ROC curve to start at the origin when scores are zero by @bardrop in https://github.com/rust-ml/linfa/pull/475</li>
+</ul>
+</li>
+<li><code>linfa-clustering</code>:
+<ul>
+<li>fix overflow in Gaussian mixture with log-sum-exp by @schliffen in https://github.com/rust-ml/linfa/pull/444</li>
+<li>fix OPTICS ordering and reachability of each expansion's start point by @ilgrad in https://github.com/rust-ml/linfa/pull/464</li>
+</ul>
+</li>
+<li><code>linfa-elasticnet</code>: fix <code>MultiTaskElasticNet::default_target</code> shape by @whispem in https://github.com/rust-ml/linfa/pull/462</li>
+<li><code>linfa-ensemble</code>: support serde serialization of ensemble models by @dbrundu in https://github.com/rust-ml/linfa/pull/450</li>
+<li><code>linfa-kernel</code>: vectorise the dense Gaussian kernel by @mtantaoui in https://github.com/rust-ml/linfa/pull/465</li>
+<li><code>linfa-lars</code>: fix the <code>serde</code> feature</li>
+<li><code>linfa-logistic</code>:
+<ul>
+<li>fix label ordering in binary logistic regression by @espenloov in https://github.com/rust-ml/linfa/pull/432</li>
+<li>add offset support to binary logistic regression by @espenloov in https://github.com/rust-ml/linfa/pull/435</li>
+</ul>
+</li>
+<li><code>linfa-preprocessing</code>: realign <code>PreprocessingError</code> variants with error strings by @oglego in https://github.com/rust-ml/linfa/pull/434</li>
+<li><code>linfa-reduction</code>: fix <code>Pca::explained_variance</code> scaling by @AdamEzzat1 in https://github.com/rust-ml/linfa/pull/457</li>
+<li><code>linfa-trees</code>: make <code>DecisionTree</code> fitting deterministic and about 3x faster by @mysma-9403 in https://github.com/rust-ml/linfa/pull/452</li>
+<li><code>linfa-tsne</code>: update to <code>bhtsne</code> 0.5.4 by @AnthonyMichaelTDM in https://github.com/rust-ml/linfa/pull/429</li>
+</ul>
+<h2 id="new-algorithms">New algorithms</h2>
+<h3 id="hamerly-s-k-means">Hamerly's K-means</h3>
+<p>Hamerly's algorithm accelerates K-means using the triangle inequality and per-sample upper/lower distance bounds, so most distance computations are skipped once the algorithm has stabilised. It gives the same result as Lloyd's algorithm for the same initial centroids. Select it with <code>KMeans::params(k).algorithm(KMeansAlgorithm::Hamerly)</code> (batch <code>fit</code> only, with a true metric such as <code>L2Dist</code>). Added to <code>linfa-clustering</code> by @mrsanor in https://github.com/rust-ml/linfa/pull/439</p>
+<p>See <a rel="external" href="https://cs.baylor.edu/~hamerly/papers/sdm_2010.pdf">Making k-means even faster, G. Hamerly</a></p>
+<h3 id="wasserstein-distance">Wasserstein distance</h3>
+<p>The Wasserstein distance, also known as the Earth Mover's distance, measures the minimal cost of transforming one distribution into another. <code>WassersteinDist</code> compares histograms, where each array element is the probability mass at that index. Added to <code>linfa-nn</code> by @mrsanor in https://github.com/rust-ml/linfa/pull/440</p>
+<p>See <a rel="external" href="https://en.wikipedia.org/wiki/Wasserstein_metric">Wasserstein metric</a></p>
+
+</div></div>
+
+    </div>
+  </section>
+  <div class="bottom">
+    <div class="grid">
+      <div class="footer">View
+        <a href="https://github.com/rust-ml/linfa/tree/master/docs/website">page source</a>
+        - any contribution is welcome!
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>

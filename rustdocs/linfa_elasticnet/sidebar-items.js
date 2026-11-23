@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ElasticNetError"],"struct":["ElasticNet","ElasticNetParamsBase","ElasticNetValidParamsBase","MultiTaskElasticNet"],"type":["ElasticNetParams","ElasticNetValidParams","MultiTaskElasticNetParams","MultiTaskElasticNetValidParams","Result"]};
