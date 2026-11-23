@@ -21,7 +21,7 @@ use linfa::traits::{Fit, PredictInplace};
     derive(Serialize, Deserialize),
     serde(crate = "serde_crate")
 )]
-/// An ordinary least squares univariate linear regression model.
+/// An ordinary and weighted least squares univariate linear regression model.
 ///
 /// Given predictors `x` and responses `y` ordinary least squares linear
 /// regression estimates a model of the form
@@ -30,7 +30,8 @@ use linfa::traits::{Fit, PredictInplace};
 ///
 /// by finding a matrix `W` and a vector `b` which minimize the sum of the
 /// squared L_2 norms `||y_j - x_jW - b||_2^2` for a dataset
-/// `{(x_j, y_j) for j in 1..=n_samples}`.
+/// `{(x_j, y_j) for j in 1..=n_samples}`. When sample weights `w` are provided,
+/// it minimizes the weighted sum of squared residuals `w_j ||y_j - x_jW - b||_2^2`.
 ///
 /// The algorithm is only implemented for _univariate_ regression. This means
 /// that `b` and `y` are scalars and `W` is just one column.
@@ -94,7 +95,8 @@ impl<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = F>>
     type Object = FittedLinearRegression<F>;
 
     /// Fit a linear regression model given a feature matrix `X` and a target
-    /// variable `y`.
+    /// variable `y`. If sample weights are attached to `dataset` via
+    /// `.with_weights()`, Weighted Least Squares (WLS) is performed.
     ///
     /// The feature matrix `X` must have shape `(n_samples, n_features)`
     ///
@@ -114,14 +116,13 @@ impl<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = F>>
 
         if self.fit_intercept {
             let X = concatenate(Axis(1), &[X.view(), Array2::ones((X.nrows(), 1)).view()]).unwrap();
-            let params: Array1<F> = solve_least_squares(X, y.to_owned())?;
+            let (X, y) = apply_weights(X, y.to_owned(), dataset.weights())?;
+            let params: Array1<F> = solve_least_squares(X, y)?;
             let intercept = *params.last().unwrap();
             let params = params.slice(s![..params.len() - 1]).to_owned();
             Ok(FittedLinearRegression { intercept, params })
         } else {
-            // `LeastSquaresSvdInto` needs a mutable reference to the data and `dataset` is taken
-            // by reference. Therefore copy the problem matrix and target vector.
-            let (X, y) = (X.to_owned(), y.to_owned());
+            let (X, y) = apply_weights(X.to_owned(), y.to_owned(), dataset.weights())?;
 
             Ok(FittedLinearRegression {
                 intercept: F::cast(0),
@@ -129,6 +130,29 @@ impl<F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = F>>
             })
         }
     }
+}
+
+fn apply_weights<F: Float>(
+    mut X: Array2<F>,
+    mut y: Array1<F>,
+    weights: Option<&[f32]>,
+) -> Result<(Array2<F>, Array1<F>), F> {
+    if let Some(weights) = weights {
+        let n_samples = X.nrows();
+        if weights.len() != n_samples {
+            return Err(linfa::Error::MismatchedShapes(weights.len(), n_samples).into());
+        }
+        for (i, (&w, mut row)) in weights.iter().zip(X.rows_mut()).enumerate() {
+            let w_f = F::cast(w);
+            if w_f < F::zero() {
+                return Err(LinearError::InvalidWeights(w_f));
+            }
+            let sqrt_w = w_f.sqrt();
+            row.mapv_inplace(|v| v * sqrt_w);
+            y[i] *= sqrt_w;
+        }
+    }
+    Ok((X, y))
 }
 
 /// Find the b that minimizes the 2-norm of X b - y
@@ -194,6 +218,158 @@ mod tests {
     use approx::assert_abs_diff_eq;
     use linfa::{traits::Predict, Dataset};
     use ndarray::array;
+
+    #[test]
+    fn fits_weighted_least_squares_with_outlier() {
+        let dataset = Dataset::new(array![[0f64], [1.], [2.]], array![1., 3., 1000.])
+            .with_weights(array![1.0f32, 1.0f32, 0.0f32]);
+
+        let lin_reg = LinearRegression::new();
+        let model = lin_reg.fit(&dataset).unwrap();
+
+        assert_abs_diff_eq!(model.params(), &array![2.0], epsilon = 1e-10);
+        assert_abs_diff_eq!(model.intercept(), &1.0, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn fits_weighted_least_squares_without_intercept() {
+        // Without intercept, passing through origin
+        // Point (1, 1) and Point (2, 8)
+        // If unweighted: min (b - 1)^2 + (2b - 8)^2 => 2(b - 1) + 4(2b - 8) = 0 => 10b - 34 = 0 => b = 3.4
+        // If weights are [1.0, 0.0]: b = 1.0
+        // If weights are [0.0, 1.0]: b = 4.0
+        let data = array![[1f64], [2.]];
+        let targets = array![1., 8.];
+
+        let model_unweighted = LinearRegression::new()
+            .with_intercept(false)
+            .fit(&Dataset::new(data.clone(), targets.clone()))
+            .unwrap();
+        assert_abs_diff_eq!(model_unweighted.params(), &array![3.4], epsilon = 1e-10);
+
+        let model_w0 = LinearRegression::new()
+            .with_intercept(false)
+            .fit(&Dataset::new(data.clone(), targets.clone()).with_weights(array![1.0, 0.0]))
+            .unwrap();
+        assert_abs_diff_eq!(model_w0.params(), &array![1.0], epsilon = 1e-10);
+
+        let model_w1 = LinearRegression::new()
+            .with_intercept(false)
+            .fit(&Dataset::new(data, targets).with_weights(array![0.0, 1.0]))
+            .unwrap();
+        assert_abs_diff_eq!(model_w1.params(), &array![4.0], epsilon = 1e-10);
+    }
+
+    #[test]
+    fn fits_weighted_least_squares_uniform_weights_matches_unweighted() {
+        let dataset_unweighted = Dataset::new(array![[0f64], [1.], [2.]], array![1., 2., 4.]);
+        let dataset_weighted = dataset_unweighted
+            .clone()
+            .with_weights(array![5.0f32, 5.0f32, 5.0f32]);
+
+        let model1 = LinearRegression::new().fit(&dataset_unweighted).unwrap();
+        let model2 = LinearRegression::new().fit(&dataset_weighted).unwrap();
+
+        assert_abs_diff_eq!(model1.params(), model2.params(), epsilon = 1e-10);
+        assert_abs_diff_eq!(model1.intercept(), model2.intercept(), epsilon = 1e-10);
+    }
+
+    #[test]
+    fn fits_weighted_least_squares_rejects_negative_weights() {
+        let dataset = Dataset::new(array![[0f64], [1.]], array![1., 2.])
+            .with_weights(array![1.0f32, -0.5f32]);
+
+        let res = LinearRegression::new().fit(&dataset);
+        assert!(matches!(res, Err(LinearError::InvalidWeights(w)) if w < 0.0));
+    }
+
+    #[test]
+    fn fits_weighted_least_squares_rejects_mismatched_weights_len() {
+        let dataset =
+            Dataset::new(array![[0f64], [1.]], array![1., 2.]).with_weights(array![1.0f32]);
+
+        let res = LinearRegression::new().fit(&dataset);
+        assert!(matches!(
+            res,
+            Err(LinearError::BaseCrate(linfa::Error::MismatchedShapes(1, 2)))
+        ));
+    }
+
+    #[test]
+    fn fits_weighted_least_squares_multivariate() {
+        let x = array![
+            [1.0f64, 2.0],
+            [2.0, 0.0],
+            [0.0, 1.0],
+            [3.0, 4.0],
+            [10.0, 20.0],
+            [-5.0, 15.0]
+        ];
+        let y = array![1.0, 9.0, 2.0, -1.0, 9999.0, -8888.0];
+        let weights = array![1.0f32, 1.0, 1.0, 1.0, 0.0, 0.0];
+
+        let dataset = Dataset::new(x, y).with_weights(weights);
+        let model = LinearRegression::new().fit(&dataset).unwrap();
+
+        assert_abs_diff_eq!(model.params(), &array![2.0, -3.0], epsilon = 1e-10);
+        assert_abs_diff_eq!(model.intercept(), &5.0, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn fits_weighted_least_squares_f32() {
+        let dataset = Dataset::new(array![[0.0f32], [1.0], [2.0]], array![1.0f32, 3.0, 500.0])
+            .with_weights(array![1.0f32, 1.0, 0.0]);
+
+        let model = LinearRegression::new().fit(&dataset).unwrap();
+
+        assert_abs_diff_eq!(model.params(), &array![2.0f32], epsilon = 1e-5);
+        assert_abs_diff_eq!(model.intercept(), &1.0f32, epsilon = 1e-5);
+    }
+
+    #[test]
+    fn fits_weighted_least_squares_normal_equations_optimality() {
+        let x = array![
+            [1.0f64, 2.0],
+            [2.0, 1.5],
+            [3.0, 0.5],
+            [4.0, 3.2],
+            [5.0, 2.1]
+        ];
+        let y = array![2.5f64, 3.1, 4.8, 6.2, 7.9];
+        let weights = array![0.5f32, 1.8, 3.2, 0.7, 2.4];
+
+        let dataset = Dataset::new(x.clone(), y.clone()).with_weights(weights.clone());
+        let model = LinearRegression::new().fit(&dataset).unwrap();
+
+        let preds = model.predict(&x);
+        let residuals = &y - &preds;
+
+        let mut intercept_grad = 0.0;
+        for (&w, &r) in weights.iter().zip(residuals.iter()) {
+            intercept_grad += (w as f64) * r;
+        }
+        assert_abs_diff_eq!(intercept_grad, 0.0, epsilon = 1e-10);
+
+        for j in 0..x.ncols() {
+            let mut feat_grad = 0.0;
+            for (i, (&w, &r)) in weights.iter().zip(residuals.iter()).enumerate() {
+                feat_grad += (w as f64) * r * x[[i, j]];
+            }
+            assert_abs_diff_eq!(feat_grad, 0.0, epsilon = 1e-10);
+        }
+    }
+
+    #[test]
+    fn fits_weighted_least_squares_dataset_view() {
+        let dataset = Dataset::new(array![[0.0f64], [1.0], [2.0]], array![1.0, 3.0, 1000.0])
+            .with_weights(array![1.0f32, 1.0, 0.0]);
+
+        let dataset_view = dataset.view();
+        let model = LinearRegression::new().fit(&dataset_view).unwrap();
+
+        assert_abs_diff_eq!(model.params(), &array![2.0], epsilon = 1e-10);
+        assert_abs_diff_eq!(model.intercept(), &1.0, epsilon = 1e-10);
+    }
 
     #[test]
     fn autotraits() {
