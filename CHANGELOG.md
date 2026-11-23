@@ -1,3 +1,38 @@
+Version 0.9.0 - 2026-11-23
+==========================
+New Algorithms
+--------------
+ * Hamerly's accelerated K-means in `linfa-clustering` by [@mrsanor]
+ * Wasserstein distance (aka Earth Mover's distance) in `linfa-nn` by [@mrsanor]
+ * Generic `ResidualChain` composing method in `linfa` by [@Feiyang472]
+ * Symmetric mean absolute percentage error (sMAPE) regression metric by [@oglego]
+
+Changes
+-------
+ * add offset support to binary logistic regression in `linfa-logistic`
+ * add browser WASM support with the `wasm-bindgen` feature
+ * add serde serialization of ensemble models in `linfa-ensemble`
+ * make `DecisionTree` fitting deterministic and about 3x faster in `linfa-trees`
+ * vectorise the dense Gaussian kernel in `linfa-kernel`
+ * fix `explained_variance` regression metric to match scikit-learn
+ * fix multiclass macro F-score to average per-class scores
+ * fix ROC curve to start at the origin when scores are zero (wrong AUC)
+ * fix `Pca::explained_variance` scaling (infinite with a single component) in `linfa-reduction`
+ * fix `MultiTaskElasticNet::default_target` shape in `linfa-elasticnet`
+ * fix OPTICS ordering: each expansion's start point comes first with undefined reachability in `linfa-clustering`
+ * fix label ordering in binary logistic regression in `linfa-logistic`
+ * fix overflow in Gaussian mixture `estimate_log_prob_resp` using log-sum-exp in `linfa-clustering`
+ * fix `PreprocessingError` variants not matching their error messages in `linfa-preprocessing`
+ * fix `serde` feature of `linfa-lars`
+ * remove unused dependencies
+ * bump `bhtsne` to 0.5.4
+ * bump MSRV to 1.88.0
+
+Breaking Changes
+----------------
+ * metrics and algorithms fixed above return different (correct) values: `explained_variance`, macro F-score, ROC/AUC, `Pca::explained_variance`, OPTICS ordering, `DecisionTree` fitted trees
+ * `Pca` models serialized with 0.8.x cannot be deserialized with 0.9.0
+
 Version 0.8.1 - 2025-12-22
 ==========================
 New Algorithms
