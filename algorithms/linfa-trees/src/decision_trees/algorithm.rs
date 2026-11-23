@@ -405,8 +405,8 @@ impl<F: Float, L: Label + std::fmt::Debug> TreeNode<F, L> {
         let mut left_mask = RowMask::none(data.nsamples());
         let mut right_mask = RowMask::none(data.nsamples());
 
-        for i in 0..data.nsamples() {
-            if mask.mask[i] {
+        for (i, &selected) in mask.mask.iter().enumerate() {
+            if selected {
                 if data.records()[(i, best_feature_idx)] <= best_split_value {
                     left_mask.mark(i);
                 } else {
