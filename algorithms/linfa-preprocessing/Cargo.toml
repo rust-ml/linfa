@@ -48,7 +48,6 @@ linfa-datasets = { version = "0.8.1", path = "../../datasets", features = [
     "generate",
 ] }
 linfa-bayes = { version = "0.8.1", path = "../linfa-bayes" }
-iai = "0.1"
 curl = "0.4.35"
 flate2 = "1.0.20"
 tar = "0.4.33"
