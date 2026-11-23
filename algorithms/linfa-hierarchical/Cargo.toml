@@ -1,6 +1,6 @@
 [package]
 name = "linfa-hierarchical"
-version = "0.8.1"
+version = "0.9.0"
 authors = ["Lorenz Schmidt <lorenz.schmidt@mailbox.org>"]
 edition = "2018"
 
@@ -24,11 +24,11 @@ ndarray = { version = "0.16" }
 kodama = "0.2"
 thiserror = "2"
 
-linfa = { version = "0.8.1", path = "../.." }
-linfa-kernel = { version = "0.8.1", path = "../linfa-kernel" }
+linfa = { version = "0.9.0", path = "../.." }
+linfa-kernel = { version = "0.9.0", path = "../linfa-kernel" }
 
 [dev-dependencies]
 ndarray-rand = "0.15"
-linfa-datasets = { version = "0.8.1", path = "../../datasets", features = [
+linfa-datasets = { version = "0.9.0", path = "../../datasets", features = [
     "iris",
 ] }

@@ -1,6 +1,6 @@
 [package]
 name = "linfa-kernel"
-version = "0.8.1"
+version = "0.9.0"
 authors = ["Lorenz Schmidt <bytesnake@mailbox.org>"]
 description = "Kernel methods for non-linear algorithms"
 edition = "2018"
@@ -27,12 +27,12 @@ features = ["std", "derive"]
 ndarray = "0.16"
 sprs = { version = "=0.11.2", default-features = false }
 
-linfa = { version = "0.8.1", path = "../.." }
-linfa-nn = { version = "0.8.1", path = "../linfa-nn" }
+linfa = { version = "0.9.0", path = "../.." }
+linfa-nn = { version = "0.9.0", path = "../linfa-nn" }
 
 [dev-dependencies]
 criterion = "0.5"
-linfa = { version = "0.8.1", path = "../..", features = ["benchmarks"] }
+linfa = { version = "0.9.0", path = "../..", features = ["benchmarks"] }
 rand_xoshiro = "0.6"
 ndarray-rand = "0.15"
 
