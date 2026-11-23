@@ -64,6 +64,22 @@ impl Link {
             Self::Logit => LogitLink::inverse_derivative(lin_pred),
         }
     }
+
+    /// [`inverse_derviative`](Self::inverse_derviative) of `lin_pred`, from
+    /// `ypred = inverse(lin_pred)` when it is already computed: the derivative of the log link's
+    /// inverse is `ypred` itself, and the logit link's is `ypred (1 - ypred)`, computed the same
+    /// way.
+    pub(crate) fn inverse_derivative_from_inverse<A: Float>(
+        &self,
+        lin_pred: &Array1<A>,
+        ypred: &Array1<A>,
+    ) -> Array1<A> {
+        match self {
+            Self::Identity => IdentityLink::inverse_derivative(lin_pred),
+            Self::Log => ypred.clone(),
+            Self::Logit => ypred * &ypred.mapv(|x| A::one() - x),
+        }
+    }
 }
 
 trait LinkFn<A> {
