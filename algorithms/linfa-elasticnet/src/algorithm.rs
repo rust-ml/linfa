@@ -1,8 +1,10 @@
 use approx::{abs_diff_eq, abs_diff_ne};
-use linfa_linalg::norm::Norm;
 #[cfg(not(feature = "blas"))]
-use linfa_linalg::qr::QRInto;
+use linfa_linalg::cholesky::CholeskyInplace;
+use linfa_linalg::norm::Norm;
 use ndarray::linalg::general_mat_mul;
+#[cfg(not(feature = "blas"))]
+use ndarray::NdFloat;
 use ndarray::{
     s, Array, Array1, Array2, ArrayBase, ArrayView, ArrayView1, ArrayView2, Axis, CowArray, Data,
     Dimension, Ix2, RemoveAxis,
@@ -496,15 +498,49 @@ fn variance_params<F: Float, T: AsTargets<Elem = F>, D: Data<Elem = F>>(
 
     // `A.t * A` always produces a symmetric matrix
     let ds2 = ds.records().t().dot(ds.records()).with_lapack();
+    // Only the diagonal of the inverse is needed.
     #[cfg(feature = "blas")]
-    let inv_cov = ds2.invh_into();
+    let inv_cov_diag = ds2.invh_into().map(|inv_cov| inv_cov.diag().to_owned());
     #[cfg(not(feature = "blas"))]
-    let inv_cov = (|| ds2.qr_into()?.inverse())();
+    let inv_cov_diag = diag_of_inverse(ds2);
 
-    match inv_cov {
-        Ok(inv_cov) => Ok(inv_cov.without_lapack().diag().mapv(|x| var_target * x)),
+    match inv_cov_diag {
+        Ok(inv_cov_diag) => Ok(inv_cov_diag.without_lapack().mapv(|x| var_target * x)),
         Err(_) => Err(ElasticNetError::IllConditioned),
     }
+}
+
+/// The diagonal of the inverse of a symmetric positive definite matrix `a`.
+///
+/// With the Cholesky factorisation `a = L Lᵀ`, `a⁻¹ = L⁻ᵀ L⁻¹`: entry `j` is the squared norm of
+/// column `j` of `L⁻¹`. `L⁻¹`, lower triangular, is built a row at a time by forward
+/// substitution, on contiguous rows, and only its lower part is ever touched. Fails if `a` is not
+/// numerically positive definite.
+#[cfg(not(feature = "blas"))]
+fn diag_of_inverse<A: NdFloat>(a: Array2<A>) -> linfa_linalg::Result<Array1<A>> {
+    let l = a.cholesky_into()?;
+    let n = l.nrows();
+    let mut l_inv = Array2::<A>::zeros((n, n));
+    let mut diag = Array1::<A>::zeros(n);
+    for i in 0..n {
+        let (done, mut rest) = l_inv.view_mut().split_at(Axis(0), i);
+        let mut row = rest.row_mut(0);
+        // Row `i` of `L L⁻¹ = I`: `L[i, i] row = e_i - sum_{k < i} L[i, k] L⁻¹[k, ..]`, where row
+        // `k` of `L⁻¹` is zero beyond column `k`.
+        row[i] = A::one();
+        for k in 0..i {
+            let c = l[(i, k)];
+            if c != A::zero() {
+                row.slice_mut(s![..=k])
+                    .scaled_add(-c, &done.row(k).slice(s![..=k]));
+            }
+        }
+        let mut row = row.slice_mut(s![..=i]);
+        row /= l[(i, i)];
+        diag.slice_mut(s![..=i])
+            .zip_mut_with(&row, |acc, &v| *acc += v * v);
+    }
+    Ok(diag)
 }
 
 /// Compute the intercept as the mean of `y` along each column and center `y` if an intercept
@@ -1188,6 +1224,50 @@ mod tests {
         let predicted = model.predict(&x);
         let rms = y.mean_squared_error(&predicted);
         assert!(rms.unwrap() < 0.67);
+    }
+
+    /// The diagonal of the inverse from the Cholesky factor matches the diagonal of the full
+    /// inverse from QR.
+    #[cfg(not(feature = "blas"))]
+    #[test]
+    fn diag_of_inverse_matches_qr_inverse() {
+        use linfa_linalg::qr::QRInto;
+
+        let mut rng = Xoshiro256Plus::seed_from_u64(7);
+        for n in [1, 2, 5, 33] {
+            let a: Array2<f64> =
+                Array2::random_using((2 * n + 3, n), Uniform::new(-1., 1.), &mut rng);
+            let gram = a.t().dot(&a);
+            let expected = gram
+                .clone()
+                .qr_into()
+                .unwrap()
+                .inverse()
+                .unwrap()
+                .diag()
+                .to_owned();
+            let diag = super::diag_of_inverse(gram).unwrap();
+            assert_abs_diff_eq!(diag, expected, epsilon = 1e-10 * expected[0].abs().max(1.0));
+        }
+    }
+
+    /// With a duplicated feature `XᵀX` is singular: the variance is ill-conditioned. (With the
+    /// `blas` feature the variance uses LAPACK's symmetric inverse instead, unchanged.)
+    #[cfg(not(feature = "blas"))]
+    #[test]
+    fn duplicated_feature_variance_is_ill_conditioned() {
+        let mut rng = Xoshiro256Plus::seed_from_u64(1);
+        let x = Array2::random_using((200, 5), Uniform::new(-1., 1.), &mut rng);
+        let x = ndarray::concatenate(Axis(1), &[x.view(), x.slice(s![.., ..1])]).unwrap();
+        let y = x.sum_axis(Axis(1));
+        let model = ElasticNet::params()
+            .penalty(0.1)
+            .fit(&Dataset::new(x, y))
+            .unwrap();
+        assert!(matches!(
+            model.z_score(),
+            Err(ElasticNetError::IllConditioned)
+        ));
     }
 
     #[test]
