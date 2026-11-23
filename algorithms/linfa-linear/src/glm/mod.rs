@@ -23,6 +23,7 @@ use ndarray::{array, concatenate, s};
 use ndarray::{Array, Array1, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
 #[cfg(feature = "serde")]
 use serde_crate::{Deserialize, Serialize};
+use std::cell::RefCell;
 
 use linfa::traits::*;
 use linfa::DatasetBase;
@@ -69,14 +70,8 @@ where
         // Constructing a struct that satisfies the requirements of the L-BFGS solver
         // with functions implemented for the objective function and the parameter
         // gradient
-        let problem = TweedieProblem {
-            x: x.view(),
-            y,
-            fit_intercept: self.fit_intercept(),
-            link: &link,
-            dist,
-            alpha: self.alpha(),
-        };
+        let problem =
+            TweedieProblem::new(x.view(), y, self.fit_intercept(), &link, dist, self.alpha());
         let linesearch = MoreThuenteLineSearch::new();
 
         // L-BFGS maintains a history of the past m updates of the
@@ -106,6 +101,9 @@ where
     }
 }
 
+/// Parameters, with what was computed at those parameters.
+type Reuse<F, T> = RefCell<Option<(Array1<F>, T)>>;
+
 struct TweedieProblem<'a, F: Float> {
     x: ArrayView2<'a, F>,
     y: ArrayView1<'a, F>,
@@ -113,9 +111,43 @@ struct TweedieProblem<'a, F: Float> {
     link: &'a Link,
     dist: TweedieDistribution<F>,
     alpha: F,
+    /// The predictions of the last cost evaluation, `(ypred, lin_pred)`: the line search
+    /// evaluates the cost and then the gradient at each point it tries.
+    predictions: Reuse<F, (Array1<F>, Array1<F>)>,
+    /// The last gradient: L-BFGS asks again for the gradient where the line search ended.
+    last_gradient: Reuse<F, Array1<F>>,
 }
 
-impl<A: Float> TweedieProblem<'_, A> {
+impl<'a, A: Float> TweedieProblem<'a, A> {
+    fn new(
+        x: ArrayView2<'a, A>,
+        y: ArrayView1<'a, A>,
+        fit_intercept: bool,
+        link: &'a Link,
+        dist: TweedieDistribution<A>,
+        alpha: A,
+    ) -> Self {
+        TweedieProblem {
+            x,
+            y,
+            fit_intercept,
+            link,
+            dist,
+            alpha,
+            predictions: RefCell::new(None),
+            last_gradient: RefCell::new(None),
+        }
+    }
+
+    /// The predictions at `p`, reused from the last cost evaluation if it was at `p`.
+    fn predictions(&self, p: &Array1<A>) -> (Array1<A>, Array1<A>, usize) {
+        let offset = usize::from(self.fit_intercept);
+        match self.predictions.borrow_mut().take() {
+            Some((at, (ypred, lin_pred))) if at == *p => (ypred, lin_pred, offset),
+            _ => self.ypred(p),
+        }
+    }
+
     fn ypred(&self, p: &Array1<A>) -> (Array1<A>, Array1<A>, usize) {
         let mut offset = 0;
         let mut intercept = A::from(0.).unwrap();
@@ -151,7 +183,7 @@ impl<A: Float> CostFunction for TweedieProblem<'_, A> {
     // no curvature information yet) grows with the number of samples, and can overflow the
     // inverse link (`exp`), after which the line search never terminates.
     fn cost(&self, p: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
-        let (ypred, _, offset) = self.ypred(p);
+        let (ypred, lin_pred, offset) = self.ypred(p);
 
         let dev = self.dist.deviance(self.y, ypred.view())?;
 
@@ -161,6 +193,7 @@ impl<A: Float> CostFunction for TweedieProblem<'_, A> {
 
         let obj = A::from(0.5).unwrap() * (dev + p.slice(s![offset..]).dot(&pscaled));
 
+        *self.predictions.borrow_mut() = Some((p.clone(), (ypred, lin_pred)));
         Ok(obj / A::cast(self.y.len()))
     }
 }
@@ -170,15 +203,27 @@ impl<A: Float> Gradient for TweedieProblem<'_, A> {
     type Gradient = Array1<A>;
 
     fn gradient(&self, p: &Self::Param) -> std::result::Result<Self::Param, argmin::core::Error> {
-        let (ypred, lin_pred, offset) = self.ypred(p);
+        if let Some((at, gradient)) = &*self.last_gradient.borrow() {
+            if at == p {
+                return Ok(gradient.clone());
+            }
+        }
+        let (ypred, lin_pred, offset) = self.predictions(p);
 
         let devp;
-        let der = self.link.inverse_derviative(&lin_pred);
+        let der = self.link.inverse_derivative_from_inverse(&lin_pred, &ypred);
         let temp = der * self.dist.deviance_derivative(self.y, ypred.view());
+        // `xᵀ temp` as a matrix product: without BLAS, ndarray's matrix-vector product walks the
+        // columns of a row-major `x`.
+        let xt_temp = self
+            .x
+            .t()
+            .dot(&temp.view().insert_axis(Axis(1)))
+            .remove_axis(Axis(1));
         if self.fit_intercept {
-            devp = concatenate![Axis(0), array![temp.sum()], temp.dot(&self.x)];
+            devp = concatenate![Axis(0), array![temp.sum()], xt_temp];
         } else {
-            devp = temp.dot(&self.x);
+            devp = xt_temp;
         }
 
         let pscaled = p
@@ -190,7 +235,9 @@ impl<A: Float> Gradient for TweedieProblem<'_, A> {
             .zip_mut_with(&pscaled, |x, y| *x += *y);
 
         // The gradient of the cost, divided by the number of samples as well
-        Ok(objp / A::cast(self.y.len()))
+        let gradient = objp / A::cast(self.y.len());
+        *self.last_gradient.borrow_mut() = Some((p.clone(), gradient.clone()));
+        Ok(gradient)
     }
 }
 
@@ -297,6 +344,36 @@ mod tests {
         assert_abs_diff_eq!(glm.coef, coef, epsilon = 1e-4);
     }
 
+    /// The gradient reuses the predictions of the cost, and the last gradient, only at the same
+    /// parameters: in any order of calls, every gradient equals one from a new problem.
+    #[test]
+    fn test_problem_reuses_only_at_same_params() {
+        let x = array![
+            [0.5, -1.0],
+            [1.5, 0.2],
+            [-0.3, 0.8],
+            [2.0, -0.7],
+            [-1.2, -0.4]
+        ];
+        let y = array![1.0, 3.0, 0.5, 2.0, 1.5];
+        for (power, link) in [(0., Link::Identity), (1., Link::Log), (2., Link::Log)] {
+            let problem = || {
+                let dist = TweedieDistribution::new(power).unwrap();
+                TweedieProblem::new(x.view(), y.view(), true, &link, dist, 0.5)
+            };
+            let fresh = |p: &Array1<f64>| problem().gradient(p).unwrap();
+            let (p1, p2) = (array![0.1, 0.2, -0.3], array![-0.2, 0.1, 0.4]);
+            let problem = problem();
+            problem.cost(&p1).unwrap();
+            assert_eq!(problem.gradient(&p2).unwrap(), fresh(&p2));
+            assert_eq!(problem.gradient(&p1).unwrap(), fresh(&p1));
+            problem.cost(&p2).unwrap();
+            assert_eq!(problem.gradient(&p2).unwrap(), fresh(&p2));
+            assert_eq!(problem.gradient(&p2).unwrap(), fresh(&p2));
+            assert_eq!(problem.gradient(&p1).unwrap(), fresh(&p1));
+        }
+    }
+
     /// The gradient of the objective matches finite differences of the objective, for every
     /// distribution.
     #[test]
@@ -313,14 +390,14 @@ mod tests {
             (3., Link::Log),
         ];
         for (power, link) in links {
-            let problem = TweedieProblem {
-                x: x.view(),
-                y: y.view(),
-                fit_intercept: true,
-                link: &link,
-                dist: TweedieDistribution::new(power).unwrap(),
-                alpha: 0.1,
-            };
+            let problem = TweedieProblem::new(
+                x.view(),
+                y.view(),
+                true,
+                &link,
+                TweedieDistribution::new(power).unwrap(),
+                0.1,
+            );
             let p = array![0.4, 0.2, -0.1, 0.05];
             let h = 1e-6;
             let finite_differences = Array1::from_shape_fn(p.len(), |k| {
