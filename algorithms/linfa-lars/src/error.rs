@@ -1,3 +1,5 @@
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[cfg_attr(

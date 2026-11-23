@@ -1,4 +1,6 @@
 use linfa::{Float, ParamGuard};
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 use crate::error::LarsError;
 

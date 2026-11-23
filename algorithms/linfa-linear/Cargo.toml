@@ -42,6 +42,7 @@ linfa = { version = "0.8.1", path = "../.." }
 [dev-dependencies]
 linfa-datasets = { version = "0.8.1", path = "../../datasets", features = [
     "diabetes",
+    "generate",
 ] }
 approx = "0.5"
 criterion = "0.5"

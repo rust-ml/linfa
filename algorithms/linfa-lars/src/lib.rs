@@ -34,6 +34,8 @@
 
 use linfa::{Float, traits::PredictInplace};
 use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
+#[cfg(feature = "serde")]
+use serde_crate::{Deserialize, Serialize};
 
 pub use error::LarsError;
 pub use hyperparams::{LarsParams, LarsValidParams};

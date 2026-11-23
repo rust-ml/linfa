@@ -40,9 +40,7 @@ linfa-linalg = { version = "0.2", default-features = false }
 ndarray-linalg = { version = "0.17", optional = true }
 ndarray-rand = "0.15"
 ndarray-stats = "0.6"
-num-traits = "0.2"
 rand_xoshiro = "0.6"
-space = "0.19"
 thiserror = "2.0"
 linfa = { version = "0.8.1", path = "../.." }
 linfa-nn = { version = "0.8.1", path = "../linfa-nn" }
