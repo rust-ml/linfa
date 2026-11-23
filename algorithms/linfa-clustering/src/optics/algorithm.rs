@@ -212,6 +212,10 @@ impl<F: Float, D: Distance<F>, N: NearestNeighbour>
             let neighbors = self.find_neighbors(&*nn, observations.row(points_index));
             let n = &mut points[points_index];
             self.set_core_distance(n, &neighbors, observations);
+            // The start point is written first with an undefined reachability distance, and is
+            // marked processed so `get_seeds` does not add it to its own seed list
+            result.orderings.push(n.clone());
+            processed.insert(n.index);
             if n.core_distance.is_some() {
                 seeds.clear();
                 // Here we get a list of "density reachable" samples that haven't been processed
@@ -249,11 +253,6 @@ impl<F: Float, D: Distance<F>, N: NearestNeighbour>
                         );
                     }
                 }
-            } else {
-                // Ensure whole dataset is included so we can see the points with undefined core or
-                // reachability distance
-                result.orderings.push(n.clone());
-                processed.insert(n.index);
             }
         }
         result
@@ -411,6 +410,28 @@ mod tests {
         let anomaly = samples.orderings.iter().find(|x| x.index == 12).unwrap();
         assert!(anomaly.core_distance.is_none());
         assert!(anomaly.reachability_distance.is_none());
+    }
+
+    #[test]
+    fn walk_start_has_undefined_reachability() {
+        let params = Optics::params(2).tolerance(3.0);
+        //               0    1    2    3     4     5
+        let data = vec![0.0, 1.0, 2.0, 10.0, 11.0, 12.0];
+        let data: Array2<f64> = Array2::from_shape_vec((data.len(), 1), data).unwrap();
+
+        let samples = params.transform(data.view()).unwrap();
+
+        // Each expansion writes its start point first, with an undefined reachability distance
+        let indexes = samples.iter().map(|x| x.index).collect::<Vec<_>>();
+        assert_eq!(indexes, vec![0, 1, 2, 3, 4, 5]);
+        let reachability = samples
+            .iter()
+            .map(|x| x.reachability_distance)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            reachability,
+            vec![None, Some(1.0), Some(1.0), None, Some(1.0), Some(1.0)]
+        );
     }
 
     #[test]
