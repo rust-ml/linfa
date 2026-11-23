@@ -151,8 +151,7 @@ impl<F: Float, D: Data<Elem = F>> PredictInplace<ArrayBase<D, Ix2>, Array2<F>>
     }
 
     fn default_target(&self, x: &ArrayBase<D, Ix2>) -> Array2<F> {
-        // TODO: fix, should be (x.nrows(), y.ncols())
-        Array2::zeros((x.nrows(), x.nrows()))
+        Array2::zeros((x.nrows(), self.hyperplane.ncols()))
     }
 }
 
@@ -927,6 +926,23 @@ mod tests {
             epsilon = 1e-3
         );
         assert_abs_diff_eq!(model.duality_gap(), 0.0);
+    }
+
+    #[test]
+    fn multitask_elasticnet_default_target_shape() {
+        // `default_target` must have shape (n_samples, n_tasks), not (n_samples, n_samples)
+        use linfa::traits::PredictInplace;
+
+        let dataset = Dataset::new(
+            array![[-1.0], [0.0], [1.0]],
+            array![[-1.0, 1.0], [0.0, -1.5], [1.0, 1.3]],
+        );
+        let model = MultiTaskElasticNet::params().fit(&dataset).unwrap();
+
+        let x = Array2::<f64>::zeros((5, 1));
+        let target = model.default_target(&x);
+        assert_eq!(target.dim(), (5, 2));
+        assert_eq!(model.predict(&x).dim(), (5, 2));
     }
 
     #[test]
