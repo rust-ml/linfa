@@ -45,7 +45,7 @@ impl CountVectorizerValidParams {
         // word, (integer mapping for word, document frequency for word)
         let mut vocabulary: HashMap<String, (usize, usize)> = HashMap::new();
         for string in x.iter().map(|s| transform_string(s.to_string(), self)) {
-            self.read_document_into_vocabulary(string, &self.split_regex(), &mut vocabulary);
+            self.read_document_into_vocabulary(string, self.split_regex(), &mut vocabulary);
         }
 
         let mut vocabulary = self.filter_vocabulary(vocabulary, x.len());
@@ -92,7 +92,7 @@ impl CountVectorizerValidParams {
             }
             // safe unwrap now that error has been handled
             let document = transform_string(document.unwrap(), self);
-            self.read_document_into_vocabulary(document, &self.split_regex(), &mut vocabulary);
+            self.read_document_into_vocabulary(document, self.split_regex(), &mut vocabulary);
         }
 
         let mut vocabulary = self.filter_vocabulary(vocabulary, documents_count);
@@ -340,7 +340,7 @@ impl CountVectorizer {
         sprs_vectorized.reserve_outer_dim_exact(x.len());
         let regex = self.properties.split_regex();
         for string in x.into_iter().map(|s| s.to_string()) {
-            let row = self.analyze_document(string, &regex, document_frequencies.view_mut());
+            let row = self.analyze_document(string, regex, document_frequencies.view_mut());
             sprs_vectorized = sprs_vectorized.append_outer_csvec(row.view());
         }
         (sprs_vectorized, document_frequencies)
@@ -364,7 +364,7 @@ impl CountVectorizer {
             file.read_to_end(&mut document_bytes).unwrap();
             let document = encoding::decode(&document_bytes, trap, encoding).0.unwrap();
             sprs_vectorized = sprs_vectorized.append_outer_csvec(
-                self.analyze_document(document, &regex, document_frequencies.view_mut())
+                self.analyze_document(document, regex, document_frequencies.view_mut())
                     .view(),
             );
         }
