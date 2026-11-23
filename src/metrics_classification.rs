@@ -485,13 +485,14 @@ impl BinaryClassification<&[bool]> for &[Pr] {
         let (mut tp, mut fp) = (0.0, 0.0);
         let mut tps_fps = Vec::new();
         let mut thresholds = Vec::new();
-        let mut s0 = 0.0;
+        let mut s0 = None;
 
         for (s, t) in tuples {
-            if (*s - s0).abs() > 1e-10 {
+            // the first score always opens the curve, even when it is zero
+            if s0.is_none_or(|s0: f32| (*s - s0).abs() > 1e-10) {
                 tps_fps.push((tp, fp));
                 thresholds.push(s);
-                s0 = *s;
+                s0 = Some(*s);
             }
 
             if t {
@@ -733,6 +734,37 @@ mod tests {
 
         let roc = predicted.roc(&groundtruth).unwrap();
         assert_eq!(roc.get_curve(), result);
+    }
+
+    #[test]
+    fn test_roc_zero_scores() {
+        // AUC values from scikit-learn's `roc_auc_score`
+        for (predicted, ground_truth, curve, auc) in [
+            (
+                vec![0.0, 0.0, 1.0],
+                vec![true, false, true],
+                vec![(0., 0.), (0.5, 1.), (1., 1.)],
+                0.75,
+            ),
+            (
+                vec![0.0, 0.0, 0.5, 1.0],
+                vec![false, true, false, true],
+                vec![(0., 0.), (0.5, 0.5), (0.5, 1.), (1., 1.)],
+                0.625,
+            ),
+            (
+                vec![0.0, 0.0],
+                vec![true, false],
+                vec![(0., 0.), (1., 1.)],
+                0.5,
+            ),
+        ] {
+            let predicted = Array1::from(predicted).mapv(Pr::new);
+            let roc = predicted.roc(&ground_truth).unwrap();
+            assert_eq!(roc.get_curve(), curve);
+            assert_eq!(roc.get_thresholds().len(), curve.len() - 1);
+            assert_abs_diff_eq!(roc.area_under_curve(), auc);
+        }
     }
 
     #[test]
