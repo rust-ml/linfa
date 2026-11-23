@@ -1000,7 +1000,7 @@ where
     where
         ER: std::error::Error + std::convert::From<crate::error::Error>,
         M: for<'c> Fit<ArrayView2<'c, F>, ArrayView<'c, E, I>, ER, Object = O>,
-        O: for<'d> PredictInplace<ArrayView2<'a, F>, Array<E, I>>,
+        O: PredictInplace<ArrayView2<'a, F>, Array<E, I>>,
         FACC: Float,
         C: Fn(
             &Array<E, I>,
@@ -1061,7 +1061,7 @@ where
     where
         ER: std::error::Error + std::convert::From<crate::error::Error>,
         M: for<'c> Fit<ArrayView2<'c, F>, ArrayView1<'c, E>, ER, Object = O>,
-        O: for<'d> PredictInplace<ArrayView2<'a, F>, Array1<E>>,
+        O: PredictInplace<ArrayView2<'a, F>, Array1<E>>,
         FACC: Float,
         C: Fn(&Array1<E>, &ArrayView1<E>) -> std::result::Result<FACC, crate::error::Error>,
     {

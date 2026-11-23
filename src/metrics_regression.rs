@@ -137,7 +137,9 @@ pub trait SingleTargetRegression<F: Float, T: AsSingleTargets<Elem = F>>:
         let mean_error = diff.mean().ok_or(Error::NotEnoughSamples)?;
 
         Ok(F::one()
-            - (diff.mapv_into(|x| x * x).sum() - mean_error)
+            - diff
+                .mapv_into(|x| (x - mean_error) * (x - mean_error))
+                .sum()
                 / (single_target_compare_to
                     .mapv(|x| (x - mean) * (x - mean))
                     .sum()
@@ -474,7 +476,12 @@ mod tests {
         let abs_err_from_arr1 = prediction.explained_variance(st_dataset.targets()).unwrap();
         let prediction: DatasetBase<_, _> = (records.view(), prediction).into();
         let abs_err_from_ds = prediction.explained_variance(&st_dataset).unwrap();
-        assert_abs_diff_eq!(abs_err_from_arr1, 0.8, epsilon = 1e-5);
+        // Explained variance is 1 - Var(y_true - y_pred) / Var(y_true), matching
+        // sklearn.metrics.explained_variance_score([0.0,0.1,0.2,0.3,0.4],
+        //                                          [0.1,0.3,0.2,0.5,0.7]) == 0.48
+        // https://scikit-learn.org/stable/modules/generated/sklearn.metrics.explained_variance_score.html
+        // sklearn averages where this sums, and the 1/n cancels between the two terms.
+        assert_abs_diff_eq!(abs_err_from_arr1, 0.48, epsilon = 1e-5);
         assert_abs_diff_eq!(abs_err_from_arr1, abs_err_from_ds);
     }
 

@@ -337,4 +337,91 @@ mod tests {
         assert_eq!(classes.len(), 3, "Iris has 3 classes");
         assert_eq!(classes, &vec![0, 1, 2], "Classes should be [0, 1, 2]");
     }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_ensemble_learner_serde_roundtrip() {
+        let mut rng = SmallRng::seed_from_u64(42);
+        let (train, test) = linfa_datasets::iris()
+            .shuffle(&mut rng)
+            .split_with_ratio(0.8);
+
+        let model = EnsembleLearnerParams::new_fixed_rng(DecisionTree::params(), rng)
+            .ensemble_size(20)
+            .bootstrap_proportion(0.7)
+            .fit(&train)
+            .unwrap();
+
+        let serialized = serde_json::to_string(&model).expect("failed to serialize ensemble");
+        let loaded: EnsembleLearner<DecisionTree<f64, usize>> =
+            serde_json::from_str(&serialized).expect("failed to deserialize ensemble");
+
+        assert_eq!(model.predict(&test), loaded.predict(&test));
+        assert_eq!(model.models.len(), loaded.models.len());
+        assert_eq!(model.model_features, loaded.model_features);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_random_forest_serde_roundtrip() {
+        let mut rng = SmallRng::seed_from_u64(42);
+        let (train, test) = linfa_datasets::iris()
+            .shuffle(&mut rng)
+            .split_with_ratio(0.8);
+
+        let model = RandomForestParams::new_fixed_rng(DecisionTree::params(), rng)
+            .ensemble_size(20)
+            .bootstrap_proportion(0.7)
+            .feature_proportion(0.3)
+            .fit(&train)
+            .unwrap();
+
+        let serialized = serde_json::to_string(&model).expect("failed to serialize random forest");
+        let loaded: RandomForest<f64, usize> =
+            serde_json::from_str(&serialized).expect("failed to deserialize random forest");
+
+        assert_eq!(model.models.len(), loaded.models.len());
+        assert_eq!(model.model_features, loaded.model_features);
+        assert!(model.model_features.iter().any(|feat| feat.len() < 4));
+
+        // Iterate over the trees by hand, to get reproducible and meaningful comparison
+        let records = test.records();
+        for ((original, reloaded), features) in model
+            .models
+            .iter()
+            .zip(loaded.models.iter())
+            .zip(model.model_features.iter())
+        {
+            let subset = records.select(ndarray::Axis(1), features);
+            assert_eq!(
+                original.predict(&subset),
+                reloaded.predict(&subset),
+                "a tree predicts differently after the round trip"
+            );
+        }
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_adaboost_serde_roundtrip() {
+        let mut rng = SmallRng::seed_from_u64(42);
+        let (train, test) = linfa_datasets::iris()
+            .shuffle(&mut rng)
+            .split_with_ratio(0.8);
+
+        let model = AdaBoostParams::new_fixed_rng(DecisionTree::params().max_depth(Some(1)), rng)
+            .n_estimators(20)
+            .learning_rate(1.0)
+            .fit(&train)
+            .unwrap();
+
+        let serialized = serde_json::to_string(&model).expect("failed to serialize adaboost");
+        let loaded: AdaBoost<DecisionTree<f64, usize>, usize> =
+            serde_json::from_str(&serialized).expect("failed to deserialize adaboost");
+
+        assert_eq!(model.predict(&test), loaded.predict(&test));
+        assert_eq!(model.n_estimators(), loaded.n_estimators());
+        assert_eq!(model.weights(), loaded.weights());
+        assert_eq!(model.classes, loaded.classes);
+    }
 }

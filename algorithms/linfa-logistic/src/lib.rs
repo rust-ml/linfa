@@ -174,6 +174,7 @@ impl<F: Float, D: Dimension> LogisticRegressionValidParams<F, D> {
             x,
             target,
             alpha: self.alpha,
+            offset: self.offset.clone(),
         }
     }
 
@@ -232,6 +233,16 @@ impl<C: Ord + Clone, F: Float, D: Data<Elem = F>, T: AsSingleTargets<Elem = C>>
         let (x, y) = (dataset.records(), dataset.targets());
         let (labels, target) = label_classes(y)?;
         self.validate_data(x, &target)?;
+
+        if let Some(ref offset) = self.offset {
+            if offset.len() != x.nrows() {
+                return Err(Error::OffsetLengthMismatch {
+                    offset_len: offset.len(),
+                    n_samples: x.nrows(),
+                });
+            }
+        }
+
         let problem = self.setup_problem(x, target);
         let solver = self.setup_solver();
         let init_params = self.setup_init_params(x.ncols());
@@ -464,12 +475,19 @@ fn logistic_loss<F: Float, A: Data<Elem = F>>(
     y: &Array1<F>,
     alpha: F,
     w: &Array1<F>,
+    offset: Option<&Array1<F>>,
 ) -> F {
     let n_features = x.shape()[1];
     let (params, intercept) = convert_params(n_features, w);
     let yz = x.dot(&params.into_shape_with_order((params.len(), 1)).unwrap()) + intercept;
     let len = yz.len();
-    let mut yz = yz.into_shape_with_order(len).unwrap() * y;
+    let mut yz = yz.into_shape_with_order(len).unwrap();
+
+    if let Some(off) = offset {
+        yz += off;
+    }
+
+    yz *= y;
     yz.mapv_inplace(log_logistic);
     -yz.sum() + F::cast(0.5) * alpha * params.dot(&params)
 }
@@ -480,12 +498,19 @@ fn logistic_grad<F: Float, A: Data<Elem = F>>(
     y: &Array1<F>,
     alpha: F,
     w: &Array1<F>,
+    offset: Option<&Array1<F>>,
 ) -> Array1<F> {
     let n_features = x.shape()[1];
     let (params, intercept) = convert_params(n_features, w);
     let yz = x.dot(&params.into_shape_with_order((params.len(), 1)).unwrap()) + intercept;
     let len = yz.len();
-    let mut yz = yz.into_shape_with_order(len).unwrap() * y;
+    let mut yz = yz.into_shape_with_order(len).unwrap();
+
+    if let Some(off) = offset {
+        yz += off;
+    }
+
+    yz *= y;
     yz.mapv_inplace(logistic);
     yz -= F::one();
     yz *= y;
@@ -766,6 +791,7 @@ struct LogisticRegressionProblem<'a, F: Float, A: Data<Elem = F>, D: Dimension> 
     x: &'a ArrayBase<A, Ix2>,
     target: Array<F, D>,
     alpha: F,
+    offset: Option<Array1<F>>,
 }
 
 type LogisticRegressionProblem1<'a, F, A> = LogisticRegressionProblem<'a, F, A, Ix1>;
@@ -778,7 +804,7 @@ impl<F: Float, A: Data<Elem = F>> CostFunction for LogisticRegressionProblem1<'_
     /// Apply the cost function to a parameter `p`
     fn cost(&self, p: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
         let w = p.as_array();
-        let cost = logistic_loss(self.x, &self.target, self.alpha, w);
+        let cost = logistic_loss(self.x, &self.target, self.alpha, w, self.offset.as_ref());
         Ok(cost)
     }
 }
@@ -790,7 +816,13 @@ impl<F: Float, A: Data<Elem = F>> Gradient for LogisticRegressionProblem1<'_, F,
     /// Compute the gradient at parameter `p`.
     fn gradient(&self, p: &Self::Param) -> std::result::Result<Self::Param, argmin::core::Error> {
         let w = p.as_array();
-        let grad = ArgminParam(logistic_grad(self.x, &self.target, self.alpha, w));
+        let grad = ArgminParam(logistic_grad(
+            self.x,
+            &self.target,
+            self.alpha,
+            w,
+            self.offset.as_ref(),
+        ));
         Ok(grad)
     }
 }
@@ -906,7 +938,7 @@ mod test {
             .flat_map(|w| alphas.iter().map(move |&alpha| (w, alpha)))
             .zip(&expecteds)
         {
-            assert_abs_diff_eq!(logistic_loss(&x, &y, alpha, w), *exp);
+            assert_abs_diff_eq!(logistic_loss(&x, &y, alpha, w, None), *exp);
         }
     }
 
@@ -967,7 +999,7 @@ mod test {
             .flat_map(|w| alphas.iter().map(move |&alpha| (w, alpha)))
             .zip(&expecteds)
         {
-            let actual = logistic_grad(&x, &y, alpha, w);
+            let actual = logistic_grad(&x, &y, alpha, w, None);
             assert!(actual.abs_diff_eq(exp, 1e-8));
         }
     }
@@ -1389,5 +1421,58 @@ mod test {
 
         assert_abs_diff_eq!(model1.intercept(), model2.intercept());
         assert!(model1.params().abs_diff_eq(model2.params(), 1e-6));
+    }
+
+    #[test]
+    fn rejects_mismatched_offset_length() {
+        let log_reg = LogisticRegression::default().offset(array![1.0, 2.0, 3.0]);
+        let x = array![[-1.0], [-0.01], [0.01], [1.0]];
+        let y = array![0, 0, 1, 1];
+        let res = log_reg.fit(&Dataset::new(x, y));
+        assert!(matches!(
+            res.unwrap_err(),
+            Error::OffsetLengthMismatch {
+                offset_len: 3,
+                n_samples: 4,
+            }
+        ));
+    }
+
+    #[test]
+    fn zero_offset_same_as_no_offset() {
+        let x = array![[-1.0], [-0.01], [0.01], [1.0]];
+        let y = array![0, 0, 1, 1];
+
+        let model_none = LogisticRegression::default()
+            .fit(&Dataset::new(x.clone(), y.clone()))
+            .unwrap();
+
+        let model_zero = LogisticRegression::default()
+            .offset(array![0.0, 0.0, 0.0, 0.0])
+            .fit(&Dataset::new(x, y))
+            .unwrap();
+
+        assert_abs_diff_eq!(model_none.intercept(), model_zero.intercept());
+        assert!(model_none.params().abs_diff_eq(model_zero.params(), 1e-6));
+    }
+
+    #[test]
+    fn offset_changes_model() {
+        let x = array![[-1.0], [-0.01], [0.01], [1.0]];
+        let y = array![0, 0, 1, 1];
+
+        let model_none = LogisticRegression::default()
+            .fit(&Dataset::new(x.clone(), y.clone()))
+            .unwrap();
+
+        let model_offset = LogisticRegression::default()
+            .offset(array![1.0, 1.0, -1.0, -1.0])
+            .fit(&Dataset::new(x, y))
+            .unwrap();
+
+        assert!(
+            !model_none.params().abs_diff_eq(model_offset.params(), 1e-3),
+            "Offset should change the learned parameters"
+        );
     }
 }
