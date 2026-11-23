@@ -15,7 +15,7 @@ categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
 thiserror = "2.0"
-ndarray = { version = "0.16" }
+ndarray = { version = "0.17" }
 bhtsne = { version = "0.5.4", default-features = false }
 
 linfa = { version = "0.8.1", path = "../.." }
@@ -23,7 +23,7 @@ linfa-nn = { version = "0.8.1", path = "../linfa-nn" }
 
 [dev-dependencies]
 rand = "0.8"
-ndarray-rand = "0.15"
+ndarray-rand = "0.16"
 approx = "0.5"
 
 linfa-datasets = { version = "0.8.1", path = "../../datasets", features = [
