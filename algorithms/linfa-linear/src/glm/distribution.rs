@@ -85,7 +85,7 @@ impl<F: Float> TweedieDistribution<F> {
                         *y = F::cast(2.) * (x * y.ln());
                     }
                 });
-                Ok(div - y + ypred)
+                Ok(div + (&ypred - &y).mapv(|x| F::cast(2.) * x))
             }
             // Gamma distribution
             // 2 * (log(ypred / y) + (y / ypred) - 1)

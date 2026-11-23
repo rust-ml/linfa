@@ -141,10 +141,15 @@ impl<A: Float> CostFunction for TweedieProblem<'_, A> {
     // This function calculates the value of the objective function we are trying
     // to minimize,
     //
-    // 0.5 * (deviance(y, ypred) + alpha * |p|_2)
+    // 0.5 * (deviance(y, ypred) + alpha * |p|_2) / n_samples
     //
     // - `p` is the parameter we are optimizing (coefficients and intercept)
     // - `alpha` is the regularization hyperparameter
+    //
+    // Dividing by the number of samples doesn't change the minimum, but keeps the gradient
+    // independent of it: with the plain sum, the first step of L-BFGS (along the gradient, with
+    // no curvature information yet) grows with the number of samples, and can overflow the
+    // inverse link (`exp`), after which the line search never terminates.
     fn cost(&self, p: &Self::Param) -> std::result::Result<Self::Output, argmin::core::Error> {
         let (ypred, _, offset) = self.ypred(p);
 
@@ -156,7 +161,7 @@ impl<A: Float> CostFunction for TweedieProblem<'_, A> {
 
         let obj = A::from(0.5).unwrap() * (dev + p.slice(s![offset..]).dot(&pscaled));
 
-        Ok(obj)
+        Ok(obj / A::cast(self.y.len()))
     }
 }
 
@@ -184,7 +189,8 @@ impl<A: Float> Gradient for TweedieProblem<'_, A> {
         objp.slice_mut(s![offset..])
             .zip_mut_with(&pscaled, |x, y| *x += *y);
 
-        Ok(objp)
+        // The gradient of the cost, divided by the number of samples as well
+        Ok(objp / A::cast(self.y.len()))
     }
 }
 
@@ -268,6 +274,67 @@ mod tests {
         has_autotraits::<TweedieRegressor<f64>>();
         has_autotraits::<TweedieRegressorValidParams<f64>>();
         has_autotraits::<TweedieRegressorParams<f64>>();
+    }
+
+    /// With many samples, the first step of L-BFGS must not overflow the inverse link: the
+    /// objective is scaled by the number of samples. Without that, this fit never terminates.
+    #[test]
+    fn test_glm_poisson_many_samples() {
+        let coef = array![0.5, -0.3, 0.2, 0.1];
+        // Deterministic features, uniform-like in [-1, 1)
+        let x = Array2::from_shape_fn((2000, 4), |(i, j)| {
+            ((i as f64 * 12.9898 + j as f64 * 78.233).sin() * 43758.5453).fract()
+        });
+        let y = x.dot(&coef).mapv(|v| (v + 0.2).exp());
+        let glm = TweedieRegressor::params()
+            .alpha(0.)
+            .power(1.)
+            .link(Link::Log)
+            .tol(1e-8)
+            .fit(&Dataset::new(x, y))
+            .unwrap();
+        assert_abs_diff_eq!(glm.intercept, 0.2, epsilon = 1e-4);
+        assert_abs_diff_eq!(glm.coef, coef, epsilon = 1e-4);
+    }
+
+    /// The gradient of the objective matches finite differences of the objective, for every
+    /// distribution.
+    #[test]
+    fn test_gradient_matches_cost() {
+        let x = Array2::from_shape_fn((50, 3), |(i, j)| {
+            ((i as f64 * 12.9898 + j as f64 * 78.233).sin() * 43758.5453).fract()
+        });
+        let y = x.dot(&array![0.3, -0.2, 0.1]).mapv(|v| (v + 0.5).exp());
+        let links = [
+            (0., Link::Identity),
+            (1., Link::Log),
+            (1.5, Link::Log),
+            (2., Link::Log),
+            (3., Link::Log),
+        ];
+        for (power, link) in links {
+            let problem = TweedieProblem {
+                x: x.view(),
+                y: y.view(),
+                fit_intercept: true,
+                link: &link,
+                dist: TweedieDistribution::new(power).unwrap(),
+                alpha: 0.1,
+            };
+            let p = array![0.4, 0.2, -0.1, 0.05];
+            let h = 1e-6;
+            let finite_differences = Array1::from_shape_fn(p.len(), |k| {
+                let (mut a, mut b) = (p.clone(), p.clone());
+                a[k] += h;
+                b[k] -= h;
+                (problem.cost(&a).unwrap() - problem.cost(&b).unwrap()) / (2. * h)
+            });
+            assert_abs_diff_eq!(
+                problem.gradient(&p).unwrap(),
+                finite_differences,
+                epsilon = 1e-6
+            );
+        }
     }
 
     macro_rules! test_tweedie {
