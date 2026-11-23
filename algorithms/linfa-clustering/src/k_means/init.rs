@@ -2,7 +2,7 @@ use super::algorithm::{update_cluster_memberships, update_min_dists};
 use linfa::Float;
 use linfa_nn::distance::Distance;
 use ndarray::parallel::prelude::*;
-use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2};
+use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix2, Zip};
 use ndarray_rand::rand::distributions::{Distribution, WeightedIndex};
 use ndarray_rand::rand::Rng;
 use ndarray_rand::rand::{self, SeedableRng};
@@ -133,18 +133,28 @@ fn weighted_k_means_plusplus<F: Float, D: Distance<F>>(
         .sample(rng);
     centroids.row_mut(0).assign(&observations.row(first_idx));
 
-    let mut dists = Array1::zeros(n_samples);
+    // The distance of every point to its closest centroid so far. Only the newest centroid can
+    // bring a point closer, so each step computes the distances to that centroid alone.
+    let mut min_dists = Array1::from_elem(n_samples, F::infinity());
+    let mut new_dists = Array1::zeros(n_samples);
     for c_cnt in 1..n_clusters {
         update_min_dists(
             dist_fn,
-            &centroids.slice(s![0..c_cnt, ..]),
+            &centroids.slice(s![c_cnt - 1..c_cnt, ..]),
             &observations,
-            &mut dists,
+            &mut new_dists,
         );
+        Zip::from(&mut min_dists)
+            .and(&new_dists)
+            .for_each(|min_dist, &dist| {
+                if dist < *min_dist {
+                    *min_dist = dist;
+                }
+            });
 
         // The probability of a point being selected as the next centroid is proportional to its
         // distance from its closest centroid multiplied by its weight.
-        dists *= &weights;
+        let dists = &min_dists * &weights;
         let centroid_idx = WeightedIndex::new(dists.iter())
             .map(|idx| idx.sample(rng))
             // This only errs if all of dists is 0, which means every point is assigned to a
